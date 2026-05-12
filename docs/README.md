@@ -10,6 +10,7 @@
 
 ## Rust L1 quick links
 
+- Trillionnium World unified development doc: `development/trillionnium-world-unified-development-doc-v1.md`
 - Repo layout: `architecture/rust-l1-repo-layout.md`
 - PoCO sequence draft: `../trillionnium/docs/protocol/poco-proof-of-consumption-v1-draft.md`
   - BL09 retirement-prep note: retained `trnm-pouw` naming on migration surfaces is a compatibility label and provenance / audit evidence only, not ongoing payout authority.
