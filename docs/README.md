@@ -11,6 +11,7 @@
 ## Rust L1 quick links
 
 - Trillionnium World unified development doc: `development/trillionnium-world-unified-development-doc-v1.md`
+  - Current source-of-evidence/incubator: CEX at `/home/qian/.openclaw/workspace/CEX`, synced through CEX head `a8508df fix: gate health metrics on typed receipts`.
 - Term Exchange Kernel: `development/trillionnium-term-exchange-kernel-v1.md`
 - CEX runtime plugin split for Trillionnium World: `development/trillionnium-cex-runtime-plugin-split-v1.md`
 - Repo layout: `architecture/rust-l1-repo-layout.md`
