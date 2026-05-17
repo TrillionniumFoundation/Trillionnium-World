@@ -19,6 +19,9 @@ target/
 # Root runtime outputs
 /run/
 
+# Generated release-review / public-launch evidence
+/acceptance/
+
 # Local runtime data
 /data/
 
