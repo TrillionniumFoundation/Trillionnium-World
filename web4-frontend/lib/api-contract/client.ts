@@ -44,10 +44,34 @@ const normalizeNormalizedAuditQueryToken = (
   value: string | undefined,
 ): string | undefined => normalizeFrontendToken(value);
 
+const normalizeNormalizedAuditEventsQueryInput = (
+  query: NormalizedAuditEventsQuery,
+): NormalizedAuditEventsQuery => ({
+  ...query,
+  source: normalizeNormalizedAuditQueryToken(query.source),
+  eventType: normalizeNormalizedAuditQueryToken(query.eventType),
+  cursor: normalizeNormalizedAuditQueryToken(query.cursor),
+  limit: query.limit,
+});
+
+const hasBlankOnlyNormalizedAuditFilters = (
+  query: NormalizedAuditEventsQuery,
+  normalizedQuery: NormalizedAuditEventsQuery,
+): boolean => {
+  const suppliedFilter = query.source != null || query.eventType != null || query.cursor != null;
+  const retainedFilter =
+    normalizedQuery.source != null || normalizedQuery.eventType != null || normalizedQuery.cursor != null;
+  return suppliedFilter && !retainedFilter && query.limit == null;
+};
+
 export const buildNormalizedAuditEventsQueryParams = (
   query: NormalizedAuditEventsQuery,
 ): URLSearchParams => {
-  const parsedQuery = normalizedAuditEventsQuerySchema.parse(query);
+  const normalizedQueryInput = normalizeNormalizedAuditEventsQueryInput(query);
+  if (hasBlankOnlyNormalizedAuditFilters(query, normalizedQueryInput)) {
+    throw new Error("Normalized audit query filters become empty after normalization");
+  }
+  const parsedQuery = normalizedAuditEventsQuerySchema.parse(normalizedQueryInput);
   const params = new URLSearchParams();
 
   const source = normalizeNormalizedAuditQueryToken(parsedQuery.source);
@@ -376,13 +400,10 @@ export function createFrontendApiClient(config: BaseClientConfig) {
     ): Promise<QueryNormalizedAuditEventsResult> {
       let normalizedQueryInput: NormalizedAuditEventsQuery;
       try {
-        normalizedQueryInput = {
-          ...query,
-          source: normalizeNormalizedAuditQueryToken(query.source, "source"),
-          eventType: normalizeNormalizedAuditQueryToken(query.eventType, "eventType"),
-          cursor: normalizeNormalizedAuditQueryToken(query.cursor, "cursor"),
-          limit: query.limit,
-        };
+        normalizedQueryInput = normalizeNormalizedAuditEventsQueryInput(query);
+        if (hasBlankOnlyNormalizedAuditFilters(query, normalizedQueryInput)) {
+          throw new Error("Normalized audit query filters become empty after normalization");
+        }
       } catch (error) {
         if (error instanceof FrontendApiError) {
           throw error;

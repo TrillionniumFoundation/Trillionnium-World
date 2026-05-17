@@ -110,6 +110,16 @@ describe("normalized audit query contract", () => {
     expect(Array.from(params.keys())).toEqual(["limit"]);
   });
 
+  it("rejects blank-only filter queries when normalization would drop every selector", () => {
+    expect(() =>
+      buildNormalizedAuditEventsQueryParams({
+        source: "\u200B \uFEFF",
+        eventType: "\u2060\u2063\t\n",
+        cursor: " \u200C\u200D ",
+      }),
+    ).toThrow("Normalized audit query filters become empty after normalization");
+  });
+
   it("serializes the currently supported scalar query keys with stable names", () => {
     const params = buildNormalizedAuditEventsQueryParams({
       source: "governance-guard",
