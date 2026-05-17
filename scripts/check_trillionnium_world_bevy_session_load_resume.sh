@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+EVIDENCE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest"
+mkdir -p "$EVIDENCE_DIR"
+
+SUMMARY="$EVIDENCE_DIR/bevy-session-load-resume.json"
+SLOT_DIR="$EVIDENCE_DIR/bevy-session-load-resume-slots"
+
+(
+  cd "$ROOT/trillionnium"
+  TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
+    cargo run -p trnm-world-bevy -- session-load-resume "$SLOT_DIR" >"$SUMMARY"
+)
+
+jq -e '
+  .contract_version == "trillionnium_world_bevy_session_load_resume_v1"
+  and .session_slot_confirm_contract == "trillionnium_world_bevy_session_slot_confirm_v1"
+  and .session_recovery_ui_contract == "trillionnium_world_bevy_session_recovery_ui_v1"
+  and .state_snapshot_contract == "trillionnium_world_bevy_state_snapshot_v1"
+  and .green == true
+  and .expected_slot_dir == .action_slot_dir
+  and .slot_a_bytes > 512
+  and .save_selected_gate == true
+  and .load_resume_gate == true
+  and .locked_input_gate == true
+  and .continue_gate == true
+  and .post_continue_guard_gate == true
+  and .post_continue_equip_gate == true
+  and .final_hud_gate == true
+  and .save_selected_a_event.action == "SAVE:SELECTED"
+  and .save_selected_a_event.accepted == true
+  and .load_selected_a_event.action == "LOAD:SELECTED"
+  and .load_selected_a_event.accepted == true
+  and .after_load_resume_locked_sample.runtime.session_resume_input_locked == true
+  and .after_load_resume_locked_sample.runtime.session_continue_cta_visible == true
+  and .after_load_resume_locked_sample.runtime.session_resume_overlay_visible == true
+  and .after_load_resume_locked_sample.runtime.session_resume_source_slot_id == "A"
+  and (.after_load_resume_locked_sample.session_resume_text | contains("RESUME ACTIVE"))
+  and (.after_load_resume_locked_sample.session_resume_text | contains("CTA CONTINUE"))
+  and .continue_locked_state.visual_state == "onboarding_next_button"
+  and .continue_locked_state.enabled == true
+  and .continue_locked_text.text == ">> CONTINUE"
+  and .equip_locked_state.enabled == false
+  and .equip_locked_state.reason == "session_resume_continue_required"
+  and .locked_input_event.action == "EQUIP"
+  and .locked_input_event.accepted == false
+  and .locked_input_event.availability_before == "session_resume_continue_required"
+  and .locked_input_event.core_state_unchanged_when_disabled == true
+  and .after_locked_input_sample.runtime.session_resume_input_locked == true
+  and .continue_after_load_event.action == "CONTINUE:SESSION"
+  and .continue_after_load_event.accepted == true
+  and .continue_after_load_event.availability_before == "enabled_session_resume_continue"
+  and .after_continue_sample.runtime.session_resume_input_locked == false
+  and .after_continue_sample.runtime.session_continue_cta_visible == false
+  and .after_continue_sample.runtime.session_resume_overlay_visible == false
+  and .continue_after_state.reason == "session_resume_not_active"
+  and .post_continue_guard_event.action == "EQUIP:bandit_sash"
+  and .post_continue_guard_event.accepted == false
+  and .post_continue_guard_event.availability_before == "item_not_in_bag:bandit_sash"
+  and .post_continue_guard_event.core_state_unchanged_when_disabled == true
+  and .post_continue_equip_event.action == "EQUIP"
+  and .post_continue_equip_event.accepted == true
+  and .post_continue_equip_event.availability_before == "enabled_after_reward_claim"
+  and .final_input_telemetry_summary.total_events == 12
+  and .final_input_telemetry_summary.accepted_events == 8
+  and .final_input_telemetry_summary.blocked_events == 4
+  and .final_input_telemetry_summary.keyboard_events == 10
+  and .final_input_telemetry_summary.bevy_button_events == 2
+  and .final_input_telemetry_summary.last_action_label == "EQUIP"
+  and (.final_session_text | contains("SESSION RECOVERED"))
+  and (.final_session_text | contains("checkpoint events 12 accepted 8 blocked 4"))
+  and (.final_session_text | contains("guard EQUIP:bandit_sash:item_not_in_bag:bandit_sash"))
+  and (.final_resume_text | contains("RESUME READY"))
+  and .final_runtime.objective_status == "first_playable_loop_complete"
+  and .final_runtime.equipment_ready == true
+  and .android_s5_real_device_claimed == false
+' "$SUMMARY" >/dev/null
+
+jq -e '
+  .contract_version == "trillionnium_world_bevy_state_snapshot_v1"
+  and .actor_id == "local-player"
+  and (.first_playable.input_feedback_history | length == 10)
+  and .first_playable.session_selected_slot_id == "A"
+' "$SLOT_DIR/bevy-session-slot-a.snapshot.json" >/dev/null
+
+printf 'TRILLIONNIUM_WORLD_BEVY_SESSION_LOAD_RESUME_GREEN %s slot_dir=%s\n' "$SUMMARY" "$SLOT_DIR"

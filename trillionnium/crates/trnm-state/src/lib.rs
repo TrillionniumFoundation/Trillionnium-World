@@ -1449,7 +1449,10 @@ fn validated_restorable_pending_resolve_snapshot(
     let has_resolve_authority = st.gov_param_string("resolve_authority").is_some()
         || st.pending_gov_update("resolve_authority").is_some();
 
-    if !has_resolve_authority && !snapshot_is_canonical && task_supports_pending_resolve_restore(&task) {
+    if !has_resolve_authority
+        && !snapshot_is_canonical
+        && task_supports_pending_resolve_restore(&task)
+    {
         return None;
     }
 
@@ -4521,8 +4524,8 @@ fn wal_state_root_surface_is_checkpoint_recovery_compatible(wal_entry: &WalMeta)
         return true;
     }
 
-    let looks_like_noncanonical_hex_digest = state_root_hex.len() == 64
-        && state_root_hex.chars().all(|ch| ch.is_ascii_hexdigit());
+    let looks_like_noncanonical_hex_digest =
+        state_root_hex.len() == 64 && state_root_hex.chars().all(|ch| ch.is_ascii_hexdigit());
     !looks_like_noncanonical_hex_digest
 }
 

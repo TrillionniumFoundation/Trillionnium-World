@@ -1,0 +1,12 @@
+[build]
+target-dir = "target"
+
+[alias]
+world-check = "check -p trnm-world-domain -p trnm-world-command -p trnm-world-projection -p trnm-world-map-provider -p trnm-world-ui-fragments -p trnm-world-api -p trnm-world-server -p trnm-world-bevy -p trnm-world-dev-env"
+world-test = "test -p trnm-world-domain -p trnm-world-command -p trnm-world-projection -p trnm-world-map-provider -p trnm-world-ui-fragments -p trnm-world-api -p trnm-world-server -p trnm-world-bevy -p trnm-world-dev-env"
+world-env = "run -p trnm-world-dev-env --"
+world-server = "run -p trnm-world-server --"
+world-bevy = "run -p trnm-world-bevy --"
+
+[env]
+TRILLIONNIUM_WORLD_DEV_ENV = "1"

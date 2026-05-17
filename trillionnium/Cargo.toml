@@ -12,6 +12,15 @@ members = [
   "crates/trnm-cli",
   "crates/trnm-bridge-poc",
   "crates/trnm-oracle",
+  "crates/trnm-world-domain",
+  "crates/trnm-world-command",
+  "crates/trnm-world-projection",
+  "crates/trnm-world-map-provider",
+  "crates/trnm-world-ui-fragments",
+  "crates/trnm-world-api",
+  "crates/trnm-world-server",
+  "crates/trnm-world-bevy",
+  "crates/trnm-world-dev-env",
 ]
 resolver = "2"
 

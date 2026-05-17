@@ -4,7 +4,7 @@
 **目标仓库**：<https://github.com/TrillionniumFoundation/Trillionnium>
 **当前孵化实现**：`/home/qian/.openclaw/workspace/CEX`
 **合并来源**：Dropbox `rust_geo_mmo_development_doc_v0_4_execution_ready.md`、CEX 已落地代码、CEX 现有 Trillionnium/World 文档与运行证据
-**当前代码基线**：CEX `a8508df fix: gate health metrics on typed receipts`
+**当前代码基线**：CEX `53687d7 test: gate trillionnium world adapter readiness`
 **文档状态**：统一执行版；CEX incubator/source-of-evidence 已同步到 Term Exchange typed receipt runtime closeout，后续用于拆票、验收、迁移到 Trillionnium 主仓、Alpha/公开测试准入评审
 **修订日期**：2026-05-13
 
@@ -48,7 +48,8 @@ CEX 当前已经不是纯文档阶段。可作为 Trillionnium World 的孵化�
 
 最新本地证据来自 CEX 本地 production runtime：
 
-- Head：`a8508df fix: gate health metrics on typed receipts`
+- Head：`53687d7 test: gate trillionnium world adapter readiness`
+- CEX production runtime adapters now export `GET /v1/trillionnium/world/adapters/readiness`; Trillionnium-main consumes that JSON through `scripts/check_trillionnium_world_cex_adapter_readiness.sh` so release review can verify the production adapter bridge without importing CEX service internals.
 - SQL snapshot：`run/linux-runtime/entry-config/league-state-snapshot.sql`
 - 最新 SQL state hash：`sha256:c438f35e5d1722175e2e095ad877025bc9c7fbbaef7d258f1b7a14089e4370d2`
 - Normalized runtime dual-write/read-switch：temp DB `cex_normalized_runtime_1778661039_319748`，world-home / client-feed / client-app overlay gates green，`world_term_exchange_receipt_rows_after_direct_write=8`
@@ -181,7 +182,7 @@ Dropbox v0.4 是完整 MMO 工程蓝图，很多内容是未来阶段，不应�
 | Dropbox v0.4 主题 | 当前 CEX 状态 | 本文档处理方式 |
 | --- | --- | --- |
 | Rust 全栈 MMO | 已有 Rust CEX 多服务 + World vertical slice | 作为当前孵化实现 |
-| Bevy Android client | 未落地；当前是 Web/Matrix shell | 作为 M5 实验 Gate，不阻塞当前 Web Rust-owned 收口 |
+| Bevy Android client | Native Bevy client shell 已在 Trillionnium 主仓落地；Android 设备矩阵仍未通过 | 作为 S5 实验 Gate，不阻塞当前 Web Rust-owned 收口 |
 | QUIC + WebSocket fallback | 当前 World 不是实时 socket MMO | 作为 standalone server / Cell 阶段 ADR |
 | H3 / region-local / AOI | 当前有 map viewport/tile/region projection，不是 full H3 Cell server | 作为 M4/M5 迁移目标 |
 | map_pack 签名 | 当前是 fixture OSM + attribution gate | 纳入 M1.5/M4 地图包 Gate |
@@ -232,6 +233,7 @@ trillionnium-world-server
 - 先复制 contract / tests / evidence gate，再搬 implementation。
 - 外部行为、JSON contract、E2E 先不变。
 - CEX 仍可作为 adapter/host，直到 Trillionnium 主仓 runtime 可替代。
+- 当前 Trillionnium 主仓已开始落独立 dev runtime：`trnm-world-server serve --bind 127.0.0.1:8787` 暴露 `trillionnium_world_dev_runtime_v1`，包含 `/health`、`/world/home`、`/world/state`、`/world/command`、`/world/tactics-command`、`/world/full-split` 等开发端点；WorldState 仍由 Rust server 持有，客户端只提交 intent。`trillionnium_world_dev_file_repository_v1` 通过 `--state-file` 和 `dev-runtime-repository-smoke` 验证重启后状态仍可读回。
 
 ### 6.3 长期阶段：Standalone MMO Architecture
 
@@ -305,6 +307,9 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 - 新建 World evidence/runbook index。
 - 标注 CEX 当前为 incubator/source-of-evidence。
 - 不在主仓宣称 CEX 中尚未迁移的代码已存在。
+- 继续扩展 `trnm-world-server` 独立 dev runtime，直到 Web/Native/Matrix 都能直接打到 Trillionnium-side API surface，而不是只靠 CLI smoke。
+- 当前 Trillionnium 主仓新增 standalone browser parity gate：`scripts/check_trillionnium_world_browser_parity.sh` 会打开 `/world/play`，从浏览器直接执行进入世界、移动、训练、战斗、任务、状态读回，并写入 `acceptance/S3_browser_parity/latest/browser-parity.json`。
+- 当前 Trillionnium 主仓新增 repository adapter boundary gate：`scripts/check_trillionnium_world_repository_adapter_boundary.sh` 生成 SQLite/Postgres schema，执行 SQLite read/write smoke，并写入 `acceptance/S3_repository_adapter/latest/repository-adapter-boundary.json`；这证明 repository 可替换边界，不等同于已接入生产托管数据库。
 
 ### S4 — 地图合规与 map_pack Gate
 
@@ -317,27 +322,66 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 - Attribution screenshots：Web/Native/Matrix 关键界面都要有。
 - 敏感 POI filter report。
 - 不满足时继续 fixture-only。
+- 当前 Trillionnium 主仓已提供 `scripts/check_trillionnium_world_map_pack_gate.sh`，能对 fixture map_pack 生成 unsigned manifest、Ed25519 dev signature、attribution evidence、sensitive POI report 和 S4 summary；这只解除 fixture signed manifest 缺口，不等同于生产公网地图包准入。
+- 当前 Trillionnium 主仓新增 production map-pack route：`docs/development/trillionnium-world-production-map-pack-adr-v1.md` 与 `scripts/check_trillionnium_world_production_map_pack_route.sh` 覆盖 key rotation/revocation、attribution screenshot plan、takedown/rollback drill；它的 `production_map_pack_route_green` 仍不等同于 `production_map_pack_public_ready_green`。
+- 当前 Trillionnium 主仓新增 `scripts/check_trillionnium_world_map_modeling_gate.sh`，在 fixture map_pack 上派生 buildings / roads / greenery / terrain 四类模型并写入 `acceptance/S4_map_pack_gate/latest/map-modeling-gate.json`；它证明建模管线存在，但仍明确 `fixture_only=true`、`live_ingestion_enabled=false`、`runtime_clients_fetch_public_osm_directly=false`。
 
-### S5 — Native/Bevy Mobile Gate（可选实验）
+### S5 — Native/Bevy Mobile Gate（当前引擎路径）
 
-目标：验证 Bevy Android 是否适合 Trillionnium World，不把它当默认前提。
+目标：把 Trillionnium World 接入 Native/Bevy 游戏引擎开发路径，同时保持 Rust server/API/projection 作为权威。
+
+当前 Trillionnium 主仓要求 Native/Bevy client shell 直接进入开发路径：Bevy 只消费 Rust World API/projection，并把玩家输入作为 intent 交回 Rust command layer。当前已能构建 aarch64 Android `cdylib`，导出 `ANativeActivity_onCreate` / `android_main`，并在 Android platform jar 可用时生成已签名 debug APK；Android 真机矩阵和真实渲染/输入/资源包验证继续作为 S5 gate 收证据。
+
+当前 Native/Bevy host 端追加 `scripts/check_trillionnium_world_bevy_vertical_slice.sh`、`scripts/check_trillionnium_world_bevy_first_playable.sh` 与 `scripts/check_trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay.sh`。前两者覆盖当前房间/出口、目标任务、触控按钮、训练/战斗/任务动作、Rust intent-only authority、开局指引和保存读回；keyboard replay gate 生成 `acceptance/S5_native_bevy_device/latest/bevy-build-branch-title-route-all-branch-keyboard-replay.json`，把 force/agility/craft 三条 build-title route 的键盘输入序列在 fresh Bevy runtime 中重放，并要求事件签名与最终 runtime 完全一致。
+
+2026-05-17 的 S5 host-side 可玩性证据又补了三层：`scripts/check_trillionnium_world_bevy_action_coach.sh` 生成 `acceptance/S5_native_bevy_device/latest/bevy-action-coach.json`，要求 `Enter/NumpadEnter` action coach 依次引导 `TALK -> TRAIN -> MOVE:north -> FIGHT`；`scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh` 生成 `acceptance/S5_native_bevy_device/latest/bevy-player-hud-debug-layer.json`，把玩家 HUD 与 DEBUG/INPUT diagnostics 分层；`scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh` 生成 `acceptance/S5_native_bevy_device/latest/bevy-live-window-screenshot-sequence.json`，验证 11 帧 live window 截图、frame sequence 和 contact sheet 非空变化。这些都是 host 端 Native/Bevy 可玩闭环、输入协议和玩家可读性的本地证据，不替代 Android 真机 S5 evidence。
 
 Go 条件：
 
 - 中端 Android 30 FPS。
+- Android NativeActivity `.so` 与 signed debug APK artifact ready。
 - 中文显示/输入、前后台、弱网、资源包、崩溃诊断通过。
 - 客户端仅提交 intent；Rust server 仍权威。
 - 能复用 Rust projection/API，不复制 Web 逻辑。
 
-No-Go：继续 Web/PWA 或评估 Godot/Unity/轻量客户端。
+No-Go：不扩展大规模 Bevy 内容开发；先补 Android 真实设备矩阵、资源包、崩溃和输入证据。
 
 ### S6 — First Beta / Commercial Evidence
 
 当前 blocker：
 
-- `TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH` 真实 5-10 人 cohort。
-- `TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH` payment/refund/support/legal/operator/traffic drill。
+- `TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH` 真实 5-10 人 cohort，证据 JSON 必须声明 `status=first_beta_cohort_evidence_green`。
+- `TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH` payment/refund/support/legal/operator/traffic drill，证据 JSON 必须声明 `status=commercial_launch_drill_evidence_green`。
+- `scripts/check_trillionnium_world_cohort_commercial_schema.sh` 生成 cohort/commercial JSON schema 与模板，并写入 `acceptance/S6_public_launch/latest/cohort-commercial-evidence-schema.json`；模板不能声明 green，只能为真实证据采集提供标准格式。
+- `scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh` 生成 `acceptance/S6_public_launch/latest/cohort-commercial-evidence-collection.json` 与 `.md`，列出真实 beta 参与者/session/feedback/signoff 与 payment/refund/support/legal/operator/traffic drill 采集项；它只生成 checklist，不保存个人原始隐私数据，也不授予 public-launch credit。
 - `TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH` 或 live traffic latency。
+- `scripts/check_trillionnium_world_external_ops_evidence_collection.sh` 生成 `acceptance/S6_public_launch/latest/external-ops-evidence-collection.json` 与 `.md`，把真实 multi-node/live-traffic latency、公网 domain/TLS/probe/monitoring/backup/rollback/signoff 证据列成采集清单；它只生成 checklist，不打开公网 route，也不给 public-launch credit。
+- `TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH` 指向真实生产 map-pack 公共证据；证据 JSON 必须声明 `status=production_map_pack_public_ready_green`，并包含来源授权/ODbL、缓存策略、归因截图、敏感 POI、地理围栏、密钥托管、分发撤回、回滚和 operator signoff。
+- `scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh` 生成 `acceptance/S4_map_pack_gate/latest/production-map-pack-public-evidence-collection.json` 与 `.md`，把真实 source/ODbL/cache/attribution/sensitive POI/geofence/key custody/distribution/rollback/signoff 证据项列成采集清单；它只生成 checklist，不执行 live ingestion。
+- `scripts/check_trillionnium_world_production_map_pack_public_evidence.sh` 生成 `acceptance/S4_map_pack_gate/latest/production-map-pack-public-evidence.json`；默认只消费外部证据文件，不做 live Overpass/Geofabrik ingestion，也不允许运行时客户端直连公网 OSM。
+- `scripts/check_trillionnium_world_public_launch_readiness.sh` 汇总 Native/Bevy keyboard replay、action coach、player HUD/debug layer、live-window screenshot sequence、sprite texture sampling、sampled texture live-window correlation、render asset eligibility、S5 真机、S4 map_pack、cohort、商业演练、多节点/公网部署证据；缺证据时只能输出 blocked，不能宣称全网上线 ready。
+- `scripts/check_trillionnium_world_release_signoff_summary.sh` 生成 `acceptance/S6_public_launch/latest/release-signoff-summary.json`，给 CI/人工评审一个直接入口：它必须看到 Native/Bevy keyboard replay、action coach、player HUD/debug layer、live-window screenshot sequence、sprite texture sampling、sampled texture live-window correlation、render asset eligibility 与 CEX adapter readiness green，且 public-launch readiness 已消费这些本地证据，同时继续标明 S5 真机、公网、cohort、商业演练等外部证据 blocker。
+- `scripts/check_trillionnium_world_release_review_quickcheck.sh` 是上层快速入口：一条命令刷新 public-launch readiness 与 release signoff summary，再写入 `acceptance/S6_public_launch/latest/release-review-quickcheck.json`。默认只把 Native/Bevy replay、texture/render local playability、CEX adapter readiness 或消费链路断裂视为失败，真实外部上线证据继续作为 blocker；传 `--require-ready` 时 public launch 未 ready 也会失败。
+- `scripts/check_trillionnium_world_release_review_status.sh` 生成 `acceptance/S6_public_launch/latest/release-review-status.json` 与 `.md`，把 release review 已绿项和仍需真实外部证据的 blocker 压成一屏清单。
+- `scripts/check_trillionnium_world_public_launch_evidence_intake.sh` 生成 `acceptance/S6_public_launch/latest/public-launch-evidence-intake.json` 与 `.md`，把 S5 真机、production map-pack、首批 beta、商业 drill、多节点/真实流量延迟、公网部署这 6 个外部证据项压成可收集清单、采集命令和 env hook；它不做 live map ingestion，也不做公网暴露。
+- `scripts/check_trillionnium_world_public_launch_evidence_kit.sh` 生成 `acceptance/S6_public_launch/latest/public-launch-evidence-kit.json` 与 `.md`，刷新并列出 6 个 blocker 的 no-credit evidence templates、env hook 和 validator command；模板不能作为 public-launch credit。
+- `scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh` 生成 `acceptance/S6_public_launch/latest/public-launch-template-negative-fixtures.json`，把 no-credit templates 直接喂给严格字段级 validators，要求 S5/map-pack/cohort+commercial/external-ops 全部失败，防止模板误清 blocker。
+- `scripts/check_trillionnium_world_public_launch_evidence_bundle.sh` 生成 `acceptance/S6_public_launch/latest/public-launch-evidence-bundle.json` 与 `.md`，支持 `TRILLIONNIUM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_PATH` 指向单个真实证据 manifest；它会把 manifest 内的 6 个 evidence path 分发给字段级 validators，全部 green 且 operator signoff 后才给 public-launch credit。
+- `scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh` 生成 `acceptance/S6_public_launch/latest/public-launch-bundle-negative-fixtures.json`，构造一个 status/signoff 看似 green 但 evidence path 指向 templates 的 bundle manifest，并要求 bundle gate 在 `--require-ready` 下拒绝它。
+- `scripts/check_trillionnium_world_public_launch_blocker_consistency.sh` 生成 `acceptance/S6_public_launch/latest/public-launch-blocker-consistency.json`，校验 public-launch readiness blocker、evidence intake item 与各字段级 validator status 三方一致；任何未知 blocker 或漂移都会挡住 release packet/CI handoff。
+- `scripts/check_trillionnium_world_cohort_commercial_evidence.sh` 生成 `acceptance/S6_public_launch/latest/cohort-commercial-evidence.json`，对 `TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH` 与 `TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH` 指向的真实证据做字段级验证，避免只写 green status 就被 public-launch readiness 接受。
+- `scripts/check_trillionnium_world_external_ops_evidence.sh` 生成 `acceptance/S6_public_launch/latest/external-ops-evidence.json`，对 `TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH` 与 `TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH` 指向的真实证据做字段级验证；本地 latency/deploy drill 会被记录但不能作为 public launch credit。
+- `scripts/check_trillionnium_world_s5_device_evidence.sh --require-device` 是 S5 Android 真机采集入口：ADB 看到在线设备后安装 signed debug APK，采集 screenshot、gfxinfo/frame、logcat、lifecycle、crash-free window，并写入 `acceptance/S5_native_bevy_device/latest/s5-device-evidence.json`。
+- `scripts/check_trillionnium_world_s5_real_device_evidence.sh` 生成 `acceptance/S5_native_bevy_device/latest/s5-real-device-evidence-validation.json`，对 S5 真机 evidence 做字段级验证；必须有真机 screenshot、gfxinfo/frame、logcat、lifecycle、crash-free 和设备序列证据，host-side replay 不能作为真机 credit。
+- `scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh` 生成 `acceptance/S6_public_launch/latest/public-launch-status-only-fixtures.json`，用 status-only 假绿证据撞 S5、production map-pack、首批 beta/商业 drill、外部 ops validators，确保所有字段级门禁拒绝伪绿证据。
+- `scripts/check_trillionnium_world_release_review_convergence.sh` 生成 `acceptance/S6_public_launch/latest/release-review-convergence.json`，先刷新 status/quickcheck/signoff/public-launch，再确认 release review 的脚本、README/开发文档、workflow guard、JSON/Markdown evidence 没有断链。
+- `scripts/check_trillionnium_world_release_review_packet.sh` 生成 `acceptance/S6_public_launch/latest/release-review-packet.json` 与 `.md`，刷新 convergence 后汇总关键 evidence 路径、contract/status 与 sha256，作为 release review handoff 包。
+- `scripts/check_trillionnium_world_release_review_packet_integrity.sh` 生成 `acceptance/S6_public_launch/latest/release-review-packet-integrity.json`，默认先刷新 packet，再重新计算 artifact sha256/bytes/contract/status，防止 handoff 包和底层 evidence 漂移；`--no-refresh` 可只校验现有 packet。
+- `scripts/check_trillionnium_world_release_review_ci_gate.sh` 生成 `acceptance/S6_public_launch/latest/release-review-ci-gate.json`，聚合 packet integrity、release-review 静态 guards、README 链接和 workflow script refs，作为本地 CI/评审交接总入口。
+- `scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh` 生成 `acceptance/S6_public_launch/latest/release-review-checkpoint-manifest.json` 与 `.md`，按 CEX adapter readiness、release-review surface、外部证据 validators、Native/Bevy、本地 map/repository boundary、Rust/frontend code surface、dev infra、generated acceptance evidence 等切片整理当前 dirty working tree；它只做审查/提交前清单，不 stage、不 commit，也不宣称 public-launch evidence。
+- `scripts/check_trillionnium_world_public_deploy_readiness.sh` 生成 release binary、systemd/env/reverse-proxy/runbook 和本机 deploy drill evidence；它不做真实公网暴露，真实公网 ready 仍需要目标主机、域名/TLS、监控、备份、回滚和公网 URL probe。
+- `scripts/check_trillionnium_world_release_rollback_backup_drill.sh` 对 release server 执行本机状态备份、坏状态覆盖、备份恢复和恢复后读回，写入 `acceptance/S6_public_launch/latest/release-rollback-backup-drill.json`；它是本机运维演练，不替代托管数据库/异地备份。
+- `scripts/check_trillionnium_world_release_latency_drill.sh` 对 release `trnm-world-server` 做本机并发延迟 drill，并把结果写入 `acceptance/S6_public_launch/latest/release-latency-drill.json`；它只能证明 local release latency，不替代多节点或真实公网流量证据。
 
 没有这些证据，不提升 first-beta/commercial/technical 最高档评分。
 
@@ -420,7 +464,7 @@ acceptance/
 | Map renderer | Leaflet live, MapLibre shadow only | fresh signoff + rollback drill | 不提升 MapLibre canary |
 | First beta | Blocked on real cohort | 真实 5-10 人 evidence | 不宣称 beta 9+ |
 | Commercial | Blocked on drill evidence | payment/refund/support/legal/operator/traffic drill | 不宣称 commercial 8+ |
-| Native/Bevy | Not started | mobile gate 通过 | 不做大规模 Bevy 内容开发 |
+| Native/Bevy | Native client shell green / device matrix pending | host + aarch64 Android compile green，真实 mobile gate 通过 | 不扩展大规模 Bevy 内容开发，先补设备矩阵证据 |
 | MMO Cell/AOI | Future | multi-node/load/chaos 证据 | 不宣称实时 MMO readiness |
 
 ---
@@ -440,13 +484,14 @@ acceptance/
   - fallback for `/app` or degraded payloads
 - 每次 UI 迁移都要加：contract constant、bootstrap payload、viewport/delta payload、DOM ownership attributes、unit test、Web/Browser E2E assertion。
 
-### 10.2 Future Native/Bevy 策略
+### 10.2 当前 Native/Bevy 策略
 
-Bevy 是实验 Gate，不是当前事实。若启动：
+Bevy 是实验 Gate，不是权威 runtime。当前已启动的事实是 Native Bevy client shell；继续推进时：
 
 - 不复刻 Web 的 JS 逻辑。
 - 直接消费 Rust World API/projection。
 - Native client 只提交 intent。
+- `scripts/check_trillionnium_world_s5_device_evidence.sh` 负责产出 `acceptance/S5_native_bevy_device/latest/s5-device-evidence.json`；公网发布 S5 credit 必须使用 `--require-device` 在真实 Android 设备上采集，再跑 `scripts/check_trillionnium_world_s5_real_device_evidence.sh --require-ready`。
 - 地图包和配置包必须签名。
 - Android release chain 要单独 ADR。
 

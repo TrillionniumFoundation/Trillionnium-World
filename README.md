@@ -5,6 +5,8 @@
 - Active mainline: `trillionnium/`
 - Historical status/archive docs live under `docs/archive/`
 
+The cohort/commercial collection command writes `acceptance/S6_public_launch/latest/cohort-commercial-evidence-collection.json` plus `.md`, listing first-beta participant/session/feedback/signoff evidence and payment/refund/support/legal/operator/traffic drill evidence with privacy boundaries before the strict validator is run.
+
 ---
 
 ## 1) Project Positioning
@@ -153,6 +155,99 @@ TRNM_TX_CLI=./trillionnium/target/debug/trnm-cli \
 ./scripts/v2/run_tokenomics_r1_r14_regression_gate.sh
 ```
 
+### 5.4 Trillionnium World release review quickcheck
+
+```bash
+# Refresh public-launch readiness + release signoff summary, then emit one review JSON.
+./scripts/check_trillionnium_world_release_review_quickcheck.sh
+
+# Emit the one-screen release review checklist as JSON + Markdown.
+./scripts/check_trillionnium_world_release_review_status.sh
+
+# Emit the external public-launch evidence intake checklist as JSON + Markdown.
+./scripts/check_trillionnium_world_public_launch_evidence_intake.sh
+
+# Emit the no-credit evidence template kit for all remaining public-launch blockers.
+./scripts/check_trillionnium_world_public_launch_evidence_kit.sh
+
+# Prove those no-credit templates fail strict field-level validators.
+./scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh
+
+# Validate a single real-evidence bundle manifest when external evidence is ready.
+./scripts/check_trillionnium_world_public_launch_evidence_bundle.sh
+
+# Prove a fake-green bundle manifest pointing at templates is rejected.
+./scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh
+
+# Verify readiness blockers match intake items and field-level validator statuses.
+./scripts/check_trillionnium_world_public_launch_blocker_consistency.sh
+
+# Build the production map-pack public evidence collection checklist.
+./scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh
+
+# Validate production map-pack public evidence before public-launch credit.
+./scripts/check_trillionnium_world_production_map_pack_public_evidence.sh
+
+# Build the first-beta/commercial real-evidence collection checklist.
+./scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh
+
+# Validate first-beta cohort and commercial drill evidence before public-launch credit.
+./scripts/check_trillionnium_world_cohort_commercial_evidence.sh
+
+# Build the multi-node/live-traffic and public exposure evidence collection checklist.
+./scripts/check_trillionnium_world_external_ops_evidence_collection.sh
+
+# Validate multi-node/live-traffic latency and public deploy evidence before public-launch credit.
+./scripts/check_trillionnium_world_external_ops_evidence.sh
+
+# Collect S5 Android real-device evidence when an online adb device is attached.
+ANDROID_SERIAL=<device-serial> ./scripts/check_trillionnium_world_s5_device_evidence.sh --require-device
+
+# Validate collected S5 real-device evidence before public-launch credit.
+./scripts/check_trillionnium_world_s5_real_device_evidence.sh
+
+# Refresh host-side Native/Bevy local playability gates before release-review handoff.
+./scripts/check_trillionnium_world_bevy_action_coach.sh
+./scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh
+./scripts/check_trillionnium_world_bevy_player_ui_rescue.sh
+./scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh
+./scripts/check_trillionnium_world_bevy_sprite_texture_sampling.sh
+./scripts/check_trillionnium_world_bevy_live_window_sampled_texture_correlation.sh
+./scripts/check_trillionnium_world_bevy_render_asset_eligibility.sh
+
+# Validate CEX incubator production adapter evidence consumed by release review.
+./scripts/check_trillionnium_world_cex_adapter_readiness.sh
+
+# Prove green status-only public-launch evidence fixtures are rejected.
+./scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh
+
+# Verify release-review scripts, docs, workflow guards, and evidence outputs stay connected.
+./scripts/check_trillionnium_world_release_review_convergence.sh
+
+# Build a checksummed JSON + Markdown review packet for handoff.
+./scripts/check_trillionnium_world_release_review_packet.sh
+
+# Recompute packet artifact hashes/sizes and verify the packet has not drifted.
+./scripts/check_trillionnium_world_release_review_packet_integrity.sh
+
+# Run the local release-review aggregate: integrity, static guards, README links, workflow refs.
+./scripts/check_trillionnium_world_release_review_ci_gate.sh
+
+# Snapshot the current WIP tree into grouped review/commit slices without staging anything.
+./scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh
+
+# Strict mode: fail when public-launch blockers remain.
+./scripts/check_trillionnium_world_release_review_quickcheck.sh --require-ready
+```
+
+Default mode writes `acceptance/S6_public_launch/latest/release-review-quickcheck.json` and is green when the Native/Bevy keyboard replay, action coach, player HUD/debug layer, player UI rescue, live-window screenshot evidence, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, CEX adapter readiness, and public-launch local-playability consumption chain are intact, even if real external public-launch evidence remains blocked. It does not claim GPU upload, render-world extraction completion, Android S5 real-device readiness, or external public-launch readiness.
+
+Map modeling note: `scripts/check_trillionnium_world_map_modeling_gate.sh` writes `acceptance/S4_map_pack_gate/latest/map-modeling-gate.json`, proving buildings, roads, greenery, and terrain are derivable from deterministic map_pack data while still keeping `fixture_only=true` and public-launch credit blocked until signed real map_pack evidence exists.
+
+Checkpoint note: `scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh` writes `acceptance/S6_public_launch/latest/release-review-checkpoint-manifest.json` plus `.md`, grouping the current dirty working tree into review/commit slices without staging, committing, or claiming public-launch evidence.
+
+The status command also writes `acceptance/S6_public_launch/latest/release-review-status.md`, a compact checklist of what is green for review and what still needs real external evidence. The CEX adapter readiness command writes `acceptance/S3_repository_adapter/latest/cex-production-adapter-readiness.json` and proves the CEX incubator exports the Trillionnium world runtime adapter contract without importing CEX internals. The public-launch readiness command now consumes sprite texture sampling, sampled texture live-window correlation, and render asset eligibility as first-class local gates before the release-review chain can stay green. The evidence intake command writes `acceptance/S6_public_launch/latest/public-launch-evidence-intake.json` plus `.md`, turning the remaining external blockers into explicit evidence paths, collection commands, and env hooks without claiming public launch readiness. The evidence kit command writes `acceptance/S6_public_launch/latest/public-launch-evidence-kit.json` plus `.md`, generating no-credit templates, collection commands, and validator commands for all six external blockers. The template negative fixtures command writes `acceptance/S6_public_launch/latest/public-launch-template-negative-fixtures.json` and proves those templates fail strict field-level validators. The evidence bundle command writes `acceptance/S6_public_launch/latest/public-launch-evidence-bundle.json` plus `.md`, validating a single operator-supplied manifest that points to all six real evidence files. The bundle negative fixtures command writes `acceptance/S6_public_launch/latest/public-launch-bundle-negative-fixtures.json` and proves a fake-green bundle manifest pointing at templates is rejected. The blocker consistency command writes `acceptance/S6_public_launch/latest/public-launch-blocker-consistency.json` and proves readiness blockers still match intake items plus field-level validator statuses. The production map-pack collection command writes `acceptance/S4_map_pack_gate/latest/production-map-pack-public-evidence-collection.json` plus `.md`, listing the real source, ODbL, attribution, sensitive POI, geofence, key custody, distribution/revocation, rollback, and signoff artifacts required without doing live ingestion. The production map-pack public evidence command writes `acceptance/S4_map_pack_gate/latest/production-map-pack-public-evidence.json` and validates those artifacts before public-launch credit. The cohort/commercial evidence command writes `acceptance/S6_public_launch/latest/cohort-commercial-evidence.json` and validates first-beta plus commercial drill fields instead of trusting status-only files. The external ops evidence command writes `acceptance/S6_public_launch/latest/external-ops-evidence.json` and validates multi-node/live-traffic latency plus public deploy fields instead of treating local drills as launch credit. The S5 collection command writes `acceptance/S5_native_bevy_device/latest/s5-device-evidence.json` plus adb screenshot/gfxinfo/logcat/lifecycle artifacts when an online Android device is attached; the S5 validator writes `acceptance/S5_native_bevy_device/latest/s5-real-device-evidence-validation.json` and validates real-device screenshot/gfxinfo/logcat/lifecycle/crash-free evidence instead of accepting host-side replay credit. The status-only fixture guard writes `acceptance/S6_public_launch/latest/public-launch-status-only-fixtures.json` and proves fake green evidence files are rejected by the field-level validators. The convergence command writes `acceptance/S6_public_launch/latest/release-review-convergence.json` and catches disconnected README/docs/workflow/evidence entry points. The packet command writes `acceptance/S6_public_launch/latest/release-review-packet.json` plus `.md`, including checksums for the review evidence bundle. The integrity command writes `acceptance/S6_public_launch/latest/release-review-packet-integrity.json` and recomputes those checksums before handoff. The CI gate writes `acceptance/S6_public_launch/latest/release-review-ci-gate.json` as the local aggregate for review handoff.
+
 ---
 
 ## 6) Documentation Entry Points
@@ -163,7 +258,9 @@ TRNM_TX_CLI=./trillionnium/target/debug/trnm-cli \
 - Historical roadmap: [docs/archive/root-history/ROADMAP.md](docs/archive/root-history/ROADMAP.md)
 - Historical backlog snapshots: [docs/archive/root-history/BACKLOG.md](docs/archive/root-history/BACKLOG.md)
 - Unified development scheduling: historical planning boards have existed under archived docs, but if a referenced planning-board file is absent in this checkout, use repository docs under `docs/`, `trillionnium/docs/`, and the subproject READMEs as the live execution entrypoints instead.
-- Trillionnium World current development baseline: [docs/development/trillionnium-world-unified-development-doc-v1.md](docs/development/trillionnium-world-unified-development-doc-v1.md). Its current source-of-evidence/incubator is CEX at `/home/qian/.openclaw/workspace/CEX`, synced through CEX head `a8508df fix: gate health metrics on typed receipts`.
+- Trillionnium World standalone dev environment: [docs/development/trillionnium-world-dev-environment-v1.md](docs/development/trillionnium-world-dev-environment-v1.md)
+- Trillionnium World CEX full split plan: [docs/development/trillionnium-world-cex-full-split-plan-v1.md](docs/development/trillionnium-world-cex-full-split-plan-v1.md)
+- Trillionnium World current development baseline: [docs/development/trillionnium-world-unified-development-doc-v1.md](docs/development/trillionnium-world-unified-development-doc-v1.md). Its source-of-evidence starts with the CEX incubator at `/home/qian/.openclaw/workspace/CEX`, synced through CEX head `53687d7 test: gate trillionnium world adapter readiness`, and now also includes Trillionnium-main S3-S6 acceptance evidence for standalone browser/repository/map-pack/Native-Bevy/release-review gates plus CEX production adapter JSON consumed by `scripts/check_trillionnium_world_cex_adapter_readiness.sh`.
 - External benchmark comparison: [docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md](docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md)
 - Concurrency bottleneck map + 8-week roadmap: if an older report is referenced from `RELEASE_READINESS.md` but not present in this checkout, treat it as historical only and do not cite it as current local truth.
 - Web4 platform overview: if an older master-planning file is absent in this checkout, treat `RELEASE_READINESS.md`, `docs/reports/TRNM_WEB4_PLATFORM_SCORECARD_2026-03-31.md`, `web4-frontend/docs/README.md`, and `web4-frontend/README.md` as the current Web4 truth-source entrypoints.

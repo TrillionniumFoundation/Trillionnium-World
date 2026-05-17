@@ -8,6 +8,8 @@ on:
       - 'scripts/**'
       - 'trillionnium/scripts/**'
       - '.github/workflows/trnm-gate-quick-check.yml'
+      - 'README.md'
+      - 'docs/development/trillionnium-world-*.md'
   push:
     branches: [main]
     paths:
@@ -16,6 +18,8 @@ on:
       - 'scripts/**'
       - 'trillionnium/scripts/**'
       - '.github/workflows/trnm-gate-quick-check.yml'
+      - 'README.md'
+      - 'docs/development/trillionnium-world-*.md'
   workflow_dispatch:
 
 concurrency:
@@ -246,6 +250,82 @@ jobs:
       - name: Quick gate summary path guard regression
         run: |
           ./scripts/v2/quick_gate_summary_path_guard_test.sh
+
+      - name: Root README world release quickcheck guard regression
+        run: |
+          ./scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh
+
+      - name: Release review status script contract guard regression
+        run: |
+          ./scripts/v2/release_review_status_script_contract_guard_test.sh
+
+      - name: Release review convergence script contract guard regression
+        run: |
+          ./scripts/v2/release_review_convergence_script_contract_guard_test.sh
+
+      - name: Release review packet script contract guard regression
+        run: |
+          ./scripts/v2/release_review_packet_script_contract_guard_test.sh
+
+      - name: Release review packet integrity script contract guard regression
+        run: |
+          ./scripts/v2/release_review_packet_integrity_script_contract_guard_test.sh
+
+      - name: Release review packet integrity drift guard regression
+        run: |
+          ./scripts/v2/release_review_packet_integrity_drift_guard_test.sh
+
+      - name: Public launch evidence kit script contract guard regression
+        run: |
+          ./scripts/v2/public_launch_evidence_kit_script_contract_guard_test.sh
+
+      - name: Public launch template negative fixtures script contract guard regression
+        run: |
+          ./scripts/v2/public_launch_template_negative_fixtures_script_contract_guard_test.sh
+
+      - name: Public launch evidence bundle script contract guard regression
+        run: |
+          ./scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh
+
+      - name: Public launch bundle negative fixtures script contract guard regression
+        run: |
+          ./scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh
+
+      - name: Public launch blocker consistency script contract guard regression
+        run: |
+          ./scripts/v2/public_launch_blocker_consistency_script_contract_guard_test.sh
+
+      - name: Release review CI gate script contract guard regression
+        run: |
+          ./scripts/v2/release_review_ci_gate_script_contract_guard_test.sh
+
+      - name: Public launch status-only fixture guard regression
+        run: |
+          ./scripts/v2/public_launch_status_only_fixture_guard_script_contract_guard_test.sh
+
+      - name: Release readiness release review entry guard regression
+        run: |
+          ./scripts/v2/release_readiness_release_review_entry_guard_test.sh
+
+      - name: Production map-pack public evidence script contract guard regression
+        run: |
+          ./scripts/v2/production_map_pack_public_evidence_script_contract_guard_test.sh
+
+      - name: Cohort commercial evidence script contract guard regression
+        run: |
+          ./scripts/v2/cohort_commercial_evidence_script_contract_guard_test.sh
+
+      - name: External ops evidence script contract guard regression
+        run: |
+          ./scripts/v2/external_ops_evidence_script_contract_guard_test.sh
+
+      - name: S5 real-device evidence script contract guard regression
+        run: |
+          ./scripts/v2/s5_real_device_evidence_script_contract_guard_test.sh
+
+      - name: Public launch evidence intake script contract guard regression
+        run: |
+          ./scripts/v2/public_launch_evidence_intake_script_contract_guard_test.sh
 
       - name: Quick gate non-directory target guard regression
         run: |

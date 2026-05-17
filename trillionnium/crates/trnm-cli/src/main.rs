@@ -54,7 +54,10 @@ enum Command {
 )]
 enum TxCommand {
     /// Submit a PoCO consumption receipt tx
-    #[command(name = "submit-consumption-receipt", alias = "submit-settlement-receipt")]
+    #[command(
+        name = "submit-consumption-receipt",
+        alias = "submit-settlement-receipt"
+    )]
     SubmitConsumptionReceipt {
         #[arg(long)]
         receipt_json: PathBuf,
@@ -4813,7 +4816,11 @@ mod tests {
             &["trnm-cli", "query", "settlement-preview"][..],
             &["trnm-cli", "wallet", "create"][..],
         ] {
-            assert_eq!(legacy_tx_surface_notice(argv), None, "unexpected notice for {argv:?}");
+            assert_eq!(
+                legacy_tx_surface_notice(argv),
+                None,
+                "unexpected notice for {argv:?}"
+            );
         }
     }
 
@@ -5018,7 +5025,9 @@ mod tests {
         assert!(tx_help.contains("submit-consumption-receipt"));
         assert!(tx_help.contains("challenge-consumption"));
         assert!(tx_help.contains("resolve-consumption"));
-        assert!(tx_help.contains("legacy tx aliases are hidden from help during the migration window"));
+        assert!(
+            tx_help.contains("legacy tx aliases are hidden from help during the migration window")
+        );
         assert!(!tx_help.contains("submit-settlement-receipt"));
         assert!(!tx_help.contains("challenge-settlement"));
         assert!(!tx_help.contains("resolve-settlement"));

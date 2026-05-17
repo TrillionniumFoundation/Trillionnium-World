@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
+SUMMARY_FILE="$ACCEPTANCE_DIR/release-review-ci-gate.json"
+if [[ -v TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY && -n "$TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY" ]]; then
+  SUMMARY_FILE="$TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY"
+fi
+
+CHECK_RESULTS="$(mktemp)"
+trap 'rm -f "$CHECK_RESULTS"' EXIT
+
+mkdir -p "$ACCEPTANCE_DIR"
+
+add_check() {
+  local name="$1"
+  local status="$2"
+  local log_path="$3"
+  local detail="$4"
+  jq -nc \
+    --arg name "$name" \
+    --arg status "$status" \
+    --arg log_path "$log_path" \
+    --arg detail "$detail" \
+    '{name: $name, status: $status, log_path: $log_path, detail: $detail}' >>"$CHECK_RESULTS"
+}
+
+run_check() {
+  local name="$1"
+  shift
+  local log_path="$ACCEPTANCE_DIR/release-review-ci-gate-${name}.log"
+  if "$@" >"$log_path" 2>&1; then
+    add_check "$name" ok "$log_path" "command_passed"
+  else
+    add_check "$name" fail "$log_path" "command_failed"
+  fi
+}
+
+run_check bash_syntax bash -n \
+  "$ROOT/scripts/check_trillionnium_world_release_review_quickcheck.sh" \
+  "$ROOT/scripts/check_trillionnium_world_release_review_status.sh" \
+  "$ROOT/scripts/check_trillionnium_world_release_review_convergence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh" \
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" \
+  "$ROOT/scripts/check_trillionnium_world_release_review_ci_gate.sh" \
+  "$ROOT/scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh" \
+  "$ROOT/scripts/check_trillionnium_world_cex_adapter_readiness.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh" \
+  "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" \
+  "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_external_ops_evidence_collection.sh" \
+  "$ROOT/scripts/check_trillionnium_world_external_ops_evidence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_s5_device_evidence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_s5_real_device_evidence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_action_coach.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_player_ui_rescue.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_authored_sprite_sheet.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_authored_texture_atlas_binding.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_authored_material_consumption.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_authored_material_application.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_runtime_texture_asset.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_runtime_texture_manifest_probe.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_asset_store_registration.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_sprite_asset_binding.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_sprite_texture_sampling.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_authored_render_frame.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_authored_live_visual_bridge.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_live_window_layer_pixel_probe.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_live_window_texture_correlation.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_live_window_sampled_texture_correlation.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_render_asset_eligibility.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh" \
+  "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh" \
+  "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_map_modeling_gate.sh" \
+  "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_status_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_convergence_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_packet_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_packet_integrity_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_packet_integrity_drift_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_checkpoint_manifest_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_template_negative_fixtures_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_evidence_kit_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_readiness_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_blocker_consistency_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_ci_gate_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/cex_adapter_readiness_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_status_only_fixture_guard_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/cohort_commercial_evidence_collection_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/cohort_commercial_evidence_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/external_ops_evidence_collection_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/external_ops_evidence_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/s5_device_evidence_collector_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/s5_real_device_evidence_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/authored_texture_atlas_binding_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/authored_material_consumption_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/authored_material_application_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/runtime_texture_asset_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/runtime_texture_manifest_probe_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/asset_store_registration_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/sprite_asset_binding_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/sprite_texture_sampling_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/authored_render_frame_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/authored_live_visual_bridge_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/live_window_layer_pixel_probe_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/live_window_texture_correlation_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/live_window_sampled_texture_correlation_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/render_asset_eligibility_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/live_window_runtime_texture_manifest_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_evidence_intake_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/release_readiness_release_review_entry_guard_test.sh" \
+  "$ROOT/scripts/v2/production_map_pack_public_evidence_collection_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/production_map_pack_public_evidence_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/map_modeling_gate_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/production_map_pack_public_evidence_artifact_guard_test.sh"
+
+run_check status_contract_guard "$ROOT/scripts/v2/release_review_status_script_contract_guard_test.sh"
+run_check convergence_contract_guard "$ROOT/scripts/v2/release_review_convergence_script_contract_guard_test.sh"
+run_check packet_contract_guard "$ROOT/scripts/v2/release_review_packet_script_contract_guard_test.sh"
+run_check packet_integrity_contract_guard "$ROOT/scripts/v2/release_review_packet_integrity_script_contract_guard_test.sh"
+run_check packet_integrity_drift_guard "$ROOT/scripts/v2/release_review_packet_integrity_drift_guard_test.sh"
+run_check public_launch_bundle_negative_fixtures_contract_guard "$ROOT/scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh"
+run_check public_launch_bundle_negative_fixtures_gate "$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh"
+run_check public_launch_evidence_bundle_contract_guard "$ROOT/scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh"
+run_check public_launch_evidence_bundle_gate "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh"
+run_check public_launch_template_negative_fixtures_contract_guard "$ROOT/scripts/v2/public_launch_template_negative_fixtures_script_contract_guard_test.sh"
+run_check public_launch_template_negative_fixtures_gate "$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh"
+run_check public_launch_evidence_kit_contract_guard "$ROOT/scripts/v2/public_launch_evidence_kit_script_contract_guard_test.sh"
+run_check public_launch_evidence_kit_gate "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh"
+run_check public_launch_readiness_contract_guard "$ROOT/scripts/v2/public_launch_readiness_script_contract_guard_test.sh"
+run_check public_launch_blocker_consistency_contract_guard "$ROOT/scripts/v2/public_launch_blocker_consistency_script_contract_guard_test.sh"
+run_check public_launch_blocker_consistency_gate "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh"
+run_check ci_gate_contract_guard "$ROOT/scripts/v2/release_review_ci_gate_script_contract_guard_test.sh"
+run_check cex_adapter_readiness_contract_guard "$ROOT/scripts/v2/cex_adapter_readiness_script_contract_guard_test.sh"
+run_check cex_adapter_readiness_gate "$ROOT/scripts/check_trillionnium_world_cex_adapter_readiness.sh"
+run_check checkpoint_manifest_contract_guard "$ROOT/scripts/v2/release_review_checkpoint_manifest_script_contract_guard_test.sh"
+run_check checkpoint_manifest "$ROOT/scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh"
+run_check public_launch_status_only_fixture_guard_contract "$ROOT/scripts/v2/public_launch_status_only_fixture_guard_script_contract_guard_test.sh"
+run_check public_launch_status_only_fixture_guard "$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh"
+run_check cohort_commercial_evidence_collection_contract_guard "$ROOT/scripts/v2/cohort_commercial_evidence_collection_script_contract_guard_test.sh"
+run_check cohort_commercial_evidence_collection "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh"
+run_check cohort_commercial_evidence_contract_guard "$ROOT/scripts/v2/cohort_commercial_evidence_script_contract_guard_test.sh"
+run_check cohort_commercial_evidence_gate "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence.sh"
+run_check external_ops_evidence_collection_contract_guard "$ROOT/scripts/v2/external_ops_evidence_collection_script_contract_guard_test.sh"
+run_check external_ops_evidence_collection "$ROOT/scripts/check_trillionnium_world_external_ops_evidence_collection.sh"
+run_check external_ops_evidence_contract_guard "$ROOT/scripts/v2/external_ops_evidence_script_contract_guard_test.sh"
+run_check external_ops_evidence_gate "$ROOT/scripts/check_trillionnium_world_external_ops_evidence.sh"
+run_check s5_device_evidence_collector_contract_guard "$ROOT/scripts/v2/s5_device_evidence_collector_script_contract_guard_test.sh"
+run_check s5_real_device_evidence_contract_guard "$ROOT/scripts/v2/s5_real_device_evidence_script_contract_guard_test.sh"
+run_check s5_real_device_evidence_gate "$ROOT/scripts/check_trillionnium_world_s5_real_device_evidence.sh"
+run_check bevy_action_coach_gate "$ROOT/scripts/check_trillionnium_world_bevy_action_coach.sh"
+run_check bevy_player_hud_debug_layer_gate "$ROOT/scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh"
+run_check bevy_player_ui_rescue_contract_guard "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh"
+run_check bevy_player_ui_rescue_gate "$ROOT/scripts/check_trillionnium_world_bevy_player_ui_rescue.sh"
+run_check bevy_authored_art_pack_contract_guard "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh"
+run_check bevy_authored_art_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh"
+run_check bevy_authored_sprite_sheet_contract_guard "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh"
+run_check bevy_authored_sprite_sheet_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_sprite_sheet.sh"
+run_check bevy_authored_texture_atlas_binding_contract_guard "$ROOT/scripts/v2/authored_texture_atlas_binding_script_contract_guard_test.sh"
+run_check bevy_authored_texture_atlas_binding_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_texture_atlas_binding.sh"
+run_check bevy_authored_material_consumption_contract_guard "$ROOT/scripts/v2/authored_material_consumption_script_contract_guard_test.sh"
+run_check bevy_authored_material_consumption_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_material_consumption.sh"
+run_check bevy_authored_material_application_contract_guard "$ROOT/scripts/v2/authored_material_application_script_contract_guard_test.sh"
+run_check bevy_authored_material_application_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_material_application.sh"
+run_check bevy_runtime_texture_asset_contract_guard "$ROOT/scripts/v2/runtime_texture_asset_script_contract_guard_test.sh"
+run_check bevy_runtime_texture_asset_gate "$ROOT/scripts/check_trillionnium_world_bevy_runtime_texture_asset.sh"
+# Runtime texture manifest probe contract: trillionnium_world_bevy_runtime_texture_manifest_probe_v1
+run_check bevy_runtime_texture_manifest_probe_contract_guard "$ROOT/scripts/v2/runtime_texture_manifest_probe_script_contract_guard_test.sh"
+run_check bevy_runtime_texture_manifest_probe_gate "$ROOT/scripts/check_trillionnium_world_bevy_runtime_texture_manifest_probe.sh"
+# Bevy asset store registration contract: trillionnium_world_bevy_asset_store_registration_v1
+run_check bevy_asset_store_registration_contract_guard "$ROOT/scripts/v2/asset_store_registration_script_contract_guard_test.sh"
+run_check bevy_asset_store_registration_gate "$ROOT/scripts/check_trillionnium_world_bevy_asset_store_registration.sh"
+# Bevy sprite asset binding contract: trillionnium_world_bevy_sprite_asset_binding_v1
+run_check bevy_sprite_asset_binding_contract_guard "$ROOT/scripts/v2/sprite_asset_binding_script_contract_guard_test.sh"
+run_check bevy_sprite_asset_binding_gate "$ROOT/scripts/check_trillionnium_world_bevy_sprite_asset_binding.sh"
+# Bevy sprite texture sampling contract: trillionnium_world_bevy_sprite_texture_sampling_v1
+run_check bevy_sprite_texture_sampling_contract_guard "$ROOT/scripts/v2/sprite_texture_sampling_script_contract_guard_test.sh"
+run_check bevy_sprite_texture_sampling_gate "$ROOT/scripts/check_trillionnium_world_bevy_sprite_texture_sampling.sh"
+run_check bevy_authored_render_frame_contract_guard "$ROOT/scripts/v2/authored_render_frame_script_contract_guard_test.sh"
+run_check bevy_authored_render_frame_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_render_frame.sh"
+run_check bevy_live_window_runtime_texture_manifest_contract_guard "$ROOT/scripts/v2/live_window_runtime_texture_manifest_script_contract_guard_test.sh"
+run_check bevy_live_window_screenshot_sequence_gate "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"
+run_check bevy_authored_live_visual_bridge_contract_guard "$ROOT/scripts/v2/authored_live_visual_bridge_script_contract_guard_test.sh"
+run_check bevy_authored_live_visual_bridge_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_live_visual_bridge.sh"
+run_check bevy_live_window_layer_pixel_probe_contract_guard "$ROOT/scripts/v2/live_window_layer_pixel_probe_script_contract_guard_test.sh"
+run_check bevy_live_window_layer_pixel_probe_gate "$ROOT/scripts/check_trillionnium_world_bevy_live_window_layer_pixel_probe.sh"
+run_check bevy_live_window_texture_correlation_contract_guard "$ROOT/scripts/v2/live_window_texture_correlation_script_contract_guard_test.sh"
+run_check bevy_live_window_texture_correlation_gate "$ROOT/scripts/check_trillionnium_world_bevy_live_window_texture_correlation.sh"
+# Bevy live-window sampled texture correlation contract: trillionnium_world_bevy_live_window_sampled_texture_correlation_v1
+run_check bevy_live_window_sampled_texture_correlation_contract_guard "$ROOT/scripts/v2/live_window_sampled_texture_correlation_script_contract_guard_test.sh"
+run_check bevy_live_window_sampled_texture_correlation_gate "$ROOT/scripts/check_trillionnium_world_bevy_live_window_sampled_texture_correlation.sh"
+# Bevy render asset eligibility contract: trillionnium_world_bevy_render_asset_eligibility_v1
+run_check bevy_render_asset_eligibility_contract_guard "$ROOT/scripts/v2/render_asset_eligibility_script_contract_guard_test.sh"
+run_check bevy_render_asset_eligibility_gate "$ROOT/scripts/check_trillionnium_world_bevy_render_asset_eligibility.sh"
+run_check bevy_live_window_screenshot_sequence_artifact jq -e '.contract_version == "trillionnium_world_bevy_live_window_screenshot_sequence_v1" and .green == true and .frame_sequence_gate == true and .contact_sheet_gate == true and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1" and .runtime_texture_manifest_hash_gate == true and .runtime_texture_launch_env_gate == true and .runtime_texture_handle_gate == true and .runtime_probe_contract == "trillionnium_world_bevy_runtime_probe_v1" and .runtime_texture_sprite_asset_binding_contract == "trillionnium_world_bevy_sprite_asset_binding_v1" and .runtime_texture_sprite_asset_binding_gate == true and .runtime_texture_sprite_bound_surface_count >= 24 and .runtime_texture_image_asset_handle_id == "bevy_image_handle::trnm_world_authored_sprite_sheet_v1" and .runtime_texture_atlas_layout_handle_id == "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1" and .gpu_upload_claimed == false and .android_s5_real_device_claimed == false and .live_osm_ingestion_claimed == false' "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-screenshot-sequence.json"
+run_check public_launch_evidence_intake_contract_guard "$ROOT/scripts/v2/public_launch_evidence_intake_script_contract_guard_test.sh"
+run_check public_launch_evidence_intake_gate "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh"
+run_check release_readiness_entry_guard "$ROOT/scripts/v2/release_readiness_release_review_entry_guard_test.sh"
+run_check production_map_pack_public_evidence_collection_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_collection_script_contract_guard_test.sh"
+run_check production_map_pack_public_evidence_collection "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh"
+run_check production_map_pack_public_evidence_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_script_contract_guard_test.sh"
+run_check map_modeling_gate_contract_guard "$ROOT/scripts/v2/map_modeling_gate_script_contract_guard_test.sh"
+run_check map_modeling_gate "$ROOT/scripts/check_trillionnium_world_map_modeling_gate.sh"
+run_check production_map_pack_public_evidence_artifact_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_artifact_guard_test.sh"
+run_check readme_release_review_guard "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh"
+run_check packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh"
+run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
+run_check workflow_script_refs env \
+  WORKFLOW_SCRIPT_REF_STRICT=1 \
+  WORKFLOW_SCRIPT_REF_SUMMARY_PATH="$ACCEPTANCE_DIR/release-review-ci-gate-workflow-script-refs.json" \
+  "$ROOT/scripts/validate_workflow_script_refs.sh"
+
+PACKET_INTEGRITY_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
+CHECKS_JSON="$(jq -s '.' "$CHECK_RESULTS")"
+FAILURES_JSON="$(jq -s '[.[] | select(.status != "ok")]' "$CHECK_RESULTS")"
+FAILURE_COUNT="$(jq 'length' <<<"$FAILURES_JSON")"
+INTEGRITY_GREEN="$(jq -r '.green // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
+READY_FOR_RELEASE_REVIEW="$(jq -r '.ready_for_release_review // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
+PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
+ARTIFACT_COUNT="$(jq -r '.artifact_count // 0' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf '0')"
+INTEGRITY_FAILURE_COUNT="$(jq -r '(.failures // []) | length' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf '0')"
+
+GREEN=false
+STATUS=release_review_ci_gate_blocked
+if [[ "$FAILURE_COUNT" == "0" && "$INTEGRITY_GREEN" == "true" && "$READY_FOR_RELEASE_REVIEW" == "true" ]]; then
+  GREEN=true
+  if [[ "$PUBLIC_LAUNCH_READY" == "true" ]]; then
+    STATUS=release_review_ci_gate_green
+  else
+    STATUS=release_review_ci_gate_green_with_public_launch_blockers
+  fi
+fi
+
+jq -n \
+  --arg contract_version "trillionnium_world_release_review_ci_gate_v1" \
+  --arg status "$STATUS" \
+  --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg packet_integrity_json "$PACKET_INTEGRITY_JSON" \
+  --arg workflow_refs_summary "$ACCEPTANCE_DIR/release-review-ci-gate-workflow-script-refs.json" \
+  --argjson green "$GREEN" \
+  --argjson ready_for_release_review "$READY_FOR_RELEASE_REVIEW" \
+  --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
+  --argjson artifact_count "$ARTIFACT_COUNT" \
+  --argjson integrity_failure_count "$INTEGRITY_FAILURE_COUNT" \
+  --argjson checks "$CHECKS_JSON" \
+  --argjson failures "$FAILURES_JSON" \
+  '{
+    contract_version: $contract_version,
+    status: $status,
+    generated_at: $generated_at,
+    source_of_truth: "trillionnium_world_release_review_ci_gate",
+    green: $green,
+    ready_for_release_review: $ready_for_release_review,
+    public_launch_ready: $public_launch_ready,
+    android_s5_real_device_claimed: false,
+    proof_scope: "host_side_bevy_runtime_replay_not_android_real_device",
+    ci_gate_rule: "release_review_ci_gate_runs_local_bevy_playability_packet_integrity_static_guards_readme_links_workflow_refs_and_checkpoint_manifest_without_claiming_android_s5_real_device_ready",
+    packet_integrity_summary: $packet_integrity_json,
+    workflow_script_refs_summary: $workflow_refs_summary,
+    artifact_count: $artifact_count,
+    packet_integrity_failure_count: $integrity_failure_count,
+    checks: $checks,
+    failures: $failures,
+    reviewer_next_action: (if $green and $public_launch_ready then "review_public_launch_ready_evidence" elif $green then "collect_real_external_public_launch_evidence" else "repair_release_review_ci_gate_failures" end)
+  }' >"$SUMMARY_FILE"
+
+case "$STATUS" in
+  release_review_ci_gate_green)
+    printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_GREEN %s\n' "$SUMMARY_FILE"
+    ;;
+  release_review_ci_gate_green_with_public_launch_blockers)
+    printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_GREEN_WITH_PUBLIC_LAUNCH_BLOCKERS %s\n' "$SUMMARY_FILE"
+    ;;
+  *)
+    printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_BLOCKED %s %s\n' "$STATUS" "$SUMMARY_FILE" >&2
+    exit 1
+    ;;
+esac

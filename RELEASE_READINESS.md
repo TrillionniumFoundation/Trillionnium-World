@@ -1,6 +1,6 @@
 # TRNM Release Readiness
 
-Updated date: 2026-03-28
+Updated date: 2026-05-17
 Scope: When citing this file, you must always record the current output of `git rev-parse origin/main`. Do not keep using a fixed commit hash from an older doc header as a permanent truth source.
 
 > This file is the active **release readiness truth source**.
@@ -29,6 +29,7 @@ Current major drift risks include:
 5. Web4 current semantics are **readonly API client + explicit mock fallback**: the UI attempts readonly query path by default, and only falls back to local snapshots under explicit `?mode=mock`. Do not describe it as a purely static mock page, and do not describe it as a production write-enabled backend.
 6. `/api/v0/web4/*` references are historical V0 naming. There is no corresponding Next.js route currently; effective read semantics come from `web4-frontend/lib/api-contract/*` and `web4-frontend/lib/dashboard/source.ts`.
 7. Concurrency closeout and external comparisons are still in document-consolidation phase: `docs/reports/TRNM_CONCURRENCY_BOTTLENECK_MAP_AND_8W_ROADMAP_2026-03-10.md` is the current bottleneck map and 8-week route entry, `docs/reports/TRNM_CONCURRENCY_COMPARISON_2026-03-05.md` is an external benchmark draft; both describe progress, not release proof.
+8. Trillionnium World release-review handoff gates can be green for local review while public launch remains blocked. Treat `release_review_ci_gate_green_with_public_launch_blockers` as a local review packet result, not external readiness.
 
 ## Component Status
 
@@ -47,6 +48,17 @@ Current major drift risks include:
 - **Confirmed missing pieces**: `rust/verifier`, `scripts/run_rust_verifier_poc.sh`, and `docs/protocol/rust-verifier-poc.md` are currently absent.
 - **Narrative boundary**: it is acceptable to describe this as "historical cross-check / evidence recording path", but not as an in-repo verifier subsystem currently complete.
 - **For P1.3 closure assessment**: use `trillionnium/docs/release/TRNM_VERIFIER_DA_CHECKPOINT_SIDECAR_CLOSURE_2026-03-31.md` and evaluate deployable boundary, DA checkpoint linkage, failure taxonomy, and replay evidence. This is a closure checklist, not a release-ready proof.
+
+### 4. Trillionnium World Release Review Handoff (local gate, not public readiness)
+- **Status**: Local release-review handoff packet is available, but public launch is still blocked on real external evidence.
+- **Primary local aggregate command**: `scripts/check_trillionnium_world_release_review_ci_gate.sh`.
+- **Current aggregate artifact**: `acceptance/S6_public_launch/latest/release-review-ci-gate.json`.
+- **Contract**: `trillionnium_world_release_review_ci_gate_v1`.
+- **Expected local status while blockers remain**: `release_review_ci_gate_green_with_public_launch_blockers`.
+- **Current interpretation**: `ready_for_release_review=true`, `public_launch_ready=false`, `android_s5_real_device_claimed=false`, and proof scope is host-side Native/Bevy local playability, texture sampling/correlation, render-asset eligibility, and CEX adapter readiness only.
+- **What it proves**: packet integrity, static release-review guards, README links, workflow script refs, CEX adapter readiness, and Native/Bevy host-side local playability evidence are connected for review handoff. That local evidence currently includes keyboard replay, action coach, player HUD/debug layer, live-window screenshot sequence, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, and CEX production adapter readiness artifacts.
+- **What it does not prove**: Android S5 real-device launch/FPS/lifecycle/crash-free readiness, production/public map-pack readiness, first beta cohort evidence, commercial launch drill evidence, multi-node or live-traffic latency, or public-network live exposure.
+- **Still required before public launch readiness**: S5 Android real-device matrix, production map-pack public evidence, first beta cohort evidence, commercial launch drill evidence, multi-node/live-traffic latency evidence, and public-network live exposure evidence.
 
 ## Documentation Usage Rules (truth-source hierarchy)
 
@@ -91,6 +103,12 @@ Current major drift risks include:
    - Scope: decision memo only; not a proof of closure.
 18. **Convert durable-boundary direction into implementation design package** (schema / ingest loop / replay bootstrap / lag formula / retained-surface materialization): `trillionnium/docs/release/TRNM_RANK1_IMPLEMENTATION_DESIGN_PACKET_2026-04-05.md`.
    - Use for implementation approach from rpc-pull + sqlite + genesis replay to concrete MVP; does not mean Rank-1 is closed.
+19. **Trillionnium World local release-review handoff aggregate**: `scripts/check_trillionnium_world_release_review_ci_gate.sh` and artifact `acceptance/S6_public_launch/latest/release-review-ci-gate.json`.
+   - Use when asking whether the local review packet, packet integrity, guards, README links, and workflow refs are connected.
+   - Scope: local review handoff only; does not replace this file's overall "not release-ready" conclusion and does not claim Android S5 real-device or public launch readiness.
+20. **Trillionnium World release-review WIP checkpoint manifest**: `scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh` and artifacts `acceptance/S6_public_launch/latest/release-review-checkpoint-manifest.json` / `.md`.
+   - Use before committing the current large WIP tree; it groups dirty paths into review/commit slices and snapshots release-review plus CEX adapter evidence.
+   - Scope: working-tree organization only; it stages nothing, commits nothing, and does not replace real public-launch evidence.
 
 ## RC Rehearsal Evidence Template (non-release)
 
