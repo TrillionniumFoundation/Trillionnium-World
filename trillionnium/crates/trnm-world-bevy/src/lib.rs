@@ -11,6 +11,8 @@ use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::winit::WinitSettings;
+#[cfg(not(target_os = "android"))]
+use minifb::{Key as MiniKey, KeyRepeat as MiniKeyRepeat, Window as MiniWindow};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -3624,6 +3626,16 @@ pub fn native_account_title_flow_evidence_json(actor_id: &str) -> String {
 }
 
 pub fn run_native_bevy_client(world: WorldState, actor_id: &str) {
+    if native_bool_env_enabled("TRNM_WORLD_BEVY_CLASSIC_RENDERER") {
+        #[cfg(not(target_os = "android"))]
+        {
+            run_native_classic_low_spec_client(world, actor_id);
+            return;
+        }
+        #[cfg(target_os = "android")]
+        eprintln!("TRNM_WORLD_BEVY_CLASSIC_RENDERER is host-only; using Bevy renderer on Android");
+    }
+
     let (mut app, _report) = build_rendering_bevy_app(world, actor_id);
     if let Ok(stage) = env::var("TRNM_WORLD_BEVY_INITIAL_STAGE") {
         seed_rendering_app_for_stage(&mut app, actor_id, &stage);
@@ -3631,6 +3643,355 @@ pub fn run_native_bevy_client(world: WorldState, actor_id: &str) {
         seed_rendering_app_title_menu_state(&mut app);
     }
     app.run();
+}
+
+fn native_bool_env_enabled(key: &str) -> bool {
+    env::var(key)
+        .map(|value| {
+            matches!(
+                value.as_str(),
+                "1" | "true" | "TRUE" | "yes" | "YES" | "on" | "ON"
+            )
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "android"))]
+fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
+    const WIDTH: usize = 640;
+    const HEIGHT: usize = 360;
+    const GRID_COLS: i32 = 12;
+    const GRID_ROWS: i32 = 8;
+
+    let mut character = WorldTrillionniumCharacter::default_for(actor_id);
+    let mut gameplay_log = NativeGameplayLog {
+        turn: 0,
+        last_action: "boot".to_string(),
+        last_result: "classic_low_spec_renderer_ready".to_string(),
+        last_rejection: None,
+    };
+    let mut first_playable = NativeFirstPlayableRuntime::default();
+    let mut player_tile = (5_i32, 4_i32);
+    let mut buffer = vec![0_u32; WIDTH * HEIGHT];
+    let mut window = MiniWindow::new(
+        "Trillionnium classic low spec renderer",
+        WIDTH,
+        HEIGHT,
+        minifb::WindowOptions::default(),
+    )
+    .expect("classic low spec renderer window opens");
+    let classic_fps = env::var("TRNM_WORLD_BEVY_CLASSIC_FPS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|fps| *fps > 0)
+        .unwrap_or(30);
+    window.set_target_fps(classic_fps);
+
+    classic_draw_scene(&mut buffer, WIDTH, HEIGHT, player_tile, &first_playable);
+    window
+        .update_with_buffer(&buffer, WIDTH, HEIGHT)
+        .expect("classic low spec renderer presents first frame");
+
+    while window.is_open() && !window.is_key_down(MiniKey::Escape) {
+        if let Some(action) = classic_poll_action(&window, &first_playable) {
+            let accepted = native_live_action_availability(&first_playable, &action).0;
+            let move_direction = match &action {
+                NativeControlAction::Move { direction } => Some(direction.clone()),
+                _ => None,
+            };
+            let _ = apply_live_native_action(
+                &mut world,
+                &mut character,
+                &mut gameplay_log,
+                &mut first_playable,
+                actor_id,
+                action,
+            );
+            if accepted {
+                if let Some(direction) = move_direction {
+                    classic_move_player(&mut player_tile, &direction, GRID_COLS, GRID_ROWS);
+                }
+            }
+        }
+        classic_draw_scene(&mut buffer, WIDTH, HEIGHT, player_tile, &first_playable);
+        window.set_title(&classic_window_title(
+            player_tile,
+            &first_playable,
+            &gameplay_log,
+        ));
+        window
+            .update_with_buffer(&buffer, WIDTH, HEIGHT)
+            .expect("classic low spec renderer presents frame");
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_poll_action(
+    window: &MiniWindow,
+    runtime: &NativeFirstPlayableRuntime,
+) -> Option<NativeControlAction> {
+    if window.is_key_pressed(MiniKey::Right, MiniKeyRepeat::Yes)
+        || window.is_key_pressed(MiniKey::D, MiniKeyRepeat::Yes)
+    {
+        Some(NativeControlAction::Move {
+            direction: "east".to_string(),
+        })
+    } else if window.is_key_pressed(MiniKey::Left, MiniKeyRepeat::Yes)
+        || window.is_key_pressed(MiniKey::A, MiniKeyRepeat::Yes)
+    {
+        Some(NativeControlAction::Move {
+            direction: "west".to_string(),
+        })
+    } else if window.is_key_pressed(MiniKey::Up, MiniKeyRepeat::Yes)
+        || window.is_key_pressed(MiniKey::W, MiniKeyRepeat::Yes)
+    {
+        Some(NativeControlAction::Move {
+            direction: "north".to_string(),
+        })
+    } else if window.is_key_pressed(MiniKey::Down, MiniKeyRepeat::Yes)
+        || window.is_key_pressed(MiniKey::S, MiniKeyRepeat::Yes)
+    {
+        Some(NativeControlAction::Move {
+            direction: "south".to_string(),
+        })
+    } else if window.is_key_pressed(MiniKey::R, MiniKeyRepeat::No) {
+        Some(NativeControlAction::Talk)
+    } else if window.is_key_pressed(MiniKey::T, MiniKeyRepeat::No) {
+        Some(NativeControlAction::Train)
+    } else if window.is_key_pressed(MiniKey::F, MiniKeyRepeat::No)
+        || window.is_key_pressed(MiniKey::Space, MiniKeyRepeat::No)
+    {
+        Some(NativeControlAction::Fight)
+    } else if window.is_key_pressed(MiniKey::C, MiniKeyRepeat::No) {
+        Some(NativeControlAction::CompleteTask)
+    } else if window.is_key_pressed(MiniKey::I, MiniKeyRepeat::No) {
+        Some(NativeControlAction::Equip)
+    } else if window.is_key_pressed(MiniKey::Enter, MiniKeyRepeat::No) {
+        player_action_coach_control_action(runtime)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_move_player(tile: &mut (i32, i32), direction: &str, max_cols: i32, max_rows: i32) {
+    let (dx, dy) = classic_direction_delta(direction);
+    tile.0 = (tile.0 + dx).clamp(0, max_cols - 1);
+    tile.1 = (tile.1 + dy).clamp(0, max_rows - 1);
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_direction_delta(direction: &str) -> (i32, i32) {
+    match direction {
+        "east" => (1, 0),
+        "west" => (-1, 0),
+        "north" => (0, -1),
+        "south" => (0, 1),
+        "north-east" => (1, -1),
+        "north-west" => (-1, -1),
+        "south-east" => (1, 1),
+        "south-west" => (-1, 1),
+        _ => (0, 0),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_scene(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    player_tile: (i32, i32),
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    buffer.fill(0x101411);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        0,
+        0,
+        width as i32,
+        height as i32,
+        0x101411,
+    );
+    classic_draw_rect(buffer, width, height, 0, 0, width as i32, 32, 0x16211b);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        0,
+        height as i32 - 54,
+        width as i32,
+        54,
+        0x171a1d,
+    );
+
+    let origin_x = 96;
+    let origin_y = 46;
+    let tile = 32;
+    for row in 0..8 {
+        for col in 0..12 {
+            let color = if (row + col) % 2 == 0 {
+                0x26352a
+            } else {
+                0x203026
+            };
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                origin_x + col * tile,
+                origin_y + row * tile,
+                tile - 2,
+                tile - 2,
+                color,
+            );
+        }
+    }
+
+    classic_draw_marker(
+        buffer,
+        width,
+        height,
+        origin_x,
+        origin_y,
+        tile,
+        (4, 3),
+        0xe6c76c,
+    );
+    classic_draw_marker(
+        buffer,
+        width,
+        height,
+        origin_x,
+        origin_y,
+        tile,
+        (8, 2),
+        0xbd5b4f,
+    );
+    classic_draw_marker(
+        buffer,
+        width,
+        height,
+        origin_x,
+        origin_y,
+        tile,
+        (8, 5),
+        0x6ab0d8,
+    );
+    if runtime.dialogue_overlay_visible {
+        classic_draw_marker(
+            buffer,
+            width,
+            height,
+            origin_x,
+            origin_y,
+            tile,
+            (4, 4),
+            0xf0e0a8,
+        );
+    }
+    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+        classic_draw_marker(
+            buffer,
+            width,
+            height,
+            origin_x,
+            origin_y,
+            tile,
+            (9, 2),
+            0xf06b61,
+        );
+    }
+    classic_draw_marker(
+        buffer,
+        width,
+        height,
+        origin_x,
+        origin_y,
+        tile,
+        player_tile,
+        0x78d67a,
+    );
+
+    let xp_width = (runtime.xp.min(100) as i32 * 180) / 100;
+    classic_draw_rect(buffer, width, height, 96, 320, 184, 10, 0x29312b);
+    classic_draw_rect(buffer, width, height, 98, 322, xp_width, 6, 0x7fcf6b);
+    let danger =
+        runtime.last_feedback.contains("blocked") || runtime.objective_status.contains("required");
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        300,
+        320,
+        244,
+        10,
+        if danger { 0x8a342e } else { 0x2f5d75 },
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_marker(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    origin_x: i32,
+    origin_y: i32,
+    tile: i32,
+    grid: (i32, i32),
+    color: u32,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        origin_x + grid.0 * tile + 7,
+        origin_y + grid.1 * tile + 7,
+        tile - 14,
+        tile - 14,
+        color,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rect(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    color: u32,
+) {
+    let left = x.max(0) as usize;
+    let top = y.max(0) as usize;
+    let right = (x + w).clamp(0, width as i32) as usize;
+    let bottom = (y + h).clamp(0, height as i32) as usize;
+    for py in top..bottom {
+        let row_start = py * width;
+        for px in left..right {
+            buffer[row_start + px] = color;
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_window_title(
+    player_tile: (i32, i32),
+    runtime: &NativeFirstPlayableRuntime,
+    gameplay_log: &NativeGameplayLog,
+) -> String {
+    format!(
+        "Trillionnium classic | room={} tile=({}, {}) xp={} | arrows/WASD move R talk T train F fight C complete I equip Enter next | {} -> {}",
+        runtime.current_room_id,
+        player_tile.0,
+        player_tile.1,
+        runtime.xp,
+        gameplay_log.last_action,
+        gameplay_log.last_result
+    )
 }
 
 fn seed_rendering_app_title_menu_state(app: &mut App) {
