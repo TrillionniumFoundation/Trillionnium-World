@@ -8,6 +8,7 @@ EXPECTED_BINARY="$ROOT/target/release/trnm-world-bevy"
 EXPECTED_REPO_ROOT="$ROOT"
 EXPECTED_CWD="$ROOT/trillionnium"
 EXPECTED_MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
+EXPECTED_OVERRIDE_DIR="$ROOT/assets/trnm-world/classic/art-pack-v1"
 
 mkdir -p "$(dirname "$SUMMARY")"
 
@@ -46,6 +47,7 @@ LOW_SPEC_VALUE=""
 CLASSIC_RENDERER_VALUE=""
 CLASSIC_FPS_VALUE=""
 CLASSIC_MANIFEST_VALUE=""
+CLASSIC_OVERRIDE_DIR_VALUE=""
 
 if [[ "$MAIN_PID" -gt 0 && -d "/proc/$MAIN_PID" ]]; then
   if [[ -r "/proc/$MAIN_PID/cmdline" ]]; then
@@ -57,6 +59,7 @@ if [[ "$MAIN_PID" -gt 0 && -d "/proc/$MAIN_PID" ]]; then
   CLASSIC_RENDERER_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_RENDERER)"
   CLASSIC_FPS_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_FPS)"
   CLASSIC_MANIFEST_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST)"
+  CLASSIC_OVERRIDE_DIR_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR)"
 fi
 
 CMD0="$(jq -r '.[0] // ""' <<<"$CMDLINE_JSON")"
@@ -66,11 +69,13 @@ ENV_JSON="$(jq -n \
   --arg classic_renderer "$CLASSIC_RENDERER_VALUE" \
   --arg classic_fps "$CLASSIC_FPS_VALUE" \
   --arg classic_asset_manifest "$CLASSIC_MANIFEST_VALUE" \
+  --arg classic_asset_override_dir "$CLASSIC_OVERRIDE_DIR_VALUE" \
   '{
     TRNM_WORLD_BEVY_LOW_SPEC: $low_spec,
     TRNM_WORLD_BEVY_CLASSIC_RENDERER: $classic_renderer,
     TRNM_WORLD_BEVY_CLASSIC_FPS: $classic_fps,
-    TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST: $classic_asset_manifest
+    TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST: $classic_asset_manifest,
+    TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR: $classic_asset_override_dir
   }')"
 
 SERVICE_PROCESS_GATE=false
@@ -93,19 +98,24 @@ if [[ "$CLASSIC_MANIFEST_VALUE" == "$EXPECTED_MANIFEST" && -f "$EXPECTED_MANIFES
   MANIFEST_GATE=true
 fi
 
+OVERRIDE_DIR_GATE=false
+if [[ "$CLASSIC_OVERRIDE_DIR_VALUE" == "$EXPECTED_OVERRIDE_DIR" && -d "$EXPECTED_OVERRIDE_DIR" ]]; then
+  OVERRIDE_DIR_GATE=true
+fi
+
 WORKDIR_GATE=false
 if [[ "$PROCESS_CWD" == "$EXPECTED_CWD" ]]; then
   WORKDIR_GATE=true
 fi
 
-COMBINED_RUNTIME_PATHS="$(printf '%s %s %s %s' "$CMDLINE_JOINED" "$PROCESS_CWD" "$CLASSIC_MANIFEST_VALUE" "$CMD0")"
+COMBINED_RUNTIME_PATHS="$(printf '%s %s %s %s %s' "$CMDLINE_JOINED" "$PROCESS_CWD" "$CLASSIC_MANIFEST_VALUE" "$CLASSIC_OVERRIDE_DIR_VALUE" "$CMD0")"
 CEX_PATH_GATE=true
 if grep -qiE '(^|[[:space:]])/[^[:space:]]*/CEX(/|[[:space:]]|$)|(^|[[:space:]])/[^[:space:]]*/cex(/|[[:space:]]|$)' <<<"$COMBINED_RUNTIME_PATHS"; then
   CEX_PATH_GATE=false
 fi
 
 GREEN=false
-if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CEX_PATH_GATE" == "true" ]]; then
+if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CEX_PATH_GATE" == "true" ]]; then
   GREEN=true
 fi
 
@@ -132,6 +142,7 @@ jq -n \
   --arg expected_cwd "$EXPECTED_CWD" \
   --arg process_cwd "$PROCESS_CWD" \
   --arg expected_manifest "$EXPECTED_MANIFEST" \
+  --arg expected_override_dir "$EXPECTED_OVERRIDE_DIR" \
   --arg manifest_sha256 "$MANIFEST_SHA256" \
   --argjson green "$GREEN" \
   --argjson cmdline "$CMDLINE_JSON" \
@@ -140,6 +151,7 @@ jq -n \
   --argjson release_binary_gate "$RELEASE_BINARY_GATE" \
   --argjson classic_env_gate "$CLASSIC_ENV_GATE" \
   --argjson manifest_gate "$MANIFEST_GATE" \
+  --argjson override_dir_gate "$OVERRIDE_DIR_GATE" \
   --argjson workdir_gate "$WORKDIR_GATE" \
   --argjson cex_path_gate "$CEX_PATH_GATE" \
   '{
@@ -159,6 +171,7 @@ jq -n \
       expected_cwd: $expected_cwd,
       process_cwd: $process_cwd,
       expected_manifest: $expected_manifest,
+      expected_override_dir: $expected_override_dir,
       manifest_sha256: (if $manifest_sha256 == "" then null else $manifest_sha256 end),
       cmdline: $cmdline,
       selected_environment: $selected_environment
@@ -168,6 +181,7 @@ jq -n \
       release_binary_gate: $release_binary_gate,
       classic_env_gate: $classic_env_gate,
       manifest_gate: $manifest_gate,
+      override_dir_gate: $override_dir_gate,
       workdir_gate: $workdir_gate,
       cex_path_gate: $cex_path_gate
     },
@@ -187,10 +201,12 @@ jq -e '
   and .runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_RENDERER == "1"
   and .runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_FPS == "30"
   and (.runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST | contains("/assets/trnm-world/classic/manifest.json"))
+  and (.runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR | contains("/assets/trnm-world/classic/art-pack-v1"))
   and .gates.service_process_gate == true
   and .gates.release_binary_gate == true
   and .gates.classic_env_gate == true
   and .gates.manifest_gate == true
+  and .gates.override_dir_gate == true
   and .gates.workdir_gate == true
   and .gates.cex_path_gate == true
 ' "$SUMMARY" >/dev/null

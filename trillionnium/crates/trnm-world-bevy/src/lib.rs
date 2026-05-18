@@ -134,6 +134,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_SLOT_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_asset_slot_map_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_asset_override_probe_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ART_PACK_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_art_pack_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDERER_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_renderer_probe_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ISOMETRIC_MODELING_CONTRACT: &str =
@@ -660,10 +662,17 @@ pub struct ClassicActorAnimationClip {
 }
 
 #[derive(Debug, Clone)]
+struct ClassicFrameOverride {
+    width: u32,
+    height: u32,
+    pixels: Vec<u32>,
+}
+
+#[derive(Debug, Clone)]
 struct ClassicRuntimeAssets {
     manifest: ClassicAssetPackManifest,
     atlas_pixels: Vec<u32>,
-    frame_override_pixels: HashMap<String, Vec<u32>>,
+    frame_override_pixels: HashMap<String, ClassicFrameOverride>,
     frame_override_dir: Option<String>,
     frame_by_id: HashMap<String, ClassicAtlasFrame>,
     scene_by_id: HashMap<String, ClassicSceneMap>,
@@ -5563,6 +5572,608 @@ pub fn native_classic_asset_override_probe_evidence_json(preview_path: &str) -> 
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &str) -> String {
+    let override_dir_path = Path::new(override_dir);
+    let create_dir_gate = fs::create_dir_all(override_dir_path).is_ok();
+    let specs = classic_art_pack_override_specs();
+    let mut written_assets = Vec::new();
+    let mut write_failures = Vec::new();
+    for (frame_id, width, height, group) in &specs {
+        let pixels = classic_art_pack_pixels(frame_id, *width, *height);
+        let path = override_dir_path.join(format!("{frame_id}.ppm"));
+        let path_string = path.to_string_lossy().to_string();
+        if write_classic_rgb_buffer_ppm(&path_string, *width as usize, *height as usize, &pixels)
+            .is_ok()
+        {
+            written_assets.push(json!({
+                "frame_id": frame_id,
+                "group": group,
+                "width": width,
+                "height": height,
+                "path": path_string,
+                "visible_pixel_count": pixels.iter().filter(|color| **color != 0x000000).count(),
+            }));
+        } else {
+            write_failures.push(path_string);
+        }
+    }
+    let assets = load_classic_runtime_assets_with_override_dir(Some(override_dir.to_string()));
+    let mut preview_pixels = vec![0x0b0d0c_u32; 640 * 420];
+    classic_draw_art_pack_preview(&mut preview_pixels, 640, 420, &specs, &assets);
+    let preview_write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, 640, 420, &preview_pixels).is_ok();
+    let preview_non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let mut group_counts: HashMap<String, usize> = HashMap::new();
+    for (_, _, _, group) in &specs {
+        *group_counts.entry((*group).to_string()).or_default() += 1;
+    }
+    let required_model_gate = ["model_town_hall", "model_waygate", "model_training_hall"]
+        .iter()
+        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let player_art_gate = [
+        "actor_player_idle_south",
+        "actor_player_idle_north",
+        "actor_player_idle_east",
+        "actor_player_idle_west",
+        "actor_player_walk_south_1",
+        "actor_player_walk_south_2",
+    ]
+    .iter()
+    .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let enemy_art_gate = ["actor_enemy_idle", "actor_enemy_attack", "actor_enemy_hit"]
+        .iter()
+        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
+        && assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = create_dir_gate
+        && write_failures.is_empty()
+        && preview_write_gate
+        && preview_non_background_pixels > 35_000
+        && written_assets.len() >= 12
+        && assets.frame_override_pixels.len() >= 12
+        && required_model_gate
+        && player_art_gate
+        && enemy_art_gate
+        && replacement_boundary_gate;
+    let override_frame_ids = assets
+        .frame_override_pixels
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_ART_PACK_CONTRACT,
+        "green": green,
+        "override_dir": override_dir,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": 640,
+        "preview_height": 420,
+        "preview_write_gate": preview_write_gate,
+        "preview_non_background_pixels": preview_non_background_pixels,
+        "create_dir_gate": create_dir_gate,
+        "asset_count": written_assets.len(),
+        "override_frame_count": assets.frame_override_pixels.len(),
+        "group_counts": group_counts,
+        "required_model_gate": required_model_gate,
+        "player_art_gate": player_art_gate,
+        "enemy_art_gate": enemy_art_gate,
+        "replacement_boundary_gate": replacement_boundary_gate,
+        "override_frame_ids": override_frame_ids,
+        "written_assets": written_assets,
+        "write_failures": write_failures,
+        "asset_groups": ["town_hall", "waygate", "training_hall", "player", "enemy"],
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "The classic art pack writes the first real 2.5D override sprites into the Trillionnium Bevy asset tree and proves they load through the native low-spec renderer override path."
+    }))
+    .expect("classic art pack evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static str)> {
+    let mut specs = classic_art_pack_synthetic_override_specs()
+        .into_iter()
+        .map(|(frame_id, width, height)| {
+            let group = match frame_id {
+                "model_town_hall" => "town_hall",
+                "model_waygate" => "waygate",
+                "model_training_hall" => "training_hall",
+                _ => "model",
+            };
+            (frame_id, width, height, group)
+        })
+        .collect::<Vec<_>>();
+    specs.extend([
+        ("actor_player_idle_south", 16, 16, "player"),
+        ("actor_player_idle_north", 16, 16, "player"),
+        ("actor_player_idle_east", 16, 16, "player"),
+        ("actor_player_idle_west", 16, 16, "player"),
+        ("actor_player_walk_south_1", 16, 16, "player"),
+        ("actor_player_walk_south_2", 16, 16, "player"),
+        ("actor_enemy_idle", 16, 16, "enemy"),
+        ("actor_enemy_attack", 16, 16, "enemy"),
+        ("actor_enemy_hit", 16, 16, "enemy"),
+    ]);
+    specs
+}
+
+fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> {
+    vec![
+        ("model_town_hall", 96, 96),
+        ("model_waygate", 96, 96),
+        ("model_training_hall", 96, 96),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> {
+    let mut pixels = vec![0x000000_u32; width as usize * height as usize];
+    match frame_id {
+        "model_town_hall" => {
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                70,
+                66,
+                34,
+                34,
+                0x6f5c43,
+            );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                42,
+                78,
+                28,
+                16,
+                0x274a74,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                41,
+                57,
+                14,
+                26,
+                0x201812,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                25,
+                50,
+                10,
+                8,
+                0xf1c45d,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                61,
+                50,
+                10,
+                8,
+                0xf1c45d,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                32,
+                32,
+                32,
+                4,
+                0xf4d06f,
+            );
+        }
+        "model_waygate" => {
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                30,
+                66,
+                24,
+                30,
+                54,
+                0x5f6870,
+            );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                66,
+                66,
+                24,
+                30,
+                54,
+                0x5f6870,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                23,
+                20,
+                50,
+                8,
+                0x31383d,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                27,
+                28,
+                42,
+                8,
+                0x7e8a92,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                57,
+                20,
+                30,
+                0x6f7cff,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                57,
+                11,
+                20,
+                0xc7d3ff,
+            );
+        }
+        "model_training_hall" => {
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                70,
+                62,
+                34,
+                30,
+                0x5d6365,
+            );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                45,
+                74,
+                25,
+                14,
+                0x8b3438,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                57,
+                48,
+                22,
+                5,
+                0xd8b15a,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                58,
+                53,
+                18,
+                3,
+                0x2b1b17,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                20,
+                54,
+                12,
+                24,
+                0x3d2720,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                17,
+                50,
+                18,
+                6,
+                0xccbc7a,
+            );
+        }
+        frame if frame.starts_with("actor_player") => {
+            let accent = if frame.contains("north") {
+                0x83c79d
+            } else if frame.contains("east") {
+                0xfff0a8
+            } else if frame.contains("west") {
+                0x7fd8e8
+            } else {
+                0xf2dc73
+            };
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                6,
+                2,
+                4,
+                3,
+                0xd8f0a0,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                5,
+                5,
+                6,
+                6,
+                0x3f9b58,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                4,
+                7,
+                2,
+                4,
+                accent,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                10,
+                7,
+                2,
+                4,
+                accent,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                5,
+                11,
+                2,
+                4,
+                0x26382e,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                9,
+                11,
+                2,
+                4,
+                0x26382e,
+            );
+            if frame.contains("_2") {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    3,
+                    12,
+                    3,
+                    2,
+                    0xf2dc73,
+                );
+            }
+        }
+        "actor_enemy_idle" | "actor_enemy_attack" | "actor_enemy_hit" => {
+            let body = if frame_id == "actor_enemy_hit" {
+                0x8f3a3a
+            } else {
+                0xb94745
+            };
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                5,
+                3,
+                6,
+                4,
+                0xff8c73,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                4,
+                7,
+                8,
+                6,
+                body,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                3,
+                8,
+                2,
+                4,
+                0x3a2020,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                11,
+                8,
+                2,
+                4,
+                0x3a2020,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                5,
+                13,
+                2,
+                2,
+                0x2b1717,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                9,
+                13,
+                2,
+                2,
+                0x2b1717,
+            );
+            if frame_id == "actor_enemy_attack" {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    12,
+                    5,
+                    3,
+                    2,
+                    0xff5c4d,
+                );
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    13,
+                    7,
+                    2,
+                    4,
+                    0xff5c4d,
+                );
+            }
+            if frame_id == "actor_enemy_hit" {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    2,
+                    2,
+                    4,
+                    2,
+                    0xffb199,
+                );
+            }
+        }
+        _ => {}
+    }
+    pixels
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_art_pack_preview(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    specs: &[(&str, u32, u32, &str)],
+    assets: &ClassicRuntimeAssets,
+) {
+    let cell_w = 160_i32;
+    let cell_h = 105_i32;
+    for (index, (frame_id, source_width, source_height, group)) in specs.iter().enumerate() {
+        let x = (index as i32 % 4) * cell_w;
+        let y = (index as i32 / 4) * cell_h;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 3,
+            y + 3,
+            cell_w - 6,
+            cell_h - 6,
+            0x121813,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 8,
+            y + 8,
+            group,
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 8,
+            y + 20,
+            frame_id,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        if let Some(frame_override) = assets.frame_override_pixels.get(*frame_id) {
+            let scale = if *source_width <= 16 { 4 } else { 1 };
+            let draw_w = frame_override.width as i32 * scale as i32;
+            let draw_h = frame_override.height as i32 * scale as i32;
+            classic_blit_pixels_scaled(
+                buffer,
+                width,
+                height,
+                &frame_override.pixels,
+                frame_override.width,
+                frame_override.height,
+                x + (cell_w - draw_w) / 2,
+                y + 96 - draw_h,
+                scale,
+            );
+        } else {
+            let pixels = classic_art_pack_pixels(frame_id, *source_width, *source_height);
+            let scale = if *source_width <= 16 { 4 } else { 1 };
+            let draw_w = *source_width as i32 * scale as i32;
+            let draw_h = *source_height as i32 * scale as i32;
+            classic_blit_pixels_scaled(
+                buffer,
+                width,
+                height,
+                &pixels,
+                *source_width,
+                *source_height,
+                x + (cell_w - draw_w) / 2,
+                y + 96 - draw_h,
+                scale,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_renderer_probe_evidence_json(frame_path: &str) -> String {
     const WIDTH: usize = 640;
     const HEIGHT: usize = 360;
@@ -6130,9 +6741,16 @@ fn classic_frame_source_pixel(
     sx: u32,
     sy: u32,
 ) -> u32 {
-    if let Some(override_pixels) = assets.frame_override_pixels.get(&frame.id) {
-        let index = sy as usize * frame.w as usize + sx as usize;
-        return override_pixels.get(index).copied().unwrap_or_default();
+    if let Some(frame_override) = assets.frame_override_pixels.get(&frame.id) {
+        if sx >= frame_override.width || sy >= frame_override.height {
+            return 0x000000;
+        }
+        let index = sy as usize * frame_override.width as usize + sx as usize;
+        return frame_override
+            .pixels
+            .get(index)
+            .copied()
+            .unwrap_or_default();
     }
     let source_x = frame.x + sx;
     let source_y = frame.y + sy;
@@ -6637,10 +7255,23 @@ pub fn native_classic_animation_preview_evidence_json(preview_path: &str) -> Str
 }
 
 fn load_classic_runtime_assets() -> ClassicRuntimeAssets {
+    load_classic_runtime_assets_with_override_dir(
+        env::var("TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR").ok(),
+    )
+}
+
+fn load_classic_runtime_assets_with_override_dir(
+    override_dir: Option<String>,
+) -> ClassicRuntimeAssets {
     classic_asset_manifest_candidates()
         .into_iter()
-        .find_map(|path| load_classic_runtime_assets_from_manifest_path(&path))
-        .unwrap_or_else(generated_classic_runtime_assets)
+        .find_map(|path| {
+            load_classic_runtime_assets_from_manifest_path_with_override_dir(
+                &path,
+                override_dir.clone(),
+            )
+        })
+        .unwrap_or_else(|| generated_classic_runtime_assets_with_override_dir(override_dir))
 }
 
 fn classic_asset_manifest_candidates() -> Vec<String> {
@@ -6654,6 +7285,16 @@ fn classic_asset_manifest_candidates() -> Vec<String> {
 }
 
 fn load_classic_runtime_assets_from_manifest_path(path: &str) -> Option<ClassicRuntimeAssets> {
+    load_classic_runtime_assets_from_manifest_path_with_override_dir(
+        path,
+        env::var("TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR").ok(),
+    )
+}
+
+fn load_classic_runtime_assets_from_manifest_path_with_override_dir(
+    path: &str,
+    override_dir: Option<String>,
+) -> Option<ClassicRuntimeAssets> {
     let manifest_text = fs::read_to_string(path).ok()?;
     let manifest: ClassicAssetPackManifest = serde_json::from_str(&manifest_text).ok()?;
     if manifest.contract_version != TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT {
@@ -6674,13 +7315,22 @@ fn load_classic_runtime_assets_from_manifest_path(path: &str) -> Option<ClassicR
         atlas_pixels,
         true,
         true,
+        override_dir,
     ))
 }
 
 fn generated_classic_runtime_assets() -> ClassicRuntimeAssets {
+    generated_classic_runtime_assets_with_override_dir(
+        env::var("TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR").ok(),
+    )
+}
+
+fn generated_classic_runtime_assets_with_override_dir(
+    override_dir: Option<String>,
+) -> ClassicRuntimeAssets {
     let manifest = default_classic_asset_manifest("generated-classic-atlas.ppm");
     let atlas_pixels = generated_classic_atlas_pixels(&manifest);
-    classic_runtime_assets_from_manifest(manifest, atlas_pixels, false, true)
+    classic_runtime_assets_from_manifest(manifest, atlas_pixels, false, true, override_dir)
 }
 
 fn classic_runtime_assets_from_manifest(
@@ -6688,6 +7338,7 @@ fn classic_runtime_assets_from_manifest(
     atlas_pixels: Vec<u32>,
     loaded_from_manifest: bool,
     atlas_parse_gate: bool,
+    override_dir: Option<String>,
 ) -> ClassicRuntimeAssets {
     let frame_by_id = manifest
         .frames
@@ -6695,7 +7346,7 @@ fn classic_runtime_assets_from_manifest(
         .map(|frame| (frame.id.clone(), frame.clone()))
         .collect::<HashMap<_, _>>();
     let (frame_override_pixels, frame_override_dir) =
-        load_classic_frame_overrides(&manifest, &frame_by_id);
+        load_classic_frame_overrides(&manifest, &frame_by_id, override_dir.as_deref());
     ClassicRuntimeAssets {
         frame_by_id,
         scene_by_id: manifest
@@ -6720,13 +7371,14 @@ fn classic_runtime_assets_from_manifest(
 fn load_classic_frame_overrides(
     manifest: &ClassicAssetPackManifest,
     frame_by_id: &HashMap<String, ClassicAtlasFrame>,
-) -> (HashMap<String, Vec<u32>>, Option<String>) {
-    let Ok(override_dir) = env::var("TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR") else {
+    override_dir: Option<&str>,
+) -> (HashMap<String, ClassicFrameOverride>, Option<String>) {
+    let Some(override_dir) = override_dir else {
         return (HashMap::new(), None);
     };
     let override_dir_path = Path::new(&override_dir);
     if !override_dir_path.is_dir() {
-        return (HashMap::new(), Some(override_dir));
+        return (HashMap::new(), Some(override_dir.to_string()));
     }
     let mut overrides = HashMap::new();
     for (frame_id, frame) in frame_by_id {
@@ -6735,7 +7387,30 @@ fn load_classic_frame_overrides(
             continue;
         };
         if let Ok(pixels) = read_classic_ppm_p3_u32(override_path, frame.w, frame.h) {
-            overrides.insert(frame_id.clone(), pixels);
+            overrides.insert(
+                frame_id.clone(),
+                ClassicFrameOverride {
+                    width: frame.w,
+                    height: frame.h,
+                    pixels,
+                },
+            );
+        }
+    }
+    for (frame_id, width, height) in classic_art_pack_synthetic_override_specs() {
+        let override_path = override_dir_path.join(format!("{frame_id}.ppm"));
+        let Some(override_path) = override_path.to_str() else {
+            continue;
+        };
+        if let Ok(pixels) = read_classic_ppm_p3_u32(override_path, width, height) {
+            overrides.insert(
+                frame_id.to_string(),
+                ClassicFrameOverride {
+                    width,
+                    height,
+                    pixels,
+                },
+            );
         }
     }
     if overrides.is_empty() {
@@ -6746,7 +7421,7 @@ fn load_classic_frame_overrides(
         let fallback_dir = fallback_path.to_string_lossy().to_string();
         (overrides, Some(fallback_dir))
     } else {
-        (overrides, Some(override_dir))
+        (overrides, Some(override_dir.to_string()))
     }
 }
 
@@ -8387,6 +9062,19 @@ fn classic_draw_isometric_frame_at_tile(
     classic_draw_iso_procedural_model(
         buffer, width, height, frame_id, screen_x, screen_y, tile_w, tile_h,
     );
+    if !assets.frame_by_id.contains_key(frame_id)
+        && classic_blit_frame_override_bottom_center(
+            buffer,
+            width,
+            height,
+            assets,
+            frame_id,
+            screen_x,
+            screen_y + tile_h,
+        )
+    {
+        return;
+    }
     classic_blit_frame_scaled(
         buffer,
         width,
@@ -9592,6 +10280,36 @@ fn classic_draw_frame_at_tile(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_blit_frame_override_bottom_center(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    assets: &ClassicRuntimeAssets,
+    frame_id: &str,
+    center_x: i32,
+    bottom_y: i32,
+) -> bool {
+    let Some(frame_override) = assets.frame_override_pixels.get(frame_id) else {
+        return false;
+    };
+    let x = center_x - frame_override.width as i32 / 2;
+    let y = bottom_y - frame_override.height as i32;
+    classic_blit_pixels_scaled(
+        buffer,
+        width,
+        height,
+        &frame_override.pixels,
+        frame_override.width,
+        frame_override.height,
+        x,
+        y,
+        1,
+    );
+    true
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_blit_frame_scaled(
     buffer: &mut [u32],
     width: usize,
@@ -9624,6 +10342,42 @@ fn classic_blit_frame_scaled(
         }
     }
     true
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_blit_pixels_scaled(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    pixels: &[u32],
+    source_width: u32,
+    source_height: u32,
+    x: i32,
+    y: i32,
+    scale: u32,
+) {
+    let scale = scale.max(1) as i32;
+    for sy in 0..source_height as i32 {
+        for sx in 0..source_width as i32 {
+            let color = pixels
+                .get(sy as usize * source_width as usize + sx as usize)
+                .copied()
+                .unwrap_or_default();
+            if color == 0x000000 {
+                continue;
+            }
+            for dy in 0..scale {
+                for dx in 0..scale {
+                    let px = x + sx * scale + dx;
+                    let py = y + sy * scale + dy;
+                    if px >= 0 && py >= 0 && px < width as i32 && py < height as i32 {
+                        buffer[py as usize * width + px as usize] = color;
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[cfg(not(target_os = "android"))]

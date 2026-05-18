@@ -316,6 +316,24 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-art-pack" | "--classic-art-pack" | "classic-artpack")
+    ) {
+        let override_dir = args
+            .get(1)
+            .map(String::as_str)
+            .unwrap_or("../assets/trnm-world/classic/art-pack-v1");
+        let preview_path = args
+            .get(2)
+            .map(String::as_str)
+            .unwrap_or("../acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.ppm");
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_art_pack_evidence_json(override_dir, preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-renderer-probe" | "--classic-renderer-probe" | "classic-probe")
     ) {
         let frame_path = args.get(1).map(String::as_str).unwrap_or(

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.json"
+PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.ppm"
+OVERRIDE_DIR="$ROOT/assets/trnm-world/classic/art-pack-v1"
+mkdir -p "$(dirname "$SUMMARY")" "$OVERRIDE_DIR"
+
+(
+  cd "$ROOT/trillionnium"
+  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-art-pack "$OVERRIDE_DIR" "$PREVIEW" >"$SUMMARY"
+)
+
+jq -e '
+  .contract_version == "trillionnium_world_bevy_classic_art_pack_v1"
+  and .green == true
+  and .asset_count >= 12
+  and .override_frame_count >= 12
+  and .preview_width == 640
+  and .preview_height == 420
+  and .preview_write_gate == true
+  and .preview_non_background_pixels > 35000
+  and .group_counts.town_hall == 1
+  and .group_counts.waygate == 1
+  and .group_counts.training_hall == 1
+  and .group_counts.player >= 6
+  and .group_counts.enemy >= 3
+  and .required_model_gate == true
+  and .player_art_gate == true
+  and .enemy_art_gate == true
+  and .replacement_boundary_gate == true
+  and .cex_runtime_player_client_allowed == false
+  and .wgpu_required == false
+  and (.asset_groups | index("town_hall") != null)
+  and (.asset_groups | index("waygate") != null)
+  and (.asset_groups | index("training_hall") != null)
+  and (.asset_groups | index("player") != null)
+  and (.asset_groups | index("enemy") != null)
+  and (.override_frame_ids | index("model_town_hall") != null)
+  and (.override_frame_ids | index("model_waygate") != null)
+  and (.override_frame_ids | index("model_training_hall") != null)
+  and (.override_frame_ids | index("actor_player_idle_south") != null)
+  and (.override_frame_ids | index("actor_enemy_attack") != null)
+' "$SUMMARY" >/dev/null
+
+for asset in model_town_hall model_waygate model_training_hall actor_player_idle_south actor_enemy_attack; do
+  test -s "$OVERRIDE_DIR/$asset.ppm"
+done
+test -s "$PREVIEW"
+
+printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_ART_PACK_GREEN %s %s\n' "$SUMMARY" "$PREVIEW"

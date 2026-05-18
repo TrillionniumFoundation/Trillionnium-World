@@ -16,6 +16,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_slot_map.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_override_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
@@ -32,6 +33,7 @@ jq -n \
   --slurpfile iso "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.json" \
   --slurpfile catalog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" \
   --slurpfile slots "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-slot-map.json" \
+  --slurpfile art_pack "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.json" \
   --slurpfile override "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
@@ -50,6 +52,7 @@ jq -n \
       and ok($iso)
       and ok($catalog)
       and ok($slots)
+      and ok($art_pack)
       and ok($override)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
@@ -71,8 +74,13 @@ jq -n \
       and $slots[0].manifest_frame_slots_gate == true
       and $slots[0].procedural_slots_gate == true
       and $slots[0].replacement_boundary_gate == true
+      and $art_pack[0].required_model_gate == true
+      and $art_pack[0].player_art_gate == true
+      and $art_pack[0].enemy_art_gate == true
+      and $art_pack[0].replacement_boundary_gate == true
       and $override[0].override_frame_gate == true
       and $override[0].replacement_boundary_gate == true
+      and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
     checks: {
@@ -87,6 +95,7 @@ jq -n \
       isometric_modeling_green: ok($iso),
       model_catalog_green: ok($catalog),
       asset_slot_map_green: ok($slots),
+      classic_art_pack_green: ok($art_pack),
       asset_override_probe_green: ok($override),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
@@ -138,6 +147,9 @@ jq -n \
       asset_procedural_model_slot_count: $slots[0].procedural_model_slot_count,
       asset_doodad_slot_count: $slots[0].doodad_slot_count,
       asset_vfx_slot_count: $slots[0].vfx_slot_count,
+      art_pack_asset_count: $art_pack[0].asset_count,
+      art_pack_override_frame_count: $art_pack[0].override_frame_count,
+      art_pack_preview_non_background_pixels: $art_pack[0].preview_non_background_pixels,
       asset_override_frame_count: $override[0].override_frame_count,
       asset_override_probe_pixel_count: $override[0].override_probe_pixel_count,
       asset_override_non_background_pixels: $override[0].non_background_pixels,
@@ -174,11 +186,16 @@ jq -n \
       asset_slot_manifest_frame_slots_gate: $slots[0].manifest_frame_slots_gate,
       asset_slot_procedural_slots_gate: $slots[0].procedural_slots_gate,
       asset_slot_replacement_boundary_gate: $slots[0].replacement_boundary_gate,
+      art_pack_required_model_gate: $art_pack[0].required_model_gate,
+      art_pack_player_art_gate: $art_pack[0].player_art_gate,
+      art_pack_enemy_art_gate: $art_pack[0].enemy_art_gate,
+      art_pack_replacement_boundary_gate: $art_pack[0].replacement_boundary_gate,
       asset_override_frame_gate: $override[0].override_frame_gate,
       asset_override_replacement_boundary_gate: $override[0].replacement_boundary_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
+      runner_override_dir_gate: $runner[0].gates.override_dir_gate,
       runner_cex_path_gate: $runner[0].gates.cex_path_gate
     },
     artifacts: {
@@ -199,6 +216,8 @@ jq -n \
       model_catalog: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json",
       model_catalog_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm",
       asset_slot_map: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-slot-map.json",
+      classic_art_pack: "acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.json",
+      classic_art_pack_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.ppm",
       asset_override_probe: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.json",
       asset_override_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -220,6 +239,7 @@ jq -e '
   and .checks.isometric_modeling_green == true
   and .checks.model_catalog_green == true
   and .checks.asset_slot_map_green == true
+  and .checks.classic_art_pack_green == true
   and .checks.asset_override_probe_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
@@ -267,6 +287,9 @@ jq -e '
   and .headline.asset_procedural_model_slot_count >= 5
   and .headline.asset_doodad_slot_count >= 4
   and .headline.asset_vfx_slot_count >= 6
+  and .headline.art_pack_asset_count >= 12
+  and .headline.art_pack_override_frame_count >= 12
+  and .headline.art_pack_preview_non_background_pixels > 35000
   and .headline.asset_override_frame_count >= 1
   and .headline.asset_override_probe_pixel_count > 300
   and .headline.asset_override_non_background_pixels > 300
@@ -299,11 +322,16 @@ jq -e '
   and .gates.asset_slot_manifest_frame_slots_gate == true
   and .gates.asset_slot_procedural_slots_gate == true
   and .gates.asset_slot_replacement_boundary_gate == true
+  and .gates.art_pack_required_model_gate == true
+  and .gates.art_pack_player_art_gate == true
+  and .gates.art_pack_enemy_art_gate == true
+  and .gates.art_pack_replacement_boundary_gate == true
   and .gates.asset_override_frame_gate == true
   and .gates.asset_override_replacement_boundary_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
+  and .gates.runner_override_dir_gate == true
   and .gates.runner_cex_path_gate == true
 ' "$SUMMARY" >/dev/null
 
