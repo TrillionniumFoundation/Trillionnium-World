@@ -15,10 +15,10 @@ mkdir -p "$(dirname "$SUMMARY")" "$OVERRIDE_DIR"
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_art_pack_v1"
   and .green == true
-  and .asset_count >= 48
-  and .override_frame_count >= 48
+  and .asset_count >= 56
+  and .override_frame_count >= 56
   and .preview_width == 640
-  and .preview_height >= 1260
+  and .preview_height >= 1470
   and .preview_write_gate == true
   and .preview_non_background_pixels > 35000
   and .group_counts.town_hall == 1
@@ -26,8 +26,8 @@ jq -e '
   and .group_counts.training_hall == 1
   and .group_counts.coliseum == 1
   and .group_counts.tree_cluster == 1
-  and .group_counts.doodad >= 4
-  and .group_counts.terrain >= 7
+  and .group_counts.doodad >= 8
+  and .group_counts.terrain >= 11
   and .group_counts.world_prop >= 9
   and .group_counts.vfx >= 6
   and .group_counts.player >= 13
@@ -51,14 +51,14 @@ jq -e '
   and .unit_shadow_pixel_count > 130
   and .unit_highlight_pixel_count > 100
   and .doodad_detail_gate == true
-  and .doodad_detail_asset_count >= 4
-  and .doodad_unique_color_total >= 12
-  and .doodad_shadow_pixel_count > 20
-  and .doodad_detail_pixel_count > 200
+  and .doodad_detail_asset_count >= 8
+  and .doodad_unique_color_total >= 24
+  and .doodad_shadow_pixel_count > 40
+  and .doodad_detail_pixel_count > 420
   and .terrain_detail_gate == true
-  and .terrain_detail_asset_count >= 7
-  and .terrain_unique_color_total >= 28
-  and .terrain_detail_pixel_count > 950
+  and .terrain_detail_asset_count >= 11
+  and .terrain_unique_color_total >= 44
+  and .terrain_detail_pixel_count > 1350
   and .world_prop_detail_gate == true
   and .world_prop_detail_asset_count >= 9
   and .world_prop_unique_color_total >= 31
@@ -90,6 +90,10 @@ jq -e '
   and (.override_frame_ids | index("doodad_barrel_stack") != null)
   and (.override_frame_ids | index("doodad_torch") != null)
   and (.override_frame_ids | index("doodad_crystal_cluster") != null)
+  and (.override_frame_ids | index("doodad_bush_cluster") != null)
+  and (.override_frame_ids | index("doodad_ruins_column") != null)
+  and (.override_frame_ids | index("doodad_gold_vein") != null)
+  and (.override_frame_ids | index("doodad_signpost") != null)
   and (.override_frame_ids | index("tile_grass_a") != null)
   and (.override_frame_ids | index("tile_grass_b") != null)
   and (.override_frame_ids | index("tile_road") != null)
@@ -97,6 +101,10 @@ jq -e '
   and (.override_frame_ids | index("tile_wall") != null)
   and (.override_frame_ids | index("tile_roof") != null)
   and (.override_frame_ids | index("tile_arena") != null)
+  and (.override_frame_ids | index("tile_cliff_edge") != null)
+  and (.override_frame_ids | index("tile_bridge") != null)
+  and (.override_frame_ids | index("tile_forest_floor") != null)
+  and (.override_frame_ids | index("tile_shadow_edge") != null)
   and (.override_frame_ids | index("actor_mentor_talk") != null)
   and (.override_frame_ids | index("actor_vendor_idle") != null)
   and (.override_frame_ids | index("prop_training_dummy") != null)
@@ -125,13 +133,13 @@ jq -e '
   and (.written_assets[] | select(.frame_id == "model_tree_cluster_large") | .model_detail_asset_gate == true)
   and ([.written_assets[] | select(.group == "player" and .unit_detail_asset_gate == true)] | length >= 13)
   and ([.written_assets[] | select(.group == "enemy" and .unit_detail_asset_gate == true)] | length >= 4)
-  and ([.written_assets[] | select(.group == "doodad" and .doodad_detail_asset_gate == true)] | length >= 4)
-  and ([.written_assets[] | select(.group == "terrain" and .terrain_detail_asset_gate == true)] | length >= 7)
+  and ([.written_assets[] | select(.group == "doodad" and .doodad_detail_asset_gate == true)] | length >= 8)
+  and ([.written_assets[] | select(.group == "terrain" and .terrain_detail_asset_gate == true)] | length >= 11)
   and ([.written_assets[] | select(.group == "world_prop" and .world_prop_detail_asset_gate == true)] | length >= 9)
   and ([.written_assets[] | select(.group == "vfx" and .vfx_detail_asset_gate == true)] | length >= 6)
 ' "$SUMMARY" >/dev/null
 
-for asset in model_town_hall model_waygate model_training_hall model_coliseum_stands model_tree_cluster_large doodad_rock_cluster doodad_barrel_stack doodad_torch doodad_crystal_cluster tile_grass_a tile_grass_b tile_road tile_water tile_wall tile_roof tile_arena actor_mentor_talk actor_vendor_idle prop_training_dummy prop_reward prop_arena_gate prop_market_stall prop_banner marker_objective marker_interaction rts_command_destination_marker combat_attack_arc combat_hit_flash rts_unit_selection_ring unit_health_bar rts_foundation_shadow actor_player_idle_south actor_player_walk_north_1 actor_player_walk_east_1 actor_player_walk_west_1 actor_enemy actor_enemy_attack; do
+for asset in model_town_hall model_waygate model_training_hall model_coliseum_stands model_tree_cluster_large doodad_rock_cluster doodad_barrel_stack doodad_torch doodad_crystal_cluster doodad_bush_cluster doodad_ruins_column doodad_gold_vein doodad_signpost tile_grass_a tile_grass_b tile_road tile_water tile_wall tile_roof tile_arena tile_cliff_edge tile_bridge tile_forest_floor tile_shadow_edge actor_mentor_talk actor_vendor_idle prop_training_dummy prop_reward prop_arena_gate prop_market_stall prop_banner marker_objective marker_interaction rts_command_destination_marker combat_attack_arc combat_hit_flash rts_unit_selection_ring unit_health_bar rts_foundation_shadow actor_player_idle_south actor_player_walk_north_1 actor_player_walk_east_1 actor_player_walk_west_1 actor_enemy actor_enemy_attack; do
   test -s "$OVERRIDE_DIR/$asset.ppm"
 done
 test -s "$PREVIEW"

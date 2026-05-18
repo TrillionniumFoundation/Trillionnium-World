@@ -39,6 +39,9 @@ jq -e '
   and (.modeling_components | index("procedural_rock_clusters") != null)
   and (.modeling_components | index("torch_and_crystal_doodads") != null)
   and (.modeling_components | index("doodad_depth_sorting") != null)
+  and (.modeling_components | index("biome_environment_overlays") != null)
+  and (.modeling_components | index("bridge_and_cliff_detail_tiles") != null)
+  and (.modeling_components | index("ruins_gold_vein_and_signpost_doodads") != null)
   and .projection_gate == true
   and .depth_sort_gate == true
   and .diamond_tile_gate == true
@@ -49,6 +52,7 @@ jq -e '
   and .unit_detail_gate == true
   and .command_feedback_gate == true
   and .doodad_detail_gate == true
+  and .environment_detail_gate == true
   and .sprite_anchor_gate == true
   and .preview_width == 640
   and .preview_height == 360
@@ -80,6 +84,12 @@ jq -e '
   and .doodad_wood_pixel_count > 150
   and .doodad_fire_pixel_count > 40
   and .doodad_crystal_pixel_count > 120
+  and .rts_environment_entity_count >= 12
+  and .environment_detail_pixel_count > 2500
+  and .environment_foliage_pixel_count > 1000
+  and .environment_ruin_pixel_count > 40
+  and .environment_gold_pixel_count > 20
+  and .environment_bridge_pixel_count > 60
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

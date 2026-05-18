@@ -189,6 +189,10 @@ const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
 const CLASSIC_ISO_DOODAD_CRYSTAL_COLOR: u32 = 0x85f0ff;
+const CLASSIC_ISO_FOLIAGE_DARK_COLOR: u32 = 0x1f6f3e;
+const CLASSIC_ISO_RUIN_COLOR: u32 = 0x9f917e;
+const CLASSIC_ISO_GOLD_VEIN_COLOR: u32 = 0xf4c34e;
+const CLASSIC_ISO_BRIDGE_PLANK_COLOR: u32 = 0x8b6842;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -5350,6 +5354,16 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         ("doodad_barrel_stack", 48_u32),
         ("doodad_torch", 48_u32),
         ("doodad_crystal_cluster", 48_u32),
+        ("doodad_bush_cluster", 48_u32),
+        ("doodad_ruins_column", 56_u32),
+        ("doodad_gold_vein", 48_u32),
+        ("doodad_signpost", 48_u32),
+    ];
+    let terrain_detail_slot_ids = [
+        ("tile_cliff_edge", 48_u32),
+        ("tile_bridge", 48_u32),
+        ("tile_forest_floor", 48_u32),
+        ("tile_shadow_edge", 48_u32),
     ];
     let vfx_slot_ids = [
         ("rts_command_destination_marker", 48_u32),
@@ -5377,6 +5391,15 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
             *target_px,
         ));
     }
+    for (slot_id, target_px) in terrain_detail_slot_ids.iter() {
+        slots.push((
+            (*slot_id).to_string(),
+            "terrain_detail".to_string(),
+            "procedural_terrain_detail".to_string(),
+            (*slot_id).to_string(),
+            *target_px,
+        ));
+    }
     for (slot_id, target_px) in vfx_slot_ids.iter() {
         slots.push((
             (*slot_id).to_string(),
@@ -5394,7 +5417,14 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         *backing_counts.entry(backing_kind.clone()).or_default() += 1;
     }
     let required_categories = [
-        "terrain", "unit", "prop", "marker", "building", "doodad", "vfx_ui",
+        "terrain",
+        "terrain_detail",
+        "unit",
+        "prop",
+        "marker",
+        "building",
+        "doodad",
+        "vfx_ui",
     ];
     let required_categories_present_gate = required_categories
         .iter()
@@ -5415,6 +5445,10 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         .get("procedural_vfx_ui")
         .copied()
         .unwrap_or_default();
+    let terrain_detail_slot_count = backing_counts
+        .get("procedural_terrain_detail")
+        .copied()
+        .unwrap_or_default();
     let manifest_frame_slots_gate = manifest_frame_slot_count == assets.manifest.frames.len()
         && manifest_frame_slot_count >= 43
         && slots
@@ -5432,11 +5466,15 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         && doodad_slot_ids
             .iter()
             .all(|(slot_id, _)| procedural_slot_targets.contains(*slot_id))
+        && terrain_detail_slot_ids
+            .iter()
+            .all(|(slot_id, _)| procedural_slot_targets.contains(*slot_id))
         && vfx_slot_ids
             .iter()
             .all(|(slot_id, _)| procedural_slot_targets.contains(*slot_id))
         && procedural_model_slot_count >= 5
-        && doodad_slot_count >= 4
+        && doodad_slot_count >= 8
+        && terrain_detail_slot_count >= 4
         && vfx_slot_count >= 6;
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
@@ -5446,8 +5484,8 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
     let category_count = category_counts.len();
     let green = assets.loaded_from_manifest
         && assets.atlas_parse_gate
-        && slot_count >= 58
-        && category_count >= 7
+        && slot_count >= 66
+        && category_count >= 8
         && required_categories_present_gate
         && manifest_frame_slots_gate
         && procedural_slots_gate
@@ -5475,6 +5513,7 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         "manifest_frame_slot_count": manifest_frame_slot_count,
         "procedural_model_slot_count": procedural_model_slot_count,
         "doodad_slot_count": doodad_slot_count,
+        "terrain_detail_slot_count": terrain_detail_slot_count,
         "vfx_slot_count": vfx_slot_count,
         "required_categories_present_gate": required_categories_present_gate,
         "manifest_frame_slots_gate": manifest_frame_slots_gate,
@@ -5794,6 +5833,10 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "doodad_barrel_stack",
         "doodad_torch",
         "doodad_crystal_cluster",
+        "doodad_bush_cluster",
+        "doodad_ruins_column",
+        "doodad_gold_vein",
+        "doodad_signpost",
     ]
     .iter()
     .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
@@ -5805,6 +5848,10 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "tile_wall",
         "tile_roof",
         "tile_arena",
+        "tile_cliff_edge",
+        "tile_bridge",
+        "tile_forest_floor",
+        "tile_shadow_edge",
     ]
     .iter()
     .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
@@ -5844,13 +5891,13 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && unit_unique_color_total >= 100
         && unit_shadow_pixel_count > 130
         && unit_highlight_pixel_count > 100;
-    let doodad_detail_gate = doodad_detail_asset_count >= 4
-        && doodad_unique_color_total >= 12
-        && doodad_shadow_pixel_count > 20
-        && doodad_detail_pixel_count > 200;
-    let terrain_detail_gate = terrain_detail_asset_count >= 7
-        && terrain_unique_color_total >= 28
-        && terrain_detail_pixel_count > 950;
+    let doodad_detail_gate = doodad_detail_asset_count >= 8
+        && doodad_unique_color_total >= 24
+        && doodad_shadow_pixel_count > 40
+        && doodad_detail_pixel_count > 420;
+    let terrain_detail_gate = terrain_detail_asset_count >= 11
+        && terrain_unique_color_total >= 44
+        && terrain_detail_pixel_count > 1_350;
     let world_prop_detail_gate = world_prop_detail_asset_count >= 9
         && world_prop_unique_color_total >= 31
         && world_prop_detail_pixel_count > 800;
@@ -5860,8 +5907,8 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && write_failures.is_empty()
         && preview_write_gate
         && preview_non_background_pixels > 35_000
-        && written_assets.len() >= 32
-        && assets.frame_override_pixels.len() >= 32
+        && written_assets.len() >= 56
+        && assets.frame_override_pixels.len() >= 56
         && required_model_gate
         && player_art_gate
         && enemy_art_gate
@@ -5967,6 +6014,8 @@ fn classic_art_pack_highlight_color(color: u32) -> bool {
             | CLASSIC_ISO_MAGIC_COLOR
             | CLASSIC_ISO_BANNER_COLOR
             | CLASSIC_ISO_CANOPY_LIGHT_COLOR
+            | CLASSIC_ISO_GOLD_VEIN_COLOR
+            | CLASSIC_ISO_BRIDGE_PLANK_COLOR
     )
 }
 
@@ -5978,6 +6027,12 @@ fn classic_art_pack_doodad_detail_color(color: u32) -> bool {
             | CLASSIC_ISO_DOODAD_WOOD_COLOR
             | CLASSIC_ISO_DOODAD_FIRE_COLOR
             | CLASSIC_ISO_DOODAD_CRYSTAL_COLOR
+            | CLASSIC_ISO_FOLIAGE_DARK_COLOR
+            | CLASSIC_ISO_RUIN_COLOR
+            | CLASSIC_ISO_GOLD_VEIN_COLOR
+            | CLASSIC_ISO_BRIDGE_PLANK_COLOR
+            | CLASSIC_ISO_CANOPY_COLOR
+            | CLASSIC_ISO_CANOPY_LIGHT_COLOR
             | 0xffd07a
             | 0xb8fbff
     )
@@ -5994,6 +6049,10 @@ fn classic_art_pack_terrain_frame(frame_id: &str) -> bool {
             | "tile_wall"
             | "tile_roof"
             | "tile_arena"
+            | "tile_cliff_edge"
+            | "tile_bridge"
+            | "tile_forest_floor"
+            | "tile_shadow_edge"
     )
 }
 
@@ -6007,6 +6066,10 @@ fn classic_art_pack_terrain_detail_color(color: u32) -> bool {
             | CLASSIC_ISO_WALL_COLOR
             | CLASSIC_ISO_BLUE_ROOF_COLOR
             | CLASSIC_ISO_FOUNDATION_COLOR
+            | CLASSIC_ISO_CLIFF_FACE_COLOR
+            | CLASSIC_ISO_BRIDGE_PLANK_COLOR
+            | CLASSIC_ISO_CANOPY_COLOR
+            | CLASSIC_ISO_CANOPY_LIGHT_COLOR
             | 0x2e6f44
             | 0x407849
             | 0xb19565
@@ -6134,6 +6197,10 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
         ("doodad_barrel_stack", 48, 48),
         ("doodad_torch", 48, 48),
         ("doodad_crystal_cluster", 48, 48),
+        ("doodad_bush_cluster", 48, 48),
+        ("doodad_ruins_column", 48, 56),
+        ("doodad_gold_vein", 48, 48),
+        ("doodad_signpost", 48, 48),
         ("tile_grass_a", 48, 24),
         ("tile_grass_b", 48, 24),
         ("tile_road", 48, 24),
@@ -6141,6 +6208,10 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
         ("tile_wall", 48, 36),
         ("tile_roof", 48, 36),
         ("tile_arena", 48, 24),
+        ("tile_cliff_edge", 48, 36),
+        ("tile_bridge", 48, 24),
+        ("tile_forest_floor", 48, 24),
+        ("tile_shadow_edge", 48, 24),
         ("actor_mentor_talk", 32, 48),
         ("actor_vendor_idle", 32, 48),
         ("prop_training_dummy", 32, 48),
@@ -6410,6 +6481,157 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 6,
                 13,
                 2,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+        }
+        "tile_cliff_edge" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                8,
+                46,
+                20,
+                0x5d4f3f,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                6,
+                18,
+                36,
+                10,
+                CLASSIC_ISO_CLIFF_FACE_COLOR,
+            );
+            for (x, y, w) in [(9, 20, 8), (21, 23, 10), (33, 20, 6)] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    y,
+                    w,
+                    2,
+                    CLASSIC_ISO_DOODAD_STONE_COLOR,
+                );
+            }
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                12,
+                10,
+                24,
+                3,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+        }
+        "tile_bridge" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                CLASSIC_ISO_WATER_DETAIL_COLOR,
+            );
+            for y in [8, 12, 16] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    8,
+                    y,
+                    32,
+                    3,
+                    CLASSIC_ISO_BRIDGE_PLANK_COLOR,
+                );
+            }
+            for x in [12, 24, 36] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    5,
+                    2,
+                    16,
+                    CLASSIC_ISO_DOODAD_WOOD_COLOR,
+                );
+            }
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                10,
+                6,
+                28,
+                2,
+                0xb98a55,
+            );
+        }
+        "tile_forest_floor" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                CLASSIC_ISO_FOLIAGE_DARK_COLOR,
+            );
+            for (x, y, rx, ry, color) in [
+                (14, 12, 9, 4, CLASSIC_ISO_CANOPY_COLOR),
+                (28, 9, 11, 5, CLASSIC_ISO_CANOPY_LIGHT_COLOR),
+                (33, 16, 7, 3, 0x2f8b50),
+                (18, 17, 8, 3, 0x347f45),
+            ] {
+                classic_draw_iso_ellipse(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    y,
+                    rx,
+                    ry,
+                    color,
+                );
+            }
+        }
+        "tile_shadow_edge" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                0x253027,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                15,
+                20,
+                6,
+                CLASSIC_ISO_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                8,
+                11,
+                32,
+                3,
                 CLASSIC_ISO_FOUNDATION_COLOR,
             );
         }
@@ -7477,6 +7699,133 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                         0xb8fbff,
                     );
                 }
+                "doodad_bush_cluster" => {
+                    for (dx, dy, rx, ry, color) in [
+                        (-9, -17, 10, 5, CLASSIC_ISO_CANOPY_COLOR),
+                        (5, -21, 12, 6, CLASSIC_ISO_CANOPY_LIGHT_COLOR),
+                        (13, -14, 8, 4, CLASSIC_ISO_FOLIAGE_DARK_COLOR),
+                    ] {
+                        classic_draw_iso_ellipse(
+                            &mut pixels,
+                            width as usize,
+                            height as usize,
+                            center_x + dx,
+                            height as i32 + dy,
+                            rx,
+                            ry,
+                            color,
+                        );
+                    }
+                }
+                "doodad_ruins_column" => {
+                    classic_draw_iso_prism(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x,
+                        height as i32 - 18,
+                        16,
+                        12,
+                        34,
+                        CLASSIC_ISO_RUIN_COLOR,
+                    );
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 9,
+                        height as i32 - 50,
+                        18,
+                        5,
+                        CLASSIC_ISO_DOODAD_STONE_COLOR,
+                    );
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 4,
+                        height as i32 - 43,
+                        8,
+                        24,
+                        CLASSIC_ISO_RUIN_COLOR,
+                    );
+                }
+                "doodad_gold_vein" => {
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 15,
+                        height as i32 - 9,
+                        30,
+                        3,
+                        CLASSIC_ISO_SHADOW_COLOR,
+                    );
+                    classic_draw_iso_ellipse(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x,
+                        height as i32 - 18,
+                        17,
+                        7,
+                        CLASSIC_ISO_DOODAD_STONE_COLOR,
+                    );
+                    for (dx, dy, w) in [(-9, -21, 8), (0, -25, 11), (8, -18, 7)] {
+                        classic_draw_rect(
+                            &mut pixels,
+                            width as usize,
+                            height as usize,
+                            center_x + dx,
+                            height as i32 + dy,
+                            w,
+                            3,
+                            CLASSIC_ISO_GOLD_VEIN_COLOR,
+                        );
+                    }
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 5,
+                        height as i32 - 16,
+                        10,
+                        2,
+                        0xffe88a,
+                    );
+                }
+                "doodad_signpost" => {
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 2,
+                        height as i32 - 36,
+                        4,
+                        23,
+                        CLASSIC_ISO_DOODAD_WOOD_COLOR,
+                    );
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 14,
+                        height as i32 - 34,
+                        28,
+                        9,
+                        CLASSIC_ISO_BRIDGE_PLANK_COLOR,
+                    );
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 10,
+                        height as i32 - 31,
+                        20,
+                        2,
+                        CLASSIC_ISO_GOLD_COLOR,
+                    );
+                }
                 _ => {}
             }
         }
@@ -7972,6 +8321,13 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         + count_color(CLASSIC_ISO_MAGIC_COLOR)
         + count_color(CLASSIC_ISO_BANNER_COLOR)
         + count_color(CLASSIC_ISO_DOODAD_WOOD_COLOR);
+    let environment_detail_color_count = count_color(CLASSIC_ISO_FOLIAGE_DARK_COLOR)
+        + count_color(CLASSIC_ISO_CANOPY_COLOR)
+        + count_color(CLASSIC_ISO_CANOPY_LIGHT_COLOR)
+        + count_color(CLASSIC_ISO_RUIN_COLOR)
+        + count_color(CLASSIC_ISO_GOLD_VEIN_COLOR)
+        + count_color(CLASSIC_ISO_BRIDGE_PLANK_COLOR)
+        + count_color(CLASSIC_ISO_CLIFF_FACE_COLOR);
     let non_background_pixels = preview_pixels
         .iter()
         .filter(|color| **color != 0x0b0d0c_u32)
@@ -8005,6 +8361,10 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "tile_wall",
         "tile_roof",
         "tile_arena",
+        "tile_cliff_edge",
+        "tile_bridge",
+        "tile_forest_floor",
+        "tile_shadow_edge",
     ];
     let terrain_override_presence_gate = terrain_override_ids
         .iter()
@@ -8018,6 +8378,19 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "marker_objective",
     ];
     let world_prop_override_presence_gate = world_prop_override_ids
+        .iter()
+        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let environment_override_ids = [
+        "doodad_bush_cluster",
+        "doodad_ruins_column",
+        "doodad_gold_vein",
+        "doodad_signpost",
+        "tile_cliff_edge",
+        "tile_bridge",
+        "tile_forest_floor",
+        "tile_shadow_edge",
+    ];
+    let environment_override_presence_gate = environment_override_ids
         .iter()
         .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let color_probe_gate = town_hall_color_count > 20
@@ -8034,6 +8407,7 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         && terrain_water_color_count > 40
         && terrain_wall_roof_color_count > 80;
     let world_prop_color_probe_gate = world_prop_runtime_color_count > 900;
+    let environment_detail_color_probe_gate = environment_detail_color_count > 2_000;
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -8047,6 +8421,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         && terrain_color_probe_gate
         && world_prop_override_presence_gate
         && world_prop_color_probe_gate
+        && environment_override_presence_gate
+        && environment_detail_color_probe_gate
         && vfx_override_presence_gate
         && vfx_color_probe_gate
         && non_background_pixels > 120_000
@@ -8067,6 +8443,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "terrain_color_probe_gate": terrain_color_probe_gate,
         "world_prop_override_presence_gate": world_prop_override_presence_gate,
         "world_prop_color_probe_gate": world_prop_color_probe_gate,
+        "environment_override_presence_gate": environment_override_presence_gate,
+        "environment_detail_color_probe_gate": environment_detail_color_probe_gate,
         "replacement_boundary_gate": replacement_boundary_gate,
         "non_background_pixels": non_background_pixels,
         "town_hall_color_count": town_hall_color_count,
@@ -8083,6 +8461,7 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "terrain_water_color_count": terrain_water_color_count,
         "terrain_wall_roof_color_count": terrain_wall_roof_color_count,
         "world_prop_runtime_color_count": world_prop_runtime_color_count,
+        "environment_detail_color_count": environment_detail_color_count,
         "mirror_scene_gate": mirror_scene.is_some(),
         "coliseum_scene_gate": coliseum_scene.is_some(),
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
@@ -8316,6 +8695,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
     let mut doodad_wood_pixel_count = 0_usize;
     let mut doodad_fire_pixel_count = 0_usize;
     let mut doodad_crystal_pixel_count = 0_usize;
+    let mut environment_detail_pixel_count = 0_usize;
+    let mut environment_foliage_pixel_count = 0_usize;
+    let mut environment_ruin_pixel_count = 0_usize;
+    let mut environment_gold_pixel_count = 0_usize;
+    let mut environment_bridge_pixel_count = 0_usize;
     for scene_id in [
         "mirror_city_square",
         "mentor_training_room",
@@ -8359,6 +8743,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                 CLASSIC_ISO_CLIFF_FACE_COLOR => {
                     terrain_detail_pixel_count += 1;
                     terrain_cliff_pixel_count += 1;
+                    environment_detail_pixel_count += 1;
                 }
                 CLASSIC_ISO_FOUNDATION_COLOR => {
                     terrain_detail_pixel_count += 1;
@@ -8405,6 +8790,24 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                 CLASSIC_ISO_DOODAD_CRYSTAL_COLOR => {
                     doodad_detail_pixel_count += 1;
                     doodad_crystal_pixel_count += 1;
+                }
+                CLASSIC_ISO_CANOPY_COLOR
+                | CLASSIC_ISO_CANOPY_LIGHT_COLOR
+                | CLASSIC_ISO_FOLIAGE_DARK_COLOR => {
+                    environment_detail_pixel_count += 1;
+                    environment_foliage_pixel_count += 1;
+                }
+                CLASSIC_ISO_RUIN_COLOR => {
+                    environment_detail_pixel_count += 1;
+                    environment_ruin_pixel_count += 1;
+                }
+                CLASSIC_ISO_GOLD_VEIN_COLOR => {
+                    environment_detail_pixel_count += 1;
+                    environment_gold_pixel_count += 1;
+                }
+                CLASSIC_ISO_BRIDGE_PLANK_COLOR => {
+                    environment_detail_pixel_count += 1;
+                    environment_bridge_pixel_count += 1;
                 }
                 _ => {}
             }
@@ -8455,6 +8858,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         .values()
         .map(|scene| classic_scene_rts_doodad_entities(scene.id.as_str()).len())
         .sum();
+    let rts_environment_entity_count: usize = assets
+        .scene_by_id
+        .values()
+        .map(|scene| classic_scene_rts_environment_entities(scene.id.as_str()).len())
+        .sum();
     let mut depth_order = Vec::new();
     if let Some(scene) = scene {
         for landmark in &scene.landmarks {
@@ -8466,6 +8874,14 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             }));
         }
         for entity in classic_scene_rts_model_entities(scene.id.as_str()) {
+            depth_order.push(json!({
+                "id": entity.id,
+                "tile": {"x": entity.tile.0, "y": entity.tile.1},
+                "frame_id": entity.frame_id,
+                "depth_key": entity.depth_key,
+            }));
+        }
+        for entity in classic_scene_rts_environment_entities(scene.id.as_str()) {
             depth_order.push(json!({
                 "id": entity.id,
                 "tile": {"x": entity.tile.0, "y": entity.tile.1},
@@ -8536,6 +8952,12 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && doodad_wood_pixel_count > 150
         && doodad_fire_pixel_count > 40
         && doodad_crystal_pixel_count > 120;
+    let environment_detail_gate = rts_environment_entity_count >= 12
+        && environment_detail_pixel_count > 2_500
+        && environment_foliage_pixel_count > 1_000
+        && environment_ruin_pixel_count > 40
+        && environment_gold_pixel_count > 20
+        && environment_bridge_pixel_count > 60;
     let frame_color_present = |frame_id: &str| {
         assets.frame_by_id.get(frame_id).is_some_and(|frame| {
             (frame.y..frame.y + frame.h).any(|y| {
@@ -8563,6 +8985,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && unit_detail_gate
         && command_feedback_gate
         && doodad_detail_gate
+        && environment_detail_gate
         && sprite_anchor_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -8614,11 +9037,15 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             "rts_doodad_density",
             "procedural_rock_clusters",
             "torch_and_crystal_doodads",
-            "doodad_depth_sorting"
+            "doodad_depth_sorting",
+            "biome_environment_overlays",
+            "bridge_and_cliff_detail_tiles",
+            "ruins_gold_vein_and_signpost_doodads"
         ],
         "depth_order": depth_order,
         "rts_model_entity_count": rts_model_entity_count,
         "rts_doodad_entity_count": rts_doodad_entity_count,
+        "rts_environment_entity_count": rts_environment_entity_count,
         "unique_color_count": unique_color_count,
         "non_background_pixels": non_background_pixels,
         "shadow_pixel_count": shadow_pixel_count,
@@ -8643,6 +9070,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "doodad_wood_pixel_count": doodad_wood_pixel_count,
         "doodad_fire_pixel_count": doodad_fire_pixel_count,
         "doodad_crystal_pixel_count": doodad_crystal_pixel_count,
+        "environment_detail_pixel_count": environment_detail_pixel_count,
+        "environment_foliage_pixel_count": environment_foliage_pixel_count,
+        "environment_ruin_pixel_count": environment_ruin_pixel_count,
+        "environment_gold_pixel_count": environment_gold_pixel_count,
+        "environment_bridge_pixel_count": environment_bridge_pixel_count,
         "loaded_from_manifest": assets.loaded_from_manifest,
         "atlas_parse_gate": assets.atlas_parse_gate,
         "projection_gate": projection_gate,
@@ -8655,6 +9087,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "unit_detail_gate": unit_detail_gate,
         "command_feedback_gate": command_feedback_gate,
         "doodad_detail_gate": doodad_detail_gate,
+        "environment_detail_gate": environment_detail_gate,
         "sprite_anchor_gate": sprite_anchor_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
@@ -10533,6 +10966,244 @@ fn classic_draw_iso_procedural_model(
             );
             true
         }
+        "doodad_bush_cluster" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 3, 4);
+            for (dx, dy, w, h, color) in [
+                (-16, -17, 20, 9, CLASSIC_ISO_CANOPY_COLOR),
+                (-2, -22, 24, 10, CLASSIC_ISO_CANOPY_LIGHT_COLOR),
+                (9, -14, 16, 7, CLASSIC_ISO_FOLIAGE_DARK_COLOR),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + dx,
+                    base_y + dy,
+                    w,
+                    h,
+                    color,
+                );
+            }
+            true
+        }
+        "doodad_ruins_column" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 4, 4);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 8,
+                base_y - 46,
+                16,
+                35,
+                CLASSIC_ISO_RUIN_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 10,
+                base_y - 53,
+                20,
+                5,
+                CLASSIC_ISO_DOODAD_STONE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 4,
+                base_y - 45,
+                8,
+                26,
+                CLASSIC_ISO_RUIN_COLOR,
+            );
+            true
+        }
+        "doodad_gold_vein" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 3, 4);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 15,
+                base_y - 7,
+                30,
+                3,
+                CLASSIC_ISO_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 16,
+                base_y - 13,
+                32,
+                8,
+                CLASSIC_ISO_DOODAD_STONE_COLOR,
+            );
+            for (dx, dy, w) in [(-12, -10, 9), (-2, -15, 13), (10, -8, 8)] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + dx,
+                    base_y + dy,
+                    w,
+                    4,
+                    CLASSIC_ISO_GOLD_VEIN_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 5,
+                base_y - 15,
+                10,
+                2,
+                0xffe88a,
+            );
+            true
+        }
+        "doodad_signpost" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 5, 3);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 2,
+                base_y - 32,
+                4,
+                30,
+                CLASSIC_ISO_DOODAD_WOOD_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 16,
+                base_y - 30,
+                32,
+                9,
+                CLASSIC_ISO_BRIDGE_PLANK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 11,
+                base_y - 27,
+                22,
+                2,
+                CLASSIC_ISO_GOLD_COLOR,
+            );
+            true
+        }
+        "tile_cliff_edge" => {
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 6,
+                tile_w,
+                tile_h,
+                classic_darken(CLASSIC_ISO_WALL_COLOR, 1, 3),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                top_y + 18,
+                36,
+                12,
+                CLASSIC_ISO_CLIFF_FACE_COLOR,
+            );
+            true
+        }
+        "tile_bridge" => {
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 6,
+                tile_w,
+                tile_h,
+                CLASSIC_ISO_WATER_DETAIL_COLOR,
+            );
+            for dy in [0, 5, 10] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 18,
+                    top_y + 6 + dy,
+                    36,
+                    3,
+                    CLASSIC_ISO_BRIDGE_PLANK_COLOR,
+                );
+            }
+            true
+        }
+        "tile_forest_floor" => {
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 6,
+                tile_w,
+                tile_h,
+                CLASSIC_ISO_FOLIAGE_DARK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                top_y + 8,
+                16,
+                5,
+                CLASSIC_ISO_CANOPY_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 2,
+                top_y + 6,
+                18,
+                5,
+                CLASSIC_ISO_CANOPY_LIGHT_COLOR,
+            );
+            true
+        }
+        "tile_shadow_edge" => {
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 6,
+                tile_w,
+                tile_h,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 12,
+                19,
+                6,
+                CLASSIC_ISO_SHADOW_COLOR,
+            );
+            true
+        }
         "tile_tree" => {
             classic_draw_iso_shadow(buffer, width, height, center_x, base_y - 2, tile_w / 3, 5);
             classic_draw_rect(
@@ -11039,9 +11710,6 @@ fn classic_draw_isometric_frame_at_tile(
         sprite_px / 3,
         4,
     );
-    classic_draw_iso_procedural_model(
-        buffer, width, height, frame_id, screen_x, screen_y, tile_w, tile_h,
-    );
     if assets
         .frame_override_pixels
         .get(frame_id)
@@ -11074,6 +11742,9 @@ fn classic_draw_isometric_frame_at_tile(
     {
         return;
     }
+    classic_draw_iso_procedural_model(
+        buffer, width, height, frame_id, screen_x, screen_y, tile_w, tile_h,
+    );
     classic_blit_frame_scaled(
         buffer,
         width,
@@ -11174,6 +11845,7 @@ fn classic_draw_isometric_scene(
             depth_key: (landmark.tile_x + landmark.tile_y) * 10 + 4,
         }));
         entities.extend(classic_scene_rts_model_entities(scene.id.as_str()));
+        entities.extend(classic_scene_rts_environment_entities(scene.id.as_str()));
         entities.extend(classic_scene_rts_doodad_entities(scene.id.as_str()));
         if runtime.dialogue_overlay_visible {
             entities.push(ClassicIsoEntity {
@@ -11318,6 +11990,39 @@ fn classic_scene_rts_doodad_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
             ("square_rocks", "doodad_rock_cluster", (6, 6), 3),
             ("square_torch", "doodad_torch", (5, 2), 4),
             ("square_crystal", "doodad_crystal_cluster", (10, 5), 4),
+        ],
+    };
+    specs
+        .iter()
+        .map(|(id, frame_id, tile, depth_offset)| ClassicIsoEntity {
+            id: (*id).to_string(),
+            frame_id: (*frame_id).to_string(),
+            tile: *tile,
+            depth_key: (tile.0 + tile.1) * 10 + depth_offset,
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_scene_rts_environment_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
+    let specs: &[(&str, &str, (i32, i32), i32)] = match scene_id {
+        "mentor_training_room" => &[
+            ("training_forest_floor", "tile_forest_floor", (8, 2), 1),
+            ("training_cliff_edge", "tile_cliff_edge", (9, 5), 1),
+            ("training_signpost", "doodad_signpost", (3, 3), 4),
+            ("training_ruins_column", "doodad_ruins_column", (7, 4), 4),
+        ],
+        "league_coliseum" => &[
+            ("arena_shadow_edge", "tile_shadow_edge", (5, 4), 1),
+            ("arena_ruins_column", "doodad_ruins_column", (2, 3), 4),
+            ("arena_gold_vein", "doodad_gold_vein", (9, 5), 4),
+            ("arena_signpost", "doodad_signpost", (6, 2), 4),
+        ],
+        _ => &[
+            ("square_bridge", "tile_bridge", (7, 4), 1),
+            ("square_forest_floor", "tile_forest_floor", (8, 2), 1),
+            ("square_bush_cluster", "doodad_bush_cluster", (4, 6), 4),
+            ("square_gold_vein", "doodad_gold_vein", (10, 4), 4),
         ],
     };
     specs

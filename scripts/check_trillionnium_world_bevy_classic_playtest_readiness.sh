@@ -74,6 +74,7 @@ jq -n \
       and $iso[0].unit_detail_gate == true
       and $iso[0].command_feedback_gate == true
       and $iso[0].doodad_detail_gate == true
+      and $iso[0].environment_detail_gate == true
       and $slots[0].manifest_frame_slots_gate == true
       and $slots[0].procedural_slots_gate == true
       and $slots[0].replacement_boundary_gate == true
@@ -97,6 +98,8 @@ jq -n \
       and $art_scene[0].terrain_color_probe_gate == true
       and $art_scene[0].world_prop_override_presence_gate == true
       and $art_scene[0].world_prop_color_probe_gate == true
+      and $art_scene[0].environment_override_presence_gate == true
+      and $art_scene[0].environment_detail_color_probe_gate == true
       and $art_scene[0].vfx_override_presence_gate == true
       and $art_scene[0].vfx_color_probe_gate == true
       and $art_scene[0].replacement_boundary_gate == true
@@ -163,12 +166,19 @@ jq -n \
       isometric_doodad_wood_pixel_count: $iso[0].doodad_wood_pixel_count,
       isometric_doodad_fire_pixel_count: $iso[0].doodad_fire_pixel_count,
       isometric_doodad_crystal_pixel_count: $iso[0].doodad_crystal_pixel_count,
+      isometric_rts_environment_entity_count: $iso[0].rts_environment_entity_count,
+      isometric_environment_detail_pixel_count: $iso[0].environment_detail_pixel_count,
+      isometric_environment_foliage_pixel_count: $iso[0].environment_foliage_pixel_count,
+      isometric_environment_ruin_pixel_count: $iso[0].environment_ruin_pixel_count,
+      isometric_environment_gold_pixel_count: $iso[0].environment_gold_pixel_count,
+      isometric_environment_bridge_pixel_count: $iso[0].environment_bridge_pixel_count,
       model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count,
       asset_slot_count: $slots[0].slot_count,
       asset_slot_category_count: $slots[0].category_count,
       asset_manifest_frame_slot_count: $slots[0].manifest_frame_slot_count,
       asset_procedural_model_slot_count: $slots[0].procedural_model_slot_count,
       asset_doodad_slot_count: $slots[0].doodad_slot_count,
+      asset_terrain_detail_slot_count: $slots[0].terrain_detail_slot_count,
       asset_vfx_slot_count: $slots[0].vfx_slot_count,
       art_pack_asset_count: $art_pack[0].asset_count,
       art_pack_override_frame_count: $art_pack[0].override_frame_count,
@@ -204,6 +214,7 @@ jq -n \
       art_pack_scene_terrain_water_color_count: $art_scene[0].terrain_water_color_count,
       art_pack_scene_terrain_wall_roof_color_count: $art_scene[0].terrain_wall_roof_color_count,
       art_pack_scene_world_prop_runtime_color_count: $art_scene[0].world_prop_runtime_color_count,
+      art_pack_scene_environment_detail_color_count: $art_scene[0].environment_detail_color_count,
       art_pack_scene_command_marker_color_count: $art_scene[0].command_marker_color_count,
       art_pack_scene_attack_arc_color_count: $art_scene[0].attack_arc_color_count,
       art_pack_scene_hit_flash_color_count: $art_scene[0].hit_flash_color_count,
@@ -237,6 +248,7 @@ jq -n \
       isometric_unit_detail_gate: $iso[0].unit_detail_gate,
       isometric_command_feedback_gate: $iso[0].command_feedback_gate,
       isometric_doodad_detail_gate: $iso[0].doodad_detail_gate,
+      isometric_environment_detail_gate: $iso[0].environment_detail_gate,
       isometric_sprite_anchor_gate: $iso[0].sprite_anchor_gate,
       catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate,
       asset_slot_required_categories_gate: $slots[0].required_categories_present_gate,
@@ -263,6 +275,8 @@ jq -n \
       art_pack_scene_terrain_color_probe_gate: $art_scene[0].terrain_color_probe_gate,
       art_pack_scene_world_prop_override_presence_gate: $art_scene[0].world_prop_override_presence_gate,
       art_pack_scene_world_prop_color_probe_gate: $art_scene[0].world_prop_color_probe_gate,
+      art_pack_scene_environment_override_presence_gate: $art_scene[0].environment_override_presence_gate,
+      art_pack_scene_environment_detail_color_probe_gate: $art_scene[0].environment_detail_color_probe_gate,
       art_pack_scene_vfx_override_presence_gate: $art_scene[0].vfx_override_presence_gate,
       art_pack_scene_vfx_color_probe_gate: $art_scene[0].vfx_color_probe_gate,
       art_pack_scene_replacement_boundary_gate: $art_scene[0].replacement_boundary_gate,
@@ -360,15 +374,22 @@ jq -e '
   and .headline.isometric_doodad_wood_pixel_count > 150
   and .headline.isometric_doodad_fire_pixel_count > 40
   and .headline.isometric_doodad_crystal_pixel_count > 120
-  and .headline.asset_slot_count >= 58
-  and .headline.asset_slot_category_count >= 7
+  and .headline.isometric_rts_environment_entity_count >= 12
+  and .headline.isometric_environment_detail_pixel_count > 2500
+  and .headline.isometric_environment_foliage_pixel_count > 1000
+  and .headline.isometric_environment_ruin_pixel_count > 40
+  and .headline.isometric_environment_gold_pixel_count > 20
+  and .headline.isometric_environment_bridge_pixel_count > 60
+  and .headline.asset_slot_count >= 66
+  and .headline.asset_slot_category_count >= 8
   and .headline.asset_manifest_frame_slot_count >= 43
   and .headline.asset_procedural_model_slot_count >= 5
-  and .headline.asset_doodad_slot_count >= 4
+  and .headline.asset_doodad_slot_count >= 8
+  and .headline.asset_terrain_detail_slot_count >= 4
   and .headline.asset_vfx_slot_count >= 6
-  and .headline.art_pack_asset_count >= 48
-  and .headline.art_pack_override_frame_count >= 48
-  and .headline.art_pack_preview_height >= 1260
+  and .headline.art_pack_asset_count >= 56
+  and .headline.art_pack_override_frame_count >= 56
+  and .headline.art_pack_preview_height >= 1470
   and .headline.art_pack_preview_non_background_pixels > 35000
   and .headline.art_pack_model_detail_asset_count >= 5
   and .headline.art_pack_model_unique_color_total >= 45
@@ -379,13 +400,13 @@ jq -e '
   and .headline.art_pack_unit_unique_color_total >= 100
   and .headline.art_pack_unit_shadow_pixel_count > 130
   and .headline.art_pack_unit_highlight_pixel_count > 100
-  and .headline.art_pack_doodad_detail_asset_count >= 4
-  and .headline.art_pack_doodad_unique_color_total >= 12
-  and .headline.art_pack_doodad_shadow_pixel_count > 20
-  and .headline.art_pack_doodad_detail_pixel_count > 200
-  and .headline.art_pack_terrain_detail_asset_count >= 7
-  and .headline.art_pack_terrain_unique_color_total >= 28
-  and .headline.art_pack_terrain_detail_pixel_count > 950
+  and .headline.art_pack_doodad_detail_asset_count >= 8
+  and .headline.art_pack_doodad_unique_color_total >= 24
+  and .headline.art_pack_doodad_shadow_pixel_count > 40
+  and .headline.art_pack_doodad_detail_pixel_count > 420
+  and .headline.art_pack_terrain_detail_asset_count >= 11
+  and .headline.art_pack_terrain_unique_color_total >= 44
+  and .headline.art_pack_terrain_detail_pixel_count > 1350
   and .headline.art_pack_world_prop_detail_asset_count >= 9
   and .headline.art_pack_world_prop_unique_color_total >= 31
   and .headline.art_pack_world_prop_detail_pixel_count > 800
@@ -400,6 +421,7 @@ jq -e '
   and .headline.art_pack_scene_terrain_water_color_count > 40
   and .headline.art_pack_scene_terrain_wall_roof_color_count > 80
   and .headline.art_pack_scene_world_prop_runtime_color_count > 900
+  and .headline.art_pack_scene_environment_detail_color_count > 2000
   and .headline.art_pack_scene_command_marker_color_count > 200
   and .headline.art_pack_scene_attack_arc_color_count > 100
   and .headline.art_pack_scene_hit_flash_color_count > 80
@@ -429,6 +451,7 @@ jq -e '
   and .gates.isometric_unit_detail_gate == true
   and .gates.isometric_command_feedback_gate == true
   and .gates.isometric_doodad_detail_gate == true
+  and .gates.isometric_environment_detail_gate == true
   and .gates.isometric_sprite_anchor_gate == true
   and .gates.catalog_all_frames_rendered_gate == true
   and .gates.asset_slot_required_categories_gate == true
@@ -455,6 +478,8 @@ jq -e '
   and .gates.art_pack_scene_terrain_color_probe_gate == true
   and .gates.art_pack_scene_world_prop_override_presence_gate == true
   and .gates.art_pack_scene_world_prop_color_probe_gate == true
+  and .gates.art_pack_scene_environment_override_presence_gate == true
+  and .gates.art_pack_scene_environment_detail_color_probe_gate == true
   and .gates.art_pack_scene_vfx_override_presence_gate == true
   and .gates.art_pack_scene_vfx_color_probe_gate == true
   and .gates.art_pack_scene_replacement_boundary_gate == true
