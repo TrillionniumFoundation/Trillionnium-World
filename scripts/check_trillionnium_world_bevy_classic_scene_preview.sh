@@ -34,6 +34,9 @@ jq -e '
   and .preview_nonblank_gate == true
   and .overlay_text_gate == true
   and .direction_frame_gate == true
+  and .dynamic_landmark_animation_gate == true
+  and ([.dynamic_landmark_frame_ids[]] | index("actor_mentor_talk") != null)
+  and ([.dynamic_landmark_frame_ids[]] | index("actor_enemy_attack") != null)
   and .renderer_manifest_gate == true
   and .loaded_from_manifest == true
   and .atlas_parse_gate == true

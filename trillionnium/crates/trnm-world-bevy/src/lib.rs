@@ -4818,6 +4818,31 @@ fn classic_preview_runtime(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_dialogue_preview_runtime(
+    direction: &str,
+    walk_cycle_frame: u8,
+    map_scene: &str,
+) -> NativeFirstPlayableRuntime {
+    let mut runtime = classic_preview_runtime(direction, walk_cycle_frame, map_scene);
+    runtime.dialogue_overlay_visible = true;
+    runtime.npc_dialogue_state = "mentor_talk_preview".to_string();
+    runtime.npc_bubble_text = "Training route stays open".to_string();
+    runtime
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_combat_preview_runtime(
+    direction: &str,
+    walk_cycle_frame: u8,
+    map_scene: &str,
+) -> NativeFirstPlayableRuntime {
+    let mut runtime = classic_preview_runtime(direction, walk_cycle_frame, map_scene);
+    runtime.combat_turn = 1;
+    runtime.enemy_damage_feedback = "turn 1 attack -14 HP".to_string();
+    runtime
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -4828,8 +4853,8 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
     let assets = load_classic_runtime_assets();
     let panels = [
         (
-            "south_idle_square",
-            classic_preview_runtime("south", 0, "mirror_city_square"),
+            "south_talk_square",
+            classic_dialogue_preview_runtime("south", 0, "mirror_city_square"),
             (5_i32, 4_i32),
         ),
         (
@@ -4839,7 +4864,7 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
         ),
         (
             "east_walk_arena",
-            classic_preview_runtime("east", 1, "league_arena"),
+            classic_combat_preview_runtime("east", 1, "league_arena"),
             (4_i32, 5_i32),
         ),
         (
@@ -4851,6 +4876,7 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
     let mut sheet_pixels = vec![0x0b0d0c_u32; sheet_width * sheet_height];
     let mut panel_summaries = Vec::new();
     let mut directional_frame_ids = HashSet::new();
+    let mut dynamic_landmark_frame_ids = HashSet::new();
     for (index, (id, runtime, player_tile)) in panels.iter().enumerate() {
         let mut panel = vec![0_u32; PANEL_WIDTH * PANEL_HEIGHT];
         classic_draw_scene(
@@ -4874,12 +4900,30 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
             panel.iter().filter(|color| **color != 0x101411_u32).count();
         let player_frame_id = classic_player_frame_id(&assets, runtime);
         directional_frame_ids.insert(player_frame_id.clone());
+        let scene_id = classic_scene_id(runtime);
+        let panel_dynamic_landmark_frame_ids = assets
+            .scene_by_id
+            .get(scene_id)
+            .map(|scene| {
+                scene
+                    .landmarks
+                    .iter()
+                    .map(|landmark| {
+                        classic_dynamic_landmark_frame_id(landmark, runtime).to_string()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        for frame_id in &panel_dynamic_landmark_frame_ids {
+            dynamic_landmark_frame_ids.insert(frame_id.clone());
+        }
         panel_summaries.push(json!({
             "id": id,
             "direction": runtime.facing_direction,
             "walk_cycle_frame": runtime.walk_cycle_frame,
-            "scene_id": classic_scene_id(runtime),
+            "scene_id": scene_id,
             "player_frame_id": player_frame_id,
+            "dynamic_landmark_frame_ids": panel_dynamic_landmark_frame_ids,
             "unique_color_count": panel_unique_colors,
             "non_background_pixels": panel_non_background_pixels,
         }));
@@ -4916,6 +4960,8 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
         && overlay_accent_text_pixel_count > 800
         && overlay_panel_pixel_count > 4_000;
     let direction_frame_gate = directional_frame_ids.len() == 4;
+    let dynamic_landmark_animation_gate = dynamic_landmark_frame_ids.contains("actor_mentor_talk")
+        && dynamic_landmark_frame_ids.contains("actor_enemy_attack");
     let renderer_manifest_gate = assets.loaded_from_manifest
         && assets.atlas_parse_gate
         && assets.manifest.frames.len() >= 43;
@@ -4924,6 +4970,7 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
         && preview_nonblank_gate
         && overlay_text_gate
         && direction_frame_gate
+        && dynamic_landmark_animation_gate
         && renderer_manifest_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -4943,6 +4990,8 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
         "preview_nonblank_gate": preview_nonblank_gate,
         "overlay_text_gate": overlay_text_gate,
         "direction_frame_gate": direction_frame_gate,
+        "dynamic_landmark_animation_gate": dynamic_landmark_animation_gate,
+        "dynamic_landmark_frame_ids": dynamic_landmark_frame_ids,
         "renderer_manifest_gate": renderer_manifest_gate,
         "loaded_from_manifest": assets.loaded_from_manifest,
         "atlas_parse_gate": assets.atlas_parse_gate,
@@ -5258,7 +5307,7 @@ pub fn native_classic_renderer_probe_evidence_json(frame_path: &str) -> String {
             found
         })
         .unwrap_or(false);
-    let scene_frame_gate = ["tile_arena", "prop_arena_gate", "actor_enemy_idle"]
+    let scene_frame_gate = ["tile_arena", "prop_arena_gate", "actor_enemy_attack"]
         .iter()
         .all(|frame_id| {
             assets.frame_by_id.get(*frame_id).is_some_and(|frame| {
@@ -6253,12 +6302,13 @@ fn classic_draw_scene(
             }
         }
         for landmark in &scene.landmarks {
+            let frame_id = classic_dynamic_landmark_frame_id(landmark, runtime);
             classic_draw_frame_at_tile(
                 buffer,
                 width,
                 height,
                 assets,
-                &landmark.frame_id,
+                frame_id,
                 origin_x,
                 origin_y,
                 tile,
@@ -6375,6 +6425,30 @@ fn classic_scene_tile_frame_id(scene: &ClassicSceneMap, key: char) -> &str {
         .find(|entry| entry.key == key)
         .map(|entry| entry.frame_id.as_str())
         .unwrap_or("tile_grass_a")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_dynamic_landmark_frame_id<'a>(
+    landmark: &'a ClassicSceneLandmark,
+    runtime: &NativeFirstPlayableRuntime,
+) -> &'a str {
+    match landmark.id.as_str() {
+        "mentor" if runtime.dialogue_overlay_visible => "actor_mentor_talk",
+        "enemy" if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible => {
+            if runtime.enemy_hp <= 0 || runtime.enemy_damage_feedback.contains("yields") {
+                "actor_enemy_hit"
+            } else if runtime.combat_turn % 2 == 1
+                || runtime.enemy_damage_feedback.contains("attack")
+                || runtime.enemy_damage_feedback.contains("HP")
+            {
+                "actor_enemy_attack"
+            } else {
+                "actor_enemy_idle"
+            }
+        }
+        "objective_gate" if runtime.walk_cycle_frame % 2 == 1 => "marker_interaction",
+        _ => landmark.frame_id.as_str(),
+    }
 }
 
 #[cfg(not(target_os = "android"))]
