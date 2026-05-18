@@ -18,7 +18,10 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use trnm_world_api::{WorldApiCommandResponse, WORLD_API_CONTRACT};
+use trnm_world_api::{
+    WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
+    WORLD_ACCOUNT_API_CONTRACT, WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT, WORLD_API_CONTRACT,
+};
 use trnm_world_command::{
     apply_command, apply_tactics_command, WorldCommand, WorldTacticsCommandOutcome,
     WorldTacticsCommandRequest,
@@ -241,6 +244,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_BUILD_BRANCH_TITLE_ROUTE_ALL_BRANCH_KEYBOARD_R
     &str = "trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_STATE_SNAPSHOT_CONTRACT: &str =
     "trillionnium_world_bevy_state_snapshot_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT: &str =
+    "trillionnium_world_bevy_account_client_boundary_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BevyWorldBridgeReport {
@@ -265,6 +270,8 @@ pub struct BevyWorldBridgeReport {
     pub persistence_gate: String,
     pub first_playable_contract: String,
     pub first_playable_gate: String,
+    pub account_client_contract: String,
+    pub account_api_contract: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Component)]
@@ -309,6 +316,87 @@ pub struct AuthoritativeWorldResource {
 #[derive(Debug, Clone, PartialEq, Eq, Resource)]
 pub struct NativeWorldBootstrap {
     pub actor_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Resource)]
+pub struct NativeAccountClientRuntime {
+    pub contract_version: String,
+    pub account_api_contract: String,
+    pub account_boundary_contract: String,
+    pub player_client_owner: String,
+    pub account_api_owner: String,
+    pub auth_decision: WorldAccountAuthDecision,
+    pub session_bound_to_bevy_actor: bool,
+    pub visible_entry_points: Vec<String>,
+    pub passwords_tokens_or_cookie_values_logged: bool,
+    pub cex_runtime_player_client_allowed: bool,
+}
+
+impl NativeAccountClientRuntime {
+    pub fn for_actor(actor_id: &str) -> Self {
+        let auth_decision = native_account_auth_decision(actor_id, "login");
+        let session_bound_to_bevy_actor = auth_decision
+            .session
+            .as_ref()
+            .is_some_and(|session| session.actor_id == actor_id);
+        Self {
+            contract_version: TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT.to_string(),
+            account_api_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+            account_boundary_contract: WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT.to_string(),
+            player_client_owner: "trnm-world-bevy".to_string(),
+            account_api_owner: "trillionnium_world_account_api".to_string(),
+            passwords_tokens_or_cookie_values_logged: auth_decision
+                .passwords_tokens_or_cookie_values_logged,
+            cex_runtime_player_client_allowed: auth_decision.cex_runtime_player_client_allowed,
+            auth_decision,
+            session_bound_to_bevy_actor,
+            visible_entry_points: vec![
+                "title_login".to_string(),
+                "title_register".to_string(),
+                "continue_bound_account".to_string(),
+                "profile_display_name_to_character_identity".to_string(),
+            ],
+        }
+    }
+}
+
+fn native_account_profile(actor_id: &str) -> WorldAccountProfile {
+    WorldAccountProfile {
+        account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+        account_id: format!("trnm-account:{actor_id}"),
+        actor_id: actor_id.to_string(),
+        display_name: "Local Trillionnium Player".to_string(),
+        default_room_id: "mirror-city-square".to_string(),
+        source_of_truth: "trillionnium_world_account_api_fixture".to_string(),
+    }
+}
+
+fn native_account_session(actor_id: &str) -> WorldAccountSession {
+    WorldAccountSession {
+        account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+        session_id: format!("trnm-world-session:{actor_id}:generation-1"),
+        account_id: format!("trnm-account:{actor_id}"),
+        actor_id: actor_id.to_string(),
+        session_generation: 1,
+        csrf_bound: true,
+        http_only_cookie_required: true,
+        source_of_truth: "trillionnium_world_account_session_guard".to_string(),
+    }
+}
+
+fn native_account_auth_decision(actor_id: &str, action: &str) -> WorldAccountAuthDecision {
+    WorldAccountAuthDecision {
+        account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+        boundary_contract: WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT.to_string(),
+        action: action.to_string(),
+        accepted: true,
+        reason: format!("{action}_trillionnium_account_fixture_without_cex_runtime"),
+        profile: native_account_profile(actor_id),
+        session: Some(native_account_session(actor_id)),
+        passwords_tokens_or_cookie_values_logged: false,
+        cex_runtime_player_client_allowed: false,
+        source_of_truth: "trillionnium_owned_account_api_consumed_by_trnm_world_bevy".to_string(),
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Resource)]
@@ -3030,6 +3118,7 @@ impl Plugin for TrillionniumWorldBevyPlugin {
         .insert_resource(NativeWorldBootstrap {
             actor_id: self.actor_id.clone(),
         })
+        .insert_resource(NativeAccountClientRuntime::for_actor(&self.actor_id))
         .insert_resource(NativeIntentQueue::default())
         .insert_resource(NativeGameplayLog {
             turn: 0,
@@ -3159,7 +3248,14 @@ fn apply_native_intent_queue(
 }
 
 fn projection_resource(world: &WorldState, actor_id: &str) -> BevyWorldProjection {
-    let projection = world_full_split_projection_json(world, actor_id);
+    let mut projection = world_full_split_projection_json(world, actor_id);
+    if let Some(object) = projection.as_object_mut() {
+        object.insert(
+            "account_client".to_string(),
+            serde_json::to_value(NativeAccountClientRuntime::for_actor(actor_id))
+                .expect("account client runtime serializes"),
+        );
+    }
     BevyWorldProjection {
         actor_id: actor_id.to_string(),
         projection_json: serde_json::to_string(&projection)
@@ -3197,6 +3293,9 @@ fn report_for_world(world: &WorldState) -> BevyWorldBridgeReport {
         persistence_gate: "host_save_restore_snapshot_round_trip_green".to_string(),
         first_playable_contract: TRILLIONNIUM_WORLD_BEVY_FIRST_PLAYABLE_CONTRACT.to_string(),
         first_playable_gate: "host_first_playable_loop_green".to_string(),
+        account_client_contract: TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT
+            .to_string(),
+        account_api_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
     }
 }
 
@@ -3292,6 +3391,48 @@ pub fn bevy_bridge_report_for_fixture(actor_id: &str) -> BevyWorldBridgeReport {
     let world = WorldState::trillionnium_default_map_fixture();
     let (_app, report) = build_native_bevy_app(world, actor_id);
     report
+}
+
+pub fn native_account_client_boundary_evidence_value(actor_id: &str) -> serde_json::Value {
+    let (app, report) = build_native_bevy_app(native_bevy_playable_fixture(), actor_id);
+    let account = app.world().resource::<NativeAccountClientRuntime>().clone();
+    let projection = app.world().resource::<BevyWorldProjection>();
+    let projection_value: serde_json::Value =
+        serde_json::from_str(&projection.projection_json).expect("projection JSON parses");
+    let projection_account = projection_value
+        .get("account_client")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT,
+        "bevy_native_client_contract": TRILLIONNIUM_WORLD_BEVY_NATIVE_CLIENT_CONTRACT,
+        "account_api_contract": WORLD_ACCOUNT_API_CONTRACT,
+        "account_boundary_contract": WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT,
+        "player_client_owner": account.player_client_owner,
+        "account_api_owner": account.account_api_owner,
+        "report_account_client_contract": report.account_client_contract,
+        "report_account_api_contract": report.account_api_contract,
+        "profile_actor_id": account.auth_decision.profile.actor_id,
+        "profile_display_name": account.auth_decision.profile.display_name,
+        "default_room_id": account.auth_decision.profile.default_room_id,
+        "session_bound_to_bevy_actor": account.session_bound_to_bevy_actor,
+        "visible_entry_points": account.visible_entry_points,
+        "passwords_tokens_or_cookie_values_logged": account.passwords_tokens_or_cookie_values_logged,
+        "cex_runtime_player_client_allowed": account.cex_runtime_player_client_allowed,
+        "bevy_projection_contains_account_client": !projection_account.is_null(),
+        "projection_account_client": projection_account,
+        "source_of_truth": "trillionnium_owned_account_api_consumed_by_trnm_world_bevy",
+        "green": account.auth_decision.accepted
+            && account.session_bound_to_bevy_actor
+            && !account.passwords_tokens_or_cookie_values_logged
+            && !account.cex_runtime_player_client_allowed
+            && !projection_account.is_null(),
+    })
+}
+
+pub fn native_account_client_boundary_evidence_json(actor_id: &str) -> String {
+    serde_json::to_string_pretty(&native_account_client_boundary_evidence_value(actor_id))
+        .expect("native account client boundary evidence serializes")
 }
 
 pub fn run_native_bevy_client(world: WorldState, actor_id: &str) {
@@ -38776,10 +38917,38 @@ mod tests {
         let (app, report) = build_native_bevy_app(world, "local-player");
         assert_eq!(report.engine_id, TRILLIONNIUM_WORLD_BEVY_ENGINE_ID);
         assert_eq!(
+            report.account_client_contract,
+            TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT
+        );
+        assert_eq!(
             report.android_gate,
             "host_and_aarch64_android_bevy_client_compile_green"
         );
         assert!(app.world().get_resource::<BevyWorldProjection>().is_some());
+        assert!(app
+            .world()
+            .get_resource::<NativeAccountClientRuntime>()
+            .is_some());
+    }
+
+    #[test]
+    fn native_account_client_uses_trillionnium_api_not_cex_runtime() {
+        let evidence = native_account_client_boundary_evidence_value("local-player");
+        assert_eq!(
+            evidence["contract_version"],
+            TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT
+        );
+        assert_eq!(evidence["account_api_contract"], WORLD_ACCOUNT_API_CONTRACT);
+        assert_eq!(
+            evidence["account_boundary_contract"],
+            WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT
+        );
+        assert_eq!(evidence["player_client_owner"], "trnm-world-bevy");
+        assert_eq!(evidence["session_bound_to_bevy_actor"], true);
+        assert_eq!(evidence["bevy_projection_contains_account_client"], true);
+        assert_eq!(evidence["passwords_tokens_or_cookie_values_logged"], false);
+        assert_eq!(evidence["cex_runtime_player_client_allowed"], false);
+        assert_eq!(evidence["green"], true);
     }
 
     #[test]

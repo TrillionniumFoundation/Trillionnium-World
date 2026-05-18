@@ -8,13 +8,15 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use trnm_world_api::{
-    world_runtime_adapter_readiness, WorldActorIdentity, WorldApiCommandRequest,
+    world_runtime_adapter_readiness, WorldAccountAdapter, WorldAccountAuthDecision,
+    WorldAccountProfile, WorldAccountSession, WorldActorIdentity, WorldApiCommandRequest,
     WorldApiCommandResponse, WorldApiFullSplitResponse, WorldApiHomeResponse,
     WorldApiMapRuntimeBudgetResponse, WorldApiRouteArtifactsResponse,
     WorldApiRouteCommandTargetResponse, WorldApiTacticsCommandResponse, WorldEvidenceReceipt,
     WorldEvidenceSink, WorldIdentityAdapter, WorldLedgerAdapter, WorldLedgerReceipt,
     WorldMetricReceipt, WorldMetricsSink, WorldRepository, WorldRepositoryReceipt,
     WorldRuntimeAdapterReadiness, WorldSessionDecision, WorldSessionGuard,
+    WORLD_ACCOUNT_API_CONTRACT, WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT,
     WORLD_FULL_SPLIT_RESPONSE_CONTRACT, WORLD_RUNTIME_ADAPTER_CONTRACT,
 };
 use trnm_world_command::{
@@ -66,6 +68,113 @@ impl WorldSessionGuard for FixtureWorldRuntimeAdapters {
             reason: "fixture_session_authorized_without_cex_cookie".to_string(),
             source_of_truth: "fixture_world_session_guard".to_string(),
         }
+    }
+}
+
+impl FixtureWorldRuntimeAdapters {
+    fn account_profile(&self, actor_id: &str, display_name: &str) -> WorldAccountProfile {
+        WorldAccountProfile {
+            account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+            account_id: format!("trnm-account:{actor_id}"),
+            actor_id: actor_id.to_string(),
+            display_name: display_name.to_string(),
+            default_room_id: "mirror-city-square".to_string(),
+            source_of_truth: "trillionnium_world_account_fixture_adapter".to_string(),
+        }
+    }
+
+    fn account_session(&self, actor_id: &str) -> WorldAccountSession {
+        WorldAccountSession {
+            account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+            session_id: format!("trnm-world-session:{actor_id}:generation-1"),
+            account_id: format!("trnm-account:{actor_id}"),
+            actor_id: actor_id.to_string(),
+            session_generation: 1,
+            csrf_bound: true,
+            http_only_cookie_required: true,
+            source_of_truth: "trillionnium_world_account_session_guard".to_string(),
+        }
+    }
+
+    fn account_decision(
+        &self,
+        action: &str,
+        actor_id: &str,
+        display_name: &str,
+        accepted: bool,
+        reason: &str,
+        include_session: bool,
+    ) -> WorldAccountAuthDecision {
+        WorldAccountAuthDecision {
+            account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+            boundary_contract: WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT.to_string(),
+            action: action.to_string(),
+            accepted,
+            reason: reason.to_string(),
+            profile: self.account_profile(actor_id, display_name),
+            session: include_session.then(|| self.account_session(actor_id)),
+            passwords_tokens_or_cookie_values_logged: false,
+            cex_runtime_player_client_allowed: false,
+            source_of_truth: "trillionnium_owned_account_api_fixture_not_cex_client".to_string(),
+        }
+    }
+}
+
+impl WorldAccountAdapter for FixtureWorldRuntimeAdapters {
+    fn register_password_account(
+        &self,
+        actor_id: &str,
+        display_name: &str,
+    ) -> WorldAccountAuthDecision {
+        self.account_decision(
+            "register",
+            actor_id,
+            display_name,
+            true,
+            "registered_trillionnium_account_fixture_without_logging_secrets",
+            true,
+        )
+    }
+
+    fn login_password_account(&self, actor_id: &str) -> WorldAccountAuthDecision {
+        self.account_decision(
+            "login",
+            actor_id,
+            "Local Trillionnium Player",
+            true,
+            "logged_in_trillionnium_account_fixture_without_cex_runtime",
+            true,
+        )
+    }
+
+    fn resolve_account_session(
+        &self,
+        _session_id: &str,
+        actor_id: &str,
+    ) -> WorldAccountAuthDecision {
+        self.account_decision(
+            "session",
+            actor_id,
+            "Local Trillionnium Player",
+            true,
+            "resolved_trillionnium_account_session_fixture",
+            true,
+        )
+    }
+
+    fn revoke_account_session(
+        &self,
+        _session_id: &str,
+        actor_id: &str,
+    ) -> WorldAccountAuthDecision {
+        self.account_decision(
+            "revoke",
+            actor_id,
+            "Local Trillionnium Player",
+            true,
+            "revoked_trillionnium_account_session_fixture",
+            false,
+        )
     }
 }
 
@@ -303,10 +412,15 @@ pub fn build_adapter_readiness_response() -> WorldRuntimeAdapterReadiness {
     world_runtime_adapter_readiness()
 }
 
+pub fn build_account_boundary_response(actor_id: &str) -> WorldAccountAuthDecision {
+    FixtureWorldRuntimeAdapters.register_password_account(actor_id, "Local Trillionnium Player")
+}
+
 pub fn build_full_split_response(actor_id: &str) -> WorldApiFullSplitResponse {
     let adapters = FixtureWorldRuntimeAdapters;
     let identity = adapters.resolve_actor(actor_id);
     let session = adapters.authorize_world_session(&identity.actor_id);
+    let account = adapters.login_password_account(&identity.actor_id);
     let world = adapters.load_world(&identity.actor_id);
     let records = adapters.load_route_records(&identity.actor_id, &world);
     let repository_receipt = adapters.save_world(&world, &records);
@@ -322,6 +436,10 @@ pub fn build_full_split_response(actor_id: &str) -> WorldApiFullSplitResponse {
         object.insert(
             "session_guard".to_string(),
             serde_json::to_value(session).expect("session serializes"),
+        );
+        object.insert(
+            "account_auth".to_string(),
+            serde_json::to_value(account).expect("account auth serializes"),
         );
         object.insert(
             "repository_receipt".to_string(),
@@ -480,6 +598,9 @@ impl WorldDevRuntime {
             "route_count": world.edges.len(),
             "npc_count": world.npcs.len(),
             "task_count": world.tasks.len(),
+            "account_contract": trnm_world_api::WORLD_ACCOUNT_API_CONTRACT,
+            "account_boundary_contract": trnm_world_api::WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT,
+            "account_api_owner": "trillionnium_world_server_fixture_not_cex_client",
         })
     }
 
@@ -531,6 +652,7 @@ impl WorldDevRuntime {
         let adapters = FixtureWorldRuntimeAdapters;
         let identity = adapters.resolve_actor(&self.actor_id);
         let session = adapters.authorize_world_session(&identity.actor_id);
+        let account = adapters.resolve_account_session("fixture-session", &identity.actor_id);
         let world = self.world.lock().expect("dev world mutex is not poisoned");
         let records = self
             .route_records
@@ -554,6 +676,10 @@ impl WorldDevRuntime {
             object.insert(
                 "session_guard".to_string(),
                 serde_json::to_value(session).expect("session serializes"),
+            );
+            object.insert(
+                "account_auth".to_string(),
+                serde_json::to_value(account).expect("account auth serializes"),
             );
             object.insert(
                 "repository_receipt".to_string(),
@@ -607,6 +733,7 @@ pub fn build_dev_runtime_smoke_json() -> serde_json::Value {
             "/world/tactics-command",
             "/world/full-split",
             "/world/adapter-readiness",
+            "/account/boundary",
             "/world/map-runtime-budget",
             "/world/route-artifacts"
         ],
@@ -622,6 +749,8 @@ pub fn build_dev_runtime_smoke_json() -> serde_json::Value {
             .unwrap_or_default(),
         "full_split_contract": full_split.response_contract,
         "runtime_adapter_count": full_split.runtime_adapters.statuses.len(),
+        "account_contract": trnm_world_api::WORLD_ACCOUNT_API_CONTRACT,
+        "account_boundary_contract": trnm_world_api::WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT,
     })
 }
 
@@ -682,6 +811,9 @@ pub fn handle_dev_runtime_request(
         }
         ("GET", "/world/full-split") => json_response(&runtime.full_split_response()),
         ("GET", "/world/adapter-readiness") => json_response(&build_adapter_readiness_response()),
+        ("GET", "/account/boundary") | ("GET", "/account/session") => {
+            json_response(&build_account_boundary_response(runtime.actor_id()))
+        }
         ("GET", "/world/map-runtime-budget") => json_response(&build_map_runtime_budget_response()),
         ("GET", "/world/route-artifacts") => json_response(&build_route_artifacts_response()),
         ("GET", "/world/tactics-command") => {
@@ -1251,9 +1383,35 @@ mod tests {
             "fixture_world_identity_adapter"
         );
         assert_eq!(
+            response.projection["account_auth"]["account_contract"],
+            trnm_world_api::WORLD_ACCOUNT_API_CONTRACT
+        );
+        assert_eq!(
+            response.projection["account_auth"]["cex_runtime_player_client_allowed"],
+            false
+        );
+        assert_eq!(
             response.projection["ledger_receipt"]["status"],
             "reserved_fixture"
         );
+    }
+
+    #[test]
+    fn standalone_account_boundary_response_is_trillionnium_owned() {
+        let response = build_account_boundary_response("local-player");
+        assert_eq!(
+            response.account_contract,
+            trnm_world_api::WORLD_ACCOUNT_API_CONTRACT
+        );
+        assert_eq!(
+            response.boundary_contract,
+            trnm_world_api::WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT
+        );
+        assert!(response.accepted);
+        assert_eq!(response.profile.actor_id, "local-player");
+        assert!(response.session.is_some());
+        assert!(!response.passwords_tokens_or_cookie_values_logged);
+        assert!(!response.cex_runtime_player_client_allowed);
     }
 
     #[test]
@@ -1276,6 +1434,15 @@ mod tests {
         let home = handle_dev_runtime_request(&runtime, "GET", "/world/home", "");
         assert_eq!(home.status_code, 200);
         assert!(home.body.contains("\"player_node_id\": \"starter-studio\""));
+
+        let account = handle_dev_runtime_request(&runtime, "GET", "/account/boundary", "");
+        assert_eq!(account.status_code, 200);
+        assert!(account
+            .body
+            .contains(trnm_world_api::WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT));
+        assert!(account
+            .body
+            .contains("\"cex_runtime_player_client_allowed\": false"));
     }
 
     #[test]

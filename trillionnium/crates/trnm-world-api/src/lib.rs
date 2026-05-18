@@ -11,6 +11,9 @@ use trnm_world_projection::{
 pub const WORLD_API_CONTRACT: &str = "trillionnium_world_api_v1";
 pub const WORLD_RUNTIME_ADAPTER_CONTRACT: &str = "trillionnium_world_runtime_adapter_v1";
 pub const WORLD_FULL_SPLIT_RESPONSE_CONTRACT: &str = "trillionnium_world_full_split_response_v1";
+pub const WORLD_ACCOUNT_API_CONTRACT: &str = "trillionnium_world_account_api_v1";
+pub const WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT: &str =
+    "trillionnium_world_account_client_boundary_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorldApiHomeResponse {
@@ -88,6 +91,42 @@ pub struct WorldSessionDecision {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldAccountProfile {
+    pub account_contract: String,
+    pub account_id: String,
+    pub actor_id: String,
+    pub display_name: String,
+    pub default_room_id: String,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldAccountSession {
+    pub account_contract: String,
+    pub session_id: String,
+    pub account_id: String,
+    pub actor_id: String,
+    pub session_generation: u64,
+    pub csrf_bound: bool,
+    pub http_only_cookie_required: bool,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldAccountAuthDecision {
+    pub account_contract: String,
+    pub boundary_contract: String,
+    pub action: String,
+    pub accepted: bool,
+    pub reason: String,
+    pub profile: WorldAccountProfile,
+    pub session: Option<WorldAccountSession>,
+    pub passwords_tokens_or_cookie_values_logged: bool,
+    pub cex_runtime_player_client_allowed: bool,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorldLedgerReceipt {
     pub adapter_contract: String,
     pub receipt_id: String,
@@ -151,6 +190,18 @@ pub trait WorldIdentityAdapter {
 
 pub trait WorldSessionGuard {
     fn authorize_world_session(&self, actor_id: &str) -> WorldSessionDecision;
+}
+
+pub trait WorldAccountAdapter {
+    fn register_password_account(
+        &self,
+        actor_id: &str,
+        display_name: &str,
+    ) -> WorldAccountAuthDecision;
+    fn login_password_account(&self, actor_id: &str) -> WorldAccountAuthDecision;
+    fn resolve_account_session(&self, session_id: &str, actor_id: &str)
+        -> WorldAccountAuthDecision;
+    fn revoke_account_session(&self, session_id: &str, actor_id: &str) -> WorldAccountAuthDecision;
 }
 
 pub trait WorldLedgerAdapter {
@@ -272,5 +323,36 @@ mod tests {
             .statuses
             .iter()
             .all(|status| status.production_adapter_trait_ready));
+    }
+
+    #[test]
+    fn account_auth_decision_contract_is_trillionnium_owned() {
+        let profile = WorldAccountProfile {
+            account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+            account_id: "trnm-account:local-player".to_string(),
+            actor_id: "local-player".to_string(),
+            display_name: "Local Trillionnium Player".to_string(),
+            default_room_id: "mirror-city-square".to_string(),
+            source_of_truth: "test".to_string(),
+        };
+        let decision = WorldAccountAuthDecision {
+            account_contract: WORLD_ACCOUNT_API_CONTRACT.to_string(),
+            boundary_contract: WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT.to_string(),
+            action: "login".to_string(),
+            accepted: true,
+            reason: "ok".to_string(),
+            profile,
+            session: None,
+            passwords_tokens_or_cookie_values_logged: false,
+            cex_runtime_player_client_allowed: false,
+            source_of_truth: "trillionnium_owned_account_api".to_string(),
+        };
+        assert_eq!(decision.account_contract, WORLD_ACCOUNT_API_CONTRACT);
+        assert_eq!(
+            decision.boundary_contract,
+            WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT
+        );
+        assert!(!decision.passwords_tokens_or_cookie_values_logged);
+        assert!(!decision.cex_runtime_player_client_allowed);
     }
 }

@@ -23,6 +23,16 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("account-client-boundary" | "--account-client-boundary" | "account-client")
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_account_client_boundary_evidence_json("local-player")
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("scene-transition-playability" | "--scene-transition-playability")
     ) {
         println!(

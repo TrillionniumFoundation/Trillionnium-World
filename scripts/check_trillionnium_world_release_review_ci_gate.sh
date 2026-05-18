@@ -63,6 +63,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_action_coach.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_player_ui_rescue.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_account_client_boundary.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_sprite_sheet.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_texture_atlas_binding.sh" \
@@ -109,6 +110,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/s5_device_evidence_collector_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/s5_real_device_evidence_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_account_client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_texture_atlas_binding_script_contract_guard_test.sh" \
@@ -175,6 +177,8 @@ run_check bevy_action_coach_gate "$ROOT/scripts/check_trillionnium_world_bevy_ac
 run_check bevy_player_hud_debug_layer_gate "$ROOT/scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh"
 run_check bevy_player_ui_rescue_contract_guard "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh"
 run_check bevy_player_ui_rescue_gate "$ROOT/scripts/check_trillionnium_world_bevy_player_ui_rescue.sh"
+run_check bevy_account_client_boundary_contract_guard "$ROOT/scripts/v2/bevy_account_client_boundary_script_contract_guard_test.sh"
+run_check bevy_account_client_boundary_gate "$ROOT/scripts/check_trillionnium_world_bevy_account_client_boundary.sh"
 run_check bevy_authored_art_pack_contract_guard "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh"
 run_check bevy_authored_art_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh"
 run_check bevy_authored_sprite_sheet_contract_guard "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh"

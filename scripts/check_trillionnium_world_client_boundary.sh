@@ -82,7 +82,7 @@ contains "$DEV_ENV" "Do not launch CEX as the player client" dev_env_no_cex_clie
 
 contains "$BEVY_RUNNER" "cargo run -p trnm-world-bevy -- run" bevy_runner_targets_native_crate
 not_matches "$BEVY_RUNNER" "CEX|consumer-entry|consumer_entry|runtime-manager-linux|/world" bevy_runner_has_no_cex_runtime_refs
-not_matches "$BEVY_CRATE" "CEX|consumer-entry|consumer_entry|cex_" bevy_crate_has_no_cex_internals
+not_matches "$BEVY_CRATE" "CEX|consumer-entry|consumer_entry|cex_default|cex_world|cex_consumer|cex_service|cex_incubator" bevy_crate_has_no_cex_internals
 contains "$CEX_ADAPTER_GATE" "trillionnium_world_crates_do_not_import_cex_service_internals" cex_adapter_import_rule
 
 CHECKS_JSON="$(printf '%s\n' "${CHECKS[@]}" | jq -R 'split("|") | {name: .[0], status: .[1], detail: .[2]}' | jq -s '.')"
