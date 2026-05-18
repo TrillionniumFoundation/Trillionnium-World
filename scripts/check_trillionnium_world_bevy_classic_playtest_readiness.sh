@@ -156,6 +156,7 @@ jq -n \
       asset_vfx_slot_count: $slots[0].vfx_slot_count,
       art_pack_asset_count: $art_pack[0].asset_count,
       art_pack_override_frame_count: $art_pack[0].override_frame_count,
+      art_pack_preview_height: $art_pack[0].preview_height,
       art_pack_preview_non_background_pixels: $art_pack[0].preview_non_background_pixels,
       art_pack_model_detail_asset_count: $art_pack[0].model_detail_asset_count,
       art_pack_model_unique_color_total: $art_pack[0].model_unique_color_total,
@@ -166,6 +167,10 @@ jq -n \
       art_pack_unit_unique_color_total: $art_pack[0].unit_unique_color_total,
       art_pack_unit_shadow_pixel_count: $art_pack[0].unit_shadow_pixel_count,
       art_pack_unit_highlight_pixel_count: $art_pack[0].unit_highlight_pixel_count,
+      art_pack_doodad_detail_asset_count: $art_pack[0].doodad_detail_asset_count,
+      art_pack_doodad_unique_color_total: $art_pack[0].doodad_unique_color_total,
+      art_pack_doodad_shadow_pixel_count: $art_pack[0].doodad_shadow_pixel_count,
+      art_pack_doodad_detail_pixel_count: $art_pack[0].doodad_detail_pixel_count,
       art_pack_scene_non_background_pixels: $art_scene[0].non_background_pixels,
       art_pack_scene_player_color_count: $art_scene[0].player_color_count,
       art_pack_scene_enemy_attack_color_count: $art_scene[0].enemy_attack_color_count,
@@ -208,8 +213,10 @@ jq -n \
       art_pack_required_model_gate: $art_pack[0].required_model_gate,
       art_pack_player_art_gate: $art_pack[0].player_art_gate,
       art_pack_enemy_art_gate: $art_pack[0].enemy_art_gate,
+      art_pack_doodad_art_gate: $art_pack[0].doodad_art_gate,
       art_pack_model_detail_gate: $art_pack[0].model_detail_gate,
       art_pack_unit_detail_gate: $art_pack[0].unit_detail_gate,
+      art_pack_doodad_detail_gate: $art_pack[0].doodad_detail_gate,
       art_pack_replacement_boundary_gate: $art_pack[0].replacement_boundary_gate,
       art_pack_scene_override_presence_gate: $art_scene[0].override_presence_gate,
       art_pack_scene_color_probe_gate: $art_scene[0].color_probe_gate,
@@ -314,8 +321,9 @@ jq -e '
   and .headline.asset_procedural_model_slot_count >= 5
   and .headline.asset_doodad_slot_count >= 4
   and .headline.asset_vfx_slot_count >= 6
-  and .headline.art_pack_asset_count >= 22
-  and .headline.art_pack_override_frame_count >= 22
+  and .headline.art_pack_asset_count >= 26
+  and .headline.art_pack_override_frame_count >= 26
+  and .headline.art_pack_preview_height >= 735
   and .headline.art_pack_preview_non_background_pixels > 35000
   and .headline.art_pack_model_detail_asset_count >= 5
   and .headline.art_pack_model_unique_color_total >= 45
@@ -326,6 +334,10 @@ jq -e '
   and .headline.art_pack_unit_unique_color_total >= 100
   and .headline.art_pack_unit_shadow_pixel_count > 130
   and .headline.art_pack_unit_highlight_pixel_count > 100
+  and .headline.art_pack_doodad_detail_asset_count >= 4
+  and .headline.art_pack_doodad_unique_color_total >= 12
+  and .headline.art_pack_doodad_shadow_pixel_count > 20
+  and .headline.art_pack_doodad_detail_pixel_count > 200
   and .headline.art_pack_scene_non_background_pixels > 120000
   and .headline.art_pack_scene_player_color_count > 20
   and .headline.art_pack_scene_enemy_attack_color_count > 20
@@ -364,8 +376,10 @@ jq -e '
   and .gates.art_pack_required_model_gate == true
   and .gates.art_pack_player_art_gate == true
   and .gates.art_pack_enemy_art_gate == true
+  and .gates.art_pack_doodad_art_gate == true
   and .gates.art_pack_model_detail_gate == true
   and .gates.art_pack_unit_detail_gate == true
+  and .gates.art_pack_doodad_detail_gate == true
   and .gates.art_pack_replacement_boundary_gate == true
   and .gates.art_pack_scene_override_presence_gate == true
   and .gates.art_pack_scene_color_probe_gate == true

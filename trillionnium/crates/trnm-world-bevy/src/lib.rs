@@ -5589,6 +5589,10 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     let mut unit_unique_color_total = 0_usize;
     let mut unit_shadow_pixel_count = 0_usize;
     let mut unit_highlight_pixel_count = 0_usize;
+    let mut doodad_detail_asset_count = 0_usize;
+    let mut doodad_unique_color_total = 0_usize;
+    let mut doodad_shadow_pixel_count = 0_usize;
+    let mut doodad_detail_pixel_count = 0_usize;
     for (frame_id, width, height, group) in &specs {
         let pixels = classic_art_pack_pixels(frame_id, *width, *height);
         let visible_pixel_count = pixels.iter().filter(|color| **color != 0x000000).count();
@@ -5636,6 +5640,23 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         if frame_id.starts_with("actor_enemy") && unit_detail_asset_gate {
             enemy_unit_detail_asset_count += 1;
         }
+        let doodad_detail_pixels = pixels
+            .iter()
+            .filter(|color| classic_art_pack_doodad_detail_color(**color))
+            .count();
+        let doodad_detail_asset_gate = frame_id.starts_with("doodad_")
+            && unique_color_count >= 3
+            && shadow_pixel_count > 3
+            && doodad_detail_pixels > 20
+            && visible_pixel_count > 40;
+        if frame_id.starts_with("doodad_") {
+            doodad_unique_color_total += unique_color_count;
+            doodad_shadow_pixel_count += shadow_pixel_count;
+            doodad_detail_pixel_count += doodad_detail_pixels;
+            if doodad_detail_asset_gate {
+                doodad_detail_asset_count += 1;
+            }
+        }
         let path = override_dir_path.join(format!("{frame_id}.ppm"));
         let path_string = path.to_string_lossy().to_string();
         if write_classic_rgb_buffer_ppm(&path_string, *width as usize, *height as usize, &pixels)
@@ -5653,16 +5674,19 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 "highlight_pixel_count": highlight_pixel_count,
                 "model_detail_asset_gate": model_detail_asset_gate,
                 "unit_detail_asset_gate": unit_detail_asset_gate,
+                "doodad_detail_pixel_count": doodad_detail_pixels,
+                "doodad_detail_asset_gate": doodad_detail_asset_gate,
             }));
         } else {
             write_failures.push(path_string);
         }
     }
     let assets = load_classic_runtime_assets_with_override_dir(Some(override_dir.to_string()));
-    let mut preview_pixels = vec![0x0b0d0c_u32; 640 * 420];
-    classic_draw_art_pack_preview(&mut preview_pixels, 640, 420, &specs, &assets);
+    let preview_height = (specs.len().div_ceil(4) * 105).max(420);
+    let mut preview_pixels = vec![0x0b0d0c_u32; 640 * preview_height];
+    classic_draw_art_pack_preview(&mut preview_pixels, 640, preview_height, &specs, &assets);
     let preview_write_gate =
-        write_classic_rgb_buffer_ppm(preview_path, 640, 420, &preview_pixels).is_ok();
+        write_classic_rgb_buffer_ppm(preview_path, 640, preview_height, &preview_pixels).is_ok();
     let preview_non_background_pixels = preview_pixels
         .iter()
         .filter(|color| **color != 0x0b0d0c_u32)
@@ -5705,6 +5729,14 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     ]
     .iter()
     .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let doodad_art_gate = [
+        "doodad_rock_cluster",
+        "doodad_barrel_stack",
+        "doodad_torch",
+        "doodad_crystal_cluster",
+    ]
+    .iter()
+    .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -5718,17 +5750,23 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && unit_unique_color_total >= 100
         && unit_shadow_pixel_count > 130
         && unit_highlight_pixel_count > 100;
+    let doodad_detail_gate = doodad_detail_asset_count >= 4
+        && doodad_unique_color_total >= 12
+        && doodad_shadow_pixel_count > 20
+        && doodad_detail_pixel_count > 200;
     let green = create_dir_gate
         && write_failures.is_empty()
         && preview_write_gate
         && preview_non_background_pixels > 35_000
-        && written_assets.len() >= 22
-        && assets.frame_override_pixels.len() >= 22
+        && written_assets.len() >= 26
+        && assets.frame_override_pixels.len() >= 26
         && required_model_gate
         && player_art_gate
         && enemy_art_gate
+        && doodad_art_gate
         && model_detail_gate
         && unit_detail_gate
+        && doodad_detail_gate
         && replacement_boundary_gate;
     let override_frame_ids = assets
         .frame_override_pixels
@@ -5742,7 +5780,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "preview_path": preview_path,
         "preview_format": "ppm_p3_rgb",
         "preview_width": 640,
-        "preview_height": 420,
+        "preview_height": preview_height,
         "preview_write_gate": preview_write_gate,
         "preview_non_background_pixels": preview_non_background_pixels,
         "create_dir_gate": create_dir_gate,
@@ -5752,6 +5790,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "required_model_gate": required_model_gate,
         "player_art_gate": player_art_gate,
         "enemy_art_gate": enemy_art_gate,
+        "doodad_art_gate": doodad_art_gate,
         "model_detail_gate": model_detail_gate,
         "model_detail_asset_count": model_detail_asset_count,
         "model_unique_color_total": model_unique_color_total,
@@ -5763,11 +5802,16 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "unit_unique_color_total": unit_unique_color_total,
         "unit_shadow_pixel_count": unit_shadow_pixel_count,
         "unit_highlight_pixel_count": unit_highlight_pixel_count,
+        "doodad_detail_gate": doodad_detail_gate,
+        "doodad_detail_asset_count": doodad_detail_asset_count,
+        "doodad_unique_color_total": doodad_unique_color_total,
+        "doodad_shadow_pixel_count": doodad_shadow_pixel_count,
+        "doodad_detail_pixel_count": doodad_detail_pixel_count,
         "replacement_boundary_gate": replacement_boundary_gate,
         "override_frame_ids": override_frame_ids,
         "written_assets": written_assets,
         "write_failures": write_failures,
-        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "player", "enemy"],
+        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "doodad", "player", "enemy"],
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
         "source_of_truth": "The classic art pack writes the first real 2.5D override sprites into the Trillionnium Bevy asset tree and proves they load through the native low-spec renderer override path."
@@ -5804,6 +5848,19 @@ fn classic_art_pack_highlight_color(color: u32) -> bool {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_art_pack_doodad_detail_color(color: u32) -> bool {
+    matches!(
+        color,
+        CLASSIC_ISO_DOODAD_STONE_COLOR
+            | CLASSIC_ISO_DOODAD_WOOD_COLOR
+            | CLASSIC_ISO_DOODAD_FIRE_COLOR
+            | CLASSIC_ISO_DOODAD_CRYSTAL_COLOR
+            | 0xffd07a
+            | 0xb8fbff
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static str)> {
     let mut specs = classic_art_pack_synthetic_override_specs()
         .into_iter()
@@ -5814,6 +5871,7 @@ fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static st
                 "model_training_hall" => "training_hall",
                 "model_coliseum_stands" => "coliseum",
                 "model_tree_cluster_large" => "tree_cluster",
+                frame if frame.starts_with("doodad_") => "doodad",
                 _ => "model",
             };
             (frame_id, width, height, group)
@@ -5848,6 +5906,10 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
         ("model_training_hall", 96, 96),
         ("model_coliseum_stands", 128, 96),
         ("model_tree_cluster_large", 96, 96),
+        ("doodad_rock_cluster", 48, 48),
+        ("doodad_barrel_stack", 48, 48),
+        ("doodad_torch", 48, 48),
+        ("doodad_crystal_cluster", 48, 48),
     ]
 }
 
@@ -6343,6 +6405,71 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                     4,
                     color,
                 );
+            }
+        }
+        frame if frame.starts_with("doodad_") => {
+            let center_x = (width / 2) as i32;
+            let top_y = height as i32 - 14;
+            classic_draw_iso_procedural_model(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                frame,
+                center_x,
+                top_y,
+                24,
+                12,
+            );
+            match frame {
+                "doodad_rock_cluster" => {
+                    classic_draw_iso_ellipse(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x + 4,
+                        height as i32 - 24,
+                        7,
+                        3,
+                        classic_lighten(CLASSIC_ISO_DOODAD_STONE_COLOR, 1, 4),
+                    );
+                }
+                "doodad_barrel_stack" => {
+                    classic_draw_rect(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x - 6,
+                        height as i32 - 31,
+                        12,
+                        2,
+                        0xffd07a,
+                    );
+                }
+                "doodad_torch" => {
+                    classic_draw_iso_ellipse(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x,
+                        height as i32 - 36,
+                        4,
+                        3,
+                        0xffd07a,
+                    );
+                }
+                "doodad_crystal_cluster" => {
+                    classic_draw_iso_ellipse(
+                        &mut pixels,
+                        width as usize,
+                        height as usize,
+                        center_x + 2,
+                        height as i32 - 25,
+                        7,
+                        3,
+                        0xb8fbff,
+                    );
+                }
+                _ => {}
             }
         }
         frame if frame.starts_with("actor_player") => {
