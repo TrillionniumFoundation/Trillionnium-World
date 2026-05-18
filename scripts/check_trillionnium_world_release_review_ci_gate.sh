@@ -65,6 +65,8 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_player_ui_rescue.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_account_client_boundary.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_account_title_flow.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_scene_preview.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_sprite_sheet.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_texture_atlas_binding.sh" \
@@ -183,6 +185,9 @@ run_check bevy_account_client_boundary_contract_guard "$ROOT/scripts/v2/bevy_acc
 run_check bevy_account_client_boundary_gate "$ROOT/scripts/check_trillionnium_world_bevy_account_client_boundary.sh"
 run_check bevy_account_title_flow_contract_guard "$ROOT/scripts/v2/bevy_account_title_flow_script_contract_guard_test.sh"
 run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_bevy_account_title_flow.sh"
+# Bevy classic low-spec asset contracts: trillionnium_world_bevy_classic_asset_pack_v1 / trillionnium_world_bevy_classic_scene_preview_v1
+run_check bevy_classic_asset_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh"
+run_check bevy_classic_scene_preview_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_scene_preview.sh"
 run_check bevy_authored_art_pack_contract_guard "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh"
 run_check bevy_authored_art_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh"
 run_check bevy_authored_sprite_sheet_contract_guard "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh"
