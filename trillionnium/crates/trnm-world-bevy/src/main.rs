@@ -275,6 +275,20 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-model-catalog" | "--classic-model-catalog" | "classic-catalog")
+    ) {
+        let catalog_path = args
+            .get(1)
+            .map(String::as_str)
+            .unwrap_or("../acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm");
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_model_catalog_evidence_json(catalog_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("authored-art-pack" | "--authored-art-pack" | "art-pack")
     ) {
         println!(
