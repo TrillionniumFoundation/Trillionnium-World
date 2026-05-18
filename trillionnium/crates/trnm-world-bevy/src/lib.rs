@@ -163,6 +163,11 @@ const CLASSIC_ISO_BANNER_COLOR: u32 = 0xd6656b;
 const CLASSIC_ISO_GOLD_COLOR: u32 = 0xd4a84b;
 const CLASSIC_ISO_MAGIC_COLOR: u32 = 0x6fd0df;
 const CLASSIC_ISO_OUTLINE_COLOR: u32 = 0x111711;
+const CLASSIC_ISO_ROAD_DETAIL_COLOR: u32 = 0x9c7c57;
+const CLASSIC_ISO_WATER_DETAIL_COLOR: u32 = 0x2d7890;
+const CLASSIC_ISO_WATER_HIGHLIGHT_COLOR: u32 = 0x77c6cf;
+const CLASSIC_ISO_CLIFF_FACE_COLOR: u32 = 0x4a4034;
+const CLASSIC_ISO_FOUNDATION_COLOR: u32 = 0x20261f;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -4052,11 +4057,11 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                 label: "League Coliseum".to_string(),
                 tile_rows: string_vec([
                     "bbbbbbbbbbbb",
-                    "aarrrrrrrraa",
-                    "aarraaaarrra",
-                    "aarrwaaarrra",
-                    "aarrwaaarrra",
-                    "aarrrrrrrraa",
+                    "aarrwwwwrraa",
+                    "aarrawwarrra",
+                    "aarrwaawrrra",
+                    "aarrwaawrrra",
+                    "aarrwwwwrraa",
                     "aaaaaaaaaaaa",
                     "aaaaaaaaaaaa",
                 ]),
@@ -5447,6 +5452,63 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             )
         })
         .count();
+    let mut terrain_detail_pixel_count = 0_usize;
+    let mut terrain_road_pixel_count = 0_usize;
+    let mut terrain_water_pixel_count = 0_usize;
+    let mut terrain_cliff_pixel_count = 0_usize;
+    let mut terrain_foundation_pixel_count = 0_usize;
+    for scene_id in [
+        "mirror_city_square",
+        "mentor_training_room",
+        "league_coliseum",
+    ] {
+        let sample_runtime = NativeFirstPlayableRuntime {
+            facing_direction: "south".to_string(),
+            walk_cycle_frame: 1,
+            map_scene: if scene_id == "league_coliseum" {
+                "arena_league_coliseum".to_string()
+            } else {
+                scene_id.to_string()
+            },
+            dialogue_overlay_visible: scene_id == "mirror_city_square",
+            combat_overlay_visible: scene_id == "league_coliseum",
+            npc_dialogue_state: "terrain_depth_model_preview".to_string(),
+            npc_bubble_text: "Road, water, cliff, and building foundations".to_string(),
+            xp: 42,
+            coins: 7,
+            ..Default::default()
+        };
+        let mut sample_pixels = vec![0_u32; WIDTH * HEIGHT];
+        classic_draw_scene(
+            &mut sample_pixels,
+            WIDTH,
+            HEIGHT,
+            (5, 4),
+            &sample_runtime,
+            &assets,
+        );
+        for color in sample_pixels {
+            match color {
+                CLASSIC_ISO_ROAD_DETAIL_COLOR => {
+                    terrain_detail_pixel_count += 1;
+                    terrain_road_pixel_count += 1;
+                }
+                CLASSIC_ISO_WATER_DETAIL_COLOR | CLASSIC_ISO_WATER_HIGHLIGHT_COLOR => {
+                    terrain_detail_pixel_count += 1;
+                    terrain_water_pixel_count += 1;
+                }
+                CLASSIC_ISO_CLIFF_FACE_COLOR => {
+                    terrain_detail_pixel_count += 1;
+                    terrain_cliff_pixel_count += 1;
+                }
+                CLASSIC_ISO_FOUNDATION_COLOR => {
+                    terrain_detail_pixel_count += 1;
+                    terrain_foundation_pixel_count += 1;
+                }
+                _ => {}
+            }
+        }
+    }
     let origin_x = WIDTH as i32 / 2;
     let origin_y = 48_i32;
     let tile_w = 48_i32;
@@ -5482,9 +5544,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         .scene_by_id
         .get("mirror_city_square")
         .or_else(|| assets.scene_by_id.get("mirror_city_square"));
-    let rts_model_entity_count = scene
+    let rts_model_entity_count: usize = assets
+        .scene_by_id
+        .values()
         .map(|scene| classic_scene_rts_model_entities(scene.id.as_str()).len())
-        .unwrap_or_default();
+        .sum();
     let mut depth_order = Vec::new();
     if let Some(scene) = scene {
         for landmark in &scene.landmarks {
@@ -5493,6 +5557,14 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                 "tile": {"x": landmark.tile_x, "y": landmark.tile_y},
                 "frame_id": classic_dynamic_landmark_frame_id(landmark, &runtime),
                 "depth_key": (landmark.tile_x + landmark.tile_y) * 10 + 4,
+            }));
+        }
+        for entity in classic_scene_rts_model_entities(scene.id.as_str()) {
+            depth_order.push(json!({
+                "id": entity.id,
+                "tile": {"x": entity.tile.0, "y": entity.tile.1},
+                "frame_id": entity.frame_id,
+                "depth_key": entity.depth_key,
             }));
         }
     }
@@ -5531,6 +5603,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && rts_building_pixel_count > 1_500
         && procedural_model_pixel_count > 10_000
         && canopy_pixel_count > 4_000;
+    let terrain_detail_gate = terrain_detail_pixel_count > 6_000
+        && terrain_road_pixel_count > 1_000
+        && terrain_water_pixel_count > 300
+        && terrain_cliff_pixel_count > 1_000
+        && terrain_foundation_pixel_count > 500;
     let frame_color_present = |frame_id: &str| {
         assets.frame_by_id.get(frame_id).is_some_and(|frame| {
             (frame.y..frame.y + frame.h).any(|y| {
@@ -5554,6 +5631,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && shadow_anchor_gate
         && procedural_volume_gate
         && rts_model_set_gate
+        && terrain_detail_gate
         && sprite_anchor_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -5590,7 +5668,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             "enlarged_actor_billboards",
             "multi_tile_rts_buildings",
             "warcraft_like_silhouette_set",
-            "magic_gate_model"
+            "magic_gate_model",
+            "terrain_road_overlay",
+            "water_highlight_tiles",
+            "raised_tile_cliff_faces",
+            "rts_foundation_shadows"
         ],
         "depth_order": depth_order,
         "rts_model_entity_count": rts_model_entity_count,
@@ -5600,6 +5682,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "procedural_model_pixel_count": procedural_model_pixel_count,
         "canopy_pixel_count": canopy_pixel_count,
         "rts_building_pixel_count": rts_building_pixel_count,
+        "terrain_detail_pixel_count": terrain_detail_pixel_count,
+        "terrain_road_pixel_count": terrain_road_pixel_count,
+        "terrain_water_pixel_count": terrain_water_pixel_count,
+        "terrain_cliff_pixel_count": terrain_cliff_pixel_count,
+        "terrain_foundation_pixel_count": terrain_foundation_pixel_count,
         "loaded_from_manifest": assets.loaded_from_manifest,
         "atlas_parse_gate": assets.atlas_parse_gate,
         "projection_gate": projection_gate,
@@ -5608,10 +5695,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "shadow_anchor_gate": shadow_anchor_gate,
         "procedural_volume_gate": procedural_volume_gate,
         "rts_model_set_gate": rts_model_set_gate,
+        "terrain_detail_gate": terrain_detail_gate,
         "sprite_anchor_gate": sprite_anchor_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "The classic renderer now uses a Warcraft-style 2.5D model: orthographic isometric diamond terrain, bottom-center sprite anchors, footprint shadows, and Y/depth sorted scene entities inside trnm-world-bevy."
+        "source_of_truth": "The classic renderer now uses a Warcraft-style 2.5D model: orthographic isometric diamond terrain, road/water/cliff/foundation details, bottom-center sprite anchors, footprint shadows, and Y/depth sorted scene entities inside trnm-world-bevy."
     }))
     .expect("classic isometric modeling evidence serializes")
 }
@@ -6712,6 +6800,150 @@ fn classic_draw_iso_diamond(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_iso_tile_cliff_face(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    center_x: i32,
+    top_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    drop_px: i32,
+    color: u32,
+) {
+    let half_w = tile_w / 2;
+    let half_h = tile_h / 2;
+    let left = (center_x - half_w, top_y + half_h);
+    let right = (center_x + half_w, top_y + half_h);
+    let bottom = (center_x, top_y + tile_h);
+    let left_drop = (center_x - half_w, top_y + half_h + drop_px);
+    let right_drop = (center_x + half_w, top_y + half_h + drop_px);
+    let bottom_drop = (center_x, top_y + tile_h + drop_px);
+    classic_draw_iso_quad(
+        buffer,
+        width,
+        height,
+        [left, bottom, bottom_drop, left_drop],
+        color,
+    );
+    classic_draw_iso_quad(
+        buffer,
+        width,
+        height,
+        [right, bottom, bottom_drop, right_drop],
+        classic_darken(color, 2, 5),
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_iso_terrain_detail(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    top_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+) -> bool {
+    match frame_id {
+        "tile_road" => {
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 4,
+                tile_w - 4,
+                tile_h - 2,
+                CLASSIC_ISO_ROAD_DETAIL_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - tile_w / 5,
+                top_y + tile_h / 2 - 2,
+                (tile_w * 2) / 5,
+                4,
+                classic_darken(CLASSIC_ISO_ROAD_DETAIL_COLOR, 1, 4),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - tile_w / 8,
+                top_y + tile_h / 2 + 5,
+                tile_w / 4,
+                2,
+                CLASSIC_ISO_ROAD_DETAIL_COLOR,
+            );
+            true
+        }
+        "tile_water" => {
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 3,
+                tile_w - 8,
+                tile_h - 5,
+                CLASSIC_ISO_WATER_DETAIL_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - tile_w / 3,
+                top_y + tile_h / 2 - 5,
+                (tile_w * 2) / 3,
+                8,
+                CLASSIC_ISO_WATER_DETAIL_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - tile_w / 4,
+                top_y + tile_h / 2 - 3,
+                tile_w / 2,
+                2,
+                CLASSIC_ISO_WATER_HIGHLIGHT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - tile_w / 6,
+                top_y + tile_h / 2 + 4,
+                tile_w / 3,
+                1,
+                CLASSIC_ISO_WATER_HIGHLIGHT_COLOR,
+            );
+            true
+        }
+        "tile_wall" | "tile_roof" | "tile_arena" => {
+            classic_draw_iso_tile_cliff_face(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y,
+                tile_w,
+                tile_h,
+                if frame_id == "tile_wall" { 12 } else { 8 },
+                CLASSIC_ISO_CLIFF_FACE_COLOR,
+            );
+            true
+        }
+        _ => false,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_iso_quad(
     buffer: &mut [u32],
     width: usize,
@@ -7376,6 +7608,18 @@ fn classic_draw_isometric_frame_at_tile(
     let (screen_x, screen_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
     let sprite_scale = classic_entity_sprite_scale(assets, frame_id, scale);
     let sprite_px = assets.manifest.source_tile_size_px as i32 * sprite_scale.max(1) as i32;
+    if frame_id.starts_with("model_") {
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            screen_x,
+            screen_y + tile_h - 6,
+            tile_w * 3,
+            tile_h + 14,
+            CLASSIC_ISO_FOUNDATION_COLOR,
+        );
+    }
     classic_draw_iso_shadow(
         buffer,
         width,
@@ -7420,6 +7664,7 @@ fn classic_draw_isometric_scene(
 
     if let Some(scene) = scene {
         let mut entities = Vec::new();
+        let mut terrain_overlays: Vec<(&str, i32, i32)> = Vec::new();
         for (row_idx, row) in scene.tile_rows.iter().enumerate() {
             for (col_idx, key) in row.chars().enumerate() {
                 let frame_id = classic_scene_tile_frame_id(scene, key);
@@ -7431,9 +7676,17 @@ fn classic_draw_isometric_scene(
                     tile_h,
                     (col_idx as i32, row_idx as i32),
                 );
+                if matches!(frame_id, "tile_wall" | "tile_roof" | "tile_arena") {
+                    classic_draw_iso_terrain_detail(
+                        buffer, width, height, frame_id, screen_x, screen_y, tile_w, tile_h,
+                    );
+                }
                 classic_draw_iso_diamond(
                     buffer, width, height, screen_x, screen_y, tile_w, tile_h, color,
                 );
+                if matches!(frame_id, "tile_road" | "tile_water") {
+                    terrain_overlays.push((frame_id, screen_x, screen_y));
+                }
                 if frame_id == "tile_tree" {
                     let tile = (col_idx as i32, row_idx as i32);
                     entities.push(ClassicIsoEntity {
@@ -7444,6 +7697,11 @@ fn classic_draw_isometric_scene(
                     });
                 }
             }
+        }
+        for (frame_id, screen_x, screen_y) in terrain_overlays {
+            classic_draw_iso_terrain_detail(
+                buffer, width, height, frame_id, screen_x, screen_y, tile_w, tile_h,
+            );
         }
 
         entities.extend(scene.landmarks.iter().map(|landmark| ClassicIsoEntity {

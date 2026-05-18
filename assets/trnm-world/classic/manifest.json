@@ -460,11 +460,11 @@
       "label": "League Coliseum",
       "tile_rows": [
         "bbbbbbbbbbbb",
-        "aarrrrrrrraa",
-        "aarraaaarrra",
-        "aarrwaaarrra",
-        "aarrwaaarrra",
-        "aarrrrrrrraa",
+        "aarrwwwwrraa",
+        "aarrawwarrra",
+        "aarrwaawrrra",
+        "aarrwaawrrra",
+        "aarrwwwwrraa",
         "aaaaaaaaaaaa",
         "aaaaaaaaaaaa"
       ],

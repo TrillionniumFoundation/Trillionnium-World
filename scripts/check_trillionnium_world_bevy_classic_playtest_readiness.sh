@@ -58,6 +58,7 @@ jq -n \
       and $probe[0].hud_probe_gate == true
       and $iso[0].projection_gate == true
       and $iso[0].depth_sort_gate == true
+      and $iso[0].terrain_detail_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
     checks: {
@@ -95,6 +96,11 @@ jq -n \
       isometric_canopy_pixel_count: $iso[0].canopy_pixel_count,
       isometric_rts_building_pixel_count: $iso[0].rts_building_pixel_count,
       isometric_rts_model_entity_count: $iso[0].rts_model_entity_count,
+      isometric_terrain_detail_pixel_count: $iso[0].terrain_detail_pixel_count,
+      isometric_terrain_road_pixel_count: $iso[0].terrain_road_pixel_count,
+      isometric_terrain_water_pixel_count: $iso[0].terrain_water_pixel_count,
+      isometric_terrain_cliff_pixel_count: $iso[0].terrain_cliff_pixel_count,
+      isometric_terrain_foundation_pixel_count: $iso[0].terrain_foundation_pixel_count,
       model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
@@ -119,6 +125,7 @@ jq -n \
       isometric_shadow_anchor_gate: $iso[0].shadow_anchor_gate,
       isometric_procedural_volume_gate: $iso[0].procedural_volume_gate,
       isometric_rts_model_set_gate: $iso[0].rts_model_set_gate,
+      isometric_terrain_detail_gate: $iso[0].terrain_detail_gate,
       isometric_sprite_anchor_gate: $iso[0].sprite_anchor_gate,
       catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
@@ -182,6 +189,11 @@ jq -e '
   and .headline.isometric_canopy_pixel_count > 4000
   and .headline.isometric_rts_building_pixel_count > 1500
   and .headline.isometric_rts_model_entity_count >= 3
+  and .headline.isometric_terrain_detail_pixel_count > 6000
+  and .headline.isometric_terrain_road_pixel_count > 1000
+  and .headline.isometric_terrain_water_pixel_count > 300
+  and .headline.isometric_terrain_cliff_pixel_count > 1000
+  and .headline.isometric_terrain_foundation_pixel_count > 500
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -201,6 +213,7 @@ jq -e '
   and .gates.isometric_shadow_anchor_gate == true
   and .gates.isometric_procedural_volume_gate == true
   and .gates.isometric_rts_model_set_gate == true
+  and .gates.isometric_terrain_detail_gate == true
   and .gates.isometric_sprite_anchor_gate == true
   and .gates.catalog_all_frames_rendered_gate == true
   and .gates.runner_service_process_gate == true
