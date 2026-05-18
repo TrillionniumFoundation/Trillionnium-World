@@ -31,7 +31,12 @@ jq -e '
   and .login_gate == true
   and .continue_gate == true
   and .character_identity_gate == true
+  and .account_identity_persistence_gate == true
   and .final_sample.character_display_name == "Local Trillionnium Player"
+  and .restored_account_character_display_name == "Local Trillionnium Player"
+  and .restored_account_auth_state == "signed_in"
+  and .restored_account_last_action == "session"
+  and .restored_account_session_bound == true
   and .no_cex_gate == true
   and .green == true
 ' "$SUMMARY_FILE" >/dev/null

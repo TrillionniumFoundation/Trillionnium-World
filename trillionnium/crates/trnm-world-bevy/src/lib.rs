@@ -3515,6 +3515,9 @@ pub fn native_account_title_flow_evidence_value(actor_id: &str) -> serde_json::V
     let continue_event =
         press_live_button_action(&mut app, NativeControlAction::ContinueAccountFromTitle);
     let final_sample = sample_live_app_state(&mut app, "after_account_continue");
+    let snapshot = playable_snapshot_from_app(&app, actor_id);
+    let (_restored_world, restored_character, _restored_log, restored_runtime) =
+        native_restore_playable_save_snapshot(snapshot);
     let runtime = app.world().resource::<NativeFirstPlayableRuntime>().clone();
     let register_gate = register_event
         .get("accepted")
@@ -3552,10 +3555,20 @@ pub fn native_account_title_flow_evidence_value(actor_id: &str) -> serde_json::V
             .session_account_history
             .iter()
             .any(|entry| entry == "account_profile_bound_to_character_identity");
+    let account_identity_persistence_gate = restored_character.display_name
+        == "Local Trillionnium Player"
+        && restored_runtime.session_account_auth_state == "signed_in"
+        && restored_runtime.session_account_last_action == "session"
+        && restored_runtime.session_account_session_bound
+        && restored_runtime
+            .session_account_history
+            .iter()
+            .any(|entry| entry == "account_profile_bound_to_character_identity");
     let green = register_gate
         && login_gate
         && continue_gate
         && character_identity_gate
+        && account_identity_persistence_gate
         && runtime.session_account_session_bound
         && runtime.session_account_auth_state == "signed_in"
         && no_cex_gate;
@@ -3573,12 +3586,17 @@ pub fn native_account_title_flow_evidence_value(actor_id: &str) -> serde_json::V
         "session_account_last_action": runtime.session_account_last_action,
         "session_account_session_bound": runtime.session_account_session_bound,
         "session_account_history": runtime.session_account_history,
+        "restored_account_character_display_name": restored_character.display_name,
+        "restored_account_auth_state": restored_runtime.session_account_auth_state,
+        "restored_account_last_action": restored_runtime.session_account_last_action,
+        "restored_account_session_bound": restored_runtime.session_account_session_bound,
         "passwords_tokens_or_cookie_values_logged": false,
         "cex_runtime_player_client_allowed": false,
         "register_gate": register_gate,
         "login_gate": login_gate,
         "continue_gate": continue_gate,
         "character_identity_gate": character_identity_gate,
+        "account_identity_persistence_gate": account_identity_persistence_gate,
         "no_cex_gate": no_cex_gate,
         "green": green,
         "source_of_truth": "Bevy title buttons drive Trillionnium-owned account API decisions without cex_runtime",
@@ -39305,6 +39323,11 @@ mod tests {
         assert_eq!(evidence["login_gate"], true);
         assert_eq!(evidence["continue_gate"], true);
         assert_eq!(evidence["character_identity_gate"], true);
+        assert_eq!(evidence["account_identity_persistence_gate"], true);
+        assert_eq!(
+            evidence["restored_account_character_display_name"],
+            "Local Trillionnium Player"
+        );
         assert_eq!(evidence["green"], true);
     }
 

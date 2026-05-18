@@ -25,7 +25,12 @@ account_api_owner == "trillionnium_world_account_api"
 passwords_tokens_or_cookie_values_logged == false
 cex_runtime_player_client_allowed == false
 character_identity_gate == true
+account_identity_persistence_gate == true
 final_sample.character_display_name == "Local Trillionnium Player"
+restored_account_character_display_name == "Local Trillionnium Player"
+restored_account_auth_state == "signed_in"
+restored_account_last_action == "session"
+restored_account_session_bound == true
 TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_GREEN
 REQUIRED_LINES
 
