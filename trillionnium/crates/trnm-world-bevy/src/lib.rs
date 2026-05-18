@@ -10,6 +10,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy::winit::WinitSettings;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -3382,6 +3383,9 @@ pub fn build_rendering_bevy_app(world: WorldState, actor_id: &str) -> (App, Bevy
         .unwrap_or(false);
     let window_resolution = if low_spec { (640, 360) } else { (960, 540) };
     let mut app = App::new();
+    if low_spec {
+        app.insert_resource(WinitSettings::desktop_app());
+    }
     app.insert_resource(ClearColor(Color::srgb(0.10, 0.16, 0.18)))
         .init_resource::<InputFocus>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
