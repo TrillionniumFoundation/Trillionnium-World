@@ -98,6 +98,8 @@ artifact native_bevy_render_asset_eligibility "Native/Bevy render asset eligibil
 artifact native_bevy_classic_asset_pack "Native/Bevy classic asset pack" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-pack.json" release_review_input
 artifact native_bevy_classic_scene_preview "Native/Bevy classic scene preview" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json" release_review_input
 artifact native_bevy_classic_scene_preview_ppm "Native/Bevy classic scene preview PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.ppm" release_review_visual_evidence
+artifact native_bevy_classic_model_catalog "Native/Bevy classic model catalog" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" release_review_input
+artifact native_bevy_classic_model_catalog_ppm "Native/Bevy classic model catalog PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm" release_review_visual_evidence
 artifact cex_adapter_readiness "CEX production world adapter readiness" "$ROOT/acceptance/S3_repository_adapter/latest/cex-production-adapter-readiness.json" release_review_input
 artifact s5_real_device_evidence "S5 real-device evidence validation" "$ROOT/acceptance/S5_native_bevy_device/latest/s5-real-device-evidence-validation.json" release_review_input
 artifact public_launch_readiness "Public launch readiness" "$ACCEPTANCE_DIR/public-launch-readiness.json" release_review_input
