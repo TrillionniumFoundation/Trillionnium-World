@@ -28,7 +28,9 @@ jq -e '
   and .preview_bytes > 100000
   and .unique_color_count >= 24
   and .non_background_pixels > 80000
+  and .overlay_text_pixel_count > 2000
   and .preview_nonblank_gate == true
+  and .overlay_text_gate == true
   and .direction_frame_gate == true
   and .renderer_manifest_gate == true
   and .loaded_from_manifest == true

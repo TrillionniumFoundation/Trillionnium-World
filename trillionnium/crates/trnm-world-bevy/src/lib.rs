@@ -129,6 +129,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT: &str =
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_SCENE_PREVIEW_CONTRACT: &str =
     "trillionnium_world_bevy_classic_scene_preview_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
+const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
+const CLASSIC_HUD_MUTED_TEXT_COLOR: u32 = 0xa6b7ad;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -4882,7 +4884,14 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
         .iter()
         .filter(|color| **color != 0x101411_u32 && **color != 0x0b0d0c_u32)
         .count();
+    let overlay_text_pixel_count = sheet_pixels
+        .iter()
+        .filter(|color| {
+            **color == CLASSIC_HUD_TEXT_COLOR || **color == CLASSIC_HUD_MUTED_TEXT_COLOR
+        })
+        .count();
     let preview_nonblank_gate = unique_color_count >= 24 && non_background_pixels > 80_000;
+    let overlay_text_gate = overlay_text_pixel_count > 2_000;
     let direction_frame_gate = directional_frame_ids.len() == 4;
     let renderer_manifest_gate = assets.loaded_from_manifest
         && assets.atlas_parse_gate
@@ -4890,6 +4899,7 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
     let green = write_gate
         && preview_bytes > 100_000
         && preview_nonblank_gate
+        && overlay_text_gate
         && direction_frame_gate
         && renderer_manifest_gate
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -4904,7 +4914,9 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
         "preview_bytes": preview_bytes,
         "unique_color_count": unique_color_count,
         "non_background_pixels": non_background_pixels,
+        "overlay_text_pixel_count": overlay_text_pixel_count,
         "preview_nonblank_gate": preview_nonblank_gate,
+        "overlay_text_gate": overlay_text_gate,
         "direction_frame_gate": direction_frame_gate,
         "renderer_manifest_gate": renderer_manifest_gate,
         "loaded_from_manifest": assets.loaded_from_manifest,
@@ -5429,6 +5441,15 @@ fn classic_draw_scene(
         10,
         if danger { 0x8a342e } else { 0x2f5d75 },
     );
+    classic_draw_model_overlay(
+        buffer,
+        width,
+        height,
+        runtime,
+        assets,
+        scene_id,
+        &player_frame,
+    );
 }
 
 #[cfg(not(target_os = "android"))]
@@ -5455,6 +5476,264 @@ fn classic_scene_tile_frame_id(scene: &ClassicSceneMap, key: char) -> &str {
         .find(|entry| entry.key == key)
         .map(|entry| entry.frame_id.as_str())
         .unwrap_or("tile_grass_a")
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_model_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
+    scene_id: &str,
+    player_frame: &str,
+) {
+    let scene_label = classic_scene_overlay_label(scene_id);
+    let direction = classic_cardinal_actor_direction(&runtime.facing_direction).to_uppercase();
+    let frame_label = classic_compact_player_frame_label(player_frame);
+    let asset_tag = if assets.loaded_from_manifest {
+        "MANIFEST"
+    } else {
+        "GENERATED"
+    };
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        12,
+        8,
+        &format!("TRNM CLASSIC  {asset_tag}  SCENE {scene_label}"),
+        2,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        12,
+        height as i32 - 44,
+        &format!("DIR {direction}  SPR {frame_label}  XP {}", runtime.xp),
+        2,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        12,
+        height as i32 - 22,
+        "ARROWS WASD MOVE   R TALK   T TRAIN   F FIGHT",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_scene_overlay_label(scene_id: &str) -> &'static str {
+    match scene_id {
+        "mirror_city_square" => "SQUARE",
+        "mentor_training_room" => "TRAINING",
+        "league_coliseum" => "ARENA",
+        _ => "UNKNOWN",
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_compact_player_frame_label(frame_id: &str) -> &'static str {
+    if frame_id.contains("idle_south") {
+        "P S IDLE"
+    } else if frame_id.contains("idle_north") {
+        "P N IDLE"
+    } else if frame_id.contains("idle_east") {
+        "P E IDLE"
+    } else if frame_id.contains("idle_west") {
+        "P W IDLE"
+    } else if frame_id.contains("walk_south_1") {
+        "P S WALK1"
+    } else if frame_id.contains("walk_south_2") || frame_id == "actor_player_walk_1" {
+        "P S WALK2"
+    } else if frame_id.contains("walk_north_1") {
+        "P N WALK1"
+    } else if frame_id.contains("walk_north_2") {
+        "P N WALK2"
+    } else if frame_id.contains("walk_east_1") {
+        "P E WALK1"
+    } else if frame_id.contains("walk_east_2") {
+        "P E WALK2"
+    } else if frame_id.contains("walk_west_1") {
+        "P W WALK1"
+    } else if frame_id.contains("walk_west_2") {
+        "P W WALK2"
+    } else {
+        "P UNKNOWN"
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_text(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    text: &str,
+    scale: i32,
+    color: u32,
+) {
+    let scale = scale.max(1);
+    let mut cursor_x = x;
+    for ch in text.chars() {
+        if ch == ' ' {
+            cursor_x += 4 * scale;
+            continue;
+        }
+        let glyph = classic_glyph_rows(ch.to_ascii_uppercase());
+        for (row, pattern) in glyph.iter().enumerate() {
+            for (col, bit) in pattern.chars().enumerate() {
+                if bit == '1' {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x + col as i32 * scale,
+                        y + row as i32 * scale,
+                        scale,
+                        scale,
+                        color,
+                    );
+                }
+            }
+        }
+        cursor_x += 6 * scale;
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_glyph_rows(ch: char) -> [&'static str; 7] {
+    match ch {
+        'A' => [
+            "01110", "10001", "10001", "11111", "10001", "10001", "10001",
+        ],
+        'B' => [
+            "11110", "10001", "10001", "11110", "10001", "10001", "11110",
+        ],
+        'C' => [
+            "01111", "10000", "10000", "10000", "10000", "10000", "01111",
+        ],
+        'D' => [
+            "11110", "10001", "10001", "10001", "10001", "10001", "11110",
+        ],
+        'E' => [
+            "11111", "10000", "10000", "11110", "10000", "10000", "11111",
+        ],
+        'F' => [
+            "11111", "10000", "10000", "11110", "10000", "10000", "10000",
+        ],
+        'G' => [
+            "01111", "10000", "10000", "10011", "10001", "10001", "01110",
+        ],
+        'H' => [
+            "10001", "10001", "10001", "11111", "10001", "10001", "10001",
+        ],
+        'I' => [
+            "11111", "00100", "00100", "00100", "00100", "00100", "11111",
+        ],
+        'J' => [
+            "00111", "00010", "00010", "00010", "10010", "10010", "01100",
+        ],
+        'K' => [
+            "10001", "10010", "10100", "11000", "10100", "10010", "10001",
+        ],
+        'L' => [
+            "10000", "10000", "10000", "10000", "10000", "10000", "11111",
+        ],
+        'M' => [
+            "10001", "11011", "10101", "10101", "10001", "10001", "10001",
+        ],
+        'N' => [
+            "10001", "11001", "10101", "10011", "10001", "10001", "10001",
+        ],
+        'O' => [
+            "01110", "10001", "10001", "10001", "10001", "10001", "01110",
+        ],
+        'P' => [
+            "11110", "10001", "10001", "11110", "10000", "10000", "10000",
+        ],
+        'Q' => [
+            "01110", "10001", "10001", "10001", "10101", "10010", "01101",
+        ],
+        'R' => [
+            "11110", "10001", "10001", "11110", "10100", "10010", "10001",
+        ],
+        'S' => [
+            "01111", "10000", "10000", "01110", "00001", "00001", "11110",
+        ],
+        'T' => [
+            "11111", "00100", "00100", "00100", "00100", "00100", "00100",
+        ],
+        'U' => [
+            "10001", "10001", "10001", "10001", "10001", "10001", "01110",
+        ],
+        'V' => [
+            "10001", "10001", "10001", "10001", "10001", "01010", "00100",
+        ],
+        'W' => [
+            "10001", "10001", "10001", "10101", "10101", "10101", "01010",
+        ],
+        'X' => [
+            "10001", "10001", "01010", "00100", "01010", "10001", "10001",
+        ],
+        'Y' => [
+            "10001", "10001", "01010", "00100", "00100", "00100", "00100",
+        ],
+        'Z' => [
+            "11111", "00001", "00010", "00100", "01000", "10000", "11111",
+        ],
+        '0' => [
+            "01110", "10001", "10011", "10101", "11001", "10001", "01110",
+        ],
+        '1' => [
+            "00100", "01100", "00100", "00100", "00100", "00100", "01110",
+        ],
+        '2' => [
+            "01110", "10001", "00001", "00010", "00100", "01000", "11111",
+        ],
+        '3' => [
+            "11110", "00001", "00001", "01110", "00001", "00001", "11110",
+        ],
+        '4' => [
+            "10010", "10010", "10010", "11111", "00010", "00010", "00010",
+        ],
+        '5' => [
+            "11111", "10000", "10000", "11110", "00001", "00001", "11110",
+        ],
+        '6' => [
+            "01110", "10000", "10000", "11110", "10001", "10001", "01110",
+        ],
+        '7' => [
+            "11111", "00001", "00010", "00100", "01000", "01000", "01000",
+        ],
+        '8' => [
+            "01110", "10001", "10001", "01110", "10001", "10001", "01110",
+        ],
+        '9' => [
+            "01110", "10001", "10001", "01111", "00001", "00001", "01110",
+        ],
+        '-' => [
+            "00000", "00000", "00000", "11111", "00000", "00000", "00000",
+        ],
+        ':' => [
+            "00000", "00100", "00100", "00000", "00100", "00100", "00000",
+        ],
+        '/' => [
+            "00001", "00010", "00010", "00100", "01000", "01000", "10000",
+        ],
+        _ => [
+            "11111", "00001", "00010", "00100", "00100", "00000", "00100",
+        ],
+    }
 }
 
 #[cfg(not(target_os = "android"))]
