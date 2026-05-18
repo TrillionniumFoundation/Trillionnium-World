@@ -302,6 +302,21 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-isometric-modeling" | "--classic-isometric-modeling" | "classic-iso-modeling"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_isometric_modeling_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-manifest-lint" | "--classic-manifest-lint" | "classic-lint")
     ) {
         println!(

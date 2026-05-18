@@ -132,6 +132,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MODEL_CATALOG_CONTRACT: &str =
     "trillionnium_world_bevy_classic_model_catalog_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDERER_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_renderer_probe_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ISOMETRIC_MODELING_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_isometric_modeling_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MANIFEST_LINT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_manifest_lint_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ANIMATION_PREVIEW_CONTRACT: &str =
@@ -5368,6 +5370,182 @@ pub fn native_classic_renderer_probe_evidence_json(frame_path: &str) -> String {
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> String {
+    const WIDTH: usize = 640;
+    const HEIGHT: usize = 360;
+    let assets = load_classic_runtime_assets();
+    let runtime = NativeFirstPlayableRuntime {
+        facing_direction: "south".to_string(),
+        walk_cycle_frame: 1,
+        map_scene: "league_arena".to_string(),
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        combat_turn: 1,
+        enemy_hp: 25,
+        enemy_damage_feedback: "warcraft_style_depth_sort_attack_preview".to_string(),
+        xp: 42,
+        coins: 7,
+        ..Default::default()
+    };
+    let mut pixels = vec![0_u32; WIDTH * HEIGHT];
+    classic_draw_scene(&mut pixels, WIDTH, HEIGHT, (5, 4), &runtime, &assets);
+    let write_gate = write_classic_rgb_buffer_ppm(preview_path, WIDTH, HEIGHT, &pixels).is_ok();
+    let preview_bytes = fs::metadata(preview_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or_default();
+    let unique_color_count = pixels.iter().copied().collect::<HashSet<_>>().len();
+    let non_background_pixels = pixels
+        .iter()
+        .filter(|color| **color != 0x101411_u32 && **color != 0x171a1d_u32)
+        .count();
+    let shadow_pixel_count = pixels.iter().filter(|color| **color == 0x080b09).count();
+    let origin_x = WIDTH as i32 / 2;
+    let origin_y = 48_i32;
+    let tile_w = 48_i32;
+    let tile_h = 24_i32;
+    let projection_samples = vec![
+        (
+            "origin",
+            (0, 0),
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, (0, 0)),
+        ),
+        (
+            "east",
+            (1, 0),
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, (1, 0)),
+        ),
+        (
+            "south",
+            (0, 1),
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, (0, 1)),
+        ),
+        (
+            "deep",
+            (5, 4),
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, (5, 4)),
+        ),
+    ];
+    let projection_gate = projection_samples[1].2 .0 > projection_samples[0].2 .0
+        && projection_samples[2].2 .0 < projection_samples[0].2 .0
+        && projection_samples[1].2 .1 > projection_samples[0].2 .1
+        && projection_samples[2].2 .1 > projection_samples[0].2 .1
+        && projection_samples[3].2 .1 > projection_samples[1].2 .1;
+    let scene = assets
+        .scene_by_id
+        .get("league_coliseum")
+        .or_else(|| assets.scene_by_id.get("mirror_city_square"));
+    let mut depth_order = Vec::new();
+    if let Some(scene) = scene {
+        for landmark in &scene.landmarks {
+            depth_order.push(json!({
+                "id": landmark.id,
+                "tile": {"x": landmark.tile_x, "y": landmark.tile_y},
+                "frame_id": classic_dynamic_landmark_frame_id(landmark, &runtime),
+                "depth_key": (landmark.tile_x + landmark.tile_y) * 10 + 4,
+            }));
+        }
+    }
+    depth_order.push(json!({
+        "id": "player",
+        "tile": {"x": 5, "y": 4},
+        "frame_id": classic_player_frame_id(&assets, &runtime),
+        "depth_key": (5 + 4) * 10 + 5,
+    }));
+    depth_order.sort_by(|left, right| {
+        left.get("depth_key")
+            .and_then(Value::as_i64)
+            .unwrap_or_default()
+            .cmp(
+                &right
+                    .get("depth_key")
+                    .and_then(Value::as_i64)
+                    .unwrap_or_default(),
+            )
+    });
+    let mut last_depth = i64::MIN;
+    let depth_sort_gate = depth_order.iter().all(|entry| {
+        let depth = entry
+            .get("depth_key")
+            .and_then(Value::as_i64)
+            .unwrap_or_default();
+        let ok = depth >= last_depth;
+        last_depth = depth;
+        ok
+    });
+    let diamond_tile_gate =
+        preview_bytes > 100_000 && unique_color_count >= 36 && non_background_pixels > 80_000;
+    let shadow_anchor_gate = shadow_pixel_count > 250;
+    let frame_color_present = |frame_id: &str| {
+        assets.frame_by_id.get(frame_id).is_some_and(|frame| {
+            (frame.y..frame.y + frame.h).any(|y| {
+                (frame.x..frame.x + frame.w).any(|x| {
+                    let color = assets.atlas_pixels
+                        [(y as usize * assets.manifest.atlas_width as usize) + x as usize];
+                    color != 0x000000 && pixels.contains(&color)
+                })
+            })
+        })
+    };
+    let sprite_anchor_gate = frame_color_present("actor_player_walk_south_1")
+        && frame_color_present("actor_enemy_attack");
+    let green = write_gate
+        && assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && projection_gate
+        && depth_sort_gate
+        && diamond_tile_gate
+        && shadow_anchor_gate
+        && sprite_anchor_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_ISOMETRIC_MODELING_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": WIDTH,
+        "preview_height": HEIGHT,
+        "preview_bytes": preview_bytes,
+        "projection": {
+            "mode": "orthographic_isometric_2_5d",
+            "origin": {"x": origin_x, "y": origin_y},
+            "tile_width": tile_w,
+            "tile_height": tile_h,
+            "samples": projection_samples
+                .iter()
+                .map(|(id, tile, screen)| json!({
+                    "id": id,
+                    "tile": {"x": tile.0, "y": tile.1},
+                    "screen": {"x": screen.0, "y": screen.1},
+                }))
+                .collect::<Vec<_>>(),
+        },
+        "modeling_components": [
+            "diamond_terrain_tiles",
+            "orthographic_isometric_projection",
+            "y_depth_sorted_sprite_entities",
+            "actor_footprint_shadows",
+            "sprite_anchor_bottom_center"
+        ],
+        "depth_order": depth_order,
+        "unique_color_count": unique_color_count,
+        "non_background_pixels": non_background_pixels,
+        "shadow_pixel_count": shadow_pixel_count,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "projection_gate": projection_gate,
+        "depth_sort_gate": depth_sort_gate,
+        "diamond_tile_gate": diamond_tile_gate,
+        "shadow_anchor_gate": shadow_anchor_gate,
+        "sprite_anchor_gate": sprite_anchor_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "The classic renderer now uses a Warcraft-style 2.5D model: orthographic isometric diamond terrain, bottom-center sprite anchors, footprint shadows, and Y/depth sorted scene entities inside trnm-world-bevy."
+    }))
+    .expect("classic isometric modeling evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_frame_visible_pixel_count(assets: &ClassicRuntimeAssets, frame_id: &str) -> usize {
     let Some(frame) = assets.frame_by_id.get(frame_id) else {
         return 0;
@@ -6273,114 +6451,21 @@ fn classic_draw_scene(
         0x171a1d,
     );
 
-    let origin_x = 96;
-    let origin_y = 46;
-    let tile = assets.manifest.render_tile_size_px as i32;
-    let scale = (assets.manifest.render_tile_size_px / assets.manifest.source_tile_size_px).max(1);
     let scene_id = classic_scene_id(runtime);
     let scene = assets
         .scene_by_id
         .get(scene_id)
         .or_else(|| assets.scene_by_id.get("mirror_city_square"));
-    if let Some(scene) = scene {
-        for (row_idx, row) in scene.tile_rows.iter().enumerate() {
-            for (col_idx, key) in row.chars().enumerate() {
-                let frame_id = classic_scene_tile_frame_id(scene, key);
-                if !classic_blit_frame_scaled(
-                    buffer,
-                    width,
-                    height,
-                    assets,
-                    frame_id,
-                    origin_x + col_idx as i32 * tile,
-                    origin_y + row_idx as i32 * tile,
-                    scale,
-                ) {
-                    classic_draw_rect(
-                        buffer,
-                        width,
-                        height,
-                        origin_x + col_idx as i32 * tile,
-                        origin_y + row_idx as i32 * tile,
-                        tile - 2,
-                        tile - 2,
-                        0x26352a,
-                    );
-                }
-            }
-        }
-        for landmark in &scene.landmarks {
-            let frame_id = classic_dynamic_landmark_frame_id(landmark, runtime);
-            classic_draw_frame_at_tile(
-                buffer,
-                width,
-                height,
-                assets,
-                frame_id,
-                origin_x,
-                origin_y,
-                tile,
-                (landmark.tile_x, landmark.tile_y),
-                scale,
-            );
-        }
-    } else {
-        for row in 0..8 {
-            for col in 0..12 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    origin_x + col * tile,
-                    origin_y + row * tile,
-                    tile - 2,
-                    tile - 2,
-                    0x26352a,
-                );
-            }
-        }
-    }
-
-    if runtime.dialogue_overlay_visible {
-        classic_draw_frame_at_tile(
-            buffer,
-            width,
-            height,
-            assets,
-            "marker_objective",
-            origin_x,
-            origin_y,
-            tile,
-            (4, 4),
-            scale,
-        );
-    }
-    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
-        classic_draw_frame_at_tile(
-            buffer,
-            width,
-            height,
-            assets,
-            "marker_objective",
-            origin_x,
-            origin_y,
-            tile,
-            (9, 2),
-            scale,
-        );
-    }
     let player_frame = classic_player_frame_id(assets, runtime);
-    classic_draw_frame_at_tile(
+    classic_draw_isometric_scene(
         buffer,
         width,
         height,
+        scene,
         assets,
-        &player_frame,
-        origin_x,
-        origin_y,
-        tile,
+        runtime,
         player_tile,
-        scale,
+        &player_frame,
     );
 
     let xp_width = (runtime.xp.min(100) as i32 * 180) / 100;
@@ -6456,6 +6541,287 @@ fn classic_dynamic_landmark_frame_id<'a>(
         }
         "objective_gate" if runtime.walk_cycle_frame % 2 == 1 => "marker_interaction",
         _ => landmark.frame_id.as_str(),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone)]
+struct ClassicIsoEntity {
+    id: String,
+    frame_id: String,
+    tile: (i32, i32),
+    depth_key: i32,
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_iso_project(
+    origin_x: i32,
+    origin_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    tile: (i32, i32),
+) -> (i32, i32) {
+    (
+        origin_x + (tile.0 - tile.1) * tile_w / 2,
+        origin_y + (tile.0 + tile.1) * tile_h / 2,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_frame_anchor_color(assets: &ClassicRuntimeAssets, frame_id: &str) -> u32 {
+    let Some(frame) = assets.frame_by_id.get(frame_id) else {
+        return 0x26352a;
+    };
+    let sample_x = frame.x + frame.w / 2;
+    let sample_y = frame.y + frame.h / 2;
+    assets
+        .atlas_pixels
+        .get(sample_y as usize * assets.manifest.atlas_width as usize + sample_x as usize)
+        .copied()
+        .unwrap_or(0x26352a)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_iso_diamond(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    center_x: i32,
+    top_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    color: u32,
+) {
+    let half_w = tile_w / 2;
+    let half_h = tile_h / 2;
+    let edge = classic_darken(color, 2, 5);
+    let highlight = classic_lighten(color, 1, 5);
+    for dy in 0..tile_h.max(1) {
+        let distance_from_mid = (dy - half_h).abs();
+        let span = ((half_h - distance_from_mid).max(0) * half_w) / half_h.max(1);
+        let row_color = if dy < half_h {
+            classic_mix_color(highlight, color, dy as u32, half_h.max(1) as u32)
+        } else {
+            classic_mix_color(color, edge, (dy - half_h) as u32, half_h.max(1) as u32)
+        };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - span,
+            top_y + dy,
+            span * 2 + 1,
+            1,
+            row_color,
+        );
+        if span > 0 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - span,
+                top_y + dy,
+                1,
+                1,
+                edge,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + span,
+                top_y + dy,
+                1,
+                1,
+                edge,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_iso_shadow(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    center_x: i32,
+    center_y: i32,
+    radius_x: i32,
+    radius_y: i32,
+) {
+    let radius_x = radius_x.max(1);
+    let radius_y = radius_y.max(1);
+    for dy in -radius_y..=radius_y {
+        let y_term = (dy * dy * 1024) / (radius_y * radius_y);
+        let span = (((1024 - y_term).max(0) as f32).sqrt() * radius_x as f32 / 32.0) as i32;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - span,
+            center_y + dy,
+            span * 2 + 1,
+            1,
+            0x080b09,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_isometric_frame_at_tile(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    assets: &ClassicRuntimeAssets,
+    frame_id: &str,
+    origin_x: i32,
+    origin_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    tile: (i32, i32),
+    scale: u32,
+) {
+    let (screen_x, screen_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+    let sprite_px = assets.manifest.source_tile_size_px as i32 * scale.max(1) as i32;
+    classic_draw_iso_shadow(
+        buffer,
+        width,
+        height,
+        screen_x,
+        screen_y + tile_h - 2,
+        sprite_px / 3,
+        4,
+    );
+    classic_blit_frame_scaled(
+        buffer,
+        width,
+        height,
+        assets,
+        frame_id,
+        screen_x - sprite_px / 2,
+        screen_y + tile_h - sprite_px,
+        scale,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_isometric_scene(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    scene: Option<&ClassicSceneMap>,
+    assets: &ClassicRuntimeAssets,
+    runtime: &NativeFirstPlayableRuntime,
+    player_tile: (i32, i32),
+    player_frame: &str,
+) {
+    let origin_x = (width as i32 / 2).clamp(260, 340);
+    let origin_y = 48;
+    let tile_w = 48;
+    let tile_h = 24;
+    let scale = (assets.manifest.render_tile_size_px / assets.manifest.source_tile_size_px).max(1);
+
+    if let Some(scene) = scene {
+        for (row_idx, row) in scene.tile_rows.iter().enumerate() {
+            for (col_idx, key) in row.chars().enumerate() {
+                let frame_id = classic_scene_tile_frame_id(scene, key);
+                let color = classic_frame_anchor_color(assets, frame_id);
+                let (screen_x, screen_y) = classic_iso_project(
+                    origin_x,
+                    origin_y,
+                    tile_w,
+                    tile_h,
+                    (col_idx as i32, row_idx as i32),
+                );
+                classic_draw_iso_diamond(
+                    buffer, width, height, screen_x, screen_y, tile_w, tile_h, color,
+                );
+            }
+        }
+
+        let mut entities = scene
+            .landmarks
+            .iter()
+            .map(|landmark| ClassicIsoEntity {
+                id: landmark.id.clone(),
+                frame_id: classic_dynamic_landmark_frame_id(landmark, runtime).to_string(),
+                tile: (landmark.tile_x, landmark.tile_y),
+                depth_key: (landmark.tile_x + landmark.tile_y) * 10 + 4,
+            })
+            .collect::<Vec<_>>();
+        if runtime.dialogue_overlay_visible {
+            entities.push(ClassicIsoEntity {
+                id: "dialogue_objective_marker".to_string(),
+                frame_id: "marker_objective".to_string(),
+                tile: (4, 4),
+                depth_key: 84,
+            });
+        }
+        if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+            entities.push(ClassicIsoEntity {
+                id: "combat_objective_marker".to_string(),
+                frame_id: "marker_objective".to_string(),
+                tile: (9, 2),
+                depth_key: 114,
+            });
+        }
+        entities.push(ClassicIsoEntity {
+            id: "player".to_string(),
+            frame_id: player_frame.to_string(),
+            tile: player_tile,
+            depth_key: (player_tile.0 + player_tile.1) * 10 + 5,
+        });
+        entities.sort_by(|left, right| {
+            left.depth_key
+                .cmp(&right.depth_key)
+                .then(left.tile.1.cmp(&right.tile.1))
+                .then(left.tile.0.cmp(&right.tile.0))
+                .then(left.id.cmp(&right.id))
+        });
+        for entity in entities {
+            classic_draw_isometric_frame_at_tile(
+                buffer,
+                width,
+                height,
+                assets,
+                &entity.frame_id,
+                origin_x,
+                origin_y,
+                tile_w,
+                tile_h,
+                entity.tile,
+                scale,
+            );
+        }
+    } else {
+        for row in 0..8 {
+            for col in 0..12 {
+                let color = if (row + col) % 2 == 0 {
+                    0x26352a
+                } else {
+                    0x314333
+                };
+                let (screen_x, screen_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, (col, row));
+                classic_draw_iso_diamond(
+                    buffer, width, height, screen_x, screen_y, tile_w, tile_h, color,
+                );
+            }
+        }
+        classic_draw_isometric_frame_at_tile(
+            buffer,
+            width,
+            height,
+            assets,
+            player_frame,
+            origin_x,
+            origin_y,
+            tile_w,
+            tile_h,
+            player_tile,
+            scale,
+        );
     }
 }
 

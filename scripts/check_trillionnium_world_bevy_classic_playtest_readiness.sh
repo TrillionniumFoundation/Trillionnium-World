@@ -13,6 +13,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_render_budget.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_scene_preview.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
@@ -26,6 +27,7 @@ jq -n \
   --slurpfile budget "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-render-budget.json" \
   --slurpfile scene "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json" \
   --slurpfile probe "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json" \
+  --slurpfile iso "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.json" \
   --slurpfile catalog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
@@ -41,6 +43,7 @@ jq -n \
       and ok($budget)
       and ok($scene)
       and ok($probe)
+      and ok($iso)
       and ok($catalog)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
@@ -53,6 +56,8 @@ jq -n \
       and $selector[0].animation_transition_gate == true
       and $scene[0].dynamic_landmark_animation_gate == true
       and $probe[0].hud_probe_gate == true
+      and $iso[0].projection_gate == true
+      and $iso[0].depth_sort_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
     checks: {
@@ -64,6 +69,7 @@ jq -n \
       render_budget_green: ok($budget),
       scene_preview_green: ok($scene),
       renderer_probe_green: ok($probe),
+      isometric_modeling_green: ok($iso),
       model_catalog_green: ok($catalog),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
@@ -82,6 +88,9 @@ jq -n \
       render_max_micros: $budget[0].max_micros,
       scene_unique_color_count: $scene[0].unique_color_count,
       renderer_probe_hud_text_pixels: $probe[0].hud_text_pixels,
+      isometric_unique_color_count: $iso[0].unique_color_count,
+      isometric_non_background_pixels: $iso[0].non_background_pixels,
+      isometric_shadow_pixel_count: $iso[0].shadow_pixel_count,
       model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
@@ -100,6 +109,11 @@ jq -n \
       render_max_budget_gate: $budget[0].max_budget_gate,
       scene_dynamic_landmark_animation_gate: $scene[0].dynamic_landmark_animation_gate,
       renderer_probe_scene_frame_gate: $probe[0].scene_frame_gate,
+      isometric_projection_gate: $iso[0].projection_gate,
+      isometric_depth_sort_gate: $iso[0].depth_sort_gate,
+      isometric_diamond_tile_gate: $iso[0].diamond_tile_gate,
+      isometric_shadow_anchor_gate: $iso[0].shadow_anchor_gate,
+      isometric_sprite_anchor_gate: $iso[0].sprite_anchor_gate,
       catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
@@ -119,6 +133,8 @@ jq -n \
       scene_preview_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.ppm",
       renderer_probe: "acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json",
       renderer_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.ppm",
+      isometric_modeling: "acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.json",
+      isometric_modeling_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.ppm",
       model_catalog: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json",
       model_catalog_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -137,6 +153,7 @@ jq -e '
   and .checks.render_budget_green == true
   and .checks.scene_preview_green == true
   and .checks.renderer_probe_green == true
+  and .checks.isometric_modeling_green == true
   and .checks.model_catalog_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
@@ -150,6 +167,9 @@ jq -e '
   and .headline.input_frame_max_micros <= 50000
   and .headline.render_p95_micros <= 16000
   and .headline.render_max_micros <= 40000
+  and .headline.isometric_unique_color_count >= 36
+  and .headline.isometric_non_background_pixels > 80000
+  and .headline.isometric_shadow_pixel_count > 250
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -163,6 +183,11 @@ jq -e '
   and .gates.render_max_budget_gate == true
   and .gates.scene_dynamic_landmark_animation_gate == true
   and .gates.renderer_probe_scene_frame_gate == true
+  and .gates.isometric_projection_gate == true
+  and .gates.isometric_depth_sort_gate == true
+  and .gates.isometric_diamond_tile_gate == true
+  and .gates.isometric_shadow_anchor_gate == true
+  and .gates.isometric_sprite_anchor_gate == true
   and .gates.catalog_all_frames_rendered_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true

@@ -110,6 +110,8 @@ artifact native_bevy_classic_model_catalog "Native/Bevy classic model catalog" "
 artifact native_bevy_classic_model_catalog_ppm "Native/Bevy classic model catalog PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm" release_review_visual_evidence
 artifact native_bevy_classic_renderer_probe "Native/Bevy classic renderer probe" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json" release_review_input
 artifact native_bevy_classic_renderer_probe_ppm "Native/Bevy classic renderer probe PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.ppm" release_review_visual_evidence
+artifact native_bevy_classic_isometric_modeling "Native/Bevy classic isometric modeling" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.json" release_review_input
+artifact native_bevy_classic_isometric_modeling_ppm "Native/Bevy classic isometric modeling PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.ppm" release_review_visual_evidence
 artifact native_bevy_classic_playtest_readiness "Native/Bevy classic playtest readiness" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json" release_review_input
 artifact native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" release_review_input
 artifact cex_adapter_readiness "CEX production world adapter readiness" "$ROOT/acceptance/S3_repository_adapter/latest/cex-production-adapter-readiness.json" release_review_input
