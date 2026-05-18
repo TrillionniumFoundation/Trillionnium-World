@@ -3544,9 +3544,18 @@ pub fn native_account_title_flow_evidence_value(actor_id: &str) -> serde_json::V
         .session_account_history
         .iter()
         .all(|entry| !entry.contains("cex_runtime_player_client_allowed=true"));
+    let character_identity_gate = final_sample
+        .get("character_display_name")
+        .and_then(|value| value.as_str())
+        == Some("Local Trillionnium Player")
+        && runtime
+            .session_account_history
+            .iter()
+            .any(|entry| entry == "account_profile_bound_to_character_identity");
     let green = register_gate
         && login_gate
         && continue_gate
+        && character_identity_gate
         && runtime.session_account_session_bound
         && runtime.session_account_auth_state == "signed_in"
         && no_cex_gate;
@@ -3569,6 +3578,7 @@ pub fn native_account_title_flow_evidence_value(actor_id: &str) -> serde_json::V
         "register_gate": register_gate,
         "login_gate": login_gate,
         "continue_gate": continue_gate,
+        "character_identity_gate": character_identity_gate,
         "no_cex_gate": no_cex_gate,
         "green": green,
         "source_of_truth": "Bevy title buttons drive Trillionnium-owned account API decisions without cex_runtime",
@@ -33649,6 +33659,14 @@ pub fn apply_native_first_playable_action(
         | NativeControlAction::LoginAccountFromTitle
         | NativeControlAction::ContinueAccountFromTitle => {
             let decision = apply_title_account_flow(first_playable, actor_id, &action);
+            if decision.accepted {
+                character.display_name = decision.profile.display_name.clone();
+                character.ensure_defaults(native_now_epoch());
+                push_history(
+                    &mut first_playable.session_account_history,
+                    "account_profile_bound_to_character_identity",
+                );
+            }
             gameplay_log.turn += 1;
             gameplay_log.last_action = format!("account:{}", decision.action);
             gameplay_log.last_result = decision.reason.clone();
@@ -33657,6 +33675,9 @@ pub fn apply_native_first_playable_action(
                 first_playable,
                 &format!("account_title_flow:{}", decision.action),
             );
+            if decision.accepted {
+                push_progression_checkpoint(first_playable, "account_profile_bound_to_character");
+            }
             refresh_contextual_action_runtime(first_playable);
             return None;
         }
@@ -39283,6 +39304,7 @@ mod tests {
         assert_eq!(evidence["register_gate"], true);
         assert_eq!(evidence["login_gate"], true);
         assert_eq!(evidence["continue_gate"], true);
+        assert_eq!(evidence["character_identity_gate"], true);
         assert_eq!(evidence["green"], true);
     }
 

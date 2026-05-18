@@ -24,6 +24,8 @@ player_client_owner == "trnm-world-bevy"
 account_api_owner == "trillionnium_world_account_api"
 passwords_tokens_or_cookie_values_logged == false
 cex_runtime_player_client_allowed == false
+character_identity_gate == true
+final_sample.character_display_name == "Local Trillionnium Player"
 TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_GREEN
 REQUIRED_LINES
 

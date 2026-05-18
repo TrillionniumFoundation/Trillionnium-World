@@ -30,6 +30,8 @@ jq -e '
   and .register_gate == true
   and .login_gate == true
   and .continue_gate == true
+  and .character_identity_gate == true
+  and .final_sample.character_display_name == "Local Trillionnium Player"
   and .no_cex_gate == true
   and .green == true
 ' "$SUMMARY_FILE" >/dev/null
