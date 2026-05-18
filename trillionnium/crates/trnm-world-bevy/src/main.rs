@@ -289,6 +289,16 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-asset-slot-map" | "--classic-asset-slot-map" | "classic-slots")
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_asset_slot_map_evidence_json()
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-renderer-probe" | "--classic-renderer-probe" | "classic-probe")
     ) {
         let frame_path = args.get(1).map(String::as_str).unwrap_or(

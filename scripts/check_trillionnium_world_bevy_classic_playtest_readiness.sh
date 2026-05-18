@@ -15,6 +15,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_slot_map.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -29,6 +30,7 @@ jq -n \
   --slurpfile probe "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json" \
   --slurpfile iso "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.json" \
   --slurpfile catalog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" \
+  --slurpfile slots "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-slot-map.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -45,6 +47,7 @@ jq -n \
       and ok($probe)
       and ok($iso)
       and ok($catalog)
+      and ok($slots)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -62,6 +65,9 @@ jq -n \
       and $iso[0].unit_detail_gate == true
       and $iso[0].command_feedback_gate == true
       and $iso[0].doodad_detail_gate == true
+      and $slots[0].manifest_frame_slots_gate == true
+      and $slots[0].procedural_slots_gate == true
+      and $slots[0].replacement_boundary_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
     checks: {
@@ -75,6 +81,7 @@ jq -n \
       renderer_probe_green: ok($probe),
       isometric_modeling_green: ok($iso),
       model_catalog_green: ok($catalog),
+      asset_slot_map_green: ok($slots),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -119,6 +126,12 @@ jq -n \
       isometric_doodad_fire_pixel_count: $iso[0].doodad_fire_pixel_count,
       isometric_doodad_crystal_pixel_count: $iso[0].doodad_crystal_pixel_count,
       model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count,
+      asset_slot_count: $slots[0].slot_count,
+      asset_slot_category_count: $slots[0].category_count,
+      asset_manifest_frame_slot_count: $slots[0].manifest_frame_slot_count,
+      asset_procedural_model_slot_count: $slots[0].procedural_model_slot_count,
+      asset_doodad_slot_count: $slots[0].doodad_slot_count,
+      asset_vfx_slot_count: $slots[0].vfx_slot_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -148,6 +161,10 @@ jq -n \
       isometric_doodad_detail_gate: $iso[0].doodad_detail_gate,
       isometric_sprite_anchor_gate: $iso[0].sprite_anchor_gate,
       catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate,
+      asset_slot_required_categories_gate: $slots[0].required_categories_present_gate,
+      asset_slot_manifest_frame_slots_gate: $slots[0].manifest_frame_slots_gate,
+      asset_slot_procedural_slots_gate: $slots[0].procedural_slots_gate,
+      asset_slot_replacement_boundary_gate: $slots[0].replacement_boundary_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -170,6 +187,7 @@ jq -n \
       isometric_modeling_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.ppm",
       model_catalog: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json",
       model_catalog_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm",
+      asset_slot_map: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-slot-map.json",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -188,6 +206,7 @@ jq -e '
   and .checks.renderer_probe_green == true
   and .checks.isometric_modeling_green == true
   and .checks.model_catalog_green == true
+  and .checks.asset_slot_map_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -228,6 +247,12 @@ jq -e '
   and .headline.isometric_doodad_wood_pixel_count > 150
   and .headline.isometric_doodad_fire_pixel_count > 40
   and .headline.isometric_doodad_crystal_pixel_count > 120
+  and .headline.asset_slot_count >= 58
+  and .headline.asset_slot_category_count >= 7
+  and .headline.asset_manifest_frame_slot_count >= 43
+  and .headline.asset_procedural_model_slot_count >= 5
+  and .headline.asset_doodad_slot_count >= 4
+  and .headline.asset_vfx_slot_count >= 6
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -253,6 +278,10 @@ jq -e '
   and .gates.isometric_doodad_detail_gate == true
   and .gates.isometric_sprite_anchor_gate == true
   and .gates.catalog_all_frames_rendered_gate == true
+  and .gates.asset_slot_required_categories_gate == true
+  and .gates.asset_slot_manifest_frame_slots_gate == true
+  and .gates.asset_slot_procedural_slots_gate == true
+  and .gates.asset_slot_replacement_boundary_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
