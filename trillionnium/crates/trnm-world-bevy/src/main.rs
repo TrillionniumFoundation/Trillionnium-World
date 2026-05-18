@@ -302,6 +302,16 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-manifest-lint" | "--classic-manifest-lint" | "classic-lint")
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_manifest_lint_evidence_json()
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("authored-art-pack" | "--authored-art-pack" | "art-pack")
     ) {
         println!(

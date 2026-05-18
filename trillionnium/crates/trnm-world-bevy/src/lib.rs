@@ -132,6 +132,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MODEL_CATALOG_CONTRACT: &str =
     "trillionnium_world_bevy_classic_model_catalog_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDERER_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_renderer_probe_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MANIFEST_LINT_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_manifest_lint_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -5360,6 +5362,267 @@ fn classic_catalog_text_label(text: &str, max_chars: usize) -> String {
         .chars()
         .take(max_chars)
         .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_manifest_lint_evidence_json() -> String {
+    let assets = load_classic_runtime_assets();
+    let manifest = &assets.manifest;
+    let frame_count = manifest.frames.len();
+    let mut seen_frame_ids = HashSet::new();
+    let mut duplicate_frame_ids = Vec::new();
+    let mut role_counts: HashMap<String, usize> = HashMap::new();
+    let mut occupied_pixels = HashSet::new();
+    let mut frame_overlap_detected = false;
+    let mut out_of_bounds_frame_ids = Vec::new();
+    for frame in &manifest.frames {
+        if !seen_frame_ids.insert(frame.id.clone()) {
+            duplicate_frame_ids.push(frame.id.clone());
+        }
+        *role_counts.entry(frame.role.clone()).or_default() += 1;
+        if frame.w == 0
+            || frame.h == 0
+            || frame.x + frame.w > manifest.atlas_width
+            || frame.y + frame.h > manifest.atlas_height
+        {
+            out_of_bounds_frame_ids.push(frame.id.clone());
+        }
+        for y in frame.y..frame.y + frame.h {
+            for x in frame.x..frame.x + frame.w {
+                if !occupied_pixels.insert((x, y)) {
+                    frame_overlap_detected = true;
+                }
+            }
+        }
+    }
+    let frame_ids = manifest
+        .frames
+        .iter()
+        .map(|frame| frame.id.clone())
+        .collect::<HashSet<_>>();
+    let frame_id_naming_gate = manifest.frames.iter().all(|frame| {
+        !frame.id.is_empty()
+            && frame
+                .id
+                .chars()
+                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_')
+            && (frame.id.starts_with("tile_")
+                || frame.id.starts_with("actor_")
+                || frame.id.starts_with("prop_")
+                || frame.id.starts_with("marker_"))
+    });
+    let frame_role_alignment_gate = manifest.frames.iter().all(|frame| {
+        (frame.id.starts_with("tile_") && frame.role.ends_with("_tile"))
+            || (frame.id.starts_with("actor_player_") && frame.role == "player_actor")
+            || (frame.id.starts_with("actor_mentor") && frame.role == "npc_actor")
+            || (frame.id.starts_with("actor_vendor") && frame.role == "npc_actor")
+            || (frame.id.starts_with("actor_enemy") && frame.role == "enemy_actor")
+            || (frame.id.starts_with("prop_") && frame.role == "scene_prop")
+            || (frame.id.starts_with("marker_") && frame.role.ends_with("_marker"))
+    });
+    let frame_rect_gate = out_of_bounds_frame_ids.is_empty()
+        && !frame_overlap_detected
+        && !occupied_pixels.is_empty();
+    let source_tile_size_gate = manifest.source_tile_size_px == 16
+        && manifest.render_tile_size_px == 32
+        && manifest
+            .frames
+            .iter()
+            .all(|frame| frame.w == 16 && frame.h == 16);
+    let required_role_family_gate = manifest
+        .frames
+        .iter()
+        .any(|frame| frame.role.ends_with("_tile"))
+        && role_counts.get("player_actor").copied().unwrap_or_default() >= 12
+        && role_counts.get("npc_actor").copied().unwrap_or_default() >= 3
+        && role_counts.get("enemy_actor").copied().unwrap_or_default() >= 4
+        && role_counts.get("scene_prop").copied().unwrap_or_default() >= 8
+        && role_counts
+            .get("objective_marker")
+            .copied()
+            .unwrap_or_default()
+            >= 1
+        && role_counts
+            .get("interaction_marker")
+            .copied()
+            .unwrap_or_default()
+            >= 1;
+    let actor_reference_gate = manifest.actors.iter().all(|actor| {
+        !actor.id.is_empty()
+            && !actor.label.is_empty()
+            && frame_ids.contains(actor.default_frame_id.as_str())
+            && frame_ids.contains(actor.walk_frame_id.as_str())
+            && actor.facing_frames.iter().all(|facing| {
+                frame_ids.contains(facing.idle_frame_id.as_str())
+                    && facing
+                        .walk_frame_ids
+                        .iter()
+                        .all(|frame_id| frame_ids.contains(frame_id.as_str()))
+            })
+            && actor.animation_clips.iter().all(|clip| {
+                !clip.id.is_empty()
+                    && !clip.action.is_empty()
+                    && clip.fps > 0
+                    && clip.frame_ids.len() >= 2
+                    && clip
+                        .frame_ids
+                        .iter()
+                        .all(|frame_id| frame_ids.contains(frame_id.as_str()))
+            })
+    });
+    let player_direction_gate = manifest
+        .actors
+        .iter()
+        .find(|actor| actor.id == "player")
+        .map(|actor| {
+            ["south", "north", "east", "west"].iter().all(|direction| {
+                actor.facing_frames.iter().any(|facing| {
+                    facing.direction == *direction
+                        && facing.walk_frame_ids.len() >= 2
+                        && frame_ids.contains(facing.idle_frame_id.as_str())
+                        && facing
+                            .walk_frame_ids
+                            .iter()
+                            .all(|frame_id| frame_ids.contains(frame_id.as_str()))
+                })
+            }) && actor
+                .animation_clips
+                .iter()
+                .any(|clip| clip.action == "walk" && clip.frame_ids.len() >= 8)
+        })
+        .unwrap_or(false);
+    let mentor_enemy_clip_gate = ["mentor", "enemy"].iter().all(|actor_id| {
+        manifest
+            .actors
+            .iter()
+            .find(|actor| actor.id == *actor_id)
+            .map(|actor| !actor.animation_clips.is_empty())
+            .unwrap_or(false)
+    });
+    let scene_shape_gate = manifest.scenes.iter().all(|scene| {
+        !scene.id.is_empty()
+            && !scene.label.is_empty()
+            && scene.tile_rows.len() == 8
+            && scene.tile_rows.iter().all(|row| row.len() == 12)
+    });
+    let scene_palette_gate = manifest.scenes.iter().all(|scene| {
+        let palette_keys = scene
+            .tile_palette
+            .iter()
+            .map(|entry| entry.key)
+            .collect::<HashSet<_>>();
+        scene.tile_palette.len() == palette_keys.len()
+            && scene
+                .tile_palette
+                .iter()
+                .all(|entry| frame_ids.contains(entry.frame_id.as_str()))
+            && scene
+                .tile_rows
+                .iter()
+                .flat_map(|row| row.chars())
+                .all(|key| palette_keys.contains(&key))
+    });
+    let scene_landmark_gate = manifest.scenes.iter().all(|scene| {
+        scene.landmarks.len() >= 2
+            && scene.landmarks.iter().all(|landmark| {
+                !landmark.id.is_empty()
+                    && frame_ids.contains(landmark.frame_id.as_str())
+                    && landmark.tile_x >= 0
+                    && landmark.tile_y >= 0
+                    && landmark.tile_x < 12
+                    && landmark.tile_y < 8
+            })
+    });
+    let frame_colors = |frame_id: &str| -> HashSet<u32> {
+        let Some(frame) = assets.frame_by_id.get(frame_id) else {
+            return HashSet::new();
+        };
+        let mut colors = HashSet::new();
+        for y in frame.y..frame.y + frame.h {
+            for x in frame.x..frame.x + frame.w {
+                let index = (y as usize * manifest.atlas_width as usize) + x as usize;
+                if let Some(color) = assets.atlas_pixels.get(index) {
+                    colors.insert(*color);
+                }
+            }
+        }
+        colors
+    };
+    let opaque_tile_gate = manifest
+        .frames
+        .iter()
+        .filter(|frame| frame.id.starts_with("tile_"))
+        .all(|frame| !frame_colors(&frame.id).contains(&0x000000_u32));
+    let transparent_overlay_gate = manifest
+        .frames
+        .iter()
+        .filter(|frame| {
+            frame.id.starts_with("actor_")
+                || frame.id.starts_with("prop_")
+                || frame.id.starts_with("marker_")
+        })
+        .all(|frame| {
+            frame_colors(&frame.id).contains(&0x000000_u32)
+                && classic_frame_visible_pixel_count(&assets, &frame.id) > 12
+        });
+    let catalog_ready_gate = manifest.atlas_format == "ppm_p3_rgb"
+        && assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && frame_count >= 43;
+    let boundary_gate = manifest.x230_low_spec_renderer_target
+        && !manifest.cex_runtime_player_client_allowed
+        && !manifest.wgpu_required
+        && manifest.asset_boundary.contains("not_cex_runtime");
+    let green = catalog_ready_gate
+        && duplicate_frame_ids.is_empty()
+        && frame_id_naming_gate
+        && frame_role_alignment_gate
+        && frame_rect_gate
+        && source_tile_size_gate
+        && required_role_family_gate
+        && actor_reference_gate
+        && player_direction_gate
+        && mentor_enemy_clip_gate
+        && scene_shape_gate
+        && scene_palette_gate
+        && scene_landmark_gate
+        && opaque_tile_gate
+        && transparent_overlay_gate
+        && boundary_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_MANIFEST_LINT_CONTRACT,
+        "green": green,
+        "frame_count": frame_count,
+        "scene_count": manifest.scenes.len(),
+        "actor_count": manifest.actors.len(),
+        "role_counts": role_counts,
+        "duplicate_frame_ids": duplicate_frame_ids,
+        "out_of_bounds_frame_ids": out_of_bounds_frame_ids,
+        "frame_overlap_detected": frame_overlap_detected,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "catalog_ready_gate": catalog_ready_gate,
+        "frame_id_naming_gate": frame_id_naming_gate,
+        "frame_role_alignment_gate": frame_role_alignment_gate,
+        "frame_rect_gate": frame_rect_gate,
+        "source_tile_size_gate": source_tile_size_gate,
+        "required_role_family_gate": required_role_family_gate,
+        "actor_reference_gate": actor_reference_gate,
+        "player_direction_gate": player_direction_gate,
+        "mentor_enemy_clip_gate": mentor_enemy_clip_gate,
+        "scene_shape_gate": scene_shape_gate,
+        "scene_palette_gate": scene_palette_gate,
+        "scene_landmark_gate": scene_landmark_gate,
+        "opaque_tile_gate": opaque_tile_gate,
+        "transparent_overlay_gate": transparent_overlay_gate,
+        "boundary_gate": boundary_gate,
+        "x230_low_spec_renderer_target": manifest.x230_low_spec_renderer_target,
+        "cex_runtime_player_client_allowed": manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": manifest.wgpu_required,
+        "asset_boundary": manifest.asset_boundary,
+        "source_of_truth": "Classic manifest lint is the modeling production gate for extending project-owned low-spec sprite frames, scenes, actors, and clips inside trnm-world-bevy."
+    }))
+    .expect("classic manifest lint evidence serializes")
 }
 
 fn load_classic_runtime_assets() -> ClassicRuntimeAssets {
