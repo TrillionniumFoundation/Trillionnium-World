@@ -20,7 +20,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::fs;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
     WORLD_ACCOUNT_API_CONTRACT, WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT, WORLD_API_CONTRACT,
@@ -140,6 +140,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ANIMATION_SELECTOR_CONTRACT: &str =
     "trillionnium_world_bevy_classic_animation_selector_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_PLAYER_MOTION_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_player_motion_probe_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDER_BUDGET_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_render_budget_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -6784,6 +6786,119 @@ pub fn native_classic_player_motion_probe_evidence_json(probe_path: &str) -> Str
         "source_of_truth": "Classic player motion probe drives real NativeControlAction::Move inputs through apply_live_native_action, then proves runtime direction/walk-cycle state selects the expected low-spec player sprite frames."
     }))
     .expect("classic player motion probe evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_render_budget_evidence_json() -> String {
+    const WIDTH: usize = 640;
+    const HEIGHT: usize = 360;
+    const FRAME_COUNT: usize = 180;
+    let assets = load_classic_runtime_assets();
+    let mut buffer = vec![0_u32; WIDTH * HEIGHT];
+    let mut frame_micros = Vec::with_capacity(FRAME_COUNT);
+    let mut nonblank_samples = Vec::new();
+    let directions = ["south", "east", "north", "west"];
+    let scenes = [
+        "mirror_city_square",
+        "mentor_training_room",
+        "league_arena",
+        "mirror_city_square",
+    ];
+    for frame_index in 0..FRAME_COUNT {
+        let mut runtime = classic_preview_runtime(
+            directions[frame_index % directions.len()],
+            (frame_index % 4) as u8,
+            scenes[(frame_index / 15) % scenes.len()],
+        );
+        runtime.xp = (frame_index % 100) as u64;
+        runtime.coins = (frame_index % 37) as u64;
+        if frame_index % 24 >= 12 {
+            runtime.dialogue_overlay_visible = true;
+            runtime.npc_dialogue_state = "mentor_talk_budget_probe".to_string();
+        }
+        if runtime.map_scene.contains("arena") {
+            runtime.combat_overlay_visible = true;
+            runtime.combat_overlay_was_visible = true;
+            runtime.combat_turn = (frame_index % 5) as u8;
+            runtime.enemy_damage_feedback = if frame_index % 2 == 0 {
+                "turn budget attack -14 HP".to_string()
+            } else {
+                "force route clear: duelist yields".to_string()
+            };
+            runtime.enemy_hp = if frame_index % 2 == 0 { 25 } else { 0 };
+        }
+        let player_tile = (
+            4 + (frame_index as i32 % 4),
+            3 + ((frame_index / 4) as i32 % 3),
+        );
+        let started = Instant::now();
+        classic_draw_scene(&mut buffer, WIDTH, HEIGHT, player_tile, &runtime, &assets);
+        frame_micros.push(started.elapsed().as_micros() as u64);
+        if frame_index % 45 == 0 {
+            nonblank_samples.push(
+                buffer
+                    .iter()
+                    .filter(|color| **color != 0x101411_u32 && **color != 0x171a1d_u32)
+                    .count(),
+            );
+        }
+    }
+    let mut sorted = frame_micros.clone();
+    sorted.sort_unstable();
+    let percentile = |values: &[u64], numerator: usize, denominator: usize| -> u64 {
+        if values.is_empty() {
+            return 0;
+        }
+        let index = ((values.len() - 1) * numerator) / denominator.max(1);
+        values[index]
+    };
+    let p50_micros = percentile(&sorted, 50, 100);
+    let p95_micros = percentile(&sorted, 95, 100);
+    let max_micros = sorted.last().copied().unwrap_or_default();
+    let avg_micros = if frame_micros.is_empty() {
+        0
+    } else {
+        frame_micros.iter().sum::<u64>() / frame_micros.len() as u64
+    };
+    let p95_budget_micros = 16_000_u64;
+    let max_budget_micros = 40_000_u64;
+    let p95_budget_gate = p95_micros <= p95_budget_micros;
+    let max_budget_gate = max_micros <= max_budget_micros;
+    let frame_count_gate = frame_micros.len() == FRAME_COUNT;
+    let nonblank_gate = nonblank_samples.iter().all(|count| *count > 80_000);
+    let green = assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && frame_count_gate
+        && p95_budget_gate
+        && max_budget_gate
+        && nonblank_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDER_BUDGET_CONTRACT,
+        "green": green,
+        "renderer_path": "classic_cpu_ppm_minifb_low_spec",
+        "frame_width": WIDTH,
+        "frame_height": HEIGHT,
+        "frame_count": frame_micros.len(),
+        "p50_micros": p50_micros,
+        "p95_micros": p95_micros,
+        "max_micros": max_micros,
+        "avg_micros": avg_micros,
+        "p95_budget_micros": p95_budget_micros,
+        "max_budget_micros": max_budget_micros,
+        "nonblank_samples": nonblank_samples,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "frame_count_gate": frame_count_gate,
+        "p95_budget_gate": p95_budget_gate,
+        "max_budget_gate": max_budget_gate,
+        "nonblank_gate": nonblank_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic render budget measures repeated low-spec classic_draw_scene CPU frames without Bevy/wgpu, protecting the X230 playtest path from renderer regressions."
+    }))
+    .expect("classic render budget evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
