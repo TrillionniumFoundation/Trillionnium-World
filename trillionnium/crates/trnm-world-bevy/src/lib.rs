@@ -132,6 +132,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MODEL_CATALOG_CONTRACT: &str =
     "trillionnium_world_bevy_classic_model_catalog_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_SLOT_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_asset_slot_map_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_PROBE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_asset_override_probe_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDERER_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_renderer_probe_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ISOMETRIC_MODELING_CONTRACT: &str =
@@ -661,6 +663,8 @@ pub struct ClassicActorAnimationClip {
 struct ClassicRuntimeAssets {
     manifest: ClassicAssetPackManifest,
     atlas_pixels: Vec<u32>,
+    frame_override_pixels: HashMap<String, Vec<u32>>,
+    frame_override_dir: Option<String>,
     frame_by_id: HashMap<String, ClassicAtlasFrame>,
     scene_by_id: HashMap<String, ClassicSceneMap>,
     actor_by_id: HashMap<String, ClassicActorModel>,
@@ -5479,6 +5483,86 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_asset_override_probe_evidence_json(preview_path: &str) -> String {
+    const WIDTH: usize = 96;
+    const HEIGHT: usize = 96;
+    const OVERRIDE_FRAME_ID: &str = "actor_player_idle_south";
+    const OVERRIDE_PROBE_COLOR: u32 = 0xff00ff;
+    let assets = load_classic_runtime_assets();
+    let mut preview_pixels = vec![0x0b0d0c_u32; WIDTH * HEIGHT];
+    let draw_gate = classic_blit_frame_scaled(
+        &mut preview_pixels,
+        WIDTH,
+        HEIGHT,
+        &assets,
+        OVERRIDE_FRAME_ID,
+        16,
+        16,
+        4,
+    );
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, WIDTH, HEIGHT, &preview_pixels).is_ok();
+    let preview_bytes = fs::metadata(preview_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or_default();
+    let override_frame_ids = assets
+        .frame_override_pixels
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    let override_frame_gate = assets.frame_override_pixels.contains_key(OVERRIDE_FRAME_ID);
+    let override_probe_pixel_count = preview_pixels
+        .iter()
+        .filter(|color| **color == OVERRIDE_PROBE_COLOR)
+        .count();
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
+        && assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && draw_gate
+        && assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && override_frame_gate
+        && override_probe_pixel_count > 300
+        && non_background_pixels > 300
+        && preview_bytes > 1_000
+        && replacement_boundary_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_PROBE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": WIDTH,
+        "preview_height": HEIGHT,
+        "preview_bytes": preview_bytes,
+        "override_dir": assets.frame_override_dir.clone().unwrap_or_default(),
+        "override_frame_id": OVERRIDE_FRAME_ID,
+        "override_frame_ids": override_frame_ids,
+        "override_frame_count": assets.frame_override_pixels.len(),
+        "override_frame_gate": override_frame_gate,
+        "override_probe_color": "ff00ff",
+        "override_probe_pixel_count": override_probe_pixel_count,
+        "non_background_pixels": non_background_pixels,
+        "draw_gate": draw_gate,
+        "write_gate": write_gate,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "replacement_boundary_gate": replacement_boundary_gate,
+        "asset_boundary": assets.manifest.asset_boundary,
+        "x230_low_spec_renderer_target": assets.manifest.x230_low_spec_renderer_target,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "The classic asset override probe proves project-local PPM frame overrides are consumed by the same trnm-world-bevy low-spec blitter used by the native playtest renderer."
+    }))
+    .expect("classic asset override probe evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_renderer_probe_evidence_json(frame_path: &str) -> String {
     const WIDTH: usize = 640;
     const HEIGHT: usize = 360;
@@ -6030,13 +6114,33 @@ fn classic_frame_visible_pixel_count(assets: &ClassicRuntimeAssets, frame_id: &s
     let mut count = 0_usize;
     for y in frame.y..frame.y + frame.h {
         for x in frame.x..frame.x + frame.w {
-            let index = (y as usize * assets.manifest.atlas_width as usize) + x as usize;
-            if assets.atlas_pixels.get(index).copied().unwrap_or_default() != 0x000000 {
+            let sx = x - frame.x;
+            let sy = y - frame.y;
+            if classic_frame_source_pixel(assets, frame, sx, sy) != 0x000000 {
                 count += 1;
             }
         }
     }
     count
+}
+
+fn classic_frame_source_pixel(
+    assets: &ClassicRuntimeAssets,
+    frame: &ClassicAtlasFrame,
+    sx: u32,
+    sy: u32,
+) -> u32 {
+    if let Some(override_pixels) = assets.frame_override_pixels.get(&frame.id) {
+        let index = sy as usize * frame.w as usize + sx as usize;
+        return override_pixels.get(index).copied().unwrap_or_default();
+    }
+    let source_x = frame.x + sx;
+    let source_y = frame.y + sy;
+    if source_x >= assets.manifest.atlas_width || source_y >= assets.manifest.atlas_height {
+        return 0x000000;
+    }
+    let index = source_y as usize * assets.manifest.atlas_width as usize + source_x as usize;
+    assets.atlas_pixels.get(index).copied().unwrap_or_default()
 }
 
 #[cfg(not(target_os = "android"))]
@@ -6585,12 +6689,15 @@ fn classic_runtime_assets_from_manifest(
     loaded_from_manifest: bool,
     atlas_parse_gate: bool,
 ) -> ClassicRuntimeAssets {
+    let frame_by_id = manifest
+        .frames
+        .iter()
+        .map(|frame| (frame.id.clone(), frame.clone()))
+        .collect::<HashMap<_, _>>();
+    let (frame_override_pixels, frame_override_dir) =
+        load_classic_frame_overrides(&manifest, &frame_by_id);
     ClassicRuntimeAssets {
-        frame_by_id: manifest
-            .frames
-            .iter()
-            .map(|frame| (frame.id.clone(), frame.clone()))
-            .collect(),
+        frame_by_id,
         scene_by_id: manifest
             .scenes
             .iter()
@@ -6603,8 +6710,43 @@ fn classic_runtime_assets_from_manifest(
             .collect(),
         manifest,
         atlas_pixels,
+        frame_override_pixels,
+        frame_override_dir,
         loaded_from_manifest,
         atlas_parse_gate,
+    }
+}
+
+fn load_classic_frame_overrides(
+    manifest: &ClassicAssetPackManifest,
+    frame_by_id: &HashMap<String, ClassicAtlasFrame>,
+) -> (HashMap<String, Vec<u32>>, Option<String>) {
+    let Ok(override_dir) = env::var("TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR") else {
+        return (HashMap::new(), None);
+    };
+    let override_dir_path = Path::new(&override_dir);
+    if !override_dir_path.is_dir() {
+        return (HashMap::new(), Some(override_dir));
+    }
+    let mut overrides = HashMap::new();
+    for (frame_id, frame) in frame_by_id {
+        let override_path = override_dir_path.join(format!("{frame_id}.ppm"));
+        let Some(override_path) = override_path.to_str() else {
+            continue;
+        };
+        if let Ok(pixels) = read_classic_ppm_p3_u32(override_path, frame.w, frame.h) {
+            overrides.insert(frame_id.clone(), pixels);
+        }
+    }
+    if overrides.is_empty() {
+        let fallback_path = Path::new(&manifest.atlas_path)
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join("overrides");
+        let fallback_dir = fallback_path.to_string_lossy().to_string();
+        (overrides, Some(fallback_dir))
+    } else {
+        (overrides, Some(override_dir))
     }
 }
 
@@ -9466,17 +9608,7 @@ fn classic_blit_frame_scaled(
     let scale = scale.max(1) as i32;
     for sy in 0..frame.h as i32 {
         for sx in 0..frame.w as i32 {
-            let source_x = frame.x as i32 + sx;
-            let source_y = frame.y as i32 + sy;
-            if source_x < 0
-                || source_y < 0
-                || source_x >= assets.manifest.atlas_width as i32
-                || source_y >= assets.manifest.atlas_height as i32
-            {
-                continue;
-            }
-            let color = assets.atlas_pixels
-                [(source_y as usize * assets.manifest.atlas_width as usize) + source_x as usize];
+            let color = classic_frame_source_pixel(assets, frame, sx as u32, sy as u32);
             if color == 0x000000 {
                 continue;
             }
