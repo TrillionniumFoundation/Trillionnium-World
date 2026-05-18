@@ -13,4 +13,12 @@ if [[ "${TRNM_WORLD_BEVY_FORCE_X11_OPENGL:-0}" == "1" ]]; then
   export WGPU_BACKEND="${WGPU_BACKEND:-gl}"
 fi
 
+export TRNM_WORLD_BEVY_LOW_SPEC="${TRNM_WORLD_BEVY_LOW_SPEC:-1}"
+
+PROFILE="${TRNM_WORLD_BEVY_PROFILE:-release}"
+if [[ "$PROFILE" == "release" ]]; then
+  CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build -p trnm-world-bevy --release
+  exec "$ROOT_DIR/target/release/trnm-world-bevy" run
+fi
+
 exec cargo run -p trnm-world-bevy -- run

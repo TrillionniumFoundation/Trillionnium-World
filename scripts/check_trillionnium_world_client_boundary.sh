@@ -80,7 +80,8 @@ contains "$RELEASE_READINESS" "CEX is legacy adapter evidence only" release_read
 contains "$DEV_ENV" "Legacy evidence adapter only" dev_env_cex_adapter_comment
 contains "$DEV_ENV" "Do not launch CEX as the player client" dev_env_no_cex_client_comment
 
-contains "$BEVY_RUNNER" "cargo run -p trnm-world-bevy -- run" bevy_runner_targets_native_crate
+contains "$BEVY_RUNNER" "cargo build -p trnm-world-bevy --release" bevy_runner_builds_native_crate
+contains "$BEVY_RUNNER" "target/release/trnm-world-bevy" bevy_runner_launches_optimized_native_binary
 not_matches "$BEVY_RUNNER" "CEX|consumer-entry|consumer_entry|runtime-manager-linux|/world" bevy_runner_has_no_cex_runtime_refs
 not_matches "$BEVY_CRATE" "CEX|consumer-entry|consumer_entry|cex_default|cex_world|cex_consumer|cex_service|cex_incubator" bevy_crate_has_no_cex_internals
 contains "$CEX_ADAPTER_GATE" "trillionnium_world_crates_do_not_import_cex_service_internals" cex_adapter_import_rule

@@ -3377,13 +3377,17 @@ pub fn build_native_bevy_app(world: WorldState, actor_id: &str) -> (App, BevyWor
 
 pub fn build_rendering_bevy_app(world: WorldState, actor_id: &str) -> (App, BevyWorldBridgeReport) {
     let report = report_for_world(&world);
+    let low_spec = env::var("TRNM_WORLD_BEVY_LOW_SPEC")
+        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(false);
+    let window_resolution = if low_spec { (640, 360) } else { (960, 540) };
     let mut app = App::new();
     app.insert_resource(ClearColor(Color::srgb(0.10, 0.16, 0.18)))
         .init_resource::<InputFocus>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Trillionnium World".to_string(),
-                resolution: (960, 540).into(),
+                resolution: window_resolution.into(),
                 resizable: true,
                 ..default()
             }),
