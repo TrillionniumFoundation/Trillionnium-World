@@ -14,6 +14,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
 jq -n \
   --slurpfile manifest "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-manifest-lint.json" \
@@ -24,7 +25,8 @@ jq -n \
   --slurpfile scene "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json" \
   --slurpfile probe "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json" \
   --slurpfile catalog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" \
-  --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" '
+  --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
+  --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
   {
     contract_version: "trillionnium_world_bevy_classic_playtest_readiness_v1",
@@ -38,12 +40,14 @@ jq -n \
       and ok($probe)
       and ok($catalog)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
+      and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
       and $budget[0].p95_budget_gate == true
       and $motion[0].accepted_input_gate == true
       and $selector[0].animation_transition_gate == true
       and $scene[0].dynamic_landmark_animation_gate == true
       and $probe[0].hud_probe_gate == true
+      and $runner[0].gates.cex_path_gate == true
     ),
     checks: {
       manifest_lint_green: ok($manifest),
@@ -54,7 +58,8 @@ jq -n \
       scene_preview_green: ok($scene),
       renderer_probe_green: ok($probe),
       model_catalog_green: ok($catalog),
-      client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green"))
+      client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
+      playtest_runner_status_green: ok($runner)
     },
     headline: {
       frame_count: $manifest[0].frame_count,
@@ -66,7 +71,9 @@ jq -n \
       render_max_micros: $budget[0].max_micros,
       scene_unique_color_count: $scene[0].unique_color_count,
       renderer_probe_hud_text_pixels: $probe[0].hud_text_pixels,
-      model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count
+      model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count,
+      runner_main_pid: $runner[0].service.main_pid,
+      runner_process_cwd: $runner[0].runtime.process_cwd
     },
     gates: {
       cex_runtime_player_client_allowed: $manifest[0].cex_runtime_player_client_allowed,
@@ -79,7 +86,11 @@ jq -n \
       render_max_budget_gate: $budget[0].max_budget_gate,
       scene_dynamic_landmark_animation_gate: $scene[0].dynamic_landmark_animation_gate,
       renderer_probe_scene_frame_gate: $probe[0].scene_frame_gate,
-      catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate
+      catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate,
+      runner_service_process_gate: $runner[0].gates.service_process_gate,
+      runner_release_binary_gate: $runner[0].gates.release_binary_gate,
+      runner_classic_env_gate: $runner[0].gates.classic_env_gate,
+      runner_cex_path_gate: $runner[0].gates.cex_path_gate
     },
     artifacts: {
       manifest_lint: "acceptance/S5_native_bevy_device/latest/bevy-classic-manifest-lint.json",
@@ -94,7 +105,8 @@ jq -n \
       renderer_probe: "acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json",
       renderer_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.ppm",
       model_catalog: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json",
-      model_catalog_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm"
+      model_catalog_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.ppm",
+      playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
   }' >"$SUMMARY"
@@ -111,6 +123,7 @@ jq -e '
   and .checks.renderer_probe_green == true
   and .checks.model_catalog_green == true
   and .checks.client_boundary_green == true
+  and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
   and .headline.animation_clip_count >= 4
   and .headline.motion_sample_count == 8
@@ -128,6 +141,10 @@ jq -e '
   and .gates.scene_dynamic_landmark_animation_gate == true
   and .gates.renderer_probe_scene_frame_gate == true
   and .gates.catalog_all_frames_rendered_gate == true
+  and .gates.runner_service_process_gate == true
+  and .gates.runner_release_binary_gate == true
+  and .gates.runner_classic_env_gate == true
+  and .gates.runner_cex_path_gate == true
 ' "$SUMMARY" >/dev/null
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_PLAYTEST_READINESS_GREEN %s\n' "$SUMMARY"

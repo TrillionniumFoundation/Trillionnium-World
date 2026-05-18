@@ -75,6 +75,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_sprite_sheet.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_authored_texture_atlas_binding.sh" \
@@ -123,6 +124,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_title_flow_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_playtest_runner_status_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_texture_atlas_binding_script_contract_guard_test.sh" \
@@ -193,7 +195,7 @@ run_check bevy_account_client_boundary_contract_guard "$ROOT/scripts/v2/bevy_acc
 run_check bevy_account_client_boundary_gate "$ROOT/scripts/check_trillionnium_world_bevy_account_client_boundary.sh"
 run_check bevy_account_title_flow_contract_guard "$ROOT/scripts/v2/bevy_account_title_flow_script_contract_guard_test.sh"
 run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_bevy_account_title_flow.sh"
-# Bevy classic low-spec asset contracts: trillionnium_world_bevy_classic_asset_pack_v1 / trillionnium_world_bevy_classic_manifest_lint_v1 / trillionnium_world_bevy_classic_animation_preview_v1 / trillionnium_world_bevy_classic_animation_selector_v1 / trillionnium_world_bevy_classic_player_motion_probe_v1 / trillionnium_world_bevy_classic_render_budget_v1 / trillionnium_world_bevy_classic_scene_preview_v1 / trillionnium_world_bevy_classic_model_catalog_v1 / trillionnium_world_bevy_classic_renderer_probe_v1 / trillionnium_world_bevy_classic_playtest_readiness_v1
+# Bevy classic low-spec asset contracts: trillionnium_world_bevy_classic_asset_pack_v1 / trillionnium_world_bevy_classic_manifest_lint_v1 / trillionnium_world_bevy_classic_animation_preview_v1 / trillionnium_world_bevy_classic_animation_selector_v1 / trillionnium_world_bevy_classic_player_motion_probe_v1 / trillionnium_world_bevy_classic_render_budget_v1 / trillionnium_world_bevy_classic_scene_preview_v1 / trillionnium_world_bevy_classic_model_catalog_v1 / trillionnium_world_bevy_classic_renderer_probe_v1 / trillionnium_world_bevy_classic_playtest_readiness_v1 / trillionnium_world_bevy_classic_playtest_runner_status_v1
 run_check bevy_classic_asset_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh"
 run_check bevy_classic_manifest_lint_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh"
 run_check bevy_classic_animation_preview_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh"
@@ -204,6 +206,7 @@ run_check bevy_classic_scene_preview_gate "$ROOT/scripts/check_trillionnium_worl
 run_check bevy_classic_model_catalog_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh"
 run_check bevy_classic_renderer_probe_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh"
 run_check bevy_classic_playtest_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
+run_check bevy_classic_playtest_runner_status_contract_guard "$ROOT/scripts/v2/bevy_classic_playtest_runner_status_script_contract_guard_test.sh"
 run_check bevy_authored_art_pack_contract_guard "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh"
 run_check bevy_authored_art_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_art_pack.sh"
 run_check bevy_authored_sprite_sheet_contract_guard "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh"
