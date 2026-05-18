@@ -17,6 +17,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_slot_map.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack_scene_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_override_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
@@ -34,6 +35,7 @@ jq -n \
   --slurpfile catalog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" \
   --slurpfile slots "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-slot-map.json" \
   --slurpfile art_pack "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.json" \
+  --slurpfile art_scene "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack-scene-probe.json" \
   --slurpfile override "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
@@ -53,6 +55,7 @@ jq -n \
       and ok($catalog)
       and ok($slots)
       and ok($art_pack)
+      and ok($art_scene)
       and ok($override)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
@@ -78,6 +81,9 @@ jq -n \
       and $art_pack[0].player_art_gate == true
       and $art_pack[0].enemy_art_gate == true
       and $art_pack[0].replacement_boundary_gate == true
+      and $art_scene[0].override_presence_gate == true
+      and $art_scene[0].color_probe_gate == true
+      and $art_scene[0].replacement_boundary_gate == true
       and $override[0].override_frame_gate == true
       and $override[0].replacement_boundary_gate == true
       and $runner[0].gates.override_dir_gate == true
@@ -96,6 +102,7 @@ jq -n \
       model_catalog_green: ok($catalog),
       asset_slot_map_green: ok($slots),
       classic_art_pack_green: ok($art_pack),
+      classic_art_pack_scene_probe_green: ok($art_scene),
       asset_override_probe_green: ok($override),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
@@ -150,6 +157,9 @@ jq -n \
       art_pack_asset_count: $art_pack[0].asset_count,
       art_pack_override_frame_count: $art_pack[0].override_frame_count,
       art_pack_preview_non_background_pixels: $art_pack[0].preview_non_background_pixels,
+      art_pack_scene_non_background_pixels: $art_scene[0].non_background_pixels,
+      art_pack_scene_player_color_count: $art_scene[0].player_color_count,
+      art_pack_scene_enemy_attack_color_count: $art_scene[0].enemy_attack_color_count,
       asset_override_frame_count: $override[0].override_frame_count,
       asset_override_probe_pixel_count: $override[0].override_probe_pixel_count,
       asset_override_non_background_pixels: $override[0].non_background_pixels,
@@ -190,6 +200,9 @@ jq -n \
       art_pack_player_art_gate: $art_pack[0].player_art_gate,
       art_pack_enemy_art_gate: $art_pack[0].enemy_art_gate,
       art_pack_replacement_boundary_gate: $art_pack[0].replacement_boundary_gate,
+      art_pack_scene_override_presence_gate: $art_scene[0].override_presence_gate,
+      art_pack_scene_color_probe_gate: $art_scene[0].color_probe_gate,
+      art_pack_scene_replacement_boundary_gate: $art_scene[0].replacement_boundary_gate,
       asset_override_frame_gate: $override[0].override_frame_gate,
       asset_override_replacement_boundary_gate: $override[0].replacement_boundary_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
@@ -218,6 +231,8 @@ jq -n \
       asset_slot_map: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-slot-map.json",
       classic_art_pack: "acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.json",
       classic_art_pack_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.ppm",
+      classic_art_pack_scene_probe: "acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack-scene-probe.json",
+      classic_art_pack_scene_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack-scene-probe.ppm",
       asset_override_probe: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.json",
       asset_override_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
@@ -240,6 +255,7 @@ jq -e '
   and .checks.model_catalog_green == true
   and .checks.asset_slot_map_green == true
   and .checks.classic_art_pack_green == true
+  and .checks.classic_art_pack_scene_probe_green == true
   and .checks.asset_override_probe_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
@@ -290,6 +306,9 @@ jq -e '
   and .headline.art_pack_asset_count >= 22
   and .headline.art_pack_override_frame_count >= 22
   and .headline.art_pack_preview_non_background_pixels > 35000
+  and .headline.art_pack_scene_non_background_pixels > 120000
+  and .headline.art_pack_scene_player_color_count > 20
+  and .headline.art_pack_scene_enemy_attack_color_count > 20
   and .headline.asset_override_frame_count >= 1
   and .headline.asset_override_probe_pixel_count > 300
   and .headline.asset_override_non_background_pixels > 300
@@ -326,6 +345,9 @@ jq -e '
   and .gates.art_pack_player_art_gate == true
   and .gates.art_pack_enemy_art_gate == true
   and .gates.art_pack_replacement_boundary_gate == true
+  and .gates.art_pack_scene_override_presence_gate == true
+  and .gates.art_pack_scene_color_probe_gate == true
+  and .gates.art_pack_scene_replacement_boundary_gate == true
   and .gates.asset_override_frame_gate == true
   and .gates.asset_override_replacement_boundary_gate == true
   and .gates.runner_service_process_gate == true

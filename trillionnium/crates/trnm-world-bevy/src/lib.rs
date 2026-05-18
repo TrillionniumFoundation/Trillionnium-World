@@ -136,6 +136,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_asset_override_probe_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ART_PACK_CONTRACT: &str =
     "trillionnium_world_bevy_classic_art_pack_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ART_PACK_SCENE_PROBE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_art_pack_scene_probe_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDERER_PROBE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_renderer_probe_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ISOMETRIC_MODELING_CONTRACT: &str =
@@ -6326,6 +6328,194 @@ fn classic_draw_art_pack_preview(
                 y + 96 - draw_h,
                 scale,
             );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_art_pack_scene_probe_evidence_json(
+    override_dir: &str,
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    let assets = load_classic_runtime_assets_with_override_dir(Some(override_dir.to_string()));
+    let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * 2 * PANEL_HEIGHT];
+    let mut mirror_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut coliseum_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mirror_runtime = NativeFirstPlayableRuntime {
+        dialogue_overlay_visible: true,
+        ..Default::default()
+    };
+    let coliseum_runtime = NativeFirstPlayableRuntime {
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        combat_turn: 1,
+        enemy_hp: 25,
+        ..Default::default()
+    };
+    let mirror_scene = assets.scene_by_id.get("mirror_city_square");
+    let coliseum_scene = assets.scene_by_id.get("league_coliseum");
+    classic_draw_isometric_scene(
+        &mut mirror_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        mirror_scene,
+        &assets,
+        &mirror_runtime,
+        (5, 5),
+        "actor_player_walk_east_1",
+    );
+    classic_draw_isometric_scene(
+        &mut coliseum_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        coliseum_scene,
+        &assets,
+        &coliseum_runtime,
+        (5, 5),
+        "actor_player_walk_west_1",
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        &mirror_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        0,
+        0,
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        &coliseum_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        PANEL_WIDTH as i32,
+        0,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        12,
+        12,
+        "ART PACK MIRROR",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        PANEL_WIDTH as i32 + 12,
+        12,
+        "ART PACK COLISEUM",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH * 2, PANEL_HEIGHT, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let town_hall_color_count =
+        count_color(0x201812) + count_color(0xf4d06f) + count_color(0x6f5c43);
+    let waygate_color_count = count_color(0xc7d3ff);
+    let tree_color_count = count_color(0x2f8b50);
+    let coliseum_color_count = count_color(0x9a3e4a);
+    let player_color_count = count_color(0x3f9b58);
+    let enemy_attack_color_count = count_color(0xff5c4d);
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let override_ids = [
+        "model_town_hall",
+        "model_waygate",
+        "model_training_hall",
+        "model_coliseum_stands",
+        "model_tree_cluster_large",
+        "actor_player_walk_east_1",
+        "actor_player_walk_west_1",
+        "actor_enemy_attack",
+    ];
+    let override_presence_gate = override_ids
+        .iter()
+        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let color_probe_gate = town_hall_color_count > 20
+        && waygate_color_count > 20
+        && tree_color_count > 20
+        && coliseum_color_count > 20
+        && player_color_count > 20
+        && enemy_attack_color_count > 20;
+    let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
+        && assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && mirror_scene.is_some()
+        && coliseum_scene.is_some()
+        && override_presence_gate
+        && color_probe_gate
+        && non_background_pixels > 120_000
+        && replacement_boundary_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_ART_PACK_SCENE_PROBE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH * 2,
+        "preview_height": PANEL_HEIGHT,
+        "override_dir": override_dir,
+        "override_presence_gate": override_presence_gate,
+        "color_probe_gate": color_probe_gate,
+        "replacement_boundary_gate": replacement_boundary_gate,
+        "non_background_pixels": non_background_pixels,
+        "town_hall_color_count": town_hall_color_count,
+        "waygate_color_count": waygate_color_count,
+        "tree_color_count": tree_color_count,
+        "coliseum_color_count": coliseum_color_count,
+        "player_color_count": player_color_count,
+        "enemy_attack_color_count": enemy_attack_color_count,
+        "mirror_scene_gate": mirror_scene.is_some(),
+        "coliseum_scene_gate": coliseum_scene.is_some(),
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "The classic art pack scene probe renders live isometric scene panels with the art-pack override directory loaded, proving the committed 2.5D PPM assets reach the native playtest frame path."
+    }))
+    .expect("classic art pack scene probe evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_copy_pixels(
+    dest: &mut [u32],
+    dest_width: usize,
+    dest_height: usize,
+    source: &[u32],
+    source_width: usize,
+    source_height: usize,
+    offset_x: i32,
+    offset_y: i32,
+) {
+    for y in 0..source_height as i32 {
+        for x in 0..source_width as i32 {
+            let dx = offset_x + x;
+            let dy = offset_y + y;
+            if dx >= 0 && dy >= 0 && dx < dest_width as i32 && dy < dest_height as i32 {
+                let source_index = y as usize * source_width + x as usize;
+                let dest_index = dy as usize * dest_width + dx as usize;
+                if let Some(color) = source.get(source_index) {
+                    dest[dest_index] = *color;
+                }
+            }
         }
     }
 }
