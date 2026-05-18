@@ -174,6 +174,9 @@ const CLASSIC_ISO_UNIT_MENTOR_COLOR: u32 = 0xe8c78e;
 const CLASSIC_ISO_UNIT_ENEMY_COLOR: u32 = 0xbf4a4a;
 const CLASSIC_ISO_UNIT_HEALTH_COLOR: u32 = 0x64d66d;
 const CLASSIC_ISO_UNIT_DAMAGE_COLOR: u32 = 0xd95c5c;
+const CLASSIC_ISO_COMMAND_MARKER_COLOR: u32 = 0x68d7ff;
+const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
+const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -5467,6 +5470,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
     let mut unit_ring_pixel_count = 0_usize;
     let mut unit_health_pixel_count = 0_usize;
     let mut unit_silhouette_pixel_count = 0_usize;
+    let mut command_feedback_pixel_count = 0_usize;
+    let mut command_marker_pixel_count = 0_usize;
+    let mut attack_arc_pixel_count = 0_usize;
+    let mut hit_flash_pixel_count = 0_usize;
     for scene_id in [
         "mirror_city_square",
         "mentor_training_room",
@@ -5528,6 +5535,18 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                 | CLASSIC_ISO_UNIT_ENEMY_COLOR => {
                     unit_detail_pixel_count += 1;
                     unit_silhouette_pixel_count += 1;
+                }
+                CLASSIC_ISO_COMMAND_MARKER_COLOR => {
+                    command_feedback_pixel_count += 1;
+                    command_marker_pixel_count += 1;
+                }
+                CLASSIC_ISO_ATTACK_ARC_COLOR => {
+                    command_feedback_pixel_count += 1;
+                    attack_arc_pixel_count += 1;
+                }
+                CLASSIC_ISO_HIT_FLASH_COLOR => {
+                    command_feedback_pixel_count += 1;
+                    hit_flash_pixel_count += 1;
                 }
                 _ => {}
             }
@@ -5636,6 +5655,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && unit_ring_pixel_count > 250
         && unit_health_pixel_count > 90
         && unit_silhouette_pixel_count > 500;
+    let command_feedback_gate = command_feedback_pixel_count > 500
+        && command_marker_pixel_count > 250
+        && attack_arc_pixel_count > 100
+        && hit_flash_pixel_count > 80;
     let frame_color_present = |frame_id: &str| {
         assets.frame_by_id.get(frame_id).is_some_and(|frame| {
             (frame.y..frame.y + frame.h).any(|y| {
@@ -5661,6 +5684,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && rts_model_set_gate
         && terrain_detail_gate
         && unit_detail_gate
+        && command_feedback_gate
         && sprite_anchor_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -5705,7 +5729,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             "rts_unit_selection_rings",
             "unit_health_bars",
             "player_enemy_mentor_silhouettes",
-            "unit_depth_overlays"
+            "unit_depth_overlays",
+            "rts_command_destination_marker",
+            "combat_attack_arc",
+            "combat_hit_flash"
         ],
         "depth_order": depth_order,
         "rts_model_entity_count": rts_model_entity_count,
@@ -5724,6 +5751,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "unit_ring_pixel_count": unit_ring_pixel_count,
         "unit_health_pixel_count": unit_health_pixel_count,
         "unit_silhouette_pixel_count": unit_silhouette_pixel_count,
+        "command_feedback_pixel_count": command_feedback_pixel_count,
+        "command_marker_pixel_count": command_marker_pixel_count,
+        "attack_arc_pixel_count": attack_arc_pixel_count,
+        "hit_flash_pixel_count": hit_flash_pixel_count,
         "loaded_from_manifest": assets.loaded_from_manifest,
         "atlas_parse_gate": assets.atlas_parse_gate,
         "projection_gate": projection_gate,
@@ -5734,6 +5765,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "rts_model_set_gate": rts_model_set_gate,
         "terrain_detail_gate": terrain_detail_gate,
         "unit_detail_gate": unit_detail_gate,
+        "command_feedback_gate": command_feedback_gate,
         "sprite_anchor_gate": sprite_anchor_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
@@ -7770,6 +7802,77 @@ fn classic_draw_iso_unit_overlay(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_iso_command_feedback(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    scene_id: &str,
+    origin_x: i32,
+    origin_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    player_tile: (i32, i32),
+) -> bool {
+    let destination_tile = if runtime.combat_overlay_visible || scene_id == "league_coliseum" {
+        (9, 2)
+    } else if runtime.dialogue_overlay_visible || scene_id == "mirror_city_square" {
+        (4, 3)
+    } else {
+        player_tile
+    };
+    let (dest_x, dest_y) =
+        classic_iso_project(origin_x, origin_y, tile_w, tile_h, destination_tile);
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        dest_x,
+        dest_y + tile_h - 2,
+        18,
+        7,
+        CLASSIC_ISO_COMMAND_MARKER_COLOR,
+    );
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        dest_x,
+        dest_y + tile_h - 2,
+        10,
+        4,
+        CLASSIC_ISO_FOUNDATION_COLOR,
+    );
+
+    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+        for step in 0..28 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                dest_x - 32 + step * 2,
+                dest_y - 28 + step,
+                6,
+                3,
+                CLASSIC_ISO_ATTACK_ARC_COLOR,
+            );
+        }
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            dest_x + 12,
+            dest_y - 10,
+            15,
+            9,
+            CLASSIC_ISO_HIT_FLASH_COLOR,
+        );
+    }
+    true
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_isometric_frame_at_tile(
     buffer: &mut [u32],
     width: usize,
@@ -7941,6 +8044,18 @@ fn classic_draw_isometric_scene(
                 scale,
             );
         }
+        classic_draw_iso_command_feedback(
+            buffer,
+            width,
+            height,
+            runtime,
+            scene.id.as_str(),
+            origin_x,
+            origin_y,
+            tile_w,
+            tile_h,
+            player_tile,
+        );
     } else {
         for row in 0..8 {
             for col in 0..12 {

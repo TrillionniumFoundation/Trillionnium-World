@@ -32,6 +32,9 @@ jq -e '
   and (.modeling_components | index("unit_health_bars") != null)
   and (.modeling_components | index("player_enemy_mentor_silhouettes") != null)
   and (.modeling_components | index("unit_depth_overlays") != null)
+  and (.modeling_components | index("rts_command_destination_marker") != null)
+  and (.modeling_components | index("combat_attack_arc") != null)
+  and (.modeling_components | index("combat_hit_flash") != null)
   and .projection_gate == true
   and .depth_sort_gate == true
   and .diamond_tile_gate == true
@@ -40,6 +43,7 @@ jq -e '
   and .rts_model_set_gate == true
   and .terrain_detail_gate == true
   and .unit_detail_gate == true
+  and .command_feedback_gate == true
   and .sprite_anchor_gate == true
   and .preview_width == 640
   and .preview_height == 360
@@ -61,6 +65,10 @@ jq -e '
   and .unit_ring_pixel_count > 250
   and .unit_health_pixel_count > 90
   and .unit_silhouette_pixel_count > 500
+  and .command_feedback_pixel_count > 500
+  and .command_marker_pixel_count > 250
+  and .attack_arc_pixel_count > 100
+  and .hit_flash_pixel_count > 80
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

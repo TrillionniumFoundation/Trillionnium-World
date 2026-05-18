@@ -29,10 +29,14 @@ required_script_lines=(
   'unit_health_bars'
   'player_enemy_mentor_silhouettes'
   'unit_depth_overlays'
+  'rts_command_destination_marker'
+  'combat_attack_arc'
+  'combat_hit_flash'
   'procedural_volume_gate'
   'rts_model_set_gate'
   'terrain_detail_gate'
   'unit_detail_gate'
+  'command_feedback_gate'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
 )
@@ -55,6 +59,7 @@ required_source_lines=(
   'classic_draw_iso_procedural_model'
   'classic_draw_iso_terrain_detail'
   'classic_draw_iso_unit_overlay'
+  'classic_draw_iso_command_feedback'
   'classic_scene_rts_model_entities'
   'procedural_model_pixel_count'
   'rts_building_pixel_count'
@@ -68,6 +73,10 @@ required_source_lines=(
   'unit_ring_pixel_count'
   'unit_health_pixel_count'
   'unit_silhouette_pixel_count'
+  'command_feedback_pixel_count'
+  'command_marker_pixel_count'
+  'attack_arc_pixel_count'
+  'hit_flash_pixel_count'
   'Warcraft-style 2.5D model'
 )
 
