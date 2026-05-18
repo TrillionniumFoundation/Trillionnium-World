@@ -100,6 +100,8 @@ artifact native_bevy_classic_manifest_lint "Native/Bevy classic manifest lint" "
 artifact native_bevy_classic_animation_preview "Native/Bevy classic animation preview" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-preview.json" release_review_input
 artifact native_bevy_classic_animation_preview_ppm "Native/Bevy classic animation preview PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-preview.ppm" release_review_visual_evidence
 artifact native_bevy_classic_animation_selector "Native/Bevy classic animation selector" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-selector.json" release_review_input
+artifact native_bevy_classic_player_motion_probe "Native/Bevy classic player motion probe" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.json" release_review_input
+artifact native_bevy_classic_player_motion_probe_ppm "Native/Bevy classic player motion probe PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.ppm" release_review_visual_evidence
 artifact native_bevy_classic_scene_preview "Native/Bevy classic scene preview" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json" release_review_input
 artifact native_bevy_classic_scene_preview_ppm "Native/Bevy classic scene preview PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.ppm" release_review_visual_evidence
 artifact native_bevy_classic_model_catalog "Native/Bevy classic model catalog" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" release_review_input
