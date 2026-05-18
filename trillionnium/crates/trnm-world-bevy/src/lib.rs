@@ -580,6 +580,25 @@ pub struct ClassicActorModel {
     pub label: String,
     pub default_frame_id: String,
     pub walk_frame_id: String,
+    #[serde(default)]
+    pub facing_frames: Vec<ClassicActorFacingFrame>,
+    #[serde(default)]
+    pub animation_clips: Vec<ClassicActorAnimationClip>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicActorFacingFrame {
+    pub direction: String,
+    pub idle_frame_id: String,
+    pub walk_frame_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicActorAnimationClip {
+    pub id: String,
+    pub action: String,
+    pub frame_ids: Vec<String>,
+    pub fps: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -3738,20 +3757,129 @@ fn default_classic_frame_specs() -> Vec<(&'static str, &'static str, u32, u32)> 
         ("tile_arena", "arena_tile", 0x5b3c34, 0x915548),
         ("tile_water", "water_tile", 0x2e5d74, 0x4f96b1),
         ("tile_shadow", "shadow_tile", 0x17221c, 0x29382f),
+        ("tile_wall", "wall_tile", 0x3d464a, 0x6c777c),
+        ("tile_roof", "roof_tile", 0x5a3333, 0x9d5a55),
+        ("tile_tree", "foliage_tile", 0x1e5a35, 0x65a85d),
+        ("tile_bridge", "bridge_tile", 0x755940, 0xb58759),
         (
             "actor_player_idle_south",
             "player_actor",
             0x6fcf75,
             0xd8f0a0,
         ),
+        (
+            "actor_player_idle_north",
+            "player_actor",
+            0x4aa861,
+            0xa7ddb4,
+        ),
+        ("actor_player_idle_east", "player_actor", 0x5fbd78, 0xe0f0a0),
+        ("actor_player_idle_west", "player_actor", 0x5fbd78, 0xa0e8f0),
         ("actor_player_walk_1", "player_actor", 0x56b96a, 0xf2dc73),
+        (
+            "actor_player_walk_south_1",
+            "player_actor",
+            0x56b96a,
+            0xf2dc73,
+        ),
+        (
+            "actor_player_walk_south_2",
+            "player_actor",
+            0x46a95d,
+            0xffed8f,
+        ),
+        (
+            "actor_player_walk_north_1",
+            "player_actor",
+            0x418f62,
+            0x9ed6b0,
+        ),
+        (
+            "actor_player_walk_north_2",
+            "player_actor",
+            0x367c58,
+            0x83c79d,
+        ),
+        (
+            "actor_player_walk_east_1",
+            "player_actor",
+            0x56b96a,
+            0xf2e58d,
+        ),
+        (
+            "actor_player_walk_east_2",
+            "player_actor",
+            0x46a95d,
+            0xfff0a8,
+        ),
+        (
+            "actor_player_walk_west_1",
+            "player_actor",
+            0x56b96a,
+            0x9de9f7,
+        ),
+        (
+            "actor_player_walk_west_2",
+            "player_actor",
+            0x46a95d,
+            0x7fd8e8,
+        ),
         ("actor_mentor", "npc_actor", 0xe3c46e, 0xffedb0),
+        ("actor_mentor_idle", "npc_actor", 0xd6b85f, 0xffefb5),
+        ("actor_mentor_talk", "npc_actor", 0xcaa450, 0xfff0a8),
+        ("actor_vendor_idle", "npc_actor", 0x6d9ad0, 0xa4c8ff),
         ("actor_enemy", "enemy_actor", 0xc8524d, 0xff8c73),
+        ("actor_enemy_idle", "enemy_actor", 0xb94745, 0xff8c73),
+        ("actor_enemy_attack", "enemy_actor", 0x933333, 0xff5c4d),
+        ("actor_enemy_hit", "enemy_actor", 0x7d3535, 0xffb199),
         ("prop_door", "scene_prop", 0x9d6b42, 0xd29a5a),
         ("prop_reward", "scene_prop", 0xd1a73f, 0xffd66b),
         ("prop_training_dummy", "scene_prop", 0x8a6846, 0xc49b65),
+        ("prop_signpost", "scene_prop", 0x7a5737, 0xd8b36a),
+        ("prop_arena_gate", "scene_prop", 0x6b3940, 0xe08170),
+        ("prop_workbench", "scene_prop", 0x69533d, 0xcda06e),
+        ("prop_market_stall", "scene_prop", 0x48688a, 0x9bc4e6),
+        ("prop_banner", "scene_prop", 0x8d3f4f, 0xe47b8a),
         ("marker_objective", "objective_marker", 0x68a6d8, 0x9dd5ff),
+        (
+            "marker_interaction",
+            "interaction_marker",
+            0xb7d968,
+            0xf0ff9d,
+        ),
     ]
+}
+
+fn classic_actor_facing_frame(
+    direction: &str,
+    idle_frame_id: &str,
+    walk_frame_ids: &[&str],
+) -> ClassicActorFacingFrame {
+    ClassicActorFacingFrame {
+        direction: direction.to_string(),
+        idle_frame_id: idle_frame_id.to_string(),
+        walk_frame_ids: walk_frame_ids
+            .iter()
+            .map(|frame_id| (*frame_id).to_string())
+            .collect(),
+    }
+}
+
+fn classic_actor_animation_clip(
+    id: &str,
+    action: &str,
+    frame_ids: &[&str],
+    fps: u8,
+) -> ClassicActorAnimationClip {
+    ClassicActorAnimationClip {
+        id: id.to_string(),
+        action: action.to_string(),
+        frame_ids: frame_ids
+            .iter()
+            .map(|frame_id| (*frame_id).to_string())
+            .collect(),
+        fps,
+    }
 }
 
 fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest {
@@ -3785,14 +3913,14 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                 id: "mirror_city_square".to_string(),
                 label: "Mirror City Square".to_string(),
                 tile_rows: string_vec([
-                    "gggggggggggg",
-                    "ggggrrrrgggg",
+                    "ttggggggggtt",
+                    "tgggrrrrgggt",
                     "gggrrrrrgggg",
                     "ggrrgggrrggg",
                     "ggrrgggrrggg",
                     "gggrrrrrgggg",
-                    "gggggrgggggg",
-                    "gggggggggggg",
+                    "tggggrgggggt",
+                    "ttggggggggtt",
                 ]),
                 tile_palette: vec![
                     ClassicTilePaletteEntry {
@@ -3803,13 +3931,29 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                         key: 'r',
                         frame_id: "tile_road".to_string(),
                     },
+                    ClassicTilePaletteEntry {
+                        key: 't',
+                        frame_id: "tile_tree".to_string(),
+                    },
                 ],
                 landmarks: vec![
                     ClassicSceneLandmark {
                         id: "mentor".to_string(),
-                        frame_id: "actor_mentor".to_string(),
+                        frame_id: "actor_mentor_idle".to_string(),
                         tile_x: 4,
                         tile_y: 3,
+                    },
+                    ClassicSceneLandmark {
+                        id: "market_stall".to_string(),
+                        frame_id: "prop_market_stall".to_string(),
+                        tile_x: 2,
+                        tile_y: 5,
+                    },
+                    ClassicSceneLandmark {
+                        id: "signpost".to_string(),
+                        frame_id: "prop_signpost".to_string(),
+                        tile_x: 7,
+                        tile_y: 6,
                     },
                     ClassicSceneLandmark {
                         id: "objective_gate".to_string(),
@@ -3823,19 +3967,19 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                 id: "mentor_training_room".to_string(),
                 label: "Mentor Training Room".to_string(),
                 tile_rows: string_vec([
-                    "ssssssssssss",
-                    "sffffffffffs",
-                    "sffffffffffs",
-                    "sffffddffffs",
-                    "sffffddffffs",
-                    "sffffffffffs",
-                    "sffffffffffs",
-                    "ssssssssssss",
+                    "wwwwwwwwwwww",
+                    "wffffffffffw",
+                    "wffffffffffw",
+                    "wffffddffffw",
+                    "wffffddffffw",
+                    "wffffffffffw",
+                    "wffffffffffw",
+                    "wwwwwwwwwwww",
                 ]),
                 tile_palette: vec![
                     ClassicTilePaletteEntry {
-                        key: 's',
-                        frame_id: "tile_stone".to_string(),
+                        key: 'w',
+                        frame_id: "tile_wall".to_string(),
                     },
                     ClassicTilePaletteEntry {
                         key: 'f',
@@ -3854,6 +3998,12 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                         tile_y: 3,
                     },
                     ClassicSceneLandmark {
+                        id: "mentor_workbench".to_string(),
+                        frame_id: "prop_workbench".to_string(),
+                        tile_x: 3,
+                        tile_y: 5,
+                    },
+                    ClassicSceneLandmark {
                         id: "exit_door".to_string(),
                         frame_id: "prop_door".to_string(),
                         tile_x: 6,
@@ -3865,7 +4015,7 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                 id: "league_coliseum".to_string(),
                 label: "League Coliseum".to_string(),
                 tile_rows: string_vec([
-                    "aaaaaaaaaaaa",
+                    "bbbbbbbbbbbb",
                     "aarrrrrrrraa",
                     "aarraaaarrra",
                     "aarrwaaarrra",
@@ -3887,19 +4037,35 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                         key: 'w',
                         frame_id: "tile_water".to_string(),
                     },
+                    ClassicTilePaletteEntry {
+                        key: 'b',
+                        frame_id: "tile_roof".to_string(),
+                    },
                 ],
                 landmarks: vec![
                     ClassicSceneLandmark {
                         id: "enemy".to_string(),
-                        frame_id: "actor_enemy".to_string(),
+                        frame_id: "actor_enemy_idle".to_string(),
                         tile_x: 9,
                         tile_y: 2,
+                    },
+                    ClassicSceneLandmark {
+                        id: "arena_gate".to_string(),
+                        frame_id: "prop_arena_gate".to_string(),
+                        tile_x: 2,
+                        tile_y: 1,
                     },
                     ClassicSceneLandmark {
                         id: "reward".to_string(),
                         frame_id: "prop_reward".to_string(),
                         tile_x: 8,
                         tile_y: 5,
+                    },
+                    ClassicSceneLandmark {
+                        id: "league_banner".to_string(),
+                        frame_id: "prop_banner".to_string(),
+                        tile_x: 10,
+                        tile_y: 4,
                     },
                 ],
             },
@@ -3910,18 +4076,85 @@ fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest 
                 label: "Player".to_string(),
                 default_frame_id: "actor_player_idle_south".to_string(),
                 walk_frame_id: "actor_player_walk_1".to_string(),
+                facing_frames: vec![
+                    classic_actor_facing_frame(
+                        "south",
+                        "actor_player_idle_south",
+                        &["actor_player_walk_south_1", "actor_player_walk_south_2"],
+                    ),
+                    classic_actor_facing_frame(
+                        "north",
+                        "actor_player_idle_north",
+                        &["actor_player_walk_north_1", "actor_player_walk_north_2"],
+                    ),
+                    classic_actor_facing_frame(
+                        "east",
+                        "actor_player_idle_east",
+                        &["actor_player_walk_east_1", "actor_player_walk_east_2"],
+                    ),
+                    classic_actor_facing_frame(
+                        "west",
+                        "actor_player_idle_west",
+                        &["actor_player_walk_west_1", "actor_player_walk_west_2"],
+                    ),
+                ],
+                animation_clips: vec![classic_actor_animation_clip(
+                    "player_cardinal_walk_cycle",
+                    "walk",
+                    &[
+                        "actor_player_walk_south_1",
+                        "actor_player_walk_south_2",
+                        "actor_player_walk_north_1",
+                        "actor_player_walk_north_2",
+                        "actor_player_walk_east_1",
+                        "actor_player_walk_east_2",
+                        "actor_player_walk_west_1",
+                        "actor_player_walk_west_2",
+                    ],
+                    8,
+                )],
             },
             ClassicActorModel {
                 id: "mentor".to_string(),
                 label: "Street Compass Sifu".to_string(),
-                default_frame_id: "actor_mentor".to_string(),
+                default_frame_id: "actor_mentor_idle".to_string(),
                 walk_frame_id: "actor_mentor".to_string(),
+                facing_frames: vec![classic_actor_facing_frame(
+                    "south",
+                    "actor_mentor_idle",
+                    &["actor_mentor", "actor_mentor_talk"],
+                )],
+                animation_clips: vec![classic_actor_animation_clip(
+                    "mentor_talk_cycle",
+                    "talk",
+                    &["actor_mentor_idle", "actor_mentor_talk"],
+                    4,
+                )],
             },
             ClassicActorModel {
                 id: "enemy".to_string(),
                 label: "Arena Duelist".to_string(),
-                default_frame_id: "actor_enemy".to_string(),
+                default_frame_id: "actor_enemy_idle".to_string(),
                 walk_frame_id: "actor_enemy".to_string(),
+                facing_frames: vec![classic_actor_facing_frame(
+                    "south",
+                    "actor_enemy_idle",
+                    &["actor_enemy", "actor_enemy_attack"],
+                )],
+                animation_clips: vec![
+                    classic_actor_animation_clip(
+                        "enemy_attack_cycle",
+                        "attack",
+                        &["actor_enemy_idle", "actor_enemy_attack", "actor_enemy_hit"],
+                        6,
+                    ),
+                    classic_actor_animation_clip(
+                        "enemy_hit_recover",
+                        "hit",
+                        &["actor_enemy_hit", "actor_enemy_idle"],
+                        5,
+                    ),
+                ],
             },
         ],
         asset_boundary:
@@ -3968,11 +4201,14 @@ fn write_classic_asset_atlas_ppm(
     );
     for y in 0..manifest.atlas_height {
         for x in 0..manifest.atlas_width {
+            if x > 0 {
+                text.push(' ');
+            }
             let frame = manifest.frames.iter().find(|frame| {
                 x >= frame.x && x < frame.x + frame.w && y >= frame.y && y < frame.y + frame.h
             });
             let Some(frame) = frame else {
-                text.push_str("0 0 0 ");
+                text.push_str("0 0 0");
                 continue;
             };
             let local_x = x - frame.x;
@@ -3993,7 +4229,7 @@ fn write_classic_asset_atlas_ppm(
                 base
             };
             let (r, g, b) = rgb_from_u32(color);
-            text.push_str(&format!("{r} {g} {b} "));
+            text.push_str(&format!("{r} {g} {b}"));
         }
         text.push('\n');
     }
@@ -4024,21 +4260,42 @@ pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: 
     let scene_tile_gate = assets.manifest.scenes.iter().all(|scene| {
         scene.tile_rows.len() == 8 && scene.tile_rows.iter().all(|row| row.len() == 12)
     });
+    let has_frame = |frame_id: &str| assets.frame_by_id.contains_key(frame_id);
     let required_frames = [
         "tile_grass_a",
         "tile_road",
         "tile_floor",
         "tile_arena",
+        "tile_tree",
+        "tile_wall",
         "actor_player_idle_south",
+        "actor_player_idle_north",
+        "actor_player_idle_east",
+        "actor_player_idle_west",
+        "actor_player_walk_south_1",
+        "actor_player_walk_south_2",
+        "actor_player_walk_north_1",
+        "actor_player_walk_north_2",
+        "actor_player_walk_east_1",
+        "actor_player_walk_east_2",
+        "actor_player_walk_west_1",
+        "actor_player_walk_west_2",
         "actor_player_walk_1",
         "actor_mentor",
+        "actor_mentor_idle",
+        "actor_mentor_talk",
         "actor_enemy",
+        "actor_enemy_idle",
+        "actor_enemy_attack",
+        "actor_enemy_hit",
         "prop_training_dummy",
+        "prop_workbench",
+        "prop_signpost",
+        "prop_arena_gate",
         "prop_reward",
+        "marker_interaction",
     ];
-    let frame_gate = required_frames
-        .iter()
-        .all(|frame_id| assets.frame_by_id.contains_key(*frame_id));
+    let frame_gate = required_frames.iter().all(|frame_id| has_frame(frame_id));
     let scene_gate = [
         "mirror_city_square",
         "mentor_training_room",
@@ -4049,16 +4306,77 @@ pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: 
     let actor_gate = ["player", "mentor", "enemy"]
         .iter()
         .all(|actor_id| assets.actor_by_id.contains_key(*actor_id));
+    let scene_landmark_gate = assets.manifest.scenes.iter().all(|scene| {
+        scene.landmarks.len() >= 2
+            && scene
+                .landmarks
+                .iter()
+                .all(|landmark| has_frame(&landmark.frame_id))
+    });
+    let clip_frame_gate = |clip: &ClassicActorAnimationClip| {
+        clip.frame_ids.len() >= 2 && clip.frame_ids.iter().all(|frame_id| has_frame(frame_id))
+    };
+    let directional_player_frame_gate = assets
+        .actor_by_id
+        .get("player")
+        .map(|actor| {
+            ["south", "north", "east", "west"].iter().all(|direction| {
+                actor.facing_frames.iter().any(|facing| {
+                    facing.direction == *direction
+                        && has_frame(&facing.idle_frame_id)
+                        && facing.walk_frame_ids.len() >= 2
+                        && facing
+                            .walk_frame_ids
+                            .iter()
+                            .all(|frame_id| has_frame(frame_id))
+                })
+            })
+        })
+        .unwrap_or(false);
+    let player_walk_clip_gate = assets
+        .actor_by_id
+        .get("player")
+        .map(|actor| {
+            actor.animation_clips.iter().any(|clip| {
+                clip.action == "walk" && clip.frame_ids.len() >= 8 && clip_frame_gate(clip)
+            })
+        })
+        .unwrap_or(false);
+    let mentor_talk_clip_gate = assets
+        .actor_by_id
+        .get("mentor")
+        .map(|actor| {
+            actor
+                .animation_clips
+                .iter()
+                .any(|clip| clip.action == "talk" && clip_frame_gate(clip))
+        })
+        .unwrap_or(false);
+    let enemy_attack_clip_gate = assets
+        .actor_by_id
+        .get("enemy")
+        .map(|actor| {
+            actor
+                .animation_clips
+                .iter()
+                .any(|clip| clip.action == "attack" && clip_frame_gate(clip))
+        })
+        .unwrap_or(false);
+    let animation_clip_gate =
+        player_walk_clip_gate && mentor_talk_clip_gate && enemy_attack_clip_gate;
     let green = write_gate
         && assets.loaded_from_manifest
         && assets.atlas_parse_gate
-        && frame_count >= 16
+        && frame_count >= 32
         && scene_count >= 3
         && actor_count >= 3
         && scene_tile_gate
+        && scene_landmark_gate
         && frame_gate
         && scene_gate
         && actor_gate
+        && directional_player_frame_gate
+        && animation_clip_gate
         && assets.manifest.x230_low_spec_renderer_target
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -4083,6 +4401,12 @@ pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: 
         "scene_gate": scene_gate,
         "actor_gate": actor_gate,
         "scene_tile_gate": scene_tile_gate,
+        "scene_landmark_gate": scene_landmark_gate,
+        "directional_player_frame_gate": directional_player_frame_gate,
+        "animation_clip_gate": animation_clip_gate,
+        "player_walk_clip_gate": player_walk_clip_gate,
+        "mentor_talk_clip_gate": mentor_talk_clip_gate,
+        "enemy_attack_clip_gate": enemy_attack_clip_gate,
         "x230_low_spec_renderer_target": assets.manifest.x230_low_spec_renderer_target,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
@@ -4409,6 +4733,47 @@ fn classic_direction_delta(direction: &str) -> (i32, i32) {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_cardinal_actor_direction(direction: &str) -> &'static str {
+    match direction {
+        "north" => "north",
+        "south" => "south",
+        "east" | "north-east" | "south-east" => "east",
+        "west" | "north-west" | "south-west" => "west",
+        other if other.contains("east") => "east",
+        other if other.contains("west") => "west",
+        other if other.contains("north") => "north",
+        _ => "south",
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_player_frame_id(
+    assets: &ClassicRuntimeAssets,
+    runtime: &NativeFirstPlayableRuntime,
+) -> String {
+    let Some(actor) = assets.actor_by_id.get("player") else {
+        return "actor_player_idle_south".to_string();
+    };
+    let direction = classic_cardinal_actor_direction(&runtime.facing_direction);
+    if let Some(facing) = actor
+        .facing_frames
+        .iter()
+        .find(|facing| facing.direction == direction)
+    {
+        if runtime.walk_cycle_frame > 0 && !facing.walk_frame_ids.is_empty() {
+            let frame_index = (runtime.walk_cycle_frame as usize - 1) % facing.walk_frame_ids.len();
+            return facing.walk_frame_ids[frame_index].clone();
+        }
+        return facing.idle_frame_id.clone();
+    }
+    if runtime.walk_cycle_frame.is_multiple_of(2) {
+        actor.default_frame_id.clone()
+    } else {
+        actor.walk_frame_id.clone()
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_scene(
     buffer: &mut [u32],
     width: usize,
@@ -4535,23 +4900,13 @@ fn classic_draw_scene(
             scale,
         );
     }
-    let player_frame = assets
-        .actor_by_id
-        .get("player")
-        .map(|actor| {
-            if runtime.walk_cycle_frame.is_multiple_of(2) {
-                actor.default_frame_id.as_str()
-            } else {
-                actor.walk_frame_id.as_str()
-            }
-        })
-        .unwrap_or("actor_player_idle_south");
+    let player_frame = classic_player_frame_id(assets, runtime);
     classic_draw_frame_at_tile(
         buffer,
         width,
         height,
         assets,
-        player_frame,
+        &player_frame,
         origin_x,
         origin_y,
         tile,

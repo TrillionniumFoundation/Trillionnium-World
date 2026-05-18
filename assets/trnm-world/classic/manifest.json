@@ -3,7 +3,7 @@
   "atlas_path": "atlas.ppm",
   "atlas_format": "ppm_p3_rgb",
   "atlas_width": 128,
-  "atlas_height": 32,
+  "atlas_height": 96,
   "source_tile_size_px": 16,
   "render_tile_size_px": 32,
   "frames": [
@@ -72,9 +72,65 @@
       "h": 16
     },
     {
+      "id": "tile_wall",
+      "role": "wall_tile",
+      "x": 0,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_roof",
+      "role": "roof_tile",
+      "x": 16,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_tree",
+      "role": "foliage_tile",
+      "x": 32,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_bridge",
+      "role": "bridge_tile",
+      "x": 48,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
       "id": "actor_player_idle_south",
       "role": "player_actor",
-      "x": 0,
+      "x": 64,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_idle_north",
+      "role": "player_actor",
+      "x": 80,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_idle_east",
+      "role": "player_actor",
+      "x": 96,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_idle_west",
+      "role": "player_actor",
+      "x": 112,
       "y": 16,
       "w": 16,
       "h": 16
@@ -82,56 +138,216 @@
     {
       "id": "actor_player_walk_1",
       "role": "player_actor",
+      "x": 0,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_south_1",
+      "role": "player_actor",
       "x": 16,
-      "y": 16,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_south_2",
+      "role": "player_actor",
+      "x": 32,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_north_1",
+      "role": "player_actor",
+      "x": 48,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_north_2",
+      "role": "player_actor",
+      "x": 64,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_east_1",
+      "role": "player_actor",
+      "x": 80,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_east_2",
+      "role": "player_actor",
+      "x": 96,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_west_1",
+      "role": "player_actor",
+      "x": 112,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_west_2",
+      "role": "player_actor",
+      "x": 0,
+      "y": 48,
       "w": 16,
       "h": 16
     },
     {
       "id": "actor_mentor",
       "role": "npc_actor",
+      "x": 16,
+      "y": 48,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_mentor_idle",
+      "role": "npc_actor",
       "x": 32,
-      "y": 16,
+      "y": 48,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_mentor_talk",
+      "role": "npc_actor",
+      "x": 48,
+      "y": 48,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_vendor_idle",
+      "role": "npc_actor",
+      "x": 64,
+      "y": 48,
       "w": 16,
       "h": 16
     },
     {
       "id": "actor_enemy",
       "role": "enemy_actor",
-      "x": 48,
-      "y": 16,
+      "x": 80,
+      "y": 48,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_enemy_idle",
+      "role": "enemy_actor",
+      "x": 96,
+      "y": 48,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_enemy_attack",
+      "role": "enemy_actor",
+      "x": 112,
+      "y": 48,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_enemy_hit",
+      "role": "enemy_actor",
+      "x": 0,
+      "y": 64,
       "w": 16,
       "h": 16
     },
     {
       "id": "prop_door",
       "role": "scene_prop",
-      "x": 64,
-      "y": 16,
+      "x": 16,
+      "y": 64,
       "w": 16,
       "h": 16
     },
     {
       "id": "prop_reward",
       "role": "scene_prop",
-      "x": 80,
-      "y": 16,
+      "x": 32,
+      "y": 64,
       "w": 16,
       "h": 16
     },
     {
       "id": "prop_training_dummy",
       "role": "scene_prop",
+      "x": 48,
+      "y": 64,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_signpost",
+      "role": "scene_prop",
+      "x": 64,
+      "y": 64,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_arena_gate",
+      "role": "scene_prop",
+      "x": 80,
+      "y": 64,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_workbench",
+      "role": "scene_prop",
       "x": 96,
-      "y": 16,
+      "y": 64,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_market_stall",
+      "role": "scene_prop",
+      "x": 112,
+      "y": 64,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_banner",
+      "role": "scene_prop",
+      "x": 0,
+      "y": 80,
       "w": 16,
       "h": 16
     },
     {
       "id": "marker_objective",
       "role": "objective_marker",
-      "x": 112,
-      "y": 16,
+      "x": 16,
+      "y": 80,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "marker_interaction",
+      "role": "interaction_marker",
+      "x": 32,
+      "y": 80,
       "w": 16,
       "h": 16
     }
@@ -141,14 +357,14 @@
       "id": "mirror_city_square",
       "label": "Mirror City Square",
       "tile_rows": [
-        "gggggggggggg",
-        "ggggrrrrgggg",
+        "ttggggggggtt",
+        "tgggrrrrgggt",
         "gggrrrrrgggg",
         "ggrrgggrrggg",
         "ggrrgggrrggg",
         "gggrrrrrgggg",
-        "gggggrgggggg",
-        "gggggggggggg"
+        "tggggrgggggt",
+        "ttggggggggtt"
       ],
       "tile_palette": [
         {
@@ -158,14 +374,30 @@
         {
           "key": "r",
           "frame_id": "tile_road"
+        },
+        {
+          "key": "t",
+          "frame_id": "tile_tree"
         }
       ],
       "landmarks": [
         {
           "id": "mentor",
-          "frame_id": "actor_mentor",
+          "frame_id": "actor_mentor_idle",
           "tile_x": 4,
           "tile_y": 3
+        },
+        {
+          "id": "market_stall",
+          "frame_id": "prop_market_stall",
+          "tile_x": 2,
+          "tile_y": 5
+        },
+        {
+          "id": "signpost",
+          "frame_id": "prop_signpost",
+          "tile_x": 7,
+          "tile_y": 6
         },
         {
           "id": "objective_gate",
@@ -179,19 +411,19 @@
       "id": "mentor_training_room",
       "label": "Mentor Training Room",
       "tile_rows": [
-        "ssssssssssss",
-        "sffffffffffs",
-        "sffffffffffs",
-        "sffffddffffs",
-        "sffffddffffs",
-        "sffffffffffs",
-        "sffffffffffs",
-        "ssssssssssss"
+        "wwwwwwwwwwww",
+        "wffffffffffw",
+        "wffffffffffw",
+        "wffffddffffw",
+        "wffffddffffw",
+        "wffffffffffw",
+        "wffffffffffw",
+        "wwwwwwwwwwww"
       ],
       "tile_palette": [
         {
-          "key": "s",
-          "frame_id": "tile_stone"
+          "key": "w",
+          "frame_id": "tile_wall"
         },
         {
           "key": "f",
@@ -210,6 +442,12 @@
           "tile_y": 3
         },
         {
+          "id": "mentor_workbench",
+          "frame_id": "prop_workbench",
+          "tile_x": 3,
+          "tile_y": 5
+        },
+        {
           "id": "exit_door",
           "frame_id": "prop_door",
           "tile_x": 6,
@@ -221,7 +459,7 @@
       "id": "league_coliseum",
       "label": "League Coliseum",
       "tile_rows": [
-        "aaaaaaaaaaaa",
+        "bbbbbbbbbbbb",
         "aarrrrrrrraa",
         "aarraaaarrra",
         "aarrwaaarrra",
@@ -242,20 +480,36 @@
         {
           "key": "w",
           "frame_id": "tile_water"
+        },
+        {
+          "key": "b",
+          "frame_id": "tile_roof"
         }
       ],
       "landmarks": [
         {
           "id": "enemy",
-          "frame_id": "actor_enemy",
+          "frame_id": "actor_enemy_idle",
           "tile_x": 9,
           "tile_y": 2
+        },
+        {
+          "id": "arena_gate",
+          "frame_id": "prop_arena_gate",
+          "tile_x": 2,
+          "tile_y": 1
         },
         {
           "id": "reward",
           "frame_id": "prop_reward",
           "tile_x": 8,
           "tile_y": 5
+        },
+        {
+          "id": "league_banner",
+          "frame_id": "prop_banner",
+          "tile_x": 10,
+          "tile_y": 4
         }
       ]
     }
@@ -265,19 +519,122 @@
       "id": "player",
       "label": "Player",
       "default_frame_id": "actor_player_idle_south",
-      "walk_frame_id": "actor_player_walk_1"
+      "walk_frame_id": "actor_player_walk_1",
+      "facing_frames": [
+        {
+          "direction": "south",
+          "idle_frame_id": "actor_player_idle_south",
+          "walk_frame_ids": [
+            "actor_player_walk_south_1",
+            "actor_player_walk_south_2"
+          ]
+        },
+        {
+          "direction": "north",
+          "idle_frame_id": "actor_player_idle_north",
+          "walk_frame_ids": [
+            "actor_player_walk_north_1",
+            "actor_player_walk_north_2"
+          ]
+        },
+        {
+          "direction": "east",
+          "idle_frame_id": "actor_player_idle_east",
+          "walk_frame_ids": [
+            "actor_player_walk_east_1",
+            "actor_player_walk_east_2"
+          ]
+        },
+        {
+          "direction": "west",
+          "idle_frame_id": "actor_player_idle_west",
+          "walk_frame_ids": [
+            "actor_player_walk_west_1",
+            "actor_player_walk_west_2"
+          ]
+        }
+      ],
+      "animation_clips": [
+        {
+          "id": "player_cardinal_walk_cycle",
+          "action": "walk",
+          "frame_ids": [
+            "actor_player_walk_south_1",
+            "actor_player_walk_south_2",
+            "actor_player_walk_north_1",
+            "actor_player_walk_north_2",
+            "actor_player_walk_east_1",
+            "actor_player_walk_east_2",
+            "actor_player_walk_west_1",
+            "actor_player_walk_west_2"
+          ],
+          "fps": 8
+        }
+      ]
     },
     {
       "id": "mentor",
       "label": "Street Compass Sifu",
-      "default_frame_id": "actor_mentor",
-      "walk_frame_id": "actor_mentor"
+      "default_frame_id": "actor_mentor_idle",
+      "walk_frame_id": "actor_mentor",
+      "facing_frames": [
+        {
+          "direction": "south",
+          "idle_frame_id": "actor_mentor_idle",
+          "walk_frame_ids": [
+            "actor_mentor",
+            "actor_mentor_talk"
+          ]
+        }
+      ],
+      "animation_clips": [
+        {
+          "id": "mentor_talk_cycle",
+          "action": "talk",
+          "frame_ids": [
+            "actor_mentor_idle",
+            "actor_mentor_talk"
+          ],
+          "fps": 4
+        }
+      ]
     },
     {
       "id": "enemy",
       "label": "Arena Duelist",
-      "default_frame_id": "actor_enemy",
-      "walk_frame_id": "actor_enemy"
+      "default_frame_id": "actor_enemy_idle",
+      "walk_frame_id": "actor_enemy",
+      "facing_frames": [
+        {
+          "direction": "south",
+          "idle_frame_id": "actor_enemy_idle",
+          "walk_frame_ids": [
+            "actor_enemy",
+            "actor_enemy_attack"
+          ]
+        }
+      ],
+      "animation_clips": [
+        {
+          "id": "enemy_attack_cycle",
+          "action": "attack",
+          "frame_ids": [
+            "actor_enemy_idle",
+            "actor_enemy_attack",
+            "actor_enemy_hit"
+          ],
+          "fps": 6
+        },
+        {
+          "id": "enemy_hit_recover",
+          "action": "hit",
+          "frame_ids": [
+            "actor_enemy_hit",
+            "actor_enemy_idle"
+          ],
+          "fps": 5
+        }
+      ]
     }
   ],
   "asset_boundary": "project_owned_manifest_ppm_atlas_for_classic_low_spec_renderer_not_cex_runtime",
