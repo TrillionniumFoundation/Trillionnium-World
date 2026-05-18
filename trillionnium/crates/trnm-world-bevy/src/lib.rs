@@ -126,6 +126,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_AUTHORED_RENDER_FRAME_CONTRACT: &str =
     "trillionnium_world_bevy_authored_render_frame_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT: &str =
     "trillionnium_world_bevy_classic_asset_pack_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_SCENE_PREVIEW_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_scene_preview_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
@@ -4754,6 +4756,167 @@ pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: 
         "source_of_truth": "Classic renderer reads project-owned manifest plus PPM atlas and keeps Rust world/input authority in trnm-world-bevy."
     }))
     .expect("classic asset pack evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+fn write_classic_rgb_buffer_ppm(
+    path: &str,
+    width: usize,
+    height: usize,
+    pixels: &[u32],
+) -> Result<u64, String> {
+    if pixels.len() != width * height {
+        return Err("classic preview pixel buffer size mismatch".to_string());
+    }
+    if let Some(parent) = Path::new(path).parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    let mut ppm = format!("P3\n{width} {height}\n255\n");
+    for y in 0..height {
+        for x in 0..width {
+            if x > 0 {
+                ppm.push(' ');
+            }
+            let (r, g, b) = rgb_from_u32(pixels[y * width + x]);
+            ppm.push_str(&format!("{r} {g} {b}"));
+        }
+        ppm.push('\n');
+    }
+    fs::write(path, ppm.as_bytes()).map_err(|err| err.to_string())?;
+    fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .map_err(|err| err.to_string())
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_preview_runtime(
+    direction: &str,
+    walk_cycle_frame: u8,
+    map_scene: &str,
+) -> NativeFirstPlayableRuntime {
+    let mut runtime = NativeFirstPlayableRuntime::default();
+    runtime.facing_direction = direction.to_string();
+    runtime.walk_cycle_frame = walk_cycle_frame;
+    runtime.map_scene = map_scene.to_string();
+    runtime.indoor_tilemap_visible = map_scene.contains("training");
+    runtime.combat_overlay_visible = map_scene.contains("arena");
+    runtime.combat_overlay_was_visible = runtime.combat_overlay_visible;
+    runtime
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const SHEET_COLUMNS: usize = 2;
+    const SHEET_ROWS: usize = 2;
+    let sheet_width = PANEL_WIDTH * SHEET_COLUMNS;
+    let sheet_height = PANEL_HEIGHT * SHEET_ROWS;
+    let assets = load_classic_runtime_assets();
+    let panels = [
+        (
+            "south_idle_square",
+            classic_preview_runtime("south", 0, "mirror_city_square"),
+            (5_i32, 4_i32),
+        ),
+        (
+            "north_walk_training",
+            classic_preview_runtime("north", 1, "mentor_training_room"),
+            (5_i32, 4_i32),
+        ),
+        (
+            "east_walk_arena",
+            classic_preview_runtime("east", 1, "league_arena"),
+            (4_i32, 5_i32),
+        ),
+        (
+            "west_walk_square",
+            classic_preview_runtime("west", 2, "mirror_city_square"),
+            (7_i32, 4_i32),
+        ),
+    ];
+    let mut sheet_pixels = vec![0x0b0d0c_u32; sheet_width * sheet_height];
+    let mut panel_summaries = Vec::new();
+    let mut directional_frame_ids = HashSet::new();
+    for (index, (id, runtime, player_tile)) in panels.iter().enumerate() {
+        let mut panel = vec![0_u32; PANEL_WIDTH * PANEL_HEIGHT];
+        classic_draw_scene(
+            &mut panel,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            runtime,
+            &assets,
+        );
+        let offset_x = (index % SHEET_COLUMNS) * PANEL_WIDTH;
+        let offset_y = (index / SHEET_COLUMNS) * PANEL_HEIGHT;
+        for y in 0..PANEL_HEIGHT {
+            let source_start = y * PANEL_WIDTH;
+            let target_start = (offset_y + y) * sheet_width + offset_x;
+            sheet_pixels[target_start..target_start + PANEL_WIDTH]
+                .copy_from_slice(&panel[source_start..source_start + PANEL_WIDTH]);
+        }
+        let panel_unique_colors = panel.iter().copied().collect::<HashSet<_>>().len();
+        let panel_non_background_pixels =
+            panel.iter().filter(|color| **color != 0x101411_u32).count();
+        let player_frame_id = classic_player_frame_id(&assets, runtime);
+        directional_frame_ids.insert(player_frame_id.clone());
+        panel_summaries.push(json!({
+            "id": id,
+            "direction": runtime.facing_direction,
+            "walk_cycle_frame": runtime.walk_cycle_frame,
+            "scene_id": classic_scene_id(runtime),
+            "player_frame_id": player_frame_id,
+            "unique_color_count": panel_unique_colors,
+            "non_background_pixels": panel_non_background_pixels,
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, sheet_width, sheet_height, &sheet_pixels)
+            .is_ok();
+    let preview_bytes = fs::metadata(preview_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or_default();
+    let unique_color_count = sheet_pixels.iter().copied().collect::<HashSet<_>>().len();
+    let non_background_pixels = sheet_pixels
+        .iter()
+        .filter(|color| **color != 0x101411_u32 && **color != 0x0b0d0c_u32)
+        .count();
+    let preview_nonblank_gate = unique_color_count >= 24 && non_background_pixels > 80_000;
+    let direction_frame_gate = directional_frame_ids.len() == 4;
+    let renderer_manifest_gate = assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && assets.manifest.frames.len() >= 43;
+    let green = write_gate
+        && preview_bytes > 100_000
+        && preview_nonblank_gate
+        && direction_frame_gate
+        && renderer_manifest_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_SCENE_PREVIEW_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": sheet_width,
+        "preview_height": sheet_height,
+        "preview_bytes": preview_bytes,
+        "unique_color_count": unique_color_count,
+        "non_background_pixels": non_background_pixels,
+        "preview_nonblank_gate": preview_nonblank_gate,
+        "direction_frame_gate": direction_frame_gate,
+        "renderer_manifest_gate": renderer_manifest_gate,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "frame_count": assets.manifest.frames.len(),
+        "panel_count": panels.len(),
+        "panel_summaries": panel_summaries,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "The classic low-spec renderer draws deterministic scene preview panels through the same manifest, atlas, transparency, and directional player frame selection path used by the native playtest window."
+    }))
+    .expect("classic scene preview evidence serializes")
 }
 
 fn load_classic_runtime_assets() -> ClassicRuntimeAssets {
