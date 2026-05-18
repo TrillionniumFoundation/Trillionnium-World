@@ -31,6 +31,12 @@ required_script_lines=(
   'model_unique_color_total >= 45'
   'model_shadow_pixel_count > 300'
   'model_highlight_pixel_count > 120'
+  'unit_detail_gate == true'
+  'player_unit_detail_asset_count >= 13'
+  'enemy_unit_detail_asset_count >= 4'
+  'unit_unique_color_total >= 100'
+  'unit_shadow_pixel_count > 130'
+  'unit_highlight_pixel_count > 100'
   'replacement_boundary_gate == true'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
@@ -73,6 +79,10 @@ required_source_lines=(
   'model_detail_gate'
   'classic_art_pack_highlight_color'
   'model_detail_asset_gate'
+  'unit_detail_gate'
+  'unit_detail_asset_gate'
+  'player_unit_detail_asset_count'
+  'enemy_unit_detail_asset_count'
   'first real 2.5D override sprites'
 )
 

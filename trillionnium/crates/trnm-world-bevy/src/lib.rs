@@ -5584,6 +5584,11 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     let mut model_unique_color_total = 0_usize;
     let mut model_shadow_pixel_count = 0_usize;
     let mut model_highlight_pixel_count = 0_usize;
+    let mut player_unit_detail_asset_count = 0_usize;
+    let mut enemy_unit_detail_asset_count = 0_usize;
+    let mut unit_unique_color_total = 0_usize;
+    let mut unit_shadow_pixel_count = 0_usize;
+    let mut unit_highlight_pixel_count = 0_usize;
     for (frame_id, width, height, group) in &specs {
         let pixels = classic_art_pack_pixels(frame_id, *width, *height);
         let visible_pixel_count = pixels.iter().filter(|color| **color != 0x000000).count();
@@ -5614,6 +5619,23 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 model_detail_asset_count += 1;
             }
         }
+        let unit_detail_asset_gate = (frame_id.starts_with("actor_player")
+            || frame_id.starts_with("actor_enemy"))
+            && unique_color_count >= 6
+            && shadow_pixel_count > 4
+            && highlight_pixel_count > 2
+            && visible_pixel_count > 74;
+        if frame_id.starts_with("actor_player") || frame_id.starts_with("actor_enemy") {
+            unit_unique_color_total += unique_color_count;
+            unit_shadow_pixel_count += shadow_pixel_count;
+            unit_highlight_pixel_count += highlight_pixel_count;
+        }
+        if frame_id.starts_with("actor_player") && unit_detail_asset_gate {
+            player_unit_detail_asset_count += 1;
+        }
+        if frame_id.starts_with("actor_enemy") && unit_detail_asset_gate {
+            enemy_unit_detail_asset_count += 1;
+        }
         let path = override_dir_path.join(format!("{frame_id}.ppm"));
         let path_string = path.to_string_lossy().to_string();
         if write_classic_rgb_buffer_ppm(&path_string, *width as usize, *height as usize, &pixels)
@@ -5630,6 +5652,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 "shadow_pixel_count": shadow_pixel_count,
                 "highlight_pixel_count": highlight_pixel_count,
                 "model_detail_asset_gate": model_detail_asset_gate,
+                "unit_detail_asset_gate": unit_detail_asset_gate,
             }));
         } else {
             write_failures.push(path_string);
@@ -5690,6 +5713,11 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && model_unique_color_total >= 45
         && model_shadow_pixel_count > 300
         && model_highlight_pixel_count > 120;
+    let unit_detail_gate = player_unit_detail_asset_count >= 13
+        && enemy_unit_detail_asset_count >= 4
+        && unit_unique_color_total >= 100
+        && unit_shadow_pixel_count > 130
+        && unit_highlight_pixel_count > 100;
     let green = create_dir_gate
         && write_failures.is_empty()
         && preview_write_gate
@@ -5700,6 +5728,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && player_art_gate
         && enemy_art_gate
         && model_detail_gate
+        && unit_detail_gate
         && replacement_boundary_gate;
     let override_frame_ids = assets
         .frame_override_pixels
@@ -5728,6 +5757,12 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "model_unique_color_total": model_unique_color_total,
         "model_shadow_pixel_count": model_shadow_pixel_count,
         "model_highlight_pixel_count": model_highlight_pixel_count,
+        "unit_detail_gate": unit_detail_gate,
+        "player_unit_detail_asset_count": player_unit_detail_asset_count,
+        "enemy_unit_detail_asset_count": enemy_unit_detail_asset_count,
+        "unit_unique_color_total": unit_unique_color_total,
+        "unit_shadow_pixel_count": unit_shadow_pixel_count,
+        "unit_highlight_pixel_count": unit_highlight_pixel_count,
         "replacement_boundary_gate": replacement_boundary_gate,
         "override_frame_ids": override_frame_ids,
         "written_assets": written_assets,
@@ -5753,6 +5788,14 @@ fn classic_art_pack_highlight_color(color: u32) -> bool {
             | 0xff9d45
             | 0x85f0ff
             | 0x9a3e4a
+            | 0x83c79d
+            | 0xfff0a8
+            | 0x7fd8e8
+            | 0xf2dc73
+            | 0xd8f0a0
+            | 0xff8c73
+            | 0xff5c4d
+            | 0xffb199
             | CLASSIC_ISO_GOLD_COLOR
             | CLASSIC_ISO_MAGIC_COLOR
             | CLASSIC_ISO_BANNER_COLOR
@@ -6316,6 +6359,36 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 &mut pixels,
                 width as usize,
                 height as usize,
+                3,
+                15,
+                10,
+                1,
+                CLASSIC_ISO_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                5,
+                1,
+                6,
+                4,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                4,
+                4,
+                8,
+                8,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
                 6,
                 2,
                 4,
@@ -6331,6 +6404,26 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 6,
                 6,
                 0x3f9b58,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                6,
+                6,
+                4,
+                1,
+                0xd8f0a0,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                7,
+                3,
+                2,
+                1,
+                accent,
             );
             classic_draw_rect(
                 &mut pixels,
@@ -6395,6 +6488,36 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 &mut pixels,
                 width as usize,
                 height as usize,
+                3,
+                15,
+                10,
+                1,
+                CLASSIC_ISO_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                4,
+                2,
+                8,
+                5,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                3,
+                6,
+                10,
+                8,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
                 5,
                 3,
                 6,
@@ -6410,6 +6533,36 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 8,
                 6,
                 body,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                6,
+                4,
+                1,
+                1,
+                0xfff0a8,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                9,
+                4,
+                1,
+                1,
+                0xfff0a8,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                5,
+                8,
+                6,
+                1,
+                0xff8c73,
             );
             classic_draw_rect(
                 &mut pixels,
