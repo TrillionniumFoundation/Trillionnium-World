@@ -131,8 +131,11 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_SCENE_PREVIEW_CONTRACT: &str =
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MODEL_CATALOG_CONTRACT: &str =
     "trillionnium_world_bevy_classic_model_catalog_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
+const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
 const CLASSIC_HUD_MUTED_TEXT_COLOR: u32 = 0xa6b7ad;
+const CLASSIC_HUD_ACCENT_TEXT_COLOR: u32 = 0x9fd96f;
+const CLASSIC_HUD_WARN_TEXT_COLOR: u32 = 0xf2a36f;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -4892,8 +4895,20 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
             **color == CLASSIC_HUD_TEXT_COLOR || **color == CLASSIC_HUD_MUTED_TEXT_COLOR
         })
         .count();
+    let overlay_accent_text_pixel_count = sheet_pixels
+        .iter()
+        .filter(|color| {
+            **color == CLASSIC_HUD_ACCENT_TEXT_COLOR || **color == CLASSIC_HUD_WARN_TEXT_COLOR
+        })
+        .count();
+    let overlay_panel_pixel_count = sheet_pixels
+        .iter()
+        .filter(|color| **color == CLASSIC_HUD_PANEL_COLOR)
+        .count();
     let preview_nonblank_gate = unique_color_count >= 24 && non_background_pixels > 80_000;
-    let overlay_text_gate = overlay_text_pixel_count > 2_000;
+    let overlay_text_gate = overlay_text_pixel_count > 2_000
+        && overlay_accent_text_pixel_count > 800
+        && overlay_panel_pixel_count > 4_000;
     let direction_frame_gate = directional_frame_ids.len() == 4;
     let renderer_manifest_gate = assets.loaded_from_manifest
         && assets.atlas_parse_gate
@@ -4917,6 +4932,8 @@ pub fn native_classic_scene_preview_evidence_json(preview_path: &str) -> String 
         "unique_color_count": unique_color_count,
         "non_background_pixels": non_background_pixels,
         "overlay_text_pixel_count": overlay_text_pixel_count,
+        "overlay_accent_text_pixel_count": overlay_accent_text_pixel_count,
+        "overlay_panel_pixel_count": overlay_panel_pixel_count,
         "preview_nonblank_gate": preview_nonblank_gate,
         "overlay_text_gate": overlay_text_gate,
         "direction_frame_gate": direction_frame_gate,
@@ -5605,15 +5622,25 @@ fn classic_draw_scene(
         height as i32,
         0x101411,
     );
-    classic_draw_rect(buffer, width, height, 0, 0, width as i32, 32, 0x16211b);
+    classic_draw_rect(buffer, width, height, 0, 0, width as i32, 40, 0x16211b);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        width as i32 - 178,
+        6,
+        166,
+        28,
+        CLASSIC_HUD_PANEL_COLOR,
+    );
     classic_draw_rect(
         buffer,
         width,
         height,
         0,
-        height as i32 - 54,
+        height as i32 - 72,
         width as i32,
-        54,
+        72,
         0x171a1d,
     );
 
@@ -5727,8 +5754,8 @@ fn classic_draw_scene(
     );
 
     let xp_width = (runtime.xp.min(100) as i32 * 180) / 100;
-    classic_draw_rect(buffer, width, height, 96, 320, 184, 10, 0x29312b);
-    classic_draw_rect(buffer, width, height, 98, 322, xp_width, 6, 0x7fcf6b);
+    classic_draw_rect(buffer, width, height, 96, 302, 184, 10, 0x29312b);
+    classic_draw_rect(buffer, width, height, 98, 304, xp_width, 6, 0x7fcf6b);
     let danger =
         runtime.last_feedback.contains("blocked") || runtime.objective_status.contains("required");
     classic_draw_rect(
@@ -5736,7 +5763,7 @@ fn classic_draw_scene(
         width,
         height,
         300,
-        320,
+        302,
         244,
         10,
         if danger { 0x8a342e } else { 0x2f5d75 },
@@ -5811,11 +5838,42 @@ fn classic_draw_model_overlay(
         buffer,
         width,
         height,
+        width as i32 - 166,
         12,
-        height as i32 - 44,
+        &classic_status_pill_label(runtime),
+        2,
+        if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+            CLASSIC_HUD_WARN_TEXT_COLOR
+        } else {
+            CLASSIC_HUD_ACCENT_TEXT_COLOR
+        },
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        12,
+        height as i32 - 62,
         &format!("DIR {direction}  SPR {frame_label}  XP {}", runtime.xp),
         2,
         CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        12,
+        height as i32 - 40,
+        &format!(
+            "TASK {}",
+            classic_compact_objective_label(&runtime.objective_status)
+        ),
+        1,
+        if runtime.objective_status.contains("complete") {
+            CLASSIC_HUD_ACCENT_TEXT_COLOR
+        } else {
+            CLASSIC_HUD_MUTED_TEXT_COLOR
+        },
     );
     classic_draw_text(
         buffer,
@@ -5826,6 +5884,25 @@ fn classic_draw_model_overlay(
         "ARROWS WASD MOVE   R TALK   T TRAIN   F FIGHT",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    let feedback = classic_compact_feedback_label(&runtime.last_feedback);
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        width as i32 - 246,
+        height as i32 - 22,
+        &feedback,
+        1,
+        if runtime
+            .last_feedback
+            .to_ascii_lowercase()
+            .contains("blocked")
+        {
+            CLASSIC_HUD_WARN_TEXT_COLOR
+        } else {
+            CLASSIC_HUD_ACCENT_TEXT_COLOR
+        },
     );
 }
 
@@ -5868,6 +5945,46 @@ fn classic_compact_player_frame_label(frame_id: &str) -> &'static str {
     } else {
         "P UNKNOWN"
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_status_pill_label(runtime: &NativeFirstPlayableRuntime) -> String {
+    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+        format!(
+            "HP {}  FOE {}",
+            runtime.player_hp.max(0),
+            runtime.enemy_hp.max(0)
+        )
+    } else if runtime.equipment_ready {
+        "GEAR READY".to_string()
+    } else if runtime.reward_claimed {
+        "REWARD OK".to_string()
+    } else {
+        format!("COIN {}", runtime.coins)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_compact_objective_label(objective_status: &str) -> String {
+    let label = match objective_status {
+        "find_mentor_train_move_fight_complete" => "TALK TRAIN MOVE FIGHT",
+        "first_playable_loop_complete" => "FIRST LOOP COMPLETE",
+        status if status.contains("train") => "TRAIN WITH MENTOR",
+        status if status.contains("fight") => "WIN FIRST FIGHT",
+        status if status.contains("complete") => "CLAIM ROUTE REWARD",
+        _ => objective_status,
+    };
+    classic_catalog_text_label(label, 28)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_compact_feedback_label(feedback: &str) -> String {
+    let label = feedback
+        .strip_prefix("Open the route: ")
+        .unwrap_or(feedback)
+        .strip_prefix("enabled_")
+        .unwrap_or(feedback);
+    classic_catalog_text_label(label, 30)
 }
 
 #[cfg(not(target_os = "android"))]

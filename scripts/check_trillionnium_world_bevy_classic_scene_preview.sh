@@ -29,6 +29,8 @@ jq -e '
   and .unique_color_count >= 24
   and .non_background_pixels > 80000
   and .overlay_text_pixel_count > 2000
+  and .overlay_accent_text_pixel_count > 800
+  and .overlay_panel_pixel_count > 4000
   and .preview_nonblank_gate == true
   and .overlay_text_gate == true
   and .direction_frame_gate == true
