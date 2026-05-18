@@ -30,6 +30,9 @@ jq -e '
   and .actor_gate == true
   and .scene_tile_gate == true
   and .scene_landmark_gate == true
+  and .procedural_sprite_shape_gate == true
+  and .transparent_sprite_gate == true
+  and .opaque_tile_gate == true
   and .directional_player_frame_gate == true
   and .animation_clip_gate == true
   and .x230_low_spec_renderer_target == true

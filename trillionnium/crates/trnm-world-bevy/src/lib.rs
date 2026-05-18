@@ -4213,21 +4213,19 @@ fn write_classic_asset_atlas_ppm(
             };
             let local_x = x - frame.x;
             let local_y = y - frame.y;
-            let (_, base, accent) = by_id
+            let (role, base, accent) = by_id
                 .get(frame.id.as_str())
                 .copied()
                 .unwrap_or(("unknown", 0x202020, 0x404040));
-            let color = if local_x == 0
-                || local_y == 0
-                || local_x == frame.w - 1
-                || local_y == frame.h - 1
-                || local_x == local_y
-                || local_x + local_y == frame.w - 1
-            {
-                accent
-            } else {
-                base
+            let style = ClassicFramePixelStyle {
+                frame_id: frame.id.as_str(),
+                role,
+                base,
+                accent,
+                w: frame.w,
+                h: frame.h,
             };
+            let color = classic_frame_pixel_color(style, local_x, local_y);
             let (r, g, b) = rgb_from_u32(color);
             text.push_str(&format!("{r} {g} {b}"));
         }
@@ -4242,6 +4240,292 @@ fn rgb_from_u32(color: u32) -> (u8, u8, u8) {
         ((color >> 8) & 0xff) as u8,
         (color & 0xff) as u8,
     )
+}
+
+fn classic_mix_color(from: u32, to: u32, numerator: u32, denominator: u32) -> u32 {
+    let denominator = denominator.max(1);
+    let mix = |shift: u32| {
+        let a = (from >> shift) & 0xff;
+        let b = (to >> shift) & 0xff;
+        ((a * (denominator - numerator)) + (b * numerator)) / denominator
+    };
+    (mix(16) << 16) | (mix(8) << 8) | mix(0)
+}
+
+fn classic_darken(color: u32, numerator: u32, denominator: u32) -> u32 {
+    classic_mix_color(color, 0x000000, numerator, denominator)
+}
+
+fn classic_lighten(color: u32, numerator: u32, denominator: u32) -> u32 {
+    classic_mix_color(color, 0xffffff, numerator, denominator)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ClassicFramePixelStyle<'a> {
+    frame_id: &'a str,
+    role: &'a str,
+    base: u32,
+    accent: u32,
+    w: u32,
+    h: u32,
+}
+
+fn classic_frame_pixel_color(style: ClassicFramePixelStyle<'_>, x: u32, y: u32) -> u32 {
+    if style.role.ends_with("_tile") {
+        return classic_tile_pixel_color(
+            style.frame_id,
+            style.base,
+            style.accent,
+            x,
+            y,
+            style.w,
+            style.h,
+        );
+    }
+    if style.role == "player_actor" || style.role == "npc_actor" || style.role == "enemy_actor" {
+        return classic_actor_pixel_color(style, x, y);
+    }
+    if style.role == "scene_prop" {
+        return classic_prop_pixel_color(
+            style.frame_id,
+            style.base,
+            style.accent,
+            x,
+            y,
+            style.w,
+            style.h,
+        );
+    }
+    if style.role.ends_with("_marker") {
+        return classic_marker_pixel_color(style.base, style.accent, x, y, style.w, style.h);
+    }
+    classic_tile_pixel_color(
+        style.frame_id,
+        style.base,
+        style.accent,
+        x,
+        y,
+        style.w,
+        style.h,
+    )
+}
+
+fn classic_tile_pixel_color(
+    frame_id: &str,
+    base: u32,
+    accent: u32,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+) -> u32 {
+    let border = x == 0 || y == 0 || x == w - 1 || y == h - 1;
+    if border {
+        return accent;
+    }
+    if frame_id.contains("road") {
+        if y == h / 2 || (x + y).is_multiple_of(7) {
+            accent
+        } else {
+            classic_darken(base, 1, 7)
+        }
+    } else if frame_id.contains("water") {
+        if (x + (y / 2)).is_multiple_of(5) {
+            accent
+        } else {
+            base
+        }
+    } else if frame_id.contains("tree") {
+        if (x as i32 - 8).abs() + (y as i32 - 7).abs() < 7 {
+            accent
+        } else {
+            classic_darken(base, 1, 4)
+        }
+    } else if frame_id.contains("wall") || frame_id.contains("stone") {
+        if x.is_multiple_of(5) || y.is_multiple_of(4) {
+            classic_lighten(base, 1, 5)
+        } else {
+            base
+        }
+    } else if frame_id.contains("floor") {
+        if x.is_multiple_of(4) || y.is_multiple_of(4) {
+            classic_darken(base, 1, 6)
+        } else {
+            base
+        }
+    } else if frame_id.contains("arena") || frame_id.contains("roof") {
+        if x == y || x + y == w - 1 {
+            accent
+        } else {
+            base
+        }
+    } else if (x + y).is_multiple_of(6) {
+        accent
+    } else {
+        base
+    }
+}
+
+fn classic_actor_pixel_color(style: ClassicFramePixelStyle<'_>, x: u32, y: u32) -> u32 {
+    let frame_id = style.frame_id;
+    let role = style.role;
+    let base = style.base;
+    let accent = style.accent;
+    let outline = classic_darken(base, 3, 4);
+    let skin = if role == "enemy_actor" {
+        classic_lighten(accent, 1, 6)
+    } else {
+        0xe8bf8a
+    };
+    let shadow = 0x151915;
+    let walk_b = frame_id.ends_with("_2") || frame_id == "actor_player_walk_1";
+    let east = frame_id.contains("_east");
+    let west = frame_id.contains("_west");
+    let north = frame_id.contains("_north");
+    if (4..=11).contains(&x) && (13..=14).contains(&y) {
+        return shadow;
+    }
+    if (6..=9).contains(&x) && (2..=5).contains(&y) {
+        if x == 6 || x == 9 || y == 2 {
+            return outline;
+        }
+        if north {
+            return classic_darken(base, 1, 4);
+        }
+        if east && x >= 8 {
+            return skin;
+        }
+        if west && x <= 7 {
+            return skin;
+        }
+        return skin;
+    }
+    if (5..=10).contains(&x) && (6..=10).contains(&y) {
+        if x == 5 || x == 10 || y == 10 {
+            return outline;
+        }
+        if role == "enemy_actor" && frame_id.contains("attack") && x >= 9 {
+            return accent;
+        }
+        return base;
+    }
+    let left_leg_x = if walk_b { 4..=6 } else { 5..=7 };
+    let right_leg_x = if walk_b { 9..=11 } else { 8..=10 };
+    if (11..=13).contains(&y) && (left_leg_x.contains(&x) || right_leg_x.contains(&x)) {
+        return outline;
+    }
+    if role == "npc_actor" && frame_id.contains("talk") && (11..=13).contains(&x) && y == 6 {
+        return accent;
+    }
+    if role == "enemy_actor" && frame_id.contains("hit") && (4..=11).contains(&x) && y == 1 {
+        return accent;
+    }
+    0x000000
+}
+
+fn classic_prop_pixel_color(
+    frame_id: &str,
+    base: u32,
+    accent: u32,
+    x: u32,
+    y: u32,
+    _w: u32,
+    _h: u32,
+) -> u32 {
+    let outline = classic_darken(base, 2, 3);
+    if frame_id.contains("door") {
+        if (4..=11).contains(&x) && (3..=14).contains(&y) {
+            if x == 4 || x == 11 || y == 3 {
+                outline
+            } else if x == 9 && y == 9 {
+                accent
+            } else {
+                base
+            }
+        } else {
+            0x000000
+        }
+    } else if frame_id.contains("reward") {
+        if (3..=12).contains(&x) && (7..=12).contains(&y) {
+            if y == 7 || x == 3 || x == 12 {
+                outline
+            } else {
+                accent
+            }
+        } else if (5..=10).contains(&x) && (5..=6).contains(&y) {
+            classic_lighten(accent, 1, 4)
+        } else {
+            0x000000
+        }
+    } else if frame_id.contains("dummy") {
+        if (7..=8).contains(&x) && (3..=14).contains(&y)
+            || (4..=11).contains(&x) && (6..=7).contains(&y)
+        {
+            if x == 7 || x == 8 {
+                outline
+            } else {
+                base
+            }
+        } else if (6..=9).contains(&x) && (2..=4).contains(&y) {
+            accent
+        } else {
+            0x000000
+        }
+    } else if frame_id.contains("signpost") {
+        if (7..=8).contains(&x) && (5..=14).contains(&y) {
+            outline
+        } else if (3..=12).contains(&x) && (3..=6).contains(&y) {
+            if y == 3 || y == 6 || x == 3 || x == 12 {
+                outline
+            } else {
+                accent
+            }
+        } else {
+            0x000000
+        }
+    } else if frame_id.contains("gate") {
+        if (3..=5).contains(&x) && (4..=14).contains(&y)
+            || (10..=12).contains(&x) && (4..=14).contains(&y)
+            || (3..=12).contains(&x) && (3..=5).contains(&y)
+        {
+            accent
+        } else {
+            0x000000
+        }
+    } else if frame_id.contains("workbench") || frame_id.contains("market") {
+        if (2..=13).contains(&x) && (5..=8).contains(&y) {
+            accent
+        } else if ((3..=4).contains(&x) || (11..=12).contains(&x)) && (9..=14).contains(&y) {
+            outline
+        } else {
+            0x000000
+        }
+    } else if frame_id.contains("banner") {
+        if x == 4 && (2..=14).contains(&y) {
+            outline
+        } else if (5..=12).contains(&x) && (3..=8).contains(&y) {
+            accent
+        } else {
+            0x000000
+        }
+    } else {
+        classic_marker_pixel_color(base, accent, x, y, 16, 16)
+    }
+}
+
+fn classic_marker_pixel_color(base: u32, accent: u32, x: u32, y: u32, _w: u32, _h: u32) -> u32 {
+    let dx = x as i32 - 8;
+    let dy = y as i32 - 8;
+    let distance = dx.abs() + dy.abs();
+    if distance <= 2 {
+        classic_lighten(accent, 1, 4)
+    } else if distance <= 6 {
+        accent
+    } else if distance == 7 {
+        base
+    } else {
+        0x000000
+    }
 }
 
 pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: &str) -> String {
@@ -4306,6 +4590,55 @@ pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: 
     let actor_gate = ["player", "mentor", "enemy"]
         .iter()
         .all(|actor_id| assets.actor_by_id.contains_key(*actor_id));
+    let frame_colors = |frame_id: &str| -> HashSet<u32> {
+        let mut colors = HashSet::new();
+        if let Some(frame) = assets.frame_by_id.get(frame_id) {
+            for y in frame.y..frame.y + frame.h {
+                for x in frame.x..frame.x + frame.w {
+                    let index = (y as usize * assets.manifest.atlas_width as usize) + x as usize;
+                    if let Some(color) = assets.atlas_pixels.get(index) {
+                        colors.insert(*color);
+                    }
+                }
+            }
+        }
+        colors
+    };
+    let frame_distinct_color_count = |frame_id: &str| frame_colors(frame_id).len();
+    let frame_contains_transparent =
+        |frame_id: &str| frame_colors(frame_id).contains(&0x000000_u32);
+    let procedural_sprite_shape_gate = [
+        "actor_player_idle_south",
+        "actor_player_idle_north",
+        "actor_player_walk_east_1",
+        "actor_mentor_talk",
+        "actor_enemy_attack",
+        "prop_training_dummy",
+        "prop_reward",
+        "marker_objective",
+    ]
+    .iter()
+    .all(|frame_id| frame_distinct_color_count(frame_id) >= 4);
+    let transparent_sprite_gate = [
+        "actor_player_idle_south",
+        "actor_player_walk_north_1",
+        "actor_mentor_talk",
+        "actor_enemy_attack",
+        "prop_door",
+        "prop_reward",
+        "marker_objective",
+    ]
+    .iter()
+    .all(|frame_id| frame_contains_transparent(frame_id));
+    let opaque_tile_gate = [
+        "tile_grass_a",
+        "tile_road",
+        "tile_floor",
+        "tile_arena",
+        "tile_water",
+    ]
+    .iter()
+    .all(|frame_id| !frame_contains_transparent(frame_id));
     let scene_landmark_gate = assets.manifest.scenes.iter().all(|scene| {
         scene.landmarks.len() >= 2
             && scene
@@ -4372,6 +4705,9 @@ pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: 
         && actor_count >= 3
         && scene_tile_gate
         && scene_landmark_gate
+        && procedural_sprite_shape_gate
+        && transparent_sprite_gate
+        && opaque_tile_gate
         && frame_gate
         && scene_gate
         && actor_gate
@@ -4402,6 +4738,9 @@ pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: 
         "actor_gate": actor_gate,
         "scene_tile_gate": scene_tile_gate,
         "scene_landmark_gate": scene_landmark_gate,
+        "procedural_sprite_shape_gate": procedural_sprite_shape_gate,
+        "transparent_sprite_gate": transparent_sprite_gate,
+        "opaque_tile_gate": opaque_tile_gate,
         "directional_player_frame_gate": directional_player_frame_gate,
         "animation_clip_gate": animation_clip_gate,
         "player_walk_clip_gate": player_walk_clip_gate,
@@ -4548,26 +4887,24 @@ fn generated_classic_atlas_pixels(manifest: &ClassicAssetPackManifest) -> Vec<u3
     let specs = default_classic_frame_specs();
     let base_by_id = specs
         .into_iter()
-        .map(|(id, _, base, accent)| (id, (base, accent)))
+        .map(|(id, role, base, accent)| (id, (role, base, accent)))
         .collect::<HashMap<_, _>>();
     for frame in &manifest.frames {
-        let (base, accent) = base_by_id
+        let (role, base, accent) = base_by_id
             .get(frame.id.as_str())
             .copied()
-            .unwrap_or((0x202020, 0x404040));
+            .unwrap_or(("unknown", 0x202020, 0x404040));
+        let style = ClassicFramePixelStyle {
+            frame_id: frame.id.as_str(),
+            role,
+            base,
+            accent,
+            w: frame.w,
+            h: frame.h,
+        };
         for y in 0..frame.h {
             for x in 0..frame.w {
-                let color = if x == 0
-                    || y == 0
-                    || x == frame.w - 1
-                    || y == frame.h - 1
-                    || x == y
-                    || x + y == frame.w - 1
-                {
-                    accent
-                } else {
-                    base
-                };
+                let color = classic_frame_pixel_color(style, x, y);
                 let px = frame.x + x;
                 let py = frame.y + y;
                 pixels[(py * manifest.atlas_width + px) as usize] = color;
@@ -5012,6 +5349,9 @@ fn classic_blit_frame_scaled(
             }
             let color = assets.atlas_pixels
                 [(source_y as usize * assets.manifest.atlas_width as usize) + source_x as usize];
+            if color == 0x000000 {
+                continue;
+            }
             for dy in 0..scale {
                 for dx in 0..scale {
                     let px = x + sx * scale + dx;
