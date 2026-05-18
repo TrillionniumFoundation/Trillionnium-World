@@ -5593,6 +5593,9 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     let mut doodad_unique_color_total = 0_usize;
     let mut doodad_shadow_pixel_count = 0_usize;
     let mut doodad_detail_pixel_count = 0_usize;
+    let mut vfx_detail_asset_count = 0_usize;
+    let mut vfx_unique_color_total = 0_usize;
+    let mut vfx_detail_pixel_count = 0_usize;
     for (frame_id, width, height, group) in &specs {
         let pixels = classic_art_pack_pixels(frame_id, *width, *height);
         let visible_pixel_count = pixels.iter().filter(|color| **color != 0x000000).count();
@@ -5657,6 +5660,21 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 doodad_detail_asset_count += 1;
             }
         }
+        let vfx_detail_pixels = pixels
+            .iter()
+            .filter(|color| classic_art_pack_vfx_detail_color(**color))
+            .count();
+        let vfx_detail_asset_gate = classic_art_pack_vfx_frame(frame_id)
+            && unique_color_count >= 2
+            && vfx_detail_pixels > 20
+            && visible_pixel_count > 30;
+        if classic_art_pack_vfx_frame(frame_id) {
+            vfx_unique_color_total += unique_color_count;
+            vfx_detail_pixel_count += vfx_detail_pixels;
+            if vfx_detail_asset_gate {
+                vfx_detail_asset_count += 1;
+            }
+        }
         let path = override_dir_path.join(format!("{frame_id}.ppm"));
         let path_string = path.to_string_lossy().to_string();
         if write_classic_rgb_buffer_ppm(&path_string, *width as usize, *height as usize, &pixels)
@@ -5676,6 +5694,8 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 "unit_detail_asset_gate": unit_detail_asset_gate,
                 "doodad_detail_pixel_count": doodad_detail_pixels,
                 "doodad_detail_asset_gate": doodad_detail_asset_gate,
+                "vfx_detail_pixel_count": vfx_detail_pixels,
+                "vfx_detail_asset_gate": vfx_detail_asset_gate,
             }));
         } else {
             write_failures.push(path_string);
@@ -5737,6 +5757,16 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     ]
     .iter()
     .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let vfx_art_gate = [
+        "rts_command_destination_marker",
+        "combat_attack_arc",
+        "combat_hit_flash",
+        "rts_unit_selection_ring",
+        "unit_health_bar",
+        "rts_foundation_shadow",
+    ]
+    .iter()
+    .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -5754,19 +5784,23 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && doodad_unique_color_total >= 12
         && doodad_shadow_pixel_count > 20
         && doodad_detail_pixel_count > 200;
+    let vfx_detail_gate =
+        vfx_detail_asset_count >= 6 && vfx_unique_color_total >= 18 && vfx_detail_pixel_count > 700;
     let green = create_dir_gate
         && write_failures.is_empty()
         && preview_write_gate
         && preview_non_background_pixels > 35_000
-        && written_assets.len() >= 26
-        && assets.frame_override_pixels.len() >= 26
+        && written_assets.len() >= 32
+        && assets.frame_override_pixels.len() >= 32
         && required_model_gate
         && player_art_gate
         && enemy_art_gate
         && doodad_art_gate
+        && vfx_art_gate
         && model_detail_gate
         && unit_detail_gate
         && doodad_detail_gate
+        && vfx_detail_gate
         && replacement_boundary_gate;
     let override_frame_ids = assets
         .frame_override_pixels
@@ -5791,6 +5825,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "player_art_gate": player_art_gate,
         "enemy_art_gate": enemy_art_gate,
         "doodad_art_gate": doodad_art_gate,
+        "vfx_art_gate": vfx_art_gate,
         "model_detail_gate": model_detail_gate,
         "model_detail_asset_count": model_detail_asset_count,
         "model_unique_color_total": model_unique_color_total,
@@ -5807,11 +5842,15 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "doodad_unique_color_total": doodad_unique_color_total,
         "doodad_shadow_pixel_count": doodad_shadow_pixel_count,
         "doodad_detail_pixel_count": doodad_detail_pixel_count,
+        "vfx_detail_gate": vfx_detail_gate,
+        "vfx_detail_asset_count": vfx_detail_asset_count,
+        "vfx_unique_color_total": vfx_unique_color_total,
+        "vfx_detail_pixel_count": vfx_detail_pixel_count,
         "replacement_boundary_gate": replacement_boundary_gate,
         "override_frame_ids": override_frame_ids,
         "written_assets": written_assets,
         "write_failures": write_failures,
-        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "doodad", "player", "enemy"],
+        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "doodad", "vfx", "player", "enemy"],
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
         "source_of_truth": "The classic art pack writes the first real 2.5D override sprites into the Trillionnium Bevy asset tree and proves they load through the native low-spec renderer override path."
@@ -5861,6 +5900,35 @@ fn classic_art_pack_doodad_detail_color(color: u32) -> bool {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_art_pack_vfx_frame(frame_id: &str) -> bool {
+    matches!(
+        frame_id,
+        "rts_command_destination_marker"
+            | "combat_attack_arc"
+            | "combat_hit_flash"
+            | "rts_unit_selection_ring"
+            | "unit_health_bar"
+            | "rts_foundation_shadow"
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_art_pack_vfx_detail_color(color: u32) -> bool {
+    matches!(
+        color,
+        CLASSIC_ISO_COMMAND_MARKER_COLOR
+            | CLASSIC_ISO_ATTACK_ARC_COLOR
+            | CLASSIC_ISO_HIT_FLASH_COLOR
+            | CLASSIC_ISO_UNIT_RING_COLOR
+            | CLASSIC_ISO_UNIT_HEALTH_COLOR
+            | CLASSIC_ISO_UNIT_DAMAGE_COLOR
+            | CLASSIC_ISO_FOUNDATION_COLOR
+            | 0xffffff
+            | 0xfff3a4
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static str)> {
     let mut specs = classic_art_pack_synthetic_override_specs()
         .into_iter()
@@ -5872,6 +5940,7 @@ fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static st
                 "model_coliseum_stands" => "coliseum",
                 "model_tree_cluster_large" => "tree_cluster",
                 frame if frame.starts_with("doodad_") => "doodad",
+                frame if classic_art_pack_vfx_frame(frame) => "vfx",
                 _ => "model",
             };
             (frame_id, width, height, group)
@@ -5910,6 +5979,12 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
         ("doodad_barrel_stack", 48, 48),
         ("doodad_torch", 48, 48),
         ("doodad_crystal_cluster", 48, 48),
+        ("rts_command_destination_marker", 48, 48),
+        ("combat_attack_arc", 64, 48),
+        ("combat_hit_flash", 48, 48),
+        ("rts_unit_selection_ring", 48, 48),
+        ("unit_health_bar", 32, 16),
+        ("rts_foundation_shadow", 96, 48),
     ]
 }
 
@@ -5917,6 +5992,160 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
 fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> {
     let mut pixels = vec![0x000000_u32; width as usize * height as usize];
     match frame_id {
+        "rts_command_destination_marker" => {
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                28,
+                20,
+                8,
+                CLASSIC_ISO_COMMAND_MARKER_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                28,
+                11,
+                4,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                20,
+                12,
+                8,
+                4,
+                0xffffff,
+            );
+        }
+        "combat_attack_arc" => {
+            for step in 0..28 {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    5 + step * 2,
+                    34 - step / 2,
+                    6,
+                    3,
+                    CLASSIC_ISO_ATTACK_ARC_COLOR,
+                );
+            }
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                44,
+                14,
+                10,
+                3,
+                0xfff3a4,
+            );
+        }
+        "combat_hit_flash" => {
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                24,
+                17,
+                10,
+                CLASSIC_ISO_HIT_FLASH_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                24,
+                8,
+                5,
+                0xfff3a4,
+            );
+        }
+        "rts_unit_selection_ring" => {
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                30,
+                20,
+                8,
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                30,
+                14,
+                5,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+        }
+        "unit_health_bar" => {
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                2,
+                5,
+                28,
+                7,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                4,
+                7,
+                18,
+                3,
+                CLASSIC_ISO_UNIT_HEALTH_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                22,
+                7,
+                6,
+                3,
+                CLASSIC_ISO_UNIT_DAMAGE_COLOR,
+            );
+        }
+        "rts_foundation_shadow" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                24,
+                86,
+                28,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                30,
+                38,
+                8,
+                CLASSIC_ISO_SHADOW_COLOR,
+            );
+        }
         "model_town_hall" => {
             classic_draw_iso_shadow(&mut pixels, width as usize, height as usize, 48, 84, 42, 8);
             classic_draw_iso_prism(
@@ -6949,6 +7178,9 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
     let coliseum_color_count = count_color(0x9a3e4a);
     let player_color_count = count_color(0x3f9b58);
     let enemy_attack_color_count = count_color(0xff5c4d);
+    let command_marker_color_count = count_color(CLASSIC_ISO_COMMAND_MARKER_COLOR);
+    let attack_arc_color_count = count_color(CLASSIC_ISO_ATTACK_ARC_COLOR);
+    let hit_flash_color_count = count_color(CLASSIC_ISO_HIT_FLASH_COLOR);
     let non_background_pixels = preview_pixels
         .iter()
         .filter(|color| **color != 0x0b0d0c_u32)
@@ -6966,12 +7198,23 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
     let override_presence_gate = override_ids
         .iter()
         .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let vfx_override_ids = [
+        "rts_command_destination_marker",
+        "combat_attack_arc",
+        "combat_hit_flash",
+    ];
+    let vfx_override_presence_gate = vfx_override_ids
+        .iter()
+        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let color_probe_gate = town_hall_color_count > 20
         && waygate_color_count > 20
         && tree_color_count > 20
         && coliseum_color_count > 20
         && player_color_count > 20
         && enemy_attack_color_count > 20;
+    let vfx_color_probe_gate = command_marker_color_count > 200
+        && attack_arc_color_count > 100
+        && hit_flash_color_count > 80;
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -6981,6 +7224,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         && coliseum_scene.is_some()
         && override_presence_gate
         && color_probe_gate
+        && vfx_override_presence_gate
+        && vfx_color_probe_gate
         && non_background_pixels > 120_000
         && replacement_boundary_gate;
     serde_json::to_string_pretty(&json!({
@@ -6993,6 +7238,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "override_dir": override_dir,
         "override_presence_gate": override_presence_gate,
         "color_probe_gate": color_probe_gate,
+        "vfx_override_presence_gate": vfx_override_presence_gate,
+        "vfx_color_probe_gate": vfx_color_probe_gate,
         "replacement_boundary_gate": replacement_boundary_gate,
         "non_background_pixels": non_background_pixels,
         "town_hall_color_count": town_hall_color_count,
@@ -7001,6 +7248,9 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "coliseum_color_count": coliseum_color_count,
         "player_color_count": player_color_count,
         "enemy_attack_color_count": enemy_attack_color_count,
+        "command_marker_color_count": command_marker_color_count,
+        "attack_arc_color_count": attack_arc_color_count,
+        "hit_flash_color_count": hit_flash_color_count,
         "mirror_scene_gate": mirror_scene.is_some(),
         "coliseum_scene_gate": coliseum_scene.is_some(),
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
@@ -9819,6 +10069,7 @@ fn classic_draw_iso_command_feedback(
     buffer: &mut [u32],
     width: usize,
     height: usize,
+    assets: &ClassicRuntimeAssets,
     runtime: &NativeFirstPlayableRuntime,
     scene_id: &str,
     origin_x: i32,
@@ -9836,50 +10087,83 @@ fn classic_draw_iso_command_feedback(
     };
     let (dest_x, dest_y) =
         classic_iso_project(origin_x, origin_y, tile_w, tile_h, destination_tile);
-    classic_draw_iso_ellipse(
+    let command_marker_drawn = classic_blit_frame_override_bottom_center(
         buffer,
         width,
         height,
+        assets,
+        "rts_command_destination_marker",
         dest_x,
-        dest_y + tile_h - 2,
-        18,
-        7,
-        CLASSIC_ISO_COMMAND_MARKER_COLOR,
+        dest_y + tile_h + 5,
     );
-    classic_draw_iso_ellipse(
-        buffer,
-        width,
-        height,
-        dest_x,
-        dest_y + tile_h - 2,
-        10,
-        4,
-        CLASSIC_ISO_FOUNDATION_COLOR,
-    );
-
-    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
-        for step in 0..28 {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                dest_x - 32 + step * 2,
-                dest_y - 28 + step,
-                6,
-                3,
-                CLASSIC_ISO_ATTACK_ARC_COLOR,
-            );
-        }
+    if !command_marker_drawn {
         classic_draw_iso_ellipse(
             buffer,
             width,
             height,
-            dest_x + 12,
-            dest_y - 10,
-            15,
-            9,
-            CLASSIC_ISO_HIT_FLASH_COLOR,
+            dest_x,
+            dest_y + tile_h - 2,
+            18,
+            7,
+            CLASSIC_ISO_COMMAND_MARKER_COLOR,
         );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            dest_x,
+            dest_y + tile_h - 2,
+            10,
+            4,
+            CLASSIC_ISO_FOUNDATION_COLOR,
+        );
+    }
+
+    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+        let attack_arc_drawn = classic_blit_frame_override_bottom_center(
+            buffer,
+            width,
+            height,
+            assets,
+            "combat_attack_arc",
+            dest_x + 8,
+            dest_y + 4,
+        );
+        if !attack_arc_drawn {
+            for step in 0..28 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    dest_x - 32 + step * 2,
+                    dest_y - 28 + step,
+                    6,
+                    3,
+                    CLASSIC_ISO_ATTACK_ARC_COLOR,
+                );
+            }
+        }
+        let hit_flash_drawn = classic_blit_frame_override_bottom_center(
+            buffer,
+            width,
+            height,
+            assets,
+            "combat_hit_flash",
+            dest_x + 12,
+            dest_y,
+        );
+        if !hit_flash_drawn {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                dest_x + 12,
+                dest_y - 10,
+                15,
+                9,
+                CLASSIC_ISO_HIT_FLASH_COLOR,
+            );
+        }
     }
     true
 }
@@ -10075,6 +10359,7 @@ fn classic_draw_isometric_scene(
             buffer,
             width,
             height,
+            assets,
             runtime,
             scene.id.as_str(),
             origin_x,

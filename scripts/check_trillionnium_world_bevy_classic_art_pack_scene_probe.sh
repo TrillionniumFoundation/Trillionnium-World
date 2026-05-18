@@ -21,6 +21,8 @@ jq -e '
   and .preview_height == 360
   and .override_presence_gate == true
   and .color_probe_gate == true
+  and .vfx_override_presence_gate == true
+  and .vfx_color_probe_gate == true
   and .replacement_boundary_gate == true
   and .mirror_scene_gate == true
   and .coliseum_scene_gate == true
@@ -31,6 +33,9 @@ jq -e '
   and .coliseum_color_count > 20
   and .player_color_count > 20
   and .enemy_attack_color_count > 20
+  and .command_marker_color_count > 200
+  and .attack_arc_color_count > 100
+  and .hit_flash_color_count > 80
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
