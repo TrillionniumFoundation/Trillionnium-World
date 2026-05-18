@@ -6355,13 +6355,13 @@ pub fn native_keyboard_input_guard_evidence_json(actor_id: &str) -> String {
         .iter()
         .filter(|event| event.get("accepted").and_then(|value| value.as_bool()) == Some(true))
         .count();
-    let disabled_guard = disabled_events.len() >= 5
+    let disabled_guard = disabled_events.len() >= 4
         && button_event_action(&keyboard_events, 0).as_deref() == Some("TRAIN")
         && button_event_accepted(&keyboard_events, 0) == Some(false)
         && button_event_action(&keyboard_events, 1).as_deref() == Some("FIGHT")
         && button_event_accepted(&keyboard_events, 1) == Some(false)
         && button_event_action(&keyboard_events, 2).as_deref() == Some("MOVE:north")
-        && button_event_accepted(&keyboard_events, 2) == Some(false)
+        && button_event_accepted(&keyboard_events, 2) == Some(true)
         && button_event_action(&keyboard_events, 3).as_deref() == Some("LOOT:drop")
         && button_event_accepted(&keyboard_events, 3) == Some(false)
         && button_event_action(&keyboard_events, 4).as_deref() == Some("EQUIP:bandit_sash")
@@ -6402,10 +6402,22 @@ pub fn native_keyboard_input_guard_evidence_json(actor_id: &str) -> String {
                 .and_then(|value| value.as_str())
                 == Some("league-coliseum")
     });
+    let pre_training_movement_key_gate = keyboard_events.iter().any(|event| {
+        event.get("key").and_then(|value| value.as_str()) == Some("KeyW")
+            && event.get("action").and_then(|value| value.as_str()) == Some("MOVE:north")
+            && event.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            && event
+                .get("availability_before")
+                .and_then(|value| value.as_str())
+                == Some("enabled_local_map_step_north")
+            && event
+                .get("current_room_after")
+                .and_then(|value| value.as_str())
+                == Some("mirror-city-square")
+    });
     let blocked_history_gate = [
         "TRAIN:talk_required_before_training",
         "FIGHT:arena_required_before_fight",
-        "MOVE:north:training_required_before_route_move",
         "LOOT:drop:victory_required_before_loot",
         "EQUIP:bandit_sash:item_not_in_bag:bandit_sash",
     ]
@@ -6424,6 +6436,7 @@ pub fn native_keyboard_input_guard_evidence_json(actor_id: &str) -> String {
         && unlocked_accepts_guard
         && keyboard_path_gate
         && movement_key_gate
+        && pre_training_movement_key_gate
         && blocked_history_gate
         && visual_parity_gate;
     let evidence = json!({
@@ -6437,6 +6450,7 @@ pub fn native_keyboard_input_guard_evidence_json(actor_id: &str) -> String {
         "disabled_guard": disabled_guard,
         "unlocked_accepts_guard": unlocked_accepts_guard,
         "movement_key_gate": movement_key_gate,
+        "pre_training_movement_key_gate": pre_training_movement_key_gate,
         "blocked_history_gate": blocked_history_gate,
         "visual_parity_gate": visual_parity_gate,
         "disabled_event_count": disabled_events.len(),
@@ -6486,12 +6500,12 @@ pub fn native_input_feedback_loop_evidence_json(actor_id: &str) -> String {
             && event.reason == "enabled_after_dialogue_choice"
             && event.feedback_text.contains("Training room entered")
     });
-    let keyboard_blocked_feedback_gate = keyboard_feedback.iter().any(|event| {
+    let keyboard_local_movement_feedback_gate = keyboard_feedback.iter().any(|event| {
         event.input_source == "keyboard"
             && event.action_label == "MOVE:north"
-            && !event.accepted
-            && event.reason == "training_required_before_route_move"
-            && event.feedback_text.contains("Input blocked: MOVE:north")
+            && event.accepted
+            && event.reason == "enabled_local_map_step_north"
+            && event.feedback_text.contains("Map step: north")
     });
     let keyboard_accepted_feedback_gate = keyboard_feedback.iter().any(|event| {
         event.input_source == "keyboard"
@@ -6526,7 +6540,7 @@ pub fn native_input_feedback_loop_evidence_json(actor_id: &str) -> String {
         && keyboard_feedback.len() >= 11;
     let green = button_blocked_feedback_gate
         && button_accepted_feedback_gate
-        && keyboard_blocked_feedback_gate
+        && keyboard_local_movement_feedback_gate
         && keyboard_accepted_feedback_gate
         && event_log_feedback_gate
         && feedback_history_cap_gate
@@ -6541,7 +6555,7 @@ pub fn native_input_feedback_loop_evidence_json(actor_id: &str) -> String {
         "source_of_truth": "apply_live_native_action_with_source records structured input feedback after every accepted or blocked Bevy input",
         "button_blocked_feedback_gate": button_blocked_feedback_gate,
         "button_accepted_feedback_gate": button_accepted_feedback_gate,
-        "keyboard_blocked_feedback_gate": keyboard_blocked_feedback_gate,
+        "keyboard_local_movement_feedback_gate": keyboard_local_movement_feedback_gate,
         "keyboard_accepted_feedback_gate": keyboard_accepted_feedback_gate,
         "event_log_feedback_gate": event_log_feedback_gate,
         "feedback_history_cap_gate": feedback_history_cap_gate,
@@ -6601,18 +6615,6 @@ pub fn native_input_replay_telemetry_evidence_json(actor_id: &str) -> String {
             "keyboard:EQUIP",
         ]);
     let blocked_replay_gate = keyboard_replay_events.iter().any(|event| {
-        event.get("action_label").and_then(|value| value.as_str()) == Some("MOVE:north")
-            && event
-                .get("expected_accepted")
-                .and_then(|value| value.as_bool())
-                == Some(false)
-            && event
-                .get("replay_accepted")
-                .and_then(|value| value.as_bool())
-                == Some(false)
-            && event.get("replay_reason").and_then(|value| value.as_str())
-                == Some("training_required_before_route_move")
-    }) && keyboard_replay_events.iter().any(|event| {
         event.get("action_label").and_then(|value| value.as_str()) == Some("EQUIP:bandit_sash")
             && event
                 .get("expected_accepted")
@@ -6624,6 +6626,19 @@ pub fn native_input_replay_telemetry_evidence_json(actor_id: &str) -> String {
                 == Some(false)
             && event.get("replay_reason").and_then(|value| value.as_str())
                 == Some("item_not_in_bag:bandit_sash")
+    });
+    let local_movement_replay_gate = keyboard_replay_events.iter().any(|event| {
+        event.get("action_label").and_then(|value| value.as_str()) == Some("MOVE:north")
+            && event
+                .get("expected_accepted")
+                .and_then(|value| value.as_bool())
+                == Some(true)
+            && event
+                .get("replay_accepted")
+                .and_then(|value| value.as_bool())
+                == Some(true)
+            && event.get("replay_reason").and_then(|value| value.as_str())
+                == Some("enabled_local_map_step_north")
     });
     let accepted_replay_gate = keyboard_replay_events.iter().any(|event| {
         event.get("action_label").and_then(|value| value.as_str()) == Some("EQUIP")
@@ -6643,6 +6658,7 @@ pub fn native_input_replay_telemetry_evidence_json(actor_id: &str) -> String {
         && event_match_gate
         && source_order_gate
         && blocked_replay_gate
+        && local_movement_replay_gate
         && accepted_replay_gate
         && button_replay_signature_gate
         && keyboard_replay_signature_gate;
@@ -6657,6 +6673,7 @@ pub fn native_input_replay_telemetry_evidence_json(actor_id: &str) -> String {
         "event_match_gate": event_match_gate,
         "source_order_gate": source_order_gate,
         "blocked_replay_gate": blocked_replay_gate,
+        "local_movement_replay_gate": local_movement_replay_gate,
         "accepted_replay_gate": accepted_replay_gate,
         "button_replay_signature_gate": button_replay_signature_gate,
         "keyboard_replay_signature_gate": keyboard_replay_signature_gate,
@@ -6713,8 +6730,8 @@ pub fn native_input_telemetry_summary_evidence_json(actor_id: &str) -> String {
             .iter()
             .any(|reason| reason == "talk_required_before_training");
     let keyboard_summary_gate = keyboard_summary.total_events == 11
-        && keyboard_summary.accepted_events == 6
-        && keyboard_summary.blocked_events == 5
+        && keyboard_summary.accepted_events == 7
+        && keyboard_summary.blocked_events == 4
         && keyboard_summary.keyboard_events == 11
         && keyboard_summary.bevy_button_events == 0
         && keyboard_summary.last_action_label.as_deref() == Some("EQUIP")
@@ -6725,7 +6742,6 @@ pub fn native_input_telemetry_summary_evidence_json(actor_id: &str) -> String {
     let blocked_reason_summary_gate = [
         "talk_required_before_training",
         "arena_required_before_fight",
-        "training_required_before_route_move",
         "victory_required_before_loot",
         "item_not_in_bag:bandit_sash",
     ]
@@ -6793,7 +6809,7 @@ pub fn native_input_telemetry_hud_evidence_json(actor_id: &str) -> String {
     let input_summary_json =
         serde_json::to_value(&input_summary).expect("input telemetry summary serializes");
     let hud_contract_gate = event_log_text
-        .contains("INPUT SUMMARY total 11 accepted 6 blocked 5 keyboard 11 buttons 0")
+        .contains("INPUT SUMMARY total 11 accepted 7 blocked 4 keyboard 11 buttons 0")
         && event_log_text.contains("last keyboard EQUIP enabled_after_reward_claim");
     let hud_recent_input_gate = event_log_text
         .contains("keyboard EQUIP accepted (enabled_after_reward_claim)")
@@ -6802,8 +6818,8 @@ pub fn native_input_telemetry_hud_evidence_json(actor_id: &str) -> String {
         && input_summary.contract_version
             == TRILLIONNIUM_WORLD_BEVY_INPUT_TELEMETRY_SUMMARY_CONTRACT
         && input_summary.total_events == 11
-        && input_summary.accepted_events == 6
-        && input_summary.blocked_events == 5
+        && input_summary.accepted_events == 7
+        && input_summary.blocked_events == 4
         && input_summary.keyboard_events == 11
         && input_summary.bevy_button_events == 0
         && input_summary.last_input_source.as_deref() == Some("keyboard")
@@ -11368,8 +11384,8 @@ pub fn native_session_recovery_evidence_json(actor_id: &str) -> String {
         && restored_before_continue_runtime.input_feedback_history
             == before_snapshot_runtime.input_feedback_history;
     let feedback_history_restore_gate = restored_before_continue_summary.total_events == 10
-        && restored_before_continue_summary.accepted_events == 5
-        && restored_before_continue_summary.blocked_events == 5
+        && restored_before_continue_summary.accepted_events == 6
+        && restored_before_continue_summary.blocked_events == 4
         && restored_before_continue_summary.keyboard_events == 10
         && restored_before_continue_summary
             .last_input_source
@@ -11407,8 +11423,8 @@ pub fn native_session_recovery_evidence_json(actor_id: &str) -> String {
             .and_then(|value| value.as_str())
             == Some("enabled_after_reward_claim");
     let post_restore_summary_gate = final_summary.total_events == 12
-        && final_summary.accepted_events == 6
-        && final_summary.blocked_events == 6
+        && final_summary.accepted_events == 7
+        && final_summary.blocked_events == 5
         && final_summary.keyboard_events == 12
         && final_summary.bevy_button_events == 0
         && final_summary.last_input_source.as_deref() == Some("keyboard")
@@ -11420,7 +11436,7 @@ pub fn native_session_recovery_evidence_json(actor_id: &str) -> String {
             .iter()
             .any(|reason| reason == "item_not_in_bag:bandit_sash");
     let hud_recovery_gate = final_event_log_text
-        .contains("INPUT SUMMARY total 12 accepted 6 blocked 6 keyboard 12 buttons 0")
+        .contains("INPUT SUMMARY total 12 accepted 7 blocked 5 keyboard 12 buttons 0")
         && final_event_log_text.contains("last keyboard EQUIP enabled_after_reward_claim")
         && final_event_log_text
             .contains("keyboard EQUIP:bandit_sash blocked (item_not_in_bag:bandit_sash)")
@@ -11483,10 +11499,10 @@ pub fn native_session_recovery_ui_evidence_json(actor_id: &str) -> String {
         .to_string();
     let panel_presence_gate = !restored_session_text.is_empty() && !final_session_text.is_empty();
     let recovered_status_gate = restored_session_text.contains("SESSION RECOVERED")
-        && restored_session_text.contains("checkpoint events 10 accepted 5 blocked 5")
+        && restored_session_text.contains("checkpoint events 10 accepted 6 blocked 4")
         && restored_session_text.contains("last keyboard COMPLETE");
     let continued_summary_gate = final_session_text.contains("SESSION RECOVERED")
-        && final_session_text.contains("checkpoint events 12 accepted 6 blocked 6")
+        && final_session_text.contains("checkpoint events 12 accepted 7 blocked 5")
         && final_session_text.contains("last keyboard EQUIP");
     let guard_status_gate =
         final_session_text.contains("guard EQUIP:bandit_sash:item_not_in_bag:bandit_sash");
@@ -11594,8 +11610,8 @@ pub fn native_session_save_slot_evidence_json(actor_id: &str, slot_path: &str) -
     let slot_restore_gate = snapshot.contract_version
         == TRILLIONNIUM_WORLD_BEVY_STATE_SNAPSHOT_CONTRACT
         && restored_before_continue_summary.total_events == 10
-        && restored_before_continue_summary.accepted_events == 5
-        && restored_before_continue_summary.blocked_events == 5
+        && restored_before_continue_summary.accepted_events == 6
+        && restored_before_continue_summary.blocked_events == 4
         && restored_before_continue_summary
             .last_action_label
             .as_deref()
@@ -11626,18 +11642,18 @@ pub fn native_session_save_slot_evidence_json(actor_id: &str, slot_path: &str) -
         .and_then(|value| value.as_bool())
         == Some(true)
         && final_summary.total_events == 12
-        && final_summary.accepted_events == 6
-        && final_summary.blocked_events == 6
+        && final_summary.accepted_events == 7
+        && final_summary.blocked_events == 5
         && final_summary.last_action_label.as_deref() == Some("EQUIP")
         && final_summary.last_reason.as_deref() == Some("enabled_after_reward_claim")
         && final_runtime.objective_status == "first_playable_loop_complete"
         && final_runtime.equipment_ready;
     let slot_hud_gate = final_session_text.contains("SESSION RECOVERED")
-        && final_session_text.contains("checkpoint events 12 accepted 6 blocked 6")
+        && final_session_text.contains("checkpoint events 12 accepted 7 blocked 5")
         && final_session_text.contains("last keyboard EQUIP")
         && final_session_text.contains("guard EQUIP:bandit_sash:item_not_in_bag:bandit_sash")
         && final_event_log_text
-            .contains("INPUT SUMMARY total 12 accepted 6 blocked 6 keyboard 12 buttons 0");
+            .contains("INPUT SUMMARY total 12 accepted 7 blocked 5 keyboard 12 buttons 0");
     let green = slot_file_gate
         && slot_restore_gate
         && post_restore_guard_gate
@@ -11759,7 +11775,7 @@ pub fn native_session_slot_buttons_evidence_json(
         .and_then(|value| value.as_str())
         .is_some_and(|text| {
             text.contains("SESSION RECOVERED")
-                && text.contains("checkpoint events 11 accepted 6 blocked 5")
+                && text.contains("checkpoint events 11 accepted 7 blocked 4")
                 && text.contains("last bevy_button LOAD:SLOT")
         })
         && after_load_sample
@@ -11819,15 +11835,15 @@ pub fn native_session_slot_buttons_evidence_json(
         && final_runtime.objective_status == "first_playable_loop_complete"
         && final_runtime.equipment_ready;
     let final_hud_gate = final_summary.total_events == 12
-        && final_summary.accepted_events == 8
-        && final_summary.blocked_events == 4
+        && final_summary.accepted_events == 9
+        && final_summary.blocked_events == 3
         && final_summary.last_action_label.as_deref() == Some("EQUIP")
         && final_session_text.contains("SESSION RECOVERED")
-        && final_session_text.contains("checkpoint events 12 accepted 8 blocked 4")
+        && final_session_text.contains("checkpoint events 12 accepted 9 blocked 3")
         && final_session_text.contains("last keyboard EQUIP")
         && final_session_text.contains("guard EQUIP:bandit_sash:item_not_in_bag:bandit_sash")
         && final_event_log_text
-            .contains("INPUT SUMMARY total 12 accepted 8 blocked 4 keyboard 10 buttons 2");
+            .contains("INPUT SUMMARY total 12 accepted 9 blocked 3 keyboard 10 buttons 2");
     let green = save_button_gate
         && load_button_gate
         && slot_file_gate
@@ -12037,11 +12053,11 @@ pub fn native_session_slot_menu_evidence_json(actor_id: &str, expected_slot_dir:
         && after_load_a_summary
             .get("accepted_events")
             .and_then(|value| value.as_u64())
-            == Some(7)
+            == Some(8)
         && after_load_a_summary
             .get("blocked_events")
             .and_then(|value| value.as_u64())
-            == Some(5)
+            == Some(4)
         && after_load_a_summary
             .get("bevy_button_events")
             .and_then(|value| value.as_u64())
@@ -25544,6 +25560,21 @@ pub fn native_build_branch_title_route_action_focus_evidence_json(actor_id: &str
 }
 
 pub fn native_build_branch_title_route_action_focus_input_evidence_json(actor_id: &str) -> String {
+    let actor_id = actor_id.to_string();
+    std::thread::Builder::new()
+        .name("trnm-title-route-focus-input-evidence".to_string())
+        .stack_size(8 * 1024 * 1024)
+        .spawn(move || {
+            native_build_branch_title_route_action_focus_input_evidence_json_inner(&actor_id)
+        })
+        .expect("title route action focus input evidence thread spawns")
+        .join()
+        .expect("title route action focus input evidence thread completes")
+}
+
+fn native_build_branch_title_route_action_focus_input_evidence_json_inner(
+    actor_id: &str,
+) -> String {
     let action_focus: serde_json::Value = serde_json::from_str(
         &native_build_branch_title_route_action_focus_evidence_json(actor_id),
     )
@@ -32662,7 +32693,7 @@ pub fn native_live_action_availability(
                 .iter()
                 .any(|step| step == "arrive_at_first_objective")
             {
-                (false, "already_at_arena".to_string())
+                (true, format!("enabled_local_map_step_{direction}"))
             } else if runtime
                 .completed_steps
                 .iter()
@@ -32670,7 +32701,7 @@ pub fn native_live_action_availability(
             {
                 (true, format!("enabled_route_step_{direction}"))
             } else {
-                (false, "training_required_before_route_move".to_string())
+                (true, format!("enabled_local_map_step_{direction}"))
             }
         }
         NativeControlAction::Fight => {
@@ -34250,6 +34281,40 @@ pub fn apply_native_first_playable_action(
             }
             return None;
         }
+        NativeControlAction::Move { direction }
+            if !first_playable
+                .completed_steps
+                .iter()
+                .any(|step| step == "train_basic_unarmed")
+                || first_playable
+                    .completed_steps
+                    .iter()
+                    .any(|step| step == "arrive_at_first_objective") =>
+        {
+            let arrived_at_objective = first_playable
+                .completed_steps
+                .iter()
+                .any(|step| step == "arrive_at_first_objective");
+            record_runtime_only_log(
+                gameplay_log,
+                format!("local_move:{direction}"),
+                if arrived_at_objective {
+                    "local_map_step_after_arrival".to_string()
+                } else {
+                    "local_map_step_before_training".to_string()
+                },
+                None,
+            );
+            update_first_playable_runtime(
+                first_playable,
+                &NativeControlAction::Move { direction },
+                None,
+                character,
+                world,
+                actor_id,
+            );
+            return None;
+        }
         _ => {}
     }
     let action_for_runtime = action.clone();
@@ -34331,6 +34396,7 @@ fn update_first_playable_runtime(
             }
         }
         NativeControlAction::Move { direction } => {
+            let local_visual_step = response.is_none();
             push_completed_step(first_playable, "walk_grid_step_recorded");
             first_playable.walk_cycle_frame = (first_playable.walk_cycle_frame + 1) % 4;
             first_playable.last_tile_step = format!("step_{direction}");
@@ -34341,7 +34407,11 @@ fn update_first_playable_runtime(
             } else {
                 "town_square_current_tile".to_string()
             };
-            first_playable.movement_to_tile = "arena_gate_tile".to_string();
+            first_playable.movement_to_tile = if local_visual_step {
+                format!("local_{direction}_tile")
+            } else {
+                "arena_gate_tile".to_string()
+            };
             first_playable.tile_step_progress_percent = 100;
             first_playable.facing_direction = direction.clone();
             first_playable.player_sprite_pose = format!(
@@ -34358,7 +34428,9 @@ fn update_first_playable_runtime(
                 &mut first_playable.scene_history,
                 "tile_to_tile_interpolation",
             );
-            if player_node_id(world, actor_id).as_deref() == Some("league-coliseum") {
+            if !local_visual_step
+                && player_node_id(world, actor_id).as_deref() == Some("league-coliseum")
+            {
                 push_completed_step(first_playable, "arrive_at_first_objective");
                 push_completed_step(first_playable, "exit_training_room_to_arena_route");
                 update_runtime_room_context(first_playable, "league-coliseum");
@@ -34377,6 +34449,20 @@ fn update_first_playable_runtime(
                     "enemy_visible_at_arena",
                 );
                 push_feedback_event(first_playable, "Grid step complete: arena reached");
+            } else if local_visual_step {
+                let local_feedback_suffix = if first_playable
+                    .completed_steps
+                    .iter()
+                    .any(|step| step == "arrive_at_first_objective")
+                {
+                    "local area movement"
+                } else {
+                    "training route still available"
+                };
+                push_feedback_event(
+                    first_playable,
+                    &format!("Map step: {direction}; {local_feedback_suffix}"),
+                );
             }
         }
         NativeControlAction::Fight => {
@@ -40117,6 +40203,74 @@ mod tests {
     }
 
     #[test]
+    fn arrow_key_moves_locally_before_training() {
+        let mut app = build_keyboard_runtime_app(native_bevy_playable_fixture(), "local-player");
+        let event = press_keyboard_script_step(
+            &mut app,
+            NativeKeyboardScriptInput {
+                key: KeyCode::ArrowRight,
+                key_label: "ArrowRight",
+                action: NativeControlAction::Move {
+                    direction: "east".to_string(),
+                },
+            },
+        );
+        let runtime = app.world().resource::<NativeFirstPlayableRuntime>();
+        assert_eq!(event["accepted"], true);
+        assert_eq!(event["availability_before"], "enabled_local_map_step_east");
+        assert_eq!(event["current_room_after"], "mirror-city-square");
+        assert_eq!(runtime.last_tile_step, "step_east");
+        assert_eq!(runtime.movement_to_tile, "local_east_tile");
+        assert_eq!(runtime.facing_direction, "east");
+        assert!(runtime.last_feedback.contains("Map step: east"));
+    }
+
+    #[test]
+    fn arrow_key_moves_locally_after_objective_arrival() {
+        let mut app = build_keyboard_runtime_app(native_bevy_playable_fixture(), "local-player");
+        for step in [
+            NativeKeyboardScriptInput {
+                key: KeyCode::KeyR,
+                key_label: "KeyR",
+                action: NativeControlAction::Talk,
+            },
+            NativeKeyboardScriptInput {
+                key: KeyCode::KeyT,
+                key_label: "KeyT",
+                action: NativeControlAction::Train,
+            },
+            NativeKeyboardScriptInput {
+                key: KeyCode::KeyW,
+                key_label: "KeyW",
+                action: NativeControlAction::Move {
+                    direction: "north".to_string(),
+                },
+            },
+        ] {
+            let _ = press_keyboard_script_step(&mut app, step);
+        }
+        let event = press_keyboard_script_step(
+            &mut app,
+            NativeKeyboardScriptInput {
+                key: KeyCode::ArrowLeft,
+                key_label: "ArrowLeft",
+                action: NativeControlAction::Move {
+                    direction: "west".to_string(),
+                },
+            },
+        );
+        let runtime = app.world().resource::<NativeFirstPlayableRuntime>();
+        assert_eq!(event["accepted"], true);
+        assert_eq!(event["availability_before"], "enabled_local_map_step_west");
+        assert_eq!(event["current_room_after"], "league-coliseum");
+        assert_eq!(runtime.current_room_id, "league-coliseum");
+        assert_eq!(runtime.last_tile_step, "step_west");
+        assert_eq!(runtime.movement_to_tile, "local_west_tile");
+        assert_eq!(runtime.facing_direction, "west");
+        assert!(runtime.last_feedback.contains("Map step: west"));
+    }
+
+    #[test]
     fn input_feedback_loop_evidence_tracks_sources_and_results() {
         let value: serde_json::Value =
             serde_json::from_str(&native_input_feedback_loop_evidence_json("local-player"))
@@ -40200,7 +40354,7 @@ mod tests {
             value
                 .pointer("/keyboard_summary/blocked_events")
                 .and_then(|value| value.as_u64()),
-            Some(5)
+            Some(4)
         );
     }
 
