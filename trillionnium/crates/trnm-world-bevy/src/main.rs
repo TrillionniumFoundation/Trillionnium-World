@@ -335,6 +335,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-player-motion-probe" | "--classic-player-motion-probe" | "classic-motion")
+    ) {
+        let probe_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_player_motion_probe_evidence_json(probe_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("authored-art-pack" | "--authored-art-pack" | "art-pack")
     ) {
         println!(
