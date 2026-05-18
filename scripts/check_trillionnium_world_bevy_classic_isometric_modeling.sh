@@ -35,6 +35,10 @@ jq -e '
   and (.modeling_components | index("rts_command_destination_marker") != null)
   and (.modeling_components | index("combat_attack_arc") != null)
   and (.modeling_components | index("combat_hit_flash") != null)
+  and (.modeling_components | index("rts_doodad_density") != null)
+  and (.modeling_components | index("procedural_rock_clusters") != null)
+  and (.modeling_components | index("torch_and_crystal_doodads") != null)
+  and (.modeling_components | index("doodad_depth_sorting") != null)
   and .projection_gate == true
   and .depth_sort_gate == true
   and .diamond_tile_gate == true
@@ -44,6 +48,7 @@ jq -e '
   and .terrain_detail_gate == true
   and .unit_detail_gate == true
   and .command_feedback_gate == true
+  and .doodad_detail_gate == true
   and .sprite_anchor_gate == true
   and .preview_width == 640
   and .preview_height == 360
@@ -69,6 +74,12 @@ jq -e '
   and .command_marker_pixel_count > 250
   and .attack_arc_pixel_count > 100
   and .hit_flash_pixel_count > 80
+  and .rts_doodad_entity_count >= 12
+  and .doodad_detail_pixel_count > 900
+  and .doodad_stone_pixel_count > 150
+  and .doodad_wood_pixel_count > 150
+  and .doodad_fire_pixel_count > 40
+  and .doodad_crystal_pixel_count > 120
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

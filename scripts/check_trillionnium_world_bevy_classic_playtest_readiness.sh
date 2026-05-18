@@ -61,6 +61,7 @@ jq -n \
       and $iso[0].terrain_detail_gate == true
       and $iso[0].unit_detail_gate == true
       and $iso[0].command_feedback_gate == true
+      and $iso[0].doodad_detail_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
     checks: {
@@ -111,6 +112,12 @@ jq -n \
       isometric_command_marker_pixel_count: $iso[0].command_marker_pixel_count,
       isometric_attack_arc_pixel_count: $iso[0].attack_arc_pixel_count,
       isometric_hit_flash_pixel_count: $iso[0].hit_flash_pixel_count,
+      isometric_rts_doodad_entity_count: $iso[0].rts_doodad_entity_count,
+      isometric_doodad_detail_pixel_count: $iso[0].doodad_detail_pixel_count,
+      isometric_doodad_stone_pixel_count: $iso[0].doodad_stone_pixel_count,
+      isometric_doodad_wood_pixel_count: $iso[0].doodad_wood_pixel_count,
+      isometric_doodad_fire_pixel_count: $iso[0].doodad_fire_pixel_count,
+      isometric_doodad_crystal_pixel_count: $iso[0].doodad_crystal_pixel_count,
       model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
@@ -138,6 +145,7 @@ jq -n \
       isometric_terrain_detail_gate: $iso[0].terrain_detail_gate,
       isometric_unit_detail_gate: $iso[0].unit_detail_gate,
       isometric_command_feedback_gate: $iso[0].command_feedback_gate,
+      isometric_doodad_detail_gate: $iso[0].doodad_detail_gate,
       isometric_sprite_anchor_gate: $iso[0].sprite_anchor_gate,
       catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
@@ -214,6 +222,12 @@ jq -e '
   and .headline.isometric_command_marker_pixel_count > 250
   and .headline.isometric_attack_arc_pixel_count > 100
   and .headline.isometric_hit_flash_pixel_count > 80
+  and .headline.isometric_rts_doodad_entity_count >= 12
+  and .headline.isometric_doodad_detail_pixel_count > 900
+  and .headline.isometric_doodad_stone_pixel_count > 150
+  and .headline.isometric_doodad_wood_pixel_count > 150
+  and .headline.isometric_doodad_fire_pixel_count > 40
+  and .headline.isometric_doodad_crystal_pixel_count > 120
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -236,6 +250,7 @@ jq -e '
   and .gates.isometric_terrain_detail_gate == true
   and .gates.isometric_unit_detail_gate == true
   and .gates.isometric_command_feedback_gate == true
+  and .gates.isometric_doodad_detail_gate == true
   and .gates.isometric_sprite_anchor_gate == true
   and .gates.catalog_all_frames_rendered_gate == true
   and .gates.runner_service_process_gate == true

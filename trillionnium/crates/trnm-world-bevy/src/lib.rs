@@ -177,6 +177,10 @@ const CLASSIC_ISO_UNIT_DAMAGE_COLOR: u32 = 0xd95c5c;
 const CLASSIC_ISO_COMMAND_MARKER_COLOR: u32 = 0x68d7ff;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
+const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
+const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
+const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
+const CLASSIC_ISO_DOODAD_CRYSTAL_COLOR: u32 = 0x85f0ff;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -5474,6 +5478,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
     let mut command_marker_pixel_count = 0_usize;
     let mut attack_arc_pixel_count = 0_usize;
     let mut hit_flash_pixel_count = 0_usize;
+    let mut doodad_detail_pixel_count = 0_usize;
+    let mut doodad_stone_pixel_count = 0_usize;
+    let mut doodad_wood_pixel_count = 0_usize;
+    let mut doodad_fire_pixel_count = 0_usize;
+    let mut doodad_crystal_pixel_count = 0_usize;
     for scene_id in [
         "mirror_city_square",
         "mentor_training_room",
@@ -5548,6 +5557,22 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                     command_feedback_pixel_count += 1;
                     hit_flash_pixel_count += 1;
                 }
+                CLASSIC_ISO_DOODAD_STONE_COLOR => {
+                    doodad_detail_pixel_count += 1;
+                    doodad_stone_pixel_count += 1;
+                }
+                CLASSIC_ISO_DOODAD_WOOD_COLOR => {
+                    doodad_detail_pixel_count += 1;
+                    doodad_wood_pixel_count += 1;
+                }
+                CLASSIC_ISO_DOODAD_FIRE_COLOR => {
+                    doodad_detail_pixel_count += 1;
+                    doodad_fire_pixel_count += 1;
+                }
+                CLASSIC_ISO_DOODAD_CRYSTAL_COLOR => {
+                    doodad_detail_pixel_count += 1;
+                    doodad_crystal_pixel_count += 1;
+                }
                 _ => {}
             }
         }
@@ -5592,6 +5617,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         .values()
         .map(|scene| classic_scene_rts_model_entities(scene.id.as_str()).len())
         .sum();
+    let rts_doodad_entity_count: usize = assets
+        .scene_by_id
+        .values()
+        .map(|scene| classic_scene_rts_doodad_entities(scene.id.as_str()).len())
+        .sum();
     let mut depth_order = Vec::new();
     if let Some(scene) = scene {
         for landmark in &scene.landmarks {
@@ -5603,6 +5633,14 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             }));
         }
         for entity in classic_scene_rts_model_entities(scene.id.as_str()) {
+            depth_order.push(json!({
+                "id": entity.id,
+                "tile": {"x": entity.tile.0, "y": entity.tile.1},
+                "frame_id": entity.frame_id,
+                "depth_key": entity.depth_key,
+            }));
+        }
+        for entity in classic_scene_rts_doodad_entities(scene.id.as_str()) {
             depth_order.push(json!({
                 "id": entity.id,
                 "tile": {"x": entity.tile.0, "y": entity.tile.1},
@@ -5659,6 +5697,12 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && command_marker_pixel_count > 250
         && attack_arc_pixel_count > 100
         && hit_flash_pixel_count > 80;
+    let doodad_detail_gate = rts_doodad_entity_count >= 12
+        && doodad_detail_pixel_count > 900
+        && doodad_stone_pixel_count > 150
+        && doodad_wood_pixel_count > 150
+        && doodad_fire_pixel_count > 40
+        && doodad_crystal_pixel_count > 120;
     let frame_color_present = |frame_id: &str| {
         assets.frame_by_id.get(frame_id).is_some_and(|frame| {
             (frame.y..frame.y + frame.h).any(|y| {
@@ -5685,6 +5729,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && terrain_detail_gate
         && unit_detail_gate
         && command_feedback_gate
+        && doodad_detail_gate
         && sprite_anchor_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -5732,10 +5777,15 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             "unit_depth_overlays",
             "rts_command_destination_marker",
             "combat_attack_arc",
-            "combat_hit_flash"
+            "combat_hit_flash",
+            "rts_doodad_density",
+            "procedural_rock_clusters",
+            "torch_and_crystal_doodads",
+            "doodad_depth_sorting"
         ],
         "depth_order": depth_order,
         "rts_model_entity_count": rts_model_entity_count,
+        "rts_doodad_entity_count": rts_doodad_entity_count,
         "unique_color_count": unique_color_count,
         "non_background_pixels": non_background_pixels,
         "shadow_pixel_count": shadow_pixel_count,
@@ -5755,6 +5805,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "command_marker_pixel_count": command_marker_pixel_count,
         "attack_arc_pixel_count": attack_arc_pixel_count,
         "hit_flash_pixel_count": hit_flash_pixel_count,
+        "doodad_detail_pixel_count": doodad_detail_pixel_count,
+        "doodad_stone_pixel_count": doodad_stone_pixel_count,
+        "doodad_wood_pixel_count": doodad_wood_pixel_count,
+        "doodad_fire_pixel_count": doodad_fire_pixel_count,
+        "doodad_crystal_pixel_count": doodad_crystal_pixel_count,
         "loaded_from_manifest": assets.loaded_from_manifest,
         "atlas_parse_gate": assets.atlas_parse_gate,
         "projection_gate": projection_gate,
@@ -5766,10 +5821,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "terrain_detail_gate": terrain_detail_gate,
         "unit_detail_gate": unit_detail_gate,
         "command_feedback_gate": command_feedback_gate,
+        "doodad_detail_gate": doodad_detail_gate,
         "sprite_anchor_gate": sprite_anchor_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "The classic renderer now uses a Warcraft-style 2.5D model: orthographic isometric diamond terrain, road/water/cliff/foundation details, bottom-center sprite anchors, footprint shadows, and Y/depth sorted scene entities inside trnm-world-bevy."
+        "source_of_truth": "The classic renderer now uses a Warcraft-style 2.5D model: orthographic isometric diamond terrain, road/water/cliff/foundation details, doodad density props, bottom-center sprite anchors, footprint shadows, command feedback, and Y/depth sorted scene entities inside trnm-world-bevy."
     }))
     .expect("classic isometric modeling evidence serializes")
 }
@@ -7438,6 +7494,90 @@ fn classic_draw_iso_procedural_model(
             );
             true
         }
+        "doodad_rock_cluster" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 3, 4);
+            for (dx, dy, radius_x, radius_y) in [(-10, -4, 9, 5), (3, -8, 12, 7), (14, -2, 7, 4)] {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    center_x + dx,
+                    base_y + dy,
+                    radius_x,
+                    radius_y,
+                    CLASSIC_ISO_DOODAD_STONE_COLOR,
+                );
+            }
+            true
+        }
+        "doodad_barrel_stack" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 4, 4);
+            for (dx, dy, height_px) in [(-8, -2, 14), (5, -4, 18), (14, 1, 12)] {
+                classic_draw_iso_prism(
+                    buffer,
+                    width,
+                    height,
+                    center_x + dx,
+                    base_y + dy - 8,
+                    14,
+                    9,
+                    height_px,
+                    CLASSIC_ISO_DOODAD_WOOD_COLOR,
+                );
+            }
+            true
+        }
+        "doodad_torch" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 5, 3);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 2,
+                base_y - 30,
+                4,
+                28,
+                CLASSIC_ISO_DOODAD_WOOD_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                base_y - 34,
+                8,
+                7,
+                CLASSIC_ISO_DOODAD_FIRE_COLOR,
+            );
+            true
+        }
+        "doodad_crystal_cluster" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 4, 4);
+            for (dx, height_px) in [(-8, 24), (3, 32), (13, 20)] {
+                classic_draw_iso_prism(
+                    buffer,
+                    width,
+                    height,
+                    center_x + dx,
+                    base_y - 4,
+                    10,
+                    8,
+                    height_px,
+                    CLASSIC_ISO_DOODAD_CRYSTAL_COLOR,
+                );
+            }
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x + 2,
+                base_y - 24,
+                17,
+                8,
+                CLASSIC_ISO_DOODAD_CRYSTAL_COLOR,
+            );
+            true
+        }
         "tile_tree" => {
             classic_draw_iso_shadow(buffer, width, height, center_x, base_y - 2, tile_w / 3, 5);
             classic_draw_rect(
@@ -8000,6 +8140,7 @@ fn classic_draw_isometric_scene(
             depth_key: (landmark.tile_x + landmark.tile_y) * 10 + 4,
         }));
         entities.extend(classic_scene_rts_model_entities(scene.id.as_str()));
+        entities.extend(classic_scene_rts_doodad_entities(scene.id.as_str()));
         if runtime.dialogue_overlay_visible {
             entities.push(ClassicIsoEntity {
                 id: "dialogue_objective_marker".to_string(),
@@ -8108,6 +8249,40 @@ fn classic_scene_rts_model_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
             ("town_hall", "model_town_hall", (2, 2), 1),
             ("north_tree_cluster", "model_tree_cluster_large", (8, 1), 3),
             ("east_waygate", "model_waygate", (9, 3), 2),
+        ],
+    };
+    specs
+        .iter()
+        .map(|(id, frame_id, tile, depth_offset)| ClassicIsoEntity {
+            id: (*id).to_string(),
+            frame_id: (*frame_id).to_string(),
+            tile: *tile,
+            depth_key: (tile.0 + tile.1) * 10 + depth_offset,
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_scene_rts_doodad_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
+    let specs: &[(&str, &str, (i32, i32), i32)] = match scene_id {
+        "mentor_training_room" => &[
+            ("training_barrels", "doodad_barrel_stack", (2, 4), 3),
+            ("training_torch_left", "doodad_torch", (1, 2), 4),
+            ("training_torch_right", "doodad_torch", (10, 2), 4),
+            ("training_rocks", "doodad_rock_cluster", (8, 5), 3),
+        ],
+        "league_coliseum" => &[
+            ("arena_rocks_left", "doodad_rock_cluster", (1, 5), 3),
+            ("arena_rocks_right", "doodad_rock_cluster", (10, 5), 3),
+            ("arena_torch_left", "doodad_torch", (3, 1), 4),
+            ("arena_torch_right", "doodad_torch", (8, 1), 4),
+            ("arena_crystal", "doodad_crystal_cluster", (6, 4), 4),
+        ],
+        _ => &[
+            ("square_barrels", "doodad_barrel_stack", (3, 6), 3),
+            ("square_rocks", "doodad_rock_cluster", (6, 6), 3),
+            ("square_torch", "doodad_torch", (5, 2), 4),
+            ("square_crystal", "doodad_crystal_cluster", (10, 5), 4),
         ],
     };
     specs
