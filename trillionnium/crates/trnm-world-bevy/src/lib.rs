@@ -130,6 +130,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_SCENE_PREVIEW_CONTRACT: &str =
     "trillionnium_world_bevy_classic_scene_preview_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MODEL_CATALOG_CONTRACT: &str =
     "trillionnium_world_bevy_classic_model_catalog_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDERER_PROBE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_renderer_probe_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -5190,6 +5192,118 @@ pub fn native_classic_model_catalog_evidence_json(catalog_path: &str) -> String 
         "source_of_truth": "The classic model catalog renders every project-owned manifest frame through the same PPM atlas blitter used by the native low-spec playtest renderer."
     }))
     .expect("classic model catalog evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_renderer_probe_evidence_json(frame_path: &str) -> String {
+    const WIDTH: usize = 640;
+    const HEIGHT: usize = 360;
+    let assets = load_classic_runtime_assets();
+    let runtime = NativeFirstPlayableRuntime {
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        map_scene: "league_arena".to_string(),
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        last_feedback: "attack opened arena route".to_string(),
+        xp: 35,
+        player_hp: 92,
+        enemy_hp: 25,
+        ..Default::default()
+    };
+    let mut pixels = vec![0_u32; WIDTH * HEIGHT];
+    classic_draw_scene(&mut pixels, WIDTH, HEIGHT, (4, 5), &runtime, &assets);
+    let write_gate = write_classic_rgb_buffer_ppm(frame_path, WIDTH, HEIGHT, &pixels).is_ok();
+    let frame_bytes = fs::metadata(frame_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or_default();
+    let unique_color_count = pixels.iter().copied().collect::<HashSet<_>>().len();
+    let non_background_pixels = pixels
+        .iter()
+        .filter(|color| **color != 0x101411_u32 && **color != 0x171a1d_u32)
+        .count();
+    let hud_text_pixels = pixels
+        .iter()
+        .filter(|color| {
+            **color == CLASSIC_HUD_TEXT_COLOR
+                || **color == CLASSIC_HUD_MUTED_TEXT_COLOR
+                || **color == CLASSIC_HUD_ACCENT_TEXT_COLOR
+                || **color == CLASSIC_HUD_WARN_TEXT_COLOR
+        })
+        .count();
+    let hud_panel_pixels = pixels
+        .iter()
+        .filter(|color| **color == CLASSIC_HUD_PANEL_COLOR)
+        .count();
+    let player_frame = classic_player_frame_id(&assets, &runtime);
+    let player_frame_color_gate = assets
+        .frame_by_id
+        .get(&player_frame)
+        .map(|frame| {
+            let mut found = false;
+            'outer: for y in frame.y..frame.y + frame.h {
+                for x in frame.x..frame.x + frame.w {
+                    let color = assets.atlas_pixels
+                        [(y as usize * assets.manifest.atlas_width as usize) + x as usize];
+                    if color != 0x000000 && pixels.contains(&color) {
+                        found = true;
+                        break 'outer;
+                    }
+                }
+            }
+            found
+        })
+        .unwrap_or(false);
+    let scene_frame_gate = ["tile_arena", "prop_arena_gate", "actor_enemy_idle"]
+        .iter()
+        .all(|frame_id| {
+            assets.frame_by_id.get(*frame_id).is_some_and(|frame| {
+                (frame.y..frame.y + frame.h).any(|y| {
+                    (frame.x..frame.x + frame.w).any(|x| {
+                        let color = assets.atlas_pixels
+                            [(y as usize * assets.manifest.atlas_width as usize) + x as usize];
+                        color != 0x000000 && pixels.contains(&color)
+                    })
+                })
+            })
+        });
+    let hud_probe_gate = hud_text_pixels > 4_000 && hud_panel_pixels > 4_000;
+    let frame_nonblank_gate =
+        frame_bytes > 100_000 && unique_color_count >= 32 && non_background_pixels > 80_000;
+    let green = write_gate
+        && assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && frame_nonblank_gate
+        && hud_probe_gate
+        && player_frame_color_gate
+        && scene_frame_gate
+        && player_frame == "actor_player_walk_east_1"
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDERER_PROBE_CONTRACT,
+        "green": green,
+        "frame_path": frame_path,
+        "frame_format": "ppm_p3_rgb",
+        "frame_width": WIDTH,
+        "frame_height": HEIGHT,
+        "frame_bytes": frame_bytes,
+        "unique_color_count": unique_color_count,
+        "non_background_pixels": non_background_pixels,
+        "hud_text_pixels": hud_text_pixels,
+        "hud_panel_pixels": hud_panel_pixels,
+        "player_frame_id": player_frame,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "frame_nonblank_gate": frame_nonblank_gate,
+        "hud_probe_gate": hud_probe_gate,
+        "player_frame_color_gate": player_frame_color_gate,
+        "scene_frame_gate": scene_frame_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "The release/debug CLI probe renders a real classic scene frame through the same low-spec renderer path without opening the minifb playtest window."
+    }))
+    .expect("classic renderer probe evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

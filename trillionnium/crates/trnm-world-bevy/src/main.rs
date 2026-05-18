@@ -289,6 +289,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-renderer-probe" | "--classic-renderer-probe" | "classic-probe")
+    ) {
+        let frame_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_renderer_probe_evidence_json(frame_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("authored-art-pack" | "--authored-art-pack" | "art-pack")
     ) {
         println!(
