@@ -25,9 +25,14 @@ required_script_lines=(
   'water_highlight_tiles'
   'raised_tile_cliff_faces'
   'rts_foundation_shadows'
+  'rts_unit_selection_rings'
+  'unit_health_bars'
+  'player_enemy_mentor_silhouettes'
+  'unit_depth_overlays'
   'procedural_volume_gate'
   'rts_model_set_gate'
   'terrain_detail_gate'
+  'unit_detail_gate'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
 )
@@ -49,6 +54,7 @@ required_source_lines=(
   'classic_draw_iso_prism'
   'classic_draw_iso_procedural_model'
   'classic_draw_iso_terrain_detail'
+  'classic_draw_iso_unit_overlay'
   'classic_scene_rts_model_entities'
   'procedural_model_pixel_count'
   'rts_building_pixel_count'
@@ -58,6 +64,10 @@ required_source_lines=(
   'terrain_water_pixel_count'
   'terrain_cliff_pixel_count'
   'terrain_foundation_pixel_count'
+  'unit_detail_pixel_count'
+  'unit_ring_pixel_count'
+  'unit_health_pixel_count'
+  'unit_silhouette_pixel_count'
   'Warcraft-style 2.5D model'
 )
 

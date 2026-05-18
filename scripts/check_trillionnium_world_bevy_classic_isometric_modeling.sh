@@ -28,6 +28,10 @@ jq -e '
   and (.modeling_components | index("water_highlight_tiles") != null)
   and (.modeling_components | index("raised_tile_cliff_faces") != null)
   and (.modeling_components | index("rts_foundation_shadows") != null)
+  and (.modeling_components | index("rts_unit_selection_rings") != null)
+  and (.modeling_components | index("unit_health_bars") != null)
+  and (.modeling_components | index("player_enemy_mentor_silhouettes") != null)
+  and (.modeling_components | index("unit_depth_overlays") != null)
   and .projection_gate == true
   and .depth_sort_gate == true
   and .diamond_tile_gate == true
@@ -35,6 +39,7 @@ jq -e '
   and .procedural_volume_gate == true
   and .rts_model_set_gate == true
   and .terrain_detail_gate == true
+  and .unit_detail_gate == true
   and .sprite_anchor_gate == true
   and .preview_width == 640
   and .preview_height == 360
@@ -52,6 +57,10 @@ jq -e '
   and .terrain_water_pixel_count > 300
   and .terrain_cliff_pixel_count > 1000
   and .terrain_foundation_pixel_count > 500
+  and .unit_detail_pixel_count > 900
+  and .unit_ring_pixel_count > 250
+  and .unit_health_pixel_count > 90
+  and .unit_silhouette_pixel_count > 500
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

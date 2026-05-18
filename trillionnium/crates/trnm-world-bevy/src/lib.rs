@@ -168,6 +168,12 @@ const CLASSIC_ISO_WATER_DETAIL_COLOR: u32 = 0x2d7890;
 const CLASSIC_ISO_WATER_HIGHLIGHT_COLOR: u32 = 0x77c6cf;
 const CLASSIC_ISO_CLIFF_FACE_COLOR: u32 = 0x4a4034;
 const CLASSIC_ISO_FOUNDATION_COLOR: u32 = 0x20261f;
+const CLASSIC_ISO_UNIT_RING_COLOR: u32 = 0xf1d274;
+const CLASSIC_ISO_UNIT_PLAYER_COLOR: u32 = 0x86cf69;
+const CLASSIC_ISO_UNIT_MENTOR_COLOR: u32 = 0xe8c78e;
+const CLASSIC_ISO_UNIT_ENEMY_COLOR: u32 = 0xbf4a4a;
+const CLASSIC_ISO_UNIT_HEALTH_COLOR: u32 = 0x64d66d;
+const CLASSIC_ISO_UNIT_DAMAGE_COLOR: u32 = 0xd95c5c;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -5457,6 +5463,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
     let mut terrain_water_pixel_count = 0_usize;
     let mut terrain_cliff_pixel_count = 0_usize;
     let mut terrain_foundation_pixel_count = 0_usize;
+    let mut unit_detail_pixel_count = 0_usize;
+    let mut unit_ring_pixel_count = 0_usize;
+    let mut unit_health_pixel_count = 0_usize;
+    let mut unit_silhouette_pixel_count = 0_usize;
     for scene_id in [
         "mirror_city_square",
         "mentor_training_room",
@@ -5505,6 +5515,20 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                     terrain_detail_pixel_count += 1;
                     terrain_foundation_pixel_count += 1;
                 }
+                CLASSIC_ISO_UNIT_RING_COLOR => {
+                    unit_detail_pixel_count += 1;
+                    unit_ring_pixel_count += 1;
+                }
+                CLASSIC_ISO_UNIT_HEALTH_COLOR | CLASSIC_ISO_UNIT_DAMAGE_COLOR => {
+                    unit_detail_pixel_count += 1;
+                    unit_health_pixel_count += 1;
+                }
+                CLASSIC_ISO_UNIT_PLAYER_COLOR
+                | CLASSIC_ISO_UNIT_MENTOR_COLOR
+                | CLASSIC_ISO_UNIT_ENEMY_COLOR => {
+                    unit_detail_pixel_count += 1;
+                    unit_silhouette_pixel_count += 1;
+                }
                 _ => {}
             }
         }
@@ -5513,7 +5537,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
     let origin_y = 48_i32;
     let tile_w = 48_i32;
     let tile_h = 24_i32;
-    let projection_samples = vec![
+    let projection_samples = [
         (
             "origin",
             (0, 0),
@@ -5608,6 +5632,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && terrain_water_pixel_count > 300
         && terrain_cliff_pixel_count > 1_000
         && terrain_foundation_pixel_count > 500;
+    let unit_detail_gate = unit_detail_pixel_count > 900
+        && unit_ring_pixel_count > 250
+        && unit_health_pixel_count > 90
+        && unit_silhouette_pixel_count > 500;
     let frame_color_present = |frame_id: &str| {
         assets.frame_by_id.get(frame_id).is_some_and(|frame| {
             (frame.y..frame.y + frame.h).any(|y| {
@@ -5632,6 +5660,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && procedural_volume_gate
         && rts_model_set_gate
         && terrain_detail_gate
+        && unit_detail_gate
         && sprite_anchor_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -5672,7 +5701,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             "terrain_road_overlay",
             "water_highlight_tiles",
             "raised_tile_cliff_faces",
-            "rts_foundation_shadows"
+            "rts_foundation_shadows",
+            "rts_unit_selection_rings",
+            "unit_health_bars",
+            "player_enemy_mentor_silhouettes",
+            "unit_depth_overlays"
         ],
         "depth_order": depth_order,
         "rts_model_entity_count": rts_model_entity_count,
@@ -5687,6 +5720,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "terrain_water_pixel_count": terrain_water_pixel_count,
         "terrain_cliff_pixel_count": terrain_cliff_pixel_count,
         "terrain_foundation_pixel_count": terrain_foundation_pixel_count,
+        "unit_detail_pixel_count": unit_detail_pixel_count,
+        "unit_ring_pixel_count": unit_ring_pixel_count,
+        "unit_health_pixel_count": unit_health_pixel_count,
+        "unit_silhouette_pixel_count": unit_silhouette_pixel_count,
         "loaded_from_manifest": assets.loaded_from_manifest,
         "atlas_parse_gate": assets.atlas_parse_gate,
         "projection_gate": projection_gate,
@@ -5696,6 +5733,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "procedural_volume_gate": procedural_volume_gate,
         "rts_model_set_gate": rts_model_set_gate,
         "terrain_detail_gate": terrain_detail_gate,
+        "unit_detail_gate": unit_detail_gate,
         "sprite_anchor_gate": sprite_anchor_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
@@ -6741,6 +6779,7 @@ fn classic_frame_anchor_color(assets: &ClassicRuntimeAssets, frame_id: &str) -> 
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_iso_diamond(
     buffer: &mut [u32],
     width: usize,
@@ -7042,6 +7081,7 @@ fn classic_draw_iso_prism(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_iso_ellipse(
     buffer: &mut [u32],
     width: usize,
@@ -7554,11 +7594,55 @@ fn classic_draw_iso_procedural_model(
                 width,
                 height,
                 center_x,
+                base_y - 3,
+                17,
+                6,
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
                 base_y - 26,
                 13,
                 18,
-                classic_darken(CLASSIC_ISO_BANNER_COLOR, 2, 5),
+                CLASSIC_ISO_UNIT_ENEMY_COLOR,
             );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 8,
+                base_y - 42,
+                22,
+                4,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            if frame_id == "actor_enemy_attack" {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 10,
+                    base_y - 38,
+                    24,
+                    3,
+                    CLASSIC_ISO_UNIT_DAMAGE_COLOR,
+                );
+            }
+            if frame_id == "actor_enemy_hit" {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 8,
+                    base_y - 44,
+                    8,
+                    5,
+                    CLASSIC_ISO_UNIT_DAMAGE_COLOR,
+                );
+            }
             true
         }
         frame if frame.starts_with("actor_player") => {
@@ -7567,10 +7651,30 @@ fn classic_draw_iso_procedural_model(
                 width,
                 height,
                 center_x,
-                base_y - 25,
-                10,
+                base_y - 3,
                 16,
-                classic_darken(CLASSIC_ISO_CANOPY_LIGHT_COLOR, 1, 3),
+                6,
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                base_y - 25,
+                12,
+                17,
+                CLASSIC_ISO_UNIT_PLAYER_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                base_y - 39,
+                10,
+                4,
+                CLASSIC_ISO_GOLD_COLOR,
             );
             true
         }
@@ -7580,10 +7684,30 @@ fn classic_draw_iso_procedural_model(
                 width,
                 height,
                 center_x,
-                base_y - 25,
-                10,
+                base_y - 3,
                 15,
-                classic_darken(0xffedb0, 1, 4),
+                5,
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                base_y - 25,
+                11,
+                16,
+                CLASSIC_ISO_UNIT_MENTOR_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 12,
+                base_y - 46,
+                4,
+                30,
+                CLASSIC_ISO_GOLD_COLOR,
             );
             true
         }
@@ -7592,6 +7716,60 @@ fn classic_draw_iso_procedural_model(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_iso_unit_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    sprite_top_y: i32,
+) -> bool {
+    let (bar_color, fill_width) = if frame_id.starts_with("actor_enemy") {
+        (
+            if frame_id == "actor_enemy_hit" {
+                CLASSIC_ISO_UNIT_DAMAGE_COLOR
+            } else {
+                CLASSIC_ISO_UNIT_ENEMY_COLOR
+            },
+            if frame_id == "actor_enemy_hit" {
+                12
+            } else {
+                20
+            },
+        )
+    } else if frame_id.starts_with("actor_player") {
+        (CLASSIC_ISO_UNIT_HEALTH_COLOR, 22)
+    } else if frame_id.starts_with("actor_mentor") || frame_id.starts_with("actor_vendor") {
+        (CLASSIC_ISO_UNIT_MENTOR_COLOR, 18)
+    } else {
+        return false;
+    };
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - 14,
+        sprite_top_y - 7,
+        28,
+        5,
+        CLASSIC_ISO_OUTLINE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - 12,
+        sprite_top_y - 6,
+        fill_width,
+        3,
+        bar_color,
+    );
+    true
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_isometric_frame_at_tile(
     buffer: &mut [u32],
     width: usize,
@@ -7641,6 +7819,14 @@ fn classic_draw_isometric_frame_at_tile(
         screen_x - sprite_px / 2,
         screen_y + tile_h - sprite_px,
         sprite_scale,
+    );
+    classic_draw_iso_unit_overlay(
+        buffer,
+        width,
+        height,
+        frame_id,
+        screen_x,
+        screen_y + tile_h - sprite_px,
     );
 }
 
