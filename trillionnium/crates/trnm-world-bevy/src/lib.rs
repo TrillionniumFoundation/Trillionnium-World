@@ -5593,6 +5593,9 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     let mut doodad_unique_color_total = 0_usize;
     let mut doodad_shadow_pixel_count = 0_usize;
     let mut doodad_detail_pixel_count = 0_usize;
+    let mut terrain_detail_asset_count = 0_usize;
+    let mut terrain_unique_color_total = 0_usize;
+    let mut terrain_detail_pixel_count = 0_usize;
     let mut vfx_detail_asset_count = 0_usize;
     let mut vfx_unique_color_total = 0_usize;
     let mut vfx_detail_pixel_count = 0_usize;
@@ -5660,6 +5663,21 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 doodad_detail_asset_count += 1;
             }
         }
+        let terrain_detail_pixels = pixels
+            .iter()
+            .filter(|color| classic_art_pack_terrain_detail_color(**color))
+            .count();
+        let terrain_detail_asset_gate = classic_art_pack_terrain_frame(frame_id)
+            && unique_color_count >= 3
+            && terrain_detail_pixels > 28
+            && visible_pixel_count > 100;
+        if classic_art_pack_terrain_frame(frame_id) {
+            terrain_unique_color_total += unique_color_count;
+            terrain_detail_pixel_count += terrain_detail_pixels;
+            if terrain_detail_asset_gate {
+                terrain_detail_asset_count += 1;
+            }
+        }
         let vfx_detail_pixels = pixels
             .iter()
             .filter(|color| classic_art_pack_vfx_detail_color(**color))
@@ -5694,6 +5712,8 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 "unit_detail_asset_gate": unit_detail_asset_gate,
                 "doodad_detail_pixel_count": doodad_detail_pixels,
                 "doodad_detail_asset_gate": doodad_detail_asset_gate,
+                "terrain_detail_pixel_count": terrain_detail_pixels,
+                "terrain_detail_asset_gate": terrain_detail_asset_gate,
                 "vfx_detail_pixel_count": vfx_detail_pixels,
                 "vfx_detail_asset_gate": vfx_detail_asset_gate,
             }));
@@ -5757,6 +5777,17 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     ]
     .iter()
     .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let terrain_art_gate = [
+        "tile_grass_a",
+        "tile_grass_b",
+        "tile_road",
+        "tile_water",
+        "tile_wall",
+        "tile_roof",
+        "tile_arena",
+    ]
+    .iter()
+    .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let vfx_art_gate = [
         "rts_command_destination_marker",
         "combat_attack_arc",
@@ -5784,6 +5815,9 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && doodad_unique_color_total >= 12
         && doodad_shadow_pixel_count > 20
         && doodad_detail_pixel_count > 200;
+    let terrain_detail_gate = terrain_detail_asset_count >= 7
+        && terrain_unique_color_total >= 28
+        && terrain_detail_pixel_count > 950;
     let vfx_detail_gate =
         vfx_detail_asset_count >= 6 && vfx_unique_color_total >= 18 && vfx_detail_pixel_count > 700;
     let green = create_dir_gate
@@ -5796,10 +5830,12 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && player_art_gate
         && enemy_art_gate
         && doodad_art_gate
+        && terrain_art_gate
         && vfx_art_gate
         && model_detail_gate
         && unit_detail_gate
         && doodad_detail_gate
+        && terrain_detail_gate
         && vfx_detail_gate
         && replacement_boundary_gate;
     let override_frame_ids = assets
@@ -5825,6 +5861,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "player_art_gate": player_art_gate,
         "enemy_art_gate": enemy_art_gate,
         "doodad_art_gate": doodad_art_gate,
+        "terrain_art_gate": terrain_art_gate,
         "vfx_art_gate": vfx_art_gate,
         "model_detail_gate": model_detail_gate,
         "model_detail_asset_count": model_detail_asset_count,
@@ -5842,6 +5879,10 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "doodad_unique_color_total": doodad_unique_color_total,
         "doodad_shadow_pixel_count": doodad_shadow_pixel_count,
         "doodad_detail_pixel_count": doodad_detail_pixel_count,
+        "terrain_detail_gate": terrain_detail_gate,
+        "terrain_detail_asset_count": terrain_detail_asset_count,
+        "terrain_unique_color_total": terrain_unique_color_total,
+        "terrain_detail_pixel_count": terrain_detail_pixel_count,
         "vfx_detail_gate": vfx_detail_gate,
         "vfx_detail_asset_count": vfx_detail_asset_count,
         "vfx_unique_color_total": vfx_unique_color_total,
@@ -5850,7 +5891,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "override_frame_ids": override_frame_ids,
         "written_assets": written_assets,
         "write_failures": write_failures,
-        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "doodad", "vfx", "player", "enemy"],
+        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "doodad", "terrain", "vfx", "player", "enemy"],
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
         "source_of_truth": "The classic art pack writes the first real 2.5D override sprites into the Trillionnium Bevy asset tree and proves they load through the native low-spec renderer override path."
@@ -5900,6 +5941,40 @@ fn classic_art_pack_doodad_detail_color(color: u32) -> bool {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_art_pack_terrain_frame(frame_id: &str) -> bool {
+    matches!(
+        frame_id,
+        "tile_grass_a"
+            | "tile_grass_b"
+            | "tile_road"
+            | "tile_water"
+            | "tile_wall"
+            | "tile_roof"
+            | "tile_arena"
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_art_pack_terrain_detail_color(color: u32) -> bool {
+    matches!(
+        color,
+        CLASSIC_ISO_ROAD_DETAIL_COLOR
+            | CLASSIC_ISO_WATER_DETAIL_COLOR
+            | CLASSIC_ISO_WATER_HIGHLIGHT_COLOR
+            | CLASSIC_ISO_WALL_COLOR
+            | CLASSIC_ISO_BLUE_ROOF_COLOR
+            | CLASSIC_ISO_FOUNDATION_COLOR
+            | 0x2e6f44
+            | 0x407849
+            | 0xb19565
+            | 0x6c777c
+            | 0x9d5a55
+            | 0x915548
+            | 0xc4745e
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_art_pack_vfx_frame(frame_id: &str) -> bool {
     matches!(
         frame_id,
@@ -5940,6 +6015,7 @@ fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static st
                 "model_coliseum_stands" => "coliseum",
                 "model_tree_cluster_large" => "tree_cluster",
                 frame if frame.starts_with("doodad_") => "doodad",
+                frame if classic_art_pack_terrain_frame(frame) => "terrain",
                 frame if classic_art_pack_vfx_frame(frame) => "vfx",
                 _ => "model",
             };
@@ -5979,6 +6055,13 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
         ("doodad_barrel_stack", 48, 48),
         ("doodad_torch", 48, 48),
         ("doodad_crystal_cluster", 48, 48),
+        ("tile_grass_a", 48, 24),
+        ("tile_grass_b", 48, 24),
+        ("tile_road", 48, 24),
+        ("tile_water", 48, 24),
+        ("tile_wall", 48, 36),
+        ("tile_roof", 48, 36),
+        ("tile_arena", 48, 24),
         ("rts_command_destination_marker", 48, 48),
         ("combat_attack_arc", 64, 48),
         ("combat_hit_flash", 48, 48),
@@ -5992,6 +6075,256 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
 fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> {
     let mut pixels = vec![0x000000_u32; width as usize * height as usize];
     match frame_id {
+        "tile_grass_a" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                0x2e6f44,
+            );
+            for (x, y, w) in [(12, 9, 7), (27, 6, 9), (31, 15, 6), (18, 16, 5)] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    y,
+                    w,
+                    2,
+                    0x407849,
+                );
+            }
+        }
+        "tile_grass_b" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                0x255a3d,
+            );
+            for (x, y, w) in [(10, 13, 8), (23, 8, 6), (30, 17, 9), (17, 6, 4)] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    y,
+                    w,
+                    2,
+                    0x2e6f44,
+                );
+            }
+        }
+        "tile_road" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                0x8a7350,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                8,
+                11,
+                32,
+                3,
+                0xb19565,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                15,
+                7,
+                20,
+                2,
+                CLASSIC_ISO_ROAD_DETAIL_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                19,
+                17,
+                16,
+                2,
+                CLASSIC_ISO_ROAD_DETAIL_COLOR,
+            );
+        }
+        "tile_water" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                0x2e5d74,
+            );
+            for y in [7, 11, 15] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    12,
+                    y,
+                    24,
+                    2,
+                    CLASSIC_ISO_WATER_DETAIL_COLOR,
+                );
+            }
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                18,
+                9,
+                15,
+                1,
+                CLASSIC_ISO_WATER_HIGHLIGHT_COLOR,
+            );
+        }
+        "tile_wall" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                12,
+                46,
+                22,
+                CLASSIC_ISO_WALL_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                9,
+                9,
+                30,
+                7,
+                0x6c777c,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                13,
+                5,
+                22,
+                5,
+                CLASSIC_ISO_STONE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                15,
+                18,
+                18,
+                2,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+        }
+        "tile_roof" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                12,
+                46,
+                22,
+                CLASSIC_ISO_ROOF_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                10,
+                8,
+                28,
+                5,
+                0x9d5a55,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                15,
+                5,
+                18,
+                3,
+                0xc4745e,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                18,
+                17,
+                13,
+                2,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+        }
+        "tile_arena" => {
+            classic_draw_iso_diamond(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                24,
+                2,
+                46,
+                22,
+                0x5b3c34,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                10,
+                9,
+                28,
+                3,
+                0x915548,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                14,
+                14,
+                21,
+                3,
+                0xc4745e,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                19,
+                6,
+                13,
+                2,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+        }
         "rts_command_destination_marker" => {
             classic_draw_iso_ellipse(
                 &mut pixels,
@@ -7181,6 +7514,13 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
     let command_marker_color_count = count_color(CLASSIC_ISO_COMMAND_MARKER_COLOR);
     let attack_arc_color_count = count_color(CLASSIC_ISO_ATTACK_ARC_COLOR);
     let hit_flash_color_count = count_color(CLASSIC_ISO_HIT_FLASH_COLOR);
+    let terrain_grass_color_count = count_color(0x2e6f44) + count_color(0x255a3d);
+    let terrain_road_color_count =
+        count_color(CLASSIC_ISO_ROAD_DETAIL_COLOR) + count_color(0xb19565);
+    let terrain_water_color_count = count_color(CLASSIC_ISO_WATER_DETAIL_COLOR)
+        + count_color(CLASSIC_ISO_WATER_HIGHLIGHT_COLOR);
+    let terrain_wall_roof_color_count =
+        count_color(CLASSIC_ISO_WALL_COLOR) + count_color(CLASSIC_ISO_ROOF_COLOR);
     let non_background_pixels = preview_pixels
         .iter()
         .filter(|color| **color != 0x0b0d0c_u32)
@@ -7206,6 +7546,18 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
     let vfx_override_presence_gate = vfx_override_ids
         .iter()
         .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let terrain_override_ids = [
+        "tile_grass_a",
+        "tile_grass_b",
+        "tile_road",
+        "tile_water",
+        "tile_wall",
+        "tile_roof",
+        "tile_arena",
+    ];
+    let terrain_override_presence_gate = terrain_override_ids
+        .iter()
+        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let color_probe_gate = town_hall_color_count > 20
         && waygate_color_count > 20
         && tree_color_count > 20
@@ -7215,6 +7567,10 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
     let vfx_color_probe_gate = command_marker_color_count > 200
         && attack_arc_color_count > 100
         && hit_flash_color_count > 80;
+    let terrain_color_probe_gate = terrain_grass_color_count > 600
+        && terrain_road_color_count > 100
+        && terrain_water_color_count > 40
+        && terrain_wall_roof_color_count > 80;
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -7224,6 +7580,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         && coliseum_scene.is_some()
         && override_presence_gate
         && color_probe_gate
+        && terrain_override_presence_gate
+        && terrain_color_probe_gate
         && vfx_override_presence_gate
         && vfx_color_probe_gate
         && non_background_pixels > 120_000
@@ -7240,6 +7598,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "color_probe_gate": color_probe_gate,
         "vfx_override_presence_gate": vfx_override_presence_gate,
         "vfx_color_probe_gate": vfx_color_probe_gate,
+        "terrain_override_presence_gate": terrain_override_presence_gate,
+        "terrain_color_probe_gate": terrain_color_probe_gate,
         "replacement_boundary_gate": replacement_boundary_gate,
         "non_background_pixels": non_background_pixels,
         "town_hall_color_count": town_hall_color_count,
@@ -7251,6 +7611,10 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "command_marker_color_count": command_marker_color_count,
         "attack_arc_color_count": attack_arc_color_count,
         "hit_flash_color_count": hit_flash_color_count,
+        "terrain_grass_color_count": terrain_grass_color_count,
+        "terrain_road_color_count": terrain_road_color_count,
+        "terrain_water_color_count": terrain_water_color_count,
+        "terrain_wall_roof_color_count": terrain_wall_roof_color_count,
         "mirror_scene_gate": mirror_scene.is_some(),
         "coliseum_scene_gate": coliseum_scene.is_some(),
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
@@ -10275,15 +10639,28 @@ fn classic_draw_isometric_scene(
                     tile_h,
                     (col_idx as i32, row_idx as i32),
                 );
-                if matches!(frame_id, "tile_wall" | "tile_roof" | "tile_arena") {
+                let terrain_override_drawn = classic_blit_frame_override_bottom_center(
+                    buffer,
+                    width,
+                    height,
+                    assets,
+                    frame_id,
+                    screen_x,
+                    screen_y + tile_h,
+                );
+                if !terrain_override_drawn
+                    && matches!(frame_id, "tile_wall" | "tile_roof" | "tile_arena")
+                {
                     classic_draw_iso_terrain_detail(
                         buffer, width, height, frame_id, screen_x, screen_y, tile_w, tile_h,
                     );
                 }
-                classic_draw_iso_diamond(
-                    buffer, width, height, screen_x, screen_y, tile_w, tile_h, color,
-                );
-                if matches!(frame_id, "tile_road" | "tile_water") {
+                if !terrain_override_drawn {
+                    classic_draw_iso_diamond(
+                        buffer, width, height, screen_x, screen_y, tile_w, tile_h, color,
+                    );
+                }
+                if !terrain_override_drawn && matches!(frame_id, "tile_road" | "tile_water") {
                     terrain_overlays.push((frame_id, screen_x, screen_y));
                 }
                 if frame_id == "tile_tree" {
