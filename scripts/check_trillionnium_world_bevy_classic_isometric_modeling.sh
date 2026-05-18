@@ -21,11 +21,15 @@ jq -e '
   and (.modeling_components | index("procedural_building_volumes") != null)
   and (.modeling_components | index("tree_canopy_occlusion") != null)
   and (.modeling_components | index("enlarged_actor_billboards") != null)
+  and (.modeling_components | index("multi_tile_rts_buildings") != null)
+  and (.modeling_components | index("warcraft_like_silhouette_set") != null)
+  and (.modeling_components | index("magic_gate_model") != null)
   and .projection_gate == true
   and .depth_sort_gate == true
   and .diamond_tile_gate == true
   and .shadow_anchor_gate == true
   and .procedural_volume_gate == true
+  and .rts_model_set_gate == true
   and .sprite_anchor_gate == true
   and .preview_width == 640
   and .preview_height == 360
@@ -34,6 +38,10 @@ jq -e '
   and .shadow_pixel_count > 250
   and .procedural_model_pixel_count > 5000
   and .canopy_pixel_count > 2500
+  and .procedural_model_pixel_count > 10000
+  and .canopy_pixel_count > 4000
+  and .rts_model_entity_count >= 3
+  and .rts_building_pixel_count > 1500
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

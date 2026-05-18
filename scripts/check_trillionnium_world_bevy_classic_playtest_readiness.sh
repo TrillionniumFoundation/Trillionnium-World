@@ -93,6 +93,8 @@ jq -n \
       isometric_shadow_pixel_count: $iso[0].shadow_pixel_count,
       isometric_procedural_model_pixel_count: $iso[0].procedural_model_pixel_count,
       isometric_canopy_pixel_count: $iso[0].canopy_pixel_count,
+      isometric_rts_building_pixel_count: $iso[0].rts_building_pixel_count,
+      isometric_rts_model_entity_count: $iso[0].rts_model_entity_count,
       model_catalog_rendered_frame_count: $catalog[0].rendered_frame_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
@@ -116,6 +118,7 @@ jq -n \
       isometric_diamond_tile_gate: $iso[0].diamond_tile_gate,
       isometric_shadow_anchor_gate: $iso[0].shadow_anchor_gate,
       isometric_procedural_volume_gate: $iso[0].procedural_volume_gate,
+      isometric_rts_model_set_gate: $iso[0].rts_model_set_gate,
       isometric_sprite_anchor_gate: $iso[0].sprite_anchor_gate,
       catalog_all_frames_rendered_gate: $catalog[0].all_frames_rendered_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
@@ -175,6 +178,10 @@ jq -e '
   and .headline.isometric_shadow_pixel_count > 250
   and .headline.isometric_procedural_model_pixel_count > 5000
   and .headline.isometric_canopy_pixel_count > 2500
+  and .headline.isometric_procedural_model_pixel_count > 10000
+  and .headline.isometric_canopy_pixel_count > 4000
+  and .headline.isometric_rts_building_pixel_count > 1500
+  and .headline.isometric_rts_model_entity_count >= 3
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -193,6 +200,7 @@ jq -e '
   and .gates.isometric_diamond_tile_gate == true
   and .gates.isometric_shadow_anchor_gate == true
   and .gates.isometric_procedural_volume_gate == true
+  and .gates.isometric_rts_model_set_gate == true
   and .gates.isometric_sprite_anchor_gate == true
   and .gates.catalog_all_frames_rendered_gate == true
   and .gates.runner_service_process_gate == true

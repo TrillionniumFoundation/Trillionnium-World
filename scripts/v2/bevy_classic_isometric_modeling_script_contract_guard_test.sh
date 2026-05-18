@@ -18,7 +18,11 @@ required_script_lines=(
   'procedural_building_volumes'
   'tree_canopy_occlusion'
   'enlarged_actor_billboards'
+  'multi_tile_rts_buildings'
+  'warcraft_like_silhouette_set'
+  'magic_gate_model'
   'procedural_volume_gate'
+  'rts_model_set_gate'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
 )
@@ -39,7 +43,10 @@ required_source_lines=(
   'classic_draw_iso_shadow'
   'classic_draw_iso_prism'
   'classic_draw_iso_procedural_model'
+  'classic_scene_rts_model_entities'
   'procedural_model_pixel_count'
+  'rts_building_pixel_count'
+  'rts_model_entity_count'
   'Warcraft-style 2.5D model'
 )
 

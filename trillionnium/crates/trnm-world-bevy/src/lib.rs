@@ -156,9 +156,13 @@ const CLASSIC_ISO_SHADOW_COLOR: u32 = 0x080b09;
 const CLASSIC_ISO_WALL_COLOR: u32 = 0x6e5a44;
 const CLASSIC_ISO_STONE_COLOR: u32 = 0x737d86;
 const CLASSIC_ISO_ROOF_COLOR: u32 = 0xa84f4b;
+const CLASSIC_ISO_BLUE_ROOF_COLOR: u32 = 0x466f9f;
 const CLASSIC_ISO_CANOPY_COLOR: u32 = 0x3d8f4f;
 const CLASSIC_ISO_CANOPY_LIGHT_COLOR: u32 = 0x78bd62;
 const CLASSIC_ISO_BANNER_COLOR: u32 = 0xd6656b;
+const CLASSIC_ISO_GOLD_COLOR: u32 = 0xd4a84b;
+const CLASSIC_ISO_MAGIC_COLOR: u32 = 0x6fd0df;
+const CLASSIC_ISO_OUTLINE_COLOR: u32 = 0x111711;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_CONTRACT: &str =
@@ -5418,6 +5422,8 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                     | CLASSIC_ISO_CANOPY_COLOR
                     | CLASSIC_ISO_CANOPY_LIGHT_COLOR
                     | CLASSIC_ISO_BANNER_COLOR
+                    | CLASSIC_ISO_GOLD_COLOR
+                    | CLASSIC_ISO_MAGIC_COLOR
             )
         })
         .count();
@@ -5425,6 +5431,20 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         .iter()
         .filter(|color| {
             **color == CLASSIC_ISO_CANOPY_COLOR || **color == CLASSIC_ISO_CANOPY_LIGHT_COLOR
+        })
+        .count();
+    let rts_building_pixel_count = pixels
+        .iter()
+        .filter(|color| {
+            matches!(
+                **color,
+                CLASSIC_ISO_WALL_COLOR
+                    | CLASSIC_ISO_STONE_COLOR
+                    | CLASSIC_ISO_ROOF_COLOR
+                    | CLASSIC_ISO_BLUE_ROOF_COLOR
+                    | CLASSIC_ISO_GOLD_COLOR
+                    | CLASSIC_ISO_MAGIC_COLOR
+            )
         })
         .count();
     let origin_x = WIDTH as i32 / 2;
@@ -5462,6 +5482,9 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         .scene_by_id
         .get("mirror_city_square")
         .or_else(|| assets.scene_by_id.get("mirror_city_square"));
+    let rts_model_entity_count = scene
+        .map(|scene| classic_scene_rts_model_entities(scene.id.as_str()).len())
+        .unwrap_or_default();
     let mut depth_order = Vec::new();
     if let Some(scene) = scene {
         for landmark in &scene.landmarks {
@@ -5504,6 +5527,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         preview_bytes > 100_000 && unique_color_count >= 36 && non_background_pixels > 80_000;
     let shadow_anchor_gate = shadow_pixel_count > 250;
     let procedural_volume_gate = procedural_model_pixel_count > 5_000 && canopy_pixel_count > 2_500;
+    let rts_model_set_gate = rts_model_entity_count >= 3
+        && rts_building_pixel_count > 1_500
+        && procedural_model_pixel_count > 10_000
+        && canopy_pixel_count > 4_000;
     let frame_color_present = |frame_id: &str| {
         assets.frame_by_id.get(frame_id).is_some_and(|frame| {
             (frame.y..frame.y + frame.h).any(|y| {
@@ -5526,6 +5553,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && diamond_tile_gate
         && shadow_anchor_gate
         && procedural_volume_gate
+        && rts_model_set_gate
         && sprite_anchor_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -5559,14 +5587,19 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             "sprite_anchor_bottom_center",
             "procedural_building_volumes",
             "tree_canopy_occlusion",
-            "enlarged_actor_billboards"
+            "enlarged_actor_billboards",
+            "multi_tile_rts_buildings",
+            "warcraft_like_silhouette_set",
+            "magic_gate_model"
         ],
         "depth_order": depth_order,
+        "rts_model_entity_count": rts_model_entity_count,
         "unique_color_count": unique_color_count,
         "non_background_pixels": non_background_pixels,
         "shadow_pixel_count": shadow_pixel_count,
         "procedural_model_pixel_count": procedural_model_pixel_count,
         "canopy_pixel_count": canopy_pixel_count,
+        "rts_building_pixel_count": rts_building_pixel_count,
         "loaded_from_manifest": assets.loaded_from_manifest,
         "atlas_parse_gate": assets.atlas_parse_gate,
         "projection_gate": projection_gate,
@@ -5574,6 +5607,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "diamond_tile_gate": diamond_tile_gate,
         "shadow_anchor_gate": shadow_anchor_gate,
         "procedural_volume_gate": procedural_volume_gate,
+        "rts_model_set_gate": rts_model_set_gate,
         "sprite_anchor_gate": sprite_anchor_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
@@ -6864,6 +6898,242 @@ fn classic_draw_iso_procedural_model(
 ) -> bool {
     let base_y = top_y + tile_h;
     match frame_id {
+        "model_town_hall" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y + 2, tile_w, 8);
+            classic_draw_iso_prism(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 14,
+                tile_w * 2,
+                tile_h * 2,
+                44,
+                CLASSIC_ISO_WALL_COLOR,
+            );
+            classic_draw_iso_prism(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y - 28,
+                tile_w * 2 + 16,
+                tile_h + 8,
+                12,
+                CLASSIC_ISO_BLUE_ROOF_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 10,
+                top_y + 4,
+                20,
+                30,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 8,
+                top_y + 6,
+                16,
+                26,
+                classic_darken(CLASSIC_ISO_WALL_COLOR, 2, 5),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 26,
+                top_y - 4,
+                10,
+                8,
+                CLASSIC_ISO_GOLD_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 16,
+                top_y - 4,
+                10,
+                8,
+                CLASSIC_ISO_GOLD_COLOR,
+            );
+            true
+        }
+        "model_training_hall" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y + 2, tile_w, 7);
+            classic_draw_iso_prism(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y + 14,
+                tile_w * 2,
+                tile_h + 12,
+                36,
+                CLASSIC_ISO_STONE_COLOR,
+            );
+            classic_draw_iso_prism(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y - 20,
+                tile_w * 2 + 10,
+                tile_h,
+                10,
+                CLASSIC_ISO_ROOF_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 18,
+                top_y - 8,
+                24,
+                5,
+                CLASSIC_ISO_GOLD_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 16,
+                top_y - 11,
+                28,
+                3,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            true
+        }
+        "model_waygate" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y + 2, tile_w / 2, 6);
+            classic_draw_iso_prism(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                top_y + 8,
+                tile_w / 2,
+                tile_h,
+                48,
+                CLASSIC_ISO_STONE_COLOR,
+            );
+            classic_draw_iso_prism(
+                buffer,
+                width,
+                height,
+                center_x + 18,
+                top_y + 8,
+                tile_w / 2,
+                tile_h,
+                48,
+                CLASSIC_ISO_STONE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 28,
+                top_y - 47,
+                56,
+                3,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 28,
+                top_y - 44,
+                56,
+                8,
+                CLASSIC_ISO_STONE_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                top_y - 12,
+                20,
+                28,
+                CLASSIC_ISO_MAGIC_COLOR,
+            );
+            true
+        }
+        "model_coliseum_stands" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y + 4, tile_w, 8);
+            for tier in 0..3 {
+                classic_draw_iso_prism(
+                    buffer,
+                    width,
+                    height,
+                    center_x,
+                    top_y + 18 - tier * 12,
+                    tile_w * 2 - tier * 12,
+                    tile_h + 8,
+                    12,
+                    if tier % 2 == 0 {
+                        CLASSIC_ISO_STONE_COLOR
+                    } else {
+                        classic_lighten(CLASSIC_ISO_STONE_COLOR, 1, 5)
+                    },
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 44,
+                top_y - 22,
+                88,
+                4,
+                CLASSIC_ISO_BANNER_COLOR,
+            );
+            true
+        }
+        "model_tree_cluster_large" => {
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w, 8);
+            for (dx, dy, radius_x, radius_y, color) in [
+                (-26, -34, 25, 15, CLASSIC_ISO_CANOPY_COLOR),
+                (-7, -45, 28, 17, CLASSIC_ISO_CANOPY_LIGHT_COLOR),
+                (
+                    20,
+                    -36,
+                    26,
+                    16,
+                    classic_darken(CLASSIC_ISO_CANOPY_COLOR, 1, 5),
+                ),
+                (2, -27, 33, 15, CLASSIC_ISO_CANOPY_COLOR),
+            ] {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    center_x + dx,
+                    top_y + dy,
+                    radius_x,
+                    radius_y,
+                    color,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 4,
+                top_y - 26,
+                8,
+                36,
+                classic_darken(CLASSIC_ISO_WALL_COLOR, 1, 3),
+            );
+            true
+        }
         "tile_tree" => {
             classic_draw_iso_shadow(buffer, width, height, center_x, base_y - 2, tile_w / 3, 5);
             classic_draw_rect(
@@ -7182,6 +7452,7 @@ fn classic_draw_isometric_scene(
             tile: (landmark.tile_x, landmark.tile_y),
             depth_key: (landmark.tile_x + landmark.tile_y) * 10 + 4,
         }));
+        entities.extend(classic_scene_rts_model_entities(scene.id.as_str()));
         if runtime.dialogue_overlay_visible {
             entities.push(ClassicIsoEntity {
                 id: "dialogue_objective_marker".to_string(),
@@ -7255,6 +7526,40 @@ fn classic_draw_isometric_scene(
             scale,
         );
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_scene_rts_model_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
+    let specs: &[(&str, &str, (i32, i32), i32)] = match scene_id {
+        "mentor_training_room" => &[
+            ("training_hall", "model_training_hall", (4, 1), 2),
+            (
+                "training_tree_cluster",
+                "model_tree_cluster_large",
+                (9, 2),
+                3,
+            ),
+        ],
+        "league_coliseum" => &[
+            ("coliseum_left_stands", "model_coliseum_stands", (3, 2), 2),
+            ("coliseum_right_stands", "model_coliseum_stands", (9, 3), 2),
+            ("coliseum_waygate", "model_waygate", (6, 1), 2),
+        ],
+        _ => &[
+            ("town_hall", "model_town_hall", (2, 2), 1),
+            ("north_tree_cluster", "model_tree_cluster_large", (8, 1), 3),
+            ("east_waygate", "model_waygate", (9, 3), 2),
+        ],
+    };
+    specs
+        .iter()
+        .map(|(id, frame_id, tile, depth_offset)| ClassicIsoEntity {
+            id: (*id).to_string(),
+            frame_id: (*frame_id).to_string(),
+            tile: *tile,
+            depth_key: (tile.0 + tile.1) * 10 + depth_offset,
+        })
+        .collect()
 }
 
 #[cfg(not(target_os = "android"))]
