@@ -50,6 +50,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" \
+  "$ROOT/scripts/check_trillionnium_world_public_launch_operator_handoff.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_status_only_fixtures.sh" \
   "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" \
@@ -93,6 +94,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_template_negative_fixtures_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_evidence_kit_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/public_launch_operator_handoff_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_readiness_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_blocker_consistency_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_ci_gate_script_contract_guard_test.sh" \
@@ -142,6 +144,8 @@ run_check public_launch_template_negative_fixtures_contract_guard "$ROOT/scripts
 run_check public_launch_template_negative_fixtures_gate "$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh"
 run_check public_launch_evidence_kit_contract_guard "$ROOT/scripts/v2/public_launch_evidence_kit_script_contract_guard_test.sh"
 run_check public_launch_evidence_kit_gate "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh"
+run_check public_launch_operator_handoff_contract_guard "$ROOT/scripts/v2/public_launch_operator_handoff_script_contract_guard_test.sh"
+run_check public_launch_operator_handoff_gate "$ROOT/scripts/check_trillionnium_world_public_launch_operator_handoff.sh"
 run_check public_launch_readiness_contract_guard "$ROOT/scripts/v2/public_launch_readiness_script_contract_guard_test.sh"
 run_check public_launch_blocker_consistency_contract_guard "$ROOT/scripts/v2/public_launch_blocker_consistency_script_contract_guard_test.sh"
 run_check public_launch_blocker_consistency_gate "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh"

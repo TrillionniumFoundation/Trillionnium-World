@@ -19,6 +19,7 @@ CONVERGENCE_LOG="$ACCEPTANCE_DIR/release-review-packet-convergence.log"
 INTAKE_LOG="$ACCEPTANCE_DIR/release-review-packet-evidence-intake.log"
 BLOCKER_CONSISTENCY_LOG="$ACCEPTANCE_DIR/release-review-packet-blocker-consistency.log"
 EVIDENCE_KIT_LOG="$ACCEPTANCE_DIR/release-review-packet-evidence-kit.log"
+OPERATOR_HANDOFF_LOG="$ACCEPTANCE_DIR/release-review-packet-operator-handoff.log"
 TEMPLATE_NEGATIVE_LOG="$ACCEPTANCE_DIR/release-review-packet-template-negative-fixtures.log"
 EVIDENCE_BUNDLE_LOG="$ACCEPTANCE_DIR/release-review-packet-evidence-bundle.log"
 BUNDLE_NEGATIVE_LOG="$ACCEPTANCE_DIR/release-review-packet-bundle-negative-fixtures.log"
@@ -34,6 +35,7 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh" >"$INTAKE_LOG"
 "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh" >"$BLOCKER_CONSISTENCY_LOG"
 "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" >"$EVIDENCE_KIT_LOG"
+"$ROOT/scripts/check_trillionnium_world_public_launch_operator_handoff.sh" >"$OPERATOR_HANDOFF_LOG"
 "$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh" >"$TEMPLATE_NEGATIVE_LOG"
 "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh" >"$EVIDENCE_BUNDLE_LOG"
 "$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh" >"$BUNDLE_NEGATIVE_LOG"
@@ -103,6 +105,7 @@ artifact cohort_commercial_evidence_collection "Cohort/commercial evidence colle
 artifact external_ops_evidence_collection "External ops evidence collection" "$ACCEPTANCE_DIR/external-ops-evidence-collection.json" release_review_collection
 artifact public_launch_blocker_consistency "Public launch blocker consistency" "$ACCEPTANCE_DIR/public-launch-blocker-consistency.json" release_review_gate
 artifact public_launch_evidence_kit "Public launch evidence kit" "$ACCEPTANCE_DIR/public-launch-evidence-kit.json" release_review_gate
+artifact public_launch_operator_handoff "Public launch operator handoff" "$ACCEPTANCE_DIR/public-launch-operator-handoff.json" release_review_operator_handoff
 artifact public_launch_template_negative_fixtures "Public launch template negative fixtures" "$ACCEPTANCE_DIR/public-launch-template-negative-fixtures.json" release_review_gate
 artifact public_launch_evidence_bundle "Public launch evidence bundle" "$ACCEPTANCE_DIR/public-launch-evidence-bundle.json" release_review_gate
 artifact public_launch_bundle_negative_fixtures "Public launch bundle negative fixtures" "$ACCEPTANCE_DIR/public-launch-bundle-negative-fixtures.json" release_review_gate
@@ -187,6 +190,7 @@ jq -n \
   printf '\n## Boundary\n\n'
   printf -- '- Native/Bevy replay, action coach, HUD/debug layer, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
   printf -- '- CEX adapter readiness proves the current CEX incubator exports the Trillionnium world runtime adapter contract; it is not a substitute for real external public-launch evidence.\n'
+  printf -- '- Public launch operator handoff is a checksum-bound collection checklist; it does not grant public-launch credit without real external evidence.\n'
   printf -- '- The checkpoint manifest groups the current dirty working tree for review; it does not stage, commit, or publish anything.\n'
   printf -- '- Public launch remains blocked until the external evidence above is attached.\n'
 } >"$PACKET_MD"
