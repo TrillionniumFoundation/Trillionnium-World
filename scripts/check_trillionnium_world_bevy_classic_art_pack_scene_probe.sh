@@ -23,6 +23,8 @@ jq -e '
   and .color_probe_gate == true
   and .terrain_override_presence_gate == true
   and .terrain_color_probe_gate == true
+  and .world_prop_override_presence_gate == true
+  and .world_prop_color_probe_gate == true
   and .vfx_override_presence_gate == true
   and .vfx_color_probe_gate == true
   and .replacement_boundary_gate == true
@@ -39,6 +41,7 @@ jq -e '
   and .terrain_road_color_count > 100
   and .terrain_water_color_count > 40
   and .terrain_wall_roof_color_count > 80
+  and .world_prop_runtime_color_count > 900
   and .command_marker_color_count > 200
   and .attack_arc_color_count > 100
   and .hit_flash_color_count > 80
