@@ -31,6 +31,11 @@ jq -e '
   and .required_model_gate == true
   and .player_art_gate == true
   and .enemy_art_gate == true
+  and .model_detail_gate == true
+  and .model_detail_asset_count >= 5
+  and .model_unique_color_total >= 45
+  and .model_shadow_pixel_count > 300
+  and .model_highlight_pixel_count > 120
   and .replacement_boundary_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
@@ -52,6 +57,11 @@ jq -e '
   and (.override_frame_ids | index("actor_player_walk_west_1") != null)
   and (.override_frame_ids | index("actor_enemy") != null)
   and (.override_frame_ids | index("actor_enemy_attack") != null)
+  and (.written_assets[] | select(.frame_id == "model_town_hall") | .model_detail_asset_gate == true)
+  and (.written_assets[] | select(.frame_id == "model_waygate") | .model_detail_asset_gate == true)
+  and (.written_assets[] | select(.frame_id == "model_training_hall") | .model_detail_asset_gate == true)
+  and (.written_assets[] | select(.frame_id == "model_coliseum_stands") | .model_detail_asset_gate == true)
+  and (.written_assets[] | select(.frame_id == "model_tree_cluster_large") | .model_detail_asset_gate == true)
 ' "$SUMMARY" >/dev/null
 
 for asset in model_town_hall model_waygate model_training_hall model_coliseum_stands model_tree_cluster_large actor_player_idle_south actor_player_walk_north_1 actor_player_walk_east_1 actor_player_walk_west_1 actor_enemy actor_enemy_attack; do

@@ -26,6 +26,11 @@ required_script_lines=(
   'actor_enemy'
   'actor_enemy_attack'
   'preview_non_background_pixels > 35000'
+  'model_detail_gate == true'
+  'model_detail_asset_count >= 5'
+  'model_unique_color_total >= 45'
+  'model_shadow_pixel_count > 300'
+  'model_highlight_pixel_count > 120'
   'replacement_boundary_gate == true'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
@@ -65,6 +70,9 @@ required_source_lines=(
   'tree_cluster'
   'player_art_gate'
   'enemy_art_gate'
+  'model_detail_gate'
+  'classic_art_pack_highlight_color'
+  'model_detail_asset_gate'
   'first real 2.5D override sprites'
 )
 

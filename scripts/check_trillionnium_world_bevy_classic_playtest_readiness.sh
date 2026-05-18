@@ -157,6 +157,10 @@ jq -n \
       art_pack_asset_count: $art_pack[0].asset_count,
       art_pack_override_frame_count: $art_pack[0].override_frame_count,
       art_pack_preview_non_background_pixels: $art_pack[0].preview_non_background_pixels,
+      art_pack_model_detail_asset_count: $art_pack[0].model_detail_asset_count,
+      art_pack_model_unique_color_total: $art_pack[0].model_unique_color_total,
+      art_pack_model_shadow_pixel_count: $art_pack[0].model_shadow_pixel_count,
+      art_pack_model_highlight_pixel_count: $art_pack[0].model_highlight_pixel_count,
       art_pack_scene_non_background_pixels: $art_scene[0].non_background_pixels,
       art_pack_scene_player_color_count: $art_scene[0].player_color_count,
       art_pack_scene_enemy_attack_color_count: $art_scene[0].enemy_attack_color_count,
@@ -199,6 +203,7 @@ jq -n \
       art_pack_required_model_gate: $art_pack[0].required_model_gate,
       art_pack_player_art_gate: $art_pack[0].player_art_gate,
       art_pack_enemy_art_gate: $art_pack[0].enemy_art_gate,
+      art_pack_model_detail_gate: $art_pack[0].model_detail_gate,
       art_pack_replacement_boundary_gate: $art_pack[0].replacement_boundary_gate,
       art_pack_scene_override_presence_gate: $art_scene[0].override_presence_gate,
       art_pack_scene_color_probe_gate: $art_scene[0].color_probe_gate,
@@ -306,6 +311,10 @@ jq -e '
   and .headline.art_pack_asset_count >= 22
   and .headline.art_pack_override_frame_count >= 22
   and .headline.art_pack_preview_non_background_pixels > 35000
+  and .headline.art_pack_model_detail_asset_count >= 5
+  and .headline.art_pack_model_unique_color_total >= 45
+  and .headline.art_pack_model_shadow_pixel_count > 300
+  and .headline.art_pack_model_highlight_pixel_count > 120
   and .headline.art_pack_scene_non_background_pixels > 120000
   and .headline.art_pack_scene_player_color_count > 20
   and .headline.art_pack_scene_enemy_attack_color_count > 20
@@ -344,6 +353,7 @@ jq -e '
   and .gates.art_pack_required_model_gate == true
   and .gates.art_pack_player_art_gate == true
   and .gates.art_pack_enemy_art_gate == true
+  and .gates.art_pack_model_detail_gate == true
   and .gates.art_pack_replacement_boundary_gate == true
   and .gates.art_pack_scene_override_presence_gate == true
   and .gates.art_pack_scene_color_probe_gate == true

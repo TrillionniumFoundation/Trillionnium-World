@@ -5580,8 +5580,40 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     let specs = classic_art_pack_override_specs();
     let mut written_assets = Vec::new();
     let mut write_failures = Vec::new();
+    let mut model_detail_asset_count = 0_usize;
+    let mut model_unique_color_total = 0_usize;
+    let mut model_shadow_pixel_count = 0_usize;
+    let mut model_highlight_pixel_count = 0_usize;
     for (frame_id, width, height, group) in &specs {
         let pixels = classic_art_pack_pixels(frame_id, *width, *height);
+        let visible_pixel_count = pixels.iter().filter(|color| **color != 0x000000).count();
+        let unique_color_count = pixels
+            .iter()
+            .copied()
+            .filter(|color| *color != 0x000000)
+            .collect::<HashSet<_>>()
+            .len();
+        let shadow_pixel_count = pixels
+            .iter()
+            .filter(|color| **color == CLASSIC_ISO_SHADOW_COLOR || **color == 0x121006)
+            .count();
+        let highlight_pixel_count = pixels
+            .iter()
+            .filter(|color| classic_art_pack_highlight_color(**color))
+            .count();
+        let model_detail_asset_gate = frame_id.starts_with("model_")
+            && unique_color_count >= 8
+            && shadow_pixel_count > 20
+            && highlight_pixel_count > 10
+            && visible_pixel_count > 600;
+        if frame_id.starts_with("model_") {
+            model_unique_color_total += unique_color_count;
+            model_shadow_pixel_count += shadow_pixel_count;
+            model_highlight_pixel_count += highlight_pixel_count;
+            if model_detail_asset_gate {
+                model_detail_asset_count += 1;
+            }
+        }
         let path = override_dir_path.join(format!("{frame_id}.ppm"));
         let path_string = path.to_string_lossy().to_string();
         if write_classic_rgb_buffer_ppm(&path_string, *width as usize, *height as usize, &pixels)
@@ -5593,7 +5625,11 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 "width": width,
                 "height": height,
                 "path": path_string,
-                "visible_pixel_count": pixels.iter().filter(|color| **color != 0x000000).count(),
+                "visible_pixel_count": visible_pixel_count,
+                "unique_color_count": unique_color_count,
+                "shadow_pixel_count": shadow_pixel_count,
+                "highlight_pixel_count": highlight_pixel_count,
+                "model_detail_asset_gate": model_detail_asset_gate,
             }));
         } else {
             write_failures.push(path_string);
@@ -5650,6 +5686,10 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
+    let model_detail_gate = model_detail_asset_count >= 5
+        && model_unique_color_total >= 45
+        && model_shadow_pixel_count > 300
+        && model_highlight_pixel_count > 120;
     let green = create_dir_gate
         && write_failures.is_empty()
         && preview_write_gate
@@ -5659,6 +5699,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && required_model_gate
         && player_art_gate
         && enemy_art_gate
+        && model_detail_gate
         && replacement_boundary_gate;
     let override_frame_ids = assets
         .frame_override_pixels
@@ -5682,6 +5723,11 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "required_model_gate": required_model_gate,
         "player_art_gate": player_art_gate,
         "enemy_art_gate": enemy_art_gate,
+        "model_detail_gate": model_detail_gate,
+        "model_detail_asset_count": model_detail_asset_count,
+        "model_unique_color_total": model_unique_color_total,
+        "model_shadow_pixel_count": model_shadow_pixel_count,
+        "model_highlight_pixel_count": model_highlight_pixel_count,
         "replacement_boundary_gate": replacement_boundary_gate,
         "override_frame_ids": override_frame_ids,
         "written_assets": written_assets,
@@ -5692,6 +5738,26 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "source_of_truth": "The classic art pack writes the first real 2.5D override sprites into the Trillionnium Bevy asset tree and proves they load through the native low-spec renderer override path."
     }))
     .expect("classic art pack evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_art_pack_highlight_color(color: u32) -> bool {
+    matches!(
+        color,
+        0xf1c45d
+            | 0xf4d06f
+            | 0xd8b15a
+            | 0xccbc7a
+            | 0xc7d3ff
+            | 0x77c6cf
+            | 0xff9d45
+            | 0x85f0ff
+            | 0x9a3e4a
+            | CLASSIC_ISO_GOLD_COLOR
+            | CLASSIC_ISO_MAGIC_COLOR
+            | CLASSIC_ISO_BANNER_COLOR
+            | CLASSIC_ISO_CANOPY_LIGHT_COLOR
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -5747,6 +5813,7 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
     let mut pixels = vec![0x000000_u32; width as usize * height as usize];
     match frame_id {
         "model_town_hall" => {
+            classic_draw_iso_shadow(&mut pixels, width as usize, height as usize, 48, 84, 42, 8);
             classic_draw_iso_prism(
                 &mut pixels,
                 width as usize,
@@ -5809,8 +5876,61 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 4,
                 0xf4d06f,
             );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                28,
+                58,
+                18,
+                12,
+                28,
+                0x4d3d32,
+            );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                68,
+                58,
+                18,
+                12,
+                28,
+                0x4d3d32,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                30,
+                28,
+                36,
+                3,
+                0x111711,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                68,
+                22,
+                8,
+                18,
+                0x121006,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                69,
+                17,
+                6,
+                5,
+                0xf4d06f,
+            );
         }
         "model_waygate" => {
+            classic_draw_iso_shadow(&mut pixels, width as usize, height as usize, 48, 84, 36, 7);
             classic_draw_iso_prism(
                 &mut pixels,
                 width as usize,
@@ -5873,8 +5993,41 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 20,
                 0xc7d3ff,
             );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                57,
+                5,
+                10,
+                0x77c6cf,
+            );
+            for y in [34, 44, 54, 64] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    23,
+                    y,
+                    14,
+                    2,
+                    0x31383d,
+                );
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    59,
+                    y,
+                    14,
+                    2,
+                    0x31383d,
+                );
+            }
         }
         "model_training_hall" => {
+            classic_draw_iso_shadow(&mut pixels, width as usize, height as usize, 48, 84, 40, 8);
             classic_draw_iso_prism(
                 &mut pixels,
                 width as usize,
@@ -5937,8 +6090,50 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 6,
                 0xccbc7a,
             );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                28,
+                64,
+                18,
+                12,
+                22,
+                0x4f3a2c,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                22,
+                40,
+                12,
+                3,
+                0xd8b15a,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                64,
+                36,
+                4,
+                18,
+                0x121006,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                58,
+                34,
+                16,
+                3,
+                0xccbc7a,
+            );
         }
         "model_coliseum_stands" => {
+            classic_draw_iso_shadow(&mut pixels, width as usize, height as usize, 64, 88, 58, 8);
             classic_draw_iso_prism(
                 &mut pixels,
                 width as usize,
@@ -5992,8 +6187,33 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 4,
                 0xd8b15a,
             );
+            for (x, y, w) in [(26, 48, 76), (34, 58, 60), (42, 68, 44)] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    y,
+                    w,
+                    2,
+                    0x31383d,
+                );
+            }
+            for x in [30, 48, 66, 84] {
+                classic_draw_rect(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    30,
+                    6,
+                    11,
+                    0x9a3e4a,
+                );
+            }
         }
         "model_tree_cluster_large" => {
+            classic_draw_iso_shadow(&mut pixels, width as usize, height as usize, 48, 82, 42, 8);
             classic_draw_rect(
                 &mut pixels,
                 width as usize,
@@ -6064,6 +6284,23 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 17,
                 0x347f45,
             );
+            for (x, y, color) in [
+                (33, 34, 0x78bd62),
+                (54, 25, 0x78bd62),
+                (67, 41, 0x78bd62),
+                (48, 46, 0x1b4e30),
+            ] {
+                classic_draw_iso_ellipse(
+                    &mut pixels,
+                    width as usize,
+                    height as usize,
+                    x,
+                    y,
+                    8,
+                    4,
+                    color,
+                );
+            }
         }
         frame if frame.starts_with("actor_player") => {
             let accent = if frame.contains("north") {
