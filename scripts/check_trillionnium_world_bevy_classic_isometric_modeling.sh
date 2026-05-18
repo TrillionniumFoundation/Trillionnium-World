@@ -42,6 +42,7 @@ jq -e '
   and (.modeling_components | index("biome_environment_overlays") != null)
   and (.modeling_components | index("bridge_and_cliff_detail_tiles") != null)
   and (.modeling_components | index("ruins_gold_vein_and_signpost_doodads") != null)
+  and (.modeling_components | index("neutral_guard_worker_creep_units") != null)
   and .projection_gate == true
   and .depth_sort_gate == true
   and .diamond_tile_gate == true
@@ -53,6 +54,7 @@ jq -e '
   and .command_feedback_gate == true
   and .doodad_detail_gate == true
   and .environment_detail_gate == true
+  and .neutral_unit_detail_gate == true
   and .sprite_anchor_gate == true
   and .preview_width == 640
   and .preview_height == 360
@@ -74,6 +76,11 @@ jq -e '
   and .unit_ring_pixel_count > 250
   and .unit_health_pixel_count > 90
   and .unit_silhouette_pixel_count > 500
+  and .rts_neutral_unit_entity_count >= 8
+  and .neutral_unit_detail_pixel_count > 450
+  and .neutral_guard_pixel_count > 70
+  and .neutral_worker_pixel_count > 70
+  and .neutral_creep_pixel_count > 70
   and .command_feedback_pixel_count > 500
   and .command_marker_pixel_count > 250
   and .attack_arc_pixel_count > 100

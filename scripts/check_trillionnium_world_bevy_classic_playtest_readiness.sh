@@ -156,6 +156,11 @@ jq -n \
       isometric_unit_ring_pixel_count: $iso[0].unit_ring_pixel_count,
       isometric_unit_health_pixel_count: $iso[0].unit_health_pixel_count,
       isometric_unit_silhouette_pixel_count: $iso[0].unit_silhouette_pixel_count,
+      isometric_rts_neutral_unit_entity_count: $iso[0].rts_neutral_unit_entity_count,
+      isometric_neutral_unit_detail_pixel_count: $iso[0].neutral_unit_detail_pixel_count,
+      isometric_neutral_guard_pixel_count: $iso[0].neutral_guard_pixel_count,
+      isometric_neutral_worker_pixel_count: $iso[0].neutral_worker_pixel_count,
+      isometric_neutral_creep_pixel_count: $iso[0].neutral_creep_pixel_count,
       isometric_command_feedback_pixel_count: $iso[0].command_feedback_pixel_count,
       isometric_command_marker_pixel_count: $iso[0].command_marker_pixel_count,
       isometric_attack_arc_pixel_count: $iso[0].attack_arc_pixel_count,
@@ -180,6 +185,7 @@ jq -n \
       asset_doodad_slot_count: $slots[0].doodad_slot_count,
       asset_terrain_detail_slot_count: $slots[0].terrain_detail_slot_count,
       asset_vfx_slot_count: $slots[0].vfx_slot_count,
+      asset_neutral_unit_slot_count: $slots[0].neutral_unit_slot_count,
       art_pack_asset_count: $art_pack[0].asset_count,
       art_pack_override_frame_count: $art_pack[0].override_frame_count,
       art_pack_preview_height: $art_pack[0].preview_height,
@@ -193,6 +199,11 @@ jq -n \
       art_pack_unit_unique_color_total: $art_pack[0].unit_unique_color_total,
       art_pack_unit_shadow_pixel_count: $art_pack[0].unit_shadow_pixel_count,
       art_pack_unit_highlight_pixel_count: $art_pack[0].unit_highlight_pixel_count,
+      art_pack_neutral_unit_detail_asset_count: $art_pack[0].neutral_unit_detail_asset_count,
+      art_pack_neutral_unit_unique_color_total: $art_pack[0].neutral_unit_unique_color_total,
+      art_pack_neutral_unit_shadow_pixel_count: $art_pack[0].neutral_unit_shadow_pixel_count,
+      art_pack_neutral_unit_highlight_pixel_count: $art_pack[0].neutral_unit_highlight_pixel_count,
+      art_pack_neutral_unit_detail_pixel_count: $art_pack[0].neutral_unit_detail_pixel_count,
       art_pack_doodad_detail_asset_count: $art_pack[0].doodad_detail_asset_count,
       art_pack_doodad_unique_color_total: $art_pack[0].doodad_unique_color_total,
       art_pack_doodad_shadow_pixel_count: $art_pack[0].doodad_shadow_pixel_count,
@@ -214,6 +225,7 @@ jq -n \
       art_pack_scene_terrain_water_color_count: $art_scene[0].terrain_water_color_count,
       art_pack_scene_terrain_wall_roof_color_count: $art_scene[0].terrain_wall_roof_color_count,
       art_pack_scene_world_prop_runtime_color_count: $art_scene[0].world_prop_runtime_color_count,
+      art_pack_scene_neutral_unit_runtime_color_count: $art_scene[0].neutral_unit_runtime_color_count,
       art_pack_scene_environment_detail_color_count: $art_scene[0].environment_detail_color_count,
       art_pack_scene_command_marker_color_count: $art_scene[0].command_marker_color_count,
       art_pack_scene_attack_arc_color_count: $art_scene[0].attack_arc_color_count,
@@ -246,6 +258,7 @@ jq -n \
       isometric_rts_model_set_gate: $iso[0].rts_model_set_gate,
       isometric_terrain_detail_gate: $iso[0].terrain_detail_gate,
       isometric_unit_detail_gate: $iso[0].unit_detail_gate,
+      isometric_neutral_unit_detail_gate: $iso[0].neutral_unit_detail_gate,
       isometric_command_feedback_gate: $iso[0].command_feedback_gate,
       isometric_doodad_detail_gate: $iso[0].doodad_detail_gate,
       isometric_environment_detail_gate: $iso[0].environment_detail_gate,
@@ -258,12 +271,14 @@ jq -n \
       art_pack_required_model_gate: $art_pack[0].required_model_gate,
       art_pack_player_art_gate: $art_pack[0].player_art_gate,
       art_pack_enemy_art_gate: $art_pack[0].enemy_art_gate,
+      art_pack_neutral_unit_art_gate: $art_pack[0].neutral_unit_art_gate,
       art_pack_doodad_art_gate: $art_pack[0].doodad_art_gate,
       art_pack_terrain_art_gate: $art_pack[0].terrain_art_gate,
       art_pack_world_prop_art_gate: $art_pack[0].world_prop_art_gate,
       art_pack_vfx_art_gate: $art_pack[0].vfx_art_gate,
       art_pack_model_detail_gate: $art_pack[0].model_detail_gate,
       art_pack_unit_detail_gate: $art_pack[0].unit_detail_gate,
+      art_pack_neutral_unit_detail_gate: $art_pack[0].neutral_unit_detail_gate,
       art_pack_doodad_detail_gate: $art_pack[0].doodad_detail_gate,
       art_pack_terrain_detail_gate: $art_pack[0].terrain_detail_gate,
       art_pack_world_prop_detail_gate: $art_pack[0].world_prop_detail_gate,
@@ -275,6 +290,8 @@ jq -n \
       art_pack_scene_terrain_color_probe_gate: $art_scene[0].terrain_color_probe_gate,
       art_pack_scene_world_prop_override_presence_gate: $art_scene[0].world_prop_override_presence_gate,
       art_pack_scene_world_prop_color_probe_gate: $art_scene[0].world_prop_color_probe_gate,
+      art_pack_scene_neutral_unit_override_presence_gate: $art_scene[0].neutral_unit_override_presence_gate,
+      art_pack_scene_neutral_unit_color_probe_gate: $art_scene[0].neutral_unit_color_probe_gate,
       art_pack_scene_environment_override_presence_gate: $art_scene[0].environment_override_presence_gate,
       art_pack_scene_environment_detail_color_probe_gate: $art_scene[0].environment_detail_color_probe_gate,
       art_pack_scene_vfx_override_presence_gate: $art_scene[0].vfx_override_presence_gate,
@@ -364,6 +381,11 @@ jq -e '
   and .headline.isometric_unit_ring_pixel_count > 250
   and .headline.isometric_unit_health_pixel_count > 90
   and .headline.isometric_unit_silhouette_pixel_count > 500
+  and .headline.isometric_rts_neutral_unit_entity_count >= 8
+  and .headline.isometric_neutral_unit_detail_pixel_count > 450
+  and .headline.isometric_neutral_guard_pixel_count > 70
+  and .headline.isometric_neutral_worker_pixel_count > 70
+  and .headline.isometric_neutral_creep_pixel_count > 70
   and .headline.isometric_command_feedback_pixel_count > 500
   and .headline.isometric_command_marker_pixel_count > 250
   and .headline.isometric_attack_arc_pixel_count > 100
@@ -380,16 +402,17 @@ jq -e '
   and .headline.isometric_environment_ruin_pixel_count > 40
   and .headline.isometric_environment_gold_pixel_count > 20
   and .headline.isometric_environment_bridge_pixel_count > 60
-  and .headline.asset_slot_count >= 66
+  and .headline.asset_slot_count >= 72
   and .headline.asset_slot_category_count >= 8
   and .headline.asset_manifest_frame_slot_count >= 43
   and .headline.asset_procedural_model_slot_count >= 5
   and .headline.asset_doodad_slot_count >= 8
   and .headline.asset_terrain_detail_slot_count >= 4
   and .headline.asset_vfx_slot_count >= 6
-  and .headline.art_pack_asset_count >= 56
-  and .headline.art_pack_override_frame_count >= 56
-  and .headline.art_pack_preview_height >= 1470
+  and .headline.asset_neutral_unit_slot_count >= 6
+  and .headline.art_pack_asset_count >= 62
+  and .headline.art_pack_override_frame_count >= 62
+  and .headline.art_pack_preview_height >= 1680
   and .headline.art_pack_preview_non_background_pixels > 35000
   and .headline.art_pack_model_detail_asset_count >= 5
   and .headline.art_pack_model_unique_color_total >= 45
@@ -400,6 +423,11 @@ jq -e '
   and .headline.art_pack_unit_unique_color_total >= 100
   and .headline.art_pack_unit_shadow_pixel_count > 130
   and .headline.art_pack_unit_highlight_pixel_count > 100
+  and .headline.art_pack_neutral_unit_detail_asset_count >= 6
+  and .headline.art_pack_neutral_unit_unique_color_total >= 42
+  and .headline.art_pack_neutral_unit_shadow_pixel_count > 48
+  and .headline.art_pack_neutral_unit_highlight_pixel_count > 24
+  and .headline.art_pack_neutral_unit_detail_pixel_count > 360
   and .headline.art_pack_doodad_detail_asset_count >= 8
   and .headline.art_pack_doodad_unique_color_total >= 24
   and .headline.art_pack_doodad_shadow_pixel_count > 40
@@ -421,6 +449,7 @@ jq -e '
   and .headline.art_pack_scene_terrain_water_color_count > 40
   and .headline.art_pack_scene_terrain_wall_roof_color_count > 80
   and .headline.art_pack_scene_world_prop_runtime_color_count > 900
+  and .headline.art_pack_scene_neutral_unit_runtime_color_count > 350
   and .headline.art_pack_scene_environment_detail_color_count > 2000
   and .headline.art_pack_scene_command_marker_color_count > 200
   and .headline.art_pack_scene_attack_arc_color_count > 100
@@ -449,6 +478,7 @@ jq -e '
   and .gates.isometric_rts_model_set_gate == true
   and .gates.isometric_terrain_detail_gate == true
   and .gates.isometric_unit_detail_gate == true
+  and .gates.isometric_neutral_unit_detail_gate == true
   and .gates.isometric_command_feedback_gate == true
   and .gates.isometric_doodad_detail_gate == true
   and .gates.isometric_environment_detail_gate == true
@@ -461,12 +491,14 @@ jq -e '
   and .gates.art_pack_required_model_gate == true
   and .gates.art_pack_player_art_gate == true
   and .gates.art_pack_enemy_art_gate == true
+  and .gates.art_pack_neutral_unit_art_gate == true
   and .gates.art_pack_doodad_art_gate == true
   and .gates.art_pack_terrain_art_gate == true
   and .gates.art_pack_world_prop_art_gate == true
   and .gates.art_pack_vfx_art_gate == true
   and .gates.art_pack_model_detail_gate == true
   and .gates.art_pack_unit_detail_gate == true
+  and .gates.art_pack_neutral_unit_detail_gate == true
   and .gates.art_pack_doodad_detail_gate == true
   and .gates.art_pack_terrain_detail_gate == true
   and .gates.art_pack_world_prop_detail_gate == true
@@ -478,6 +510,8 @@ jq -e '
   and .gates.art_pack_scene_terrain_color_probe_gate == true
   and .gates.art_pack_scene_world_prop_override_presence_gate == true
   and .gates.art_pack_scene_world_prop_color_probe_gate == true
+  and .gates.art_pack_scene_neutral_unit_override_presence_gate == true
+  and .gates.art_pack_scene_neutral_unit_color_probe_gate == true
   and .gates.art_pack_scene_environment_override_presence_gate == true
   and .gates.art_pack_scene_environment_detail_color_probe_gate == true
   and .gates.art_pack_scene_vfx_override_presence_gate == true

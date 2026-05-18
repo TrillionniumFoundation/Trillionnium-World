@@ -180,6 +180,9 @@ const CLASSIC_ISO_UNIT_RING_COLOR: u32 = 0xf1d274;
 const CLASSIC_ISO_UNIT_PLAYER_COLOR: u32 = 0x86cf69;
 const CLASSIC_ISO_UNIT_MENTOR_COLOR: u32 = 0xe8c78e;
 const CLASSIC_ISO_UNIT_ENEMY_COLOR: u32 = 0xbf4a4a;
+const CLASSIC_ISO_UNIT_GUARD_COLOR: u32 = 0x5f7fb4;
+const CLASSIC_ISO_UNIT_WORKER_COLOR: u32 = 0xb57a42;
+const CLASSIC_ISO_UNIT_CREEP_COLOR: u32 = 0x7a52a3;
 const CLASSIC_ISO_UNIT_HEALTH_COLOR: u32 = 0x64d66d;
 const CLASSIC_ISO_UNIT_DAMAGE_COLOR: u32 = 0xd95c5c;
 const CLASSIC_ISO_COMMAND_MARKER_COLOR: u32 = 0x68d7ff;
@@ -5373,6 +5376,14 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         ("unit_health_bar", 32_u32),
         ("rts_foundation_shadow", 96_u32),
     ];
+    let neutral_unit_slot_ids = [
+        ("actor_guard_idle", 32_u32),
+        ("actor_guard_attack", 40_u32),
+        ("actor_worker_idle", 32_u32),
+        ("actor_worker_carry", 40_u32),
+        ("actor_creep_idle", 36_u32),
+        ("actor_creep_attack", 44_u32),
+    ];
     for (slot_id, target_px) in procedural_model_slot_ids.iter() {
         slots.push((
             (*slot_id).to_string(),
@@ -5405,6 +5416,15 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
             (*slot_id).to_string(),
             "vfx_ui".to_string(),
             "procedural_vfx_ui".to_string(),
+            (*slot_id).to_string(),
+            *target_px,
+        ));
+    }
+    for (slot_id, target_px) in neutral_unit_slot_ids.iter() {
+        slots.push((
+            (*slot_id).to_string(),
+            "unit".to_string(),
+            "procedural_neutral_unit".to_string(),
             (*slot_id).to_string(),
             *target_px,
         ));
@@ -5449,6 +5469,10 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         .get("procedural_terrain_detail")
         .copied()
         .unwrap_or_default();
+    let neutral_unit_slot_count = backing_counts
+        .get("procedural_neutral_unit")
+        .copied()
+        .unwrap_or_default();
     let manifest_frame_slots_gate = manifest_frame_slot_count == assets.manifest.frames.len()
         && manifest_frame_slot_count >= 43
         && slots
@@ -5472,10 +5496,14 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         && vfx_slot_ids
             .iter()
             .all(|(slot_id, _)| procedural_slot_targets.contains(*slot_id))
+        && neutral_unit_slot_ids
+            .iter()
+            .all(|(slot_id, _)| procedural_slot_targets.contains(*slot_id))
         && procedural_model_slot_count >= 5
         && doodad_slot_count >= 8
         && terrain_detail_slot_count >= 4
-        && vfx_slot_count >= 6;
+        && vfx_slot_count >= 6
+        && neutral_unit_slot_count >= 6;
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -5515,6 +5543,7 @@ pub fn native_classic_asset_slot_map_evidence_json() -> String {
         "doodad_slot_count": doodad_slot_count,
         "terrain_detail_slot_count": terrain_detail_slot_count,
         "vfx_slot_count": vfx_slot_count,
+        "neutral_unit_slot_count": neutral_unit_slot_count,
         "required_categories_present_gate": required_categories_present_gate,
         "manifest_frame_slots_gate": manifest_frame_slots_gate,
         "procedural_slots_gate": procedural_slots_gate,
@@ -5628,6 +5657,11 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     let mut unit_unique_color_total = 0_usize;
     let mut unit_shadow_pixel_count = 0_usize;
     let mut unit_highlight_pixel_count = 0_usize;
+    let mut neutral_unit_detail_asset_count = 0_usize;
+    let mut neutral_unit_unique_color_total = 0_usize;
+    let mut neutral_unit_shadow_pixel_count = 0_usize;
+    let mut neutral_unit_highlight_pixel_count = 0_usize;
+    let mut neutral_unit_detail_pixel_count = 0_usize;
     let mut doodad_detail_asset_count = 0_usize;
     let mut doodad_unique_color_total = 0_usize;
     let mut doodad_shadow_pixel_count = 0_usize;
@@ -5687,6 +5721,25 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         }
         if frame_id.starts_with("actor_enemy") && unit_detail_asset_gate {
             enemy_unit_detail_asset_count += 1;
+        }
+        let neutral_unit_detail_pixels = pixels
+            .iter()
+            .filter(|color| classic_art_pack_neutral_unit_detail_color(**color))
+            .count();
+        let neutral_unit_detail_asset_gate = classic_art_pack_neutral_unit_frame(frame_id)
+            && unique_color_count >= 7
+            && shadow_pixel_count > 8
+            && highlight_pixel_count > 4
+            && neutral_unit_detail_pixels > 70
+            && visible_pixel_count > 140;
+        if classic_art_pack_neutral_unit_frame(frame_id) {
+            neutral_unit_unique_color_total += unique_color_count;
+            neutral_unit_shadow_pixel_count += shadow_pixel_count;
+            neutral_unit_highlight_pixel_count += highlight_pixel_count;
+            neutral_unit_detail_pixel_count += neutral_unit_detail_pixels;
+            if neutral_unit_detail_asset_gate {
+                neutral_unit_detail_asset_count += 1;
+            }
         }
         let doodad_detail_pixels = pixels
             .iter()
@@ -5767,6 +5820,8 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
                 "highlight_pixel_count": highlight_pixel_count,
                 "model_detail_asset_gate": model_detail_asset_gate,
                 "unit_detail_asset_gate": unit_detail_asset_gate,
+                "neutral_unit_detail_pixel_count": neutral_unit_detail_pixels,
+                "neutral_unit_detail_asset_gate": neutral_unit_detail_asset_gate,
                 "doodad_detail_pixel_count": doodad_detail_pixels,
                 "doodad_detail_asset_gate": doodad_detail_asset_gate,
                 "terrain_detail_pixel_count": terrain_detail_pixels,
@@ -5825,6 +5880,16 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "actor_enemy_idle",
         "actor_enemy_attack",
         "actor_enemy_hit",
+    ]
+    .iter()
+    .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let neutral_unit_art_gate = [
+        "actor_guard_idle",
+        "actor_guard_attack",
+        "actor_worker_idle",
+        "actor_worker_carry",
+        "actor_creep_idle",
+        "actor_creep_attack",
     ]
     .iter()
     .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
@@ -5891,6 +5956,11 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && unit_unique_color_total >= 100
         && unit_shadow_pixel_count > 130
         && unit_highlight_pixel_count > 100;
+    let neutral_unit_detail_gate = neutral_unit_detail_asset_count >= 6
+        && neutral_unit_unique_color_total >= 42
+        && neutral_unit_shadow_pixel_count > 48
+        && neutral_unit_highlight_pixel_count > 24
+        && neutral_unit_detail_pixel_count > 360;
     let doodad_detail_gate = doodad_detail_asset_count >= 8
         && doodad_unique_color_total >= 24
         && doodad_shadow_pixel_count > 40
@@ -5912,12 +5982,14 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && required_model_gate
         && player_art_gate
         && enemy_art_gate
+        && neutral_unit_art_gate
         && doodad_art_gate
         && terrain_art_gate
         && world_prop_art_gate
         && vfx_art_gate
         && model_detail_gate
         && unit_detail_gate
+        && neutral_unit_detail_gate
         && doodad_detail_gate
         && terrain_detail_gate
         && world_prop_detail_gate
@@ -5945,6 +6017,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "required_model_gate": required_model_gate,
         "player_art_gate": player_art_gate,
         "enemy_art_gate": enemy_art_gate,
+        "neutral_unit_art_gate": neutral_unit_art_gate,
         "doodad_art_gate": doodad_art_gate,
         "terrain_art_gate": terrain_art_gate,
         "world_prop_art_gate": world_prop_art_gate,
@@ -5960,6 +6033,12 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "unit_unique_color_total": unit_unique_color_total,
         "unit_shadow_pixel_count": unit_shadow_pixel_count,
         "unit_highlight_pixel_count": unit_highlight_pixel_count,
+        "neutral_unit_detail_gate": neutral_unit_detail_gate,
+        "neutral_unit_detail_asset_count": neutral_unit_detail_asset_count,
+        "neutral_unit_unique_color_total": neutral_unit_unique_color_total,
+        "neutral_unit_shadow_pixel_count": neutral_unit_shadow_pixel_count,
+        "neutral_unit_highlight_pixel_count": neutral_unit_highlight_pixel_count,
+        "neutral_unit_detail_pixel_count": neutral_unit_detail_pixel_count,
         "doodad_detail_gate": doodad_detail_gate,
         "doodad_detail_asset_count": doodad_detail_asset_count,
         "doodad_unique_color_total": doodad_unique_color_total,
@@ -5981,7 +6060,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "override_frame_ids": override_frame_ids,
         "written_assets": written_assets,
         "write_failures": write_failures,
-        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "doodad", "terrain", "world_prop", "vfx", "player", "enemy"],
+        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "doodad", "terrain", "world_prop", "vfx", "player", "enemy", "neutral_unit"],
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
         "source_of_truth": "The classic art pack writes the first real 2.5D override sprites into the Trillionnium Bevy asset tree and proves they load through the native low-spec renderer override path."
@@ -6016,6 +6095,11 @@ fn classic_art_pack_highlight_color(color: u32) -> bool {
             | CLASSIC_ISO_CANOPY_LIGHT_COLOR
             | CLASSIC_ISO_GOLD_VEIN_COLOR
             | CLASSIC_ISO_BRIDGE_PLANK_COLOR
+            | 0xa8d8ff
+            | 0xf0be70
+            | 0xd0a2ff
+            | 0xe8e0bd
+            | 0xffe2a6
     )
 }
 
@@ -6116,6 +6200,41 @@ fn classic_art_pack_world_prop_detail_color(color: u32) -> bool {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_art_pack_neutral_unit_frame(frame_id: &str) -> bool {
+    matches!(
+        frame_id,
+        "actor_guard_idle"
+            | "actor_guard_attack"
+            | "actor_worker_idle"
+            | "actor_worker_carry"
+            | "actor_creep_idle"
+            | "actor_creep_attack"
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_art_pack_neutral_unit_detail_color(color: u32) -> bool {
+    matches!(
+        color,
+        CLASSIC_ISO_UNIT_GUARD_COLOR
+            | CLASSIC_ISO_UNIT_WORKER_COLOR
+            | CLASSIC_ISO_UNIT_CREEP_COLOR
+            | CLASSIC_ISO_UNIT_RING_COLOR
+            | CLASSIC_ISO_UNIT_HEALTH_COLOR
+            | CLASSIC_ISO_UNIT_DAMAGE_COLOR
+            | CLASSIC_ISO_OUTLINE_COLOR
+            | 0xa8d8ff
+            | 0xf0be70
+            | 0xd0a2ff
+            | 0xe8e0bd
+            | 0xffe2a6
+            | 0x2f3950
+            | 0x4f3726
+            | 0x3a2448
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_art_pack_vfx_frame(frame_id: &str) -> bool {
     matches!(
         frame_id,
@@ -6158,6 +6277,7 @@ fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static st
                 frame if frame.starts_with("doodad_") => "doodad",
                 frame if classic_art_pack_terrain_frame(frame) => "terrain",
                 frame if classic_art_pack_world_prop_frame(frame) => "world_prop",
+                frame if classic_art_pack_neutral_unit_frame(frame) => "neutral_unit",
                 frame if classic_art_pack_vfx_frame(frame) => "vfx",
                 _ => "model",
             };
@@ -6227,6 +6347,12 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
         ("rts_unit_selection_ring", 48, 48),
         ("unit_health_bar", 32, 16),
         ("rts_foundation_shadow", 96, 48),
+        ("actor_guard_idle", 32, 48),
+        ("actor_guard_attack", 40, 48),
+        ("actor_worker_idle", 32, 48),
+        ("actor_worker_carry", 40, 48),
+        ("actor_creep_idle", 36, 48),
+        ("actor_creep_attack", 44, 48),
     ]
 }
 
@@ -7829,6 +7955,9 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 _ => {}
             }
         }
+        frame if classic_art_pack_neutral_unit_frame(frame) => {
+            classic_draw_neutral_unit_sprite(&mut pixels, width as usize, height as usize, frame);
+        }
         frame if frame.starts_with("actor_player") => {
             let accent = if frame.contains("north") {
                 0x83c79d
@@ -8129,6 +8258,360 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_neutral_unit_sprite(
+    pixels: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+) {
+    let center_x = (width / 2) as i32;
+    let foot_y = height as i32 - 4;
+    let (body, accent, trim, dark, skin) = if frame_id.starts_with("actor_guard") {
+        (
+            CLASSIC_ISO_UNIT_GUARD_COLOR,
+            0xa8d8ff,
+            0xe8e0bd,
+            0x2f3950,
+            0xcaa878,
+        )
+    } else if frame_id.starts_with("actor_worker") {
+        (
+            CLASSIC_ISO_UNIT_WORKER_COLOR,
+            0xf0be70,
+            0xffe2a6,
+            0x4f3726,
+            0xc6925f,
+        )
+    } else {
+        (
+            CLASSIC_ISO_UNIT_CREEP_COLOR,
+            0xd0a2ff,
+            0xffe2a6,
+            0x3a2448,
+            0x9a79bd,
+        )
+    };
+    classic_draw_iso_shadow(pixels, width, height, center_x, foot_y, 18, 5);
+    classic_draw_iso_ellipse(
+        pixels,
+        width,
+        height,
+        center_x,
+        foot_y - 1,
+        13,
+        5,
+        CLASSIC_ISO_UNIT_RING_COLOR,
+    );
+    classic_draw_iso_ellipse(
+        pixels,
+        width,
+        height,
+        center_x,
+        foot_y - 1,
+        8,
+        3,
+        CLASSIC_ISO_FOUNDATION_COLOR,
+    );
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x - 6,
+        foot_y - 35,
+        12,
+        8,
+        CLASSIC_ISO_OUTLINE_COLOR,
+    );
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x - 8,
+        foot_y - 27,
+        16,
+        21,
+        CLASSIC_ISO_OUTLINE_COLOR,
+    );
+    classic_draw_rect(pixels, width, height, center_x - 4, foot_y - 34, 8, 6, skin);
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x - 5,
+        foot_y - 28,
+        10,
+        17,
+        body,
+    );
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x - 8,
+        foot_y - 25,
+        16,
+        4,
+        accent,
+    );
+    classic_draw_rect(pixels, width, height, center_x - 4, foot_y - 20, 8, 2, trim);
+    classic_draw_rect(pixels, width, height, center_x - 6, foot_y - 11, 4, 7, dark);
+    classic_draw_rect(pixels, width, height, center_x + 2, foot_y - 11, 4, 7, dark);
+
+    if frame_id.starts_with("actor_guard") {
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x - 12,
+            foot_y - 25,
+            5,
+            13,
+            accent,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x - 11,
+            foot_y - 22,
+            3,
+            7,
+            body,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x - 5,
+            foot_y - 38,
+            10,
+            3,
+            trim,
+        );
+        if frame_id.ends_with("_attack") {
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 9,
+                foot_y - 31,
+                3,
+                21,
+                trim,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 12,
+                foot_y - 33,
+                8,
+                3,
+                trim,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 13,
+                foot_y - 35,
+                5,
+                2,
+                0xffffff,
+            );
+        } else {
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 8,
+                foot_y - 24,
+                3,
+                17,
+                trim,
+            );
+        }
+    } else if frame_id.starts_with("actor_worker") {
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x - 11,
+            foot_y - 23,
+            5,
+            13,
+            dark,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x + 7,
+            foot_y - 24,
+            3,
+            19,
+            trim,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x + 5,
+            foot_y - 26,
+            8,
+            3,
+            CLASSIC_ISO_OUTLINE_COLOR,
+        );
+        if frame_id.ends_with("_carry") {
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 9,
+                foot_y - 30,
+                15,
+                11,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 10,
+                foot_y - 29,
+                13,
+                9,
+                CLASSIC_ISO_GOLD_COLOR,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 12,
+                foot_y - 27,
+                9,
+                2,
+                trim,
+            );
+        } else {
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x - 13,
+                foot_y - 30,
+                5,
+                18,
+                trim,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x - 15,
+                foot_y - 32,
+                9,
+                3,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+        }
+    } else {
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x - 8,
+            foot_y - 38,
+            5,
+            5,
+            accent,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x + 3,
+            foot_y - 38,
+            5,
+            5,
+            accent,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x - 10,
+            foot_y - 24,
+            5,
+            12,
+            dark,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x + 5,
+            foot_y - 24,
+            5,
+            12,
+            dark,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x - 3,
+            foot_y - 31,
+            2,
+            2,
+            0xffe2a6,
+        );
+        classic_draw_rect(
+            pixels,
+            width,
+            height,
+            center_x + 3,
+            foot_y - 31,
+            2,
+            2,
+            0xffe2a6,
+        );
+        if frame_id.ends_with("_attack") {
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 10,
+                foot_y - 27,
+                10,
+                4,
+                accent,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 16,
+                foot_y - 25,
+                5,
+                6,
+                CLASSIC_ISO_UNIT_DAMAGE_COLOR,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x - 18,
+                foot_y - 25,
+                9,
+                4,
+                accent,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -8321,6 +8804,14 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         + count_color(CLASSIC_ISO_MAGIC_COLOR)
         + count_color(CLASSIC_ISO_BANNER_COLOR)
         + count_color(CLASSIC_ISO_DOODAD_WOOD_COLOR);
+    let neutral_unit_runtime_color_count = count_color(CLASSIC_ISO_UNIT_GUARD_COLOR)
+        + count_color(CLASSIC_ISO_UNIT_WORKER_COLOR)
+        + count_color(CLASSIC_ISO_UNIT_CREEP_COLOR)
+        + count_color(0xa8d8ff)
+        + count_color(0xf0be70)
+        + count_color(0xd0a2ff)
+        + count_color(0xe8e0bd)
+        + count_color(0xffe2a6);
     let environment_detail_color_count = count_color(CLASSIC_ISO_FOLIAGE_DARK_COLOR)
         + count_color(CLASSIC_ISO_CANOPY_COLOR)
         + count_color(CLASSIC_ISO_CANOPY_LIGHT_COLOR)
@@ -8380,6 +8871,17 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
     let world_prop_override_presence_gate = world_prop_override_ids
         .iter()
         .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let neutral_unit_override_ids = [
+        "actor_guard_idle",
+        "actor_guard_attack",
+        "actor_worker_idle",
+        "actor_worker_carry",
+        "actor_creep_idle",
+        "actor_creep_attack",
+    ];
+    let neutral_unit_override_presence_gate = neutral_unit_override_ids
+        .iter()
+        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let environment_override_ids = [
         "doodad_bush_cluster",
         "doodad_ruins_column",
@@ -8407,6 +8909,7 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         && terrain_water_color_count > 40
         && terrain_wall_roof_color_count > 80;
     let world_prop_color_probe_gate = world_prop_runtime_color_count > 900;
+    let neutral_unit_color_probe_gate = neutral_unit_runtime_color_count > 350;
     let environment_detail_color_probe_gate = environment_detail_color_count > 2_000;
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
@@ -8421,6 +8924,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         && terrain_color_probe_gate
         && world_prop_override_presence_gate
         && world_prop_color_probe_gate
+        && neutral_unit_override_presence_gate
+        && neutral_unit_color_probe_gate
         && environment_override_presence_gate
         && environment_detail_color_probe_gate
         && vfx_override_presence_gate
@@ -8443,6 +8948,8 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "terrain_color_probe_gate": terrain_color_probe_gate,
         "world_prop_override_presence_gate": world_prop_override_presence_gate,
         "world_prop_color_probe_gate": world_prop_color_probe_gate,
+        "neutral_unit_override_presence_gate": neutral_unit_override_presence_gate,
+        "neutral_unit_color_probe_gate": neutral_unit_color_probe_gate,
         "environment_override_presence_gate": environment_override_presence_gate,
         "environment_detail_color_probe_gate": environment_detail_color_probe_gate,
         "replacement_boundary_gate": replacement_boundary_gate,
@@ -8461,6 +8968,7 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
         "terrain_water_color_count": terrain_water_color_count,
         "terrain_wall_roof_color_count": terrain_wall_roof_color_count,
         "world_prop_runtime_color_count": world_prop_runtime_color_count,
+        "neutral_unit_runtime_color_count": neutral_unit_runtime_color_count,
         "environment_detail_color_count": environment_detail_color_count,
         "mirror_scene_gate": mirror_scene.is_some(),
         "coliseum_scene_gate": coliseum_scene.is_some(),
@@ -8686,6 +9194,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
     let mut unit_ring_pixel_count = 0_usize;
     let mut unit_health_pixel_count = 0_usize;
     let mut unit_silhouette_pixel_count = 0_usize;
+    let mut neutral_unit_detail_pixel_count = 0_usize;
+    let mut neutral_guard_pixel_count = 0_usize;
+    let mut neutral_worker_pixel_count = 0_usize;
+    let mut neutral_creep_pixel_count = 0_usize;
     let mut command_feedback_pixel_count = 0_usize;
     let mut command_marker_pixel_count = 0_usize;
     let mut attack_arc_pixel_count = 0_usize;
@@ -8759,9 +9271,31 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
                 }
                 CLASSIC_ISO_UNIT_PLAYER_COLOR
                 | CLASSIC_ISO_UNIT_MENTOR_COLOR
-                | CLASSIC_ISO_UNIT_ENEMY_COLOR => {
+                | CLASSIC_ISO_UNIT_ENEMY_COLOR
+                | CLASSIC_ISO_UNIT_GUARD_COLOR
+                | CLASSIC_ISO_UNIT_WORKER_COLOR
+                | CLASSIC_ISO_UNIT_CREEP_COLOR => {
                     unit_detail_pixel_count += 1;
                     unit_silhouette_pixel_count += 1;
+                    match color {
+                        CLASSIC_ISO_UNIT_GUARD_COLOR => {
+                            neutral_unit_detail_pixel_count += 1;
+                            neutral_guard_pixel_count += 1;
+                        }
+                        CLASSIC_ISO_UNIT_WORKER_COLOR => {
+                            neutral_unit_detail_pixel_count += 1;
+                            neutral_worker_pixel_count += 1;
+                        }
+                        CLASSIC_ISO_UNIT_CREEP_COLOR => {
+                            neutral_unit_detail_pixel_count += 1;
+                            neutral_creep_pixel_count += 1;
+                        }
+                        _ => {}
+                    }
+                }
+                0xa8d8ff | 0xf0be70 | 0xd0a2ff | 0xe8e0bd | 0xffe2a6 => {
+                    unit_detail_pixel_count += 1;
+                    neutral_unit_detail_pixel_count += 1;
                 }
                 CLASSIC_ISO_COMMAND_MARKER_COLOR => {
                     command_feedback_pixel_count += 1;
@@ -8863,6 +9397,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         .values()
         .map(|scene| classic_scene_rts_environment_entities(scene.id.as_str()).len())
         .sum();
+    let rts_neutral_unit_entity_count: usize = assets
+        .scene_by_id
+        .values()
+        .map(|scene| classic_scene_rts_neutral_unit_entities(scene.id.as_str()).len())
+        .sum();
     let mut depth_order = Vec::new();
     if let Some(scene) = scene {
         for landmark in &scene.landmarks {
@@ -8890,6 +9429,14 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             }));
         }
         for entity in classic_scene_rts_doodad_entities(scene.id.as_str()) {
+            depth_order.push(json!({
+                "id": entity.id,
+                "tile": {"x": entity.tile.0, "y": entity.tile.1},
+                "frame_id": entity.frame_id,
+                "depth_key": entity.depth_key,
+            }));
+        }
+        for entity in classic_scene_rts_neutral_unit_entities(scene.id.as_str()) {
             depth_order.push(json!({
                 "id": entity.id,
                 "tile": {"x": entity.tile.0, "y": entity.tile.1},
@@ -8958,6 +9505,11 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && environment_ruin_pixel_count > 40
         && environment_gold_pixel_count > 20
         && environment_bridge_pixel_count > 60;
+    let neutral_unit_detail_gate = rts_neutral_unit_entity_count >= 8
+        && neutral_unit_detail_pixel_count > 450
+        && neutral_guard_pixel_count > 70
+        && neutral_worker_pixel_count > 70
+        && neutral_creep_pixel_count > 70;
     let frame_color_present = |frame_id: &str| {
         assets.frame_by_id.get(frame_id).is_some_and(|frame| {
             (frame.y..frame.y + frame.h).any(|y| {
@@ -8986,6 +9538,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         && command_feedback_gate
         && doodad_detail_gate
         && environment_detail_gate
+        && neutral_unit_detail_gate
         && sprite_anchor_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -9040,12 +9593,14 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             "doodad_depth_sorting",
             "biome_environment_overlays",
             "bridge_and_cliff_detail_tiles",
-            "ruins_gold_vein_and_signpost_doodads"
+            "ruins_gold_vein_and_signpost_doodads",
+            "neutral_guard_worker_creep_units"
         ],
         "depth_order": depth_order,
         "rts_model_entity_count": rts_model_entity_count,
         "rts_doodad_entity_count": rts_doodad_entity_count,
         "rts_environment_entity_count": rts_environment_entity_count,
+        "rts_neutral_unit_entity_count": rts_neutral_unit_entity_count,
         "unique_color_count": unique_color_count,
         "non_background_pixels": non_background_pixels,
         "shadow_pixel_count": shadow_pixel_count,
@@ -9061,6 +9616,10 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "unit_ring_pixel_count": unit_ring_pixel_count,
         "unit_health_pixel_count": unit_health_pixel_count,
         "unit_silhouette_pixel_count": unit_silhouette_pixel_count,
+        "neutral_unit_detail_pixel_count": neutral_unit_detail_pixel_count,
+        "neutral_guard_pixel_count": neutral_guard_pixel_count,
+        "neutral_worker_pixel_count": neutral_worker_pixel_count,
+        "neutral_creep_pixel_count": neutral_creep_pixel_count,
         "command_feedback_pixel_count": command_feedback_pixel_count,
         "command_marker_pixel_count": command_marker_pixel_count,
         "attack_arc_pixel_count": attack_arc_pixel_count,
@@ -9088,6 +9647,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
         "command_feedback_gate": command_feedback_gate,
         "doodad_detail_gate": doodad_detail_gate,
         "environment_detail_gate": environment_detail_gate,
+        "neutral_unit_detail_gate": neutral_unit_detail_gate,
         "sprite_anchor_gate": sprite_anchor_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
@@ -10882,6 +11442,250 @@ fn classic_draw_iso_procedural_model(
             );
             true
         }
+        frame if classic_art_pack_neutral_unit_frame(frame) => {
+            let (body, accent, trim, dark, skin) = if frame.starts_with("actor_guard") {
+                (
+                    CLASSIC_ISO_UNIT_GUARD_COLOR,
+                    0xa8d8ff,
+                    0xe8e0bd,
+                    0x2f3950,
+                    0xcaa878,
+                )
+            } else if frame.starts_with("actor_worker") {
+                (
+                    CLASSIC_ISO_UNIT_WORKER_COLOR,
+                    0xf0be70,
+                    0xffe2a6,
+                    0x4f3726,
+                    0xc6925f,
+                )
+            } else {
+                (
+                    CLASSIC_ISO_UNIT_CREEP_COLOR,
+                    0xd0a2ff,
+                    0xffe2a6,
+                    0x3a2448,
+                    0x9a79bd,
+                )
+            };
+            classic_draw_iso_shadow(buffer, width, height, center_x, base_y, 18, 5);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                base_y - 1,
+                13,
+                5,
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                base_y - 1,
+                8,
+                3,
+                CLASSIC_ISO_FOUNDATION_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 6,
+                base_y - 35,
+                12,
+                8,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 8,
+                base_y - 27,
+                16,
+                21,
+                CLASSIC_ISO_OUTLINE_COLOR,
+            );
+            classic_draw_rect(buffer, width, height, center_x - 4, base_y - 34, 8, 6, skin);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 5,
+                base_y - 28,
+                10,
+                17,
+                body,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 8,
+                base_y - 25,
+                16,
+                4,
+                accent,
+            );
+            classic_draw_rect(buffer, width, height, center_x - 4, base_y - 20, 8, 2, trim);
+            classic_draw_rect(buffer, width, height, center_x - 6, base_y - 11, 4, 7, dark);
+            classic_draw_rect(buffer, width, height, center_x + 2, base_y - 11, 4, 7, dark);
+            if frame.starts_with("actor_guard") {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 12,
+                    base_y - 25,
+                    5,
+                    13,
+                    accent,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 11,
+                    base_y - 22,
+                    3,
+                    7,
+                    body,
+                );
+                if frame.ends_with("_attack") {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 9,
+                        base_y - 31,
+                        3,
+                        21,
+                        trim,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 12,
+                        base_y - 33,
+                        8,
+                        3,
+                        trim,
+                    );
+                }
+            } else if frame.starts_with("actor_worker") {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 11,
+                    base_y - 23,
+                    5,
+                    13,
+                    dark,
+                );
+                if frame.ends_with("_carry") {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 9,
+                        base_y - 30,
+                        15,
+                        11,
+                        CLASSIC_ISO_OUTLINE_COLOR,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 10,
+                        base_y - 29,
+                        13,
+                        9,
+                        CLASSIC_ISO_GOLD_COLOR,
+                    );
+                } else {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 13,
+                        base_y - 30,
+                        5,
+                        18,
+                        trim,
+                    );
+                }
+            } else {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 8,
+                    base_y - 38,
+                    5,
+                    5,
+                    accent,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 3,
+                    base_y - 38,
+                    5,
+                    5,
+                    accent,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 10,
+                    base_y - 24,
+                    5,
+                    12,
+                    dark,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 5,
+                    base_y - 24,
+                    5,
+                    12,
+                    dark,
+                );
+                if frame.ends_with("_attack") {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 10,
+                        base_y - 27,
+                        10,
+                        4,
+                        accent,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 16,
+                        base_y - 25,
+                        5,
+                        6,
+                        CLASSIC_ISO_UNIT_DAMAGE_COLOR,
+                    );
+                }
+            }
+            true
+        }
         "doodad_rock_cluster" => {
             classic_draw_iso_shadow(buffer, width, height, center_x, base_y, tile_w / 3, 4);
             for (dx, dy, radius_x, radius_y) in [(-10, -4, 9, 5), (3, -8, 12, 7), (14, -2, 7, 4)] {
@@ -11846,6 +12650,7 @@ fn classic_draw_isometric_scene(
         }));
         entities.extend(classic_scene_rts_model_entities(scene.id.as_str()));
         entities.extend(classic_scene_rts_environment_entities(scene.id.as_str()));
+        entities.extend(classic_scene_rts_neutral_unit_entities(scene.id.as_str()));
         entities.extend(classic_scene_rts_doodad_entities(scene.id.as_str()));
         if runtime.dialogue_overlay_visible {
             entities.push(ClassicIsoEntity {
@@ -12023,6 +12828,35 @@ fn classic_scene_rts_environment_entities(scene_id: &str) -> Vec<ClassicIsoEntit
             ("square_forest_floor", "tile_forest_floor", (8, 2), 1),
             ("square_bush_cluster", "doodad_bush_cluster", (4, 6), 4),
             ("square_gold_vein", "doodad_gold_vein", (10, 4), 4),
+        ],
+    };
+    specs
+        .iter()
+        .map(|(id, frame_id, tile, depth_offset)| ClassicIsoEntity {
+            id: (*id).to_string(),
+            frame_id: (*frame_id).to_string(),
+            tile: *tile,
+            depth_key: (tile.0 + tile.1) * 10 + depth_offset,
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_scene_rts_neutral_unit_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
+    let specs: &[(&str, &str, (i32, i32), i32)] = match scene_id {
+        "mentor_training_room" => &[
+            ("training_guard", "actor_guard_idle", (5, 3), 6),
+            ("training_worker", "actor_worker_idle", (3, 5), 6),
+        ],
+        "league_coliseum" => &[
+            ("arena_guard_left", "actor_guard_attack", (4, 4), 6),
+            ("arena_guard_right", "actor_guard_idle", (8, 4), 6),
+            ("arena_creep_attack", "actor_creep_attack", (6, 5), 6),
+        ],
+        _ => &[
+            ("square_guard_patrol", "actor_guard_idle", (7, 5), 6),
+            ("square_worker_carry", "actor_worker_carry", (4, 5), 6),
+            ("square_creep_wander", "actor_creep_idle", (9, 4), 6),
         ],
     };
     specs
