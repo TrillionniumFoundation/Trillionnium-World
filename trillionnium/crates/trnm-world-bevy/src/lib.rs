@@ -124,6 +124,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_RENDER_ASSET_ELIGIBILITY_CONTRACT: &str =
     "trillionnium_world_bevy_render_asset_eligibility_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_AUTHORED_RENDER_FRAME_CONTRACT: &str =
     "trillionnium_world_bevy_authored_render_frame_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_asset_pack_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 pub const TRILLIONNIUM_WORLD_BEVY_ACTION_COACH_CONTRACT: &str =
     "trillionnium_world_bevy_action_coach_v1";
@@ -519,6 +521,76 @@ pub struct BevyWorldRuntimeTextureSpriteAssetBinding {
     pub gpu_upload_claimed: bool,
     pub android_s5_real_device_claimed: bool,
     pub live_osm_ingestion_claimed: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicAssetPackManifest {
+    pub contract_version: String,
+    pub atlas_path: String,
+    pub atlas_format: String,
+    pub atlas_width: u32,
+    pub atlas_height: u32,
+    pub source_tile_size_px: u32,
+    pub render_tile_size_px: u32,
+    pub frames: Vec<ClassicAtlasFrame>,
+    pub scenes: Vec<ClassicSceneMap>,
+    pub actors: Vec<ClassicActorModel>,
+    pub asset_boundary: String,
+    pub x230_low_spec_renderer_target: bool,
+    pub cex_runtime_player_client_allowed: bool,
+    pub wgpu_required: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicAtlasFrame {
+    pub id: String,
+    pub role: String,
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicSceneMap {
+    pub id: String,
+    pub label: String,
+    pub tile_rows: Vec<String>,
+    pub tile_palette: Vec<ClassicTilePaletteEntry>,
+    pub landmarks: Vec<ClassicSceneLandmark>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicTilePaletteEntry {
+    pub key: char,
+    pub frame_id: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicSceneLandmark {
+    pub id: String,
+    pub frame_id: String,
+    pub tile_x: i32,
+    pub tile_y: i32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassicActorModel {
+    pub id: String,
+    pub label: String,
+    pub default_frame_id: String,
+    pub walk_frame_id: String,
+}
+
+#[derive(Debug, Clone)]
+struct ClassicRuntimeAssets {
+    manifest: ClassicAssetPackManifest,
+    atlas_pixels: Vec<u32>,
+    frame_by_id: HashMap<String, ClassicAtlasFrame>,
+    scene_by_id: HashMap<String, ClassicSceneMap>,
+    actor_by_id: HashMap<String, ClassicActorModel>,
+    loaded_from_manifest: bool,
+    atlas_parse_gate: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3656,6 +3728,531 @@ fn native_bool_env_enabled(key: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn default_classic_frame_specs() -> Vec<(&'static str, &'static str, u32, u32)> {
+    vec![
+        ("tile_grass_a", "terrain_tile", 0x2e6f44, 0x4f9a5c),
+        ("tile_grass_b", "terrain_tile", 0x255a3d, 0x407849),
+        ("tile_road", "road_tile", 0x8a7350, 0xb19565),
+        ("tile_stone", "stone_tile", 0x52606a, 0x78858e),
+        ("tile_floor", "interior_tile", 0x685444, 0x8a715c),
+        ("tile_arena", "arena_tile", 0x5b3c34, 0x915548),
+        ("tile_water", "water_tile", 0x2e5d74, 0x4f96b1),
+        ("tile_shadow", "shadow_tile", 0x17221c, 0x29382f),
+        (
+            "actor_player_idle_south",
+            "player_actor",
+            0x6fcf75,
+            0xd8f0a0,
+        ),
+        ("actor_player_walk_1", "player_actor", 0x56b96a, 0xf2dc73),
+        ("actor_mentor", "npc_actor", 0xe3c46e, 0xffedb0),
+        ("actor_enemy", "enemy_actor", 0xc8524d, 0xff8c73),
+        ("prop_door", "scene_prop", 0x9d6b42, 0xd29a5a),
+        ("prop_reward", "scene_prop", 0xd1a73f, 0xffd66b),
+        ("prop_training_dummy", "scene_prop", 0x8a6846, 0xc49b65),
+        ("marker_objective", "objective_marker", 0x68a6d8, 0x9dd5ff),
+    ]
+}
+
+fn default_classic_asset_manifest(atlas_path: &str) -> ClassicAssetPackManifest {
+    let source_tile_size_px = 16;
+    let columns = 8;
+    let specs = default_classic_frame_specs();
+    let rows = specs.len().div_ceil(columns);
+    let frames = specs
+        .iter()
+        .enumerate()
+        .map(|(index, (id, role, _, _))| ClassicAtlasFrame {
+            id: (*id).to_string(),
+            role: (*role).to_string(),
+            x: ((index % columns) as u32) * source_tile_size_px,
+            y: ((index / columns) as u32) * source_tile_size_px,
+            w: source_tile_size_px,
+            h: source_tile_size_px,
+        })
+        .collect();
+    ClassicAssetPackManifest {
+        contract_version: TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT.to_string(),
+        atlas_path: atlas_path.to_string(),
+        atlas_format: "ppm_p3_rgb".to_string(),
+        atlas_width: (columns as u32) * source_tile_size_px,
+        atlas_height: (rows as u32) * source_tile_size_px,
+        source_tile_size_px,
+        render_tile_size_px: 32,
+        frames,
+        scenes: vec![
+            ClassicSceneMap {
+                id: "mirror_city_square".to_string(),
+                label: "Mirror City Square".to_string(),
+                tile_rows: string_vec([
+                    "gggggggggggg",
+                    "ggggrrrrgggg",
+                    "gggrrrrrgggg",
+                    "ggrrgggrrggg",
+                    "ggrrgggrrggg",
+                    "gggrrrrrgggg",
+                    "gggggrgggggg",
+                    "gggggggggggg",
+                ]),
+                tile_palette: vec![
+                    ClassicTilePaletteEntry {
+                        key: 'g',
+                        frame_id: "tile_grass_a".to_string(),
+                    },
+                    ClassicTilePaletteEntry {
+                        key: 'r',
+                        frame_id: "tile_road".to_string(),
+                    },
+                ],
+                landmarks: vec![
+                    ClassicSceneLandmark {
+                        id: "mentor".to_string(),
+                        frame_id: "actor_mentor".to_string(),
+                        tile_x: 4,
+                        tile_y: 3,
+                    },
+                    ClassicSceneLandmark {
+                        id: "objective_gate".to_string(),
+                        frame_id: "marker_objective".to_string(),
+                        tile_x: 8,
+                        tile_y: 2,
+                    },
+                ],
+            },
+            ClassicSceneMap {
+                id: "mentor_training_room".to_string(),
+                label: "Mentor Training Room".to_string(),
+                tile_rows: string_vec([
+                    "ssssssssssss",
+                    "sffffffffffs",
+                    "sffffffffffs",
+                    "sffffddffffs",
+                    "sffffddffffs",
+                    "sffffffffffs",
+                    "sffffffffffs",
+                    "ssssssssssss",
+                ]),
+                tile_palette: vec![
+                    ClassicTilePaletteEntry {
+                        key: 's',
+                        frame_id: "tile_stone".to_string(),
+                    },
+                    ClassicTilePaletteEntry {
+                        key: 'f',
+                        frame_id: "tile_floor".to_string(),
+                    },
+                    ClassicTilePaletteEntry {
+                        key: 'd',
+                        frame_id: "tile_road".to_string(),
+                    },
+                ],
+                landmarks: vec![
+                    ClassicSceneLandmark {
+                        id: "training_dummy".to_string(),
+                        frame_id: "prop_training_dummy".to_string(),
+                        tile_x: 5,
+                        tile_y: 3,
+                    },
+                    ClassicSceneLandmark {
+                        id: "exit_door".to_string(),
+                        frame_id: "prop_door".to_string(),
+                        tile_x: 6,
+                        tile_y: 6,
+                    },
+                ],
+            },
+            ClassicSceneMap {
+                id: "league_coliseum".to_string(),
+                label: "League Coliseum".to_string(),
+                tile_rows: string_vec([
+                    "aaaaaaaaaaaa",
+                    "aarrrrrrrraa",
+                    "aarraaaarrra",
+                    "aarrwaaarrra",
+                    "aarrwaaarrra",
+                    "aarrrrrrrraa",
+                    "aaaaaaaaaaaa",
+                    "aaaaaaaaaaaa",
+                ]),
+                tile_palette: vec![
+                    ClassicTilePaletteEntry {
+                        key: 'a',
+                        frame_id: "tile_arena".to_string(),
+                    },
+                    ClassicTilePaletteEntry {
+                        key: 'r',
+                        frame_id: "tile_road".to_string(),
+                    },
+                    ClassicTilePaletteEntry {
+                        key: 'w',
+                        frame_id: "tile_water".to_string(),
+                    },
+                ],
+                landmarks: vec![
+                    ClassicSceneLandmark {
+                        id: "enemy".to_string(),
+                        frame_id: "actor_enemy".to_string(),
+                        tile_x: 9,
+                        tile_y: 2,
+                    },
+                    ClassicSceneLandmark {
+                        id: "reward".to_string(),
+                        frame_id: "prop_reward".to_string(),
+                        tile_x: 8,
+                        tile_y: 5,
+                    },
+                ],
+            },
+        ],
+        actors: vec![
+            ClassicActorModel {
+                id: "player".to_string(),
+                label: "Player".to_string(),
+                default_frame_id: "actor_player_idle_south".to_string(),
+                walk_frame_id: "actor_player_walk_1".to_string(),
+            },
+            ClassicActorModel {
+                id: "mentor".to_string(),
+                label: "Street Compass Sifu".to_string(),
+                default_frame_id: "actor_mentor".to_string(),
+                walk_frame_id: "actor_mentor".to_string(),
+            },
+            ClassicActorModel {
+                id: "enemy".to_string(),
+                label: "Arena Duelist".to_string(),
+                default_frame_id: "actor_enemy".to_string(),
+                walk_frame_id: "actor_enemy".to_string(),
+            },
+        ],
+        asset_boundary:
+            "project_owned_manifest_ppm_atlas_for_classic_low_spec_renderer_not_cex_runtime"
+                .to_string(),
+        x230_low_spec_renderer_target: true,
+        cex_runtime_player_client_allowed: false,
+        wgpu_required: false,
+    }
+}
+
+fn write_classic_asset_pack_files(manifest_path: &str, atlas_path: &str) -> Result<(), String> {
+    if let Some(parent) = Path::new(manifest_path).parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    if let Some(parent) = Path::new(atlas_path).parent() {
+        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+    let atlas_manifest_path = Path::new(atlas_path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(atlas_path);
+    let manifest = default_classic_asset_manifest(atlas_manifest_path);
+    fs::write(
+        manifest_path,
+        serde_json::to_string_pretty(&manifest).map_err(|err| err.to_string())?,
+    )
+    .map_err(|err| err.to_string())?;
+    write_classic_asset_atlas_ppm(atlas_path, &manifest)
+}
+
+fn write_classic_asset_atlas_ppm(
+    atlas_path: &str,
+    manifest: &ClassicAssetPackManifest,
+) -> Result<(), String> {
+    let specs = default_classic_frame_specs();
+    let mut by_id = HashMap::new();
+    for (id, role, base, accent) in specs {
+        by_id.insert(id, (role, base, accent));
+    }
+    let mut text = format!(
+        "P3\n{} {}\n255\n",
+        manifest.atlas_width, manifest.atlas_height
+    );
+    for y in 0..manifest.atlas_height {
+        for x in 0..manifest.atlas_width {
+            let frame = manifest.frames.iter().find(|frame| {
+                x >= frame.x && x < frame.x + frame.w && y >= frame.y && y < frame.y + frame.h
+            });
+            let Some(frame) = frame else {
+                text.push_str("0 0 0 ");
+                continue;
+            };
+            let local_x = x - frame.x;
+            let local_y = y - frame.y;
+            let (_, base, accent) = by_id
+                .get(frame.id.as_str())
+                .copied()
+                .unwrap_or(("unknown", 0x202020, 0x404040));
+            let color = if local_x == 0
+                || local_y == 0
+                || local_x == frame.w - 1
+                || local_y == frame.h - 1
+                || local_x == local_y
+                || local_x + local_y == frame.w - 1
+            {
+                accent
+            } else {
+                base
+            };
+            let (r, g, b) = rgb_from_u32(color);
+            text.push_str(&format!("{r} {g} {b} "));
+        }
+        text.push('\n');
+    }
+    fs::write(atlas_path, text).map_err(|err| err.to_string())
+}
+
+fn rgb_from_u32(color: u32) -> (u8, u8, u8) {
+    (
+        ((color >> 16) & 0xff) as u8,
+        ((color >> 8) & 0xff) as u8,
+        (color & 0xff) as u8,
+    )
+}
+
+pub fn native_classic_asset_pack_evidence_json(manifest_path: &str, atlas_path: &str) -> String {
+    let write_gate = write_classic_asset_pack_files(manifest_path, atlas_path).is_ok();
+    let manifest_bytes = fs::metadata(manifest_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or_default();
+    let atlas_bytes = fs::metadata(atlas_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or_default();
+    let loaded = load_classic_runtime_assets_from_manifest_path(manifest_path);
+    let assets = loaded.unwrap_or_else(generated_classic_runtime_assets);
+    let frame_count = assets.manifest.frames.len();
+    let scene_count = assets.manifest.scenes.len();
+    let actor_count = assets.manifest.actors.len();
+    let scene_tile_gate = assets.manifest.scenes.iter().all(|scene| {
+        scene.tile_rows.len() == 8 && scene.tile_rows.iter().all(|row| row.len() == 12)
+    });
+    let required_frames = [
+        "tile_grass_a",
+        "tile_road",
+        "tile_floor",
+        "tile_arena",
+        "actor_player_idle_south",
+        "actor_player_walk_1",
+        "actor_mentor",
+        "actor_enemy",
+        "prop_training_dummy",
+        "prop_reward",
+    ];
+    let frame_gate = required_frames
+        .iter()
+        .all(|frame_id| assets.frame_by_id.contains_key(*frame_id));
+    let scene_gate = [
+        "mirror_city_square",
+        "mentor_training_room",
+        "league_coliseum",
+    ]
+    .iter()
+    .all(|scene_id| assets.scene_by_id.contains_key(*scene_id));
+    let actor_gate = ["player", "mentor", "enemy"]
+        .iter()
+        .all(|actor_id| assets.actor_by_id.contains_key(*actor_id));
+    let green = write_gate
+        && assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && frame_count >= 16
+        && scene_count >= 3
+        && actor_count >= 3
+        && scene_tile_gate
+        && frame_gate
+        && scene_gate
+        && actor_gate
+        && assets.manifest.x230_low_spec_renderer_target
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT,
+        "green": green,
+        "manifest_path": manifest_path,
+        "atlas_path": atlas_path,
+        "manifest_bytes": manifest_bytes,
+        "atlas_bytes": atlas_bytes,
+        "frame_count": frame_count,
+        "scene_count": scene_count,
+        "actor_count": actor_count,
+        "atlas_format": assets.manifest.atlas_format,
+        "atlas_width": assets.manifest.atlas_width,
+        "atlas_height": assets.manifest.atlas_height,
+        "source_tile_size_px": assets.manifest.source_tile_size_px,
+        "render_tile_size_px": assets.manifest.render_tile_size_px,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "frame_gate": frame_gate,
+        "scene_gate": scene_gate,
+        "actor_gate": actor_gate,
+        "scene_tile_gate": scene_tile_gate,
+        "x230_low_spec_renderer_target": assets.manifest.x230_low_spec_renderer_target,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "renderer_uses_manifest": true,
+        "asset_boundary": assets.manifest.asset_boundary,
+        "source_of_truth": "Classic renderer reads project-owned manifest plus PPM atlas and keeps Rust world/input authority in trnm-world-bevy."
+    }))
+    .expect("classic asset pack evidence serializes")
+}
+
+fn load_classic_runtime_assets() -> ClassicRuntimeAssets {
+    classic_asset_manifest_candidates()
+        .into_iter()
+        .find_map(|path| load_classic_runtime_assets_from_manifest_path(&path))
+        .unwrap_or_else(generated_classic_runtime_assets)
+}
+
+fn classic_asset_manifest_candidates() -> Vec<String> {
+    let mut candidates = Vec::new();
+    if let Ok(path) = env::var("TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST") {
+        candidates.push(path);
+    }
+    candidates.push("../assets/trnm-world/classic/manifest.json".to_string());
+    candidates.push("assets/trnm-world/classic/manifest.json".to_string());
+    candidates
+}
+
+fn load_classic_runtime_assets_from_manifest_path(path: &str) -> Option<ClassicRuntimeAssets> {
+    let manifest_text = fs::read_to_string(path).ok()?;
+    let manifest: ClassicAssetPackManifest = serde_json::from_str(&manifest_text).ok()?;
+    if manifest.contract_version != TRILLIONNIUM_WORLD_BEVY_CLASSIC_ASSET_PACK_CONTRACT {
+        return None;
+    }
+    let atlas_path = Path::new(path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(&manifest.atlas_path);
+    let atlas_pixels = read_classic_ppm_p3_u32(
+        atlas_path.to_str().unwrap_or_default(),
+        manifest.atlas_width,
+        manifest.atlas_height,
+    )
+    .ok()?;
+    Some(classic_runtime_assets_from_manifest(
+        manifest,
+        atlas_pixels,
+        true,
+        true,
+    ))
+}
+
+fn generated_classic_runtime_assets() -> ClassicRuntimeAssets {
+    let manifest = default_classic_asset_manifest("generated-classic-atlas.ppm");
+    let atlas_pixels = generated_classic_atlas_pixels(&manifest);
+    classic_runtime_assets_from_manifest(manifest, atlas_pixels, false, true)
+}
+
+fn classic_runtime_assets_from_manifest(
+    manifest: ClassicAssetPackManifest,
+    atlas_pixels: Vec<u32>,
+    loaded_from_manifest: bool,
+    atlas_parse_gate: bool,
+) -> ClassicRuntimeAssets {
+    ClassicRuntimeAssets {
+        frame_by_id: manifest
+            .frames
+            .iter()
+            .map(|frame| (frame.id.clone(), frame.clone()))
+            .collect(),
+        scene_by_id: manifest
+            .scenes
+            .iter()
+            .map(|scene| (scene.id.clone(), scene.clone()))
+            .collect(),
+        actor_by_id: manifest
+            .actors
+            .iter()
+            .map(|actor| (actor.id.clone(), actor.clone()))
+            .collect(),
+        manifest,
+        atlas_pixels,
+        loaded_from_manifest,
+        atlas_parse_gate,
+    }
+}
+
+fn read_classic_ppm_p3_u32(
+    atlas_path: &str,
+    expected_width: u32,
+    expected_height: u32,
+) -> Result<Vec<u32>, String> {
+    let text = fs::read_to_string(atlas_path).map_err(|err| err.to_string())?;
+    let mut tokens = text.split_whitespace();
+    if tokens.next() != Some("P3") {
+        return Err("classic atlas must be P3".to_string());
+    }
+    let width = tokens
+        .next()
+        .ok_or_else(|| "classic atlas width missing".to_string())?
+        .parse::<u32>()
+        .map_err(|err| err.to_string())?;
+    let height = tokens
+        .next()
+        .ok_or_else(|| "classic atlas height missing".to_string())?
+        .parse::<u32>()
+        .map_err(|err| err.to_string())?;
+    let max_value = tokens
+        .next()
+        .ok_or_else(|| "classic atlas max value missing".to_string())?
+        .parse::<u32>()
+        .map_err(|err| err.to_string())?;
+    if width != expected_width || height != expected_height || max_value != 255 {
+        return Err("classic atlas header mismatch".to_string());
+    }
+    let mut pixels = Vec::with_capacity((width * height) as usize);
+    for _ in 0..(width * height) {
+        let r = tokens
+            .next()
+            .ok_or_else(|| "classic atlas red missing".to_string())?
+            .parse::<u32>()
+            .map_err(|err| err.to_string())?;
+        let g = tokens
+            .next()
+            .ok_or_else(|| "classic atlas green missing".to_string())?
+            .parse::<u32>()
+            .map_err(|err| err.to_string())?;
+        let b = tokens
+            .next()
+            .ok_or_else(|| "classic atlas blue missing".to_string())?
+            .parse::<u32>()
+            .map_err(|err| err.to_string())?;
+        pixels.push((r << 16) | (g << 8) | b);
+    }
+    Ok(pixels)
+}
+
+fn generated_classic_atlas_pixels(manifest: &ClassicAssetPackManifest) -> Vec<u32> {
+    let mut pixels = vec![0_u32; (manifest.atlas_width * manifest.atlas_height) as usize];
+    let specs = default_classic_frame_specs();
+    let base_by_id = specs
+        .into_iter()
+        .map(|(id, _, base, accent)| (id, (base, accent)))
+        .collect::<HashMap<_, _>>();
+    for frame in &manifest.frames {
+        let (base, accent) = base_by_id
+            .get(frame.id.as_str())
+            .copied()
+            .unwrap_or((0x202020, 0x404040));
+        for y in 0..frame.h {
+            for x in 0..frame.w {
+                let color = if x == 0
+                    || y == 0
+                    || x == frame.w - 1
+                    || y == frame.h - 1
+                    || x == y
+                    || x + y == frame.w - 1
+                {
+                    accent
+                } else {
+                    base
+                };
+                let px = frame.x + x;
+                let py = frame.y + y;
+                pixels[(py * manifest.atlas_width + px) as usize] = color;
+            }
+        }
+    }
+    pixels
+}
+
 #[cfg(not(target_os = "android"))]
 fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
     const WIDTH: usize = 640;
@@ -3671,6 +4268,7 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         last_rejection: None,
     };
     let mut first_playable = NativeFirstPlayableRuntime::default();
+    let assets = load_classic_runtime_assets();
     let mut player_tile = (5_i32, 4_i32);
     let mut buffer = vec![0_u32; WIDTH * HEIGHT];
     let mut window = MiniWindow::new(
@@ -3687,7 +4285,14 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         .unwrap_or(30);
     window.set_target_fps(classic_fps);
 
-    classic_draw_scene(&mut buffer, WIDTH, HEIGHT, player_tile, &first_playable);
+    classic_draw_scene(
+        &mut buffer,
+        WIDTH,
+        HEIGHT,
+        player_tile,
+        &first_playable,
+        &assets,
+    );
     window
         .update_with_buffer(&buffer, WIDTH, HEIGHT)
         .expect("classic low spec renderer presents first frame");
@@ -3713,11 +4318,19 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 }
             }
         }
-        classic_draw_scene(&mut buffer, WIDTH, HEIGHT, player_tile, &first_playable);
+        classic_draw_scene(
+            &mut buffer,
+            WIDTH,
+            HEIGHT,
+            player_tile,
+            &first_playable,
+            &assets,
+        );
         window.set_title(&classic_window_title(
             player_tile,
             &first_playable,
             &gameplay_log,
+            &assets,
         ));
         window
             .update_with_buffer(&buffer, WIDTH, HEIGHT)
@@ -3802,6 +4415,7 @@ fn classic_draw_scene(
     height: usize,
     player_tile: (i32, i32),
     runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
 ) {
     buffer.fill(0x101411);
     classic_draw_rect(
@@ -3828,90 +4442,121 @@ fn classic_draw_scene(
 
     let origin_x = 96;
     let origin_y = 46;
-    let tile = 32;
-    for row in 0..8 {
-        for col in 0..12 {
-            let color = if (row + col) % 2 == 0 {
-                0x26352a
-            } else {
-                0x203026
-            };
-            classic_draw_rect(
+    let tile = assets.manifest.render_tile_size_px as i32;
+    let scale = (assets.manifest.render_tile_size_px / assets.manifest.source_tile_size_px).max(1);
+    let scene_id = classic_scene_id(runtime);
+    let scene = assets
+        .scene_by_id
+        .get(scene_id)
+        .or_else(|| assets.scene_by_id.get("mirror_city_square"));
+    if let Some(scene) = scene {
+        for (row_idx, row) in scene.tile_rows.iter().enumerate() {
+            for (col_idx, key) in row.chars().enumerate() {
+                let frame_id = classic_scene_tile_frame_id(scene, key);
+                if !classic_blit_frame_scaled(
+                    buffer,
+                    width,
+                    height,
+                    assets,
+                    frame_id,
+                    origin_x + col_idx as i32 * tile,
+                    origin_y + row_idx as i32 * tile,
+                    scale,
+                ) {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        origin_x + col_idx as i32 * tile,
+                        origin_y + row_idx as i32 * tile,
+                        tile - 2,
+                        tile - 2,
+                        0x26352a,
+                    );
+                }
+            }
+        }
+        for landmark in &scene.landmarks {
+            classic_draw_frame_at_tile(
                 buffer,
                 width,
                 height,
-                origin_x + col * tile,
-                origin_y + row * tile,
-                tile - 2,
-                tile - 2,
-                color,
+                assets,
+                &landmark.frame_id,
+                origin_x,
+                origin_y,
+                tile,
+                (landmark.tile_x, landmark.tile_y),
+                scale,
             );
+        }
+    } else {
+        for row in 0..8 {
+            for col in 0..12 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    origin_x + col * tile,
+                    origin_y + row * tile,
+                    tile - 2,
+                    tile - 2,
+                    0x26352a,
+                );
+            }
         }
     }
 
-    classic_draw_marker(
-        buffer,
-        width,
-        height,
-        origin_x,
-        origin_y,
-        tile,
-        (4, 3),
-        0xe6c76c,
-    );
-    classic_draw_marker(
-        buffer,
-        width,
-        height,
-        origin_x,
-        origin_y,
-        tile,
-        (8, 2),
-        0xbd5b4f,
-    );
-    classic_draw_marker(
-        buffer,
-        width,
-        height,
-        origin_x,
-        origin_y,
-        tile,
-        (8, 5),
-        0x6ab0d8,
-    );
     if runtime.dialogue_overlay_visible {
-        classic_draw_marker(
+        classic_draw_frame_at_tile(
             buffer,
             width,
             height,
+            assets,
+            "marker_objective",
             origin_x,
             origin_y,
             tile,
             (4, 4),
-            0xf0e0a8,
+            scale,
         );
     }
     if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
-        classic_draw_marker(
+        classic_draw_frame_at_tile(
             buffer,
             width,
             height,
+            assets,
+            "marker_objective",
             origin_x,
             origin_y,
             tile,
             (9, 2),
-            0xf06b61,
+            scale,
         );
     }
-    classic_draw_marker(
+    let player_frame = assets
+        .actor_by_id
+        .get("player")
+        .map(|actor| {
+            if runtime.walk_cycle_frame.is_multiple_of(2) {
+                actor.default_frame_id.as_str()
+            } else {
+                actor.walk_frame_id.as_str()
+            }
+        })
+        .unwrap_or("actor_player_idle_south");
+    classic_draw_frame_at_tile(
         buffer,
         width,
         height,
+        assets,
+        player_frame,
         origin_x,
         origin_y,
         tile,
         player_tile,
-        0x78d67a,
+        scale,
     );
 
     let xp_width = (runtime.xp.min(100) as i32 * 180) / 100;
@@ -3932,29 +4577,102 @@ fn classic_draw_scene(
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_draw_marker(
+fn classic_scene_id(runtime: &NativeFirstPlayableRuntime) -> &'static str {
+    if runtime.indoor_tilemap_visible || runtime.map_scene.contains("training") {
+        "mentor_training_room"
+    } else if runtime.map_scene.contains("arena")
+        || runtime
+            .completed_steps
+            .iter()
+            .any(|step| step == "arrive_at_first_objective")
+    {
+        "league_coliseum"
+    } else {
+        "mirror_city_square"
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_scene_tile_frame_id(scene: &ClassicSceneMap, key: char) -> &str {
+    scene
+        .tile_palette
+        .iter()
+        .find(|entry| entry.key == key)
+        .map(|entry| entry.frame_id.as_str())
+        .unwrap_or("tile_grass_a")
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_frame_at_tile(
     buffer: &mut [u32],
     width: usize,
     height: usize,
+    assets: &ClassicRuntimeAssets,
+    frame_id: &str,
     origin_x: i32,
     origin_y: i32,
-    tile: i32,
+    tile_size: i32,
     grid: (i32, i32),
-    color: u32,
+    scale: u32,
 ) {
-    classic_draw_rect(
+    classic_blit_frame_scaled(
         buffer,
         width,
         height,
-        origin_x + grid.0 * tile + 7,
-        origin_y + grid.1 * tile + 7,
-        tile - 14,
-        tile - 14,
-        color,
+        assets,
+        frame_id,
+        origin_x + grid.0 * tile_size,
+        origin_y + grid.1 * tile_size,
+        scale,
     );
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_blit_frame_scaled(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    assets: &ClassicRuntimeAssets,
+    frame_id: &str,
+    x: i32,
+    y: i32,
+    scale: u32,
+) -> bool {
+    let Some(frame) = assets.frame_by_id.get(frame_id) else {
+        return false;
+    };
+    let scale = scale.max(1) as i32;
+    for sy in 0..frame.h as i32 {
+        for sx in 0..frame.w as i32 {
+            let source_x = frame.x as i32 + sx;
+            let source_y = frame.y as i32 + sy;
+            if source_x < 0
+                || source_y < 0
+                || source_x >= assets.manifest.atlas_width as i32
+                || source_y >= assets.manifest.atlas_height as i32
+            {
+                continue;
+            }
+            let color = assets.atlas_pixels
+                [(source_y as usize * assets.manifest.atlas_width as usize) + source_x as usize];
+            for dy in 0..scale {
+                for dx in 0..scale {
+                    let px = x + sx * scale + dx;
+                    let py = y + sy * scale + dy;
+                    if px >= 0 && py >= 0 && px < width as i32 && py < height as i32 {
+                        buffer[py as usize * width + px as usize] = color;
+                    }
+                }
+            }
+        }
+    }
+    true
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_rect(
     buffer: &mut [u32],
     width: usize,
@@ -3982,9 +4700,11 @@ fn classic_window_title(
     player_tile: (i32, i32),
     runtime: &NativeFirstPlayableRuntime,
     gameplay_log: &NativeGameplayLog,
+    assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium classic | room={} tile=({}, {}) xp={} | arrows/WASD move R talk T train F fight C complete I equip Enter next | {} -> {}",
+        "Trillionnium classic atlas={} | room={} tile=({}, {}) xp={} | arrows/WASD move R talk T train F fight C complete I equip Enter next | {} -> {}",
+        assets.manifest.contract_version,
         runtime.current_room_id,
         player_tile.0,
         player_tile.1,

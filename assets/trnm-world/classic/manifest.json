@@ -1,0 +1,287 @@
+{
+  "contract_version": "trillionnium_world_bevy_classic_asset_pack_v1",
+  "atlas_path": "atlas.ppm",
+  "atlas_format": "ppm_p3_rgb",
+  "atlas_width": 128,
+  "atlas_height": 32,
+  "source_tile_size_px": 16,
+  "render_tile_size_px": 32,
+  "frames": [
+    {
+      "id": "tile_grass_a",
+      "role": "terrain_tile",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_grass_b",
+      "role": "terrain_tile",
+      "x": 16,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_road",
+      "role": "road_tile",
+      "x": 32,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_stone",
+      "role": "stone_tile",
+      "x": 48,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_floor",
+      "role": "interior_tile",
+      "x": 64,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_arena",
+      "role": "arena_tile",
+      "x": 80,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_water",
+      "role": "water_tile",
+      "x": 96,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "tile_shadow",
+      "role": "shadow_tile",
+      "x": 112,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_idle_south",
+      "role": "player_actor",
+      "x": 0,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_player_walk_1",
+      "role": "player_actor",
+      "x": 16,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_mentor",
+      "role": "npc_actor",
+      "x": 32,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "actor_enemy",
+      "role": "enemy_actor",
+      "x": 48,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_door",
+      "role": "scene_prop",
+      "x": 64,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_reward",
+      "role": "scene_prop",
+      "x": 80,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "prop_training_dummy",
+      "role": "scene_prop",
+      "x": 96,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    {
+      "id": "marker_objective",
+      "role": "objective_marker",
+      "x": 112,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    }
+  ],
+  "scenes": [
+    {
+      "id": "mirror_city_square",
+      "label": "Mirror City Square",
+      "tile_rows": [
+        "gggggggggggg",
+        "ggggrrrrgggg",
+        "gggrrrrrgggg",
+        "ggrrgggrrggg",
+        "ggrrgggrrggg",
+        "gggrrrrrgggg",
+        "gggggrgggggg",
+        "gggggggggggg"
+      ],
+      "tile_palette": [
+        {
+          "key": "g",
+          "frame_id": "tile_grass_a"
+        },
+        {
+          "key": "r",
+          "frame_id": "tile_road"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "mentor",
+          "frame_id": "actor_mentor",
+          "tile_x": 4,
+          "tile_y": 3
+        },
+        {
+          "id": "objective_gate",
+          "frame_id": "marker_objective",
+          "tile_x": 8,
+          "tile_y": 2
+        }
+      ]
+    },
+    {
+      "id": "mentor_training_room",
+      "label": "Mentor Training Room",
+      "tile_rows": [
+        "ssssssssssss",
+        "sffffffffffs",
+        "sffffffffffs",
+        "sffffddffffs",
+        "sffffddffffs",
+        "sffffffffffs",
+        "sffffffffffs",
+        "ssssssssssss"
+      ],
+      "tile_palette": [
+        {
+          "key": "s",
+          "frame_id": "tile_stone"
+        },
+        {
+          "key": "f",
+          "frame_id": "tile_floor"
+        },
+        {
+          "key": "d",
+          "frame_id": "tile_road"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "training_dummy",
+          "frame_id": "prop_training_dummy",
+          "tile_x": 5,
+          "tile_y": 3
+        },
+        {
+          "id": "exit_door",
+          "frame_id": "prop_door",
+          "tile_x": 6,
+          "tile_y": 6
+        }
+      ]
+    },
+    {
+      "id": "league_coliseum",
+      "label": "League Coliseum",
+      "tile_rows": [
+        "aaaaaaaaaaaa",
+        "aarrrrrrrraa",
+        "aarraaaarrra",
+        "aarrwaaarrra",
+        "aarrwaaarrra",
+        "aarrrrrrrraa",
+        "aaaaaaaaaaaa",
+        "aaaaaaaaaaaa"
+      ],
+      "tile_palette": [
+        {
+          "key": "a",
+          "frame_id": "tile_arena"
+        },
+        {
+          "key": "r",
+          "frame_id": "tile_road"
+        },
+        {
+          "key": "w",
+          "frame_id": "tile_water"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "enemy",
+          "frame_id": "actor_enemy",
+          "tile_x": 9,
+          "tile_y": 2
+        },
+        {
+          "id": "reward",
+          "frame_id": "prop_reward",
+          "tile_x": 8,
+          "tile_y": 5
+        }
+      ]
+    }
+  ],
+  "actors": [
+    {
+      "id": "player",
+      "label": "Player",
+      "default_frame_id": "actor_player_idle_south",
+      "walk_frame_id": "actor_player_walk_1"
+    },
+    {
+      "id": "mentor",
+      "label": "Street Compass Sifu",
+      "default_frame_id": "actor_mentor",
+      "walk_frame_id": "actor_mentor"
+    },
+    {
+      "id": "enemy",
+      "label": "Arena Duelist",
+      "default_frame_id": "actor_enemy",
+      "walk_frame_id": "actor_enemy"
+    }
+  ],
+  "asset_boundary": "project_owned_manifest_ppm_atlas_for_classic_low_spec_renderer_not_cex_runtime",
+  "x230_low_spec_renderer_target": true,
+  "cex_runtime_player_client_allowed": false,
+  "wgpu_required": false
+}

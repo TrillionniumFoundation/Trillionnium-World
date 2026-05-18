@@ -243,6 +243,24 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-asset-pack" | "--classic-asset-pack" | "classic-assets")
+    ) {
+        let manifest_path = args
+            .get(1)
+            .map(String::as_str)
+            .unwrap_or("../assets/trnm-world/classic/manifest.json");
+        let atlas_path = args
+            .get(2)
+            .map(String::as_str)
+            .unwrap_or("../assets/trnm-world/classic/atlas.ppm");
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_asset_pack_evidence_json(manifest_path, atlas_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("authored-art-pack" | "--authored-art-pack" | "art-pack")
     ) {
         println!(

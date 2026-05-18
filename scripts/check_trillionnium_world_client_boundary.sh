@@ -83,6 +83,7 @@ contains "$DEV_ENV" "Do not launch CEX as the player client" dev_env_no_cex_clie
 contains "$BEVY_CRATE/Cargo.toml" "minifb = \"0.27\"" bevy_crate_has_classic_low_spec_renderer
 contains "$BEVY_RUNNER" "TRNM_WORLD_BEVY_CLASSIC_RENDERER=1" bevy_runner_defaults_to_classic_low_spec_renderer
 contains "$BEVY_RUNNER" "TRNM_WORLD_BEVY_CLASSIC_FPS:-30" bevy_runner_caps_classic_low_spec_fps
+contains "$BEVY_RUNNER" "TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST" bevy_runner_points_classic_asset_manifest
 contains "$BEVY_RUNNER" "cargo build -p trnm-world-bevy --release" bevy_runner_builds_native_crate
 contains "$BEVY_RUNNER" "target/release/trnm-world-bevy" bevy_runner_launches_optimized_native_binary
 not_matches "$BEVY_RUNNER" "CEX|consumer-entry|consumer_entry|runtime-manager-linux|/world" bevy_runner_has_no_cex_runtime_refs
