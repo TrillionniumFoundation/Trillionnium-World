@@ -136,6 +136,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_MANIFEST_LINT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_manifest_lint_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ANIMATION_PREVIEW_CONTRACT: &str =
     "trillionnium_world_bevy_classic_animation_preview_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_ANIMATION_SELECTOR_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_animation_selector_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -6449,6 +6451,138 @@ fn classic_dynamic_landmark_frame_id<'a>(
         "objective_gate" if runtime.walk_cycle_frame % 2 == 1 => "marker_interaction",
         _ => landmark.frame_id.as_str(),
     }
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_animation_selector_evidence_json() -> String {
+    let assets = load_classic_runtime_assets();
+    let mentor = ClassicSceneLandmark {
+        id: "mentor".to_string(),
+        frame_id: "actor_mentor_idle".to_string(),
+        tile_x: 4,
+        tile_y: 3,
+    };
+    let enemy = ClassicSceneLandmark {
+        id: "enemy".to_string(),
+        frame_id: "actor_enemy_idle".to_string(),
+        tile_x: 9,
+        tile_y: 2,
+    };
+    let objective = ClassicSceneLandmark {
+        id: "objective_gate".to_string(),
+        frame_id: "marker_objective".to_string(),
+        tile_x: 8,
+        tile_y: 2,
+    };
+    let dialogue_runtime = NativeFirstPlayableRuntime {
+        dialogue_overlay_visible: true,
+        npc_dialogue_state: "mentor_talk_preview".to_string(),
+        ..Default::default()
+    };
+    let combat_attack_runtime = NativeFirstPlayableRuntime {
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        combat_turn: 1,
+        enemy_hp: 25,
+        enemy_damage_feedback: "turn 1 attack -14 HP".to_string(),
+        ..Default::default()
+    };
+    let combat_hit_runtime = NativeFirstPlayableRuntime {
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        combat_turn: 2,
+        enemy_hp: 0,
+        enemy_damage_feedback: "force route clear: duelist yields".to_string(),
+        ..Default::default()
+    };
+    let marker_pulse_runtime = NativeFirstPlayableRuntime {
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let cases = vec![
+        json!({
+            "case_id": "mentor_idle",
+            "landmark_id": mentor.id.as_str(),
+            "selected_frame_id": classic_dynamic_landmark_frame_id(&mentor, &NativeFirstPlayableRuntime::default()),
+            "expected_frame_id": "actor_mentor_idle",
+        }),
+        json!({
+            "case_id": "mentor_dialogue_talk",
+            "landmark_id": mentor.id.as_str(),
+            "selected_frame_id": classic_dynamic_landmark_frame_id(&mentor, &dialogue_runtime),
+            "expected_frame_id": "actor_mentor_talk",
+        }),
+        json!({
+            "case_id": "enemy_idle",
+            "landmark_id": enemy.id.as_str(),
+            "selected_frame_id": classic_dynamic_landmark_frame_id(&enemy, &NativeFirstPlayableRuntime::default()),
+            "expected_frame_id": "actor_enemy_idle",
+        }),
+        json!({
+            "case_id": "enemy_combat_attack",
+            "landmark_id": enemy.id.as_str(),
+            "selected_frame_id": classic_dynamic_landmark_frame_id(&enemy, &combat_attack_runtime),
+            "expected_frame_id": "actor_enemy_attack",
+        }),
+        json!({
+            "case_id": "enemy_combat_hit",
+            "landmark_id": enemy.id.as_str(),
+            "selected_frame_id": classic_dynamic_landmark_frame_id(&enemy, &combat_hit_runtime),
+            "expected_frame_id": "actor_enemy_hit",
+        }),
+        json!({
+            "case_id": "objective_marker_pulse",
+            "landmark_id": objective.id.as_str(),
+            "selected_frame_id": classic_dynamic_landmark_frame_id(&objective, &marker_pulse_runtime),
+            "expected_frame_id": "marker_interaction",
+        }),
+    ];
+    let selector_case_gate = cases.iter().all(|case| {
+        case.get("selected_frame_id")
+            .and_then(|value| value.as_str())
+            == case
+                .get("expected_frame_id")
+                .and_then(|value| value.as_str())
+    });
+    let selected_frames = cases
+        .iter()
+        .filter_map(|case| {
+            case.get("selected_frame_id")
+                .and_then(|value| value.as_str())
+                .map(str::to_string)
+        })
+        .collect::<HashSet<_>>();
+    let selected_frame_manifest_gate = selected_frames
+        .iter()
+        .all(|frame_id| assets.frame_by_id.contains_key(frame_id));
+    let animation_transition_gate = selected_frames.contains("actor_mentor_talk")
+        && selected_frames.contains("actor_enemy_attack")
+        && selected_frames.contains("actor_enemy_hit")
+        && selected_frames.contains("marker_interaction");
+    let green = assets.loaded_from_manifest
+        && assets.atlas_parse_gate
+        && cases.len() >= 6
+        && selector_case_gate
+        && selected_frame_manifest_gate
+        && animation_transition_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_ANIMATION_SELECTOR_CONTRACT,
+        "green": green,
+        "case_count": cases.len(),
+        "cases": cases,
+        "selected_frames": selected_frames,
+        "loaded_from_manifest": assets.loaded_from_manifest,
+        "atlas_parse_gate": assets.atlas_parse_gate,
+        "selector_case_gate": selector_case_gate,
+        "selected_frame_manifest_gate": selected_frame_manifest_gate,
+        "animation_transition_gate": animation_transition_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic animation selector evidence locks runtime state-to-frame decisions for dialogue, combat, damage, and marker pulse inside trnm-world-bevy."
+    }))
+    .expect("classic animation selector evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
