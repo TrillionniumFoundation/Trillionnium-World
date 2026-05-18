@@ -15,6 +15,10 @@ required_script_lines=(
   'diamond_terrain_tiles'
   'y_depth_sorted_sprite_entities'
   'actor_footprint_shadows'
+  'procedural_building_volumes'
+  'tree_canopy_occlusion'
+  'enlarged_actor_billboards'
+  'procedural_volume_gate'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
 )
@@ -33,6 +37,9 @@ required_source_lines=(
   'classic_iso_project'
   'classic_draw_iso_diamond'
   'classic_draw_iso_shadow'
+  'classic_draw_iso_prism'
+  'classic_draw_iso_procedural_model'
+  'procedural_model_pixel_count'
   'Warcraft-style 2.5D model'
 )
 
