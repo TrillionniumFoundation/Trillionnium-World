@@ -9,6 +9,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_selector.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_player_motion_probe.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_input_frame_budget.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_render_budget.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_scene_preview.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh" >/dev/null
@@ -21,6 +22,7 @@ jq -n \
   --slurpfile animation "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-preview.json" \
   --slurpfile selector "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-animation-selector.json" \
   --slurpfile motion "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.json" \
+  --slurpfile input_budget "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-input-frame-budget.json" \
   --slurpfile budget "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-render-budget.json" \
   --slurpfile scene "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json" \
   --slurpfile probe "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-renderer-probe.json" \
@@ -35,6 +37,7 @@ jq -n \
       and ok($animation)
       and ok($selector)
       and ok($motion)
+      and ok($input_budget)
       and ok($budget)
       and ok($scene)
       and ok($probe)
@@ -44,6 +47,9 @@ jq -n \
       and $manifest[0].cex_runtime_player_client_allowed == false
       and $budget[0].p95_budget_gate == true
       and $motion[0].accepted_input_gate == true
+      and $input_budget[0].accepted_input_gate == true
+      and $input_budget[0].response_p95_budget_gate == true
+      and $input_budget[0].response_max_budget_gate == true
       and $selector[0].animation_transition_gate == true
       and $scene[0].dynamic_landmark_animation_gate == true
       and $probe[0].hud_probe_gate == true
@@ -54,6 +60,7 @@ jq -n \
       animation_preview_green: ok($animation),
       animation_selector_green: ok($selector),
       player_motion_green: ok($motion),
+      input_frame_budget_green: ok($input_budget),
       render_budget_green: ok($budget),
       scene_preview_green: ok($scene),
       renderer_probe_green: ok($probe),
@@ -66,6 +73,10 @@ jq -n \
       animation_clip_count: $animation[0].clip_count,
       motion_sample_count: $motion[0].sample_count,
       motion_accepted_input_count: $motion[0].accepted_input_count,
+      input_frame_sample_count: $input_budget[0].sample_count,
+      input_frame_accepted_input_count: $input_budget[0].accepted_input_count,
+      input_frame_p95_micros: $input_budget[0].p95_micros,
+      input_frame_max_micros: $input_budget[0].max_micros,
       render_p50_micros: $budget[0].p50_micros,
       render_p95_micros: $budget[0].p95_micros,
       render_max_micros: $budget[0].max_micros,
@@ -82,6 +93,9 @@ jq -n \
       animation_action_coverage_gate: $animation[0].action_coverage_gate,
       selector_transition_gate: $selector[0].animation_transition_gate,
       motion_direction_coverage_gate: $motion[0].direction_coverage_gate,
+      input_frame_direction_coverage_gate: $input_budget[0].direction_coverage_gate,
+      input_frame_p95_budget_gate: $input_budget[0].response_p95_budget_gate,
+      input_frame_max_budget_gate: $input_budget[0].response_max_budget_gate,
       render_p95_budget_gate: $budget[0].p95_budget_gate,
       render_max_budget_gate: $budget[0].max_budget_gate,
       scene_dynamic_landmark_animation_gate: $scene[0].dynamic_landmark_animation_gate,
@@ -99,6 +113,7 @@ jq -n \
       animation_selector: "acceptance/S5_native_bevy_device/latest/bevy-classic-animation-selector.json",
       player_motion_probe: "acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.json",
       player_motion_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.ppm",
+      input_frame_budget: "acceptance/S5_native_bevy_device/latest/bevy-classic-input-frame-budget.json",
       render_budget: "acceptance/S5_native_bevy_device/latest/bevy-classic-render-budget.json",
       scene_preview: "acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json",
       scene_preview_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.ppm",
@@ -118,6 +133,7 @@ jq -e '
   and .checks.animation_preview_green == true
   and .checks.animation_selector_green == true
   and .checks.player_motion_green == true
+  and .checks.input_frame_budget_green == true
   and .checks.render_budget_green == true
   and .checks.scene_preview_green == true
   and .checks.renderer_probe_green == true
@@ -128,6 +144,10 @@ jq -e '
   and .headline.animation_clip_count >= 4
   and .headline.motion_sample_count == 8
   and .headline.motion_accepted_input_count == 8
+  and .headline.input_frame_sample_count == 96
+  and .headline.input_frame_accepted_input_count == 96
+  and .headline.input_frame_p95_micros <= 20000
+  and .headline.input_frame_max_micros <= 50000
   and .headline.render_p95_micros <= 16000
   and .headline.render_max_micros <= 40000
   and .gates.cex_runtime_player_client_allowed == false
@@ -136,6 +156,9 @@ jq -e '
   and .gates.animation_action_coverage_gate == true
   and .gates.selector_transition_gate == true
   and .gates.motion_direction_coverage_gate == true
+  and .gates.input_frame_direction_coverage_gate == true
+  and .gates.input_frame_p95_budget_gate == true
+  and .gates.input_frame_max_budget_gate == true
   and .gates.render_p95_budget_gate == true
   and .gates.render_max_budget_gate == true
   and .gates.scene_dynamic_landmark_animation_gate == true

@@ -358,6 +358,18 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
+        )
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_input_frame_budget_evidence_json()
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("authored-art-pack" | "--authored-art-pack" | "art-pack")
     ) {
         println!(
