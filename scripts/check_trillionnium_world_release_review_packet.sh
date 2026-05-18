@@ -96,6 +96,7 @@ artifact native_bevy_sprite_texture_sampling "Native/Bevy sprite texture samplin
 artifact native_bevy_live_window_sampled_texture_correlation "Native/Bevy live-window sampled texture correlation" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-sampled-texture-correlation.json" release_review_input
 artifact native_bevy_render_asset_eligibility "Native/Bevy render asset eligibility" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-render-asset-eligibility.json" release_review_input
 artifact native_bevy_classic_asset_pack "Native/Bevy classic asset pack" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-pack.json" release_review_input
+artifact native_bevy_classic_manifest_lint "Native/Bevy classic manifest lint" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-manifest-lint.json" release_review_input
 artifact native_bevy_classic_scene_preview "Native/Bevy classic scene preview" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.json" release_review_input
 artifact native_bevy_classic_scene_preview_ppm "Native/Bevy classic scene preview PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-scene-preview.ppm" release_review_visual_evidence
 artifact native_bevy_classic_model_catalog "Native/Bevy classic model catalog" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-model-catalog.json" release_review_input
