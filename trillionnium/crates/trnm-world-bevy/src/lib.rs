@@ -5610,22 +5610,40 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
     for (_, _, _, group) in &specs {
         *group_counts.entry((*group).to_string()).or_default() += 1;
     }
-    let required_model_gate = ["model_town_hall", "model_waygate", "model_training_hall"]
-        .iter()
-        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let required_model_gate = [
+        "model_town_hall",
+        "model_waygate",
+        "model_training_hall",
+        "model_coliseum_stands",
+        "model_tree_cluster_large",
+    ]
+    .iter()
+    .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let player_art_gate = [
         "actor_player_idle_south",
         "actor_player_idle_north",
         "actor_player_idle_east",
         "actor_player_idle_west",
+        "actor_player_walk_1",
         "actor_player_walk_south_1",
         "actor_player_walk_south_2",
+        "actor_player_walk_north_1",
+        "actor_player_walk_north_2",
+        "actor_player_walk_east_1",
+        "actor_player_walk_east_2",
+        "actor_player_walk_west_1",
+        "actor_player_walk_west_2",
     ]
     .iter()
     .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
-    let enemy_art_gate = ["actor_enemy_idle", "actor_enemy_attack", "actor_enemy_hit"]
-        .iter()
-        .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
+    let enemy_art_gate = [
+        "actor_enemy",
+        "actor_enemy_idle",
+        "actor_enemy_attack",
+        "actor_enemy_hit",
+    ]
+    .iter()
+    .all(|frame_id| assets.frame_override_pixels.contains_key(*frame_id));
     let replacement_boundary_gate = assets.manifest.x230_low_spec_renderer_target
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -5634,8 +5652,8 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         && write_failures.is_empty()
         && preview_write_gate
         && preview_non_background_pixels > 35_000
-        && written_assets.len() >= 12
-        && assets.frame_override_pixels.len() >= 12
+        && written_assets.len() >= 22
+        && assets.frame_override_pixels.len() >= 22
         && required_model_gate
         && player_art_gate
         && enemy_art_gate
@@ -5666,7 +5684,7 @@ pub fn native_classic_art_pack_evidence_json(override_dir: &str, preview_path: &
         "override_frame_ids": override_frame_ids,
         "written_assets": written_assets,
         "write_failures": write_failures,
-        "asset_groups": ["town_hall", "waygate", "training_hall", "player", "enemy"],
+        "asset_groups": ["town_hall", "waygate", "training_hall", "coliseum", "tree_cluster", "player", "enemy"],
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
         "source_of_truth": "The classic art pack writes the first real 2.5D override sprites into the Trillionnium Bevy asset tree and proves they load through the native low-spec renderer override path."
@@ -5683,6 +5701,8 @@ fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static st
                 "model_town_hall" => "town_hall",
                 "model_waygate" => "waygate",
                 "model_training_hall" => "training_hall",
+                "model_coliseum_stands" => "coliseum",
+                "model_tree_cluster_large" => "tree_cluster",
                 _ => "model",
             };
             (frame_id, width, height, group)
@@ -5693,8 +5713,16 @@ fn classic_art_pack_override_specs() -> Vec<(&'static str, u32, u32, &'static st
         ("actor_player_idle_north", 16, 16, "player"),
         ("actor_player_idle_east", 16, 16, "player"),
         ("actor_player_idle_west", 16, 16, "player"),
+        ("actor_player_walk_1", 16, 16, "player"),
         ("actor_player_walk_south_1", 16, 16, "player"),
         ("actor_player_walk_south_2", 16, 16, "player"),
+        ("actor_player_walk_north_1", 16, 16, "player"),
+        ("actor_player_walk_north_2", 16, 16, "player"),
+        ("actor_player_walk_east_1", 16, 16, "player"),
+        ("actor_player_walk_east_2", 16, 16, "player"),
+        ("actor_player_walk_west_1", 16, 16, "player"),
+        ("actor_player_walk_west_2", 16, 16, "player"),
+        ("actor_enemy", 16, 16, "enemy"),
         ("actor_enemy_idle", 16, 16, "enemy"),
         ("actor_enemy_attack", 16, 16, "enemy"),
         ("actor_enemy_hit", 16, 16, "enemy"),
@@ -5707,6 +5735,8 @@ fn classic_art_pack_synthetic_override_specs() -> Vec<(&'static str, u32, u32)> 
         ("model_town_hall", 96, 96),
         ("model_waygate", 96, 96),
         ("model_training_hall", 96, 96),
+        ("model_coliseum_stands", 128, 96),
+        ("model_tree_cluster_large", 96, 96),
     ]
 }
 
@@ -5906,6 +5936,133 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 0xccbc7a,
             );
         }
+        "model_coliseum_stands" => {
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                64,
+                76,
+                96,
+                28,
+                14,
+                0x525a60,
+            );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                64,
+                62,
+                82,
+                24,
+                12,
+                0x69727a,
+            );
+            classic_draw_iso_prism(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                64,
+                49,
+                66,
+                20,
+                10,
+                0x808a92,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                22,
+                34,
+                84,
+                5,
+                0x9a3e4a,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                34,
+                42,
+                60,
+                4,
+                0xd8b15a,
+            );
+        }
+        "model_tree_cluster_large" => {
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                44,
+                52,
+                8,
+                34,
+                0x5b3b22,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                33,
+                60,
+                7,
+                24,
+                0x4f341f,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                57,
+                58,
+                7,
+                26,
+                0x4f341f,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                35,
+                43,
+                24,
+                15,
+                0x1f6f3e,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                55,
+                34,
+                28,
+                18,
+                0x2f8b50,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                67,
+                48,
+                24,
+                16,
+                0x235f39,
+            );
+            classic_draw_iso_ellipse(
+                &mut pixels,
+                width as usize,
+                height as usize,
+                48,
+                53,
+                36,
+                17,
+                0x347f45,
+            );
+        }
         frame if frame.starts_with("actor_player") => {
             let accent = if frame.contains("north") {
                 0x83c79d
@@ -5989,7 +6146,7 @@ fn classic_art_pack_pixels(frame_id: &str, width: u32, height: u32) -> Vec<u32> 
                 );
             }
         }
-        "actor_enemy_idle" | "actor_enemy_attack" | "actor_enemy_hit" => {
+        "actor_enemy" | "actor_enemy_idle" | "actor_enemy_attack" | "actor_enemy_hit" => {
             let body = if frame_id == "actor_enemy_hit" {
                 0x8f3a3a
             } else {

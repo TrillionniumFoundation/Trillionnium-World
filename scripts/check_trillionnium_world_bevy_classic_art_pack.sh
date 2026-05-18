@@ -15,8 +15,8 @@ mkdir -p "$(dirname "$SUMMARY")" "$OVERRIDE_DIR"
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_art_pack_v1"
   and .green == true
-  and .asset_count >= 12
-  and .override_frame_count >= 12
+  and .asset_count >= 22
+  and .override_frame_count >= 22
   and .preview_width == 640
   and .preview_height == 420
   and .preview_write_gate == true
@@ -24,8 +24,10 @@ jq -e '
   and .group_counts.town_hall == 1
   and .group_counts.waygate == 1
   and .group_counts.training_hall == 1
-  and .group_counts.player >= 6
-  and .group_counts.enemy >= 3
+  and .group_counts.coliseum == 1
+  and .group_counts.tree_cluster == 1
+  and .group_counts.player >= 13
+  and .group_counts.enemy >= 4
   and .required_model_gate == true
   and .player_art_gate == true
   and .enemy_art_gate == true
@@ -35,16 +37,24 @@ jq -e '
   and (.asset_groups | index("town_hall") != null)
   and (.asset_groups | index("waygate") != null)
   and (.asset_groups | index("training_hall") != null)
+  and (.asset_groups | index("coliseum") != null)
+  and (.asset_groups | index("tree_cluster") != null)
   and (.asset_groups | index("player") != null)
   and (.asset_groups | index("enemy") != null)
   and (.override_frame_ids | index("model_town_hall") != null)
   and (.override_frame_ids | index("model_waygate") != null)
   and (.override_frame_ids | index("model_training_hall") != null)
+  and (.override_frame_ids | index("model_coliseum_stands") != null)
+  and (.override_frame_ids | index("model_tree_cluster_large") != null)
   and (.override_frame_ids | index("actor_player_idle_south") != null)
+  and (.override_frame_ids | index("actor_player_walk_north_1") != null)
+  and (.override_frame_ids | index("actor_player_walk_east_1") != null)
+  and (.override_frame_ids | index("actor_player_walk_west_1") != null)
+  and (.override_frame_ids | index("actor_enemy") != null)
   and (.override_frame_ids | index("actor_enemy_attack") != null)
 ' "$SUMMARY" >/dev/null
 
-for asset in model_town_hall model_waygate model_training_hall actor_player_idle_south actor_enemy_attack; do
+for asset in model_town_hall model_waygate model_training_hall model_coliseum_stands model_tree_cluster_large actor_player_idle_south actor_player_walk_north_1 actor_player_walk_east_1 actor_player_walk_west_1 actor_enemy actor_enemy_attack; do
   test -s "$OVERRIDE_DIR/$asset.ppm"
 done
 test -s "$PREVIEW"

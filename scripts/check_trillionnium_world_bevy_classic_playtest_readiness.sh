@@ -287,8 +287,8 @@ jq -e '
   and .headline.asset_procedural_model_slot_count >= 5
   and .headline.asset_doodad_slot_count >= 4
   and .headline.asset_vfx_slot_count >= 6
-  and .headline.art_pack_asset_count >= 12
-  and .headline.art_pack_override_frame_count >= 12
+  and .headline.art_pack_asset_count >= 22
+  and .headline.art_pack_override_frame_count >= 22
   and .headline.art_pack_preview_non_background_pixels > 35000
   and .headline.asset_override_frame_count >= 1
   and .headline.asset_override_probe_pixel_count > 300
