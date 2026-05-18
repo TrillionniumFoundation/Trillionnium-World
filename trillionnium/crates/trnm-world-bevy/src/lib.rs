@@ -3289,7 +3289,7 @@ pub fn apply_native_intent(
 }
 
 pub fn bevy_bridge_report_for_fixture(actor_id: &str) -> BevyWorldBridgeReport {
-    let world = WorldState::cex_default_map_fixture();
+    let world = WorldState::trillionnium_default_map_fixture();
     let (_app, report) = build_native_bevy_app(world, actor_id);
     report
 }
@@ -3405,7 +3405,7 @@ fn scripted_actions_for_stage(stage: &str) -> Vec<NativeControlAction> {
 }
 
 pub fn native_bevy_playable_fixture() -> WorldState {
-    let mut world = WorldState::cex_default_map_fixture();
+    let mut world = WorldState::trillionnium_default_map_fixture();
     if !world
         .npcs
         .iter()
@@ -38723,7 +38723,7 @@ mod tests {
 
     #[test]
     fn bevy_client_spawns_world_snapshot_without_becoming_authority() {
-        let world = WorldState::cex_default_map_fixture();
+        let world = WorldState::trillionnium_default_map_fixture();
         let mut bevy_world = World::new();
         let report = spawn_world_snapshot(&mut bevy_world, &world, "local-player");
 
@@ -38772,7 +38772,7 @@ mod tests {
 
     #[test]
     fn native_bevy_app_carries_projection_resource() {
-        let world = WorldState::cex_default_map_fixture();
+        let world = WorldState::trillionnium_default_map_fixture();
         let (app, report) = build_native_bevy_app(world, "local-player");
         assert_eq!(report.engine_id, TRILLIONNIUM_WORLD_BEVY_ENGINE_ID);
         assert_eq!(
@@ -38784,7 +38784,7 @@ mod tests {
 
     #[test]
     fn rendering_bevy_app_installs_window_and_visual_evidence_anchor() {
-        let world = WorldState::cex_default_map_fixture();
+        let world = WorldState::trillionnium_default_map_fixture();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(TrillionniumWorldBevyPlugin::new(world, "local-player"))

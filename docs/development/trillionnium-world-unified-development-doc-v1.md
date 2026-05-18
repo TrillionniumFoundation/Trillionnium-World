@@ -2,10 +2,11 @@
 
 **项目**：Trillionnium World
 **目标仓库**：<https://github.com/TrillionniumFoundation/Trillionnium>
-**当前孵化实现**：`/home/qian/.openclaw/workspace/CEX`
+**当前 Native 客户端主线**：`/home/qian/.openclaw/workspace/Trillionnium/trillionnium/crates/trnm-world-bevy`
+**CEX 状态**：legacy incubator / adapter evidence only；不再作为 Trillionnium World 玩家客户端入口
 **合并来源**：Dropbox `rust_geo_mmo_development_doc_v0_4_execution_ready.md`、CEX 已落地代码、CEX 现有 Trillionnium/World 文档与运行证据
 **当前代码基线**：CEX `53687d7 test: gate trillionnium world adapter readiness`
-**文档状态**：统一执行版；CEX incubator/source-of-evidence 已同步到 Term Exchange typed receipt runtime closeout，后续用于拆票、验收、迁移到 Trillionnium 主仓、Alpha/公开测试准入评审
+**文档状态**：统一执行版；CEX source-of-evidence 已同步到 Term Exchange typed receipt runtime closeout，后续只能作为迁移参考和 adapter evidence，新的试玩/client/account 产品入口必须回到 Trillionnium 主仓与 Bevy native client
 **修订日期**：2026-05-13
 
 ---
@@ -27,6 +28,16 @@ CEX 已验证垂直切片
 ```
 
 当前最重要的原则：**已经落地并跑绿的 CEX 代码是真实进度，Dropbox v0.4 是目标工程制度和长线 MMO 蓝图；本文档把二者合并，而不是用愿景覆盖事实。**
+
+### 0.1 2026-05-18 客户端边界修正
+
+这条线现在必须按 `trillionnium_world_client_boundary_v1` 执行：
+
+- `trnm-world-bevy` 是 Trillionnium World 的 native 试玩客户端和玩家入口。
+- CEX 只能作为 legacy evidence adapter / migration reference，不能再作为玩家试玩 runtime。
+- 账号注册、登录、profile、session、revoke 等能力可以从 CEX 的已验证实现迁移或抽象，但产品归属必须是 Trillionnium-owned account API，并由 Bevy native client 消费。
+- 手工试玩默认命令是 `scripts/run_trillionnium_world_bevy_client.sh`；不得用 CEX `consumer-entry-api` / `/world` web shell 替代 Bevy 试玩。
+- 新的防漂移 gate 是 `scripts/check_trillionnium_world_client_boundary.sh`，release-review CI 必须跑它。
 
 ---
 

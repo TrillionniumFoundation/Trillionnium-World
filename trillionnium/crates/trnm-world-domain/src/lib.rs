@@ -216,6 +216,10 @@ impl WorldState {
         }
     }
 
+    pub fn trillionnium_default_map_fixture() -> Self {
+        Self::cex_default_map_fixture()
+    }
+
     pub fn cex_default_map_fixture() -> Self {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();

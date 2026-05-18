@@ -45,6 +45,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_ci_gate.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh" \
+  "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" \
   "$ROOT/scripts/check_trillionnium_world_cex_adapter_readiness.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh" \
@@ -90,6 +91,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/release_review_packet_integrity_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_packet_integrity_drift_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_checkpoint_manifest_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_template_negative_fixtures_script_contract_guard_test.sh" \
@@ -150,6 +152,8 @@ run_check public_launch_readiness_contract_guard "$ROOT/scripts/v2/public_launch
 run_check public_launch_blocker_consistency_contract_guard "$ROOT/scripts/v2/public_launch_blocker_consistency_script_contract_guard_test.sh"
 run_check public_launch_blocker_consistency_gate "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh"
 run_check ci_gate_contract_guard "$ROOT/scripts/v2/release_review_ci_gate_script_contract_guard_test.sh"
+run_check client_boundary_contract_guard "$ROOT/scripts/v2/client_boundary_script_contract_guard_test.sh"
+run_check client_boundary_gate "$ROOT/scripts/check_trillionnium_world_client_boundary.sh"
 run_check cex_adapter_readiness_contract_guard "$ROOT/scripts/v2/cex_adapter_readiness_script_contract_guard_test.sh"
 run_check cex_adapter_readiness_gate "$ROOT/scripts/check_trillionnium_world_cex_adapter_readiness.sh"
 run_check checkpoint_manifest_contract_guard "$ROOT/scripts/v2/release_review_checkpoint_manifest_script_contract_guard_test.sh"
