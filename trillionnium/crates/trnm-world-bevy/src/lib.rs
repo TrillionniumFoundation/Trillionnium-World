@@ -246,6 +246,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_STATE_SNAPSHOT_CONTRACT: &str =
     "trillionnium_world_bevy_state_snapshot_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT: &str =
     "trillionnium_world_bevy_account_client_boundary_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_CONTRACT: &str =
+    "trillionnium_world_bevy_account_title_flow_v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BevyWorldBridgeReport {
@@ -712,6 +714,9 @@ pub struct BevyWorldSettingsMenuText;
 pub struct BevyWorldTitleMenuText;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Component)]
+pub struct BevyWorldAccountClientText;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Component)]
 pub struct BevyWorldCharacterCreateText;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Component)]
@@ -871,6 +876,9 @@ pub enum NativeControlAction {
     NewGameFromTitle,
     LoadFromTitle,
     ContinueFromTitle,
+    RegisterAccountFromTitle,
+    LoginAccountFromTitle,
+    ContinueAccountFromTitle,
     CycleCharacterName,
     CycleCharacterArchetype,
     ConfirmCharacterCreate,
@@ -1192,6 +1200,18 @@ pub struct NativeFirstPlayableRuntime {
     pub session_title_last_slot_id: Option<String>,
     #[serde(default)]
     pub session_title_history: Vec<String>,
+    #[serde(default = "default_session_account_auth_state")]
+    pub session_account_auth_state: String,
+    #[serde(default = "default_session_account_display_name")]
+    pub session_account_display_name: String,
+    #[serde(default = "default_session_account_last_action")]
+    pub session_account_last_action: String,
+    #[serde(default = "default_session_account_last_reason")]
+    pub session_account_last_reason: String,
+    #[serde(default = "default_session_account_session_bound")]
+    pub session_account_session_bound: bool,
+    #[serde(default)]
+    pub session_account_history: Vec<String>,
     #[serde(default)]
     pub session_character_create_visible: bool,
     #[serde(default)]
@@ -1234,6 +1254,26 @@ fn default_session_settings_input_mode() -> String {
 
 fn default_session_title_boot_state() -> String {
     "game_active".to_string()
+}
+
+fn default_session_account_auth_state() -> String {
+    "signed_in".to_string()
+}
+
+fn default_session_account_display_name() -> String {
+    "Local Trillionnium Player".to_string()
+}
+
+fn default_session_account_last_action() -> String {
+    "login".to_string()
+}
+
+fn default_session_account_last_reason() -> String {
+    "logged_in_trillionnium_account_fixture_without_cex_runtime".to_string()
+}
+
+fn default_session_account_session_bound() -> bool {
+    true
 }
 
 fn default_session_character_create_name() -> String {
@@ -1369,6 +1409,12 @@ impl Default for NativeFirstPlayableRuntime {
             session_title_boot_state: default_session_title_boot_state(),
             session_title_last_slot_id: None,
             session_title_history: Vec::new(),
+            session_account_auth_state: default_session_account_auth_state(),
+            session_account_display_name: default_session_account_display_name(),
+            session_account_last_action: default_session_account_last_action(),
+            session_account_last_reason: default_session_account_last_reason(),
+            session_account_session_bound: default_session_account_session_bound(),
+            session_account_history: vec!["account:login:fixture_session_bound".to_string()],
             session_character_create_visible: false,
             session_character_create_input_locked: false,
             session_character_create_name: default_session_character_create_name(),
@@ -1932,6 +1978,27 @@ fn native_contextual_action_deck(
         NativeControlAction::OpenTitleMenu,
         "title",
         "title_open",
+    );
+    push_contextual_action(
+        runtime,
+        &mut entries,
+        NativeControlAction::RegisterAccountFromTitle,
+        "account",
+        "title_account_register",
+    );
+    push_contextual_action(
+        runtime,
+        &mut entries,
+        NativeControlAction::LoginAccountFromTitle,
+        "account",
+        "title_account_login",
+    );
+    push_contextual_action(
+        runtime,
+        &mut entries,
+        NativeControlAction::ContinueAccountFromTitle,
+        "account",
+        "title_account_continue",
     );
     push_contextual_action(
         runtime,
@@ -3356,6 +3423,7 @@ pub fn build_rendering_bevy_app(world: WorldState, actor_id: &str) -> (App, Bevy
                 write_native_runtime_probe,
             ),
         );
+    app.add_systems(Update, update_native_account_client_ui);
     (app, report)
 }
 
@@ -3433,6 +3501,90 @@ pub fn native_account_client_boundary_evidence_value(actor_id: &str) -> serde_js
 pub fn native_account_client_boundary_evidence_json(actor_id: &str) -> String {
     serde_json::to_string_pretty(&native_account_client_boundary_evidence_value(actor_id))
         .expect("native account client boundary evidence serializes")
+}
+
+pub fn native_account_title_flow_evidence_value(actor_id: &str) -> serde_json::Value {
+    let mut app = build_keyboard_runtime_app(native_bevy_playable_fixture(), actor_id);
+    let initial_sample = sample_live_app_state(&mut app, "initial_account_title_flow");
+    let register_event =
+        press_live_button_action(&mut app, NativeControlAction::RegisterAccountFromTitle);
+    let after_register_sample = sample_live_app_state(&mut app, "after_account_register");
+    let login_event =
+        press_live_button_action(&mut app, NativeControlAction::LoginAccountFromTitle);
+    let after_login_sample = sample_live_app_state(&mut app, "after_account_login");
+    let continue_event =
+        press_live_button_action(&mut app, NativeControlAction::ContinueAccountFromTitle);
+    let final_sample = sample_live_app_state(&mut app, "after_account_continue");
+    let runtime = app.world().resource::<NativeFirstPlayableRuntime>().clone();
+    let register_gate = register_event
+        .get("accepted")
+        .and_then(|value| value.as_bool())
+        == Some(true)
+        && after_register_sample
+            .get("account_client_text")
+            .and_then(|value| value.as_str())
+            .is_some_and(|text| text.contains("ACCOUNT signed_in") && text.contains("register"));
+    let login_gate = login_event
+        .get("accepted")
+        .and_then(|value| value.as_bool())
+        == Some(true)
+        && after_login_sample
+            .get("account_client_text")
+            .and_then(|value| value.as_str())
+            .is_some_and(|text| text.contains("ACCOUNT signed_in") && text.contains("login"));
+    let continue_gate = continue_event
+        .get("accepted")
+        .and_then(|value| value.as_bool())
+        == Some(true)
+        && final_sample
+            .get("account_client_text")
+            .and_then(|value| value.as_str())
+            .is_some_and(|text| text.contains("ACCOUNT signed_in") && text.contains("session"));
+    let no_cex_gate = runtime
+        .session_account_history
+        .iter()
+        .all(|entry| !entry.contains("cex_runtime_player_client_allowed=true"));
+    let green = register_gate
+        && login_gate
+        && continue_gate
+        && runtime.session_account_session_bound
+        && runtime.session_account_auth_state == "signed_in"
+        && no_cex_gate;
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_CONTRACT,
+        "account_client_contract": TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_CONTRACT,
+        "account_api_contract": WORLD_ACCOUNT_API_CONTRACT,
+        "account_boundary_contract": WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT,
+        "actor_id": actor_id,
+        "player_client_owner": "trnm-world-bevy",
+        "account_api_owner": "trillionnium_world_account_api",
+        "title_actions": ["ACCOUNT:REGISTER", "ACCOUNT:LOGIN", "ACCOUNT:CONTINUE"],
+        "session_account_auth_state": runtime.session_account_auth_state,
+        "session_account_display_name": runtime.session_account_display_name,
+        "session_account_last_action": runtime.session_account_last_action,
+        "session_account_session_bound": runtime.session_account_session_bound,
+        "session_account_history": runtime.session_account_history,
+        "passwords_tokens_or_cookie_values_logged": false,
+        "cex_runtime_player_client_allowed": false,
+        "register_gate": register_gate,
+        "login_gate": login_gate,
+        "continue_gate": continue_gate,
+        "no_cex_gate": no_cex_gate,
+        "green": green,
+        "source_of_truth": "Bevy title buttons drive Trillionnium-owned account API decisions without cex_runtime",
+        "initial_sample": initial_sample,
+        "register_event": register_event,
+        "after_register_sample": after_register_sample,
+        "login_event": login_event,
+        "after_login_sample": after_login_sample,
+        "continue_event": continue_event,
+        "final_sample": final_sample,
+    })
+}
+
+pub fn native_account_title_flow_evidence_json(actor_id: &str) -> String {
+    serde_json::to_string_pretty(&native_account_title_flow_evidence_value(actor_id))
+        .expect("native account title flow evidence serializes")
 }
 
 pub fn run_native_bevy_client(world: WorldState, actor_id: &str) {
@@ -4044,12 +4196,68 @@ fn title_menu_status_text(runtime: &NativeFirstPlayableRuntime) -> String {
     }
 }
 
+fn account_title_status_text(runtime: &NativeFirstPlayableRuntime) -> String {
+    let bound = if runtime.session_account_session_bound {
+        "bound"
+    } else {
+        "unbound"
+    };
+    format!(
+        "ACCOUNT {} | {} | {} | {} | cex_runtime=false",
+        runtime.session_account_auth_state,
+        runtime.session_account_display_name,
+        runtime.session_account_last_action,
+        bound
+    )
+}
+
+fn apply_title_account_flow(
+    runtime: &mut NativeFirstPlayableRuntime,
+    actor_id: &str,
+    action: &NativeControlAction,
+) -> WorldAccountAuthDecision {
+    let account_action = match action {
+        NativeControlAction::RegisterAccountFromTitle => "register",
+        NativeControlAction::LoginAccountFromTitle => "login",
+        NativeControlAction::ContinueAccountFromTitle => "session",
+        _ => "login",
+    };
+    let decision = native_account_auth_decision(actor_id, account_action);
+    runtime.session_account_auth_state = if decision.accepted {
+        "signed_in".to_string()
+    } else {
+        "blocked".to_string()
+    };
+    runtime.session_account_display_name = decision.profile.display_name.clone();
+    runtime.session_account_last_action = account_action.to_string();
+    runtime.session_account_last_reason = decision.reason.clone();
+    runtime.session_account_session_bound = decision
+        .session
+        .as_ref()
+        .is_some_and(|session| session.actor_id == actor_id);
+    push_history(
+        &mut runtime.session_account_history,
+        &format!("account:{account_action}:{}", decision.reason),
+    );
+    push_feedback_event(
+        runtime,
+        &format!(
+            "Account {account_action}: {} via Trillionnium API",
+            decision.profile.display_name
+        ),
+    );
+    decision
+}
+
 fn title_menu_allows_action(action: &NativeControlAction) -> bool {
     matches!(
         action,
         NativeControlAction::NewGameFromTitle
             | NativeControlAction::LoadFromTitle
             | NativeControlAction::ContinueFromTitle
+            | NativeControlAction::RegisterAccountFromTitle
+            | NativeControlAction::LoginAccountFromTitle
+            | NativeControlAction::ContinueAccountFromTitle
             | NativeControlAction::SelectSlot { .. }
     )
 }
@@ -27720,6 +27928,7 @@ fn build_native_button_sequence_app(actor_id: &str) -> App {
                 update_native_contextual_button_visuals,
             ),
         );
+    app.add_systems(Update, update_native_account_client_ui);
     app.update();
     app
 }
@@ -27762,6 +27971,7 @@ fn build_keyboard_runtime_app(world: WorldState, actor_id: &str) -> App {
                 update_native_contextual_button_visuals,
             ),
         );
+    app.add_systems(Update, update_native_account_client_ui);
     app.update();
     app
 }
@@ -28131,6 +28341,9 @@ fn native_control_action_from_label(label: &str) -> Option<NativeControlAction> 
             "TITLE:LOAD" => Some(NativeControlAction::LoadFromTitle),
             "TITLE:CONTINUE" => Some(NativeControlAction::ContinueFromTitle),
             "TITLE:ROUTE" => Some(NativeControlAction::AcceptTitleRouteRecommendation),
+            "ACCOUNT:REGISTER" => Some(NativeControlAction::RegisterAccountFromTitle),
+            "ACCOUNT:LOGIN" => Some(NativeControlAction::LoginAccountFromTitle),
+            "ACCOUNT:CONTINUE" => Some(NativeControlAction::ContinueAccountFromTitle),
             "CREATE:NAME" => Some(NativeControlAction::CycleCharacterName),
             "CREATE:ARCHETYPE" => Some(NativeControlAction::CycleCharacterArchetype),
             "CREATE:CONFIRM" => Some(NativeControlAction::ConfirmCharacterCreate),
@@ -28361,6 +28574,13 @@ fn sample_live_app_state(app: &mut App, stage: &str) -> serde_json::Value {
         .next()
         .map(|text| text.0.clone())
         .unwrap_or_default();
+    let mut account_client_query =
+        world.query_filtered::<&Text, With<BevyWorldAccountClientText>>();
+    let account_client_text = account_client_query
+        .iter(world)
+        .next()
+        .map(|text| text.0.clone())
+        .unwrap_or_default();
     let mut character_create_query =
         world.query_filtered::<&Text, With<BevyWorldCharacterCreateText>>();
     let character_create_text = character_create_query
@@ -28526,6 +28746,7 @@ fn sample_live_app_state(app: &mut App, stage: &str) -> serde_json::Value {
         "pause_menu_text": pause_menu_text,
         "settings_menu_text": settings_menu_text,
         "title_menu_text": title_menu_text,
+        "account_client_text": account_client_text,
         "character_create_text": character_create_text,
         "room_panel_text": room_panel_text,
         "quest_panel_text": quest_panel_text,
@@ -28582,6 +28803,10 @@ fn sample_live_input_state(runtime: &NativeFirstPlayableRuntime, stage: &str) ->
         "session_title_input_locked": runtime.session_title_input_locked,
         "session_title_boot_state": runtime.session_title_boot_state,
         "session_title_last_slot_id": runtime.session_title_last_slot_id,
+        "session_account_auth_state": runtime.session_account_auth_state,
+        "session_account_display_name": runtime.session_account_display_name,
+        "session_account_last_action": runtime.session_account_last_action,
+        "session_account_session_bound": runtime.session_account_session_bound,
         "session_character_create_visible": runtime.session_character_create_visible,
         "session_character_create_input_locked": runtime.session_character_create_input_locked,
         "session_character_create_name": runtime.session_character_create_name,
@@ -28597,6 +28822,9 @@ fn native_live_probe_actions() -> Vec<NativeControlAction> {
         NativeControlAction::NewGameFromTitle,
         NativeControlAction::LoadFromTitle,
         NativeControlAction::ContinueFromTitle,
+        NativeControlAction::RegisterAccountFromTitle,
+        NativeControlAction::LoginAccountFromTitle,
+        NativeControlAction::ContinueAccountFromTitle,
         NativeControlAction::CycleCharacterName,
         NativeControlAction::CycleCharacterArchetype,
         NativeControlAction::ConfirmCharacterCreate,
@@ -30579,6 +30807,12 @@ fn native_tile_rpg_shell() -> impl Bundle {
                         TextFont::from_font_size(11.0),
                         TextColor(Color::srgb(0.66, 0.86, 0.96)),
                     ),
+                    (
+                        Text::new("ACCOUNT loading"),
+                        BevyWorldAccountClientText,
+                        TextFont::from_font_size(10.0),
+                        TextColor(Color::srgb(0.88, 0.92, 0.72)),
+                    ),
                 ],
             ),
             (
@@ -30948,6 +31182,33 @@ fn native_tile_rpg_shell() -> impl Bundle {
                                         NativeControlAction::LoadFromTitle,
                                         "LOAD",
                                         64.0
+                                    ),
+                                ],
+                            ),
+                            (
+                                Node {
+                                    width: percent(100),
+                                    height: px(26),
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: px(6),
+                                    ..default()
+                                },
+                                contextual_action_row_state("account_title_actions"),
+                                children![
+                                    native_control_button(
+                                        NativeControlAction::LoginAccountFromTitle,
+                                        "LOGIN",
+                                        74.0
+                                    ),
+                                    native_control_button(
+                                        NativeControlAction::RegisterAccountFromTitle,
+                                        "REGISTER",
+                                        94.0
+                                    ),
+                                    native_control_button(
+                                        NativeControlAction::ContinueAccountFromTitle,
+                                        "ACCOUNT",
+                                        90.0
                                     ),
                                 ],
                             ),
@@ -32203,6 +32464,20 @@ pub fn native_live_action_availability(
             (false, "session_resume_not_active".to_string())
         };
     }
+    if matches!(
+        action,
+        NativeControlAction::RegisterAccountFromTitle
+            | NativeControlAction::LoginAccountFromTitle
+            | NativeControlAction::ContinueAccountFromTitle
+    ) {
+        let reason = match action {
+            NativeControlAction::RegisterAccountFromTitle => "enabled_title_account_register",
+            NativeControlAction::LoginAccountFromTitle => "enabled_title_account_login",
+            NativeControlAction::ContinueAccountFromTitle => "enabled_title_account_continue",
+            _ => unreachable!("matched account title flow action"),
+        };
+        return (true, reason.to_string());
+    }
     if runtime.session_resume_input_locked {
         return (false, "session_resume_continue_required".to_string());
     }
@@ -32778,6 +33053,9 @@ pub fn native_live_action_availability(
         | NativeControlAction::NewGameFromTitle
         | NativeControlAction::LoadFromTitle
         | NativeControlAction::ContinueFromTitle
+        | NativeControlAction::RegisterAccountFromTitle
+        | NativeControlAction::LoginAccountFromTitle
+        | NativeControlAction::ContinueAccountFromTitle
         | NativeControlAction::CycleCharacterName
         | NativeControlAction::CycleCharacterArchetype
         | NativeControlAction::ConfirmCharacterCreate
@@ -32838,6 +33116,9 @@ fn native_control_action_label(action: &NativeControlAction) -> String {
         NativeControlAction::NewGameFromTitle => "TITLE:NEW".to_string(),
         NativeControlAction::LoadFromTitle => "TITLE:LOAD".to_string(),
         NativeControlAction::ContinueFromTitle => "TITLE:CONTINUE".to_string(),
+        NativeControlAction::RegisterAccountFromTitle => "ACCOUNT:REGISTER".to_string(),
+        NativeControlAction::LoginAccountFromTitle => "ACCOUNT:LOGIN".to_string(),
+        NativeControlAction::ContinueAccountFromTitle => "ACCOUNT:CONTINUE".to_string(),
         NativeControlAction::CycleCharacterName => "CREATE:NAME".to_string(),
         NativeControlAction::CycleCharacterArchetype => "CREATE:ARCHETYPE".to_string(),
         NativeControlAction::ConfirmCharacterCreate => "CREATE:CONFIRM".to_string(),
@@ -33150,6 +33431,9 @@ pub fn apply_native_control_action(
         | NativeControlAction::NewGameFromTitle
         | NativeControlAction::LoadFromTitle
         | NativeControlAction::ContinueFromTitle
+        | NativeControlAction::RegisterAccountFromTitle
+        | NativeControlAction::LoginAccountFromTitle
+        | NativeControlAction::ContinueAccountFromTitle
         | NativeControlAction::CycleCharacterName
         | NativeControlAction::CycleCharacterArchetype
         | NativeControlAction::ConfirmCharacterCreate
@@ -33358,6 +33642,21 @@ pub fn apply_native_first_playable_action(
             gameplay_log.last_action = "character:create:back".to_string();
             gameplay_log.last_result = "title_menu_opened".to_string();
             gameplay_log.last_rejection = None;
+            refresh_contextual_action_runtime(first_playable);
+            return None;
+        }
+        NativeControlAction::RegisterAccountFromTitle
+        | NativeControlAction::LoginAccountFromTitle
+        | NativeControlAction::ContinueAccountFromTitle => {
+            let decision = apply_title_account_flow(first_playable, actor_id, &action);
+            gameplay_log.turn += 1;
+            gameplay_log.last_action = format!("account:{}", decision.action);
+            gameplay_log.last_result = decision.reason.clone();
+            gameplay_log.last_rejection = (!decision.accepted).then(|| decision.reason.clone());
+            push_progression_checkpoint(
+                first_playable,
+                &format!("account_title_flow:{}", decision.action),
+            );
             refresh_contextual_action_runtime(first_playable);
             return None;
         }
@@ -34738,6 +35037,9 @@ fn update_first_playable_runtime(
         | NativeControlAction::NewGameFromTitle
         | NativeControlAction::LoadFromTitle
         | NativeControlAction::ContinueFromTitle
+        | NativeControlAction::RegisterAccountFromTitle
+        | NativeControlAction::LoginAccountFromTitle
+        | NativeControlAction::ContinueAccountFromTitle
         | NativeControlAction::CycleCharacterName
         | NativeControlAction::CycleCharacterArchetype
         | NativeControlAction::ConfirmCharacterCreate
@@ -37905,6 +38207,16 @@ pub fn update_native_title_menu_ui(
     }
 }
 
+pub fn update_native_account_client_ui(
+    first_playable: Res<NativeFirstPlayableRuntime>,
+    mut account_texts: Query<&mut Text, With<BevyWorldAccountClientText>>,
+) {
+    let status_text = account_title_status_text(&first_playable);
+    for mut text in &mut account_texts {
+        text.0 = status_text.clone();
+    }
+}
+
 pub fn update_native_character_create_ui(
     first_playable: Res<NativeFirstPlayableRuntime>,
     mut create_texts: Query<&mut Text, With<BevyWorldCharacterCreateText>>,
@@ -37964,6 +38276,9 @@ fn contextual_action_row_should_show(
                 "title_menu_active" | "title_choice_required"
             )
         }),
+        "account_title_actions" => row_signals
+            .iter()
+            .any(|(action_label, _, _, enabled)| *enabled && action_label.starts_with("ACCOUNT:")),
         "character_create" => row_signals.iter().any(|(_, visual_state, _, _)| {
             visual_state.as_str() == "character_create_choice_required"
         }),
@@ -38948,6 +39263,26 @@ mod tests {
         assert_eq!(evidence["bevy_projection_contains_account_client"], true);
         assert_eq!(evidence["passwords_tokens_or_cookie_values_logged"], false);
         assert_eq!(evidence["cex_runtime_player_client_allowed"], false);
+        assert_eq!(evidence["green"], true);
+    }
+
+    #[test]
+    fn native_account_title_flow_drives_register_login_continue_buttons() {
+        let evidence = native_account_title_flow_evidence_value("local-player");
+        assert_eq!(
+            evidence["contract_version"],
+            TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_CONTRACT
+        );
+        assert_eq!(evidence["account_api_contract"], WORLD_ACCOUNT_API_CONTRACT);
+        assert_eq!(evidence["player_client_owner"], "trnm-world-bevy");
+        assert_eq!(evidence["session_account_auth_state"], "signed_in");
+        assert_eq!(evidence["session_account_last_action"], "session");
+        assert_eq!(evidence["session_account_session_bound"], true);
+        assert_eq!(evidence["passwords_tokens_or_cookie_values_logged"], false);
+        assert_eq!(evidence["cex_runtime_player_client_allowed"], false);
+        assert_eq!(evidence["register_gate"], true);
+        assert_eq!(evidence["login_gate"], true);
+        assert_eq!(evidence["continue_gate"], true);
         assert_eq!(evidence["green"], true);
     }
 

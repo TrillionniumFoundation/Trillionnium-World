@@ -33,6 +33,16 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("account-title-flow" | "--account-title-flow")
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_account_title_flow_evidence_json("local-player")
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("scene-transition-playability" | "--scene-transition-playability")
     ) {
         println!(
