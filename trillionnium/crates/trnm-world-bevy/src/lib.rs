@@ -164,6 +164,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COLLISION_ENGAGEMENT_CONTRACT: &st
     "trillionnium_world_bevy_classic_rts_collision_engagement_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TARGET_AGGRO_FOCUS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_target_aggro_focus_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ECONOMY_BUILD_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_economy_build_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -208,6 +210,11 @@ const CLASSIC_RTS_TARGET_PRIORITY_COLOR: u32 = 0xff62b4;
 const CLASSIC_RTS_AGGRO_RING_COLOR: u32 = 0xff3b3b;
 const CLASSIC_RTS_FOCUS_FIRE_COLOR: u32 = 0x66e4ff;
 const CLASSIC_RTS_THREAT_BAR_COLOR: u32 = 0xffc14d;
+const CLASSIC_RTS_HARVEST_NODE_COLOR: u32 = 0xf6d64a;
+const CLASSIC_RTS_WORKER_ROUTE_COLOR: u32 = 0xa6f07a;
+const CLASSIC_RTS_DROPOFF_COLOR: u32 = 0x64cfff;
+const CLASSIC_RTS_BUILD_BLUEPRINT_COLOR: u32 = 0xc8e8ff;
+const CLASSIC_RTS_BLUEPRINT_PROGRESS_COLOR: u32 = 0x9fdb72;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1381,6 +1388,22 @@ pub struct NativeFirstPlayableRuntime {
     #[serde(default)]
     pub rts_targeting_state: String,
     #[serde(default)]
+    pub rts_harvest_node_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_worker_assignment_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_dropoff_structure_id: Option<String>,
+    #[serde(default)]
+    pub rts_resource_delta_log: Vec<String>,
+    #[serde(default)]
+    pub rts_build_site_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_building_blueprint_id: Option<String>,
+    #[serde(default)]
+    pub rts_building_progress_percent: u8,
+    #[serde(default)]
+    pub rts_economy_state: String,
+    #[serde(default)]
     pub rts_attack_target_id: Option<String>,
     #[serde(default)]
     pub rts_visible_tile_ids: Vec<String>,
@@ -1649,6 +1672,14 @@ impl Default for NativeFirstPlayableRuntime {
             rts_focus_fire_unit_ids: Vec::new(),
             rts_threat_level_percents: Vec::new(),
             rts_targeting_state: String::new(),
+            rts_harvest_node_ids: Vec::new(),
+            rts_worker_assignment_ids: Vec::new(),
+            rts_dropoff_structure_id: None,
+            rts_resource_delta_log: Vec::new(),
+            rts_build_site_tile_ids: Vec::new(),
+            rts_building_blueprint_id: None,
+            rts_building_progress_percent: 0,
+            rts_economy_state: String::new(),
             rts_attack_target_id: None,
             rts_visible_tile_ids: Vec::new(),
             rts_fogged_tile_ids: Vec::new(),
@@ -10270,6 +10301,232 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 96,
+        xp: 50,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_workers",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "harvest_gold",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "harvest:gold_vein".to_string(),
+            },
+        ),
+        (
+            "place_blueprint",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "build:watch_tower@7,4".to_string(),
+            },
+        ),
+        (
+            "train_worker",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "train:worker".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_economy_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS ECON {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "economy_state": runtime.rts_economy_state.clone(),
+            "harvest_node_ids": runtime.rts_harvest_node_ids.clone(),
+            "worker_assignment_ids": runtime.rts_worker_assignment_ids.clone(),
+            "dropoff_structure_id": runtime.rts_dropoff_structure_id.clone(),
+            "resource_delta_log": runtime.rts_resource_delta_log.clone(),
+            "build_site_tile_ids": runtime.rts_build_site_tile_ids.clone(),
+            "building_blueprint_id": runtime.rts_building_blueprint_id.clone(),
+            "building_progress_percent": runtime.rts_building_progress_percent,
+            "production_queue": runtime.rts_production_queue.clone(),
+            "build_queue": runtime.rts_build_queue.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let harvest_node_pixel_count = count_color(CLASSIC_RTS_HARVEST_NODE_COLOR);
+    let worker_route_pixel_count = count_color(CLASSIC_RTS_WORKER_ROUTE_COLOR);
+    let dropoff_pixel_count = count_color(CLASSIC_RTS_DROPOFF_COLOR);
+    let build_blueprint_pixel_count = count_color(CLASSIC_RTS_BUILD_BLUEPRINT_COLOR);
+    let build_progress_pixel_count = count_color(CLASSIC_RTS_BLUEPRINT_PROGRESS_COLOR);
+    let production_queue_pixel_count = count_color(CLASSIC_RTS_PRODUCTION_SLOT_COLOR)
+        + count_color(CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR)
+        + count_color(CLASSIC_RTS_BUILD_PROGRESS_COLOR);
+    let live_economy_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_economy_input");
+    let harvest_loop_gate = runtime
+        .rts_harvest_node_ids
+        .iter()
+        .any(|entry| entry == "gold_vein")
+        && runtime.rts_worker_assignment_ids.len() >= 2
+        && runtime.rts_dropoff_structure_id.as_deref() == Some("town_hall")
+        && runtime
+            .rts_resource_delta_log
+            .iter()
+            .any(|entry| entry == "gold:+80")
+        && harvest_node_pixel_count > 80
+        && worker_route_pixel_count > 80
+        && dropoff_pixel_count > 80;
+    let build_loop_gate = runtime.rts_building_blueprint_id.as_deref() == Some("watch_tower")
+        && runtime.rts_build_site_tile_ids.len() >= 3
+        && runtime.rts_building_progress_percent >= 42
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "blueprint:watch_tower@7,4")
+        && build_blueprint_pixel_count > 80
+        && build_progress_pixel_count > 20;
+    let production_loop_gate = runtime
+        .rts_production_queue
+        .iter()
+        .any(|entry| entry == "train:worker")
+        && runtime.rts_training_progress_percent >= 64
+        && production_queue_pixel_count > 1_000;
+    let green = write_gate
+        && non_background_pixels > 220_000
+        && live_economy_input_gate
+        && harvest_loop_gate
+        && build_loop_gate
+        && production_loop_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ECONOMY_BUILD_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_economy_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_economy_state": runtime.rts_economy_state,
+        "final_harvest_node_ids": runtime.rts_harvest_node_ids,
+        "final_worker_assignment_ids": runtime.rts_worker_assignment_ids,
+        "final_dropoff_structure_id": runtime.rts_dropoff_structure_id,
+        "final_resource_delta_log": runtime.rts_resource_delta_log,
+        "final_build_site_tile_ids": runtime.rts_build_site_tile_ids,
+        "final_building_blueprint_id": runtime.rts_building_blueprint_id,
+        "final_building_progress_percent": runtime.rts_building_progress_percent,
+        "final_production_queue": runtime.rts_production_queue,
+        "final_build_queue": runtime.rts_build_queue,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "harvest_node_pixel_count": harvest_node_pixel_count,
+        "worker_route_pixel_count": worker_route_pixel_count,
+        "dropoff_pixel_count": dropoff_pixel_count,
+        "build_blueprint_pixel_count": build_blueprint_pixel_count,
+        "build_progress_pixel_count": build_progress_pixel_count,
+        "production_queue_pixel_count": production_queue_pixel_count,
+        "live_economy_input_gate": live_economy_input_gate,
+        "harvest_loop_gate": harvest_loop_gate,
+        "build_loop_gate": build_loop_gate,
+        "production_loop_gate": production_loop_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS economy build evidence drives select, harvest, build, and train live queue input into native runtime resource, worker assignment, dropoff, blueprint, and build progress state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS economy build evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -14018,6 +14275,104 @@ fn classic_draw_iso_command_feedback(
                     );
                 }
             }
+        }
+    }
+    for node_id in &runtime.rts_harvest_node_ids {
+        let node_tile = classic_rts_harvest_tile_for_node(node_id);
+        let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            node_x,
+            node_y + tile_h - 4,
+            18,
+            8,
+            CLASSIC_RTS_HARVEST_NODE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            node_x - 10,
+            node_y + tile_h - 24,
+            20,
+            5,
+            CLASSIC_RTS_HARVEST_NODE_COLOR,
+        );
+        for entity in &selected_units {
+            if runtime
+                .rts_worker_assignment_ids
+                .iter()
+                .any(|assignment| assignment.starts_with(&entity.id))
+            {
+                let (unit_x, unit_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, entity.tile);
+                for step in 0..=8 {
+                    let route_x = unit_x + ((node_x - unit_x) * step) / 8;
+                    let route_y = unit_y + tile_h - 8 + ((node_y - unit_y) * step) / 8;
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        route_x - 1,
+                        route_y - 1,
+                        4,
+                        3,
+                        CLASSIC_RTS_WORKER_ROUTE_COLOR,
+                    );
+                }
+            }
+        }
+    }
+    if let Some(dropoff_id) = runtime.rts_dropoff_structure_id.as_deref() {
+        let dropoff_tile = classic_rts_dropoff_tile_for_structure(dropoff_id);
+        let (dropoff_x, dropoff_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, dropoff_tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            dropoff_x - 18,
+            dropoff_y + tile_h - 28,
+            36,
+            5,
+            CLASSIC_RTS_DROPOFF_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            dropoff_x - 4,
+            dropoff_y + tile_h - 38,
+            8,
+            18,
+            CLASSIC_RTS_DROPOFF_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_build_site_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (site_x, site_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                site_x,
+                site_y + tile_h - 5,
+                tile_w / 2,
+                tile_h / 2,
+                CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                site_x - 14,
+                site_y + tile_h - 17,
+                (runtime.rts_building_progress_percent.max(1) as i32 * 28) / 100,
+                4,
+                CLASSIC_RTS_BLUEPRINT_PROGRESS_COLOR,
+            );
         }
     }
     let command_marker_drawn = classic_blit_frame_override_bottom_center(
@@ -47323,6 +47678,39 @@ fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
     }
 }
 
+fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
+    match node_id {
+        "gold_vein" => (3, 3),
+        "lumber_copse" => (8, 3),
+        _ => (4, 4),
+    }
+}
+
+fn classic_rts_dropoff_tile_for_structure(structure_id: &str) -> (i32, i32) {
+    match structure_id {
+        "town_hall" => (5, 5),
+        "lumber_mill" => (7, 5),
+        _ => (5, 5),
+    }
+}
+
+fn classic_rts_build_parts(queue_id: &str) -> (String, String) {
+    let payload = queue_id.strip_prefix("build:").unwrap_or(queue_id);
+    if let Some((structure_id, tile_id)) = payload.split_once('@') {
+        (structure_id.to_string(), tile_id.to_string())
+    } else {
+        (payload.to_string(), "7,4".to_string())
+    }
+}
+
+fn classic_rts_build_site_tiles(tile_id: &str) -> Vec<String> {
+    if tile_id == "7,4" {
+        string_vec(["7,4", "7,5", "8,4"])
+    } else {
+        vec![tile_id.to_string()]
+    }
+}
+
 fn apply_classic_rts_select_group_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     group_id: &str,
@@ -47353,6 +47741,52 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_select_group_runtime(first_playable, "1");
     }
     push_unique_string(&mut first_playable.rts_production_queue, queue_id);
+    if let Some(node_id) = queue_id.strip_prefix("harvest:") {
+        push_unique_string(&mut first_playable.rts_harvest_node_ids, node_id);
+        first_playable.rts_worker_assignment_ids = string_vec([
+            "square_worker_carry:gold_vein",
+            "square_guard_patrol:escort_gold_vein",
+        ]);
+        first_playable.rts_dropoff_structure_id = Some("town_hall".to_string());
+        first_playable.rts_resource_delta_log =
+            string_vec(["gold:+80", "lumber:+20", "carry:gold_vein->town_hall"]);
+        first_playable.coins = first_playable.coins.max(80);
+        first_playable.rts_economy_state = format!("harvesting:{node_id}");
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("harvest:{node_id}->town_hall"),
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            "workers:square_worker_carry|square_guard_patrol",
+        );
+    } else if queue_id.starts_with("build:") {
+        let (structure_id, tile_id) = classic_rts_build_parts(queue_id);
+        push_unique_string(&mut first_playable.rts_build_queue, queue_id);
+        first_playable.rts_building_blueprint_id = Some(structure_id.clone());
+        first_playable.rts_build_site_tile_ids = classic_rts_build_site_tiles(&tile_id);
+        first_playable.rts_command_destination_tile = Some(tile_id.clone());
+        first_playable.rts_building_progress_percent =
+            first_playable.rts_building_progress_percent.max(42);
+        first_playable.rts_build_progress_percent =
+            first_playable.rts_build_progress_percent.max(42);
+        first_playable.rts_economy_state = format!("building:{structure_id}@{tile_id}");
+        push_history(
+            &mut first_playable.rts_resource_delta_log,
+            "reserved:-120g:-40l",
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("blueprint:{structure_id}@{tile_id}"),
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "build_site:{}",
+                first_playable.rts_build_site_tile_ids.join("|")
+            ),
+        );
+    }
     if first_playable.rts_build_queue.is_empty() {
         first_playable.rts_build_queue = string_vec(["build:scout_tower"]);
     }

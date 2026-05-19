@@ -24,6 +24,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_pathing_formation.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_collision_engagement.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_target_aggro_focus.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_economy_build.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -47,6 +48,7 @@ jq -n \
   --slurpfile rts_path "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-pathing-formation.json" \
   --slurpfile rts_collision "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-collision-engagement.json" \
   --slurpfile rts_target "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-target-aggro-focus.json" \
+  --slurpfile rts_economy "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-economy-build.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -72,6 +74,7 @@ jq -n \
       and ok($rts_path)
       and ok($rts_collision)
       and ok($rts_target)
+      and ok($rts_economy)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -151,6 +154,11 @@ jq -n \
       and $rts_target[0].focus_fire_gate == true
       and $rts_target[0].threat_feedback_gate == true
       and $rts_target[0].accepted_input_count == 4
+      and $rts_economy[0].live_economy_input_gate == true
+      and $rts_economy[0].harvest_loop_gate == true
+      and $rts_economy[0].build_loop_gate == true
+      and $rts_economy[0].production_loop_gate == true
+      and $rts_economy[0].accepted_input_count == 4
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -174,6 +182,7 @@ jq -n \
       classic_rts_pathing_formation_green: ok($rts_path),
       classic_rts_collision_engagement_green: ok($rts_collision),
       classic_rts_target_aggro_focus_green: ok($rts_target),
+      classic_rts_economy_build_green: ok($rts_economy),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -338,6 +347,17 @@ jq -n \
       rts_targeting_focus_fire_pixel_count: $rts_target[0].focus_fire_pixel_count,
       rts_targeting_threat_bar_pixel_count: $rts_target[0].threat_bar_pixel_count,
       rts_targeting_attack_feedback_pixel_count: $rts_target[0].attack_feedback_pixel_count,
+      rts_economy_accepted_input_count: $rts_economy[0].accepted_input_count,
+      rts_economy_harvest_node_count: ($rts_economy[0].final_harvest_node_ids | length),
+      rts_economy_worker_assignment_count: ($rts_economy[0].final_worker_assignment_ids | length),
+      rts_economy_build_site_tile_count: ($rts_economy[0].final_build_site_tile_ids | length),
+      rts_economy_building_progress_percent: $rts_economy[0].final_building_progress_percent,
+      rts_economy_harvest_node_pixel_count: $rts_economy[0].harvest_node_pixel_count,
+      rts_economy_worker_route_pixel_count: $rts_economy[0].worker_route_pixel_count,
+      rts_economy_dropoff_pixel_count: $rts_economy[0].dropoff_pixel_count,
+      rts_economy_build_blueprint_pixel_count: $rts_economy[0].build_blueprint_pixel_count,
+      rts_economy_build_progress_pixel_count: $rts_economy[0].build_progress_pixel_count,
+      rts_economy_production_queue_pixel_count: $rts_economy[0].production_queue_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -429,6 +449,10 @@ jq -n \
       rts_targeting_aggro_gate: $rts_target[0].aggro_gate,
       rts_targeting_focus_fire_gate: $rts_target[0].focus_fire_gate,
       rts_targeting_threat_feedback_gate: $rts_target[0].threat_feedback_gate,
+      rts_economy_live_input_gate: $rts_economy[0].live_economy_input_gate,
+      rts_economy_harvest_loop_gate: $rts_economy[0].harvest_loop_gate,
+      rts_economy_build_loop_gate: $rts_economy[0].build_loop_gate,
+      rts_economy_production_loop_gate: $rts_economy[0].production_loop_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -469,6 +493,8 @@ jq -n \
       classic_rts_collision_engagement_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-collision-engagement.ppm",
       classic_rts_target_aggro_focus: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-target-aggro-focus.json",
       classic_rts_target_aggro_focus_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-target-aggro-focus.ppm",
+      classic_rts_economy_build: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-economy-build.json",
+      classic_rts_economy_build_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-economy-build.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -496,6 +522,7 @@ jq -e '
   and .checks.classic_rts_pathing_formation_green == true
   and .checks.classic_rts_collision_engagement_green == true
   and .checks.classic_rts_target_aggro_focus_green == true
+  and .checks.classic_rts_economy_build_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -656,6 +683,17 @@ jq -e '
   and .headline.rts_targeting_focus_fire_pixel_count > 80
   and .headline.rts_targeting_threat_bar_pixel_count > 40
   and .headline.rts_targeting_attack_feedback_pixel_count > 180
+  and .headline.rts_economy_accepted_input_count == 4
+  and .headline.rts_economy_harvest_node_count >= 1
+  and .headline.rts_economy_worker_assignment_count >= 2
+  and .headline.rts_economy_build_site_tile_count >= 3
+  and .headline.rts_economy_building_progress_percent >= 42
+  and .headline.rts_economy_harvest_node_pixel_count > 80
+  and .headline.rts_economy_worker_route_pixel_count > 80
+  and .headline.rts_economy_dropoff_pixel_count > 80
+  and .headline.rts_economy_build_blueprint_pixel_count > 80
+  and .headline.rts_economy_build_progress_pixel_count > 20
+  and .headline.rts_economy_production_queue_pixel_count > 1000
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -743,6 +781,10 @@ jq -e '
   and .gates.rts_targeting_aggro_gate == true
   and .gates.rts_targeting_focus_fire_gate == true
   and .gates.rts_targeting_threat_feedback_gate == true
+  and .gates.rts_economy_live_input_gate == true
+  and .gates.rts_economy_harvest_loop_gate == true
+  and .gates.rts_economy_build_loop_gate == true
+  and .gates.rts_economy_production_loop_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
