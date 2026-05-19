@@ -35,6 +35,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_army_production_rally.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_base_assault_resolution.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -69,6 +70,7 @@ jq -n \
   --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
   --slurpfile rts_enemy_base "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.json" \
   --slurpfile rts_army "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-army-production-rally.json" \
+  --slurpfile rts_base_assault "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-base-assault-resolution.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -105,6 +107,7 @@ jq -n \
       and ok($rts_fog)
       and ok($rts_enemy_base)
       and ok($rts_army)
+      and ok($rts_base_assault)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -259,6 +262,13 @@ jq -n \
       and $rts_army[0].control_group_gate == true
       and $rts_army[0].composition_gate == true
       and $rts_army[0].accepted_input_count == 6
+      and $rts_base_assault[0].live_base_assault_input_gate == true
+      and $rts_base_assault[0].army_dependency_gate == true
+      and $rts_base_assault[0].assault_path_gate == true
+      and $rts_base_assault[0].enemy_base_health_gate == true
+      and $rts_base_assault[0].breach_resolution_gate == true
+      and $rts_base_assault[0].reward_gate == true
+      and $rts_base_assault[0].accepted_input_count == 9
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -293,6 +303,7 @@ jq -n \
       classic_rts_fog_scouting_intel_green: ok($rts_fog),
       classic_rts_enemy_base_tech_pressure_green: ok($rts_enemy_base),
       classic_rts_army_production_rally_green: ok($rts_army),
+      classic_rts_base_assault_resolution_green: ok($rts_base_assault),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -659,6 +670,24 @@ jq -n \
       rts_army_production_rally_spawned_unit_pixel_count: $rts_army[0].spawned_unit_pixel_count,
       rts_army_production_rally_rally_line_pixel_count: $rts_army[0].rally_line_pixel_count,
       rts_army_production_rally_composition_pixel_count: $rts_army[0].composition_pixel_count,
+      rts_base_assault_resolution_accepted_input_count: $rts_base_assault[0].accepted_input_count,
+      rts_base_assault_resolution_army_spawned_unit_count: ($rts_base_assault[0].final_army_spawned_unit_ids | length),
+      rts_base_assault_resolution_target_count: ($rts_base_assault[0].final_base_assault_target_ids | length),
+      rts_base_assault_resolution_path_tile_count: ($rts_base_assault[0].final_base_assault_path_tile_ids | length),
+      rts_base_assault_resolution_min_enemy_structure_health: ($rts_base_assault[0].final_enemy_structure_health_percents | min),
+      rts_base_assault_resolution_breach_percent: $rts_base_assault[0].final_base_breach_percent,
+      rts_base_assault_resolution_state: $rts_base_assault[0].final_base_assault_result_state,
+      rts_base_assault_resolution_reward_count: ($rts_base_assault[0].final_base_assault_reward_log | length),
+      rts_base_assault_resolution_pixel_count: (
+        $rts_base_assault[0].assault_path_pixel_count
+        + $rts_base_assault[0].breach_pixel_count
+        + $rts_base_assault[0].enemy_base_health_pixel_count
+        + $rts_base_assault[0].assault_reward_pixel_count
+      ),
+      rts_base_assault_resolution_assault_path_pixel_count: $rts_base_assault[0].assault_path_pixel_count,
+      rts_base_assault_resolution_breach_pixel_count: $rts_base_assault[0].breach_pixel_count,
+      rts_base_assault_resolution_enemy_base_health_pixel_count: $rts_base_assault[0].enemy_base_health_pixel_count,
+      rts_base_assault_resolution_assault_reward_pixel_count: $rts_base_assault[0].assault_reward_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -814,6 +843,12 @@ jq -n \
       rts_army_production_rally_rally_gate: $rts_army[0].rally_gate,
       rts_army_production_rally_control_group_gate: $rts_army[0].control_group_gate,
       rts_army_production_rally_composition_gate: $rts_army[0].composition_gate,
+      rts_base_assault_resolution_live_input_gate: $rts_base_assault[0].live_base_assault_input_gate,
+      rts_base_assault_resolution_army_dependency_gate: $rts_base_assault[0].army_dependency_gate,
+      rts_base_assault_resolution_assault_path_gate: $rts_base_assault[0].assault_path_gate,
+      rts_base_assault_resolution_enemy_base_health_gate: $rts_base_assault[0].enemy_base_health_gate,
+      rts_base_assault_resolution_breach_gate: $rts_base_assault[0].breach_resolution_gate,
+      rts_base_assault_resolution_reward_gate: $rts_base_assault[0].reward_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -876,6 +911,8 @@ jq -n \
       classic_rts_enemy_base_tech_pressure_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.ppm",
       classic_rts_army_production_rally: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-army-production-rally.json",
       classic_rts_army_production_rally_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-army-production-rally.ppm",
+      classic_rts_base_assault_resolution: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-base-assault-resolution.json",
+      classic_rts_base_assault_resolution_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-base-assault-resolution.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -914,6 +951,7 @@ jq -e '
   and .checks.classic_rts_fog_scouting_intel_green == true
   and .checks.classic_rts_enemy_base_tech_pressure_green == true
   and .checks.classic_rts_army_production_rally_green == true
+  and .checks.classic_rts_base_assault_resolution_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1220,6 +1258,19 @@ jq -e '
   and .headline.rts_army_production_rally_spawned_unit_pixel_count > 160
   and .headline.rts_army_production_rally_rally_line_pixel_count > 80
   and .headline.rts_army_production_rally_composition_pixel_count > 80
+  and .headline.rts_base_assault_resolution_accepted_input_count == 9
+  and .headline.rts_base_assault_resolution_army_spawned_unit_count >= 4
+  and .headline.rts_base_assault_resolution_target_count >= 3
+  and .headline.rts_base_assault_resolution_path_tile_count >= 6
+  and .headline.rts_base_assault_resolution_min_enemy_structure_health <= 18
+  and .headline.rts_base_assault_resolution_breach_percent == 100
+  and .headline.rts_base_assault_resolution_state == "breached:enemy_barracks"
+  and .headline.rts_base_assault_resolution_reward_count >= 2
+  and .headline.rts_base_assault_resolution_pixel_count > 260
+  and .headline.rts_base_assault_resolution_assault_path_pixel_count > 120
+  and .headline.rts_base_assault_resolution_breach_pixel_count > 80
+  and .headline.rts_base_assault_resolution_enemy_base_health_pixel_count > 40
+  and .headline.rts_base_assault_resolution_assault_reward_pixel_count > 8
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -1371,6 +1422,12 @@ jq -e '
   and .gates.rts_army_production_rally_rally_gate == true
   and .gates.rts_army_production_rally_control_group_gate == true
   and .gates.rts_army_production_rally_composition_gate == true
+  and .gates.rts_base_assault_resolution_live_input_gate == true
+  and .gates.rts_base_assault_resolution_army_dependency_gate == true
+  and .gates.rts_base_assault_resolution_assault_path_gate == true
+  and .gates.rts_base_assault_resolution_enemy_base_health_gate == true
+  and .gates.rts_base_assault_resolution_breach_gate == true
+  and .gates.rts_base_assault_resolution_reward_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

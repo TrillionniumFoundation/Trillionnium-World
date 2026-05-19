@@ -186,6 +186,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENEMY_BASE_TECH_PRESSURE_CONTRACT:
     "trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ARMY_PRODUCTION_RALLY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_army_production_rally_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BASE_ASSAULT_RESOLUTION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_base_assault_resolution_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -282,6 +284,10 @@ const CLASSIC_RTS_ARMY_SUPPLY_COLOR: u32 = 0x8fd1ff;
 const CLASSIC_RTS_ARMY_SPAWN_COLOR: u32 = 0xb9ff72;
 const CLASSIC_RTS_RALLY_LINE_COLOR: u32 = 0x69f0ff;
 const CLASSIC_RTS_COMPOSITION_COLOR: u32 = 0xffe074;
+const CLASSIC_RTS_BASE_ASSAULT_PATH_COLOR: u32 = 0xff8e5f;
+const CLASSIC_RTS_BASE_BREACH_COLOR: u32 = 0xff4f3a;
+const CLASSIC_RTS_ENEMY_BASE_HEALTH_COLOR: u32 = 0xff6d47;
+const CLASSIC_RTS_ASSAULT_REWARD_COLOR: u32 = 0xd7ff77;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1644,6 +1650,18 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_army_composition_log: Vec<String>,
     #[serde(default)]
     pub rts_army_production_state: String,
+    #[serde(default)]
+    pub rts_base_assault_target_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_base_assault_path_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_enemy_structure_health_percents: Vec<u8>,
+    #[serde(default)]
+    pub rts_base_breach_percent: u8,
+    #[serde(default)]
+    pub rts_base_assault_result_state: String,
+    #[serde(default)]
+    pub rts_base_assault_reward_log: Vec<String>,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1980,6 +1998,12 @@ impl Default for NativeFirstPlayableRuntime {
             rts_army_rally_tile_ids: Vec::new(),
             rts_army_composition_log: Vec::new(),
             rts_army_production_state: String::new(),
+            rts_base_assault_target_ids: Vec::new(),
+            rts_base_assault_path_tile_ids: Vec::new(),
+            rts_enemy_structure_health_percents: Vec::new(),
+            rts_base_breach_percent: 0,
+            rts_base_assault_result_state: String::new(),
+            rts_base_assault_reward_log: Vec::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -13170,6 +13194,254 @@ pub fn native_classic_rts_army_production_rally_evidence_json(preview_path: &str
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_base_assault_resolution_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 520,
+        xp: 420,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 5,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_assault_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "raise_supply_cap",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:supply:field_lodge@6,4".to_string(),
+            },
+        ),
+        (
+            "train_guard_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:guard_pair@training_hall".to_string(),
+            },
+        ),
+        (
+            "train_wayfinder_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:wayfinder_pair@signal_spire".to_string(),
+            },
+        ),
+        (
+            "set_forward_rally",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:rally:forward_watch@7,4".to_string(),
+            },
+        ),
+        (
+            "assign_control_group",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:assign:control_group_3@forward_watch".to_string(),
+            },
+        ),
+        (
+            "siege_move",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "10,3:siege".to_string(),
+            },
+        ),
+        (
+            "attack_enemy_barracks",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "enemy_barracks".to_string(),
+            },
+        ),
+        (
+            "breach_enemy_barracks",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "assault:breach:enemy_barracks@10,3".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_base_assault_resolution_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS BASE {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "army_spawned_unit_ids": runtime.rts_army_spawned_unit_ids.clone(),
+            "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
+            "base_assault_target_ids": runtime.rts_base_assault_target_ids.clone(),
+            "base_assault_path_tile_ids": runtime.rts_base_assault_path_tile_ids.clone(),
+            "enemy_structure_health_percents": runtime.rts_enemy_structure_health_percents.clone(),
+            "base_breach_percent": runtime.rts_base_breach_percent,
+            "base_assault_result_state": runtime.rts_base_assault_result_state.clone(),
+            "base_assault_reward_log": runtime.rts_base_assault_reward_log.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let assault_path_pixel_count = count_color(CLASSIC_RTS_BASE_ASSAULT_PATH_COLOR);
+    let breach_pixel_count = count_color(CLASSIC_RTS_BASE_BREACH_COLOR);
+    let enemy_base_health_pixel_count = count_color(CLASSIC_RTS_ENEMY_BASE_HEALTH_COLOR);
+    let assault_reward_pixel_count = count_color(CLASSIC_RTS_ASSAULT_REWARD_COLOR);
+    let live_base_assault_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_base_assault_resolution_input");
+    let army_dependency_gate = runtime.rts_army_spawned_unit_ids.len() >= 4
+        && runtime.rts_control_group_id.as_deref() == Some("3")
+        && runtime.rts_selected_unit_ids == runtime.rts_army_spawned_unit_ids;
+    let assault_path_gate = runtime.rts_base_assault_path_tile_ids.len() >= 6
+        && runtime
+            .rts_base_assault_path_tile_ids
+            .iter()
+            .any(|tile| tile == "10,3")
+        && assault_path_pixel_count > 120;
+    let enemy_base_health_gate = runtime.rts_base_assault_target_ids.len() >= 3
+        && runtime.rts_enemy_structure_health_percents.len() >= 3
+        && runtime
+            .rts_enemy_structure_health_percents
+            .iter()
+            .any(|health| *health <= 18)
+        && enemy_base_health_pixel_count > 40;
+    let breach_resolution_gate = runtime.rts_base_breach_percent == 100
+        && runtime.rts_base_assault_result_state == "breached:enemy_barracks"
+        && breach_pixel_count > 80;
+    let reward_gate = runtime.rts_base_assault_reward_log.len() >= 2
+        && runtime
+            .rts_base_assault_reward_log
+            .iter()
+            .any(|entry| entry.contains("+320xp"))
+        && assault_reward_pixel_count > 8;
+    let green = write_gate
+        && non_background_pixels > 350_000
+        && live_base_assault_input_gate
+        && army_dependency_gate
+        && assault_path_gate
+        && enemy_base_health_gate
+        && breach_resolution_gate
+        && reward_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BASE_ASSAULT_RESOLUTION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_base_assault_resolution_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_army_spawned_unit_ids": runtime.rts_army_spawned_unit_ids,
+        "final_selected_unit_ids": runtime.rts_selected_unit_ids,
+        "final_active_control_group_ids": runtime.rts_active_control_group_ids,
+        "final_base_assault_target_ids": runtime.rts_base_assault_target_ids,
+        "final_base_assault_path_tile_ids": runtime.rts_base_assault_path_tile_ids,
+        "final_enemy_structure_health_percents": runtime.rts_enemy_structure_health_percents,
+        "final_base_breach_percent": runtime.rts_base_breach_percent,
+        "final_base_assault_result_state": runtime.rts_base_assault_result_state,
+        "final_base_assault_reward_log": runtime.rts_base_assault_reward_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "assault_path_pixel_count": assault_path_pixel_count,
+        "breach_pixel_count": breach_pixel_count,
+        "enemy_base_health_pixel_count": enemy_base_health_pixel_count,
+        "assault_reward_pixel_count": assault_reward_pixel_count,
+        "live_base_assault_input_gate": live_base_assault_input_gate,
+        "army_dependency_gate": army_dependency_gate,
+        "assault_path_gate": assault_path_gate,
+        "enemy_base_health_gate": enemy_base_health_gate,
+        "breach_resolution_gate": breach_resolution_gate,
+        "reward_gate": reward_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS base assault resolution evidence drives trained army control group movement into enemy-base attack, structure health collapse, breach resolution, and reward state through live native input before rendering those assault overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS base assault resolution evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -17819,6 +18091,83 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_COMPOSITION_COLOR,
         );
     }
+    if !runtime.rts_base_assault_path_tile_ids.is_empty() {
+        let mut previous_screen: Option<(i32, i32)> = None;
+        for tile_id in &runtime.rts_base_assault_path_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (path_x, path_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    path_x,
+                    path_y + tile_h - 3,
+                    15,
+                    5,
+                    CLASSIC_RTS_BASE_ASSAULT_PATH_COLOR,
+                );
+                if let Some((prev_x, prev_y)) = previous_screen {
+                    for step in 0..=7 {
+                        let line_x = prev_x + ((path_x - prev_x) * step) / 7;
+                        let line_y = prev_y + tile_h - 3 + ((path_y - prev_y) * step) / 7;
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            line_x - 2,
+                            line_y - 1,
+                            5,
+                            3,
+                            CLASSIC_RTS_BASE_ASSAULT_PATH_COLOR,
+                        );
+                    }
+                }
+                previous_screen = Some((path_x, path_y));
+            }
+        }
+    }
+    for (index, target_id) in runtime.rts_base_assault_target_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_structure_tile_for_id(target_id, index);
+        let (target_x, target_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target_x - 19,
+            target_y + tile_h - 52,
+            38,
+            5,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        let health = runtime
+            .rts_enemy_structure_health_percents
+            .get(index)
+            .copied()
+            .unwrap_or(68);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target_x - 18,
+            target_y + tile_h - 51,
+            (health.min(100) as i32 * 36) / 100,
+            3,
+            CLASSIC_RTS_ENEMY_BASE_HEALTH_COLOR,
+        );
+        if runtime.rts_base_breach_percent > 0 {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                target_x,
+                target_y + tile_h - 20,
+                28,
+                10,
+                CLASSIC_RTS_BASE_BREACH_COLOR,
+            );
+        }
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -19812,6 +20161,33 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_RTS_ARMY_SPAWN_COLOR,
         );
     }
+    for tile_id in &runtime.rts_base_assault_path_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                4,
+                2,
+                CLASSIC_RTS_BASE_ASSAULT_PATH_COLOR,
+            );
+        }
+    }
+    for (index, target_id) in runtime.rts_base_assault_target_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_structure_tile_for_id(target_id, index);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            5,
+            4,
+            CLASSIC_RTS_BASE_BREACH_COLOR,
+        );
+    }
 
     let resource_x = panel_x + minimap_w + 8;
     let resource_y = panel_y;
@@ -20538,6 +20914,57 @@ fn classic_draw_rts_strategy_overlay(
             1,
             CLASSIC_RTS_COMPOSITION_COLOR,
         );
+    }
+    if runtime.rts_base_breach_percent > 0 {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 92,
+            tactical_y + 71,
+            "BRH",
+            1,
+            CLASSIC_HUD_WARN_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 114,
+            tactical_y + 72,
+            52,
+            4,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 115,
+            tactical_y + 73,
+            (runtime.rts_base_breach_percent.min(100) as i32 * 50) / 100,
+            2,
+            CLASSIC_RTS_BASE_BREACH_COLOR,
+        );
+    }
+    if !runtime.rts_base_assault_reward_log.is_empty() {
+        for (index, _entry) in runtime
+            .rts_base_assault_reward_log
+            .iter()
+            .take(2)
+            .enumerate()
+        {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                resource_x + 168 + index as i32 * 10,
+                tactical_y + 69,
+                8,
+                5,
+                CLASSIC_RTS_ASSAULT_REWARD_COLOR,
+            );
+        }
     }
     true
 }
@@ -52102,7 +52529,9 @@ fn classic_rts_disperse_slots_for_destination(destination_tile: (i32, i32)) -> V
 }
 
 fn classic_rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "forest_creep_camp" {
+    if target_id == "enemy_barracks" {
+        string_vec(["9,3", "10,3", "10,2", "11,2"])
+    } else if target_id == "forest_creep_camp" {
         string_vec(["8,3", "8,2", "9,3", "7,3"])
     } else if target_id == "arena_creep_attack" {
         string_vec(["6,5", "6,4", "7,5", "5,5"])
@@ -52112,7 +52541,9 @@ fn classic_rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_contact_flash_tiles_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "forest_creep_camp" {
+    if target_id == "enemy_barracks" {
+        string_vec(["10,3", "10,2", "11,2"])
+    } else if target_id == "forest_creep_camp" {
         string_vec(["8,3", "9,3"])
     } else if target_id == "arena_creep_attack" {
         string_vec(["6,5", "6,4"])
@@ -52129,12 +52560,17 @@ fn classic_rts_target_tile_for_id(target_id: &str, fallback_index: usize) -> (i3
         "forest_creep_camp" => (8, 3),
         "forest_stalker_support" => (8, 2),
         "forest_shaman_support" => (9, 3),
+        "enemy_watch_post" => (10, 2),
+        "enemy_barracks" => (10, 3),
+        "enemy_resource_vault" => (11, 2),
         _ => (6 + fallback_index as i32, 5),
     }
 }
 
 fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "forest_creep_camp" {
+    if target_id == "enemy_barracks" {
+        string_vec(["enemy_barracks", "enemy_watch_post", "enemy_resource_vault"])
+    } else if target_id == "forest_creep_camp" {
         string_vec([
             "forest_creep_camp",
             "forest_stalker_support",
@@ -52152,7 +52588,9 @@ fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "forest_creep_camp" || target_id == "arena_creep_attack" {
+    if target_id == "enemy_barracks" {
+        classic_rts_army_units_for_batch("mixed_vanguard")
+    } else if target_id == "forest_creep_camp" || target_id == "arena_creep_attack" {
         classic_rts_default_group_units()
     } else {
         string_vec(["player", "square_guard_patrol"])
@@ -52160,7 +52598,9 @@ fn classic_rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
-    if target_id == "forest_creep_camp" {
+    if target_id == "enemy_barracks" {
+        vec![88, 66, 41]
+    } else if target_id == "forest_creep_camp" {
         vec![92, 70, 46]
     } else if target_id == "arena_creep_attack" {
         vec![100, 64, 32]
@@ -52170,7 +52610,9 @@ fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
 }
 
 fn classic_rts_projectile_trail_tiles_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "forest_creep_camp" {
+    if target_id == "enemy_barracks" {
+        string_vec(["7,4", "8,4", "9,3", "10,3"])
+    } else if target_id == "forest_creep_camp" {
         string_vec(["5,5", "6,5", "7,4", "8,3"])
     } else if target_id == "arena_creep_attack" {
         string_vec(["5,5", "5,4", "6,4", "6,5"])
@@ -52180,7 +52622,9 @@ fn classic_rts_projectile_trail_tiles_for_target(target_id: &str) -> Vec<String>
 }
 
 fn classic_rts_ability_effect_tiles_for_target(target_id: &str, ability_id: &str) -> Vec<String> {
-    if target_id == "forest_creep_camp" && ability_id == "guard_break" {
+    if target_id == "enemy_barracks" && ability_id == "guard_break" {
+        string_vec(["10,3", "10,2", "11,2", "9,3"])
+    } else if target_id == "forest_creep_camp" && ability_id == "guard_break" {
         string_vec(["8,3", "8,2", "9,3", "7,3"])
     } else if target_id == "forest_creep_camp" {
         string_vec(["8,3", "8,2", "9,3"])
@@ -52469,6 +52913,29 @@ fn classic_rts_player_army_unit_tile_for_id(unit_id: &str, index: usize) -> (i32
         "wayfinder_signal" => (8, 4),
         "field_mender" => (6, 4),
         _ => (6 + (index as i32 % 3), 5 - (index as i32 / 3)),
+    }
+}
+
+fn classic_rts_base_assault_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("breach", command));
+    let (target_id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,3"));
+    (kind.to_string(), target_id.to_string(), tile_id.to_string())
+}
+
+fn classic_rts_base_assault_path_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        string_vec(["5,5", "6,5", "7,4", "8,4", "9,3", tile_id])
+    } else {
+        let target_tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
+        classic_rts_line_path_tiles((5, 5), target_tile)
+    }
+}
+
+fn classic_rts_base_assault_targets_for_id(target_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        string_vec(["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"])
+    } else {
+        vec![target_id.to_string()]
     }
 }
 
@@ -53164,6 +53631,98 @@ fn apply_classic_rts_army_production_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_base_assault_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    assault_command: &str,
+) {
+    let (kind, target_id, tile_id) = classic_rts_base_assault_parts(assault_command);
+    if first_playable.rts_army_spawned_unit_ids.len() < 4 {
+        apply_classic_rts_army_production_runtime(first_playable, "supply:field_lodge@6,4");
+        apply_classic_rts_army_production_runtime(first_playable, "train:guard_pair@training_hall");
+        apply_classic_rts_army_production_runtime(
+            first_playable,
+            "train:wayfinder_pair@signal_spire",
+        );
+        apply_classic_rts_army_production_runtime(first_playable, "rally:forward_watch@7,4");
+        apply_classic_rts_army_production_runtime(
+            first_playable,
+            "assign:control_group_3@forward_watch",
+        );
+    }
+    first_playable.rts_base_assault_target_ids =
+        classic_rts_base_assault_targets_for_id(&target_id);
+    first_playable.rts_base_assault_path_tile_ids =
+        classic_rts_base_assault_path_tiles_for_target(&target_id, &tile_id);
+    first_playable.rts_group_route_tile_ids = first_playable.rts_base_assault_path_tile_ids.clone();
+    first_playable.rts_command_destination_tile = Some(tile_id.clone());
+    first_playable.rts_minimap_command_tile_id = Some(tile_id.clone());
+    first_playable.rts_minimap_command_kind = "base_assault".to_string();
+    for tile in first_playable.rts_base_assault_path_tile_ids.clone() {
+        push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+    }
+    for target in first_playable.rts_base_assault_target_ids.clone() {
+        push_unique_string(
+            &mut first_playable.rts_revealed_enemy_structure_ids,
+            &target,
+        );
+    }
+    match kind.as_str() {
+        "breach" | "resolve" => {
+            first_playable.rts_enemy_structure_health_percents = vec![0, 18, 36];
+            first_playable.rts_base_breach_percent = 100;
+            first_playable.rts_base_assault_result_state = format!("breached:{target_id}");
+            first_playable.rts_target_health_percent = 12;
+            first_playable.rts_target_armor_percent = 8;
+            first_playable.rts_target_shield_percent = 0;
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.min(18);
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "assault:+320xp:+180g",
+            );
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "enemy_base_pressure_removed",
+            );
+            push_history(
+                &mut first_playable.rts_objective_score_delta_log,
+                "base_assault:+320xp:+180g",
+            );
+            push_completed_step(first_playable, "classic_rts_enemy_base_breached");
+            push_progression_checkpoint(first_playable, "classic_rts_enemy_base_breached");
+            first_playable.objective_status = "classic_rts_enemy_base_assault_complete".to_string();
+        }
+        _ => {
+            first_playable.rts_enemy_structure_health_percents = vec![42, 64, 78];
+            first_playable.rts_base_breach_percent = 46;
+            first_playable.rts_base_assault_result_state = format!("assaulting:{target_id}");
+            first_playable.rts_target_health_percent = 42;
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.max(44);
+        }
+    }
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("base_assault:{kind}:{target_id}@{tile_id}"),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "base_assault_path:{}",
+            first_playable.rts_base_assault_path_tile_ids.join(">")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "base_assault_targets:{}",
+            first_playable.rts_base_assault_target_ids.join("|")
+        ),
+    );
+    first_playable.last_feedback = format!("RTS base assault {kind}: {target_id} at {tile_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -53182,6 +53741,8 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_counter_runtime(first_playable, counter_command);
     } else if let Some(army_command) = queue_id.strip_prefix("army:") {
         apply_classic_rts_army_production_runtime(first_playable, army_command);
+    } else if let Some(assault_command) = queue_id.strip_prefix("assault:") {
+        apply_classic_rts_base_assault_runtime(first_playable, assault_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("scout:") {
         apply_classic_rts_creep_camp_runtime(first_playable, "scout", camp_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("camp:") {
