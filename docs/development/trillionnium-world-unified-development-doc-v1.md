@@ -351,6 +351,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第十三组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh` 把 `RTS:QUEUE:scout:creep_camp@8,3`、`RTS:MOVE:8,3:wedge`、`RTS:ATTACK:forest_creep_camp`、`RTS:ABILITY:guard_break` 和 `RTS:QUEUE:camp:clear:forest_creep_camp@8,3` 推进到侦察野怪营地、地形路线、瓶颈 tile、清营状态、侦察揭示条、第二目标/扩张 tile 与对应 overlay 像素；它同样纳入 `scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh` 与 release-review CI。
 
+同日继续追加第十四组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh` 把 `RTS:QUEUE:recon:scout_enemy_base@10,2`、`RTS:MOVE:9,2:rally`、`RTS:QUEUE:recon:sweep:enemy_base@10,2`、`RTS:QUEUE:recon:watchtower_scan@7,4` 和 `RTS:QUEUE:recon:mark:enemy_base@10,2` 推进到侦察小队、fog reveal、敌方建筑/单位情报、intel log、可见度条与小地图情报 overlay；它继续保持 Bevy native source-of-truth，不引入任何外部 RTS IP 资产或 CEX player runtime。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

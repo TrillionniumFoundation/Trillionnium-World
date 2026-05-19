@@ -618,6 +618,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-fog-scouting-intel" | "--classic-rts-fog-scouting-intel")
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_fog_scouting_intel_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )

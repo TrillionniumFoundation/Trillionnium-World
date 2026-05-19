@@ -32,6 +32,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_ai_skirmish_pressure.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_objective_victory_loop.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -63,6 +64,7 @@ jq -n \
   --slurpfile rts_ai "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.json" \
   --slurpfile rts_objective "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.json" \
   --slurpfile rts_creep_camp "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json" \
+  --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -96,6 +98,7 @@ jq -n \
       and ok($rts_ai)
       and ok($rts_objective)
       and ok($rts_creep_camp)
+      and ok($rts_fog)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -227,6 +230,14 @@ jq -n \
       and $rts_creep_camp[0].scout_reveal_gate == true
       and $rts_creep_camp[0].expansion_route_gate == true
       and $rts_creep_camp[0].accepted_input_count == 6
+      and $rts_fog[0].live_fog_scouting_input_gate == true
+      and $rts_fog[0].scout_route_gate == true
+      and $rts_fog[0].fog_reveal_gate == true
+      and $rts_fog[0].enemy_structure_intel_gate == true
+      and $rts_fog[0].enemy_unit_intel_gate == true
+      and $rts_fog[0].intel_log_gate == true
+      and $rts_fog[0].visibility_bar_gate == true
+      and $rts_fog[0].accepted_input_count == 6
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -258,6 +269,7 @@ jq -n \
       classic_rts_ai_skirmish_pressure_green: ok($rts_ai),
       classic_rts_objective_victory_loop_green: ok($rts_objective),
       classic_rts_creep_camp_terrain_route_green: ok($rts_creep_camp),
+      classic_rts_fog_scouting_intel_green: ok($rts_fog),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -566,6 +578,25 @@ jq -n \
       rts_creep_camp_terrain_route_choke_pixel_count: $rts_creep_camp[0].choke_pixel_count,
       rts_creep_camp_terrain_route_expansion_pixel_count: $rts_creep_camp[0].expansion_pixel_count,
       rts_creep_camp_terrain_route_reveal_pixel_count: $rts_creep_camp[0].scout_reveal_pixel_count,
+      rts_fog_scouting_intel_accepted_input_count: $rts_fog[0].accepted_input_count,
+      rts_fog_scouting_intel_scout_unit_count: ($rts_fog[0].final_scout_unit_ids | length),
+      rts_fog_scouting_intel_scout_route_tile_count: ($rts_fog[0].final_scout_route_tile_ids | length),
+      rts_fog_scouting_intel_fog_reveal_tile_count: ($rts_fog[0].final_fog_reveal_tile_ids | length),
+      rts_fog_scouting_intel_enemy_structure_count: ($rts_fog[0].final_revealed_enemy_structure_ids | length),
+      rts_fog_scouting_intel_enemy_unit_count: ($rts_fog[0].final_revealed_enemy_unit_ids | length),
+      rts_fog_scouting_intel_visibility_percent: $rts_fog[0].final_visibility_percent,
+      rts_fog_scouting_intel_pixel_count: (
+        $rts_fog[0].scout_route_pixel_count
+        + $rts_fog[0].fog_reveal_pixel_count
+        + $rts_fog[0].enemy_structure_pixel_count
+        + $rts_fog[0].enemy_intel_pixel_count
+        + $rts_fog[0].visibility_bar_pixel_count
+      ),
+      rts_fog_scouting_intel_scout_route_pixel_count: $rts_fog[0].scout_route_pixel_count,
+      rts_fog_scouting_intel_fog_reveal_pixel_count: $rts_fog[0].fog_reveal_pixel_count,
+      rts_fog_scouting_intel_enemy_structure_pixel_count: $rts_fog[0].enemy_structure_pixel_count,
+      rts_fog_scouting_intel_enemy_unit_pixel_count: $rts_fog[0].enemy_intel_pixel_count,
+      rts_fog_scouting_intel_visibility_bar_pixel_count: $rts_fog[0].visibility_bar_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -701,6 +732,13 @@ jq -n \
       rts_creep_camp_terrain_route_clear_gate: $rts_creep_camp[0].camp_clear_gate,
       rts_creep_camp_terrain_route_reveal_gate: $rts_creep_camp[0].scout_reveal_gate,
       rts_creep_camp_terrain_route_expansion_gate: $rts_creep_camp[0].expansion_route_gate,
+      rts_fog_scouting_intel_live_input_gate: $rts_fog[0].live_fog_scouting_input_gate,
+      rts_fog_scouting_intel_scout_route_gate: $rts_fog[0].scout_route_gate,
+      rts_fog_scouting_intel_fog_reveal_gate: $rts_fog[0].fog_reveal_gate,
+      rts_fog_scouting_intel_enemy_structure_gate: $rts_fog[0].enemy_structure_intel_gate,
+      rts_fog_scouting_intel_enemy_unit_gate: $rts_fog[0].enemy_unit_intel_gate,
+      rts_fog_scouting_intel_intel_log_gate: $rts_fog[0].intel_log_gate,
+      rts_fog_scouting_intel_visibility_gate: $rts_fog[0].visibility_bar_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -757,6 +795,8 @@ jq -n \
       classic_rts_objective_victory_loop_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.ppm",
       classic_rts_creep_camp_terrain_route: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json",
       classic_rts_creep_camp_terrain_route_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.ppm",
+      classic_rts_fog_scouting_intel: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json",
+      classic_rts_fog_scouting_intel_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -792,6 +832,7 @@ jq -e '
   and .checks.classic_rts_ai_skirmish_pressure_green == true
   and .checks.classic_rts_objective_victory_loop_green == true
   and .checks.classic_rts_creep_camp_terrain_route_green == true
+  and .checks.classic_rts_fog_scouting_intel_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1056,6 +1097,19 @@ jq -e '
   and .headline.rts_creep_camp_terrain_route_choke_pixel_count > 40
   and .headline.rts_creep_camp_terrain_route_expansion_pixel_count > 50
   and .headline.rts_creep_camp_terrain_route_reveal_pixel_count > 20
+  and .headline.rts_fog_scouting_intel_accepted_input_count == 6
+  and .headline.rts_fog_scouting_intel_scout_unit_count >= 2
+  and .headline.rts_fog_scouting_intel_scout_route_tile_count >= 5
+  and .headline.rts_fog_scouting_intel_fog_reveal_tile_count >= 8
+  and .headline.rts_fog_scouting_intel_enemy_structure_count >= 3
+  and .headline.rts_fog_scouting_intel_enemy_unit_count >= 3
+  and .headline.rts_fog_scouting_intel_visibility_percent == 100
+  and .headline.rts_fog_scouting_intel_pixel_count > 300
+  and .headline.rts_fog_scouting_intel_scout_route_pixel_count > 80
+  and .headline.rts_fog_scouting_intel_fog_reveal_pixel_count > 80
+  and .headline.rts_fog_scouting_intel_enemy_structure_pixel_count > 80
+  and .headline.rts_fog_scouting_intel_enemy_unit_pixel_count > 60
+  and .headline.rts_fog_scouting_intel_visibility_bar_pixel_count > 20
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -1187,6 +1241,13 @@ jq -e '
   and .gates.rts_creep_camp_terrain_route_clear_gate == true
   and .gates.rts_creep_camp_terrain_route_reveal_gate == true
   and .gates.rts_creep_camp_terrain_route_expansion_gate == true
+  and .gates.rts_fog_scouting_intel_live_input_gate == true
+  and .gates.rts_fog_scouting_intel_scout_route_gate == true
+  and .gates.rts_fog_scouting_intel_fog_reveal_gate == true
+  and .gates.rts_fog_scouting_intel_enemy_structure_gate == true
+  and .gates.rts_fog_scouting_intel_enemy_unit_gate == true
+  and .gates.rts_fog_scouting_intel_intel_log_gate == true
+  and .gates.rts_fog_scouting_intel_visibility_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

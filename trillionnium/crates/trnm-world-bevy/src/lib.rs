@@ -180,6 +180,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_VICTORY_LOOP_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_objective_victory_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CREEP_CAMP_TERRAIN_ROUTE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_creep_camp_terrain_route_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FOG_SCOUTING_INTEL_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_fog_scouting_intel_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -262,6 +264,11 @@ const CLASSIC_RTS_TERRAIN_ROUTE_COLOR: u32 = 0x6ee2a5;
 const CLASSIC_RTS_CHOKE_COLOR: u32 = 0xff865d;
 const CLASSIC_RTS_EXPANSION_COLOR: u32 = 0x78ddff;
 const CLASSIC_RTS_SCOUT_REVEAL_COLOR: u32 = 0xd8ff6f;
+const CLASSIC_RTS_SCOUT_ROUTE_COLOR: u32 = 0x5fe7ff;
+const CLASSIC_RTS_FOG_REVEAL_COLOR: u32 = 0xd2f56d;
+const CLASSIC_RTS_ENEMY_INTEL_COLOR: u32 = 0xff6f92;
+const CLASSIC_RTS_ENEMY_STRUCTURE_COLOR: u32 = 0xff3f64;
+const CLASSIC_RTS_VISIBILITY_BAR_COLOR: u32 = 0x9ff27a;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1582,6 +1589,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_expansion_tile_ids: Vec<String>,
     #[serde(default)]
     pub rts_scout_reveal_percent: u8,
+    #[serde(default)]
+    pub rts_scout_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_scout_route_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_fog_reveal_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_revealed_enemy_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_revealed_enemy_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_intel_log: Vec<String>,
+    #[serde(default)]
+    pub rts_visibility_percent: u8,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1897,6 +1918,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_terrain_choke_tile_ids: Vec::new(),
             rts_expansion_tile_ids: Vec::new(),
             rts_scout_reveal_percent: 0,
+            rts_scout_unit_ids: Vec::new(),
+            rts_scout_route_tile_ids: Vec::new(),
+            rts_fog_reveal_tile_ids: Vec::new(),
+            rts_revealed_enemy_structure_ids: Vec::new(),
+            rts_revealed_enemy_unit_ids: Vec::new(),
+            rts_intel_log: Vec::new(),
+            rts_visibility_percent: 0,
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -12395,6 +12423,231 @@ pub fn native_classic_rts_creep_camp_terrain_route_evidence_json(preview_path: &
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_fog_scouting_intel_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 280,
+        xp: 230,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_scout_party",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "2".to_string(),
+            },
+        ),
+        (
+            "scout_enemy_base",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "recon:scout_enemy_base@10,2".to_string(),
+            },
+        ),
+        (
+            "rally_near_fog_edge",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "9,2:rally".to_string(),
+            },
+        ),
+        (
+            "sweep_enemy_base",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "recon:sweep:enemy_base@10,2".to_string(),
+            },
+        ),
+        (
+            "scan_watchtower_lane",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "recon:watchtower_scan@7,4".to_string(),
+            },
+        ),
+        (
+            "mark_enemy_base",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "recon:mark:enemy_base@10,2".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_fog_scouting_intel_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS FOG {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "scout_unit_ids": runtime.rts_scout_unit_ids.clone(),
+            "scout_route_tile_ids": runtime.rts_scout_route_tile_ids.clone(),
+            "fog_reveal_tile_ids": runtime.rts_fog_reveal_tile_ids.clone(),
+            "revealed_enemy_structure_ids": runtime.rts_revealed_enemy_structure_ids.clone(),
+            "revealed_enemy_unit_ids": runtime.rts_revealed_enemy_unit_ids.clone(),
+            "intel_log": runtime.rts_intel_log.clone(),
+            "visibility_percent": runtime.rts_visibility_percent,
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let scout_route_pixel_count = count_color(CLASSIC_RTS_SCOUT_ROUTE_COLOR);
+    let fog_reveal_pixel_count = count_color(CLASSIC_RTS_FOG_REVEAL_COLOR);
+    let enemy_intel_pixel_count = count_color(CLASSIC_RTS_ENEMY_INTEL_COLOR);
+    let enemy_structure_pixel_count = count_color(CLASSIC_RTS_ENEMY_STRUCTURE_COLOR);
+    let visibility_bar_pixel_count = count_color(CLASSIC_RTS_VISIBILITY_BAR_COLOR);
+    let live_fog_scouting_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_fog_scouting_intel_input");
+    let scout_route_gate =
+        runtime.rts_scout_route_tile_ids.len() >= 5 && scout_route_pixel_count > 80;
+    let fog_reveal_gate = runtime.rts_fog_reveal_tile_ids.len() >= 8
+        && runtime.rts_visibility_percent == 100
+        && fog_reveal_pixel_count > 80;
+    let enemy_structure_intel_gate =
+        runtime.rts_revealed_enemy_structure_ids.len() >= 3 && enemy_structure_pixel_count > 80;
+    let enemy_unit_intel_gate =
+        runtime.rts_revealed_enemy_unit_ids.len() >= 3 && enemy_intel_pixel_count > 60;
+    let intel_log_gate = runtime
+        .rts_intel_log
+        .iter()
+        .any(|entry| entry == "marked:enemy_base@10,2")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "recon_mark:enemy_base@10,2");
+    let visibility_bar_gate =
+        runtime.rts_visibility_percent == 100 && visibility_bar_pixel_count > 20;
+    let green = write_gate
+        && non_background_pixels > 250_000
+        && live_fog_scouting_input_gate
+        && scout_route_gate
+        && fog_reveal_gate
+        && enemy_structure_intel_gate
+        && enemy_unit_intel_gate
+        && intel_log_gate
+        && visibility_bar_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FOG_SCOUTING_INTEL_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_fog_scouting_intel_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_scout_unit_ids": runtime.rts_scout_unit_ids,
+        "final_scout_route_tile_ids": runtime.rts_scout_route_tile_ids,
+        "final_fog_reveal_tile_ids": runtime.rts_fog_reveal_tile_ids,
+        "final_revealed_enemy_structure_ids": runtime.rts_revealed_enemy_structure_ids,
+        "final_revealed_enemy_unit_ids": runtime.rts_revealed_enemy_unit_ids,
+        "final_intel_log": runtime.rts_intel_log,
+        "final_visibility_percent": runtime.rts_visibility_percent,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "scout_route_pixel_count": scout_route_pixel_count,
+        "fog_reveal_pixel_count": fog_reveal_pixel_count,
+        "enemy_intel_pixel_count": enemy_intel_pixel_count,
+        "enemy_structure_pixel_count": enemy_structure_pixel_count,
+        "visibility_bar_pixel_count": visibility_bar_pixel_count,
+        "live_fog_scouting_input_gate": live_fog_scouting_input_gate,
+        "scout_route_gate": scout_route_gate,
+        "fog_reveal_gate": fog_reveal_gate,
+        "enemy_structure_intel_gate": enemy_structure_intel_gate,
+        "enemy_unit_intel_gate": enemy_unit_intel_gate,
+        "intel_log_gate": intel_log_gate,
+        "visibility_bar_gate": visibility_bar_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS fog scouting intel evidence drives scout route movement, fog reveal, enemy structure discovery, enemy unit intelligence, visibility reporting, and minimap readability through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS fog scouting intel evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -16741,6 +16994,117 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    if !runtime.rts_scout_route_tile_ids.is_empty() {
+        let mut previous_screen: Option<(i32, i32)> = None;
+        for tile_id in &runtime.rts_scout_route_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (route_x, route_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    route_x,
+                    route_y + tile_h - 3,
+                    13,
+                    5,
+                    CLASSIC_RTS_SCOUT_ROUTE_COLOR,
+                );
+                if let Some((prev_x, prev_y)) = previous_screen {
+                    for step in 0..=7 {
+                        let line_x = prev_x + ((route_x - prev_x) * step) / 7;
+                        let line_y = prev_y + tile_h - 3 + ((route_y - prev_y) * step) / 7;
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            line_x - 2,
+                            line_y - 1,
+                            5,
+                            3,
+                            CLASSIC_RTS_SCOUT_ROUTE_COLOR,
+                        );
+                    }
+                }
+                previous_screen = Some((route_x, route_y));
+            }
+        }
+    }
+    for tile_id in &runtime.rts_fog_reveal_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (reveal_x, reveal_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                reveal_x,
+                reveal_y + tile_h - 13,
+                tile_w / 3,
+                tile_h / 3,
+                CLASSIC_RTS_FOG_REVEAL_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                reveal_x - 8,
+                reveal_y + tile_h - 32,
+                16,
+                4,
+                CLASSIC_RTS_FOG_REVEAL_COLOR,
+            );
+        }
+    }
+    for (index, structure_id) in runtime.rts_revealed_enemy_structure_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_structure_tile_for_id(structure_id, index);
+        let (structure_x, structure_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            structure_x - 15,
+            structure_y + tile_h - 42,
+            30,
+            24,
+            CLASSIC_RTS_ENEMY_STRUCTURE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            structure_x - 20,
+            structure_y + tile_h - 47,
+            40,
+            4,
+            CLASSIC_RTS_ENEMY_STRUCTURE_COLOR,
+        );
+    }
+    for (index, unit_id) in runtime.rts_revealed_enemy_unit_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_unit_tile_for_id(unit_id, index);
+        let (enemy_x, enemy_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            enemy_x,
+            enemy_y + tile_h - 7,
+            18,
+            7,
+            CLASSIC_RTS_ENEMY_INTEL_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            enemy_x - 8,
+            enemy_y + tile_h - 30,
+            16,
+            14,
+            CLASSIC_RTS_ENEMY_INTEL_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -18593,6 +18957,60 @@ fn classic_draw_rts_strategy_overlay(
             );
         }
     }
+    for tile_id in &runtime.rts_scout_route_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                4,
+                2,
+                CLASSIC_RTS_SCOUT_ROUTE_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_fog_reveal_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 1,
+                5,
+                4,
+                CLASSIC_RTS_FOG_REVEAL_COLOR,
+            );
+        }
+    }
+    for (index, structure_id) in runtime.rts_revealed_enemy_structure_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_structure_tile_for_id(structure_id, index);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            5,
+            4,
+            CLASSIC_RTS_ENEMY_STRUCTURE_COLOR,
+        );
+    }
+    for (index, unit_id) in runtime.rts_revealed_enemy_unit_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_unit_tile_for_id(unit_id, index);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w + 1,
+            map_y + tile.1.clamp(0, 7) * cell_h + 1,
+            4,
+            3,
+            CLASSIC_RTS_ENEMY_INTEL_COLOR,
+        );
+    }
 
     let resource_x = panel_x + minimap_w + 8;
     let resource_y = panel_y;
@@ -19185,6 +19603,38 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
     }
+    if runtime.rts_visibility_percent > 0 {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 92,
+            tactical_y + 59,
+            "VIS",
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 113,
+            tactical_y + 60,
+            54,
+            5,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 114,
+            tactical_y + 61,
+            (runtime.rts_visibility_percent.min(100) as i32 * 52) / 100,
+            3,
+            CLASSIC_RTS_VISIBILITY_BAR_COLOR,
+        );
+    }
     true
 }
 
@@ -19221,6 +19671,13 @@ fn classic_rts_visible_tiles(
             destination_tile.0.clamp(0, 11),
             destination_tile.1.clamp(0, 7),
         ));
+    }
+    for tile in runtime
+        .rts_fog_reveal_tile_ids
+        .iter()
+        .filter_map(|value| classic_parse_rts_tile(value))
+    {
+        visible.insert((tile.0.clamp(0, 11), tile.1.clamp(0, 7)));
     }
     visible
 }
@@ -50951,6 +51408,88 @@ fn classic_rts_expansion_tiles_for_camp(camp_id: &str) -> Vec<String> {
     }
 }
 
+fn classic_rts_recon_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("scout", command));
+    let (recon_id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,2"));
+    let normalized_recon_id = match recon_id {
+        "scout_enemy_base" => "enemy_base",
+        value => value,
+    };
+    (
+        kind.to_string(),
+        normalized_recon_id.to_string(),
+        tile_id.to_string(),
+    )
+}
+
+fn classic_rts_scout_route_tiles_for_recon(recon_id: &str) -> Vec<String> {
+    if recon_id == "enemy_base" {
+        string_vec(["5,5", "6,4", "7,4", "8,3", "9,2", "10,2"])
+    } else if recon_id == "watchtower_scan" {
+        string_vec(["5,5", "6,5", "7,4"])
+    } else {
+        string_vec(["5,5", "6,5", "7,5"])
+    }
+}
+
+fn classic_rts_fog_reveal_tiles_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
+    if recon_id == "enemy_base" && kind == "mark" {
+        string_vec([
+            "7,4", "8,3", "8,2", "9,2", "9,3", "10,2", "10,3", "11,1", "11,2",
+        ])
+    } else if recon_id == "enemy_base" && kind == "sweep" {
+        string_vec(["7,4", "8,3", "9,2", "9,3", "10,2", "10,3", "11,2"])
+    } else if recon_id == "enemy_base" {
+        string_vec(["7,4", "8,3", "9,2", "10,2"])
+    } else if recon_id == "watchtower_scan" {
+        string_vec(["6,4", "7,4", "7,3", "8,3", "8,2"])
+    } else {
+        string_vec(["5,5", "6,5", "7,5"])
+    }
+}
+
+fn classic_rts_enemy_structures_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
+    if recon_id == "enemy_base" && kind == "mark" {
+        string_vec(["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"])
+    } else if recon_id == "enemy_base" && kind == "sweep" {
+        string_vec(["enemy_watch_post", "enemy_barracks"])
+    } else if recon_id == "enemy_base" || recon_id == "watchtower_scan" {
+        string_vec(["enemy_watch_post"])
+    } else {
+        Vec::new()
+    }
+}
+
+fn classic_rts_enemy_units_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
+    if recon_id == "enemy_base" && kind == "mark" {
+        string_vec(["enemy_scout", "enemy_worker", "enemy_guard"])
+    } else if recon_id == "enemy_base" && kind == "sweep" {
+        string_vec(["enemy_scout", "enemy_worker"])
+    } else if recon_id == "enemy_base" || recon_id == "watchtower_scan" {
+        string_vec(["enemy_scout"])
+    } else {
+        Vec::new()
+    }
+}
+
+fn classic_rts_enemy_structure_tile_for_id(structure_id: &str, index: usize) -> (i32, i32) {
+    match structure_id {
+        "enemy_watch_post" => (10, 2),
+        "enemy_barracks" => (10, 3),
+        "enemy_resource_vault" => (11, 2),
+        _ => (10 + (index as i32 % 2), 2 + (index as i32 % 2)),
+    }
+}
+
+fn classic_rts_enemy_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
+    match unit_id {
+        "enemy_scout" => (9, 2),
+        "enemy_worker" => (10, 3),
+        "enemy_guard" => (11, 2),
+        _ => (9 + (index as i32 % 3), 2),
+    }
+}
+
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
     match node_id {
         "gold_vein" => (3, 3),
@@ -51317,6 +51856,85 @@ fn apply_classic_rts_creep_camp_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_recon_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    recon_command: &str,
+) {
+    if first_playable.rts_control_group_id.is_none() {
+        apply_classic_rts_select_group_runtime(first_playable, "2");
+    }
+    let (kind, recon_id, tile_id) = classic_rts_recon_parts(recon_command);
+    first_playable.rts_scout_unit_ids = classic_rts_group_two_units();
+    first_playable.rts_scout_route_tile_ids = classic_rts_scout_route_tiles_for_recon(&recon_id);
+    first_playable.rts_fog_reveal_tile_ids =
+        classic_rts_fog_reveal_tiles_for_recon(&recon_id, &kind);
+    first_playable.rts_revealed_enemy_structure_ids =
+        classic_rts_enemy_structures_for_recon(&recon_id, &kind);
+    first_playable.rts_revealed_enemy_unit_ids =
+        classic_rts_enemy_units_for_recon(&recon_id, &kind);
+    first_playable.rts_command_destination_tile = Some(tile_id.clone());
+    first_playable.rts_minimap_command_tile_id = Some(tile_id.clone());
+    for tile in first_playable
+        .rts_scout_route_tile_ids
+        .clone()
+        .into_iter()
+        .chain(first_playable.rts_fog_reveal_tile_ids.clone())
+    {
+        push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+    }
+    let revealed_for_fog = first_playable.rts_fog_reveal_tile_ids.clone();
+    first_playable
+        .rts_fogged_tile_ids
+        .retain(|fogged| !revealed_for_fog.iter().any(|tile| tile == fogged));
+    match kind.as_str() {
+        "mark" => {
+            first_playable.rts_visibility_percent = 100;
+            push_history(
+                &mut first_playable.rts_intel_log,
+                &format!("marked:{recon_id}@{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("recon_mark:{recon_id}@{tile_id}"),
+            );
+            push_completed_step(first_playable, "classic_rts_enemy_base_marked");
+            push_progression_checkpoint(first_playable, "classic_rts_enemy_base_marked");
+            first_playable.objective_status = "classic_rts_enemy_base_intel_ready".to_string();
+        }
+        "sweep" => {
+            first_playable.rts_visibility_percent = first_playable.rts_visibility_percent.max(78);
+            push_history(
+                &mut first_playable.rts_intel_log,
+                &format!(
+                    "sweep:{recon_id}@{tile_id}:units={}",
+                    first_playable.rts_revealed_enemy_unit_ids.len()
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("recon_sweep:{recon_id}@{tile_id}"),
+            );
+        }
+        _ => {
+            first_playable.rts_visibility_percent = first_playable.rts_visibility_percent.max(58);
+            push_history(
+                &mut first_playable.rts_intel_log,
+                &format!("scouted:{recon_id}@{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("recon_scout:{recon_id}@{tile_id}"),
+            );
+        }
+    }
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("recon:{kind}:{recon_id}@{tile_id}"),
+    );
+    first_playable.last_feedback = format!("RTS recon {kind}: {recon_id} at {tile_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -51327,6 +51945,8 @@ fn apply_classic_rts_queue_runtime(
     push_unique_string(&mut first_playable.rts_production_queue, queue_id);
     if let Some(objective_command) = queue_id.strip_prefix("objective:") {
         apply_classic_rts_objective_runtime(first_playable, objective_command);
+    } else if let Some(recon_command) = queue_id.strip_prefix("recon:") {
+        apply_classic_rts_recon_runtime(first_playable, recon_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("scout:") {
         apply_classic_rts_creep_camp_runtime(first_playable, "scout", camp_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("camp:") {
