@@ -206,6 +206,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_BREAKTHROUGH_CONTRACT
     "trillionnium_world_bevy_classic_rts_central_keep_breakthrough_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MIRROR_CITY_RESTORATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_mirror_city_restoration_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_open_world_after_action_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -349,6 +351,9 @@ const CLASSIC_RTS_RESTORE_ZONE_COLOR: u32 = 0x70ffd9;
 const CLASSIC_RTS_REBUILD_CORE_COLOR: u32 = 0xd8ff66;
 const CLASSIC_RTS_GARRISON_COLOR: u32 = 0x8fb2ff;
 const CLASSIC_RTS_HANDOFF_COLOR: u32 = 0xffe08a;
+const CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR: u32 = 0x92ffd1;
+const CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR: u32 = 0x73c7ff;
+const CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR: u32 = 0xffffff;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1835,6 +1840,16 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_garrison_unit_ids: Vec<String>,
     #[serde(default)]
     pub rts_victory_handoff_state: String,
+    #[serde(default)]
+    pub rts_open_world_route_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_open_world_panel_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_open_world_task_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_open_world_handoff_state: String,
+    #[serde(default)]
+    pub rts_open_world_resume_room_id: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -2233,6 +2248,11 @@ impl Default for NativeFirstPlayableRuntime {
             rts_rebuild_structure_ids: Vec::new(),
             rts_garrison_unit_ids: Vec::new(),
             rts_victory_handoff_state: String::new(),
+            rts_open_world_route_tile_ids: Vec::new(),
+            rts_open_world_panel_ids: Vec::new(),
+            rts_open_world_task_ids: Vec::new(),
+            rts_open_world_handoff_state: String::new(),
+            rts_open_world_resume_room_id: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -16900,6 +16920,249 @@ pub fn native_classic_rts_mirror_city_restoration_evidence_json(preview_path: &s
     .expect("classic RTS mirror city restoration evidence serializes")
 }
 
+pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 1;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 980,
+        xp: 740,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 9,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "open_world_after_action",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:open_world:after_action@13,3".to_string(),
+            },
+        ),
+        (
+            "route_world_panel",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:open_world_route:league-coliseum@12,3".to_string(),
+            },
+        ),
+        (
+            "resume_open_world",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:open_world_resume:league-coliseum@12,3".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_open_world_after_action_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = (index * PANEL_WIDTH) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            0,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            12,
+            &format!("RTS WORLD {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "current_room_id": runtime.current_room_id.clone(),
+            "map_scene": runtime.map_scene.clone(),
+            "route_director_task_id": runtime.route_director_task_id.clone(),
+            "route_director_target_room_id": runtime.route_director_target_room_id.clone(),
+            "route_director_next_room_id": runtime.route_director_next_room_id.clone(),
+            "open_world_route_tile_ids": runtime.rts_open_world_route_tile_ids.clone(),
+            "open_world_panel_ids": runtime.rts_open_world_panel_ids.clone(),
+            "open_world_task_ids": runtime.rts_open_world_task_ids.clone(),
+            "open_world_handoff_state": runtime.rts_open_world_handoff_state.clone(),
+            "contextual_action_labels": runtime.contextual_action_labels.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let open_world_route_pixel_count = count_color(CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR);
+    let open_world_panel_pixel_count = count_color(CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR);
+    let open_world_resume_pixel_count = count_color(CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR);
+    let live_open_world_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_open_world_after_action_input");
+    let restoration_dependency_gate = runtime.rts_victory_handoff_state
+        == "handoff_ready:mirror_city"
+        && runtime.rts_match_result_state == "classic_rts_restored:mirror_city"
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "open_world_after_action");
+    let open_world_route_gate = runtime.rts_open_world_route_tile_ids.len() >= 5
+        && runtime
+            .rts_open_world_route_tile_ids
+            .iter()
+            .any(|tile| tile == "13,3")
+        && runtime
+            .rts_open_world_route_tile_ids
+            .iter()
+            .any(|tile| tile == "9,2")
+        && runtime.rts_open_world_handoff_state.starts_with("resumed:")
+        && open_world_route_pixel_count > 40;
+    let open_world_panel_gate = runtime.rts_open_world_panel_ids.len() >= 4
+        && runtime
+            .rts_open_world_panel_ids
+            .iter()
+            .any(|panel| panel == "task_panel:task-fixture-first-route")
+        && open_world_panel_pixel_count > 30;
+    let open_world_resume_gate = runtime.current_room_id == "league-coliseum"
+        && runtime.map_scene == "arena_outdoor"
+        && runtime.rts_open_world_resume_room_id == "league-coliseum"
+        && runtime.route_director_task_id == "task-fixture-first-route"
+        && runtime.route_director_target_room_id == "league-coliseum"
+        && runtime.route_director_next_room_id.is_none()
+        && runtime
+            .active_task_ids
+            .iter()
+            .any(|task| task == "task-fixture-first-route")
+        && runtime
+            .contextual_action_labels
+            .iter()
+            .any(|label| label == "COMBAT:attack")
+        && runtime
+            .route_director_history
+            .iter()
+            .any(|entry| entry == "rts_open_world_after_action:league-coliseum:arrived")
+        && open_world_resume_pixel_count > 20;
+    let command_gate =
+        runtime.rts_command_queue.iter().any(|entry| {
+            entry == "tier2_open_world_resume:league-coliseum@12,3:room=league-coliseum"
+        }) && runtime
+            .rts_base_assault_reward_log
+            .iter()
+            .any(|entry| entry == "open_world_after_action:+route_resume_ready");
+    let green = write_gate
+        && non_background_pixels > 140_000
+        && live_open_world_input_gate
+        && restoration_dependency_gate
+        && open_world_route_gate
+        && open_world_panel_gate
+        && open_world_resume_gate
+        && command_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_open_world_after_action_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_current_room_id": runtime.current_room_id,
+        "final_map_scene": runtime.map_scene,
+        "final_route_director_task_id": runtime.route_director_task_id,
+        "final_route_director_target_room_id": runtime.route_director_target_room_id,
+        "final_route_director_path": runtime.route_director_path,
+        "final_route_director_next_room_id": runtime.route_director_next_room_id,
+        "final_route_director_history": runtime.route_director_history,
+        "final_open_world_route_tile_ids": runtime.rts_open_world_route_tile_ids,
+        "final_open_world_panel_ids": runtime.rts_open_world_panel_ids,
+        "final_open_world_task_ids": runtime.rts_open_world_task_ids,
+        "final_open_world_handoff_state": runtime.rts_open_world_handoff_state,
+        "final_open_world_resume_room_id": runtime.rts_open_world_resume_room_id,
+        "final_contextual_action_labels": runtime.contextual_action_labels,
+        "final_contextual_primary_action_label": runtime.contextual_primary_action_label,
+        "final_active_task_ids": runtime.active_task_ids,
+        "final_objective_status": runtime.objective_status,
+        "final_next_action_ids": runtime.rts_next_action_ids,
+        "final_base_assault_reward_log": runtime.rts_base_assault_reward_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "open_world_route_pixel_count": open_world_route_pixel_count,
+        "open_world_panel_pixel_count": open_world_panel_pixel_count,
+        "open_world_resume_pixel_count": open_world_resume_pixel_count,
+        "live_open_world_input_gate": live_open_world_input_gate,
+        "restoration_dependency_gate": restoration_dependency_gate,
+        "open_world_route_gate": open_world_route_gate,
+        "open_world_panel_gate": open_world_panel_gate,
+        "open_world_resume_gate": open_world_resume_gate,
+        "command_gate": command_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS open-world-after-action evidence extends restored Mirror City into a Rust-owned open-world room, route director, task panel, and combat-ready contextual deck through live native input and Trillionnium-owned low-spec Bevy rendering."
+    }))
+    .expect("classic RTS open world after action evidence serializes")
+}
+
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
@@ -22603,6 +22866,53 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_HANDOFF_COLOR,
         );
     }
+    for tile_id in &runtime.rts_open_world_route_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (route_x, route_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                route_x,
+                route_y + tile_h - 4,
+                18,
+                5,
+                CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR,
+            );
+        }
+    }
+    for (index, _panel_id) in runtime.rts_open_world_panel_ids.iter().enumerate() {
+        let tile = match index % 4 {
+            0 => (12, 2),
+            1 => (13, 2),
+            2 => (14, 2),
+            _ => (13, 1),
+        };
+        let (panel_x, panel_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x - 12,
+            panel_y + tile_h - 70,
+            24,
+            14,
+            CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR,
+        );
+    }
+    if runtime.rts_open_world_handoff_state.starts_with("resumed:") {
+        let (resume_x, resume_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, (12, 3));
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            resume_x,
+            resume_y + tile_h - 82,
+            44,
+            10,
+            CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -26133,6 +26443,42 @@ fn classic_draw_rts_strategy_overlay(
             32,
             5,
             CLASSIC_RTS_HANDOFF_COLOR,
+        );
+    }
+    if !runtime.rts_open_world_route_tile_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 164,
+            32,
+            5,
+            CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR,
+        );
+    }
+    if !runtime.rts_open_world_panel_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 44,
+            tactical_y + 164,
+            32,
+            5,
+            CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR,
+        );
+    }
+    if runtime.rts_open_world_handoff_state.starts_with("resumed:") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 84,
+            tactical_y + 164,
+            32,
+            5,
+            CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR,
         );
     }
     true
@@ -58457,6 +58803,26 @@ fn classic_rts_garrison_units_for_id(garrison_id: &str) -> Vec<String> {
     }
 }
 
+fn classic_rts_open_world_route_tiles_for_id(route_id: &str) -> Vec<String> {
+    match route_id {
+        "after_action" | "league-coliseum" => string_vec(["13,3", "12,3", "11,3", "10,2", "9,2"]),
+        _ => string_vec(["13,3", "12,3", "11,3"]),
+    }
+}
+
+fn classic_rts_open_world_panels_for_room(room_id: &str) -> Vec<String> {
+    if room_id == "league-coliseum" {
+        string_vec([
+            "room_panel:league-coliseum",
+            "task_panel:task-fixture-first-route",
+            "combat_panel:league-coliseum",
+            "save_panel:post_rts_restore",
+        ])
+    } else {
+        vec![format!("room_panel:{room_id}")]
+    }
+}
+
 fn classic_rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
     match unit_id {
         "stonebreak_cart" => (9, 3),
@@ -60230,6 +60596,97 @@ fn apply_classic_rts_tier_two_siege_push_runtime(
             first_playable.objective_status =
                 "classic_rts_mirror_city_restoration_complete".to_string();
         }
+        "open_world" => {
+            ensure_classic_rts_mirror_city_restoration_ready(first_playable);
+            first_playable.rts_open_world_route_tile_ids =
+                classic_rts_open_world_route_tiles_for_id(&id);
+            first_playable.rts_open_world_handoff_state = format!("opening:{id}");
+            first_playable.map_scene = "mirror_city_square".to_string();
+            first_playable.current_room_id = "mirror-city-square".to_string();
+            push_unique_string(
+                &mut first_playable.rts_next_action_ids,
+                "resume_world_route",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_open_world:{id}@{source_id}:route={}",
+                    first_playable.rts_open_world_route_tile_ids.join(">")
+                ),
+            );
+            first_playable.objective_status =
+                "classic_rts_open_world_after_action_opening".to_string();
+        }
+        "open_world_route" => {
+            ensure_classic_rts_mirror_city_restoration_ready(first_playable);
+            if first_playable.rts_open_world_route_tile_ids.is_empty() {
+                first_playable.rts_open_world_route_tile_ids =
+                    classic_rts_open_world_route_tiles_for_id(&id);
+            }
+            first_playable.rts_open_world_panel_ids = classic_rts_open_world_panels_for_room(&id);
+            first_playable.rts_open_world_task_ids = string_vec(["task-fixture-first-route"]);
+            first_playable.route_director_task_id = "task-fixture-first-route".to_string();
+            first_playable.route_director_target_room_id = id.clone();
+            first_playable.route_director_path =
+                string_vec(["mirror-city-square", "league-coliseum"]);
+            first_playable.route_director_next_room_id = Some(id.clone());
+            first_playable.rts_open_world_handoff_state = format!("route_ready:{id}");
+            push_history(
+                &mut first_playable.route_director_history,
+                &format!("rts_open_world_after_action:{id}:route_ready"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_open_world_route:{id}@{source_id}:task=task-fixture-first-route"),
+            );
+        }
+        "open_world_resume" => {
+            ensure_classic_rts_mirror_city_restoration_ready(first_playable);
+            if first_playable.rts_open_world_route_tile_ids.is_empty() {
+                first_playable.rts_open_world_route_tile_ids =
+                    classic_rts_open_world_route_tiles_for_id(&id);
+            }
+            if first_playable.rts_open_world_panel_ids.is_empty() {
+                first_playable.rts_open_world_panel_ids =
+                    classic_rts_open_world_panels_for_room(&id);
+            }
+            first_playable.current_room_id = id.clone();
+            first_playable.map_scene = room_map_scene(&id);
+            first_playable.available_room_exits = runtime_room_exits(&id);
+            first_playable.available_task_ids = runtime_room_tasks(&id);
+            first_playable.active_room_npc_ids = runtime_room_npcs(&id);
+            first_playable.route_director_task_id = "task-fixture-first-route".to_string();
+            first_playable.route_director_target_room_id = id.clone();
+            first_playable.route_director_path =
+                string_vec(["mirror-city-square", "league-coliseum"]);
+            first_playable.route_director_next_room_id = None;
+            first_playable.rts_open_world_task_ids = string_vec(["task-fixture-first-route"]);
+            first_playable.rts_open_world_resume_room_id = id.clone();
+            first_playable.rts_open_world_handoff_state = format!("resumed:{id}");
+            first_playable.objective_status = "open_world_after_action_ready".to_string();
+            push_unique_string(
+                &mut first_playable.active_task_ids,
+                "task-fixture-first-route",
+            );
+            push_history(
+                &mut first_playable.route_director_history,
+                &format!("rts_open_world_after_action:{id}:arrived"),
+            );
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "open_world_after_action:+route_resume_ready",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_open_world_resume:{id}@{source_id}:room={id}"),
+            );
+            push_completed_step(first_playable, "classic_rts_open_world_after_action_ready");
+            push_progression_checkpoint(
+                first_playable,
+                "classic_rts_open_world_after_action_ready",
+            );
+            refresh_contextual_action_runtime(first_playable);
+        }
         _ => {
             if first_playable.rts_siege_unit_ids.is_empty() {
                 for unit_id in classic_rts_siege_units_for_id("stonebreak_cart") {
@@ -60379,6 +60836,27 @@ fn ensure_classic_rts_central_keep_breakthrough_ready(
             "keep_hold:final_line@12,4",
             "keep_break:central_keep@13,3",
             "keep_claim:central_keep@13,3",
+        ] {
+            apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
+        }
+    }
+}
+
+fn ensure_classic_rts_mirror_city_restoration_ready(
+    first_playable: &mut NativeFirstPlayableRuntime,
+) {
+    if first_playable.rts_victory_handoff_state != "handoff_ready:mirror_city"
+        || first_playable.rts_match_result_state != "classic_rts_restored:mirror_city"
+        || !first_playable
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "open_world_after_action")
+    {
+        for command in [
+            "restore_city:mirror_city@13,3",
+            "rebuild_core:signal_core@12,3",
+            "assign_garrison:central_keep@13,3",
+            "victory_handoff:mirror_city@13,3",
         ] {
             apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
         }
