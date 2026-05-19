@@ -25,6 +25,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_collision_engagement.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_target_aggro_focus.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_economy_build.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_minimap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -49,6 +50,7 @@ jq -n \
   --slurpfile rts_collision "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-collision-engagement.json" \
   --slurpfile rts_target "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-target-aggro-focus.json" \
   --slurpfile rts_economy "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-economy-build.json" \
+  --slurpfile rts_select "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -75,6 +77,7 @@ jq -n \
       and ok($rts_collision)
       and ok($rts_target)
       and ok($rts_economy)
+      and ok($rts_select)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -159,6 +162,12 @@ jq -n \
       and $rts_economy[0].build_loop_gate == true
       and $rts_economy[0].production_loop_gate == true
       and $rts_economy[0].accepted_input_count == 4
+      and $rts_select[0].live_selection_minimap_input_gate == true
+      and $rts_select[0].selection_box_gate == true
+      and $rts_select[0].control_group_gate == true
+      and $rts_select[0].minimap_command_gate == true
+      and $rts_select[0].split_route_gate == true
+      and $rts_select[0].accepted_input_count == 4
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -183,6 +192,7 @@ jq -n \
       classic_rts_collision_engagement_green: ok($rts_collision),
       classic_rts_target_aggro_focus_green: ok($rts_target),
       classic_rts_economy_build_green: ok($rts_economy),
+      classic_rts_selection_minimap_green: ok($rts_select),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -358,6 +368,22 @@ jq -n \
       rts_economy_build_blueprint_pixel_count: $rts_economy[0].build_blueprint_pixel_count,
       rts_economy_build_progress_pixel_count: $rts_economy[0].build_progress_pixel_count,
       rts_economy_production_queue_pixel_count: $rts_economy[0].production_queue_pixel_count,
+      rts_selection_minimap_accepted_input_count: $rts_select[0].accepted_input_count,
+      rts_selection_box_tile_count: ($rts_select[0].final_selection_box_tile_ids | length),
+      rts_control_group_assignment_count: ($rts_select[0].final_control_group_assignments | length),
+      rts_active_control_group_count: ($rts_select[0].final_active_control_group_ids | length),
+      rts_minimap_command_tile_id: $rts_select[0].final_minimap_command_tile_id,
+      rts_split_route_tile_count: ($rts_select[0].final_group_route_tile_ids | length),
+      rts_selection_minimap_pixel_count: (
+        $rts_select[0].selection_box_pixel_count
+        + $rts_select[0].minimap_command_pixel_count
+        + $rts_select[0].group_two_pixel_count
+        + $rts_select[0].split_route_pixel_count
+      ),
+      rts_selection_box_pixel_count: $rts_select[0].selection_box_pixel_count,
+      rts_minimap_command_pixel_count: $rts_select[0].minimap_command_pixel_count,
+      rts_group_two_pixel_count: $rts_select[0].group_two_pixel_count,
+      rts_split_route_pixel_count: $rts_select[0].split_route_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -453,6 +479,11 @@ jq -n \
       rts_economy_harvest_loop_gate: $rts_economy[0].harvest_loop_gate,
       rts_economy_build_loop_gate: $rts_economy[0].build_loop_gate,
       rts_economy_production_loop_gate: $rts_economy[0].production_loop_gate,
+      rts_selection_minimap_live_input_gate: $rts_select[0].live_selection_minimap_input_gate,
+      rts_selection_box_gate: $rts_select[0].selection_box_gate,
+      rts_control_group_gate: $rts_select[0].control_group_gate,
+      rts_minimap_command_gate: $rts_select[0].minimap_command_gate,
+      rts_split_route_gate: $rts_select[0].split_route_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -495,6 +526,8 @@ jq -n \
       classic_rts_target_aggro_focus_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-target-aggro-focus.ppm",
       classic_rts_economy_build: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-economy-build.json",
       classic_rts_economy_build_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-economy-build.ppm",
+      classic_rts_selection_minimap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.json",
+      classic_rts_selection_minimap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -523,6 +556,7 @@ jq -e '
   and .checks.classic_rts_collision_engagement_green == true
   and .checks.classic_rts_target_aggro_focus_green == true
   and .checks.classic_rts_economy_build_green == true
+  and .checks.classic_rts_selection_minimap_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -694,6 +728,17 @@ jq -e '
   and .headline.rts_economy_build_blueprint_pixel_count > 80
   and .headline.rts_economy_build_progress_pixel_count > 20
   and .headline.rts_economy_production_queue_pixel_count > 1000
+  and .headline.rts_selection_minimap_accepted_input_count == 4
+  and .headline.rts_selection_box_tile_count >= 4
+  and .headline.rts_control_group_assignment_count >= 2
+  and .headline.rts_active_control_group_count >= 2
+  and .headline.rts_minimap_command_tile_id == "9,2"
+  and .headline.rts_split_route_tile_count >= 4
+  and .headline.rts_selection_minimap_pixel_count > 380
+  and .headline.rts_selection_box_pixel_count > 160
+  and .headline.rts_minimap_command_pixel_count > 80
+  and .headline.rts_group_two_pixel_count > 20
+  and .headline.rts_split_route_pixel_count > 120
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -785,6 +830,11 @@ jq -e '
   and .gates.rts_economy_harvest_loop_gate == true
   and .gates.rts_economy_build_loop_gate == true
   and .gates.rts_economy_production_loop_gate == true
+  and .gates.rts_selection_minimap_live_input_gate == true
+  and .gates.rts_selection_box_gate == true
+  and .gates.rts_control_group_gate == true
+  and .gates.rts_minimap_command_gate == true
+  and .gates.rts_split_route_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

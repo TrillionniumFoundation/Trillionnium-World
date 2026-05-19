@@ -166,6 +166,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TARGET_AGGRO_FOCUS_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_target_aggro_focus_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ECONOMY_BUILD_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_economy_build_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_MINIMAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_selection_minimap_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -215,6 +217,10 @@ const CLASSIC_RTS_WORKER_ROUTE_COLOR: u32 = 0xa6f07a;
 const CLASSIC_RTS_DROPOFF_COLOR: u32 = 0x64cfff;
 const CLASSIC_RTS_BUILD_BLUEPRINT_COLOR: u32 = 0xc8e8ff;
 const CLASSIC_RTS_BLUEPRINT_PROGRESS_COLOR: u32 = 0x9fdb72;
+const CLASSIC_RTS_SELECTION_BOX_COLOR: u32 = 0xf6ff7a;
+const CLASSIC_RTS_MINIMAP_COMMAND_COLOR: u32 = 0xff8ac7;
+const CLASSIC_RTS_GROUP_TWO_COLOR: u32 = 0x8fa8ff;
+const CLASSIC_RTS_SPLIT_ROUTE_COLOR: u32 = 0x48f0bd;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1431,6 +1437,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_target_health_percent: u8,
     #[serde(default)]
     pub rts_combat_event_log: Vec<String>,
+    #[serde(default)]
+    pub rts_selection_box_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_control_group_assignments: Vec<String>,
+    #[serde(default)]
+    pub rts_active_control_group_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_minimap_command_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_minimap_command_kind: String,
+    #[serde(default)]
+    pub rts_group_route_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_group_command_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1694,6 +1714,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_active_ability_id: None,
             rts_target_health_percent: 0,
             rts_combat_event_log: Vec::new(),
+            rts_selection_box_tile_ids: Vec::new(),
+            rts_control_group_assignments: Vec::new(),
+            rts_active_control_group_ids: Vec::new(),
+            rts_minimap_command_tile_id: None,
+            rts_minimap_command_kind: String::new(),
+            rts_group_route_tile_ids: Vec::new(),
+            rts_group_command_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -10527,6 +10554,241 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 160,
+        xp: 64,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "box_select",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ),
+        (
+            "minimap_rally",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "minimap:9,2:rally".to_string(),
+            },
+        ),
+        (
+            "group_two",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "2".to_string(),
+            },
+        ),
+        (
+            "split_route",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "6,5:split".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+    let mut action_labels = Vec::new();
+    let mut accepted_input_count = 0_usize;
+    let mut input_sources = HashSet::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_selection_minimap_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS SELECT {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "control_group_id": runtime.rts_control_group_id.clone(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "selection_box_tile_ids": runtime.rts_selection_box_tile_ids.clone(),
+            "control_group_assignments": runtime.rts_control_group_assignments.clone(),
+            "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
+            "minimap_command_tile_id": runtime.rts_minimap_command_tile_id.clone(),
+            "minimap_command_kind": runtime.rts_minimap_command_kind.clone(),
+            "group_route_tile_ids": runtime.rts_group_route_tile_ids.clone(),
+            "group_command_state": runtime.rts_group_command_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let selection_box_pixel_count = count_color(CLASSIC_RTS_SELECTION_BOX_COLOR);
+    let minimap_command_pixel_count = count_color(CLASSIC_RTS_MINIMAP_COMMAND_COLOR);
+    let group_two_pixel_count = count_color(CLASSIC_RTS_GROUP_TWO_COLOR);
+    let split_route_pixel_count = count_color(CLASSIC_RTS_SPLIT_ROUTE_COLOR);
+    let live_selection_minimap_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_selection_minimap_input");
+    let selection_box_gate = runtime.rts_selection_box_tile_ids.len() >= 4
+        && runtime
+            .rts_selection_box_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "5,5")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("box_select:"))
+        && selection_box_pixel_count > 160;
+    let control_group_gate = runtime.rts_control_group_assignments.iter().any(|entry| {
+        entry == "1:player|square_guard_patrol|square_worker_carry|square_creep_wander"
+    }) && runtime
+        .rts_control_group_assignments
+        .iter()
+        .any(|entry| entry == "2:square_guard_patrol|square_creep_wander")
+        && runtime
+            .rts_active_control_group_ids
+            .iter()
+            .any(|group_id| group_id == "1")
+        && runtime
+            .rts_active_control_group_ids
+            .iter()
+            .any(|group_id| group_id == "2")
+        && group_two_pixel_count > 20;
+    let minimap_command_gate = runtime.rts_minimap_command_tile_id.as_deref() == Some("9,2")
+        && runtime.rts_minimap_command_kind == "rally"
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "minimap:rally:9,2")
+        && minimap_command_pixel_count > 80;
+    let split_route_gate = runtime.rts_group_command_state == "split_route:group_2"
+        && runtime.rts_group_route_tile_ids.len() >= 4
+        && runtime
+            .rts_group_route_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "6,4")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("split_route:"))
+        && split_route_pixel_count > 120;
+    let green = write_gate
+        && non_background_pixels > 220_000
+        && live_selection_minimap_input_gate
+        && selection_box_gate
+        && control_group_gate
+        && minimap_command_gate
+        && split_route_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_MINIMAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_selection_minimap_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_control_group_id": runtime.rts_control_group_id,
+        "final_selected_unit_ids": runtime.rts_selected_unit_ids,
+        "final_selection_box_tile_ids": runtime.rts_selection_box_tile_ids,
+        "final_control_group_assignments": runtime.rts_control_group_assignments,
+        "final_active_control_group_ids": runtime.rts_active_control_group_ids,
+        "final_minimap_command_tile_id": runtime.rts_minimap_command_tile_id,
+        "final_minimap_command_kind": runtime.rts_minimap_command_kind,
+        "final_group_route_tile_ids": runtime.rts_group_route_tile_ids,
+        "final_group_command_state": runtime.rts_group_command_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "selection_box_pixel_count": selection_box_pixel_count,
+        "minimap_command_pixel_count": minimap_command_pixel_count,
+        "group_two_pixel_count": group_two_pixel_count,
+        "split_route_pixel_count": split_route_pixel_count,
+        "live_selection_minimap_input_gate": live_selection_minimap_input_gate,
+        "selection_box_gate": selection_box_gate,
+        "control_group_gate": control_group_gate,
+        "minimap_command_gate": minimap_command_gate,
+        "split_route_gate": split_route_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS selection/minimap evidence drives box selection, two control-group assignments, a minimap rally command, and a group split route through apply_live_native_action_with_source before rendering those runtime states through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS selection minimap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -14182,12 +14444,150 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    for tile_id in &runtime.rts_selection_box_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (box_x, box_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                box_x - 23,
+                box_y + tile_h - 9,
+                46,
+                3,
+                CLASSIC_RTS_SELECTION_BOX_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                box_x - 23,
+                box_y + tile_h + 8,
+                46,
+                3,
+                CLASSIC_RTS_SELECTION_BOX_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                box_x - 24,
+                box_y + tile_h - 8,
+                3,
+                18,
+                CLASSIC_RTS_SELECTION_BOX_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                box_x + 21,
+                box_y + tile_h - 8,
+                3,
+                18,
+                CLASSIC_RTS_SELECTION_BOX_COLOR,
+            );
+        }
+    }
+    if !runtime.rts_group_route_tile_ids.is_empty() {
+        let mut previous_screen: Option<(i32, i32)> = None;
+        for tile_id in &runtime.rts_group_route_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (route_x, route_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    route_x,
+                    route_y + tile_h + 2,
+                    12,
+                    5,
+                    CLASSIC_RTS_SPLIT_ROUTE_COLOR,
+                );
+                if let Some((prev_x, prev_y)) = previous_screen {
+                    for step in 0..=6 {
+                        let line_x = prev_x + ((route_x - prev_x) * step) / 6;
+                        let line_y = prev_y + tile_h + ((route_y - prev_y) * step) / 6;
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            line_x - 2,
+                            line_y - 1,
+                            5,
+                            3,
+                            CLASSIC_RTS_SPLIT_ROUTE_COLOR,
+                        );
+                    }
+                }
+                previous_screen = Some((route_x, route_y));
+            }
+        }
+    }
+    if let Some(tile) = runtime
+        .rts_minimap_command_tile_id
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        let (mini_x, mini_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            mini_x - 17,
+            mini_y + tile_h - 24,
+            34,
+            5,
+            CLASSIC_RTS_MINIMAP_COMMAND_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            mini_x - 3,
+            mini_y + tile_h - 38,
+            6,
+            33,
+            CLASSIC_RTS_MINIMAP_COMMAND_COLOR,
+        );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            mini_x,
+            mini_y + tile_h - 6,
+            21,
+            9,
+            CLASSIC_RTS_MINIMAP_COMMAND_COLOR,
+        );
+    }
     let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
     for entity in &selected_units {
         let (unit_x, unit_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, entity.tile);
         classic_draw_iso_rts_selection_marker(
             buffer, width, height, unit_x, unit_y, tile_w, tile_h,
         );
+        if runtime
+            .rts_active_control_group_ids
+            .iter()
+            .any(|group_id| group_id == "2")
+            && runtime
+                .rts_control_group_assignments
+                .iter()
+                .any(|assignment| assignment.starts_with("2:") && assignment.contains(&entity.id))
+        {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                unit_x,
+                unit_y + tile_h + 7,
+                12,
+                5,
+                CLASSIC_RTS_GROUP_TWO_COLOR,
+            );
+        }
         classic_draw_iso_rts_formation_line(
             buffer,
             width,
@@ -15721,6 +16121,62 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_ISO_COMMAND_MARKER_COLOR,
         );
     }
+    if let Some(minimap_tile) = runtime
+        .rts_minimap_command_tile_id
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        let dot_x = map_x + minimap_tile.0.clamp(0, 11) * cell_w;
+        let dot_y = map_y + minimap_tile.1.clamp(0, 7) * cell_h;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            dot_x - 1,
+            dot_y - 1,
+            7,
+            2,
+            CLASSIC_RTS_MINIMAP_COMMAND_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            dot_x + 2,
+            dot_y - 3,
+            2,
+            8,
+            CLASSIC_RTS_MINIMAP_COMMAND_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_selection_box_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w,
+                map_y + tile.1.clamp(0, 7) * cell_h,
+                5,
+                2,
+                CLASSIC_RTS_SELECTION_BOX_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_group_route_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                4,
+                2,
+                CLASSIC_RTS_SPLIT_ROUTE_COLOR,
+            );
+        }
+    }
     for tile in &visible_tiles {
         classic_draw_rect(
             buffer,
@@ -15732,6 +16188,62 @@ fn classic_draw_rts_strategy_overlay(
             4,
             CLASSIC_RTS_MINIMAP_VISION_COLOR,
         );
+    }
+    if let Some(minimap_tile) = runtime
+        .rts_minimap_command_tile_id
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        let dot_x = map_x + minimap_tile.0.clamp(0, 11) * cell_w;
+        let dot_y = map_y + minimap_tile.1.clamp(0, 7) * cell_h;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            dot_x - 1,
+            dot_y - 1,
+            7,
+            2,
+            CLASSIC_RTS_MINIMAP_COMMAND_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            dot_x + 2,
+            dot_y - 3,
+            2,
+            8,
+            CLASSIC_RTS_MINIMAP_COMMAND_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_selection_box_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w,
+                map_y + tile.1.clamp(0, 7) * cell_h,
+                5,
+                2,
+                CLASSIC_RTS_SELECTION_BOX_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_group_route_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                4,
+                2,
+                CLASSIC_RTS_SPLIT_ROUTE_COLOR,
+            );
+        }
     }
 
     let resource_x = panel_x + minimap_w + 8;
@@ -15853,6 +16365,21 @@ fn classic_draw_rts_strategy_overlay(
         1,
         CLASSIC_ISO_CONTROL_GROUP_COLOR,
     );
+    if !runtime.rts_active_control_group_ids.is_empty() {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 119,
+            command_y + 7,
+            &classic_catalog_text_label(
+                &format!("ACTIVE {}", runtime.rts_active_control_group_ids.join("+")),
+                12,
+            ),
+            1,
+            CLASSIC_RTS_GROUP_TWO_COLOR,
+        );
+    }
     let command_label = runtime
         .rts_command_queue
         .iter()
@@ -47556,8 +48083,17 @@ fn classic_rts_default_group_units() -> Vec<String> {
     ])
 }
 
+fn classic_rts_group_two_units() -> Vec<String> {
+    string_vec(["square_guard_patrol", "square_creep_wander"])
+}
+
+fn classic_rts_selection_box_tiles() -> Vec<String> {
+    string_vec(["5,5", "6,5", "5,4", "6,4"])
+}
+
 fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {
-    let mut parts = command_id.splitn(2, ':');
+    let command_payload = command_id.strip_prefix("minimap:").unwrap_or(command_id);
+    let mut parts = command_payload.splitn(2, ':');
     let tile_id = parts
         .next()
         .filter(|value| !value.trim().is_empty())
@@ -47591,6 +48127,8 @@ fn classic_rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String
 fn classic_rts_path_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
     if destination_tile == (8, 4) {
         string_vec(["6,5", "7,5", "8,4"])
+    } else if destination_tile == (9, 2) {
+        string_vec(["6,5", "7,4", "8,3", "9,2"])
     } else {
         classic_rts_line_path_tiles((5, 5), destination_tile)
     }
@@ -47611,6 +48149,8 @@ fn classic_rts_formation_slots_for_destination(
     let (x, y) = destination_tile;
     let slots = match formation {
         "line" => [(x - 1, y), (x, y), (x + 1, y), (x + 2, y)],
+        "rally" => [(x - 1, y + 1), (x, y), (x + 1, y), (x, y + 1)],
+        "split" => [(x - 1, y), (x + 1, y), (x - 1, y + 1), (x + 1, y + 1)],
         "wedge" => [(x, y), (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)],
         _ => [(x, y), (x - 1, y), (x, y + 1), (x + 1, y)],
     };
@@ -47620,6 +48160,8 @@ fn classic_rts_formation_slots_for_destination(
 fn classic_rts_disperse_slots_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
     if destination_tile == (8, 4) {
         string_vec(["6,5", "7,5", "8,4", "8,5"])
+    } else if destination_tile == (6, 5) {
+        string_vec(["5,5", "6,4", "6,6", "7,5"])
     } else {
         Vec::new()
     }
@@ -47715,8 +48257,43 @@ fn apply_classic_rts_select_group_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     group_id: &str,
 ) {
-    first_playable.rts_control_group_id = Some(group_id.to_string());
-    if first_playable.rts_selected_unit_ids.is_empty() {
+    let normalized_group_id = if group_id == "box:frontline" {
+        "1"
+    } else {
+        group_id
+    };
+    first_playable.rts_control_group_id = Some(normalized_group_id.to_string());
+    push_unique_string(
+        &mut first_playable.rts_active_control_group_ids,
+        normalized_group_id,
+    );
+    if group_id == "box:frontline" {
+        first_playable.rts_selected_unit_ids = classic_rts_default_group_units();
+        first_playable.rts_selection_box_tile_ids = classic_rts_selection_box_tiles();
+        push_unique_string(
+            &mut first_playable.rts_control_group_assignments,
+            "1:player|square_guard_patrol|square_worker_carry|square_creep_wander",
+        );
+        first_playable.rts_group_command_state = "box_selected:frontline".to_string();
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "box_select:{}",
+                first_playable.rts_selection_box_tile_ids.join("|")
+            ),
+        );
+    } else if group_id == "2" {
+        first_playable.rts_selected_unit_ids = classic_rts_group_two_units();
+        push_unique_string(
+            &mut first_playable.rts_control_group_assignments,
+            "2:square_guard_patrol|square_creep_wander",
+        );
+        first_playable.rts_group_command_state = "group_2_ready".to_string();
+        push_history(
+            &mut first_playable.rts_command_queue,
+            "assign_group_2:square_guard_patrol|square_creep_wander",
+        );
+    } else if first_playable.rts_selected_unit_ids.is_empty() {
         first_playable.rts_selected_unit_ids = classic_rts_default_group_units();
     }
     first_playable.rts_unit_health_percents = vec![100, 92, 74, 68];
@@ -47727,9 +48304,13 @@ fn apply_classic_rts_select_group_runtime(
     first_playable.rts_fogged_tile_ids = string_vec(["0,0", "1,0", "10,7", "11,7"]);
     push_history(
         &mut first_playable.rts_command_queue,
-        &format!("select_group_{group_id}"),
+        &format!("select_group_{normalized_group_id}"),
     );
-    first_playable.last_feedback = format!("RTS group {group_id} selected");
+    first_playable.last_feedback = if group_id == "box:frontline" {
+        "RTS box selected frontline into group 1".to_string()
+    } else {
+        format!("RTS group {normalized_group_id} selected")
+    };
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
@@ -47833,6 +48414,27 @@ fn apply_classic_rts_move_runtime(
         } else {
             "blocked_detour_spread".to_string()
         };
+        if formation == "rally" {
+            first_playable.rts_minimap_command_tile_id = Some(tile_id.to_string());
+            first_playable.rts_minimap_command_kind = "rally".to_string();
+            first_playable.rts_group_route_tile_ids = first_playable.rts_path_tile_ids.clone();
+            first_playable.rts_group_command_state = format!("minimap_rally:{tile_id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("minimap:rally:{tile_id}"),
+            );
+        } else if formation == "split" {
+            first_playable.rts_group_route_tile_ids =
+                string_vec(["5,5", "6,4", "6,5", "7,5", "6,6"]);
+            first_playable.rts_group_command_state = "split_route:group_2".to_string();
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "split_route:{}",
+                    first_playable.rts_group_route_tile_ids.join(">")
+                ),
+            );
+        }
     }
     push_history(
         &mut first_playable.rts_command_queue,
