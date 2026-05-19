@@ -30,6 +30,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tech_tree.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_projectile_ability.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_ai_skirmish_pressure.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_objective_victory_loop.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -59,6 +60,7 @@ jq -n \
   --slurpfile rts_tech_tree "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.json" \
   --slurpfile rts_projectile "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json" \
   --slurpfile rts_ai "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.json" \
+  --slurpfile rts_objective "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -90,6 +92,7 @@ jq -n \
       and ok($rts_tech_tree)
       and ok($rts_projectile)
       and ok($rts_ai)
+      and ok($rts_objective)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -207,6 +210,13 @@ jq -n \
       and $rts_ai[0].ai_retreat_gate == true
       and $rts_ai[0].player_response_gate == true
       and $rts_ai[0].accepted_input_count == 5
+      and $rts_objective[0].live_objective_input_gate == true
+      and $rts_objective[0].objective_marker_gate == true
+      and $rts_objective[0].capture_progress_gate == true
+      and $rts_objective[0].victory_resolution_gate == true
+      and $rts_objective[0].defeat_pressure_gate == true
+      and $rts_objective[0].extraction_gate == true
+      and $rts_objective[0].accepted_input_count == 6
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -236,6 +246,7 @@ jq -n \
       classic_rts_tech_tree_green: ok($rts_tech_tree),
       classic_rts_projectile_ability_green: ok($rts_projectile),
       classic_rts_ai_skirmish_pressure_green: ok($rts_ai),
+      classic_rts_objective_victory_loop_green: ok($rts_objective),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -503,6 +514,26 @@ jq -n \
       rts_ai_skirmish_counter_pixel_count: $rts_ai[0].ai_counter_pixel_count,
       rts_ai_skirmish_retreat_pixel_count: $rts_ai[0].ai_retreat_pixel_count,
       rts_ai_skirmish_pressure_bar_pixel_count: $rts_ai[0].ai_pressure_bar_pixel_count,
+      rts_objective_victory_loop_accepted_input_count: $rts_objective[0].accepted_input_count,
+      rts_objective_victory_loop_tile_count: ($rts_objective[0].final_objective_tile_ids | length),
+      rts_objective_victory_loop_capture_percent: $rts_objective[0].final_objective_capture_percent,
+      rts_objective_victory_loop_owner_state: $rts_objective[0].final_objective_owner_state,
+      rts_objective_victory_loop_result_state: $rts_objective[0].final_objective_result_state,
+      rts_objective_victory_loop_extraction_tile_id: $rts_objective[0].final_objective_extraction_tile_id,
+      rts_objective_victory_loop_defeat_risk_percent: $rts_objective[0].final_defeat_risk_percent,
+      rts_objective_victory_loop_ai_pressure_percent: $rts_objective[0].final_ai_pressure_percent,
+      rts_objective_victory_loop_pixel_count: (
+        $rts_objective[0].objective_pixel_count
+        + $rts_objective[0].capture_bar_pixel_count
+        + $rts_objective[0].victory_pixel_count
+        + $rts_objective[0].defeat_risk_pixel_count
+        + $rts_objective[0].extraction_pixel_count
+      ),
+      rts_objective_victory_loop_objective_pixel_count: $rts_objective[0].objective_pixel_count,
+      rts_objective_victory_loop_capture_bar_pixel_count: $rts_objective[0].capture_bar_pixel_count,
+      rts_objective_victory_loop_victory_pixel_count: $rts_objective[0].victory_pixel_count,
+      rts_objective_victory_loop_defeat_risk_pixel_count: $rts_objective[0].defeat_risk_pixel_count,
+      rts_objective_victory_loop_extraction_pixel_count: $rts_objective[0].extraction_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -626,6 +657,12 @@ jq -n \
       rts_ai_skirmish_pressure_resolution_gate: $rts_ai[0].ai_pressure_resolution_gate,
       rts_ai_skirmish_pressure_retreat_gate: $rts_ai[0].ai_retreat_gate,
       rts_ai_skirmish_player_response_gate: $rts_ai[0].player_response_gate,
+      rts_objective_victory_loop_live_input_gate: $rts_objective[0].live_objective_input_gate,
+      rts_objective_victory_loop_marker_gate: $rts_objective[0].objective_marker_gate,
+      rts_objective_victory_loop_capture_gate: $rts_objective[0].capture_progress_gate,
+      rts_objective_victory_loop_victory_gate: $rts_objective[0].victory_resolution_gate,
+      rts_objective_victory_loop_defeat_pressure_gate: $rts_objective[0].defeat_pressure_gate,
+      rts_objective_victory_loop_extraction_gate: $rts_objective[0].extraction_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -678,6 +715,8 @@ jq -n \
       classic_rts_projectile_ability_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.ppm",
       classic_rts_ai_skirmish_pressure: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.json",
       classic_rts_ai_skirmish_pressure_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.ppm",
+      classic_rts_objective_victory_loop: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.json",
+      classic_rts_objective_victory_loop_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -711,6 +750,7 @@ jq -e '
   and .checks.classic_rts_tech_tree_green == true
   and .checks.classic_rts_projectile_ability_green == true
   and .checks.classic_rts_ai_skirmish_pressure_green == true
+  and .checks.classic_rts_objective_victory_loop_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -946,6 +986,20 @@ jq -e '
   and .headline.rts_ai_skirmish_counter_pixel_count > 80
   and .headline.rts_ai_skirmish_retreat_pixel_count > 40
   and .headline.rts_ai_skirmish_pressure_bar_pixel_count > 20
+  and .headline.rts_objective_victory_loop_accepted_input_count == 6
+  and .headline.rts_objective_victory_loop_tile_count >= 3
+  and .headline.rts_objective_victory_loop_capture_percent == 100
+  and .headline.rts_objective_victory_loop_owner_state == "player:relay_beacon"
+  and .headline.rts_objective_victory_loop_result_state == "victory:relay_beacon_extracted"
+  and .headline.rts_objective_victory_loop_extraction_tile_id == "9,2"
+  and .headline.rts_objective_victory_loop_defeat_risk_percent <= 8
+  and .headline.rts_objective_victory_loop_ai_pressure_percent <= 34
+  and .headline.rts_objective_victory_loop_pixel_count > 180
+  and .headline.rts_objective_victory_loop_objective_pixel_count > 80
+  and .headline.rts_objective_victory_loop_capture_bar_pixel_count > 20
+  and .headline.rts_objective_victory_loop_victory_pixel_count > 20
+  and .headline.rts_objective_victory_loop_defeat_risk_pixel_count > 5
+  and .headline.rts_objective_victory_loop_extraction_pixel_count > 40
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -1065,6 +1119,12 @@ jq -e '
   and .gates.rts_ai_skirmish_pressure_resolution_gate == true
   and .gates.rts_ai_skirmish_pressure_retreat_gate == true
   and .gates.rts_ai_skirmish_player_response_gate == true
+  and .gates.rts_objective_victory_loop_live_input_gate == true
+  and .gates.rts_objective_victory_loop_marker_gate == true
+  and .gates.rts_objective_victory_loop_capture_gate == true
+  and .gates.rts_objective_victory_loop_victory_gate == true
+  and .gates.rts_objective_victory_loop_defeat_pressure_gate == true
+  and .gates.rts_objective_victory_loop_extraction_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

@@ -176,6 +176,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PROJECTILE_ABILITY_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_projectile_ability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_AI_SKIRMISH_PRESSURE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_ai_skirmish_pressure_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_VICTORY_LOOP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_objective_victory_loop_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -248,6 +250,11 @@ const CLASSIC_RTS_AI_PRESSURE_COLOR: u32 = 0xff9b54;
 const CLASSIC_RTS_AI_COUNTER_COLOR: u32 = 0x72f5d2;
 const CLASSIC_RTS_AI_RETREAT_COLOR: u32 = 0xb6d7ff;
 const CLASSIC_RTS_AI_PRESSURE_BAR_COLOR: u32 = 0xffc44d;
+const CLASSIC_RTS_OBJECTIVE_COLOR: u32 = 0x88f070;
+const CLASSIC_RTS_CAPTURE_BAR_COLOR: u32 = 0xd7ff78;
+const CLASSIC_RTS_VICTORY_COLOR: u32 = 0xfff07a;
+const CLASSIC_RTS_DEFEAT_RISK_COLOR: u32 = 0xff5a5a;
+const CLASSIC_RTS_EXTRACTION_COLOR: u32 = 0x7bdcff;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1540,6 +1547,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_ai_response_log: Vec<String>,
     #[serde(default)]
     pub rts_ai_skirmish_state: String,
+    #[serde(default)]
+    pub rts_objective_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_objective_capture_percent: u8,
+    #[serde(default)]
+    pub rts_objective_owner_state: String,
+    #[serde(default)]
+    pub rts_objective_result_state: String,
+    #[serde(default)]
+    pub rts_objective_score_delta_log: Vec<String>,
+    #[serde(default)]
+    pub rts_objective_extraction_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_defeat_risk_percent: u8,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1841,6 +1862,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_ai_pressure_percent: 0,
             rts_ai_response_log: Vec::new(),
             rts_ai_skirmish_state: String::new(),
+            rts_objective_tile_ids: Vec::new(),
+            rts_objective_capture_percent: 0,
+            rts_objective_owner_state: String::new(),
+            rts_objective_result_state: String::new(),
+            rts_objective_score_delta_log: Vec::new(),
+            rts_objective_extraction_tile_id: None,
+            rts_defeat_risk_percent: 0,
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -11892,6 +11920,232 @@ pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str)
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 220,
+        xp: 180,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_task_force",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "spawn_objective_pressure",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "ai:skirmish_wave".to_string(),
+            },
+        ),
+        (
+            "engage_objective_guard",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            },
+        ),
+        (
+            "break_defeat_window",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "guard_break".to_string(),
+            },
+        ),
+        (
+            "claim_relay_beacon",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "objective:claim:relay_beacon@6,5".to_string(),
+            },
+        ),
+        (
+            "extract_after_victory",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "objective:extract:relay_beacon@9,2".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_objective_victory_loop_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS OBJ {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "objective_tile_ids": runtime.rts_objective_tile_ids.clone(),
+            "objective_capture_percent": runtime.rts_objective_capture_percent,
+            "objective_owner_state": runtime.rts_objective_owner_state.clone(),
+            "objective_result_state": runtime.rts_objective_result_state.clone(),
+            "objective_extraction_tile_id": runtime.rts_objective_extraction_tile_id.clone(),
+            "objective_score_delta_log": runtime.rts_objective_score_delta_log.clone(),
+            "defeat_risk_percent": runtime.rts_defeat_risk_percent,
+            "ai_pressure_percent": runtime.rts_ai_pressure_percent,
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let victory_pixel_count = count_color(CLASSIC_RTS_VICTORY_COLOR);
+    let defeat_risk_pixel_count = count_color(CLASSIC_RTS_DEFEAT_RISK_COLOR);
+    let extraction_pixel_count = count_color(CLASSIC_RTS_EXTRACTION_COLOR);
+    let live_objective_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_objective_victory_loop_input");
+    let objective_marker_gate =
+        runtime.rts_objective_tile_ids.len() >= 3 && objective_pixel_count > 80;
+    let capture_progress_gate =
+        runtime.rts_objective_capture_percent == 100 && capture_bar_pixel_count > 20;
+    let victory_resolution_gate = runtime.rts_objective_result_state
+        == "victory:relay_beacon_extracted"
+        && runtime
+            .rts_objective_score_delta_log
+            .iter()
+            .any(|entry| entry == "victory:+250xp:+120g")
+        && victory_pixel_count > 20;
+    let defeat_pressure_gate = runtime.rts_ai_pressure_percent <= 34
+        && runtime.rts_defeat_risk_percent <= 8
+        && defeat_risk_pixel_count > 5;
+    let extraction_gate = runtime.rts_objective_extraction_tile_id.as_deref() == Some("9,2")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "extract:relay_beacon@9,2")
+        && extraction_pixel_count > 40;
+    let green = write_gate
+        && non_background_pixels > 250_000
+        && live_objective_input_gate
+        && objective_marker_gate
+        && capture_progress_gate
+        && victory_resolution_gate
+        && defeat_pressure_gate
+        && extraction_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_VICTORY_LOOP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_objective_victory_loop_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_objective_tile_ids": runtime.rts_objective_tile_ids,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_objective_owner_state": runtime.rts_objective_owner_state,
+        "final_objective_result_state": runtime.rts_objective_result_state,
+        "final_objective_score_delta_log": runtime.rts_objective_score_delta_log,
+        "final_objective_extraction_tile_id": runtime.rts_objective_extraction_tile_id,
+        "final_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "victory_pixel_count": victory_pixel_count,
+        "defeat_risk_pixel_count": defeat_risk_pixel_count,
+        "extraction_pixel_count": extraction_pixel_count,
+        "live_objective_input_gate": live_objective_input_gate,
+        "objective_marker_gate": objective_marker_gate,
+        "capture_progress_gate": capture_progress_gate,
+        "victory_resolution_gate": victory_resolution_gate,
+        "defeat_pressure_gate": defeat_pressure_gate,
+        "extraction_gate": extraction_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS objective victory loop evidence drives AI pressure, player counterplay, objective capture, extraction, victory scoring, and defeat-risk reduction through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS objective victory loop evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -16043,6 +16297,88 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_AI_RETREAT_COLOR,
         );
     }
+    for tile_id in &runtime.rts_objective_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (objective_x, objective_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                objective_x,
+                objective_y + tile_h - 9,
+                24,
+                9,
+                CLASSIC_RTS_OBJECTIVE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                objective_x - 12,
+                objective_y + tile_h - 42,
+                24,
+                22,
+                CLASSIC_RTS_OBJECTIVE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                objective_x - 16,
+                objective_y + tile_h - 47,
+                (runtime.rts_objective_capture_percent.min(100) as i32 * 32) / 100,
+                4,
+                CLASSIC_RTS_CAPTURE_BAR_COLOR,
+            );
+        }
+    }
+    if runtime.rts_objective_result_state.starts_with("victory:") {
+        for tile_id in &runtime.rts_objective_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (victory_x, victory_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    victory_x,
+                    victory_y + tile_h - 18,
+                    30,
+                    11,
+                    CLASSIC_RTS_VICTORY_COLOR,
+                );
+            }
+        }
+    }
+    if let Some(extraction_tile) = runtime
+        .rts_objective_extraction_tile_id
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        let (extract_x, extract_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, extraction_tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            extract_x,
+            extract_y + tile_h - 7,
+            19,
+            7,
+            CLASSIC_RTS_EXTRACTION_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            extract_x - 10,
+            extract_y + tile_h - 36,
+            20,
+            18,
+            CLASSIC_RTS_EXTRACTION_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -18284,6 +18620,62 @@ fn classic_draw_rts_strategy_overlay(
             (runtime.rts_ai_pressure_percent.min(100) as i32 * 62) / 100,
             4,
             CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
+        );
+    }
+    if runtime.rts_objective_capture_percent > 0 {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 92,
+            tactical_y + 55,
+            "OBJ",
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 114,
+            tactical_y + 56,
+            50,
+            4,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 114,
+            tactical_y + 56,
+            (runtime.rts_objective_capture_percent.min(100) as i32 * 50) / 100,
+            4,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+    }
+    if runtime.rts_defeat_risk_percent > 0 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 166,
+            tactical_y + 56,
+            (runtime.rts_defeat_risk_percent.min(100) as i32 * 24) / 100,
+            4,
+            CLASSIC_RTS_DEFEAT_RISK_COLOR,
+        );
+    }
+    if runtime.rts_objective_result_state.starts_with("victory:") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 166,
+            tactical_y + 61,
+            24,
+            5,
+            CLASSIC_RTS_VICTORY_COLOR,
         );
     }
     for (index, threat) in runtime.rts_threat_level_percents.iter().take(3).enumerate() {
@@ -50009,6 +50401,24 @@ fn classic_rts_ai_counter_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
     }
 }
 
+fn classic_rts_objective_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("claim", command));
+    let (objective_id, tile_id) = payload.split_once('@').unwrap_or((payload, "6,5"));
+    (
+        kind.to_string(),
+        objective_id.to_string(),
+        tile_id.to_string(),
+    )
+}
+
+fn classic_rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
+    if objective_id == "relay_beacon" {
+        string_vec(["6,5", "6,4", "7,5"])
+    } else {
+        vec![tile_id.to_string()]
+    }
+}
+
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
     match node_id {
         "gold_vein" => (3, 3),
@@ -50208,6 +50618,80 @@ fn apply_classic_rts_ai_skirmish_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_objective_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    objective_command: &str,
+) {
+    if first_playable.rts_control_group_id.is_none() {
+        apply_classic_rts_select_group_runtime(first_playable, "1");
+    }
+    let (kind, objective_id, tile_id) = classic_rts_objective_parts(objective_command);
+    first_playable.rts_objective_tile_ids =
+        classic_rts_objective_tiles_for_id(&objective_id, &tile_id);
+    for objective_tile in first_playable.rts_objective_tile_ids.clone() {
+        push_unique_string(&mut first_playable.rts_visible_tile_ids, &objective_tile);
+    }
+    first_playable.rts_command_destination_tile = Some(tile_id.clone());
+    match kind.as_str() {
+        "claim" => {
+            first_playable.rts_objective_capture_percent = 100;
+            first_playable.rts_objective_owner_state = format!("player:{objective_id}");
+            first_playable.rts_objective_result_state = format!("held:{objective_id}");
+            first_playable.rts_defeat_risk_percent = first_playable.rts_ai_pressure_percent.min(34);
+            push_history(
+                &mut first_playable.rts_objective_score_delta_log,
+                "capture:+75xp",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("objective_claim:{objective_id}@{tile_id}"),
+            );
+        }
+        "extract" => {
+            first_playable.rts_objective_capture_percent = 100;
+            first_playable.rts_objective_owner_state = format!("player:{objective_id}");
+            first_playable.rts_objective_result_state = format!("victory:{objective_id}_extracted");
+            first_playable.rts_objective_extraction_tile_id = Some(tile_id.clone());
+            first_playable.rts_defeat_risk_percent = 8;
+            first_playable.rts_ai_pressure_percent = first_playable.rts_ai_pressure_percent.min(34);
+            first_playable.xp = first_playable.xp.saturating_add(250);
+            first_playable.coins = first_playable.coins.saturating_add(120);
+            push_history(
+                &mut first_playable.rts_objective_score_delta_log,
+                "victory:+250xp:+120g",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("extract:{objective_id}@{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("victory:{objective_id}"),
+            );
+            push_completed_step(first_playable, "classic_rts_objective_victory");
+            push_progression_checkpoint(first_playable, "classic_rts_objective_victory");
+            first_playable.objective_status = "classic_rts_objective_victory_complete".to_string();
+        }
+        _ => {
+            first_playable.rts_objective_capture_percent =
+                first_playable.rts_objective_capture_percent.max(42);
+            first_playable.rts_objective_owner_state = format!("contested:{objective_id}");
+            first_playable.rts_objective_result_state = format!("contested:{objective_id}");
+            first_playable.rts_defeat_risk_percent = first_playable.rts_ai_pressure_percent.max(62);
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("objective_hold:{objective_id}@{tile_id}"),
+            );
+        }
+    }
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("objective:{kind}:{objective_id}@{tile_id}"),
+    );
+    first_playable.last_feedback = format!("RTS objective {kind}: {objective_id} at {tile_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -50216,7 +50700,9 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_select_group_runtime(first_playable, "1");
     }
     push_unique_string(&mut first_playable.rts_production_queue, queue_id);
-    if let Some(pressure_id) = queue_id.strip_prefix("ai:") {
+    if let Some(objective_command) = queue_id.strip_prefix("objective:") {
+        apply_classic_rts_objective_runtime(first_playable, objective_command);
+    } else if let Some(pressure_id) = queue_id.strip_prefix("ai:") {
         apply_classic_rts_ai_skirmish_runtime(first_playable, pressure_id);
     } else if let Some(faction_id) = queue_id.strip_prefix("faction:") {
         first_playable.rts_faction_id = Some(faction_id.to_string());
