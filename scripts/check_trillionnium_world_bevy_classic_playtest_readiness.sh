@@ -36,6 +36,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_army_production_rally.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_base_assault_resolution.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_battle_aftermath.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -71,6 +72,7 @@ jq -n \
   --slurpfile rts_enemy_base "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.json" \
   --slurpfile rts_army "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-army-production-rally.json" \
   --slurpfile rts_base_assault "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-base-assault-resolution.json" \
+  --slurpfile rts_aftermath "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-battle-aftermath.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -269,6 +271,14 @@ jq -n \
       and $rts_base_assault[0].breach_resolution_gate == true
       and $rts_base_assault[0].reward_gate == true
       and $rts_base_assault[0].accepted_input_count == 9
+      and $rts_aftermath[0].live_aftermath_input_gate == true
+      and $rts_aftermath[0].assault_dependency_gate == true
+      and $rts_aftermath[0].destruction_gate == true
+      and $rts_aftermath[0].veteran_gate == true
+      and $rts_aftermath[0].match_result_gate == true
+      and $rts_aftermath[0].next_action_gate == true
+      and $rts_aftermath[0].reward_gate == true
+      and $rts_aftermath[0].accepted_input_count == 12
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -304,6 +314,7 @@ jq -n \
       classic_rts_enemy_base_tech_pressure_green: ok($rts_enemy_base),
       classic_rts_army_production_rally_green: ok($rts_army),
       classic_rts_base_assault_resolution_green: ok($rts_base_assault),
+      classic_rts_battle_aftermath_green: ok($rts_aftermath),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -688,6 +699,28 @@ jq -n \
       rts_base_assault_resolution_breach_pixel_count: $rts_base_assault[0].breach_pixel_count,
       rts_base_assault_resolution_enemy_base_health_pixel_count: $rts_base_assault[0].enemy_base_health_pixel_count,
       rts_base_assault_resolution_assault_reward_pixel_count: $rts_base_assault[0].assault_reward_pixel_count,
+      rts_battle_aftermath_accepted_input_count: $rts_aftermath[0].accepted_input_count,
+      rts_battle_aftermath_destroyed_structure_count: ($rts_aftermath[0].final_destroyed_structure_ids | length),
+      rts_battle_aftermath_debris_tile_count: ($rts_aftermath[0].final_debris_tile_ids | length),
+      rts_battle_aftermath_smoke_tile_count: ($rts_aftermath[0].final_smoke_tile_ids | length),
+      rts_battle_aftermath_veteran_unit_count: ($rts_aftermath[0].final_veteran_unit_ids | length),
+      rts_battle_aftermath_veteran_log_count: ($rts_aftermath[0].final_veteran_level_log | length),
+      rts_battle_aftermath_growth_level: $rts_aftermath[0].final_growth_level,
+      rts_battle_aftermath_match_result_state: $rts_aftermath[0].final_match_result_state,
+      rts_battle_aftermath_next_action_count: ($rts_aftermath[0].final_next_action_ids | length),
+      rts_battle_aftermath_next_extraction_tile: $rts_aftermath[0].final_objective_extraction_tile_id,
+      rts_battle_aftermath_pixel_count: (
+        $rts_aftermath[0].debris_pixel_count
+        + $rts_aftermath[0].smoke_pixel_count
+        + $rts_aftermath[0].veteran_pixel_count
+        + $rts_aftermath[0].match_result_pixel_count
+        + $rts_aftermath[0].next_action_pixel_count
+      ),
+      rts_battle_aftermath_debris_pixel_count: $rts_aftermath[0].debris_pixel_count,
+      rts_battle_aftermath_smoke_pixel_count: $rts_aftermath[0].smoke_pixel_count,
+      rts_battle_aftermath_veteran_pixel_count: $rts_aftermath[0].veteran_pixel_count,
+      rts_battle_aftermath_match_result_pixel_count: $rts_aftermath[0].match_result_pixel_count,
+      rts_battle_aftermath_next_action_pixel_count: $rts_aftermath[0].next_action_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -849,6 +882,13 @@ jq -n \
       rts_base_assault_resolution_enemy_base_health_gate: $rts_base_assault[0].enemy_base_health_gate,
       rts_base_assault_resolution_breach_gate: $rts_base_assault[0].breach_resolution_gate,
       rts_base_assault_resolution_reward_gate: $rts_base_assault[0].reward_gate,
+      rts_battle_aftermath_live_input_gate: $rts_aftermath[0].live_aftermath_input_gate,
+      rts_battle_aftermath_assault_dependency_gate: $rts_aftermath[0].assault_dependency_gate,
+      rts_battle_aftermath_destruction_gate: $rts_aftermath[0].destruction_gate,
+      rts_battle_aftermath_veteran_gate: $rts_aftermath[0].veteran_gate,
+      rts_battle_aftermath_match_result_gate: $rts_aftermath[0].match_result_gate,
+      rts_battle_aftermath_next_action_gate: $rts_aftermath[0].next_action_gate,
+      rts_battle_aftermath_reward_gate: $rts_aftermath[0].reward_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -913,6 +953,8 @@ jq -n \
       classic_rts_army_production_rally_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-army-production-rally.ppm",
       classic_rts_base_assault_resolution: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-base-assault-resolution.json",
       classic_rts_base_assault_resolution_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-base-assault-resolution.ppm",
+      classic_rts_battle_aftermath: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-battle-aftermath.json",
+      classic_rts_battle_aftermath_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-battle-aftermath.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -952,6 +994,7 @@ jq -e '
   and .checks.classic_rts_enemy_base_tech_pressure_green == true
   and .checks.classic_rts_army_production_rally_green == true
   and .checks.classic_rts_base_assault_resolution_green == true
+  and .checks.classic_rts_battle_aftermath_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1271,6 +1314,22 @@ jq -e '
   and .headline.rts_base_assault_resolution_breach_pixel_count > 80
   and .headline.rts_base_assault_resolution_enemy_base_health_pixel_count > 40
   and .headline.rts_base_assault_resolution_assault_reward_pixel_count > 8
+  and .headline.rts_battle_aftermath_accepted_input_count == 12
+  and .headline.rts_battle_aftermath_destroyed_structure_count >= 1
+  and .headline.rts_battle_aftermath_debris_tile_count >= 4
+  and .headline.rts_battle_aftermath_smoke_tile_count >= 3
+  and .headline.rts_battle_aftermath_veteran_unit_count >= 3
+  and .headline.rts_battle_aftermath_veteran_log_count >= 3
+  and .headline.rts_battle_aftermath_growth_level >= 2
+  and .headline.rts_battle_aftermath_match_result_state == "victory_ready:secure_expansion"
+  and .headline.rts_battle_aftermath_next_action_count >= 3
+  and .headline.rts_battle_aftermath_next_extraction_tile == "9,2"
+  and .headline.rts_battle_aftermath_pixel_count > 240
+  and .headline.rts_battle_aftermath_debris_pixel_count > 100
+  and .headline.rts_battle_aftermath_smoke_pixel_count > 60
+  and .headline.rts_battle_aftermath_veteran_pixel_count > 40
+  and .headline.rts_battle_aftermath_match_result_pixel_count > 20
+  and .headline.rts_battle_aftermath_next_action_pixel_count > 20
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -1428,6 +1487,13 @@ jq -e '
   and .gates.rts_base_assault_resolution_enemy_base_health_gate == true
   and .gates.rts_base_assault_resolution_breach_gate == true
   and .gates.rts_base_assault_resolution_reward_gate == true
+  and .gates.rts_battle_aftermath_live_input_gate == true
+  and .gates.rts_battle_aftermath_assault_dependency_gate == true
+  and .gates.rts_battle_aftermath_destruction_gate == true
+  and .gates.rts_battle_aftermath_veteran_gate == true
+  and .gates.rts_battle_aftermath_match_result_gate == true
+  and .gates.rts_battle_aftermath_next_action_gate == true
+  and .gates.rts_battle_aftermath_reward_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

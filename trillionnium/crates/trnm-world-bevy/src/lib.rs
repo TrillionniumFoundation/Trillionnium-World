@@ -188,6 +188,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ARMY_PRODUCTION_RALLY_CONTRACT: &s
     "trillionnium_world_bevy_classic_rts_army_production_rally_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BASE_ASSAULT_RESOLUTION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_base_assault_resolution_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BATTLE_AFTERMATH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_battle_aftermath_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -288,6 +290,11 @@ const CLASSIC_RTS_BASE_ASSAULT_PATH_COLOR: u32 = 0xff8e5f;
 const CLASSIC_RTS_BASE_BREACH_COLOR: u32 = 0xff4f3a;
 const CLASSIC_RTS_ENEMY_BASE_HEALTH_COLOR: u32 = 0xff6d47;
 const CLASSIC_RTS_ASSAULT_REWARD_COLOR: u32 = 0xd7ff77;
+const CLASSIC_RTS_DEBRIS_COLOR: u32 = 0x9b7d61;
+const CLASSIC_RTS_SMOKE_COLOR: u32 = 0x6d7580;
+const CLASSIC_RTS_VETERAN_COLOR: u32 = 0xfff4a8;
+const CLASSIC_RTS_MATCH_RESULT_COLOR: u32 = 0x8ff7ff;
+const CLASSIC_RTS_NEXT_ACTION_COLOR: u32 = 0x78ff9a;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1662,6 +1669,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_base_assault_result_state: String,
     #[serde(default)]
     pub rts_base_assault_reward_log: Vec<String>,
+    #[serde(default)]
+    pub rts_aftermath_destroyed_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_aftermath_debris_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_aftermath_smoke_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_veteran_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_veteran_level_log: Vec<String>,
+    #[serde(default)]
+    pub rts_match_result_state: String,
+    #[serde(default)]
+    pub rts_next_action_ids: Vec<String>,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -2004,6 +2025,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_base_breach_percent: 0,
             rts_base_assault_result_state: String::new(),
             rts_base_assault_reward_log: Vec::new(),
+            rts_aftermath_destroyed_structure_ids: Vec::new(),
+            rts_aftermath_debris_tile_ids: Vec::new(),
+            rts_aftermath_smoke_tile_ids: Vec::new(),
+            rts_veteran_unit_ids: Vec::new(),
+            rts_veteran_level_log: Vec::new(),
+            rts_match_result_state: String::new(),
+            rts_next_action_ids: Vec::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -13442,6 +13470,293 @@ pub fn native_classic_rts_base_assault_resolution_evidence_json(preview_path: &s
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 4;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 520,
+        xp: 420,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 5,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_assault_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "raise_supply_cap",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:supply:field_lodge@6,4".to_string(),
+            },
+        ),
+        (
+            "train_guard_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:guard_pair@training_hall".to_string(),
+            },
+        ),
+        (
+            "train_wayfinder_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:wayfinder_pair@signal_spire".to_string(),
+            },
+        ),
+        (
+            "set_forward_rally",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:rally:forward_watch@7,4".to_string(),
+            },
+        ),
+        (
+            "assign_control_group",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:assign:control_group_3@forward_watch".to_string(),
+            },
+        ),
+        (
+            "siege_move",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "10,3:siege".to_string(),
+            },
+        ),
+        (
+            "attack_enemy_barracks",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "enemy_barracks".to_string(),
+            },
+        ),
+        (
+            "breach_enemy_barracks",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "assault:breach:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "destroy_enemy_barracks",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:destroy:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "promote_veterans",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:promote:control_group_3@10,3".to_string(),
+            },
+        ),
+        (
+            "surface_next_action",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:next:secure_expansion@9,2".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_battle_aftermath_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS AFTER {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "destroyed_structure_ids": runtime.rts_aftermath_destroyed_structure_ids.clone(),
+            "debris_tile_ids": runtime.rts_aftermath_debris_tile_ids.clone(),
+            "smoke_tile_ids": runtime.rts_aftermath_smoke_tile_ids.clone(),
+            "veteran_unit_ids": runtime.rts_veteran_unit_ids.clone(),
+            "veteran_level_log": runtime.rts_veteran_level_log.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "next_action_ids": runtime.rts_next_action_ids.clone(),
+            "base_assault_result_state": runtime.rts_base_assault_result_state.clone(),
+            "base_assault_reward_log": runtime.rts_base_assault_reward_log.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let debris_pixel_count = count_color(CLASSIC_RTS_DEBRIS_COLOR);
+    let smoke_pixel_count = count_color(CLASSIC_RTS_SMOKE_COLOR);
+    let veteran_pixel_count = count_color(CLASSIC_RTS_VETERAN_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let next_action_pixel_count = count_color(CLASSIC_RTS_NEXT_ACTION_COLOR);
+    let assault_reward_pixel_count = count_color(CLASSIC_RTS_ASSAULT_REWARD_COLOR);
+    let live_aftermath_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_battle_aftermath_input");
+    let assault_dependency_gate = runtime.rts_base_breach_percent == 100
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "base_assault:breach:enemy_barracks@10,3");
+    let destruction_gate = runtime
+        .rts_aftermath_destroyed_structure_ids
+        .iter()
+        .any(|id| id == "enemy_barracks")
+        && runtime.rts_aftermath_debris_tile_ids.len() >= 4
+        && runtime.rts_aftermath_smoke_tile_ids.len() >= 3
+        && runtime.rts_enemy_structure_health_percents.contains(&0)
+        && debris_pixel_count > 100
+        && smoke_pixel_count > 60;
+    let veteran_gate = runtime.rts_veteran_unit_ids.len() >= 3
+        && runtime.rts_veteran_level_log.len() >= 3
+        && runtime.growth_level >= 2
+        && veteran_pixel_count > 40;
+    let match_result_gate = runtime.rts_match_result_state == "victory_ready:secure_expansion"
+        && runtime.rts_base_assault_result_state == "destroyed:enemy_barracks"
+        && match_result_pixel_count > 20;
+    let next_action_gate = runtime.rts_next_action_ids.len() >= 3
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "secure_expansion")
+        && runtime.rts_objective_extraction_tile_id.as_deref() == Some("9,2")
+        && next_action_pixel_count > 20;
+    let reward_gate = runtime
+        .rts_base_assault_reward_log
+        .iter()
+        .any(|entry| entry == "aftermath:+420xp:+240g")
+        && runtime.rts_base_assault_reward_log.len() >= 3
+        && assault_reward_pixel_count > 8;
+    let green = write_gate
+        && non_background_pixels > 450_000
+        && live_aftermath_input_gate
+        && assault_dependency_gate
+        && destruction_gate
+        && veteran_gate
+        && match_result_gate
+        && next_action_gate
+        && reward_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BATTLE_AFTERMATH_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_battle_aftermath_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_army_spawned_unit_ids": runtime.rts_army_spawned_unit_ids,
+        "final_destroyed_structure_ids": runtime.rts_aftermath_destroyed_structure_ids,
+        "final_debris_tile_ids": runtime.rts_aftermath_debris_tile_ids,
+        "final_smoke_tile_ids": runtime.rts_aftermath_smoke_tile_ids,
+        "final_veteran_unit_ids": runtime.rts_veteran_unit_ids,
+        "final_veteran_level_log": runtime.rts_veteran_level_log,
+        "final_growth_level": runtime.growth_level,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_next_action_ids": runtime.rts_next_action_ids,
+        "final_objective_extraction_tile_id": runtime.rts_objective_extraction_tile_id,
+        "final_base_breach_percent": runtime.rts_base_breach_percent,
+        "final_base_assault_result_state": runtime.rts_base_assault_result_state,
+        "final_base_assault_reward_log": runtime.rts_base_assault_reward_log,
+        "final_enemy_structure_health_percents": runtime.rts_enemy_structure_health_percents,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "debris_pixel_count": debris_pixel_count,
+        "smoke_pixel_count": smoke_pixel_count,
+        "veteran_pixel_count": veteran_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "next_action_pixel_count": next_action_pixel_count,
+        "assault_reward_pixel_count": assault_reward_pixel_count,
+        "live_aftermath_input_gate": live_aftermath_input_gate,
+        "assault_dependency_gate": assault_dependency_gate,
+        "destruction_gate": destruction_gate,
+        "veteran_gate": veteran_gate,
+        "match_result_gate": match_result_gate,
+        "next_action_gate": next_action_gate,
+        "reward_gate": reward_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS battle aftermath evidence extends the base assault into visible building destruction, debris and smoke, veteran unit promotion, match-result feedback, reward settlement, and next-action routing through live native input before rendering the aftermath overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS battle aftermath evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -18168,6 +18483,99 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    for tile_id in &runtime.rts_aftermath_debris_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (debris_x, debris_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                debris_x - 18,
+                debris_y + tile_h - 33,
+                36,
+                13,
+                CLASSIC_RTS_DEBRIS_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                debris_x - 10,
+                debris_y + tile_h - 42,
+                20,
+                8,
+                CLASSIC_RTS_BASE_BREACH_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_aftermath_smoke_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (smoke_x, smoke_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                smoke_x,
+                smoke_y + tile_h - 54,
+                17,
+                10,
+                CLASSIC_RTS_SMOKE_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                smoke_x + 8,
+                smoke_y + tile_h - 67,
+                11,
+                7,
+                CLASSIC_RTS_SMOKE_COLOR,
+            );
+        }
+    }
+    for (index, unit_id) in runtime.rts_veteran_unit_ids.iter().enumerate() {
+        let tile = classic_rts_player_army_unit_tile_for_id(unit_id, index);
+        let (unit_x, unit_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit_x - 11,
+            unit_y + tile_h - 52,
+            22,
+            4,
+            CLASSIC_RTS_VETERAN_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit_x - 3,
+            unit_y + tile_h - 60,
+            6,
+            6,
+            CLASSIC_RTS_VETERAN_COLOR,
+        );
+    }
+    if !runtime.rts_next_action_ids.is_empty() {
+        let tile = runtime
+            .rts_objective_extraction_tile_id
+            .as_deref()
+            .and_then(classic_parse_rts_tile)
+            .unwrap_or((9, 2));
+        let (next_x, next_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            next_x,
+            next_y + tile_h - 8,
+            24,
+            9,
+            CLASSIC_RTS_NEXT_ACTION_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -20188,6 +20596,58 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_RTS_BASE_BREACH_COLOR,
         );
     }
+    for tile_id in &runtime.rts_aftermath_debris_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w,
+                map_y + tile.1.clamp(0, 7) * cell_h,
+                5,
+                4,
+                CLASSIC_RTS_DEBRIS_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_aftermath_smoke_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 1,
+                4,
+                3,
+                CLASSIC_RTS_SMOKE_COLOR,
+            );
+        }
+    }
+    if !runtime.rts_veteran_unit_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + 5 * cell_w,
+            map_y + 5 * cell_h,
+            6,
+            5,
+            CLASSIC_RTS_VETERAN_COLOR,
+        );
+    }
+    if !runtime.rts_next_action_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + 9 * cell_w,
+            map_y + 2 * cell_h,
+            6,
+            5,
+            CLASSIC_RTS_NEXT_ACTION_COLOR,
+        );
+    }
 
     let resource_x = panel_x + minimap_w + 8;
     let resource_y = panel_y;
@@ -20965,6 +21425,66 @@ fn classic_draw_rts_strategy_overlay(
                 CLASSIC_RTS_ASSAULT_REWARD_COLOR,
             );
         }
+    }
+    if !runtime.rts_aftermath_destroyed_structure_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 78,
+            36,
+            5,
+            CLASSIC_RTS_DEBRIS_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 46,
+            tactical_y + 78,
+            24,
+            5,
+            CLASSIC_RTS_SMOKE_COLOR,
+        );
+    }
+    if !runtime.rts_veteran_unit_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 74,
+            tactical_y + 78,
+            36,
+            5,
+            CLASSIC_RTS_VETERAN_COLOR,
+        );
+    }
+    if runtime.rts_match_result_state.starts_with("victory")
+        || runtime.rts_match_result_state.starts_with("base_destroyed")
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 114,
+            tactical_y + 78,
+            36,
+            5,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+    }
+    if !runtime.rts_next_action_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 154,
+            tactical_y + 78,
+            36,
+            5,
+            CLASSIC_RTS_NEXT_ACTION_COLOR,
+        );
     }
     true
 }
@@ -52939,6 +53459,37 @@ fn classic_rts_base_assault_targets_for_id(target_id: &str) -> Vec<String> {
     }
 }
 
+fn classic_rts_aftermath_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("destroy", command));
+    let (id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,3"));
+    (kind.to_string(), id.to_string(), tile_id.to_string())
+}
+
+fn classic_rts_aftermath_debris_tiles_for_id(structure_id: &str, tile_id: &str) -> Vec<String> {
+    if structure_id == "enemy_barracks" {
+        string_vec(["9,3", "10,3", "10,4", "11,3"])
+    } else {
+        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0, tile.1 + 1),
+        ]
+    }
+}
+
+fn classic_rts_aftermath_smoke_tiles_for_id(structure_id: &str, tile_id: &str) -> Vec<String> {
+    if structure_id == "enemy_barracks" {
+        string_vec(["10,2", "10,3", "11,3"])
+    } else {
+        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
+        vec![
+            format!("{},{}", tile.0, tile.1.saturating_sub(1)),
+            format!("{},{}", tile.0, tile.1),
+        ]
+    }
+}
+
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
     match node_id {
         "gold_vein" => (3, 3),
@@ -53723,6 +54274,100 @@ fn apply_classic_rts_base_assault_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_battle_aftermath_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    aftermath_command: &str,
+) {
+    let (kind, id, tile_id) = classic_rts_aftermath_parts(aftermath_command);
+    if first_playable.rts_base_breach_percent < 100 {
+        apply_classic_rts_base_assault_runtime(first_playable, "breach:enemy_barracks@10,3");
+    }
+    match kind.as_str() {
+        "promote" => {
+            if first_playable.rts_army_spawned_unit_ids.is_empty() {
+                first_playable.rts_army_spawned_unit_ids =
+                    classic_rts_army_units_for_batch("mixed_vanguard");
+            }
+            first_playable.rts_veteran_unit_ids = first_playable
+                .rts_army_spawned_unit_ids
+                .iter()
+                .take(3)
+                .cloned()
+                .collect();
+            first_playable.rts_veteran_level_log = string_vec([
+                "mirror_guard_alpha:veteran_rank_2:+8_damage",
+                "mirror_guard_beta:veteran_rank_2:+6_armor",
+                "wayfinder_scout:veteran_rank_2:+12_sight",
+            ]);
+            first_playable.growth_level = first_playable.growth_level.max(2);
+            first_playable.growth_stat_points = first_playable.growth_stat_points.max(1);
+            push_history(
+                &mut first_playable.growth_history,
+                "rts_veterancy:control_group_3:rank_2",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("aftermath_promote:{id}@{tile_id}"),
+            );
+        }
+        "next" => {
+            first_playable.rts_next_action_ids = string_vec([
+                "secure_expansion",
+                "rebuild_forward_lodge",
+                "scout_second_base",
+            ]);
+            first_playable.rts_match_result_state = "victory_ready:secure_expansion".to_string();
+            first_playable.rts_objective_extraction_tile_id = Some("9,2".to_string());
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("aftermath_next:{id}@{tile_id}"),
+            );
+            push_completed_step(first_playable, "classic_rts_battle_aftermath_ready");
+            push_progression_checkpoint(first_playable, "classic_rts_battle_aftermath_ready");
+            first_playable.objective_status = "classic_rts_battle_aftermath_complete".to_string();
+        }
+        _ => {
+            push_unique_string(
+                &mut first_playable.rts_aftermath_destroyed_structure_ids,
+                &id,
+            );
+            first_playable.rts_aftermath_debris_tile_ids =
+                classic_rts_aftermath_debris_tiles_for_id(&id, &tile_id);
+            first_playable.rts_aftermath_smoke_tile_ids =
+                classic_rts_aftermath_smoke_tiles_for_id(&id, &tile_id);
+            first_playable.rts_enemy_structure_health_percents = vec![0, 0, 24];
+            first_playable.rts_base_assault_result_state = format!("destroyed:{id}");
+            first_playable.rts_match_result_state = format!("base_destroyed:{id}");
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.min(6);
+            first_playable.coins = first_playable.coins.saturating_add(240);
+            first_playable.xp = first_playable.xp.saturating_add(420);
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "aftermath:+420xp:+240g",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("aftermath_destroy:{id}@{tile_id}"),
+            );
+        }
+    }
+    for tile in first_playable
+        .rts_aftermath_debris_tile_ids
+        .clone()
+        .into_iter()
+        .chain(first_playable.rts_aftermath_smoke_tile_ids.clone())
+    {
+        push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+    }
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("aftermath:{kind}:{id}@{tile_id}"),
+    );
+    first_playable.last_feedback = format!("RTS aftermath {kind}: {id} at {tile_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -53743,6 +54388,8 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_army_production_runtime(first_playable, army_command);
     } else if let Some(assault_command) = queue_id.strip_prefix("assault:") {
         apply_classic_rts_base_assault_runtime(first_playable, assault_command);
+    } else if let Some(aftermath_command) = queue_id.strip_prefix("aftermath:") {
+        apply_classic_rts_battle_aftermath_runtime(first_playable, aftermath_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("scout:") {
         apply_classic_rts_creep_camp_runtime(first_playable, "scout", camp_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("camp:") {

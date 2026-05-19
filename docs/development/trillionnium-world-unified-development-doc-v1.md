@@ -359,6 +359,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第十七组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_base_assault_resolution.sh` 把 `army`、`move`、`attack`、`assault:breach` live inputs 接成 control group 3 推进敌方基地的闭环，要求集合后的部队沿 assault path 攻击 `enemy_barracks`，同时显示敌方建筑血条、破防进度、基地结果状态、奖励日志、场景路径 overlay 与小地图 assault 线；它继续保持 Bevy-native source-of-truth 和 IP-clean 美术/命名，不引入外部 RTS 资产。
 
+同日继续追加第十八组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_battle_aftermath.sh` 把 base assault 之后的 `aftermath:destroy`、`aftermath:promote`、`aftermath:next` live inputs 接到建筑毁坏、废墟/烟尘、老兵升级、战果状态、奖励结算和下一步行动提示；它让“打掉敌方兵营”之后有可读的战后反馈和继续操作入口，而不是只停在血条归零。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
