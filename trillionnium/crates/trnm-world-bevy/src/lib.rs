@@ -162,6 +162,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PATHING_FORMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_pathing_formation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COLLISION_ENGAGEMENT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_collision_engagement_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TARGET_AGGRO_FOCUS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_target_aggro_focus_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -202,6 +204,10 @@ const CLASSIC_RTS_FORMATION_SLOT_COLOR: u32 = 0xf4c95d;
 const CLASSIC_RTS_DISPERSION_SLOT_COLOR: u32 = 0xb7a6ff;
 const CLASSIC_RTS_ENGAGEMENT_RANGE_COLOR: u32 = 0xff9d4d;
 const CLASSIC_RTS_CONTACT_FLASH_COLOR: u32 = 0xfff0a8;
+const CLASSIC_RTS_TARGET_PRIORITY_COLOR: u32 = 0xff62b4;
+const CLASSIC_RTS_AGGRO_RING_COLOR: u32 = 0xff3b3b;
+const CLASSIC_RTS_FOCUS_FIRE_COLOR: u32 = 0x66e4ff;
+const CLASSIC_RTS_THREAT_BAR_COLOR: u32 = 0xffc14d;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1365,6 +1371,16 @@ pub struct NativeFirstPlayableRuntime {
     #[serde(default)]
     pub rts_unit_response_state: String,
     #[serde(default)]
+    pub rts_target_priority_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_aggro_target_id: Option<String>,
+    #[serde(default)]
+    pub rts_focus_fire_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_threat_level_percents: Vec<u8>,
+    #[serde(default)]
+    pub rts_targeting_state: String,
+    #[serde(default)]
     pub rts_attack_target_id: Option<String>,
     #[serde(default)]
     pub rts_visible_tile_ids: Vec<String>,
@@ -1628,6 +1644,11 @@ impl Default for NativeFirstPlayableRuntime {
             rts_engagement_tile_ids: Vec::new(),
             rts_contact_flash_tile_ids: Vec::new(),
             rts_unit_response_state: String::new(),
+            rts_target_priority_ids: Vec::new(),
+            rts_aggro_target_id: None,
+            rts_focus_fire_unit_ids: Vec::new(),
+            rts_threat_level_percents: Vec::new(),
+            rts_targeting_state: String::new(),
             rts_attack_target_id: None,
             rts_visible_tile_ids: Vec::new(),
             rts_fogged_tile_ids: Vec::new(),
@@ -10028,6 +10049,227 @@ pub fn native_classic_rts_collision_engagement_evidence_json(preview_path: &str)
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 144,
+        xp: 62,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "move_contact",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:wedge".to_string(),
+            },
+        ),
+        (
+            "attack_priority",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            },
+        ),
+        (
+            "focus_fire",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "focus_fire".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_targeting_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS TARGET {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "targeting_state": runtime.rts_targeting_state.clone(),
+            "attack_target_id": runtime.rts_attack_target_id.clone(),
+            "aggro_target_id": runtime.rts_aggro_target_id.clone(),
+            "target_priority_ids": runtime.rts_target_priority_ids.clone(),
+            "focus_fire_unit_ids": runtime.rts_focus_fire_unit_ids.clone(),
+            "threat_level_percents": runtime.rts_threat_level_percents.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let target_priority_pixel_count = count_color(CLASSIC_RTS_TARGET_PRIORITY_COLOR);
+    let aggro_pixel_count = count_color(CLASSIC_RTS_AGGRO_RING_COLOR);
+    let focus_fire_pixel_count = count_color(CLASSIC_RTS_FOCUS_FIRE_COLOR);
+    let threat_bar_pixel_count = count_color(CLASSIC_RTS_THREAT_BAR_COLOR);
+    let attack_feedback_pixel_count =
+        count_color(CLASSIC_ISO_ATTACK_ARC_COLOR) + count_color(CLASSIC_ISO_HIT_FLASH_COLOR);
+    let live_targeting_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_targeting_input");
+    let target_priority_gate = runtime.rts_target_priority_ids.len() >= 3
+        && runtime
+            .rts_target_priority_ids
+            .iter()
+            .any(|entry| entry == "arena_creep_attack")
+        && runtime
+            .rts_target_priority_ids
+            .iter()
+            .any(|entry| entry == "arena_guard_support")
+        && runtime.rts_command_queue.iter().any(|entry| {
+            entry == "priority:arena_creep_attack>arena_guard_support>arena_worker_support"
+        })
+        && target_priority_pixel_count > 80;
+    let aggro_gate = runtime.rts_aggro_target_id.as_deref() == Some("arena_creep_attack")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "aggro:arena_creep_attack")
+        && aggro_pixel_count > 80;
+    let focus_fire_gate = runtime.rts_targeting_state == "focus_fire:arena_creep_attack"
+        && runtime.rts_focus_fire_unit_ids.len() >= 4
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "focus_fire:arena_creep_attack")
+        && focus_fire_pixel_count > 80
+        && attack_feedback_pixel_count > 180;
+    let threat_feedback_gate = runtime.rts_threat_level_percents.len() >= 3
+        && runtime.rts_threat_level_percents.first().copied() == Some(100)
+        && threat_bar_pixel_count > 40;
+    let green = write_gate
+        && non_background_pixels > 220_000
+        && live_targeting_input_gate
+        && target_priority_gate
+        && aggro_gate
+        && focus_fire_gate
+        && threat_feedback_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TARGET_AGGRO_FOCUS_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_targeting_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_targeting_state": runtime.rts_targeting_state,
+        "final_attack_target_id": runtime.rts_attack_target_id,
+        "final_aggro_target_id": runtime.rts_aggro_target_id,
+        "final_target_priority_ids": runtime.rts_target_priority_ids,
+        "final_focus_fire_unit_ids": runtime.rts_focus_fire_unit_ids,
+        "final_threat_level_percents": runtime.rts_threat_level_percents,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "non_background_pixels": non_background_pixels,
+        "target_priority_pixel_count": target_priority_pixel_count,
+        "aggro_pixel_count": aggro_pixel_count,
+        "focus_fire_pixel_count": focus_fire_pixel_count,
+        "threat_bar_pixel_count": threat_bar_pixel_count,
+        "attack_feedback_pixel_count": attack_feedback_pixel_count,
+        "live_targeting_input_gate": live_targeting_input_gate,
+        "target_priority_gate": target_priority_gate,
+        "aggro_gate": aggro_gate,
+        "focus_fire_gate": focus_fire_gate,
+        "threat_feedback_gate": threat_feedback_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS target aggro focus evidence drives select, move, attack, and focus-fire live input into native runtime target priority, aggro lock, focus-fire unit, and threat feedback state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS target aggro focus evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -13697,6 +13939,87 @@ fn classic_draw_iso_command_feedback(
             (dest_x, dest_y + tile_h - 1),
         );
     }
+    for (index, target_id) in runtime.rts_target_priority_ids.iter().enumerate() {
+        let tile = classic_rts_target_tile_for_id(target_id, index);
+        let (target_x, target_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target_x - 13,
+            target_y + tile_h - 27 - index as i32 * 3,
+            26,
+            4,
+            CLASSIC_RTS_TARGET_PRIORITY_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target_x + 14,
+            target_y + tile_h - 27 - index as i32 * 3,
+            5 + index as i32 * 3,
+            4,
+            CLASSIC_RTS_TARGET_PRIORITY_COLOR,
+        );
+    }
+    if let Some(aggro_target_id) = runtime.rts_aggro_target_id.as_deref() {
+        let tile = classic_rts_target_tile_for_id(aggro_target_id, 0);
+        let (aggro_x, aggro_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            aggro_x,
+            aggro_y + tile_h - 4,
+            26,
+            11,
+            CLASSIC_RTS_AGGRO_RING_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            aggro_x - 21,
+            aggro_y + tile_h - 21,
+            42,
+            3,
+            CLASSIC_RTS_AGGRO_RING_COLOR,
+        );
+    }
+    if !runtime.rts_focus_fire_unit_ids.is_empty() {
+        let target_tile = runtime
+            .rts_aggro_target_id
+            .as_deref()
+            .map(|target_id| classic_rts_target_tile_for_id(target_id, 0))
+            .unwrap_or(destination_tile);
+        let (focus_x, focus_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, target_tile);
+        for (index, entity) in selected_units.iter().enumerate() {
+            if runtime
+                .rts_focus_fire_unit_ids
+                .iter()
+                .any(|unit_id| unit_id == &entity.id)
+            {
+                let (unit_x, unit_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, entity.tile);
+                for step in 0..=8 {
+                    let beam_x = unit_x + ((focus_x - unit_x) * step) / 8;
+                    let beam_y = unit_y + tile_h - 14 + ((focus_y - unit_y) * step) / 8;
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        beam_x - 1,
+                        beam_y - 1 + index as i32 % 2,
+                        5,
+                        3,
+                        CLASSIC_RTS_FOCUS_FIRE_COLOR,
+                    );
+                }
+            }
+        }
+    }
     let command_marker_drawn = classic_blit_frame_override_bottom_center(
         buffer,
         width,
@@ -15350,6 +15673,28 @@ fn classic_draw_rts_strategy_overlay(
         5,
         CLASSIC_RTS_TARGET_HEALTH_COLOR,
     );
+    for (index, threat) in runtime.rts_threat_level_percents.iter().take(3).enumerate() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8 + index as i32 * 36,
+            tactical_y + 52,
+            30,
+            3,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8 + index as i32 * 36,
+            tactical_y + 52,
+            ((*threat).min(100) as i32 * 30) / 100,
+            3,
+            CLASSIC_RTS_THREAT_BAR_COLOR,
+        );
+    }
     for index in 0..4 {
         let ability = runtime
             .rts_ability_command_ids
@@ -46941,6 +47286,43 @@ fn classic_rts_contact_flash_tiles_for_target(target_id: &str) -> Vec<String> {
     }
 }
 
+fn classic_rts_target_tile_for_id(target_id: &str, fallback_index: usize) -> (i32, i32) {
+    match target_id {
+        "arena_creep_attack" => (6, 5),
+        "arena_guard_support" => (6, 4),
+        "arena_worker_support" => (7, 5),
+        _ => (6 + fallback_index as i32, 5),
+    }
+}
+
+fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "arena_creep_attack" {
+        string_vec([
+            "arena_creep_attack",
+            "arena_guard_support",
+            "arena_worker_support",
+        ])
+    } else {
+        vec![target_id.to_string()]
+    }
+}
+
+fn classic_rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "arena_creep_attack" {
+        classic_rts_default_group_units()
+    } else {
+        string_vec(["player", "square_guard_patrol"])
+    }
+}
+
+fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
+    if target_id == "arena_creep_attack" {
+        vec![100, 64, 32]
+    } else {
+        vec![72]
+    }
+}
+
 fn apply_classic_rts_select_group_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     group_id: &str,
@@ -47078,6 +47460,11 @@ fn apply_classic_rts_attack_runtime(
     first_playable.rts_contact_flash_tile_ids =
         classic_rts_contact_flash_tiles_for_target(target_id);
     first_playable.rts_unit_response_state = format!("engaged:{target_id}");
+    first_playable.rts_target_priority_ids = classic_rts_target_priority_ids_for_target(target_id);
+    first_playable.rts_aggro_target_id = Some(target_id.to_string());
+    first_playable.rts_focus_fire_unit_ids = classic_rts_focus_fire_units_for_target(target_id);
+    first_playable.rts_threat_level_percents = classic_rts_threat_levels_for_target(target_id);
+    first_playable.rts_targeting_state = format!("aggro_locked:{target_id}");
     first_playable.rts_visible_tile_ids = string_vec(["5,5", "6,5", "6,4", "7,5", "5,4", "4,5"]);
     first_playable.rts_fogged_tile_ids = string_vec(["0,7", "1,7", "10,0", "11,0"]);
     first_playable.rts_unit_health_percents = vec![84, 77, 71, 32];
@@ -47105,6 +47492,21 @@ fn apply_classic_rts_attack_runtime(
         ),
     );
     push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "priority:{}",
+            first_playable.rts_target_priority_ids.join(">")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("aggro:{target_id}"),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("focus:{}", first_playable.rts_focus_fire_unit_ids.join("|")),
+    );
+    push_history(
         &mut first_playable.rts_combat_event_log,
         &format!("target_acquired:{target_id}"),
     );
@@ -47120,6 +47522,10 @@ fn apply_classic_rts_ability_runtime(
         apply_classic_rts_attack_runtime(first_playable, "arena_creep_attack");
     }
     first_playable.rts_active_ability_id = Some(ability_id.to_string());
+    let target_id = first_playable
+        .rts_attack_target_id
+        .clone()
+        .unwrap_or_else(|| "arena_creep_attack".to_string());
     if !first_playable
         .rts_ability_command_ids
         .iter()
@@ -47129,13 +47535,26 @@ fn apply_classic_rts_ability_runtime(
     }
     first_playable.rts_target_health_percent = 46;
     first_playable.enemy_damage_feedback = "-28 HP".to_string();
+    first_playable.rts_targeting_state = format!("{ability_id}:{target_id}");
+    first_playable.rts_aggro_target_id = Some(target_id.clone());
+    if first_playable.rts_focus_fire_unit_ids.is_empty() {
+        first_playable.rts_focus_fire_unit_ids =
+            classic_rts_focus_fire_units_for_target(&target_id);
+    }
+    if first_playable.rts_threat_level_percents.is_empty() {
+        first_playable.rts_threat_level_percents = classic_rts_threat_levels_for_target(&target_id);
+    }
     push_history(
         &mut first_playable.rts_command_queue,
         &format!("ability:{ability_id}"),
     );
     push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("focus_fire:{target_id}"),
+    );
+    push_history(
         &mut first_playable.rts_combat_event_log,
-        &format!("{ability_id}:arena_creep_attack"),
+        &format!("{ability_id}:{target_id}"),
     );
     push_history(&mut first_playable.rts_combat_event_log, "damage:28");
     first_playable.last_feedback = format!("RTS ability fired: {ability_id}");
