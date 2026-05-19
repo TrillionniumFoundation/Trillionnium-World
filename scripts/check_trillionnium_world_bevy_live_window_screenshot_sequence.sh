@@ -25,7 +25,8 @@ RUNTIME_TEXTURE_MANIFEST_SHA256="$(sha256sum "$RUNTIME_TEXTURE_MANIFEST" | awk '
 export TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST="$RUNTIME_TEXTURE_MANIFEST"
 export TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256="$RUNTIME_TEXTURE_MANIFEST_SHA256"
 
-XAUTH="${XAUTHORITY:-/run/user/1000/.mutter-Xwaylandauth.BE4HP3}"
+DEFAULT_XAUTH="$(find "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" -maxdepth 1 -type f -name '.mutter-Xwaylandauth.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk 'NR == 1 {print $2}')"
+XAUTH="${XAUTHORITY:-${DEFAULT_XAUTH:-/run/user/1000/.mutter-Xwaylandauth.BE4HP3}}"
 DISPLAY_VALUE="${DISPLAY:-:0}"
 
 pids="$(pgrep -f '(^|/)target/debug/trnm-world-bevy run$' || true)"

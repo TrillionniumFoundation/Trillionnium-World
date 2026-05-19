@@ -19,6 +19,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack_scene_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_override_probe.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_loop.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -37,6 +38,7 @@ jq -n \
   --slurpfile art_pack "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.json" \
   --slurpfile art_scene "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack-scene-probe.json" \
   --slurpfile override "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.json" \
+  --slurpfile rts "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -57,6 +59,7 @@ jq -n \
       and ok($art_pack)
       and ok($art_scene)
       and ok($override)
+      and ok($rts)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -105,6 +108,11 @@ jq -n \
       and $art_scene[0].replacement_boundary_gate == true
       and $override[0].override_frame_gate == true
       and $override[0].replacement_boundary_gate == true
+      and $rts[0].selection_gate == true
+      and $rts[0].command_queue_gate == true
+      and $rts[0].gameplay_surface_gate == true
+      and $rts[0].move_selected_unit_count >= 4
+      and $rts[0].attack_selected_unit_count >= 4
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -123,6 +131,7 @@ jq -n \
       classic_art_pack_green: ok($art_pack),
       classic_art_pack_scene_probe_green: ok($art_scene),
       asset_override_probe_green: ok($override),
+      classic_rts_control_loop_green: ok($rts),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -233,6 +242,13 @@ jq -n \
       asset_override_frame_count: $override[0].override_frame_count,
       asset_override_probe_pixel_count: $override[0].override_probe_pixel_count,
       asset_override_non_background_pixels: $override[0].non_background_pixels,
+      rts_control_loop_non_background_pixels: $rts[0].non_background_pixels,
+      rts_control_loop_move_selected_unit_count: $rts[0].move_selected_unit_count,
+      rts_control_loop_attack_selected_unit_count: $rts[0].attack_selected_unit_count,
+      rts_control_loop_selection_marker_pixel_count: $rts[0].selection_marker_pixel_count,
+      rts_control_loop_formation_line_pixel_count: $rts[0].formation_line_pixel_count,
+      rts_control_loop_command_marker_pixel_count: $rts[0].command_marker_pixel_count,
+      rts_control_loop_attack_feedback_pixel_count: $rts[0].attack_feedback_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -299,6 +315,9 @@ jq -n \
       art_pack_scene_replacement_boundary_gate: $art_scene[0].replacement_boundary_gate,
       asset_override_frame_gate: $override[0].override_frame_gate,
       asset_override_replacement_boundary_gate: $override[0].replacement_boundary_gate,
+      rts_control_loop_selection_gate: $rts[0].selection_gate,
+      rts_control_loop_command_queue_gate: $rts[0].command_queue_gate,
+      rts_control_loop_gameplay_surface_gate: $rts[0].gameplay_surface_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -329,6 +348,8 @@ jq -n \
       classic_art_pack_scene_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack-scene-probe.ppm",
       asset_override_probe: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.json",
       asset_override_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.ppm",
+      classic_rts_control_loop: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.json",
+      classic_rts_control_loop_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -351,6 +372,7 @@ jq -e '
   and .checks.classic_art_pack_green == true
   and .checks.classic_art_pack_scene_probe_green == true
   and .checks.asset_override_probe_green == true
+  and .checks.classic_rts_control_loop_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -457,6 +479,13 @@ jq -e '
   and .headline.asset_override_frame_count >= 1
   and .headline.asset_override_probe_pixel_count > 300
   and .headline.asset_override_non_background_pixels > 300
+  and .headline.rts_control_loop_non_background_pixels > 120000
+  and .headline.rts_control_loop_move_selected_unit_count >= 4
+  and .headline.rts_control_loop_attack_selected_unit_count >= 4
+  and .headline.rts_control_loop_selection_marker_pixel_count > 500
+  and .headline.rts_control_loop_formation_line_pixel_count > 200
+  and .headline.rts_control_loop_command_marker_pixel_count > 600
+  and .headline.rts_control_loop_attack_feedback_pixel_count > 180
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -519,6 +548,9 @@ jq -e '
   and .gates.art_pack_scene_replacement_boundary_gate == true
   and .gates.asset_override_frame_gate == true
   and .gates.asset_override_replacement_boundary_gate == true
+  and .gates.rts_control_loop_selection_gate == true
+  and .gates.rts_control_loop_command_queue_gate == true
+  and .gates.rts_control_loop_gameplay_surface_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

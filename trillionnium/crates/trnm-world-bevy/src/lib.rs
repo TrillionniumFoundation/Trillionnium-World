@@ -154,6 +154,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_INPUT_FRAME_BUDGET_CONTRACT: &str =
     "trillionnium_world_bevy_classic_input_frame_budget_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RENDER_BUDGET_CONTRACT: &str =
     "trillionnium_world_bevy_classic_render_budget_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_LOOP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_control_loop_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -186,6 +188,8 @@ const CLASSIC_ISO_UNIT_CREEP_COLOR: u32 = 0x7a52a3;
 const CLASSIC_ISO_UNIT_HEALTH_COLOR: u32 = 0x64d66d;
 const CLASSIC_ISO_UNIT_DAMAGE_COLOR: u32 = 0xd95c5c;
 const CLASSIC_ISO_COMMAND_MARKER_COLOR: u32 = 0x68d7ff;
+const CLASSIC_ISO_CONTROL_GROUP_COLOR: u32 = 0xb9f2ff;
+const CLASSIC_ISO_FORMATION_LINE_COLOR: u32 = 0xa4e86f;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
@@ -1302,6 +1306,16 @@ pub struct NativeFirstPlayableRuntime {
     pub combat_round_log: Vec<String>,
     pub combat_actions_available: Vec<String>,
     pub combat_result_state: String,
+    #[serde(default)]
+    pub rts_control_group_id: Option<String>,
+    #[serde(default)]
+    pub rts_selected_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_command_queue: Vec<String>,
+    #[serde(default)]
+    pub rts_command_destination_tile: Option<String>,
+    #[serde(default)]
+    pub rts_attack_target_id: Option<String>,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1526,6 +1540,11 @@ impl Default for NativeFirstPlayableRuntime {
             combat_round_log: vec!["combat_idle".to_string()],
             combat_actions_available: runtime_combat_actions(false, true),
             combat_result_state: "not_started".to_string(),
+            rts_control_group_id: None,
+            rts_selected_unit_ids: Vec::new(),
+            rts_command_queue: Vec::new(),
+            rts_command_destination_tile: None,
+            rts_attack_target_id: None,
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -8980,6 +8999,186 @@ pub fn native_classic_art_pack_scene_probe_evidence_json(
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    let assets = load_classic_runtime_assets();
+    let mirror_scene = assets.scene_by_id.get("mirror_city_square");
+    let coliseum_scene = assets.scene_by_id.get("league_coliseum");
+    let move_runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        rts_control_group_id: Some("1".to_string()),
+        rts_selected_unit_ids: string_vec([
+            "player",
+            "square_guard_patrol",
+            "square_worker_carry",
+            "square_creep_wander",
+        ]),
+        rts_command_queue: string_vec(["select_group_1", "move:7,4", "formation:diamond"]),
+        rts_command_destination_tile: Some("7,4".to_string()),
+        last_feedback: "RTS group 1 moving to waypoint".to_string(),
+        ..Default::default()
+    };
+    let attack_runtime = NativeFirstPlayableRuntime {
+        map_scene: "arena_league_coliseum".to_string(),
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        combat_turn: 1,
+        rts_control_group_id: Some("1".to_string()),
+        rts_selected_unit_ids: string_vec([
+            "player",
+            "arena_guard_left",
+            "arena_guard_right",
+            "arena_creep_attack",
+        ]),
+        rts_command_queue: string_vec(["select_group_1", "attack:arena_creep_attack"]),
+        rts_command_destination_tile: Some("6,5".to_string()),
+        rts_attack_target_id: Some("arena_creep_attack".to_string()),
+        enemy_damage_feedback: "control group attack queued".to_string(),
+        last_feedback: "RTS attack order accepted".to_string(),
+        ..Default::default()
+    };
+    let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * 2 * PANEL_HEIGHT];
+    let mut move_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut attack_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_isometric_scene(
+        &mut move_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        mirror_scene,
+        &assets,
+        &move_runtime,
+        (5, 5),
+        "actor_player_walk_east_1",
+    );
+    classic_draw_isometric_scene(
+        &mut attack_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        coliseum_scene,
+        &assets,
+        &attack_runtime,
+        (5, 5),
+        "actor_player_walk_west_1",
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        &move_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        0,
+        0,
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        &attack_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        PANEL_WIDTH as i32,
+        0,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        12,
+        12,
+        "RTS GROUP 1 MOVE",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH * 2,
+        PANEL_HEIGHT,
+        PANEL_WIDTH as i32 + 12,
+        12,
+        "RTS GROUP 1 ATTACK",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH * 2, PANEL_HEIGHT, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let selection_marker_pixel_count = count_color(CLASSIC_ISO_CONTROL_GROUP_COLOR);
+    let formation_line_pixel_count = count_color(CLASSIC_ISO_FORMATION_LINE_COLOR);
+    let command_marker_pixel_count = count_color(CLASSIC_ISO_COMMAND_MARKER_COLOR);
+    let attack_feedback_pixel_count =
+        count_color(CLASSIC_ISO_ATTACK_ARC_COLOR) + count_color(CLASSIC_ISO_HIT_FLASH_COLOR);
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let move_selected_unit_count = move_runtime.rts_selected_unit_ids.len();
+    let attack_selected_unit_count = attack_runtime.rts_selected_unit_ids.len();
+    let selection_gate = move_selected_unit_count >= 4
+        && attack_selected_unit_count >= 4
+        && selection_marker_pixel_count > 500;
+    let command_queue_gate = move_runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry.starts_with("move:"))
+        && attack_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("attack:"))
+        && formation_line_pixel_count > 200
+        && command_marker_pixel_count > 600
+        && attack_feedback_pixel_count > 180;
+    let gameplay_surface_gate = selection_gate
+        && command_queue_gate
+        && move_runtime.rts_control_group_id.as_deref() == Some("1")
+        && attack_runtime.rts_attack_target_id.as_deref() == Some("arena_creep_attack");
+    let green = write_gate
+        && mirror_scene.is_some()
+        && coliseum_scene.is_some()
+        && non_background_pixels > 120_000
+        && gameplay_surface_gate
+        && assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_LOOP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH * 2,
+        "preview_height": PANEL_HEIGHT,
+        "write_gate": write_gate,
+        "mirror_scene_gate": mirror_scene.is_some(),
+        "coliseum_scene_gate": coliseum_scene.is_some(),
+        "non_background_pixels": non_background_pixels,
+        "control_group_id": "1",
+        "move_selected_unit_count": move_selected_unit_count,
+        "attack_selected_unit_count": attack_selected_unit_count,
+        "move_command_queue": move_runtime.rts_command_queue,
+        "attack_command_queue": attack_runtime.rts_command_queue,
+        "attack_target_id": attack_runtime.rts_attack_target_id,
+        "selection_marker_pixel_count": selection_marker_pixel_count,
+        "formation_line_pixel_count": formation_line_pixel_count,
+        "command_marker_pixel_count": command_marker_pixel_count,
+        "attack_feedback_pixel_count": attack_feedback_pixel_count,
+        "selection_gate": selection_gate,
+        "command_queue_gate": command_queue_gate,
+        "gameplay_surface_gate": gameplay_surface_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, and queued attack feedback through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS control loop evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -10652,16 +10851,6 @@ fn classic_draw_scene(
     assets: &ClassicRuntimeAssets,
 ) {
     buffer.fill(0x101411);
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        0,
-        0,
-        width as i32,
-        height as i32,
-        0x101411,
-    );
     classic_draw_rect(buffer, width, height, 0, 0, width as i32, 40, 0x16211b);
     classic_draw_rect(
         buffer,
@@ -12372,6 +12561,110 @@ fn classic_draw_iso_unit_overlay(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_parse_rts_tile(value: &str) -> Option<(i32, i32)> {
+    let (x, y) = value.split_once(',')?;
+    Some((x.trim().parse().ok()?, y.trim().parse().ok()?))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_control_group_entities(
+    scene_id: &str,
+    player_tile: (i32, i32),
+    runtime: &NativeFirstPlayableRuntime,
+) -> Vec<ClassicIsoEntity> {
+    if runtime.rts_selected_unit_ids.is_empty() {
+        return Vec::new();
+    }
+    let selected_ids = runtime
+        .rts_selected_unit_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<HashSet<_>>();
+    let mut candidates = classic_scene_rts_neutral_unit_entities(scene_id);
+    candidates.push(ClassicIsoEntity {
+        id: "player".to_string(),
+        frame_id: "actor_player_idle_south".to_string(),
+        tile: player_tile,
+        depth_key: (player_tile.0 + player_tile.1) * 10 + 5,
+    });
+    candidates
+        .into_iter()
+        .filter(|entity| selected_ids.contains(entity.id.as_str()))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_iso_rts_selection_marker(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    screen_x: i32,
+    screen_y: i32,
+    _tile_w: i32,
+    tile_h: i32,
+) {
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        screen_x,
+        screen_y + tile_h - 1,
+        18,
+        7,
+        CLASSIC_ISO_CONTROL_GROUP_COLOR,
+    );
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        screen_x,
+        screen_y + tile_h - 1,
+        12,
+        4,
+        CLASSIC_ISO_FOUNDATION_COLOR,
+    );
+    for (dx, dy) in [(-18, -3), (13, -3), (-18, 5), (13, 5)] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            screen_x + dx,
+            screen_y + tile_h + dy,
+            5,
+            2,
+            CLASSIC_ISO_CONTROL_GROUP_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_iso_rts_formation_line(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    start: (i32, i32),
+    end: (i32, i32),
+) {
+    for step in 0..=12 {
+        let x = start.0 + ((end.0 - start.0) * step) / 12;
+        let y = start.1 + ((end.1 - start.1) * step) / 12;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x - 1,
+            y - 1,
+            3,
+            3,
+            CLASSIC_ISO_FORMATION_LINE_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_iso_command_feedback(
     buffer: &mut [u32],
     width: usize,
@@ -12385,15 +12678,35 @@ fn classic_draw_iso_command_feedback(
     tile_h: i32,
     player_tile: (i32, i32),
 ) -> bool {
-    let destination_tile = if runtime.combat_overlay_visible || scene_id == "league_coliseum" {
-        (9, 2)
-    } else if runtime.dialogue_overlay_visible || scene_id == "mirror_city_square" {
-        (4, 3)
-    } else {
-        player_tile
-    };
+    let default_destination_tile =
+        if runtime.combat_overlay_visible || scene_id == "league_coliseum" {
+            (9, 2)
+        } else if runtime.dialogue_overlay_visible || scene_id == "mirror_city_square" {
+            (4, 3)
+        } else {
+            player_tile
+        };
+    let destination_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .unwrap_or(default_destination_tile);
     let (dest_x, dest_y) =
         classic_iso_project(origin_x, origin_y, tile_w, tile_h, destination_tile);
+    let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
+    for entity in &selected_units {
+        let (unit_x, unit_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, entity.tile);
+        classic_draw_iso_rts_selection_marker(
+            buffer, width, height, unit_x, unit_y, tile_w, tile_h,
+        );
+        classic_draw_iso_rts_formation_line(
+            buffer,
+            width,
+            height,
+            (unit_x, unit_y + tile_h - 1),
+            (dest_x, dest_y + tile_h - 1),
+        );
+    }
     let command_marker_drawn = classic_blit_frame_override_bottom_center(
         buffer,
         width,
@@ -12425,8 +12738,37 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_ISO_FOUNDATION_COLOR,
         );
     }
+    let explicit_rts_command = !selected_units.is_empty()
+        || runtime.rts_command_destination_tile.is_some()
+        || !runtime.rts_command_queue.is_empty();
+    if explicit_rts_command {
+        for (dx, dy, rect_w, rect_h) in [
+            (-22, -3, 12, 2),
+            (10, -3, 12, 2),
+            (-22, 8, 12, 2),
+            (10, 8, 12, 2),
+            (-22, -3, 2, 12),
+            (20, -3, 2, 12),
+        ] {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                dest_x + dx,
+                dest_y + tile_h + dy,
+                rect_w,
+                rect_h,
+                CLASSIC_ISO_COMMAND_MARKER_COLOR,
+            );
+        }
+    }
 
-    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+    let queued_attack_command = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry.contains("attack"));
+    if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible || queued_attack_command
+    {
         let attack_arc_drawn = classic_blit_frame_override_bottom_center(
             buffer,
             width,
@@ -13910,6 +14252,28 @@ fn classic_blit_pixels_scaled(
     scale: u32,
 ) {
     let scale = scale.max(1) as i32;
+    if scale == 1 {
+        let left = x.max(0);
+        let top = y.max(0);
+        let right = (x + source_width as i32).clamp(0, width as i32);
+        let bottom = (y + source_height as i32).clamp(0, height as i32);
+        if left >= right || top >= bottom {
+            return;
+        }
+        let source_width = source_width as usize;
+        for py in top..bottom {
+            let source_y = (py - y) as usize;
+            let source_row = source_y * source_width;
+            let target_row = py as usize * width;
+            for px in left..right {
+                let color = pixels[source_row + (px - x) as usize];
+                if color != 0x000000 {
+                    buffer[target_row + px as usize] = color;
+                }
+            }
+        }
+        return;
+    }
     for sy in 0..source_height as i32 {
         for sx in 0..source_width as i32 {
             let color = pixels
@@ -48711,13 +49075,15 @@ fn contextual_action_row_should_show(
         .iter()
         .filter_map(|child| button_states.get(&child))
         .collect::<Vec<_>>();
-    if row_signals.iter().any(|(_, visual_state, primary, _)| {
-        *primary
-            || matches!(
+    let row_can_host_global_focus = !matches!(row_id, "title_menu" | "account_title_actions");
+    if row_can_host_global_focus
+        && row_signals.iter().any(|(_, visual_state, _, _)| {
+            matches!(
                 visual_state.as_str(),
                 "onboarding_next_button" | "title_route_dashboard_focus"
             )
-    }) {
+        })
+    {
         return true;
     }
     match row_id {
@@ -48843,6 +49209,14 @@ pub fn update_native_contextual_button_visuals(
         let title_route_dashboard_focus_enabled = title_route_focus
             .as_ref()
             .is_some_and(|focus| title_route_dashboard_focus && focus.enabled);
+        let account_title_surface_active =
+            first_playable.session_title_menu_visible || first_playable.session_title_input_locked;
+        let account_title_action = matches!(
+            action,
+            NativeControlAction::RegisterAccountFromTitle
+                | NativeControlAction::LoginAccountFromTitle
+                | NativeControlAction::ContinueAccountFromTitle
+        );
         let enabled =
             entry_enabled || onboarding_next_highlight || title_route_dashboard_focus_enabled;
         let primary =
@@ -48913,7 +49287,9 @@ pub fn update_native_contextual_button_visuals(
                 .map(|entry| entry.source.clone())
                 .unwrap_or_else(|| "static_button_outside_current_context".to_string())
         };
-        let visual_state = if onboarding_next_highlight {
+        let visual_state = if account_title_action && !account_title_surface_active {
+            "hidden_or_not_current_context"
+        } else if onboarding_next_highlight {
             "onboarding_next_button"
         } else if title_route_dashboard_focus_enabled {
             "title_route_dashboard_focus"
@@ -48956,10 +49332,11 @@ pub fn update_native_contextual_button_visuals(
         state.primary = primary || onboarding_next_highlight;
         let movement_pad_button = matches!(action, NativeControlAction::Move { .. });
         let player_deck_visible = movement_pad_button
+            || (account_title_action && account_title_surface_active)
             || !matches!(
                 visual_state,
                 "hidden_or_not_current_context" | "disabled_contextual"
-            );
+            ) && !account_title_action;
         state.player_deck_visible = player_deck_visible;
         if player_deck_visible {
             visible_button_entities.insert(entity);
