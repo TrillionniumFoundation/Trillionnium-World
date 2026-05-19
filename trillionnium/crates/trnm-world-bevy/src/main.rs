@@ -456,6 +456,23 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-live-input-sequence"
+                | "--classic-rts-live-input-sequence"
+                | "classic-rts-live-input"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-input-sequence.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_live_input_sequence_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )
     ) {

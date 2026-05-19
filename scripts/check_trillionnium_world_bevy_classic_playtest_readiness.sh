@@ -20,6 +20,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack_scene_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_override_probe.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_loop.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_live_input_sequence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -39,6 +40,7 @@ jq -n \
   --slurpfile art_scene "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack-scene-probe.json" \
   --slurpfile override "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.json" \
   --slurpfile rts "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.json" \
+  --slurpfile rts_live "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-input-sequence.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -60,6 +62,7 @@ jq -n \
       and ok($art_scene)
       and ok($override)
       and ok($rts)
+      and ok($rts_live)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -116,6 +119,13 @@ jq -n \
       and $rts[0].gameplay_surface_gate == true
       and $rts[0].move_selected_unit_count >= 4
       and $rts[0].attack_selected_unit_count >= 4
+      and $rts_live[0].live_input_gate == true
+      and $rts_live[0].selection_live_gate == true
+      and $rts_live[0].production_live_gate == true
+      and $rts_live[0].move_live_gate == true
+      and $rts_live[0].attack_live_gate == true
+      and $rts_live[0].ability_live_gate == true
+      and $rts_live[0].accepted_input_count == 5
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -135,6 +145,7 @@ jq -n \
       classic_art_pack_scene_probe_green: ok($art_scene),
       asset_override_probe_green: ok($override),
       classic_rts_control_loop_green: ok($rts),
+      classic_rts_live_input_sequence_green: ok($rts_live),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -264,6 +275,14 @@ jq -n \
       rts_control_loop_ability_command_pixel_count: $rts[0].ability_command_pixel_count,
       rts_control_loop_target_health_pixel_count: $rts[0].target_health_pixel_count,
       rts_control_loop_attack_target_health_percent: $rts[0].attack_target_health_percent,
+      rts_live_input_accepted_input_count: $rts_live[0].accepted_input_count,
+      rts_live_input_selection_marker_pixel_count: $rts_live[0].selection_marker_pixel_count,
+      rts_live_input_command_marker_pixel_count: $rts_live[0].command_marker_pixel_count,
+      rts_live_input_attack_feedback_pixel_count: $rts_live[0].attack_feedback_pixel_count,
+      rts_live_input_production_queue_pixel_count: $rts_live[0].production_queue_pixel_count,
+      rts_live_input_ability_command_pixel_count: $rts_live[0].ability_command_pixel_count,
+      rts_live_input_target_health_pixel_count: $rts_live[0].target_health_pixel_count,
+      rts_live_input_target_health_percent: $rts_live[0].final_target_health_percent,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -336,6 +355,12 @@ jq -n \
       rts_control_loop_macro_loop_gate: $rts[0].macro_loop_gate,
       rts_control_loop_tactical_combat_gate: $rts[0].tactical_combat_gate,
       rts_control_loop_gameplay_surface_gate: $rts[0].gameplay_surface_gate,
+      rts_live_input_live_input_gate: $rts_live[0].live_input_gate,
+      rts_live_input_selection_live_gate: $rts_live[0].selection_live_gate,
+      rts_live_input_production_live_gate: $rts_live[0].production_live_gate,
+      rts_live_input_move_live_gate: $rts_live[0].move_live_gate,
+      rts_live_input_attack_live_gate: $rts_live[0].attack_live_gate,
+      rts_live_input_ability_live_gate: $rts_live[0].ability_live_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -368,6 +393,8 @@ jq -n \
       asset_override_probe_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-asset-override-probe.ppm",
       classic_rts_control_loop: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.json",
       classic_rts_control_loop_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.ppm",
+      classic_rts_live_input_sequence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-input-sequence.json",
+      classic_rts_live_input_sequence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-input-sequence.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -391,6 +418,7 @@ jq -e '
   and .checks.classic_art_pack_scene_probe_green == true
   and .checks.asset_override_probe_green == true
   and .checks.classic_rts_control_loop_green == true
+  and .checks.classic_rts_live_input_sequence_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -516,6 +544,14 @@ jq -e '
   and .headline.rts_control_loop_ability_command_pixel_count > 800
   and .headline.rts_control_loop_target_health_pixel_count > 60
   and .headline.rts_control_loop_attack_target_health_percent < 60
+  and .headline.rts_live_input_accepted_input_count == 5
+  and .headline.rts_live_input_selection_marker_pixel_count > 1000
+  and .headline.rts_live_input_command_marker_pixel_count > 600
+  and .headline.rts_live_input_attack_feedback_pixel_count > 180
+  and .headline.rts_live_input_production_queue_pixel_count > 1000
+  and .headline.rts_live_input_ability_command_pixel_count > 800
+  and .headline.rts_live_input_target_health_pixel_count > 60
+  and .headline.rts_live_input_target_health_percent < 60
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -584,6 +620,12 @@ jq -e '
   and .gates.rts_control_loop_macro_loop_gate == true
   and .gates.rts_control_loop_tactical_combat_gate == true
   and .gates.rts_control_loop_gameplay_surface_gate == true
+  and .gates.rts_live_input_live_input_gate == true
+  and .gates.rts_live_input_selection_live_gate == true
+  and .gates.rts_live_input_production_live_gate == true
+  and .gates.rts_live_input_move_live_gate == true
+  and .gates.rts_live_input_attack_live_gate == true
+  and .gates.rts_live_input_ability_live_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
