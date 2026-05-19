@@ -361,6 +361,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第十八组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_battle_aftermath.sh` 把 base assault 之后的 `aftermath:destroy`、`aftermath:promote`、`aftermath:next` live inputs 接到建筑毁坏、废墟/烟尘、老兵升级、战果状态、奖励结算和下一步行动提示；它让“打掉敌方兵营”之后有可读的战后反馈和继续操作入口，而不是只停在血条归零。
 
+同日继续追加第十九组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_commander_progression.sh` 把 aftermath reward 接到原创指挥官成长：`commander:loot` 生成战利品拾取，`commander:level` 提升 `mirror_captain` 并给技能点，`commander:ability:rally_aura` 消耗技能点生成 aura tile 和技能按钮反馈；它借鉴经典 RTS“英雄成长”的可玩结构，但命名、数据和像素资产均为 Trillionnium 原创。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

@@ -685,6 +685,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-commander-progression" | "--classic-rts-commander-progression")
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-commander-progression.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_commander_progression_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )
