@@ -367,6 +367,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 2026-05-20 继续追加第二十一组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_tier_two_siege_push.sh` 把守住二基地后的 `tier2:tech`、`tier2:upgrade`、`tier2:train`、`tier2:enemy_fortify` 和 `tier2:push` live inputs 推进到二本科技建筑、攻城升级、攻城单位生产、敌方加固据点、推进路线和攻城伤害反馈；它让扩张经济转化为下一轮基地突破能力，同时继续保持 Trillionnium 原创命名、像素和 Bevy-native source-of-truth。
 
+同日继续追加第二十二组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_siege_breach_counterplay.sh` 把二本攻城从“打出破口”推进到“敌方修门/侧翼反扑/玩家守线/最终破门”的反应闭环：`tier2:breach` 打开 `gate_bulwark` 破口窗口，`tier2:enemy_repair` 和 `tier2:enemy_flank` 驱动敌方反制，`tier2:hold` 用指挥官光环稳住攻城线，`tier2:finish` 结算 100% 破门、奖励和下一步 `enter_inner_lane`；整条证据仍来自 Bevy native live input 与 Trillionnium-owned low-spec 渲染。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

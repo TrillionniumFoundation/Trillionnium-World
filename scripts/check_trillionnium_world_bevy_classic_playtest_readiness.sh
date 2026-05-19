@@ -40,6 +40,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_commander_progression.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_expansion_counterattack.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tier_two_siege_push.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_siege_breach_counterplay.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -79,6 +80,7 @@ jq -n \
   --slurpfile rts_commander "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-commander-progression.json" \
   --slurpfile rts_expansion "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-expansion-counterattack.json" \
   --slurpfile rts_tier_two "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tier-two-siege-push.json" \
+  --slurpfile rts_breach "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -120,6 +122,7 @@ jq -n \
       and ok($rts_commander)
       and ok($rts_expansion)
       and ok($rts_tier_two)
+      and ok($rts_breach)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -312,6 +315,14 @@ jq -n \
       and $rts_tier_two[0].enemy_fortification_gate == true
       and $rts_tier_two[0].siege_push_gate == true
       and $rts_tier_two[0].accepted_input_count == 24
+      and $rts_breach[0].live_siege_breach_input_gate == true
+      and $rts_breach[0].tier_two_dependency_gate == true
+      and $rts_breach[0].breach_window_gate == true
+      and $rts_breach[0].repair_reaction_gate == true
+      and $rts_breach[0].flank_pressure_gate == true
+      and $rts_breach[0].hold_line_gate == true
+      and $rts_breach[0].resolution_gate == true
+      and $rts_breach[0].accepted_input_count == 29
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -351,6 +362,7 @@ jq -n \
       classic_rts_commander_progression_green: ok($rts_commander),
       classic_rts_expansion_counterattack_green: ok($rts_expansion),
       classic_rts_tier_two_siege_push_green: ok($rts_tier_two),
+      classic_rts_siege_breach_counterplay_green: ok($rts_breach),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -818,6 +830,26 @@ jq -n \
       rts_tier_two_siege_push_route_pixel_count: $rts_tier_two[0].siege_route_pixel_count,
       rts_tier_two_siege_push_enemy_fortification_pixel_count: $rts_tier_two[0].enemy_fortification_pixel_count,
       rts_tier_two_siege_push_damage_pixel_count: $rts_tier_two[0].siege_damage_pixel_count,
+      rts_siege_breach_counterplay_accepted_input_count: $rts_breach[0].accepted_input_count,
+      rts_siege_breach_counterplay_target: $rts_breach[0].final_siege_breach_target_id,
+      rts_siege_breach_counterplay_tile_count: ($rts_breach[0].final_siege_breach_tile_ids | length),
+      rts_siege_breach_counterplay_repair_unit_count: ($rts_breach[0].final_enemy_repair_unit_ids | length),
+      rts_siege_breach_counterplay_flank_unit_count: ($rts_breach[0].final_enemy_flank_unit_ids | length),
+      rts_siege_breach_counterplay_hold_tile_count: ($rts_breach[0].final_player_hold_tile_ids | length),
+      rts_siege_breach_counterplay_state: $rts_breach[0].final_siege_breach_state,
+      rts_siege_breach_counterplay_breach_percent: $rts_breach[0].final_base_breach_percent,
+      rts_siege_breach_counterplay_pixel_count: (
+        $rts_breach[0].breach_pixel_count
+        + $rts_breach[0].repair_pixel_count
+        + $rts_breach[0].flank_pixel_count
+        + $rts_breach[0].hold_pixel_count
+        + $rts_breach[0].resolution_pixel_count
+      ),
+      rts_siege_breach_counterplay_breach_pixel_count: $rts_breach[0].breach_pixel_count,
+      rts_siege_breach_counterplay_repair_pixel_count: $rts_breach[0].repair_pixel_count,
+      rts_siege_breach_counterplay_flank_pixel_count: $rts_breach[0].flank_pixel_count,
+      rts_siege_breach_counterplay_hold_pixel_count: $rts_breach[0].hold_pixel_count,
+      rts_siege_breach_counterplay_resolution_pixel_count: $rts_breach[0].resolution_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -1006,6 +1038,13 @@ jq -n \
       rts_tier_two_siege_push_unit_gate: $rts_tier_two[0].siege_unit_gate,
       rts_tier_two_siege_push_enemy_fortification_gate: $rts_tier_two[0].enemy_fortification_gate,
       rts_tier_two_siege_push_push_gate: $rts_tier_two[0].siege_push_gate,
+      rts_siege_breach_counterplay_live_input_gate: $rts_breach[0].live_siege_breach_input_gate,
+      rts_siege_breach_counterplay_tier_two_dependency_gate: $rts_breach[0].tier_two_dependency_gate,
+      rts_siege_breach_counterplay_breach_window_gate: $rts_breach[0].breach_window_gate,
+      rts_siege_breach_counterplay_repair_reaction_gate: $rts_breach[0].repair_reaction_gate,
+      rts_siege_breach_counterplay_flank_pressure_gate: $rts_breach[0].flank_pressure_gate,
+      rts_siege_breach_counterplay_hold_line_gate: $rts_breach[0].hold_line_gate,
+      rts_siege_breach_counterplay_resolution_gate: $rts_breach[0].resolution_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1078,6 +1117,8 @@ jq -n \
       classic_rts_expansion_counterattack_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-expansion-counterattack.ppm",
       classic_rts_tier_two_siege_push: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tier-two-siege-push.json",
       classic_rts_tier_two_siege_push_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tier-two-siege-push.ppm",
+      classic_rts_siege_breach_counterplay: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.json",
+      classic_rts_siege_breach_counterplay_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -1121,6 +1162,7 @@ jq -e '
   and .checks.classic_rts_commander_progression_green == true
   and .checks.classic_rts_expansion_counterattack_green == true
   and .checks.classic_rts_tier_two_siege_push_green == true
+  and .checks.classic_rts_siege_breach_counterplay_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1654,6 +1696,13 @@ jq -e '
   and .gates.rts_tier_two_siege_push_unit_gate == true
   and .gates.rts_tier_two_siege_push_enemy_fortification_gate == true
   and .gates.rts_tier_two_siege_push_push_gate == true
+  and .gates.rts_siege_breach_counterplay_live_input_gate == true
+  and .gates.rts_siege_breach_counterplay_tier_two_dependency_gate == true
+  and .gates.rts_siege_breach_counterplay_breach_window_gate == true
+  and .gates.rts_siege_breach_counterplay_repair_reaction_gate == true
+  and .gates.rts_siege_breach_counterplay_flank_pressure_gate == true
+  and .gates.rts_siege_breach_counterplay_hold_line_gate == true
+  and .gates.rts_siege_breach_counterplay_resolution_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
