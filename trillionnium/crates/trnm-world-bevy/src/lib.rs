@@ -172,6 +172,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_build_lifecycle_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TECH_TREE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_tech_tree_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PROJECTILE_ABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_projectile_ability_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -234,6 +236,11 @@ const CLASSIC_RTS_TECH_RESEARCH_COLOR: u32 = 0xb477ff;
 const CLASSIC_RTS_TECH_UPGRADE_COLOR: u32 = 0xf2d05a;
 const CLASSIC_RTS_TECH_UNLOCK_COLOR: u32 = 0x61f0bf;
 const CLASSIC_RTS_TECH_REQUIREMENT_COLOR: u32 = 0xff6b75;
+const CLASSIC_RTS_PROJECTILE_TRAIL_COLOR: u32 = 0xffd36b;
+const CLASSIC_RTS_PROJECTILE_IMPACT_COLOR: u32 = 0xfff2a0;
+const CLASSIC_RTS_ABILITY_RADIUS_COLOR: u32 = 0xa881ff;
+const CLASSIC_RTS_DAMAGE_TICK_COLOR: u32 = 0xff6670;
+const CLASSIC_RTS_ARMOR_SHIELD_COLOR: u32 = 0x6fdcff;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1496,6 +1503,22 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_tech_progress_percent: u8,
     #[serde(default)]
     pub rts_tech_state: String,
+    #[serde(default)]
+    pub rts_projectile_trail_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_projectile_impact_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_active_projectile_id: Option<String>,
+    #[serde(default)]
+    pub rts_ability_effect_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_ability_damage_ticks: Vec<u8>,
+    #[serde(default)]
+    pub rts_target_armor_percent: u8,
+    #[serde(default)]
+    pub rts_target_shield_percent: u8,
+    #[serde(default)]
+    pub rts_ability_resolution_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1782,6 +1805,14 @@ impl Default for NativeFirstPlayableRuntime {
             rts_tech_requirements_log: Vec::new(),
             rts_tech_progress_percent: 0,
             rts_tech_state: String::new(),
+            rts_projectile_trail_tile_ids: Vec::new(),
+            rts_projectile_impact_tile_id: None,
+            rts_active_projectile_id: None,
+            rts_ability_effect_tile_ids: Vec::new(),
+            rts_ability_damage_ticks: Vec::new(),
+            rts_target_armor_percent: 0,
+            rts_target_shield_percent: 0,
+            rts_ability_resolution_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -11346,6 +11377,257 @@ pub fn native_classic_rts_tech_tree_evidence_json(preview_path: &str) -> String 
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 180,
+        xp: 93,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_ranged_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "advance_to_range",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:wedge".to_string(),
+            },
+        ),
+        (
+            "launch_projectile",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            },
+        ),
+        (
+            "focus_fire_resolution",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "focus_fire".to_string(),
+            },
+        ),
+        (
+            "guard_break_resolution",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "guard_break".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_projectile_ability_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS PROJECTILE {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "active_projectile_id": runtime.rts_active_projectile_id.clone(),
+            "projectile_trail_tile_ids": runtime.rts_projectile_trail_tile_ids.clone(),
+            "projectile_impact_tile_id": runtime.rts_projectile_impact_tile_id.clone(),
+            "ability_effect_tile_ids": runtime.rts_ability_effect_tile_ids.clone(),
+            "ability_damage_ticks": runtime.rts_ability_damage_ticks.clone(),
+            "target_health_percent": runtime.rts_target_health_percent,
+            "target_armor_percent": runtime.rts_target_armor_percent,
+            "target_shield_percent": runtime.rts_target_shield_percent,
+            "ability_resolution_state": runtime.rts_ability_resolution_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let projectile_trail_pixel_count = count_color(CLASSIC_RTS_PROJECTILE_TRAIL_COLOR);
+    let projectile_impact_pixel_count = count_color(CLASSIC_RTS_PROJECTILE_IMPACT_COLOR);
+    let ability_radius_pixel_count = count_color(CLASSIC_RTS_ABILITY_RADIUS_COLOR);
+    let damage_tick_pixel_count = count_color(CLASSIC_RTS_DAMAGE_TICK_COLOR);
+    let armor_shield_pixel_count = count_color(CLASSIC_RTS_ARMOR_SHIELD_COLOR);
+    let attack_feedback_pixel_count =
+        count_color(CLASSIC_ISO_ATTACK_ARC_COLOR) + count_color(CLASSIC_ISO_HIT_FLASH_COLOR);
+    let live_projectile_ability_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_projectile_ability_input");
+    let projectile_trail_gate = runtime.rts_projectile_trail_tile_ids.len() >= 4
+        && runtime.rts_projectile_impact_tile_id.as_deref() == Some("6,5")
+        && runtime.rts_active_projectile_id.as_deref() == Some("guard_break_bolt")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("projectile:"))
+        && projectile_trail_pixel_count > 80;
+    let projectile_impact_gate = runtime
+        .rts_combat_event_log
+        .iter()
+        .any(|entry| entry == "projectile_impact:guard_break:arena_creep_attack")
+        && runtime.rts_target_health_percent <= 18
+        && projectile_impact_pixel_count > 80
+        && attack_feedback_pixel_count > 180;
+    let ability_radius_gate = runtime.rts_ability_effect_tile_ids.len() >= 4
+        && runtime
+            .rts_ability_effect_tile_ids
+            .iter()
+            .any(|entry| entry == "6,4")
+        && runtime.rts_ability_resolution_state == "resolved:guard_break:arena_creep_attack"
+        && ability_radius_pixel_count > 140;
+    let damage_tick_gate = runtime.rts_ability_damage_ticks.len() >= 3
+        && runtime.rts_ability_damage_ticks.iter().copied().sum::<u8>() >= 72
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "damage_ticks:16+21+35")
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry == "damage:72")
+        && damage_tick_pixel_count > 40;
+    let armor_shield_gate = runtime.rts_target_armor_percent == 18
+        && runtime.rts_target_shield_percent == 0
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "armor_shield:18:0")
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry == "shield_broken")
+        && armor_shield_pixel_count > 20;
+    let green = write_gate
+        && non_background_pixels > 250_000
+        && live_projectile_ability_input_gate
+        && projectile_trail_gate
+        && projectile_impact_gate
+        && ability_radius_gate
+        && damage_tick_gate
+        && armor_shield_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PROJECTILE_ABILITY_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_projectile_ability_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_active_projectile_id": runtime.rts_active_projectile_id,
+        "final_projectile_trail_tile_ids": runtime.rts_projectile_trail_tile_ids,
+        "final_projectile_impact_tile_id": runtime.rts_projectile_impact_tile_id,
+        "final_ability_effect_tile_ids": runtime.rts_ability_effect_tile_ids,
+        "final_ability_damage_ticks": runtime.rts_ability_damage_ticks,
+        "final_target_health_percent": runtime.rts_target_health_percent,
+        "final_target_armor_percent": runtime.rts_target_armor_percent,
+        "final_target_shield_percent": runtime.rts_target_shield_percent,
+        "final_ability_resolution_state": runtime.rts_ability_resolution_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "non_background_pixels": non_background_pixels,
+        "projectile_trail_pixel_count": projectile_trail_pixel_count,
+        "projectile_impact_pixel_count": projectile_impact_pixel_count,
+        "ability_radius_pixel_count": ability_radius_pixel_count,
+        "damage_tick_pixel_count": damage_tick_pixel_count,
+        "armor_shield_pixel_count": armor_shield_pixel_count,
+        "attack_feedback_pixel_count": attack_feedback_pixel_count,
+        "live_projectile_ability_input_gate": live_projectile_ability_input_gate,
+        "projectile_trail_gate": projectile_trail_gate,
+        "projectile_impact_gate": projectile_impact_gate,
+        "ability_radius_gate": ability_radius_gate,
+        "damage_tick_gate": damage_tick_gate,
+        "armor_shield_gate": armor_shield_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS projectile ability evidence drives ranged attack, impact, ability area, damage ticks, and armor/shield resolution through live native input before rendering every overlay through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS projectile ability evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -15234,6 +15516,167 @@ fn classic_draw_iso_command_feedback(
             }
         }
     }
+    if !runtime.rts_projectile_trail_tile_ids.is_empty() {
+        let mut previous_screen: Option<(i32, i32)> = None;
+        for tile_id in &runtime.rts_projectile_trail_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (trail_x, trail_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    trail_x - 5,
+                    trail_y + tile_h - 31,
+                    10,
+                    4,
+                    CLASSIC_RTS_PROJECTILE_TRAIL_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    trail_x - 2,
+                    trail_y + tile_h - 37,
+                    4,
+                    12,
+                    CLASSIC_RTS_PROJECTILE_TRAIL_COLOR,
+                );
+                if let Some((prev_x, prev_y)) = previous_screen {
+                    for step in 0..=7 {
+                        let line_x = prev_x + ((trail_x - prev_x) * step) / 7;
+                        let line_y = prev_y + tile_h - 31 + ((trail_y - prev_y) * step) / 7;
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            line_x - 2,
+                            line_y - 1,
+                            5,
+                            3,
+                            CLASSIC_RTS_PROJECTILE_TRAIL_COLOR,
+                        );
+                    }
+                }
+                previous_screen = Some((trail_x, trail_y));
+            }
+        }
+    }
+    for tile_id in &runtime.rts_ability_effect_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (effect_x, effect_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                effect_x,
+                effect_y + tile_h - 7,
+                24,
+                10,
+                CLASSIC_RTS_ABILITY_RADIUS_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                effect_x - 17,
+                effect_y + tile_h - 42,
+                34,
+                4,
+                CLASSIC_RTS_ABILITY_RADIUS_COLOR,
+            );
+        }
+    }
+    if let Some(impact_tile) = runtime
+        .rts_projectile_impact_tile_id
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        let (impact_x, impact_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, impact_tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            impact_x,
+            impact_y + tile_h - 12,
+            18,
+            10,
+            CLASSIC_RTS_PROJECTILE_IMPACT_COLOR,
+        );
+        for step in -12..=12 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                impact_x + step,
+                impact_y + tile_h - 30 + step / 2,
+                4,
+                4,
+                CLASSIC_RTS_PROJECTILE_IMPACT_COLOR,
+            );
+        }
+        for (index, tick) in runtime.rts_ability_damage_ticks.iter().take(4).enumerate() {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                impact_x + 24,
+                impact_y + tile_h - 42 + index as i32 * 7,
+                ((*tick).min(40) as i32 * 2).max(8),
+                4,
+                CLASSIC_RTS_DAMAGE_TICK_COLOR,
+            );
+        }
+        if runtime.rts_target_armor_percent > 0 || runtime.rts_target_shield_percent > 0 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                impact_x - 24,
+                impact_y + tile_h - 55,
+                (runtime.rts_target_armor_percent.min(100) as i32 * 42) / 100,
+                4,
+                CLASSIC_RTS_ARMOR_SHIELD_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                impact_x - 24,
+                impact_y + tile_h - 61,
+                (runtime.rts_target_shield_percent.min(100) as i32 * 42) / 100,
+                4,
+                CLASSIC_RTS_ARMOR_SHIELD_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_contact_flash_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (flash_x, flash_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                flash_x - 12,
+                flash_y + tile_h - 18,
+                24,
+                3,
+                CLASSIC_RTS_CONTACT_FLASH_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                flash_x - 3,
+                flash_y + tile_h - 26,
+                6,
+                12,
+                CLASSIC_RTS_CONTACT_FLASH_COLOR,
+            );
+        }
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -17393,6 +17836,58 @@ fn classic_draw_rts_strategy_overlay(
         5,
         CLASSIC_RTS_TARGET_HEALTH_COLOR,
     );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 108,
+        tactical_y + 44,
+        26,
+        3,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 108,
+        tactical_y + 44,
+        (runtime.rts_target_armor_percent.min(100) as i32 * 26) / 100,
+        3,
+        CLASSIC_RTS_ARMOR_SHIELD_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 137,
+        tactical_y + 44,
+        26,
+        3,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 137,
+        tactical_y + 44,
+        (runtime.rts_target_shield_percent.min(100) as i32 * 26) / 100,
+        3,
+        CLASSIC_RTS_ARMOR_SHIELD_COLOR,
+    );
+    for (index, tick) in runtime.rts_ability_damage_ticks.iter().take(3).enumerate() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 108 + index as i32 * 18,
+            tactical_y + 49,
+            ((*tick).min(40) as i32 / 2).max(5),
+            3,
+            CLASSIC_RTS_DAMAGE_TICK_COLOR,
+        );
+    }
     for (index, threat) in runtime.rts_threat_level_percents.iter().take(3).enumerate() {
         classic_draw_rect(
             buffer,
@@ -49058,6 +49553,40 @@ fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
     }
 }
 
+fn classic_rts_projectile_trail_tiles_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "arena_creep_attack" {
+        string_vec(["5,5", "5,4", "6,4", "6,5"])
+    } else {
+        string_vec(["5,5", "6,5"])
+    }
+}
+
+fn classic_rts_ability_effect_tiles_for_target(target_id: &str, ability_id: &str) -> Vec<String> {
+    if target_id == "arena_creep_attack" && ability_id == "guard_break" {
+        string_vec(["6,5", "6,4", "7,5", "5,5"])
+    } else if target_id == "arena_creep_attack" {
+        string_vec(["6,5", "6,4", "7,5"])
+    } else {
+        vec![target_id.to_string()]
+    }
+}
+
+fn classic_rts_damage_ticks_for_ability(ability_id: &str) -> Vec<u8> {
+    match ability_id {
+        "guard_break" => vec![16, 21, 35],
+        "focus_fire" => vec![28],
+        _ => vec![18],
+    }
+}
+
+fn classic_rts_projectile_id_for_ability(ability_id: &str) -> &'static str {
+    match ability_id {
+        "guard_break" => "guard_break_bolt",
+        "focus_fire" => "focus_fire_volley",
+        _ => "guard_volley",
+    }
+}
+
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
     match node_id {
         "gold_vein" => (3, 3),
@@ -49505,6 +50034,15 @@ fn apply_classic_rts_attack_runtime(
     first_playable.rts_contact_flash_tile_ids =
         classic_rts_contact_flash_tiles_for_target(target_id);
     first_playable.rts_unit_response_state = format!("engaged:{target_id}");
+    first_playable.rts_projectile_trail_tile_ids =
+        classic_rts_projectile_trail_tiles_for_target(target_id);
+    first_playable.rts_projectile_impact_tile_id = Some("6,5".to_string());
+    first_playable.rts_active_projectile_id = Some("guard_volley".to_string());
+    first_playable.rts_ability_effect_tile_ids = Vec::new();
+    first_playable.rts_ability_damage_ticks = vec![18];
+    first_playable.rts_target_armor_percent = 64;
+    first_playable.rts_target_shield_percent = 42;
+    first_playable.rts_ability_resolution_state = format!("projectile_in_flight:{target_id}");
     first_playable.rts_target_priority_ids = classic_rts_target_priority_ids_for_target(target_id);
     first_playable.rts_aggro_target_id = Some(target_id.to_string());
     first_playable.rts_focus_fire_unit_ids = classic_rts_focus_fire_units_for_target(target_id);
@@ -49539,6 +50077,27 @@ fn apply_classic_rts_attack_runtime(
     push_history(
         &mut first_playable.rts_command_queue,
         &format!(
+            "projectile:{}:{}",
+            first_playable
+                .rts_active_projectile_id
+                .as_deref()
+                .unwrap_or("guard_volley"),
+            first_playable.rts_projectile_trail_tile_ids.join(">")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "impact:{}",
+            first_playable
+                .rts_projectile_impact_tile_id
+                .as_deref()
+                .unwrap_or("6,5")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
             "priority:{}",
             first_playable.rts_target_priority_ids.join(">")
         ),
@@ -49554,6 +50113,10 @@ fn apply_classic_rts_attack_runtime(
     push_history(
         &mut first_playable.rts_combat_event_log,
         &format!("target_acquired:{target_id}"),
+    );
+    push_history(
+        &mut first_playable.rts_combat_event_log,
+        &format!("projectile_in_flight:{target_id}"),
     );
     first_playable.last_feedback = format!("RTS attack queued: {target_id}");
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
@@ -49578,10 +50141,32 @@ fn apply_classic_rts_ability_runtime(
     {
         push_unique_string(&mut first_playable.rts_ability_command_ids, ability_id);
     }
-    first_playable.rts_target_health_percent = 46;
-    first_playable.enemy_damage_feedback = "-28 HP".to_string();
+    first_playable.rts_projectile_trail_tile_ids =
+        classic_rts_projectile_trail_tiles_for_target(&target_id);
+    first_playable.rts_projectile_impact_tile_id = Some("6,5".to_string());
+    first_playable.rts_active_projectile_id =
+        Some(classic_rts_projectile_id_for_ability(ability_id).to_string());
+    first_playable.rts_ability_effect_tile_ids =
+        classic_rts_ability_effect_tiles_for_target(&target_id, ability_id);
+    first_playable.rts_ability_damage_ticks = classic_rts_damage_ticks_for_ability(ability_id);
+    let damage_total: u8 = first_playable
+        .rts_ability_damage_ticks
+        .iter()
+        .copied()
+        .sum::<u8>()
+        .min(90);
+    first_playable.rts_target_health_percent = 74_u8.saturating_sub(damage_total).max(18);
+    if ability_id == "guard_break" {
+        first_playable.rts_target_armor_percent = 18;
+        first_playable.rts_target_shield_percent = 0;
+    } else {
+        first_playable.rts_target_armor_percent = 38;
+        first_playable.rts_target_shield_percent = 22;
+    }
+    first_playable.enemy_damage_feedback = format!("-{damage_total} HP");
     first_playable.rts_targeting_state = format!("{ability_id}:{target_id}");
     first_playable.rts_aggro_target_id = Some(target_id.clone());
+    first_playable.rts_ability_resolution_state = format!("resolved:{ability_id}:{target_id}");
     if first_playable.rts_focus_fire_unit_ids.is_empty() {
         first_playable.rts_focus_fire_unit_ids =
             classic_rts_focus_fire_units_for_target(&target_id);
@@ -49598,10 +50183,46 @@ fn apply_classic_rts_ability_runtime(
         &format!("focus_fire:{target_id}"),
     );
     push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "ability_area:{}",
+            first_playable.rts_ability_effect_tile_ids.join("|")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "damage_ticks:{}",
+            first_playable
+                .rts_ability_damage_ticks
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join("+")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "armor_shield:{}:{}",
+            first_playable.rts_target_armor_percent, first_playable.rts_target_shield_percent
+        ),
+    );
+    push_history(
         &mut first_playable.rts_combat_event_log,
         &format!("{ability_id}:{target_id}"),
     );
-    push_history(&mut first_playable.rts_combat_event_log, "damage:28");
+    push_history(
+        &mut first_playable.rts_combat_event_log,
+        &format!("projectile_impact:{ability_id}:{target_id}"),
+    );
+    push_history(
+        &mut first_playable.rts_combat_event_log,
+        &format!("damage:{damage_total}"),
+    );
+    if ability_id == "guard_break" {
+        push_history(&mut first_playable.rts_combat_event_log, "shield_broken");
+    }
     first_playable.last_feedback = format!("RTS ability fired: {ability_id}");
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }

@@ -28,6 +28,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_minimap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_build_lifecycle.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tech_tree.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_projectile_ability.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -55,6 +56,7 @@ jq -n \
   --slurpfile rts_select "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.json" \
   --slurpfile rts_build_lifecycle "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.json" \
   --slurpfile rts_tech_tree "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.json" \
+  --slurpfile rts_projectile "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -84,6 +86,7 @@ jq -n \
       and ok($rts_select)
       and ok($rts_build_lifecycle)
       and ok($rts_tech_tree)
+      and ok($rts_projectile)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -187,6 +190,13 @@ jq -n \
       and $rts_tech_tree[0].unlock_gate == true
       and $rts_tech_tree[0].dependency_gate == true
       and $rts_tech_tree[0].accepted_input_count == 6
+      and $rts_projectile[0].live_projectile_ability_input_gate == true
+      and $rts_projectile[0].projectile_trail_gate == true
+      and $rts_projectile[0].projectile_impact_gate == true
+      and $rts_projectile[0].ability_radius_gate == true
+      and $rts_projectile[0].damage_tick_gate == true
+      and $rts_projectile[0].armor_shield_gate == true
+      and $rts_projectile[0].accepted_input_count == 5
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -214,6 +224,7 @@ jq -n \
       classic_rts_selection_minimap_green: ok($rts_select),
       classic_rts_build_lifecycle_green: ok($rts_build_lifecycle),
       classic_rts_tech_tree_green: ok($rts_tech_tree),
+      classic_rts_projectile_ability_green: ok($rts_projectile),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -441,6 +452,27 @@ jq -n \
       rts_tech_tree_upgrade_pixel_count: $rts_tech_tree[0].tech_upgrade_pixel_count,
       rts_tech_tree_unlock_pixel_count: $rts_tech_tree[0].tech_unlock_pixel_count,
       rts_tech_tree_requirement_pixel_count: $rts_tech_tree[0].tech_requirement_pixel_count,
+      rts_projectile_ability_accepted_input_count: $rts_projectile[0].accepted_input_count,
+      rts_projectile_ability_active_projectile_id: $rts_projectile[0].final_active_projectile_id,
+      rts_projectile_ability_trail_tile_count: ($rts_projectile[0].final_projectile_trail_tile_ids | length),
+      rts_projectile_ability_effect_tile_count: ($rts_projectile[0].final_ability_effect_tile_ids | length),
+      rts_projectile_ability_damage_tick_count: ($rts_projectile[0].final_ability_damage_ticks | length),
+      rts_projectile_ability_damage_total: ($rts_projectile[0].final_ability_damage_ticks | add),
+      rts_projectile_ability_target_health_percent: $rts_projectile[0].final_target_health_percent,
+      rts_projectile_ability_target_armor_percent: $rts_projectile[0].final_target_armor_percent,
+      rts_projectile_ability_target_shield_percent: $rts_projectile[0].final_target_shield_percent,
+      rts_projectile_ability_pixel_count: (
+        $rts_projectile[0].projectile_trail_pixel_count
+        + $rts_projectile[0].projectile_impact_pixel_count
+        + $rts_projectile[0].ability_radius_pixel_count
+        + $rts_projectile[0].damage_tick_pixel_count
+        + $rts_projectile[0].armor_shield_pixel_count
+      ),
+      rts_projectile_ability_trail_pixel_count: $rts_projectile[0].projectile_trail_pixel_count,
+      rts_projectile_ability_impact_pixel_count: $rts_projectile[0].projectile_impact_pixel_count,
+      rts_projectile_ability_radius_pixel_count: $rts_projectile[0].ability_radius_pixel_count,
+      rts_projectile_ability_damage_tick_pixel_count: $rts_projectile[0].damage_tick_pixel_count,
+      rts_projectile_ability_armor_shield_pixel_count: $rts_projectile[0].armor_shield_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -552,6 +584,12 @@ jq -n \
       rts_tech_tree_upgrade_gate: $rts_tech_tree[0].upgrade_gate,
       rts_tech_tree_unlock_gate: $rts_tech_tree[0].unlock_gate,
       rts_tech_tree_dependency_gate: $rts_tech_tree[0].dependency_gate,
+      rts_projectile_ability_live_input_gate: $rts_projectile[0].live_projectile_ability_input_gate,
+      rts_projectile_ability_projectile_trail_gate: $rts_projectile[0].projectile_trail_gate,
+      rts_projectile_ability_projectile_impact_gate: $rts_projectile[0].projectile_impact_gate,
+      rts_projectile_ability_ability_radius_gate: $rts_projectile[0].ability_radius_gate,
+      rts_projectile_ability_damage_tick_gate: $rts_projectile[0].damage_tick_gate,
+      rts_projectile_ability_armor_shield_gate: $rts_projectile[0].armor_shield_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -600,6 +638,8 @@ jq -n \
       classic_rts_build_lifecycle_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.ppm",
       classic_rts_tech_tree: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.json",
       classic_rts_tech_tree_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.ppm",
+      classic_rts_projectile_ability: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json",
+      classic_rts_projectile_ability_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -631,6 +671,7 @@ jq -e '
   and .checks.classic_rts_selection_minimap_green == true
   and .checks.classic_rts_build_lifecycle_green == true
   and .checks.classic_rts_tech_tree_green == true
+  and .checks.classic_rts_projectile_ability_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -838,6 +879,21 @@ jq -e '
   and .headline.rts_tech_tree_upgrade_pixel_count > 40
   and .headline.rts_tech_tree_unlock_pixel_count > 70
   and .headline.rts_tech_tree_requirement_pixel_count > 60
+  and .headline.rts_projectile_ability_accepted_input_count == 5
+  and .headline.rts_projectile_ability_active_projectile_id == "guard_break_bolt"
+  and .headline.rts_projectile_ability_trail_tile_count >= 4
+  and .headline.rts_projectile_ability_effect_tile_count >= 4
+  and .headline.rts_projectile_ability_damage_tick_count >= 3
+  and .headline.rts_projectile_ability_damage_total >= 72
+  and .headline.rts_projectile_ability_target_health_percent <= 18
+  and .headline.rts_projectile_ability_target_armor_percent == 18
+  and .headline.rts_projectile_ability_target_shield_percent == 0
+  and .headline.rts_projectile_ability_pixel_count > 360
+  and .headline.rts_projectile_ability_trail_pixel_count > 80
+  and .headline.rts_projectile_ability_impact_pixel_count > 80
+  and .headline.rts_projectile_ability_radius_pixel_count > 140
+  and .headline.rts_projectile_ability_damage_tick_pixel_count > 40
+  and .headline.rts_projectile_ability_armor_shield_pixel_count > 20
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -945,6 +1001,12 @@ jq -e '
   and .gates.rts_tech_tree_upgrade_gate == true
   and .gates.rts_tech_tree_unlock_gate == true
   and .gates.rts_tech_tree_dependency_gate == true
+  and .gates.rts_projectile_ability_live_input_gate == true
+  and .gates.rts_projectile_ability_projectile_trail_gate == true
+  and .gates.rts_projectile_ability_projectile_impact_gate == true
+  and .gates.rts_projectile_ability_ability_radius_gate == true
+  and .gates.rts_projectile_ability_damage_tick_gate == true
+  and .gates.rts_projectile_ability_armor_shield_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
