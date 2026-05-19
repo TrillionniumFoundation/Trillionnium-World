@@ -38,6 +38,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_base_assault_resolution.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_battle_aftermath.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_commander_progression.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_expansion_counterattack.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -75,6 +76,7 @@ jq -n \
   --slurpfile rts_base_assault "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-base-assault-resolution.json" \
   --slurpfile rts_aftermath "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-battle-aftermath.json" \
   --slurpfile rts_commander "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-commander-progression.json" \
+  --slurpfile rts_expansion "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-expansion-counterattack.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -112,6 +114,9 @@ jq -n \
       and ok($rts_enemy_base)
       and ok($rts_army)
       and ok($rts_base_assault)
+      and ok($rts_aftermath)
+      and ok($rts_commander)
+      and ok($rts_expansion)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -288,6 +293,14 @@ jq -n \
       and $rts_commander[0].ability_point_gate == true
       and $rts_commander[0].aura_gate == true
       and $rts_commander[0].accepted_input_count == 15
+      and $rts_expansion[0].live_expansion_input_gate == true
+      and $rts_expansion[0].commander_dependency_gate == true
+      and $rts_expansion[0].expansion_claim_gate == true
+      and $rts_expansion[0].expansion_build_gate == true
+      and $rts_expansion[0].expansion_worker_income_gate == true
+      and $rts_expansion[0].counterattack_gate == true
+      and $rts_expansion[0].defense_gate == true
+      and $rts_expansion[0].accepted_input_count == 19
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -325,6 +338,7 @@ jq -n \
       classic_rts_base_assault_resolution_green: ok($rts_base_assault),
       classic_rts_battle_aftermath_green: ok($rts_aftermath),
       classic_rts_commander_progression_green: ok($rts_commander),
+      classic_rts_expansion_counterattack_green: ok($rts_expansion),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -750,6 +764,28 @@ jq -n \
       rts_commander_progression_aura_pixel_count: $rts_commander[0].aura_pixel_count,
       rts_commander_progression_loot_pixel_count: $rts_commander[0].loot_pixel_count,
       rts_commander_progression_ability_point_pixel_count: $rts_commander[0].ability_point_pixel_count,
+      rts_expansion_counterattack_accepted_input_count: $rts_expansion[0].accepted_input_count,
+      rts_expansion_counterattack_tile_count: ($rts_expansion[0].final_expansion_tile_ids | length),
+      rts_expansion_counterattack_structure_count: ($rts_expansion[0].final_expansion_structure_ids | length),
+      rts_expansion_counterattack_worker_count: ($rts_expansion[0].final_expansion_worker_unit_ids | length),
+      rts_expansion_counterattack_income_per_minute: $rts_expansion[0].final_expansion_income_per_minute,
+      rts_expansion_counterattack_wave_unit_count: ($rts_expansion[0].final_enemy_counterattack_unit_ids | length),
+      rts_expansion_counterattack_route_tile_count: ($rts_expansion[0].final_enemy_counterattack_route_tile_ids | length),
+      rts_expansion_counterattack_defense_state: $rts_expansion[0].final_expansion_defense_state,
+      rts_expansion_counterattack_pixel_count: (
+        $rts_expansion[0].expansion_tile_pixel_count
+        + $rts_expansion[0].expansion_base_pixel_count
+        + $rts_expansion[0].expansion_worker_pixel_count
+        + $rts_expansion[0].expansion_income_pixel_count
+        + $rts_expansion[0].counterattack_pixel_count
+        + $rts_expansion[0].expansion_defense_pixel_count
+      ),
+      rts_expansion_counterattack_tile_pixel_count: $rts_expansion[0].expansion_tile_pixel_count,
+      rts_expansion_counterattack_base_pixel_count: $rts_expansion[0].expansion_base_pixel_count,
+      rts_expansion_counterattack_worker_pixel_count: $rts_expansion[0].expansion_worker_pixel_count,
+      rts_expansion_counterattack_income_pixel_count: $rts_expansion[0].expansion_income_pixel_count,
+      rts_expansion_counterattack_wave_pixel_count: $rts_expansion[0].counterattack_pixel_count,
+      rts_expansion_counterattack_defense_pixel_count: $rts_expansion[0].expansion_defense_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -924,6 +960,13 @@ jq -n \
       rts_commander_progression_level_gate: $rts_commander[0].commander_level_gate,
       rts_commander_progression_ability_point_gate: $rts_commander[0].ability_point_gate,
       rts_commander_progression_aura_gate: $rts_commander[0].aura_gate,
+      rts_expansion_counterattack_live_input_gate: $rts_expansion[0].live_expansion_input_gate,
+      rts_expansion_counterattack_commander_dependency_gate: $rts_expansion[0].commander_dependency_gate,
+      rts_expansion_counterattack_claim_gate: $rts_expansion[0].expansion_claim_gate,
+      rts_expansion_counterattack_build_gate: $rts_expansion[0].expansion_build_gate,
+      rts_expansion_counterattack_worker_income_gate: $rts_expansion[0].expansion_worker_income_gate,
+      rts_expansion_counterattack_counterattack_gate: $rts_expansion[0].counterattack_gate,
+      rts_expansion_counterattack_defense_gate: $rts_expansion[0].defense_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -992,6 +1035,8 @@ jq -n \
       classic_rts_battle_aftermath_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-battle-aftermath.ppm",
       classic_rts_commander_progression: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-commander-progression.json",
       classic_rts_commander_progression_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-commander-progression.ppm",
+      classic_rts_expansion_counterattack: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-expansion-counterattack.json",
+      classic_rts_expansion_counterattack_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-expansion-counterattack.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -1033,6 +1078,7 @@ jq -e '
   and .checks.classic_rts_base_assault_resolution_green == true
   and .checks.classic_rts_battle_aftermath_green == true
   and .checks.classic_rts_commander_progression_green == true
+  and .checks.classic_rts_expansion_counterattack_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1552,6 +1598,13 @@ jq -e '
   and .gates.rts_commander_progression_level_gate == true
   and .gates.rts_commander_progression_ability_point_gate == true
   and .gates.rts_commander_progression_aura_gate == true
+  and .gates.rts_expansion_counterattack_live_input_gate == true
+  and .gates.rts_expansion_counterattack_commander_dependency_gate == true
+  and .gates.rts_expansion_counterattack_claim_gate == true
+  and .gates.rts_expansion_counterattack_build_gate == true
+  and .gates.rts_expansion_counterattack_worker_income_gate == true
+  and .gates.rts_expansion_counterattack_counterattack_gate == true
+  and .gates.rts_expansion_counterattack_defense_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

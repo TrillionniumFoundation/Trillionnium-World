@@ -363,6 +363,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第十九组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_commander_progression.sh` 把 aftermath reward 接到原创指挥官成长：`commander:loot` 生成战利品拾取，`commander:level` 提升 `mirror_captain` 并给技能点，`commander:ability:rally_aura` 消耗技能点生成 aura tile 和技能按钮反馈；它借鉴经典 RTS“英雄成长”的可玩结构，但命名、数据和像素资产均为 Trillionnium 原创。
 
+同日继续追加第二十组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_expansion_counterattack.sh` 把 `secure_expansion` 下一步落成可操作扩张经营：`expansion:claim` 占领 `forest_relay`，`expansion:build` 建成 `relay_outpost`，`expansion:workers` 接入二矿收入曲线，`expansion:defend` 触发并守住敌方 `counter_wave`；它把指挥官 aura、二基地经济、敌方反扑和防守结果收进同一条 Bevy-native live input 证据链。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
