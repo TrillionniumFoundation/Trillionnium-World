@@ -35,10 +35,19 @@ jq -e '
   and .attack_feedback_pixel_count > 180
   and .strategy_panel_pixel_count > 4000
   and .minimap_pixel_count > 2800
+  and .fog_pixel_count > 400
+  and .vision_pixel_count > 120
   and .resource_hud_pixel_count > 120
+  and .production_queue_pixel_count > 900
+  and (.move_production_queue | index("train:worker") != null)
+  and (.move_build_queue | index("build:scout_tower") != null)
+  and (.attack_build_queue | index("upgrade:training_hall") != null)
+  and .move_training_progress_percent >= 50
+  and .attack_build_progress_percent >= 50
   and .selection_gate == true
   and .command_queue_gate == true
   and .strategy_hud_gate == true
+  and .macro_loop_gate == true
   and .gameplay_surface_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false

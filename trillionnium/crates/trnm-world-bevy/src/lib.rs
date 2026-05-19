@@ -197,8 +197,13 @@ const CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR: u32 = 0x405345;
 const CLASSIC_RTS_MINIMAP_TERRAIN_COLOR: u32 = 0x2d4a34;
 const CLASSIC_RTS_MINIMAP_ROAD_COLOR: u32 = 0x8a6a42;
 const CLASSIC_RTS_MINIMAP_WATER_COLOR: u32 = 0x246276;
+const CLASSIC_RTS_MINIMAP_FOG_COLOR: u32 = 0x101512;
+const CLASSIC_RTS_MINIMAP_VISION_COLOR: u32 = 0xd6f58a;
 const CLASSIC_RTS_RESOURCE_LUMBER_COLOR: u32 = 0x75b85a;
 const CLASSIC_RTS_RESOURCE_FOOD_COLOR: u32 = 0xc8d7d0;
+const CLASSIC_RTS_PRODUCTION_SLOT_COLOR: u32 = 0x29342d;
+const CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR: u32 = 0x66c487;
+const CLASSIC_RTS_BUILD_PROGRESS_COLOR: u32 = 0xc59a4d;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -1323,6 +1328,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_command_destination_tile: Option<String>,
     #[serde(default)]
     pub rts_attack_target_id: Option<String>,
+    #[serde(default)]
+    pub rts_visible_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_fogged_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_production_queue: Vec<String>,
+    #[serde(default)]
+    pub rts_build_queue: Vec<String>,
+    #[serde(default)]
+    pub rts_training_progress_percent: u8,
+    #[serde(default)]
+    pub rts_build_progress_percent: u8,
+    #[serde(default)]
+    pub rts_resource_spend_log: Vec<String>,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1552,6 +1571,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_command_queue: Vec::new(),
             rts_command_destination_tile: None,
             rts_attack_target_id: None,
+            rts_visible_tile_ids: Vec::new(),
+            rts_fogged_tile_ids: Vec::new(),
+            rts_production_queue: Vec::new(),
+            rts_build_queue: Vec::new(),
+            rts_training_progress_percent: 0,
+            rts_build_progress_percent: 0,
+            rts_resource_spend_log: Vec::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -9025,6 +9051,13 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         ]),
         rts_command_queue: string_vec(["select_group_1", "move:7,4", "formation:diamond"]),
         rts_command_destination_tile: Some("7,4".to_string()),
+        rts_visible_tile_ids: string_vec(["5,5", "6,5", "7,4", "4,5", "5,4", "8,4"]),
+        rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,7", "11,7"]),
+        rts_production_queue: string_vec(["train:worker", "train:guard"]),
+        rts_build_queue: string_vec(["build:scout_tower"]),
+        rts_training_progress_percent: 64,
+        rts_build_progress_percent: 38,
+        rts_resource_spend_log: string_vec(["spent:80g:20l:worker", "reserved:120g:40l:tower"]),
         last_feedback: "RTS group 1 moving to waypoint".to_string(),
         ..Default::default()
     };
@@ -9047,6 +9080,13 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         rts_command_queue: string_vec(["select_group_1", "attack:arena_creep_attack"]),
         rts_command_destination_tile: Some("6,5".to_string()),
         rts_attack_target_id: Some("arena_creep_attack".to_string()),
+        rts_visible_tile_ids: string_vec(["5,5", "6,5", "6,4", "7,5", "5,4", "4,5"]),
+        rts_fogged_tile_ids: string_vec(["0,7", "1,7", "10,0", "11,0"]),
+        rts_production_queue: string_vec(["train:guard", "train:creep_hunter"]),
+        rts_build_queue: string_vec(["upgrade:training_hall"]),
+        rts_training_progress_percent: 82,
+        rts_build_progress_percent: 56,
+        rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "queued:210g:60l:upgrade"]),
         enemy_damage_feedback: "control group attack queued".to_string(),
         last_feedback: "RTS attack order accepted".to_string(),
         ..Default::default()
@@ -9128,10 +9168,17 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         + count_color(CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR);
     let minimap_pixel_count = count_color(CLASSIC_RTS_MINIMAP_TERRAIN_COLOR)
         + count_color(CLASSIC_RTS_MINIMAP_ROAD_COLOR)
-        + count_color(CLASSIC_RTS_MINIMAP_WATER_COLOR);
+        + count_color(CLASSIC_RTS_MINIMAP_WATER_COLOR)
+        + count_color(CLASSIC_RTS_MINIMAP_FOG_COLOR)
+        + count_color(CLASSIC_RTS_MINIMAP_VISION_COLOR);
+    let fog_pixel_count = count_color(CLASSIC_RTS_MINIMAP_FOG_COLOR);
+    let vision_pixel_count = count_color(CLASSIC_RTS_MINIMAP_VISION_COLOR);
     let resource_hud_pixel_count = count_color(CLASSIC_ISO_GOLD_COLOR)
         + count_color(CLASSIC_RTS_RESOURCE_LUMBER_COLOR)
         + count_color(CLASSIC_RTS_RESOURCE_FOOD_COLOR);
+    let production_queue_pixel_count = count_color(CLASSIC_RTS_PRODUCTION_SLOT_COLOR)
+        + count_color(CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR)
+        + count_color(CLASSIC_RTS_BUILD_PROGRESS_COLOR);
     let non_background_pixels = preview_pixels
         .iter()
         .filter(|color| **color != 0x0b0d0c_u32)
@@ -9155,9 +9202,17 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
     let strategy_hud_gate = strategy_panel_pixel_count > 4_000
         && minimap_pixel_count > 2_800
         && resource_hud_pixel_count > 120;
+    let macro_loop_gate = fog_pixel_count > 400
+        && vision_pixel_count > 120
+        && production_queue_pixel_count > 900
+        && move_runtime.rts_training_progress_percent >= 50
+        && attack_runtime.rts_build_progress_percent >= 50
+        && !move_runtime.rts_resource_spend_log.is_empty()
+        && !attack_runtime.rts_production_queue.is_empty();
     let gameplay_surface_gate = selection_gate
         && command_queue_gate
         && strategy_hud_gate
+        && macro_loop_gate
         && move_runtime.rts_control_group_id.as_deref() == Some("1")
         && attack_runtime.rts_attack_target_id.as_deref() == Some("arena_creep_attack");
     let green = write_gate
@@ -9183,20 +9238,36 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         "move_command_queue": move_runtime.rts_command_queue,
         "attack_command_queue": attack_runtime.rts_command_queue,
         "attack_target_id": attack_runtime.rts_attack_target_id,
+        "move_visible_tile_ids": move_runtime.rts_visible_tile_ids,
+        "attack_visible_tile_ids": attack_runtime.rts_visible_tile_ids,
+        "move_fogged_tile_ids": move_runtime.rts_fogged_tile_ids,
+        "attack_fogged_tile_ids": attack_runtime.rts_fogged_tile_ids,
+        "move_production_queue": move_runtime.rts_production_queue,
+        "attack_production_queue": attack_runtime.rts_production_queue,
+        "move_build_queue": move_runtime.rts_build_queue,
+        "attack_build_queue": attack_runtime.rts_build_queue,
+        "move_training_progress_percent": move_runtime.rts_training_progress_percent,
+        "attack_build_progress_percent": attack_runtime.rts_build_progress_percent,
+        "move_resource_spend_log": move_runtime.rts_resource_spend_log,
+        "attack_resource_spend_log": attack_runtime.rts_resource_spend_log,
         "selection_marker_pixel_count": selection_marker_pixel_count,
         "formation_line_pixel_count": formation_line_pixel_count,
         "command_marker_pixel_count": command_marker_pixel_count,
         "attack_feedback_pixel_count": attack_feedback_pixel_count,
         "strategy_panel_pixel_count": strategy_panel_pixel_count,
         "minimap_pixel_count": minimap_pixel_count,
+        "fog_pixel_count": fog_pixel_count,
+        "vision_pixel_count": vision_pixel_count,
         "resource_hud_pixel_count": resource_hud_pixel_count,
+        "production_queue_pixel_count": production_queue_pixel_count,
         "selection_gate": selection_gate,
         "command_queue_gate": command_queue_gate,
         "strategy_hud_gate": strategy_hud_gate,
+        "macro_loop_gate": macro_loop_gate,
         "gameplay_surface_gate": gameplay_surface_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, queued attack feedback, minimap, resources, and command panel through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, queued attack feedback, minimap, fog-of-war vision, resources, production queues, and command panel through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS control loop evidence serializes")
 }
@@ -13986,6 +14057,9 @@ fn classic_draw_rts_strategy_overlay(
     let map_y = panel_y + 18;
     let cell_w = 6;
     let cell_h = 5;
+    let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
+    let visible_tiles = classic_rts_visible_tiles(runtime, player_tile, &selected_units);
+    let fogged_tiles = classic_rts_fogged_tiles(runtime);
     for row in 0..8 {
         for col in 0..12 {
             let color = if scene_id == "league_coliseum" && (row == 2 || row == 5) {
@@ -14007,10 +14081,33 @@ fn classic_draw_rts_strategy_overlay(
                 cell_h - 1,
                 color,
             );
+            if !visible_tiles.contains(&(col, row)) {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    map_x + col * cell_w + 1,
+                    map_y + row * cell_h + 1,
+                    cell_w - 2,
+                    cell_h - 2,
+                    CLASSIC_RTS_MINIMAP_FOG_COLOR,
+                );
+            }
         }
     }
 
-    let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
+    for tile in fogged_tiles {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w + 1,
+            map_y + tile.1.clamp(0, 7) * cell_h + 1,
+            cell_w - 2,
+            cell_h - 2,
+            CLASSIC_RTS_MINIMAP_FOG_COLOR,
+        );
+    }
     for entity in &selected_units {
         let dot_x = map_x + entity.tile.0.clamp(0, 11) * cell_w;
         let dot_y = map_y + entity.tile.1.clamp(0, 7) * cell_h;
@@ -14049,6 +14146,18 @@ fn classic_draw_rts_strategy_overlay(
             5,
             5,
             CLASSIC_ISO_COMMAND_MARKER_COLOR,
+        );
+    }
+    for tile in &visible_tiles {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w + 1,
+            map_y + tile.1.clamp(0, 7) * cell_h + 1,
+            5,
+            4,
+            CLASSIC_RTS_MINIMAP_VISION_COLOR,
         );
     }
 
@@ -14147,7 +14256,7 @@ fn classic_draw_rts_strategy_overlay(
         resource_x,
         command_y,
         resource_w,
-        43,
+        66,
         CLASSIC_RTS_STRATEGY_PANEL_COLOR,
     );
     classic_draw_rect(
@@ -14193,7 +14302,165 @@ fn classic_draw_rts_strategy_overlay(
         1,
         CLASSIC_ISO_COMMAND_MARKER_COLOR,
     );
+    let production_y = command_y + 40;
+    classic_draw_rts_queue_slot(
+        buffer,
+        width,
+        height,
+        resource_x + 8,
+        production_y,
+        runtime
+            .rts_production_queue
+            .first()
+            .map(String::as_str)
+            .unwrap_or("train:worker"),
+        runtime.rts_training_progress_percent,
+        CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR,
+    );
+    classic_draw_rts_queue_slot(
+        buffer,
+        width,
+        height,
+        resource_x + 71,
+        production_y,
+        runtime
+            .rts_build_queue
+            .first()
+            .map(String::as_str)
+            .unwrap_or("build:tower"),
+        runtime.rts_build_progress_percent,
+        CLASSIC_RTS_BUILD_PROGRESS_COLOR,
+    );
+    let spend_label = runtime
+        .rts_resource_spend_log
+        .last()
+        .map(String::as_str)
+        .unwrap_or("reserved:0g:0l");
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 135,
+        production_y + 5,
+        &classic_catalog_text_label(
+            &spend_label
+                .replace("spent:", "SP ")
+                .replace("reserved:", "RS ")
+                .replace("queued:", "QU ")
+                .replace(':', " "),
+            10,
+        ),
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
     true
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_visible_tiles(
+    runtime: &NativeFirstPlayableRuntime,
+    player_tile: (i32, i32),
+    selected_units: &[ClassicIsoEntity],
+) -> HashSet<(i32, i32)> {
+    let mut visible = runtime
+        .rts_visible_tile_ids
+        .iter()
+        .filter_map(|value| classic_parse_rts_tile(value))
+        .collect::<HashSet<_>>();
+    if visible.is_empty() {
+        for center in selected_units
+            .iter()
+            .map(|entity| entity.tile)
+            .chain(std::iter::once(player_tile))
+        {
+            for dy in -1..=1 {
+                for dx in -1..=1 {
+                    visible.insert(((center.0 + dx).clamp(0, 11), (center.1 + dy).clamp(0, 7)));
+                }
+            }
+        }
+    }
+    if let Some(destination_tile) = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        visible.insert((
+            destination_tile.0.clamp(0, 11),
+            destination_tile.1.clamp(0, 7),
+        ));
+    }
+    visible
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_fogged_tiles(runtime: &NativeFirstPlayableRuntime) -> Vec<(i32, i32)> {
+    runtime
+        .rts_fogged_tile_ids
+        .iter()
+        .filter_map(|value| classic_parse_rts_tile(value))
+        .map(|tile| (tile.0.clamp(0, 11), tile.1.clamp(0, 7)))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_queue_slot(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    label: &str,
+    progress_percent: u8,
+    progress_color: u32,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        56,
+        18,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        56,
+        2,
+        CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+    );
+    let progress_width = (progress_percent.min(100) as i32 * 52) / 100;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 2,
+        y + 13,
+        progress_width,
+        3,
+        progress_color,
+    );
+    let compact_label = label
+        .replace("train:", "TR ")
+        .replace("build:", "BD ")
+        .replace("upgrade:", "UP ")
+        .replace('_', " ");
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        x + 4,
+        y + 4,
+        &classic_catalog_text_label(&compact_label, 8),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
 }
 
 #[cfg(not(target_os = "android"))]

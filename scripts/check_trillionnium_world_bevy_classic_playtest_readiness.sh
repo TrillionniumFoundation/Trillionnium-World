@@ -111,6 +111,7 @@ jq -n \
       and $rts[0].selection_gate == true
       and $rts[0].command_queue_gate == true
       and $rts[0].strategy_hud_gate == true
+      and $rts[0].macro_loop_gate == true
       and $rts[0].gameplay_surface_gate == true
       and $rts[0].move_selected_unit_count >= 4
       and $rts[0].attack_selected_unit_count >= 4
@@ -252,7 +253,12 @@ jq -n \
       rts_control_loop_attack_feedback_pixel_count: $rts[0].attack_feedback_pixel_count,
       rts_control_loop_strategy_panel_pixel_count: $rts[0].strategy_panel_pixel_count,
       rts_control_loop_minimap_pixel_count: $rts[0].minimap_pixel_count,
+      rts_control_loop_fog_pixel_count: $rts[0].fog_pixel_count,
+      rts_control_loop_vision_pixel_count: $rts[0].vision_pixel_count,
       rts_control_loop_resource_hud_pixel_count: $rts[0].resource_hud_pixel_count,
+      rts_control_loop_production_queue_pixel_count: $rts[0].production_queue_pixel_count,
+      rts_control_loop_move_training_progress_percent: $rts[0].move_training_progress_percent,
+      rts_control_loop_attack_build_progress_percent: $rts[0].attack_build_progress_percent,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -322,6 +328,7 @@ jq -n \
       rts_control_loop_selection_gate: $rts[0].selection_gate,
       rts_control_loop_command_queue_gate: $rts[0].command_queue_gate,
       rts_control_loop_strategy_hud_gate: $rts[0].strategy_hud_gate,
+      rts_control_loop_macro_loop_gate: $rts[0].macro_loop_gate,
       rts_control_loop_gameplay_surface_gate: $rts[0].gameplay_surface_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
@@ -493,7 +500,12 @@ jq -e '
   and .headline.rts_control_loop_attack_feedback_pixel_count > 180
   and .headline.rts_control_loop_strategy_panel_pixel_count > 4000
   and .headline.rts_control_loop_minimap_pixel_count > 2800
+  and .headline.rts_control_loop_fog_pixel_count > 400
+  and .headline.rts_control_loop_vision_pixel_count > 120
   and .headline.rts_control_loop_resource_hud_pixel_count > 120
+  and .headline.rts_control_loop_production_queue_pixel_count > 900
+  and .headline.rts_control_loop_move_training_progress_percent >= 50
+  and .headline.rts_control_loop_attack_build_progress_percent >= 50
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -559,6 +571,7 @@ jq -e '
   and .gates.rts_control_loop_selection_gate == true
   and .gates.rts_control_loop_command_queue_gate == true
   and .gates.rts_control_loop_strategy_hud_gate == true
+  and .gates.rts_control_loop_macro_loop_gate == true
   and .gates.rts_control_loop_gameplay_surface_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
