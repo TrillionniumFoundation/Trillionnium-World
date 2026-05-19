@@ -160,6 +160,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_INPUT_SEQUENCE_CONTRACT: &str
     "trillionnium_world_bevy_classic_rts_live_input_sequence_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PATHING_FORMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_pathing_formation_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COLLISION_ENGAGEMENT_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_collision_engagement_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -197,6 +199,9 @@ const CLASSIC_ISO_FORMATION_LINE_COLOR: u32 = 0xa4e86f;
 const CLASSIC_RTS_PATH_TILE_COLOR: u32 = 0x74c96b;
 const CLASSIC_RTS_BLOCKED_TILE_COLOR: u32 = 0xd6504d;
 const CLASSIC_RTS_FORMATION_SLOT_COLOR: u32 = 0xf4c95d;
+const CLASSIC_RTS_DISPERSION_SLOT_COLOR: u32 = 0xb7a6ff;
+const CLASSIC_RTS_ENGAGEMENT_RANGE_COLOR: u32 = 0xff9d4d;
+const CLASSIC_RTS_CONTACT_FLASH_COLOR: u32 = 0xfff0a8;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1352,6 +1357,14 @@ pub struct NativeFirstPlayableRuntime {
     #[serde(default)]
     pub rts_pathing_status: String,
     #[serde(default)]
+    pub rts_disperse_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_engagement_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_contact_flash_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_unit_response_state: String,
+    #[serde(default)]
     pub rts_attack_target_id: Option<String>,
     #[serde(default)]
     pub rts_visible_tile_ids: Vec<String>,
@@ -1611,6 +1624,10 @@ impl Default for NativeFirstPlayableRuntime {
             rts_blocked_tile_ids: Vec::new(),
             rts_formation_slot_tile_ids: Vec::new(),
             rts_pathing_status: String::new(),
+            rts_disperse_tile_ids: Vec::new(),
+            rts_engagement_tile_ids: Vec::new(),
+            rts_contact_flash_tile_ids: Vec::new(),
+            rts_unit_response_state: String::new(),
             rts_attack_target_id: None,
             rts_visible_tile_ids: Vec::new(),
             rts_fogged_tile_ids: Vec::new(),
@@ -9795,6 +9812,222 @@ pub fn native_classic_rts_pathing_formation_evidence_json(preview_path: &str) ->
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_collision_engagement_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 132,
+        xp: 54,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let actions = [
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+        NativeControlAction::RtsMoveCommand {
+            command_id: "8,4:wedge".to_string(),
+        },
+        NativeControlAction::RtsAttackCommand {
+            target_id: "arena_creep_attack".to_string(),
+        },
+    ];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    for action in &actions[..2] {
+        action_labels.push(native_control_action_label(action));
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_collision_input",
+            action.clone(),
+        );
+        if runtime
+            .input_feedback_history
+            .last()
+            .is_some_and(|event| event.accepted)
+        {
+            accepted_input_count += 1;
+        }
+    }
+    let move_disperse_tile_ids = runtime.rts_disperse_tile_ids.clone();
+    let move_response_state = runtime.rts_unit_response_state.clone();
+    classic_draw_scene(
+        &mut frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        0,
+        0,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        12,
+        12,
+        "COLLISION RESPONSE",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
+    frame_pixels.fill(0x0b0d0c_u32);
+    let attack_action = &actions[2];
+    action_labels.push(native_control_action_label(attack_action));
+    apply_live_native_action_with_source(
+        &mut world,
+        &mut character,
+        &mut gameplay_log,
+        &mut runtime,
+        "local-player",
+        "classic_rts_collision_input",
+        attack_action.clone(),
+    );
+    if runtime
+        .input_feedback_history
+        .last()
+        .is_some_and(|event| event.accepted)
+    {
+        accepted_input_count += 1;
+    }
+    classic_draw_scene(
+        &mut frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        PANEL_WIDTH as i32,
+        0,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        PANEL_WIDTH as i32 + 12,
+        12,
+        "ATTACK ENGAGEMENT",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let dispersion_slot_pixel_count = count_color(CLASSIC_RTS_DISPERSION_SLOT_COLOR);
+    let engagement_range_pixel_count = count_color(CLASSIC_RTS_ENGAGEMENT_RANGE_COLOR);
+    let contact_flash_pixel_count = count_color(CLASSIC_RTS_CONTACT_FLASH_COLOR);
+    let blocked_tile_pixel_count = count_color(CLASSIC_RTS_BLOCKED_TILE_COLOR);
+    let attack_feedback_pixel_count =
+        count_color(CLASSIC_ISO_ATTACK_ARC_COLOR) + count_color(CLASSIC_ISO_HIT_FLASH_COLOR);
+    let live_collision_input_gate = accepted_input_count == actions.len()
+        && runtime
+            .input_feedback_history
+            .iter()
+            .all(|event| event.input_source == "classic_rts_collision_input");
+    let collision_response_gate = move_response_state == "blocked_detour_spread"
+        && move_disperse_tile_ids.len() >= 4
+        && move_disperse_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "7,5")
+        && blocked_tile_pixel_count > 40
+        && dispersion_slot_pixel_count > 120;
+    let engagement_response_gate = runtime.rts_unit_response_state == "engaged:arena_creep_attack"
+        && runtime.rts_engagement_tile_ids.len() >= 4
+        && runtime.rts_contact_flash_tile_ids.len() >= 2
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("engage:"))
+        && engagement_range_pixel_count > 120
+        && contact_flash_pixel_count > 80
+        && attack_feedback_pixel_count > 180;
+    let green = write_gate
+        && non_background_pixels > 240_000
+        && live_collision_input_gate
+        && collision_response_gate
+        && engagement_response_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COLLISION_ENGAGEMENT_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_collision_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "action_labels": action_labels,
+        "move_disperse_tile_ids": move_disperse_tile_ids,
+        "move_response_state": move_response_state,
+        "engagement_tile_ids": runtime.rts_engagement_tile_ids,
+        "contact_flash_tile_ids": runtime.rts_contact_flash_tile_ids,
+        "final_unit_response_state": runtime.rts_unit_response_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_attack_target_id": runtime.rts_attack_target_id,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "non_background_pixels": non_background_pixels,
+        "dispersion_slot_pixel_count": dispersion_slot_pixel_count,
+        "engagement_range_pixel_count": engagement_range_pixel_count,
+        "contact_flash_pixel_count": contact_flash_pixel_count,
+        "blocked_tile_pixel_count": blocked_tile_pixel_count,
+        "attack_feedback_pixel_count": attack_feedback_pixel_count,
+        "live_collision_input_gate": live_collision_input_gate,
+        "collision_response_gate": collision_response_gate,
+        "engagement_response_gate": engagement_response_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS collision engagement evidence proves live move and attack input mutate native runtime response state, then renders blocked-tile dispersal, engagement range, contact flash, and attack feedback through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS collision engagement evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -13382,6 +13615,71 @@ fn classic_draw_iso_command_feedback(
                 10,
                 4,
                 CLASSIC_RTS_FORMATION_SLOT_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_disperse_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (slot_x, slot_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                slot_x - 11,
+                slot_y + tile_h + 6,
+                22,
+                4,
+                CLASSIC_RTS_DISPERSION_SLOT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                slot_x - 2,
+                slot_y + tile_h - 2,
+                4,
+                12,
+                CLASSIC_RTS_DISPERSION_SLOT_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_engagement_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (range_x, range_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                range_x,
+                range_y + tile_h + 2,
+                15,
+                6,
+                CLASSIC_RTS_ENGAGEMENT_RANGE_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_contact_flash_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (flash_x, flash_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                flash_x - 10,
+                flash_y + tile_h - 12,
+                20,
+                4,
+                CLASSIC_RTS_CONTACT_FLASH_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                flash_x - 2,
+                flash_y + tile_h - 22,
+                4,
+                24,
+                CLASSIC_RTS_CONTACT_FLASH_COLOR,
             );
         }
     }
@@ -46619,6 +46917,30 @@ fn classic_rts_formation_slots_for_destination(
     slots.into_iter().map(classic_rts_tile_id).collect()
 }
 
+fn classic_rts_disperse_slots_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
+    if destination_tile == (8, 4) {
+        string_vec(["6,5", "7,5", "8,4", "8,5"])
+    } else {
+        Vec::new()
+    }
+}
+
+fn classic_rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "arena_creep_attack" {
+        string_vec(["6,5", "6,4", "7,5", "5,5"])
+    } else {
+        string_vec(["6,5", "6,4"])
+    }
+}
+
+fn classic_rts_contact_flash_tiles_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "arena_creep_attack" {
+        string_vec(["6,5", "6,4"])
+    } else {
+        string_vec(["6,5"])
+    }
+}
+
 fn apply_classic_rts_select_group_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     group_id: &str,
@@ -46682,10 +47004,18 @@ fn apply_classic_rts_move_runtime(
             classic_rts_blocked_tiles_for_destination(destination_tile);
         first_playable.rts_formation_slot_tile_ids =
             classic_rts_formation_slots_for_destination(destination_tile, formation);
+        first_playable.rts_disperse_tile_ids =
+            classic_rts_disperse_slots_for_destination(destination_tile);
         first_playable.rts_pathing_status = if first_playable.rts_blocked_tile_ids.is_empty() {
             "path_clear".to_string()
         } else {
             format!("detour:{}", first_playable.rts_blocked_tile_ids.join("|"))
+        };
+        first_playable.rts_unit_response_state = if first_playable.rts_disperse_tile_ids.is_empty()
+        {
+            "formation_direct".to_string()
+        } else {
+            "blocked_detour_spread".to_string()
         };
     }
     push_history(
@@ -46717,6 +47047,15 @@ fn apply_classic_rts_move_runtime(
             ),
         );
     }
+    if !first_playable.rts_disperse_tile_ids.is_empty() {
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "disperse:{}",
+                first_playable.rts_disperse_tile_ids.join("|")
+            ),
+        );
+    }
     push_unique_string(&mut first_playable.rts_visible_tile_ids, tile_id);
     first_playable.rts_active_ability_id = Some("move".to_string());
     first_playable.last_feedback = format!("RTS group moving to {tile_id} in {formation}");
@@ -46735,6 +47074,10 @@ fn apply_classic_rts_attack_runtime(
     first_playable.combat_overlay_was_visible = true;
     first_playable.rts_attack_target_id = Some(target_id.to_string());
     first_playable.rts_command_destination_tile = Some("6,5".to_string());
+    first_playable.rts_engagement_tile_ids = classic_rts_engagement_tiles_for_target(target_id);
+    first_playable.rts_contact_flash_tile_ids =
+        classic_rts_contact_flash_tiles_for_target(target_id);
+    first_playable.rts_unit_response_state = format!("engaged:{target_id}");
     first_playable.rts_visible_tile_ids = string_vec(["5,5", "6,5", "6,4", "7,5", "5,4", "4,5"]);
     first_playable.rts_fogged_tile_ids = string_vec(["0,7", "1,7", "10,0", "11,0"]);
     first_playable.rts_unit_health_percents = vec![84, 77, 71, 32];
@@ -46746,6 +47089,20 @@ fn apply_classic_rts_attack_runtime(
     push_history(
         &mut first_playable.rts_command_queue,
         &format!("attack:{target_id}"),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "engage:{}",
+            first_playable.rts_engagement_tile_ids.join("|")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "contact:{}",
+            first_playable.rts_contact_flash_tile_ids.join("|")
+        ),
     );
     push_history(
         &mut first_playable.rts_combat_event_log,

@@ -22,6 +22,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_loop.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_live_input_sequence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_pathing_formation.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_collision_engagement.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -43,6 +44,7 @@ jq -n \
   --slurpfile rts "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.json" \
   --slurpfile rts_live "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-input-sequence.json" \
   --slurpfile rts_path "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-pathing-formation.json" \
+  --slurpfile rts_collision "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-collision-engagement.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -66,6 +68,7 @@ jq -n \
       and ok($rts)
       and ok($rts_live)
       and ok($rts_path)
+      and ok($rts_collision)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -135,6 +138,10 @@ jq -n \
       and $rts_path[0].formation_slot_gate == true
       and $rts_path[0].command_visual_gate == true
       and $rts_path[0].accepted_input_count == 2
+      and $rts_collision[0].live_collision_input_gate == true
+      and $rts_collision[0].collision_response_gate == true
+      and $rts_collision[0].engagement_response_gate == true
+      and $rts_collision[0].accepted_input_count == 3
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -156,6 +163,7 @@ jq -n \
       classic_rts_control_loop_green: ok($rts),
       classic_rts_live_input_sequence_green: ok($rts_live),
       classic_rts_pathing_formation_green: ok($rts_path),
+      classic_rts_collision_engagement_green: ok($rts_collision),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -302,6 +310,15 @@ jq -n \
       rts_pathing_formation_slot_pixel_count: $rts_path[0].formation_slot_pixel_count,
       rts_pathing_selection_marker_pixel_count: $rts_path[0].selection_marker_pixel_count,
       rts_pathing_command_marker_pixel_count: $rts_path[0].command_marker_pixel_count,
+      rts_collision_accepted_input_count: $rts_collision[0].accepted_input_count,
+      rts_collision_move_disperse_tile_count: ($rts_collision[0].move_disperse_tile_ids | length),
+      rts_collision_engagement_tile_count: ($rts_collision[0].engagement_tile_ids | length),
+      rts_collision_contact_flash_tile_count: ($rts_collision[0].contact_flash_tile_ids | length),
+      rts_collision_dispersion_slot_pixel_count: $rts_collision[0].dispersion_slot_pixel_count,
+      rts_collision_engagement_range_pixel_count: $rts_collision[0].engagement_range_pixel_count,
+      rts_collision_contact_flash_pixel_count: $rts_collision[0].contact_flash_pixel_count,
+      rts_collision_blocked_tile_pixel_count: $rts_collision[0].blocked_tile_pixel_count,
+      rts_collision_attack_feedback_pixel_count: $rts_collision[0].attack_feedback_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -385,6 +402,9 @@ jq -n \
       rts_pathing_blocked_tile_gate: $rts_path[0].blocked_tile_gate,
       rts_pathing_formation_slot_gate: $rts_path[0].formation_slot_gate,
       rts_pathing_command_visual_gate: $rts_path[0].command_visual_gate,
+      rts_collision_live_input_gate: $rts_collision[0].live_collision_input_gate,
+      rts_collision_collision_response_gate: $rts_collision[0].collision_response_gate,
+      rts_collision_engagement_response_gate: $rts_collision[0].engagement_response_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -421,6 +441,8 @@ jq -n \
       classic_rts_live_input_sequence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-input-sequence.ppm",
       classic_rts_pathing_formation: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-pathing-formation.json",
       classic_rts_pathing_formation_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-pathing-formation.ppm",
+      classic_rts_collision_engagement: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-collision-engagement.json",
+      classic_rts_collision_engagement_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-collision-engagement.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -446,6 +468,7 @@ jq -e '
   and .checks.classic_rts_control_loop_green == true
   and .checks.classic_rts_live_input_sequence_green == true
   and .checks.classic_rts_pathing_formation_green == true
+  and .checks.classic_rts_collision_engagement_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -588,6 +611,15 @@ jq -e '
   and .headline.rts_pathing_formation_slot_pixel_count > 80
   and .headline.rts_pathing_selection_marker_pixel_count > 800
   and .headline.rts_pathing_command_marker_pixel_count > 500
+  and .headline.rts_collision_accepted_input_count == 3
+  and .headline.rts_collision_move_disperse_tile_count >= 4
+  and .headline.rts_collision_engagement_tile_count >= 4
+  and .headline.rts_collision_contact_flash_tile_count >= 2
+  and .headline.rts_collision_dispersion_slot_pixel_count > 120
+  and .headline.rts_collision_engagement_range_pixel_count > 120
+  and .headline.rts_collision_contact_flash_pixel_count > 80
+  and .headline.rts_collision_blocked_tile_pixel_count > 40
+  and .headline.rts_collision_attack_feedback_pixel_count > 180
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -667,6 +699,9 @@ jq -e '
   and .gates.rts_pathing_blocked_tile_gate == true
   and .gates.rts_pathing_formation_slot_gate == true
   and .gates.rts_pathing_command_visual_gate == true
+  and .gates.rts_collision_live_input_gate == true
+  and .gates.rts_collision_collision_response_gate == true
+  and .gates.rts_collision_engagement_response_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
