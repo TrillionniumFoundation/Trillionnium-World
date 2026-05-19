@@ -27,6 +27,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_economy_build.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_minimap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_build_lifecycle.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tech_tree.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -53,6 +54,7 @@ jq -n \
   --slurpfile rts_economy "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-economy-build.json" \
   --slurpfile rts_select "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.json" \
   --slurpfile rts_build_lifecycle "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.json" \
+  --slurpfile rts_tech_tree "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -81,6 +83,7 @@ jq -n \
       and ok($rts_economy)
       and ok($rts_select)
       and ok($rts_build_lifecycle)
+      and ok($rts_tech_tree)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -177,6 +180,13 @@ jq -n \
       and $rts_build_lifecycle[0].repair_gate == true
       and $rts_build_lifecycle[0].cancel_refund_gate == true
       and $rts_build_lifecycle[0].accepted_input_count == 6
+      and $rts_tech_tree[0].live_tech_tree_input_gate == true
+      and $rts_tech_tree[0].faction_base_gate == true
+      and $rts_tech_tree[0].research_gate == true
+      and $rts_tech_tree[0].upgrade_gate == true
+      and $rts_tech_tree[0].unlock_gate == true
+      and $rts_tech_tree[0].dependency_gate == true
+      and $rts_tech_tree[0].accepted_input_count == 6
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -203,6 +213,7 @@ jq -n \
       classic_rts_economy_build_green: ok($rts_economy),
       classic_rts_selection_minimap_green: ok($rts_select),
       classic_rts_build_lifecycle_green: ok($rts_build_lifecycle),
+      classic_rts_tech_tree_green: ok($rts_tech_tree),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -409,6 +420,27 @@ jq -n \
       rts_build_lifecycle_structure_health_pixel_count: $rts_build_lifecycle[0].structure_health_pixel_count,
       rts_build_lifecycle_repair_pixel_count: $rts_build_lifecycle[0].repair_pixel_count,
       rts_build_lifecycle_cancel_refund_pixel_count: $rts_build_lifecycle[0].cancel_refund_pixel_count,
+      rts_tech_tree_accepted_input_count: $rts_tech_tree[0].accepted_input_count,
+      rts_tech_tree_faction_id: $rts_tech_tree[0].final_faction_id,
+      rts_tech_tree_base_structure_count: ($rts_tech_tree[0].final_base_structure_ids | length),
+      rts_tech_tree_research_count: ($rts_tech_tree[0].final_tech_research_ids | length),
+      rts_tech_tree_completed_upgrade_count: ($rts_tech_tree[0].final_completed_upgrade_ids | length),
+      rts_tech_tree_unlocked_unit_count: ($rts_tech_tree[0].final_unlocked_unit_ids | length),
+      rts_tech_tree_unlocked_structure_count: ($rts_tech_tree[0].final_unlocked_structure_ids | length),
+      rts_tech_tree_requirement_count: ($rts_tech_tree[0].final_tech_requirements_log | length),
+      rts_tech_tree_progress_percent: $rts_tech_tree[0].final_tech_progress_percent,
+      rts_tech_tree_pixel_count: (
+        $rts_tech_tree[0].tech_base_pixel_count
+        + $rts_tech_tree[0].tech_research_pixel_count
+        + $rts_tech_tree[0].tech_upgrade_pixel_count
+        + $rts_tech_tree[0].tech_unlock_pixel_count
+        + $rts_tech_tree[0].tech_requirement_pixel_count
+      ),
+      rts_tech_tree_base_pixel_count: $rts_tech_tree[0].tech_base_pixel_count,
+      rts_tech_tree_research_pixel_count: $rts_tech_tree[0].tech_research_pixel_count,
+      rts_tech_tree_upgrade_pixel_count: $rts_tech_tree[0].tech_upgrade_pixel_count,
+      rts_tech_tree_unlock_pixel_count: $rts_tech_tree[0].tech_unlock_pixel_count,
+      rts_tech_tree_requirement_pixel_count: $rts_tech_tree[0].tech_requirement_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -514,6 +546,12 @@ jq -n \
       rts_build_lifecycle_completion_gate: $rts_build_lifecycle[0].completion_gate,
       rts_build_lifecycle_repair_gate: $rts_build_lifecycle[0].repair_gate,
       rts_build_lifecycle_cancel_refund_gate: $rts_build_lifecycle[0].cancel_refund_gate,
+      rts_tech_tree_live_input_gate: $rts_tech_tree[0].live_tech_tree_input_gate,
+      rts_tech_tree_faction_base_gate: $rts_tech_tree[0].faction_base_gate,
+      rts_tech_tree_research_gate: $rts_tech_tree[0].research_gate,
+      rts_tech_tree_upgrade_gate: $rts_tech_tree[0].upgrade_gate,
+      rts_tech_tree_unlock_gate: $rts_tech_tree[0].unlock_gate,
+      rts_tech_tree_dependency_gate: $rts_tech_tree[0].dependency_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -560,6 +598,8 @@ jq -n \
       classic_rts_selection_minimap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.ppm",
       classic_rts_build_lifecycle: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.json",
       classic_rts_build_lifecycle_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.ppm",
+      classic_rts_tech_tree: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.json",
+      classic_rts_tech_tree_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -590,6 +630,7 @@ jq -e '
   and .checks.classic_rts_economy_build_green == true
   and .checks.classic_rts_selection_minimap_green == true
   and .checks.classic_rts_build_lifecycle_green == true
+  and .checks.classic_rts_tech_tree_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -782,6 +823,21 @@ jq -e '
   and .headline.rts_build_lifecycle_structure_health_pixel_count > 20
   and .headline.rts_build_lifecycle_repair_pixel_count > 60
   and .headline.rts_build_lifecycle_cancel_refund_pixel_count > 40
+  and .headline.rts_tech_tree_accepted_input_count == 6
+  and .headline.rts_tech_tree_faction_id == "mirror_guard"
+  and .headline.rts_tech_tree_base_structure_count >= 3
+  and .headline.rts_tech_tree_research_count >= 1
+  and .headline.rts_tech_tree_completed_upgrade_count >= 1
+  and .headline.rts_tech_tree_unlocked_unit_count >= 3
+  and .headline.rts_tech_tree_unlocked_structure_count >= 1
+  and .headline.rts_tech_tree_requirement_count >= 4
+  and .headline.rts_tech_tree_progress_percent == 100
+  and .headline.rts_tech_tree_pixel_count > 360
+  and .headline.rts_tech_tree_base_pixel_count > 140
+  and .headline.rts_tech_tree_research_pixel_count > 50
+  and .headline.rts_tech_tree_upgrade_pixel_count > 40
+  and .headline.rts_tech_tree_unlock_pixel_count > 70
+  and .headline.rts_tech_tree_requirement_pixel_count > 60
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -883,6 +939,12 @@ jq -e '
   and .gates.rts_build_lifecycle_completion_gate == true
   and .gates.rts_build_lifecycle_repair_gate == true
   and .gates.rts_build_lifecycle_cancel_refund_gate == true
+  and .gates.rts_tech_tree_live_input_gate == true
+  and .gates.rts_tech_tree_faction_base_gate == true
+  and .gates.rts_tech_tree_research_gate == true
+  and .gates.rts_tech_tree_upgrade_gate == true
+  and .gates.rts_tech_tree_unlock_gate == true
+  and .gates.rts_tech_tree_dependency_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

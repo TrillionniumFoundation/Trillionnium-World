@@ -170,6 +170,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_MINIMAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_selection_minimap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_build_lifecycle_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TECH_TREE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_tech_tree_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -227,6 +229,11 @@ const CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR: u32 = 0x7cff8d;
 const CLASSIC_RTS_STRUCTURE_REPAIR_COLOR: u32 = 0x55d7ff;
 const CLASSIC_RTS_STRUCTURE_CANCEL_COLOR: u32 = 0xffb35a;
 const CLASSIC_RTS_STRUCTURE_HEALTH_COLOR: u32 = 0x76f2a0;
+const CLASSIC_RTS_TECH_BASE_COLOR: u32 = 0x7aa7ff;
+const CLASSIC_RTS_TECH_RESEARCH_COLOR: u32 = 0xb477ff;
+const CLASSIC_RTS_TECH_UPGRADE_COLOR: u32 = 0xf2d05a;
+const CLASSIC_RTS_TECH_UNLOCK_COLOR: u32 = 0x61f0bf;
+const CLASSIC_RTS_TECH_REQUIREMENT_COLOR: u32 = 0xff6b75;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1471,6 +1478,24 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_structure_health_percents: Vec<u8>,
     #[serde(default)]
     pub rts_structure_state: String,
+    #[serde(default)]
+    pub rts_faction_id: Option<String>,
+    #[serde(default)]
+    pub rts_base_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_tech_research_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_completed_upgrade_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_unlocked_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_unlocked_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_tech_requirements_log: Vec<String>,
+    #[serde(default)]
+    pub rts_tech_progress_percent: u8,
+    #[serde(default)]
+    pub rts_tech_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1748,6 +1773,15 @@ impl Default for NativeFirstPlayableRuntime {
             rts_refund_delta_log: Vec::new(),
             rts_structure_health_percents: Vec::new(),
             rts_structure_state: String::new(),
+            rts_faction_id: None,
+            rts_base_structure_ids: Vec::new(),
+            rts_tech_research_ids: Vec::new(),
+            rts_completed_upgrade_ids: Vec::new(),
+            rts_unlocked_unit_ids: Vec::new(),
+            rts_unlocked_structure_ids: Vec::new(),
+            rts_tech_requirements_log: Vec::new(),
+            rts_tech_progress_percent: 0,
+            rts_tech_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -11040,6 +11074,278 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_tech_tree_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 260,
+        xp: 84,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_base_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "choose_faction",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "faction:mirror_guard".to_string(),
+            },
+        ),
+        (
+            "place_training_hall",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "build:training_hall@4,3".to_string(),
+            },
+        ),
+        (
+            "research_wayfinder",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "research:wayfinder_code@town_hall".to_string(),
+            },
+        ),
+        (
+            "upgrade_iron_lacing",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "upgrade:iron_lacing@training_hall".to_string(),
+            },
+        ),
+        (
+            "unlock_relay_guard",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "unlock:relay_guard".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_tech_tree_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS TECH {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "faction_id": runtime.rts_faction_id.clone(),
+            "base_structure_ids": runtime.rts_base_structure_ids.clone(),
+            "tech_research_ids": runtime.rts_tech_research_ids.clone(),
+            "completed_upgrade_ids": runtime.rts_completed_upgrade_ids.clone(),
+            "unlocked_unit_ids": runtime.rts_unlocked_unit_ids.clone(),
+            "unlocked_structure_ids": runtime.rts_unlocked_structure_ids.clone(),
+            "tech_requirements_log": runtime.rts_tech_requirements_log.clone(),
+            "tech_progress_percent": runtime.rts_tech_progress_percent,
+            "tech_state": runtime.rts_tech_state.clone(),
+            "build_queue": runtime.rts_build_queue.clone(),
+            "production_queue": runtime.rts_production_queue.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let tech_base_pixel_count = count_color(CLASSIC_RTS_TECH_BASE_COLOR);
+    let tech_research_pixel_count = count_color(CLASSIC_RTS_TECH_RESEARCH_COLOR);
+    let tech_upgrade_pixel_count = count_color(CLASSIC_RTS_TECH_UPGRADE_COLOR);
+    let tech_unlock_pixel_count = count_color(CLASSIC_RTS_TECH_UNLOCK_COLOR);
+    let tech_requirement_pixel_count = count_color(CLASSIC_RTS_TECH_REQUIREMENT_COLOR);
+    let live_tech_tree_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_tech_tree_input");
+    let faction_base_gate = runtime.rts_faction_id.as_deref() == Some("mirror_guard")
+        && runtime
+            .rts_base_structure_ids
+            .iter()
+            .any(|entry| entry == "town_hall")
+        && runtime
+            .rts_base_structure_ids
+            .iter()
+            .any(|entry| entry == "training_hall")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "faction:mirror_guard:base_online")
+        && tech_base_pixel_count > 140;
+    let research_gate = runtime
+        .rts_tech_research_ids
+        .iter()
+        .any(|entry| entry == "wayfinder_code")
+        && runtime.rts_tech_progress_percent >= 58
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "research:wayfinder_code@town_hall")
+        && tech_research_pixel_count > 50;
+    let upgrade_gate = runtime
+        .rts_completed_upgrade_ids
+        .iter()
+        .any(|entry| entry == "iron_lacing")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "upgrade:iron_lacing@training_hall")
+        && tech_upgrade_pixel_count > 40;
+    let unlock_gate = runtime
+        .rts_unlocked_unit_ids
+        .iter()
+        .any(|entry| entry == "relay_guard")
+        && runtime
+            .rts_unlocked_structure_ids
+            .iter()
+            .any(|entry| entry == "signal_spire")
+        && runtime.rts_tech_state == "unlocked:relay_guard"
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "unlock:relay_guard")
+        && tech_unlock_pixel_count > 70;
+    let dependency_gate = runtime
+        .rts_tech_requirements_log
+        .iter()
+        .any(|entry| entry == "base:town_hall|required:training_hall|locked:relay_guard")
+        && runtime
+            .rts_tech_requirements_log
+            .iter()
+            .any(|entry| entry == "upgrade:iron_lacing:requires:training_hall+wayfinder_code")
+        && runtime
+            .rts_tech_requirements_log
+            .iter()
+            .any(|entry| entry == "unlock:relay_guard:requires:iron_lacing+signal_spire")
+        && tech_requirement_pixel_count > 60;
+    let green = write_gate
+        && non_background_pixels > 330_000
+        && live_tech_tree_input_gate
+        && faction_base_gate
+        && research_gate
+        && upgrade_gate
+        && unlock_gate
+        && dependency_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TECH_TREE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_tech_tree_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_faction_id": runtime.rts_faction_id,
+        "final_base_structure_ids": runtime.rts_base_structure_ids,
+        "final_tech_research_ids": runtime.rts_tech_research_ids,
+        "final_completed_upgrade_ids": runtime.rts_completed_upgrade_ids,
+        "final_unlocked_unit_ids": runtime.rts_unlocked_unit_ids,
+        "final_unlocked_structure_ids": runtime.rts_unlocked_structure_ids,
+        "final_tech_requirements_log": runtime.rts_tech_requirements_log,
+        "final_tech_progress_percent": runtime.rts_tech_progress_percent,
+        "final_tech_state": runtime.rts_tech_state,
+        "final_build_queue": runtime.rts_build_queue,
+        "final_production_queue": runtime.rts_production_queue,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "tech_base_pixel_count": tech_base_pixel_count,
+        "tech_research_pixel_count": tech_research_pixel_count,
+        "tech_upgrade_pixel_count": tech_upgrade_pixel_count,
+        "tech_unlock_pixel_count": tech_unlock_pixel_count,
+        "tech_requirement_pixel_count": tech_requirement_pixel_count,
+        "live_tech_tree_input_gate": live_tech_tree_input_gate,
+        "faction_base_gate": faction_base_gate,
+        "research_gate": research_gate,
+        "upgrade_gate": upgrade_gate,
+        "unlock_gate": unlock_gate,
+        "dependency_gate": dependency_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS tech-tree evidence drives faction selection, base structure dependency, research, upgrade, and unlock queue input into native runtime tech state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS tech tree evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -15136,6 +15442,124 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    for structure_id in &runtime.rts_base_structure_ids {
+        let base_tile = classic_rts_structure_tile_for_id(structure_id);
+        let (base_x, base_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, base_tile);
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            base_x,
+            base_y + tile_h - 13,
+            tile_w / 2,
+            tile_h / 2,
+            CLASSIC_RTS_TECH_BASE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            base_x - 18,
+            base_y + tile_h - 41,
+            36,
+            4,
+            CLASSIC_RTS_TECH_BASE_COLOR,
+        );
+    }
+    for (index, tech_id) in runtime.rts_tech_research_ids.iter().enumerate() {
+        let tech_tile = if tech_id.contains("wayfinder") {
+            (5, 4)
+        } else {
+            (6, 4)
+        };
+        let (tech_x, tech_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tech_tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tech_x - 20,
+            tech_y + tile_h - 50 - index as i32 * 7,
+            (runtime.rts_tech_progress_percent.min(100) as i32 * 40) / 100,
+            5,
+            CLASSIC_RTS_TECH_RESEARCH_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tech_x + 23,
+            tech_y + tile_h - 50 - index as i32 * 7,
+            8,
+            5,
+            CLASSIC_RTS_TECH_RESEARCH_COLOR,
+        );
+    }
+    for (index, upgrade_id) in runtime.rts_completed_upgrade_ids.iter().enumerate() {
+        let upgrade_tile = if upgrade_id.contains("iron") {
+            (4, 3)
+        } else {
+            (6, 3)
+        };
+        let (upgrade_x, upgrade_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, upgrade_tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            upgrade_x - 18,
+            upgrade_y + tile_h - 57 - index as i32 * 6,
+            36,
+            4,
+            CLASSIC_RTS_TECH_UPGRADE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            upgrade_x - 3,
+            upgrade_y + tile_h - 64 - index as i32 * 6,
+            6,
+            10,
+            CLASSIC_RTS_TECH_UPGRADE_COLOR,
+        );
+    }
+    for unit_id in &runtime.rts_unlocked_unit_ids {
+        let unit_tile = classic_rts_unlock_unit_tile_for_id(unit_id);
+        let (unlock_x, unlock_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, unit_tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            unlock_x,
+            unlock_y + tile_h - 2,
+            16,
+            6,
+            CLASSIC_RTS_TECH_UNLOCK_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unlock_x - 12,
+            unlock_y + tile_h - 27,
+            24,
+            4,
+            CLASSIC_RTS_TECH_UNLOCK_COLOR,
+        );
+    }
+    for (index, _entry) in runtime.rts_tech_requirements_log.iter().take(4).enumerate() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            118 + index as i32 * 18,
+            154,
+            12,
+            5,
+            CLASSIC_RTS_TECH_REQUIREMENT_COLOR,
+        );
+    }
     let command_marker_drawn = classic_blit_frame_override_bottom_center(
         buffer,
         width,
@@ -16781,6 +17205,39 @@ fn classic_draw_rts_strategy_overlay(
             ),
             1,
             CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR,
+        );
+    }
+    if !runtime.rts_tech_state.is_empty() {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 112,
+            command_y + 33,
+            &classic_catalog_text_label(
+                &runtime
+                    .rts_tech_state
+                    .replace("faction_online:", "FAC ")
+                    .replace("researching:", "TECH ")
+                    .replace("upgraded:", "UP ")
+                    .replace("unlocked:", "UNL ")
+                    .replace('@', " "),
+                15,
+            ),
+            1,
+            CLASSIC_RTS_TECH_UNLOCK_COLOR,
+        );
+    }
+    for (index, _entry) in runtime.rts_tech_requirements_log.iter().take(4).enumerate() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8 + index as i32 * 22,
+            command_y + 34,
+            16,
+            4,
+            CLASSIC_RTS_TECH_REQUIREMENT_COLOR,
         );
     }
     let production_y = command_y + 40;
@@ -48654,7 +49111,30 @@ fn classic_rts_structure_tile_for_id(structure_id: &str) -> (i32, i32) {
         "watch_tower" => (7, 4),
         "scout_tower" => (8, 4),
         "town_hall" => (5, 5),
+        "training_hall" => (4, 3),
+        "signal_spire" => (6, 3),
         _ => (7, 4),
+    }
+}
+
+fn classic_rts_unlock_unit_tile_for_id(unit_id: &str) -> (i32, i32) {
+    match unit_id {
+        "relay_guard" => (7, 5),
+        "wayfinder" => (4, 5),
+        _ => (6, 5),
+    }
+}
+
+fn classic_rts_tech_parts(
+    queue_id: &str,
+    prefix: &str,
+    fallback_source_id: &str,
+) -> (String, String) {
+    let payload = queue_id.strip_prefix(prefix).unwrap_or(queue_id);
+    if let Some((tech_id, source_id)) = payload.split_once('@') {
+        (tech_id.to_string(), source_id.to_string())
+    } else {
+        (payload.to_string(), fallback_source_id.to_string())
     }
 }
 
@@ -48727,7 +49207,72 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_select_group_runtime(first_playable, "1");
     }
     push_unique_string(&mut first_playable.rts_production_queue, queue_id);
-    if let Some(node_id) = queue_id.strip_prefix("harvest:") {
+    if let Some(faction_id) = queue_id.strip_prefix("faction:") {
+        first_playable.rts_faction_id = Some(faction_id.to_string());
+        for structure_id in ["town_hall", "training_hall", "signal_spire"] {
+            push_unique_string(&mut first_playable.rts_base_structure_ids, structure_id);
+        }
+        first_playable.rts_unlocked_unit_ids = string_vec(["worker", "guard"]);
+        first_playable.rts_tech_progress_percent = first_playable.rts_tech_progress_percent.max(25);
+        first_playable.rts_tech_state = format!("faction_online:{faction_id}");
+        push_history(
+            &mut first_playable.rts_tech_requirements_log,
+            "base:town_hall|required:training_hall|locked:relay_guard",
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("faction:{faction_id}:base_online"),
+        );
+    } else if queue_id.starts_with("research:") {
+        let (tech_id, source_id) = classic_rts_tech_parts(queue_id, "research:", "town_hall");
+        push_unique_string(&mut first_playable.rts_tech_research_ids, &tech_id);
+        push_unique_string(&mut first_playable.rts_base_structure_ids, &source_id);
+        first_playable.rts_tech_progress_percent = first_playable.rts_tech_progress_percent.max(58);
+        first_playable.rts_tech_state = format!("researching:{tech_id}@{source_id}");
+        push_history(
+            &mut first_playable.rts_tech_requirements_log,
+            &format!("research:{tech_id}:requires:{source_id}"),
+        );
+        push_history(&mut first_playable.rts_resource_spend_log, "tech:-90g:-30l");
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("research:{tech_id}@{source_id}"),
+        );
+    } else if queue_id.starts_with("upgrade:") {
+        let (upgrade_id, source_id) = classic_rts_tech_parts(queue_id, "upgrade:", "training_hall");
+        push_unique_string(&mut first_playable.rts_completed_upgrade_ids, &upgrade_id);
+        push_unique_string(&mut first_playable.rts_base_structure_ids, &source_id);
+        first_playable.rts_tech_progress_percent = 100;
+        first_playable.rts_tech_state = format!("upgraded:{upgrade_id}@{source_id}");
+        push_history(
+            &mut first_playable.rts_tech_requirements_log,
+            &format!("upgrade:{upgrade_id}:requires:{source_id}+wayfinder_code"),
+        );
+        push_history(
+            &mut first_playable.rts_resource_spend_log,
+            "upgrade:-120g:-60l",
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("upgrade:{upgrade_id}@{source_id}"),
+        );
+    } else if let Some(unit_id) = queue_id.strip_prefix("unlock:") {
+        push_unique_string(&mut first_playable.rts_unlocked_unit_ids, unit_id);
+        push_unique_string(
+            &mut first_playable.rts_unlocked_structure_ids,
+            "signal_spire",
+        );
+        first_playable.rts_tech_state = format!("unlocked:{unit_id}");
+        first_playable.rts_tech_progress_percent = 100;
+        push_history(
+            &mut first_playable.rts_tech_requirements_log,
+            &format!("unlock:{unit_id}:requires:iron_lacing+signal_spire"),
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("unlock:{unit_id}"),
+        );
+    } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
         push_unique_string(&mut first_playable.rts_harvest_node_ids, node_id);
         first_playable.rts_worker_assignment_ids = string_vec([
             "square_worker_carry:gold_vein",
@@ -48749,6 +49294,13 @@ fn apply_classic_rts_queue_runtime(
     } else if queue_id.starts_with("build:") {
         let (structure_id, tile_id) = classic_rts_build_parts(queue_id);
         push_unique_string(&mut first_playable.rts_build_queue, queue_id);
+        if structure_id == "training_hall" || structure_id == "signal_spire" {
+            push_unique_string(&mut first_playable.rts_base_structure_ids, &structure_id);
+            push_history(
+                &mut first_playable.rts_tech_requirements_log,
+                &format!("structure:{structure_id}:queued_at:{tile_id}"),
+            );
+        }
         first_playable.rts_building_blueprint_id = Some(structure_id.clone());
         first_playable.rts_build_site_tile_ids = classic_rts_build_site_tiles(&tile_id);
         first_playable.rts_command_destination_tile = Some(tile_id.clone());

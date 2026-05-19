@@ -550,6 +550,20 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-tech-tree" | "--classic-rts-tech-tree")
+    ) {
+        let preview_path = args
+            .get(1)
+            .map(String::as_str)
+            .unwrap_or("../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.ppm");
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_tech_tree_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )
