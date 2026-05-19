@@ -44,10 +44,18 @@ jq -e '
   and (.attack_build_queue | index("upgrade:training_hall") != null)
   and .move_training_progress_percent >= 50
   and .attack_build_progress_percent >= 50
+  and .unit_health_card_pixel_count > 280
+  and .ability_command_pixel_count > 800
+  and .target_health_pixel_count > 60
+  and .attack_target_health_percent < 60
+  and .attack_active_ability_id == "focus_fire"
+  and (.attack_ability_command_ids | index("focus_fire") != null)
+  and (.attack_combat_event_log | index("damage:28") != null)
   and .selection_gate == true
   and .command_queue_gate == true
   and .strategy_hud_gate == true
   and .macro_loop_gate == true
+  and .tactical_combat_gate == true
   and .gameplay_surface_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false

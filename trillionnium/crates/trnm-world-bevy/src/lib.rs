@@ -204,6 +204,11 @@ const CLASSIC_RTS_RESOURCE_FOOD_COLOR: u32 = 0xc8d7d0;
 const CLASSIC_RTS_PRODUCTION_SLOT_COLOR: u32 = 0x29342d;
 const CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR: u32 = 0x66c487;
 const CLASSIC_RTS_BUILD_PROGRESS_COLOR: u32 = 0xc59a4d;
+const CLASSIC_RTS_UNIT_CARD_HEALTH_COLOR: u32 = 0x5ee174;
+const CLASSIC_RTS_TARGET_HEALTH_COLOR: u32 = 0xe85f5f;
+const CLASSIC_RTS_ABILITY_SLOT_COLOR: u32 = 0x24323f;
+const CLASSIC_RTS_ABILITY_COOLDOWN_COLOR: u32 = 0x6f7d91;
+const CLASSIC_RTS_ACTIVE_ABILITY_COLOR: u32 = 0xffd166;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -1342,6 +1347,18 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_build_progress_percent: u8,
     #[serde(default)]
     pub rts_resource_spend_log: Vec<String>,
+    #[serde(default)]
+    pub rts_unit_health_percents: Vec<u8>,
+    #[serde(default)]
+    pub rts_ability_command_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_ability_cooldown_percents: Vec<u8>,
+    #[serde(default)]
+    pub rts_active_ability_id: Option<String>,
+    #[serde(default)]
+    pub rts_target_health_percent: u8,
+    #[serde(default)]
+    pub rts_combat_event_log: Vec<String>,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1578,6 +1595,12 @@ impl Default for NativeFirstPlayableRuntime {
             rts_training_progress_percent: 0,
             rts_build_progress_percent: 0,
             rts_resource_spend_log: Vec::new(),
+            rts_unit_health_percents: Vec::new(),
+            rts_ability_command_ids: Vec::new(),
+            rts_ability_cooldown_percents: Vec::new(),
+            rts_active_ability_id: None,
+            rts_target_health_percent: 0,
+            rts_combat_event_log: Vec::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -9058,6 +9081,12 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         rts_training_progress_percent: 64,
         rts_build_progress_percent: 38,
         rts_resource_spend_log: string_vec(["spent:80g:20l:worker", "reserved:120g:40l:tower"]),
+        rts_unit_health_percents: vec![100, 92, 74, 68],
+        rts_ability_command_ids: string_vec(["move", "stop", "hold", "patrol"]),
+        rts_ability_cooldown_percents: vec![0, 0, 20, 0],
+        rts_active_ability_id: Some("move".to_string()),
+        rts_target_health_percent: 100,
+        rts_combat_event_log: string_vec(["group formed", "move waypoint issued"]),
         last_feedback: "RTS group 1 moving to waypoint".to_string(),
         ..Default::default()
     };
@@ -9087,6 +9116,12 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         rts_training_progress_percent: 82,
         rts_build_progress_percent: 56,
         rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "queued:210g:60l:upgrade"]),
+        rts_unit_health_percents: vec![84, 77, 71, 32],
+        rts_ability_command_ids: string_vec(["attack", "focus_fire", "guard", "retreat"]),
+        rts_ability_cooldown_percents: vec![0, 44, 0, 12],
+        rts_active_ability_id: Some("focus_fire".to_string()),
+        rts_target_health_percent: 46,
+        rts_combat_event_log: string_vec(["focus_fire:arena_creep_attack", "damage:28"]),
         enemy_damage_feedback: "control group attack queued".to_string(),
         last_feedback: "RTS attack order accepted".to_string(),
         ..Default::default()
@@ -9179,6 +9214,11 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
     let production_queue_pixel_count = count_color(CLASSIC_RTS_PRODUCTION_SLOT_COLOR)
         + count_color(CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR)
         + count_color(CLASSIC_RTS_BUILD_PROGRESS_COLOR);
+    let unit_health_card_pixel_count = count_color(CLASSIC_RTS_UNIT_CARD_HEALTH_COLOR);
+    let ability_command_pixel_count = count_color(CLASSIC_RTS_ABILITY_SLOT_COLOR)
+        + count_color(CLASSIC_RTS_ABILITY_COOLDOWN_COLOR)
+        + count_color(CLASSIC_RTS_ACTIVE_ABILITY_COLOR);
+    let target_health_pixel_count = count_color(CLASSIC_RTS_TARGET_HEALTH_COLOR);
     let non_background_pixels = preview_pixels
         .iter()
         .filter(|color| **color != 0x0b0d0c_u32)
@@ -9209,10 +9249,20 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         && attack_runtime.rts_build_progress_percent >= 50
         && !move_runtime.rts_resource_spend_log.is_empty()
         && !attack_runtime.rts_production_queue.is_empty();
+    let tactical_combat_gate = unit_health_card_pixel_count > 280
+        && ability_command_pixel_count > 800
+        && target_health_pixel_count > 60
+        && attack_runtime.rts_target_health_percent < 60
+        && attack_runtime
+            .rts_active_ability_id
+            .as_deref()
+            .is_some_and(|ability| ability == "focus_fire")
+        && !attack_runtime.rts_combat_event_log.is_empty();
     let gameplay_surface_gate = selection_gate
         && command_queue_gate
         && strategy_hud_gate
         && macro_loop_gate
+        && tactical_combat_gate
         && move_runtime.rts_control_group_id.as_deref() == Some("1")
         && attack_runtime.rts_attack_target_id.as_deref() == Some("arena_creep_attack");
     let green = write_gate
@@ -9250,6 +9300,18 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         "attack_build_progress_percent": attack_runtime.rts_build_progress_percent,
         "move_resource_spend_log": move_runtime.rts_resource_spend_log,
         "attack_resource_spend_log": attack_runtime.rts_resource_spend_log,
+        "move_unit_health_percents": move_runtime.rts_unit_health_percents,
+        "attack_unit_health_percents": attack_runtime.rts_unit_health_percents,
+        "move_ability_command_ids": move_runtime.rts_ability_command_ids,
+        "attack_ability_command_ids": attack_runtime.rts_ability_command_ids,
+        "move_ability_cooldown_percents": move_runtime.rts_ability_cooldown_percents,
+        "attack_ability_cooldown_percents": attack_runtime.rts_ability_cooldown_percents,
+        "move_active_ability_id": move_runtime.rts_active_ability_id,
+        "attack_active_ability_id": attack_runtime.rts_active_ability_id,
+        "move_target_health_percent": move_runtime.rts_target_health_percent,
+        "attack_target_health_percent": attack_runtime.rts_target_health_percent,
+        "move_combat_event_log": move_runtime.rts_combat_event_log,
+        "attack_combat_event_log": attack_runtime.rts_combat_event_log,
         "selection_marker_pixel_count": selection_marker_pixel_count,
         "formation_line_pixel_count": formation_line_pixel_count,
         "command_marker_pixel_count": command_marker_pixel_count,
@@ -9260,14 +9322,18 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         "vision_pixel_count": vision_pixel_count,
         "resource_hud_pixel_count": resource_hud_pixel_count,
         "production_queue_pixel_count": production_queue_pixel_count,
+        "unit_health_card_pixel_count": unit_health_card_pixel_count,
+        "ability_command_pixel_count": ability_command_pixel_count,
+        "target_health_pixel_count": target_health_pixel_count,
         "selection_gate": selection_gate,
         "command_queue_gate": command_queue_gate,
         "strategy_hud_gate": strategy_hud_gate,
         "macro_loop_gate": macro_loop_gate,
+        "tactical_combat_gate": tactical_combat_gate,
         "gameplay_surface_gate": gameplay_surface_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, queued attack feedback, minimap, fog-of-war vision, resources, production queues, and command panel through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, queued attack feedback, minimap, fog-of-war vision, resources, production queues, unit health cards, target health, ability cooldowns, and command panel through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS control loop evidence serializes")
 }
@@ -14353,6 +14419,143 @@ fn classic_draw_rts_strategy_overlay(
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
+
+    let tactical_y = command_y + 72;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x,
+        tactical_y,
+        resource_w,
+        72,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x,
+        tactical_y,
+        resource_w,
+        2,
+        CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 8,
+        tactical_y + 7,
+        "UNIT STATE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    for (index, entity) in selected_units.iter().take(4).enumerate() {
+        let health = runtime
+            .rts_unit_health_percents
+            .get(index)
+            .copied()
+            .unwrap_or(72);
+        let row_x = resource_x + 8 + (index as i32 % 2) * 90;
+        let row_y = tactical_y + 18 + (index as i32 / 2) * 11;
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            row_x,
+            row_y,
+            &classic_catalog_text_label(&entity.id.replace('_', " "), 9),
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            row_x + 46,
+            row_y + 1,
+            34,
+            4,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            row_x + 46,
+            row_y + 1,
+            (health.min(100) as i32 * 34) / 100,
+            4,
+            CLASSIC_RTS_UNIT_CARD_HEALTH_COLOR,
+        );
+    }
+    let target_health = runtime.rts_target_health_percent.max(1);
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 8,
+        tactical_y + 43,
+        "TARGET",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 55,
+        tactical_y + 44,
+        48,
+        5,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 55,
+        tactical_y + 44,
+        (target_health.min(100) as i32 * 48) / 100,
+        5,
+        CLASSIC_RTS_TARGET_HEALTH_COLOR,
+    );
+    for index in 0..4 {
+        let ability = runtime
+            .rts_ability_command_ids
+            .get(index)
+            .map(String::as_str)
+            .unwrap_or("hold");
+        let cooldown = runtime
+            .rts_ability_cooldown_percents
+            .get(index)
+            .copied()
+            .unwrap_or(0);
+        let active = runtime.rts_active_ability_id.as_deref() == Some(ability);
+        classic_draw_rts_ability_slot(
+            buffer,
+            width,
+            height,
+            resource_x + 111 + index as i32 * 19,
+            tactical_y + 40,
+            ability,
+            cooldown,
+            active,
+        );
+    }
+    if let Some(event) = runtime.rts_combat_event_log.last() {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 59,
+            &classic_catalog_text_label(&event.replace(':', " "), 24),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+    }
     true
 }
 
@@ -14458,6 +14661,76 @@ fn classic_draw_rts_queue_slot(
         x + 4,
         y + 4,
         &classic_catalog_text_label(&compact_label, 8),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_ability_slot(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    label: &str,
+    cooldown_percent: u8,
+    active: bool,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        16,
+        16,
+        CLASSIC_RTS_ABILITY_SLOT_COLOR,
+    );
+    if active {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            16,
+            2,
+            CLASSIC_RTS_ACTIVE_ABILITY_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            2,
+            16,
+            CLASSIC_RTS_ACTIVE_ABILITY_COLOR,
+        );
+    }
+    let cooldown_height = (cooldown_percent.min(100) as i32 * 13) / 100;
+    if cooldown_height > 0 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 2,
+            y + 14 - cooldown_height,
+            12,
+            cooldown_height,
+            CLASSIC_RTS_ABILITY_COOLDOWN_COLOR,
+        );
+    }
+    let hotkey = label.chars().next().unwrap_or('-').to_ascii_uppercase();
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        x + 5,
+        y + 5,
+        &hotkey.to_string(),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
