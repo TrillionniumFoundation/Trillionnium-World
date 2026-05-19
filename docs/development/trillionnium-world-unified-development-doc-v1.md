@@ -373,6 +373,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第二十四组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_central_keep_pressure.sh` 把 `press_central_keep` 做成中央要塞压制前置：`tier2:keep_route` 标记通往 `central_keep` 的路线，`tier2:keep_shield` 读出 `mirror_ward` 护盾，`tier2:keep_guard` 揭示守卫线，`tier2:keep_siege` 排出最终攻城线，`tier2:keep_pressure` 把护盾压到 24%、要塞血量压到 58% 并给出下一步 `break_central_keep`；整条仍由 Bevy native live input 和 Trillionnium-owned 低配渲染证据约束。
 
+同日继续追加第二十五组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_central_keep_breakthrough.sh` 把 `break_central_keep` 做成终局破要塞/占领结算：`tier2:keep_breach` 打开中央要塞破口，`tier2:guardian_counter` 触发最终守卫反扑，`tier2:keep_hold` 稳住攻城线，`tier2:keep_break` 把要塞血量打到 0，`tier2:keep_claim` 完成 `classic_rts_victory:central_keep` 并给出下一步 `restore_mirror_city`；它把前面的压制 loop 接成可验证胜利闭环。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

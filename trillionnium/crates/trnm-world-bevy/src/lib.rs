@@ -202,6 +202,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_INNER_LANE_BREAKTHROUGH_CONTRACT: 
     "trillionnium_world_bevy_classic_rts_inner_lane_breakthrough_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_PRESSURE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_central_keep_pressure_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_BREAKTHROUGH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_central_keep_breakthrough_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -337,6 +339,10 @@ const CLASSIC_RTS_KEEP_SHIELD_COLOR: u32 = 0xbd92ff;
 const CLASSIC_RTS_KEEP_GUARD_COLOR: u32 = 0xff557d;
 const CLASSIC_RTS_KEEP_SIEGE_LINE_COLOR: u32 = 0xffc15f;
 const CLASSIC_RTS_KEEP_PRESSURE_COLOR: u32 = 0xf8ff72;
+const CLASSIC_RTS_KEEP_BREACH_COLOR: u32 = 0xff795f;
+const CLASSIC_RTS_KEEP_COUNTER_COLOR: u32 = 0xff4fb8;
+const CLASSIC_RTS_KEEP_CLAIM_COLOR: u32 = 0xa7ff7d;
+const CLASSIC_RTS_KEEP_VICTORY_COLOR: u32 = 0xffffff;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1803,6 +1809,18 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_player_siege_line_tile_ids: Vec<String>,
     #[serde(default)]
     pub rts_central_keep_state: String,
+    #[serde(default)]
+    pub rts_keep_breach_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_keep_breach_percent: u8,
+    #[serde(default)]
+    pub rts_guardian_counter_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_keep_claim_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_victory_banner_state: String,
+    #[serde(default)]
+    pub rts_central_keep_breakthrough_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -2191,6 +2209,12 @@ impl Default for NativeFirstPlayableRuntime {
             rts_boss_guard_unit_ids: Vec::new(),
             rts_player_siege_line_tile_ids: Vec::new(),
             rts_central_keep_state: String::new(),
+            rts_keep_breach_tile_ids: Vec::new(),
+            rts_keep_breach_percent: 0,
+            rts_guardian_counter_unit_ids: Vec::new(),
+            rts_keep_claim_tile_ids: Vec::new(),
+            rts_victory_banner_state: String::new(),
+            rts_central_keep_breakthrough_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -16286,6 +16310,359 @@ pub fn native_classic_rts_central_keep_pressure_evidence_json(preview_path: &str
     .expect("classic RTS central keep pressure evidence serializes")
 }
 
+pub fn native_classic_rts_central_keep_breakthrough_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 5;
+    const PREVIEW_ROWS: usize = 9;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 980,
+        xp: 740,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 9,
+        ..Default::default()
+    };
+    let mut actions = Vec::new();
+    macro_rules! queue {
+        ($stage:literal, $queue:literal) => {
+            actions.push((
+                $stage,
+                NativeControlAction::RtsQueueProduction {
+                    queue_id: $queue.to_string(),
+                },
+            ));
+        };
+    }
+    actions.push((
+        "select_assault_group",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+    ));
+    queue!("raise_supply_cap", "army:supply:field_lodge@6,4");
+    queue!("train_guard_pair", "army:train:guard_pair@training_hall");
+    queue!(
+        "train_wayfinder_pair",
+        "army:train:wayfinder_pair@signal_spire"
+    );
+    queue!("set_forward_rally", "army:rally:forward_watch@7,4");
+    queue!(
+        "assign_control_group",
+        "army:assign:control_group_3@forward_watch"
+    );
+    actions.push((
+        "siege_move",
+        NativeControlAction::RtsMoveCommand {
+            command_id: "10,3:siege".to_string(),
+        },
+    ));
+    actions.push((
+        "attack_enemy_barracks",
+        NativeControlAction::RtsAttackCommand {
+            target_id: "enemy_barracks".to_string(),
+        },
+    ));
+    queue!(
+        "breach_enemy_barracks",
+        "assault:breach:enemy_barracks@10,3"
+    );
+    queue!(
+        "destroy_enemy_barracks",
+        "aftermath:destroy:enemy_barracks@10,3"
+    );
+    queue!("promote_veterans", "aftermath:promote:control_group_3@10,3");
+    queue!("surface_next_action", "aftermath:next:secure_expansion@9,2");
+    queue!("loot_enemy_cache", "commander:loot:enemy_barracks@10,3");
+    queue!(
+        "level_commander",
+        "commander:level:mirror_captain@battlefield"
+    );
+    queue!(
+        "activate_rally_aura",
+        "commander:ability:rally_aura@mirror_captain"
+    );
+    queue!("claim_forest_relay", "expansion:claim:forest_relay@9,2");
+    queue!("build_relay_outpost", "expansion:build:relay_outpost@9,2");
+    queue!("assign_gold_workers", "expansion:workers:gold_line@9,2");
+    queue!("defend_counter_wave", "expansion:defend:counter_wave@8,3");
+    queue!(
+        "build_relay_foundry",
+        "tier2:tech:relay_foundry@relay_outpost"
+    );
+    queue!(
+        "research_siege_harness",
+        "tier2:upgrade:siege_harness@relay_foundry"
+    );
+    queue!(
+        "train_stonebreak_cart",
+        "tier2:train:stonebreak_cart@relay_foundry"
+    );
+    queue!(
+        "enemy_gate_bulwark",
+        "tier2:enemy_fortify:gate_bulwark@10,3"
+    );
+    queue!("push_gate_bulwark", "tier2:push:gate_bulwark@10,3");
+    queue!("open_breach_window", "tier2:breach:gate_bulwark@10,3");
+    queue!(
+        "enemy_repair_response",
+        "tier2:enemy_repair:gate_bulwark@10,3"
+    );
+    queue!(
+        "enemy_flank_response",
+        "tier2:enemy_flank:ridge_sentries@9,4"
+    );
+    queue!("hold_siege_line", "tier2:hold:shield_line@9,3");
+    queue!("finish_gate_breach", "tier2:finish:gate_bulwark@10,3");
+    queue!("enter_inner_lane", "tier2:inner_route:inner_lane@11,2");
+    queue!("mark_inner_gate", "tier2:inner_gate:inner_latch@11,3");
+    queue!("move_supply_convoy", "tier2:inner_supply:relay_convoy@9,3");
+    queue!("split_flank_team", "tier2:inner_split:flank_team@10,4");
+    queue!("clear_second_line", "tier2:inner_clear:second_line@11,3");
+    queue!("secure_signal_core", "tier2:inner_secure:signal_core@12,3");
+    queue!(
+        "route_to_central_keep",
+        "tier2:keep_route:central_keep@13,3"
+    );
+    queue!("raise_keep_shield", "tier2:keep_shield:mirror_ward@13,3");
+    queue!("reveal_keep_guards", "tier2:keep_guard:warden_line@12,3");
+    queue!("form_final_siege_line", "tier2:keep_siege:final_line@12,4");
+    queue!(
+        "pressure_central_keep",
+        "tier2:keep_pressure:central_keep@13,3"
+    );
+    queue!(
+        "open_central_keep_breach",
+        "tier2:keep_breach:central_keep@13,3"
+    );
+    queue!(
+        "answer_guardian_counter",
+        "tier2:guardian_counter:high_warden@13,4"
+    );
+    queue!("hold_final_line", "tier2:keep_hold:final_line@12,4");
+    queue!("break_central_keep", "tier2:keep_break:central_keep@13,3");
+    queue!("claim_central_keep", "tier2:keep_claim:central_keep@13,3");
+
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_central_keep_breakthrough_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS BREAK {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "keep_breach_tile_ids": runtime.rts_keep_breach_tile_ids.clone(),
+            "keep_breach_percent": runtime.rts_keep_breach_percent,
+            "guardian_counter_unit_ids": runtime.rts_guardian_counter_unit_ids.clone(),
+            "keep_claim_tile_ids": runtime.rts_keep_claim_tile_ids.clone(),
+            "victory_banner_state": runtime.rts_victory_banner_state.clone(),
+            "central_keep_breakthrough_state": runtime.rts_central_keep_breakthrough_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let keep_breach_pixel_count = count_color(CLASSIC_RTS_KEEP_BREACH_COLOR);
+    let keep_counter_pixel_count = count_color(CLASSIC_RTS_KEEP_COUNTER_COLOR);
+    let keep_claim_pixel_count = count_color(CLASSIC_RTS_KEEP_CLAIM_COLOR);
+    let keep_victory_pixel_count = count_color(CLASSIC_RTS_KEEP_VICTORY_COLOR);
+    let live_keep_breakthrough_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_central_keep_breakthrough_input");
+    let central_keep_pressure_dependency_gate = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "tier2_keep_pressure:central_keep@13,3:shield=24")
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "break_central_keep");
+    let keep_breach_gate = runtime.rts_keep_breach_tile_ids.len() >= 4
+        && runtime.rts_keep_breach_percent == 100
+        && runtime
+            .rts_siege_damage_log
+            .iter()
+            .any(|entry| entry == "stonebreak_cart:central_keep:-26:breach_open")
+        && keep_breach_pixel_count > 60;
+    let guardian_counter_gate = runtime.rts_guardian_counter_unit_ids.len() >= 3
+        && runtime.rts_combat_event_log.iter().any(|entry| {
+            entry == "guardian_counter:high_warden:high_warden|ward_lancer|last_mirror_guard"
+        })
+        && runtime.rts_defeat_risk_percent >= 58
+        && keep_counter_pixel_count > 45;
+    let keep_hold_gate = runtime.rts_player_hold_tile_ids.len() >= 4
+        && runtime
+            .rts_resource_delta_log
+            .iter()
+            .any(|entry| entry == "field_engineer:+12armor")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "tier2_keep_hold:final_line@12,4:11,4|12,4|13,4|12,3");
+    let keep_break_gate = runtime.rts_target_health_percent == 0
+        && runtime.rts_enemy_structure_health_percents == vec![0]
+        && runtime
+            .rts_siege_damage_log
+            .iter()
+            .any(|entry| entry == "stonebreak_cart:central_keep:-32:keep_broken")
+        && runtime
+            .rts_base_assault_reward_log
+            .iter()
+            .any(|entry| entry == "central_keep_break:+360xp:+240gold");
+    let keep_claim_gate = runtime.rts_keep_claim_tile_ids.len() >= 4
+        && runtime.rts_objective_owner_state == "player:central_keep"
+        && runtime.rts_objective_capture_percent == 100
+        && runtime.rts_victory_banner_state == "victory:central_keep"
+        && runtime.rts_central_keep_breakthrough_state == "claimed:central_keep"
+        && runtime.rts_match_result_state == "classic_rts_victory:central_keep"
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "restore_mirror_city")
+        && runtime
+            .rts_base_assault_reward_log
+            .iter()
+            .any(|entry| entry == "mirror_city_restored:+1banner")
+        && keep_claim_pixel_count > 45
+        && keep_victory_pixel_count > 20;
+    let green = write_gate
+        && non_background_pixels > 1_100_000
+        && live_keep_breakthrough_input_gate
+        && central_keep_pressure_dependency_gate
+        && keep_breach_gate
+        && guardian_counter_gate
+        && keep_hold_gate
+        && keep_break_gate
+        && keep_claim_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_BREAKTHROUGH_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_central_keep_breakthrough_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_central_keep_state": runtime.rts_central_keep_state,
+        "final_keep_breach_tile_ids": runtime.rts_keep_breach_tile_ids,
+        "final_keep_breach_percent": runtime.rts_keep_breach_percent,
+        "final_guardian_counter_unit_ids": runtime.rts_guardian_counter_unit_ids,
+        "final_player_hold_tile_ids": runtime.rts_player_hold_tile_ids,
+        "final_keep_claim_tile_ids": runtime.rts_keep_claim_tile_ids,
+        "final_victory_banner_state": runtime.rts_victory_banner_state,
+        "final_central_keep_breakthrough_state": runtime.rts_central_keep_breakthrough_state,
+        "final_target_health_percent": runtime.rts_target_health_percent,
+        "final_target_shield_percent": runtime.rts_target_shield_percent,
+        "final_enemy_structure_health_percents": runtime.rts_enemy_structure_health_percents,
+        "final_objective_owner_state": runtime.rts_objective_owner_state,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_base_assault_reward_log": runtime.rts_base_assault_reward_log,
+        "final_next_action_ids": runtime.rts_next_action_ids,
+        "final_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_siege_damage_log": runtime.rts_siege_damage_log,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_resource_delta_log": runtime.rts_resource_delta_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "keep_breach_pixel_count": keep_breach_pixel_count,
+        "keep_counter_pixel_count": keep_counter_pixel_count,
+        "keep_claim_pixel_count": keep_claim_pixel_count,
+        "keep_victory_pixel_count": keep_victory_pixel_count,
+        "live_keep_breakthrough_input_gate": live_keep_breakthrough_input_gate,
+        "central_keep_pressure_dependency_gate": central_keep_pressure_dependency_gate,
+        "keep_breach_gate": keep_breach_gate,
+        "guardian_counter_gate": guardian_counter_gate,
+        "keep_hold_gate": keep_hold_gate,
+        "keep_break_gate": keep_break_gate,
+        "keep_claim_gate": keep_claim_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS central keep breakthrough evidence extends keep pressure into a playable breach, guardian counter, final hold, keep break, and claimed victory through live native input and Trillionnium-owned low-spec Bevy rendering."
+    }))
+    .expect("classic RTS central keep breakthrough evidence serializes")
+}
+
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
@@ -21844,6 +22221,78 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    for tile_id in &runtime.rts_keep_breach_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (breach_x, breach_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                breach_x,
+                breach_y + tile_h - 24,
+                24,
+                8,
+                CLASSIC_RTS_KEEP_BREACH_COLOR,
+            );
+        }
+    }
+    for (index, _unit_id) in runtime.rts_guardian_counter_unit_ids.iter().enumerate() {
+        let tile = match index % 3 {
+            0 => (13, 4),
+            1 => (14, 3),
+            _ => (14, 4),
+        };
+        let (counter_x, counter_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            counter_x - 10,
+            counter_y + tile_h - 42,
+            20,
+            18,
+            CLASSIC_RTS_KEEP_COUNTER_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_keep_claim_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (claim_x, claim_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                claim_x,
+                claim_y + tile_h - 7,
+                22,
+                6,
+                CLASSIC_RTS_KEEP_CLAIM_COLOR,
+            );
+        }
+    }
+    if runtime.rts_victory_banner_state.starts_with("victory:") {
+        let (banner_x, banner_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, (13, 3));
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            banner_x - 3,
+            banner_y + tile_h - 124,
+            6,
+            58,
+            CLASSIC_RTS_KEEP_VICTORY_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            banner_x + 3,
+            banner_y + tile_h - 124,
+            30,
+            18,
+            CLASSIC_RTS_KEEP_CLAIM_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -25275,6 +25724,54 @@ fn classic_draw_rts_strategy_overlay(
             32,
             5,
             CLASSIC_RTS_KEEP_PRESSURE_COLOR,
+        );
+    }
+    if runtime.rts_keep_breach_percent > 0 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 144,
+            (i32::from(runtime.rts_keep_breach_percent.min(100)) * 32) / 100,
+            5,
+            CLASSIC_RTS_KEEP_BREACH_COLOR,
+        );
+    }
+    if !runtime.rts_guardian_counter_unit_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 44,
+            tactical_y + 144,
+            32,
+            5,
+            CLASSIC_RTS_KEEP_COUNTER_COLOR,
+        );
+    }
+    if !runtime.rts_keep_claim_tile_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 84,
+            tactical_y + 144,
+            32,
+            5,
+            CLASSIC_RTS_KEEP_CLAIM_COLOR,
+        );
+    }
+    if runtime.rts_victory_banner_state.starts_with("victory:") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 120,
+            tactical_y + 144,
+            32,
+            5,
+            CLASSIC_RTS_KEEP_VICTORY_COLOR,
         );
     }
     true
@@ -57562,6 +58059,40 @@ fn classic_rts_player_siege_line_tiles_for_id(line_id: &str, tile_id: &str) -> V
     }
 }
 
+fn classic_rts_keep_breach_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "central_keep" {
+        string_vec(["13,3", "13,4", "14,3", "14,4"])
+    } else {
+        let tile = classic_parse_rts_tile(tile_id).unwrap_or((13, 3));
+        vec![
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+            format!("{},{}", tile.0, tile.1 + 1),
+        ]
+    }
+}
+
+fn classic_rts_guardian_counter_units_for_id(counter_id: &str) -> Vec<String> {
+    if counter_id == "high_warden" {
+        string_vec(["high_warden", "ward_lancer", "last_mirror_guard"])
+    } else {
+        vec![format!("{counter_id}_counter_guard")]
+    }
+}
+
+fn classic_rts_keep_claim_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "central_keep" {
+        string_vec(["12,3", "13,3", "14,3", "13,4"])
+    } else {
+        let tile = classic_parse_rts_tile(tile_id).unwrap_or((13, 3));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
+    }
+}
+
 fn classic_rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
     match unit_id {
         "stonebreak_cart" => (9, 3),
@@ -59151,6 +59682,122 @@ fn apply_classic_rts_tier_two_siege_push_runtime(
             first_playable.objective_status =
                 "classic_rts_central_keep_pressure_complete".to_string();
         }
+        "keep_breach" => {
+            ensure_classic_rts_central_keep_pressure_ready(first_playable);
+            first_playable.rts_keep_breach_tile_ids =
+                classic_rts_keep_breach_tiles_for_id(&id, &source_id);
+            for tile in first_playable.rts_keep_breach_tile_ids.clone() {
+                push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+            }
+            first_playable.rts_keep_shield_percent = 0;
+            first_playable.rts_target_shield_percent = 0;
+            first_playable.rts_target_health_percent = 32;
+            first_playable.rts_keep_breach_percent = 66;
+            first_playable.rts_central_keep_breakthrough_state = format!("breach_open:{id}");
+            push_history(
+                &mut first_playable.rts_siege_damage_log,
+                &format!("stonebreak_cart:{id}:-26:breach_open"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_keep_breach:{id}@{source_id}:{}",
+                    first_playable.rts_keep_breach_tile_ids.join("|")
+                ),
+            );
+        }
+        "guardian_counter" => {
+            ensure_classic_rts_central_keep_pressure_ready(first_playable);
+            first_playable.rts_guardian_counter_unit_ids =
+                classic_rts_guardian_counter_units_for_id(&id);
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.max(92);
+            first_playable.rts_defeat_risk_percent = first_playable.rts_defeat_risk_percent.max(58);
+            first_playable.rts_central_keep_breakthrough_state = format!("guardian_counter:{id}");
+            push_history(
+                &mut first_playable.rts_combat_event_log,
+                &format!(
+                    "guardian_counter:{id}:{}",
+                    first_playable.rts_guardian_counter_unit_ids.join("|")
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_guardian_counter:{id}@{source_id}"),
+            );
+        }
+        "keep_hold" => {
+            ensure_classic_rts_central_keep_pressure_ready(first_playable);
+            first_playable.rts_player_hold_tile_ids =
+                classic_rts_player_siege_line_tiles_for_id(&id, &source_id);
+            first_playable.rts_central_keep_breakthrough_state = format!("holding:{id}");
+            push_history(
+                &mut first_playable.rts_resource_delta_log,
+                "field_engineer:+12armor",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_keep_hold:{id}@{source_id}:{}",
+                    first_playable.rts_player_hold_tile_ids.join("|")
+                ),
+            );
+        }
+        "keep_break" => {
+            ensure_classic_rts_central_keep_pressure_ready(first_playable);
+            first_playable.rts_keep_breach_tile_ids =
+                classic_rts_keep_breach_tiles_for_id(&id, &source_id);
+            first_playable.rts_keep_breach_percent = 100;
+            first_playable.rts_target_health_percent = 0;
+            first_playable.rts_enemy_structure_health_percents = vec![0];
+            first_playable.rts_central_keep_state = format!("broken:{id}");
+            first_playable.rts_central_keep_breakthrough_state = format!("broken:{id}");
+            first_playable.rts_match_result_state = format!("central_keep_broken:{id}");
+            push_history(
+                &mut first_playable.rts_siege_damage_log,
+                &format!("stonebreak_cart:{id}:-32:keep_broken"),
+            );
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "central_keep_break:+360xp:+240gold",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_keep_break:{id}@{source_id}:breach=100"),
+            );
+        }
+        "keep_claim" => {
+            ensure_classic_rts_central_keep_pressure_ready(first_playable);
+            first_playable.rts_keep_claim_tile_ids =
+                classic_rts_keep_claim_tiles_for_id(&id, &source_id);
+            first_playable.rts_objective_owner_state = format!("player:{id}");
+            first_playable.rts_objective_capture_percent = 100;
+            first_playable.rts_victory_banner_state = format!("victory:{id}");
+            first_playable.rts_central_keep_breakthrough_state = format!("claimed:{id}");
+            first_playable.rts_match_result_state = format!("classic_rts_victory:{id}");
+            push_unique_string(
+                &mut first_playable.rts_next_action_ids,
+                "restore_mirror_city",
+            );
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "mirror_city_restored:+1banner",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_keep_claim:{id}@{source_id}:capture=100"),
+            );
+            push_completed_step(
+                first_playable,
+                "classic_rts_central_keep_breakthrough_claimed",
+            );
+            push_progression_checkpoint(
+                first_playable,
+                "classic_rts_central_keep_breakthrough_claimed",
+            );
+            first_playable.objective_status =
+                "classic_rts_central_keep_breakthrough_complete".to_string();
+        }
         _ => {
             if first_playable.rts_siege_unit_ids.is_empty() {
                 for unit_id in classic_rts_siege_units_for_id("stonebreak_cart") {
@@ -59257,6 +59904,28 @@ fn ensure_classic_rts_inner_lane_breakthrough_ready(
             "inner_split:flank_team@10,4",
             "inner_clear:second_line@11,3",
             "inner_secure:signal_core@12,3",
+        ] {
+            apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
+        }
+    }
+}
+
+fn ensure_classic_rts_central_keep_pressure_ready(first_playable: &mut NativeFirstPlayableRuntime) {
+    let has_pressure_command = first_playable
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "tier2_keep_pressure:central_keep@13,3:shield=24");
+    let has_break_action = first_playable
+        .rts_next_action_ids
+        .iter()
+        .any(|action| action == "break_central_keep");
+    if !(has_pressure_command && has_break_action) {
+        for command in [
+            "keep_route:central_keep@13,3",
+            "keep_shield:mirror_ward@13,3",
+            "keep_guard:warden_line@12,3",
+            "keep_siege:final_line@12,4",
+            "keep_pressure:central_keep@13,3",
         ] {
             apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
         }

@@ -43,6 +43,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_siege_breach_counterplay.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_inner_lane_breakthrough.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_central_keep_pressure.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_central_keep_breakthrough.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -85,6 +86,7 @@ jq -n \
   --slurpfile rts_breach "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.json" \
   --slurpfile rts_inner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-inner-lane-breakthrough.json" \
   --slurpfile rts_keep "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-pressure.json" \
+  --slurpfile rts_keep_break "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-breakthrough.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -129,6 +131,7 @@ jq -n \
       and ok($rts_breach)
       and ok($rts_inner)
       and ok($rts_keep)
+      and ok($rts_keep_break)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -380,6 +383,7 @@ jq -n \
       classic_rts_siege_breach_counterplay_green: ok($rts_breach),
       classic_rts_inner_lane_breakthrough_green: ok($rts_inner),
       classic_rts_central_keep_pressure_green: ok($rts_keep),
+      classic_rts_central_keep_breakthrough_green: ok($rts_keep_break),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -910,6 +914,23 @@ jq -n \
       rts_central_keep_pressure_guard_pixel_count: $rts_keep[0].keep_guard_pixel_count,
       rts_central_keep_pressure_siege_line_pixel_count: $rts_keep[0].keep_siege_line_pixel_count,
       rts_central_keep_pressure_pressure_pixel_count: $rts_keep[0].keep_pressure_pixel_count,
+      rts_central_keep_breakthrough_accepted_input_count: $rts_keep_break[0].accepted_input_count,
+      rts_central_keep_breakthrough_breach_percent: $rts_keep_break[0].final_keep_breach_percent,
+      rts_central_keep_breakthrough_guardian_count: ($rts_keep_break[0].final_guardian_counter_unit_ids | length),
+      rts_central_keep_breakthrough_hold_tile_count: ($rts_keep_break[0].final_player_hold_tile_ids | length),
+      rts_central_keep_breakthrough_claim_tile_count: ($rts_keep_break[0].final_keep_claim_tile_ids | length),
+      rts_central_keep_breakthrough_state: $rts_keep_break[0].final_central_keep_breakthrough_state,
+      rts_central_keep_breakthrough_match_result: $rts_keep_break[0].final_match_result_state,
+      rts_central_keep_breakthrough_pixel_count: (
+        $rts_keep_break[0].keep_breach_pixel_count
+        + $rts_keep_break[0].keep_counter_pixel_count
+        + $rts_keep_break[0].keep_claim_pixel_count
+        + $rts_keep_break[0].keep_victory_pixel_count
+      ),
+      rts_central_keep_breakthrough_breach_pixel_count: $rts_keep_break[0].keep_breach_pixel_count,
+      rts_central_keep_breakthrough_counter_pixel_count: $rts_keep_break[0].keep_counter_pixel_count,
+      rts_central_keep_breakthrough_claim_pixel_count: $rts_keep_break[0].keep_claim_pixel_count,
+      rts_central_keep_breakthrough_victory_pixel_count: $rts_keep_break[0].keep_victory_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -1120,6 +1141,13 @@ jq -n \
       rts_central_keep_pressure_guard_gate: $rts_keep[0].keep_guard_gate,
       rts_central_keep_pressure_siege_line_gate: $rts_keep[0].keep_siege_line_gate,
       rts_central_keep_pressure_pressure_gate: $rts_keep[0].keep_pressure_gate,
+      rts_central_keep_breakthrough_live_input_gate: $rts_keep_break[0].live_keep_breakthrough_input_gate,
+      rts_central_keep_breakthrough_pressure_dependency_gate: $rts_keep_break[0].central_keep_pressure_dependency_gate,
+      rts_central_keep_breakthrough_breach_gate: $rts_keep_break[0].keep_breach_gate,
+      rts_central_keep_breakthrough_guardian_counter_gate: $rts_keep_break[0].guardian_counter_gate,
+      rts_central_keep_breakthrough_hold_gate: $rts_keep_break[0].keep_hold_gate,
+      rts_central_keep_breakthrough_break_gate: $rts_keep_break[0].keep_break_gate,
+      rts_central_keep_breakthrough_claim_gate: $rts_keep_break[0].keep_claim_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1198,6 +1226,8 @@ jq -n \
       classic_rts_inner_lane_breakthrough_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-inner-lane-breakthrough.ppm",
       classic_rts_central_keep_pressure: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-pressure.json",
       classic_rts_central_keep_pressure_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-pressure.ppm",
+      classic_rts_central_keep_breakthrough: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-breakthrough.json",
+      classic_rts_central_keep_breakthrough_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-breakthrough.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -1244,6 +1274,7 @@ jq -e '
   and .checks.classic_rts_siege_breach_counterplay_green == true
   and .checks.classic_rts_inner_lane_breakthrough_green == true
   and .checks.classic_rts_central_keep_pressure_green == true
+  and .checks.classic_rts_central_keep_breakthrough_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1799,6 +1830,13 @@ jq -e '
   and .gates.rts_central_keep_pressure_guard_gate == true
   and .gates.rts_central_keep_pressure_siege_line_gate == true
   and .gates.rts_central_keep_pressure_pressure_gate == true
+  and .gates.rts_central_keep_breakthrough_live_input_gate == true
+  and .gates.rts_central_keep_breakthrough_pressure_dependency_gate == true
+  and .gates.rts_central_keep_breakthrough_breach_gate == true
+  and .gates.rts_central_keep_breakthrough_guardian_counter_gate == true
+  and .gates.rts_central_keep_breakthrough_hold_gate == true
+  and .gates.rts_central_keep_breakthrough_break_gate == true
+  and .gates.rts_central_keep_breakthrough_claim_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
