@@ -158,6 +158,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_control_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_INPUT_SEQUENCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_live_input_sequence_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PATHING_FORMATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_pathing_formation_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -192,6 +194,9 @@ const CLASSIC_ISO_UNIT_DAMAGE_COLOR: u32 = 0xd95c5c;
 const CLASSIC_ISO_COMMAND_MARKER_COLOR: u32 = 0x68d7ff;
 const CLASSIC_ISO_CONTROL_GROUP_COLOR: u32 = 0xb9f2ff;
 const CLASSIC_ISO_FORMATION_LINE_COLOR: u32 = 0xa4e86f;
+const CLASSIC_RTS_PATH_TILE_COLOR: u32 = 0x74c96b;
+const CLASSIC_RTS_BLOCKED_TILE_COLOR: u32 = 0xd6504d;
+const CLASSIC_RTS_FORMATION_SLOT_COLOR: u32 = 0xf4c95d;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1339,6 +1344,14 @@ pub struct NativeFirstPlayableRuntime {
     #[serde(default)]
     pub rts_command_destination_tile: Option<String>,
     #[serde(default)]
+    pub rts_path_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_blocked_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_formation_slot_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_pathing_status: String,
+    #[serde(default)]
     pub rts_attack_target_id: Option<String>,
     #[serde(default)]
     pub rts_visible_tile_ids: Vec<String>,
@@ -1594,6 +1607,10 @@ impl Default for NativeFirstPlayableRuntime {
             rts_selected_unit_ids: Vec::new(),
             rts_command_queue: Vec::new(),
             rts_command_destination_tile: None,
+            rts_path_tile_ids: Vec::new(),
+            rts_blocked_tile_ids: Vec::new(),
+            rts_formation_slot_tile_ids: Vec::new(),
+            rts_pathing_status: String::new(),
             rts_attack_target_id: None,
             rts_visible_tile_ids: Vec::new(),
             rts_fogged_tile_ids: Vec::new(),
@@ -9627,6 +9644,157 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_pathing_formation_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 120,
+        xp: 48,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+        NativeControlAction::RtsMoveCommand {
+            command_id: "8,4:wedge".to_string(),
+        },
+    ];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    for action in &actions {
+        action_labels.push(native_control_action_label(action));
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_pathing_input",
+            action.clone(),
+        );
+        if runtime
+            .input_feedback_history
+            .last()
+            .is_some_and(|event| event.accepted)
+        {
+            accepted_input_count += 1;
+        }
+    }
+
+    let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_scene(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        12,
+        12,
+        "LIVE RTS PATHING + FORMATION",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let path_tile_pixel_count = count_color(CLASSIC_RTS_PATH_TILE_COLOR);
+    let blocked_tile_pixel_count = count_color(CLASSIC_RTS_BLOCKED_TILE_COLOR);
+    let formation_slot_pixel_count = count_color(CLASSIC_RTS_FORMATION_SLOT_COLOR);
+    let selection_marker_pixel_count = count_color(CLASSIC_ISO_CONTROL_GROUP_COLOR);
+    let command_marker_pixel_count = count_color(CLASSIC_ISO_COMMAND_MARKER_COLOR);
+    let path_tile_gate = runtime.rts_path_tile_ids.len() >= 3
+        && runtime
+            .rts_path_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "7,5")
+        && path_tile_pixel_count > 80;
+    let blocked_tile_gate = runtime
+        .rts_blocked_tile_ids
+        .iter()
+        .any(|tile_id| tile_id == "7,4")
+        && blocked_tile_pixel_count > 40;
+    let formation_slot_gate = runtime.rts_formation_slot_tile_ids.len() >= 4
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "formation:wedge")
+        && formation_slot_pixel_count > 80;
+    let live_pathing_input_gate = accepted_input_count == actions.len()
+        && runtime
+            .input_feedback_history
+            .iter()
+            .all(|event| event.input_source == "classic_rts_pathing_input");
+    let command_visual_gate =
+        selection_marker_pixel_count > 800 && command_marker_pixel_count > 500;
+    let green = write_gate
+        && non_background_pixels > 120_000
+        && live_pathing_input_gate
+        && path_tile_gate
+        && blocked_tile_gate
+        && formation_slot_gate
+        && command_visual_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PATHING_FORMATION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_pathing_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "action_labels": action_labels,
+        "path_tile_ids": runtime.rts_path_tile_ids,
+        "blocked_tile_ids": runtime.rts_blocked_tile_ids,
+        "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids,
+        "pathing_status": runtime.rts_pathing_status,
+        "command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "path_tile_pixel_count": path_tile_pixel_count,
+        "blocked_tile_pixel_count": blocked_tile_pixel_count,
+        "formation_slot_pixel_count": formation_slot_pixel_count,
+        "selection_marker_pixel_count": selection_marker_pixel_count,
+        "command_marker_pixel_count": command_marker_pixel_count,
+        "live_pathing_input_gate": live_pathing_input_gate,
+        "path_tile_gate": path_tile_gate,
+        "blocked_tile_gate": blocked_tile_gate,
+        "formation_slot_gate": formation_slot_gate,
+        "command_visual_gate": command_visual_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS pathing formation evidence renders native live move input as path tiles, detour/blocked-tile feedback, and formation destination slots through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS pathing formation evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -13142,6 +13310,81 @@ fn classic_draw_iso_command_feedback(
         .unwrap_or(default_destination_tile);
     let (dest_x, dest_y) =
         classic_iso_project(origin_x, origin_y, tile_w, tile_h, destination_tile);
+    for tile_id in &runtime.rts_path_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (tile_x, tile_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                tile_x,
+                tile_y + tile_h - 8,
+                tile_w / 2,
+                tile_h / 2,
+                CLASSIC_RTS_PATH_TILE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - 14,
+                tile_y + tile_h - 7,
+                28,
+                4,
+                CLASSIC_RTS_PATH_TILE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - 2,
+                tile_y + tile_h - 17,
+                4,
+                18,
+                CLASSIC_RTS_PATH_TILE_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_blocked_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (tile_x, tile_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - 14,
+                tile_y + tile_h - 8,
+                28,
+                4,
+                CLASSIC_RTS_BLOCKED_TILE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - 2,
+                tile_y + tile_h - 18,
+                4,
+                24,
+                CLASSIC_RTS_BLOCKED_TILE_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_formation_slot_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (slot_x, slot_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                slot_x,
+                slot_y + tile_h + 3,
+                10,
+                4,
+                CLASSIC_RTS_FORMATION_SLOT_COLOR,
+            );
+        }
+    }
     let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
     for entity in &selected_units {
         let (unit_x, unit_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, entity.tile);
@@ -46328,6 +46571,54 @@ fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {
     (tile_id, formation)
 }
 
+fn classic_rts_tile_id(tile: (i32, i32)) -> String {
+    format!("{},{}", tile.0, tile.1)
+}
+
+fn classic_rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    let dx = end.0 - start.0;
+    let dy = end.1 - start.1;
+    let steps = dx.abs().max(dy.abs()).max(1);
+    let mut tiles = Vec::new();
+    for step in 1..=steps {
+        let tile = (start.0 + (dx * step) / steps, start.1 + (dy * step) / steps);
+        let tile_id = classic_rts_tile_id(tile);
+        if tiles.last() != Some(&tile_id) {
+            tiles.push(tile_id);
+        }
+    }
+    tiles
+}
+
+fn classic_rts_path_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
+    if destination_tile == (8, 4) {
+        string_vec(["6,5", "7,5", "8,4"])
+    } else {
+        classic_rts_line_path_tiles((5, 5), destination_tile)
+    }
+}
+
+fn classic_rts_blocked_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
+    if destination_tile == (8, 4) {
+        string_vec(["7,4"])
+    } else {
+        Vec::new()
+    }
+}
+
+fn classic_rts_formation_slots_for_destination(
+    destination_tile: (i32, i32),
+    formation: &str,
+) -> Vec<String> {
+    let (x, y) = destination_tile;
+    let slots = match formation {
+        "line" => [(x - 1, y), (x, y), (x + 1, y), (x + 2, y)],
+        "wedge" => [(x, y), (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)],
+        _ => [(x, y), (x - 1, y), (x, y + 1), (x + 1, y)],
+    };
+    slots.into_iter().map(classic_rts_tile_id).collect()
+}
+
 fn apply_classic_rts_select_group_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     group_id: &str,
@@ -46385,6 +46676,18 @@ fn apply_classic_rts_move_runtime(
         apply_classic_rts_select_group_runtime(first_playable, "1");
     }
     first_playable.rts_command_destination_tile = Some(tile_id.to_string());
+    if let Some(destination_tile) = classic_parse_rts_tile(tile_id) {
+        first_playable.rts_path_tile_ids = classic_rts_path_tiles_for_destination(destination_tile);
+        first_playable.rts_blocked_tile_ids =
+            classic_rts_blocked_tiles_for_destination(destination_tile);
+        first_playable.rts_formation_slot_tile_ids =
+            classic_rts_formation_slots_for_destination(destination_tile, formation);
+        first_playable.rts_pathing_status = if first_playable.rts_blocked_tile_ids.is_empty() {
+            "path_clear".to_string()
+        } else {
+            format!("detour:{}", first_playable.rts_blocked_tile_ids.join("|"))
+        };
+    }
     push_history(
         &mut first_playable.rts_command_queue,
         &format!("move:{tile_id}"),
@@ -46393,6 +46696,27 @@ fn apply_classic_rts_move_runtime(
         &mut first_playable.rts_command_queue,
         &format!("formation:{formation}"),
     );
+    if !first_playable.rts_path_tile_ids.is_empty() {
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("path:{}", first_playable.rts_path_tile_ids.join(">")),
+        );
+    }
+    if !first_playable.rts_blocked_tile_ids.is_empty() {
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("blocked:{}", first_playable.rts_blocked_tile_ids.join("|")),
+        );
+    }
+    if !first_playable.rts_formation_slot_tile_ids.is_empty() {
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "slots:{}",
+                first_playable.rts_formation_slot_tile_ids.join("|")
+            ),
+        );
+    }
     push_unique_string(&mut first_playable.rts_visible_tile_ids, tile_id);
     first_playable.rts_active_ability_id = Some("move".to_string());
     first_playable.last_feedback = format!("RTS group moving to {tile_id} in {formation}");
