@@ -371,6 +371,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第二十三组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_inner_lane_breakthrough.sh` 把 `enter_inner_lane` 下一步落成内线战役推进：`tier2:inner_route` 进入内线通道，`tier2:inner_gate` 标记内门锁，`tier2:inner_supply` 送入补给队，`tier2:inner_split` 建立分兵路线，`tier2:inner_clear` 清掉二线守军，`tier2:inner_secure` 占领 `signal_core` 并给出下一步 `press_central_keep`；它把破门胜利继续接成有补给、分兵、二线防守和核心目标的中后期循环。
 
+同日继续追加第二十四组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_central_keep_pressure.sh` 把 `press_central_keep` 做成中央要塞压制前置：`tier2:keep_route` 标记通往 `central_keep` 的路线，`tier2:keep_shield` 读出 `mirror_ward` 护盾，`tier2:keep_guard` 揭示守卫线，`tier2:keep_siege` 排出最终攻城线，`tier2:keep_pressure` 把护盾压到 24%、要塞血量压到 58% 并给出下一步 `break_central_keep`；整条仍由 Bevy native live input 和 Trillionnium-owned 低配渲染证据约束。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
