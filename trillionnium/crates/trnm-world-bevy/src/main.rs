@@ -780,6 +780,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-mirror-city-restoration" | "--classic-rts-mirror-city-restoration")
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-mirror-city-restoration.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_mirror_city_restoration_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )

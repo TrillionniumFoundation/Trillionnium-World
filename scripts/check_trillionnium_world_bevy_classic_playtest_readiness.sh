@@ -44,6 +44,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_inner_lane_breakthrough.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_central_keep_pressure.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_central_keep_breakthrough.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_mirror_city_restoration.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -87,6 +88,7 @@ jq -n \
   --slurpfile rts_inner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-inner-lane-breakthrough.json" \
   --slurpfile rts_keep "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-pressure.json" \
   --slurpfile rts_keep_break "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-breakthrough.json" \
+  --slurpfile rts_restore "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-mirror-city-restoration.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -132,6 +134,7 @@ jq -n \
       and ok($rts_inner)
       and ok($rts_keep)
       and ok($rts_keep_break)
+      and ok($rts_restore)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -384,6 +387,7 @@ jq -n \
       classic_rts_inner_lane_breakthrough_green: ok($rts_inner),
       classic_rts_central_keep_pressure_green: ok($rts_keep),
       classic_rts_central_keep_breakthrough_green: ok($rts_keep_break),
+      classic_rts_mirror_city_restoration_green: ok($rts_restore),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -931,6 +935,22 @@ jq -n \
       rts_central_keep_breakthrough_counter_pixel_count: $rts_keep_break[0].keep_counter_pixel_count,
       rts_central_keep_breakthrough_claim_pixel_count: $rts_keep_break[0].keep_claim_pixel_count,
       rts_central_keep_breakthrough_victory_pixel_count: $rts_keep_break[0].keep_victory_pixel_count,
+      rts_mirror_city_restoration_accepted_input_count: $rts_restore[0].accepted_input_count,
+      rts_mirror_city_restoration_zone_count: ($rts_restore[0].final_restored_zone_ids | length),
+      rts_mirror_city_restoration_rebuild_count: ($rts_restore[0].final_rebuild_structure_ids | length),
+      rts_mirror_city_restoration_garrison_count: ($rts_restore[0].final_garrison_unit_ids | length),
+      rts_mirror_city_restoration_state: $rts_restore[0].final_victory_handoff_state,
+      rts_mirror_city_restoration_match_result: $rts_restore[0].final_match_result_state,
+      rts_mirror_city_restoration_pixel_count: (
+        $rts_restore[0].restore_zone_pixel_count
+        + $rts_restore[0].rebuild_core_pixel_count
+        + $rts_restore[0].garrison_pixel_count
+        + $rts_restore[0].handoff_pixel_count
+      ),
+      rts_mirror_city_restoration_zone_pixel_count: $rts_restore[0].restore_zone_pixel_count,
+      rts_mirror_city_restoration_rebuild_pixel_count: $rts_restore[0].rebuild_core_pixel_count,
+      rts_mirror_city_restoration_garrison_pixel_count: $rts_restore[0].garrison_pixel_count,
+      rts_mirror_city_restoration_handoff_pixel_count: $rts_restore[0].handoff_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -1148,6 +1168,12 @@ jq -n \
       rts_central_keep_breakthrough_hold_gate: $rts_keep_break[0].keep_hold_gate,
       rts_central_keep_breakthrough_break_gate: $rts_keep_break[0].keep_break_gate,
       rts_central_keep_breakthrough_claim_gate: $rts_keep_break[0].keep_claim_gate,
+      rts_mirror_city_restoration_live_input_gate: $rts_restore[0].live_restoration_input_gate,
+      rts_mirror_city_restoration_victory_dependency_gate: $rts_restore[0].victory_dependency_gate,
+      rts_mirror_city_restoration_restore_gate: $rts_restore[0].restore_city_gate,
+      rts_mirror_city_restoration_rebuild_gate: $rts_restore[0].rebuild_core_gate,
+      rts_mirror_city_restoration_garrison_gate: $rts_restore[0].garrison_gate,
+      rts_mirror_city_restoration_handoff_gate: $rts_restore[0].handoff_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1228,6 +1254,8 @@ jq -n \
       classic_rts_central_keep_pressure_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-pressure.ppm",
       classic_rts_central_keep_breakthrough: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-breakthrough.json",
       classic_rts_central_keep_breakthrough_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-central-keep-breakthrough.ppm",
+      classic_rts_mirror_city_restoration: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-mirror-city-restoration.json",
+      classic_rts_mirror_city_restoration_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-mirror-city-restoration.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -1275,6 +1303,7 @@ jq -e '
   and .checks.classic_rts_inner_lane_breakthrough_green == true
   and .checks.classic_rts_central_keep_pressure_green == true
   and .checks.classic_rts_central_keep_breakthrough_green == true
+  and .checks.classic_rts_mirror_city_restoration_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1837,6 +1866,12 @@ jq -e '
   and .gates.rts_central_keep_breakthrough_hold_gate == true
   and .gates.rts_central_keep_breakthrough_break_gate == true
   and .gates.rts_central_keep_breakthrough_claim_gate == true
+  and .gates.rts_mirror_city_restoration_live_input_gate == true
+  and .gates.rts_mirror_city_restoration_victory_dependency_gate == true
+  and .gates.rts_mirror_city_restoration_restore_gate == true
+  and .gates.rts_mirror_city_restoration_rebuild_gate == true
+  and .gates.rts_mirror_city_restoration_garrison_gate == true
+  and .gates.rts_mirror_city_restoration_handoff_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

@@ -204,6 +204,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_PRESSURE_CONTRACT: &s
     "trillionnium_world_bevy_classic_rts_central_keep_pressure_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_BREAKTHROUGH_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_central_keep_breakthrough_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MIRROR_CITY_RESTORATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_mirror_city_restoration_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -343,6 +345,10 @@ const CLASSIC_RTS_KEEP_BREACH_COLOR: u32 = 0xff795f;
 const CLASSIC_RTS_KEEP_COUNTER_COLOR: u32 = 0xff4fb8;
 const CLASSIC_RTS_KEEP_CLAIM_COLOR: u32 = 0xa7ff7d;
 const CLASSIC_RTS_KEEP_VICTORY_COLOR: u32 = 0xffffff;
+const CLASSIC_RTS_RESTORE_ZONE_COLOR: u32 = 0x70ffd9;
+const CLASSIC_RTS_REBUILD_CORE_COLOR: u32 = 0xd8ff66;
+const CLASSIC_RTS_GARRISON_COLOR: u32 = 0x8fb2ff;
+const CLASSIC_RTS_HANDOFF_COLOR: u32 = 0xffe08a;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1821,6 +1827,14 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_victory_banner_state: String,
     #[serde(default)]
     pub rts_central_keep_breakthrough_state: String,
+    #[serde(default)]
+    pub rts_restored_zone_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_rebuild_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_garrison_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_victory_handoff_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -2215,6 +2229,10 @@ impl Default for NativeFirstPlayableRuntime {
             rts_keep_claim_tile_ids: Vec::new(),
             rts_victory_banner_state: String::new(),
             rts_central_keep_breakthrough_state: String::new(),
+            rts_restored_zone_ids: Vec::new(),
+            rts_rebuild_structure_ids: Vec::new(),
+            rts_garrison_unit_ids: Vec::new(),
+            rts_victory_handoff_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -16663,6 +16681,225 @@ pub fn native_classic_rts_central_keep_breakthrough_evidence_json(preview_path: 
     .expect("classic RTS central keep breakthrough evidence serializes")
 }
 
+pub fn native_classic_rts_mirror_city_restoration_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 4;
+    const PREVIEW_ROWS: usize = 1;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 980,
+        xp: 740,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 9,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "restore_mirror_city",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:restore_city:mirror_city@13,3".to_string(),
+            },
+        ),
+        (
+            "rebuild_signal_core",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:rebuild_core:signal_core@12,3".to_string(),
+            },
+        ),
+        (
+            "assign_central_garrison",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:assign_garrison:central_keep@13,3".to_string(),
+            },
+        ),
+        (
+            "handoff_restored_city",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:victory_handoff:mirror_city@13,3".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_mirror_city_restoration_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS RESTORE {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "restored_zone_ids": runtime.rts_restored_zone_ids.clone(),
+            "rebuild_structure_ids": runtime.rts_rebuild_structure_ids.clone(),
+            "garrison_unit_ids": runtime.rts_garrison_unit_ids.clone(),
+            "victory_handoff_state": runtime.rts_victory_handoff_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let restore_zone_pixel_count = count_color(CLASSIC_RTS_RESTORE_ZONE_COLOR);
+    let rebuild_core_pixel_count = count_color(CLASSIC_RTS_REBUILD_CORE_COLOR);
+    let garrison_pixel_count = count_color(CLASSIC_RTS_GARRISON_COLOR);
+    let handoff_pixel_count = count_color(CLASSIC_RTS_HANDOFF_COLOR);
+    let live_restoration_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_mirror_city_restoration_input");
+    let victory_dependency_gate = runtime
+        .rts_base_assault_reward_log
+        .iter()
+        .any(|entry| entry == "mirror_city_restored:+1banner")
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "restore_mirror_city");
+    let restore_city_gate = runtime.rts_restored_zone_ids.len() >= 4
+        && runtime
+            .rts_resource_delta_log
+            .iter()
+            .any(|entry| entry == "mirror_city_restore:+4zones")
+        && restore_zone_pixel_count > 40;
+    let rebuild_core_gate = runtime.rts_rebuild_structure_ids.len() >= 3
+        && runtime
+            .rts_resource_delta_log
+            .iter()
+            .any(|entry| entry == "signal_core_rebuild:+3structures")
+        && rebuild_core_pixel_count > 40;
+    let garrison_gate = runtime.rts_garrison_unit_ids.len() >= 3 && garrison_pixel_count > 25;
+    let handoff_gate = runtime.rts_victory_handoff_state == "handoff_ready:mirror_city"
+        && runtime.rts_match_result_state == "classic_rts_restored:mirror_city"
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "open_world_after_action")
+        && runtime
+            .rts_base_assault_reward_log
+            .iter()
+            .any(|entry| entry == "mirror_city_handoff:+restoration_complete")
+        && handoff_pixel_count > 20;
+    let green = write_gate
+        && non_background_pixels > 200_000
+        && live_restoration_input_gate
+        && victory_dependency_gate
+        && restore_city_gate
+        && rebuild_core_gate
+        && garrison_gate
+        && handoff_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MIRROR_CITY_RESTORATION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_mirror_city_restoration_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_restored_zone_ids": runtime.rts_restored_zone_ids,
+        "final_rebuild_structure_ids": runtime.rts_rebuild_structure_ids,
+        "final_garrison_unit_ids": runtime.rts_garrison_unit_ids,
+        "final_victory_handoff_state": runtime.rts_victory_handoff_state,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_next_action_ids": runtime.rts_next_action_ids,
+        "final_resource_delta_log": runtime.rts_resource_delta_log,
+        "final_base_assault_reward_log": runtime.rts_base_assault_reward_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "restore_zone_pixel_count": restore_zone_pixel_count,
+        "rebuild_core_pixel_count": rebuild_core_pixel_count,
+        "garrison_pixel_count": garrison_pixel_count,
+        "handoff_pixel_count": handoff_pixel_count,
+        "live_restoration_input_gate": live_restoration_input_gate,
+        "victory_dependency_gate": victory_dependency_gate,
+        "restore_city_gate": restore_city_gate,
+        "rebuild_core_gate": rebuild_core_gate,
+        "garrison_gate": garrison_gate,
+        "handoff_gate": handoff_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS mirror city restoration evidence extends central keep victory into a playable restore, rebuild, garrison, and post-victory handoff loop through live native input and Trillionnium-owned low-spec Bevy rendering."
+    }))
+    .expect("classic RTS mirror city restoration evidence serializes")
+}
+
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
@@ -22293,6 +22530,79 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_KEEP_CLAIM_COLOR,
         );
     }
+    for (index, _zone_id) in runtime.rts_restored_zone_ids.iter().enumerate() {
+        let tile = match index % 4 {
+            0 => (13, 3),
+            1 => (12, 3),
+            2 => (11, 3),
+            _ => (9, 2),
+        };
+        let (zone_x, zone_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            zone_x,
+            zone_y + tile_h - 8,
+            24,
+            7,
+            CLASSIC_RTS_RESTORE_ZONE_COLOR,
+        );
+    }
+    for (index, _structure_id) in runtime.rts_rebuild_structure_ids.iter().enumerate() {
+        let tile = match index % 3 {
+            0 => (12, 3),
+            1 => (11, 3),
+            _ => (13, 3),
+        };
+        let (rebuild_x, rebuild_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            rebuild_x - 12,
+            rebuild_y + tile_h - 54,
+            24,
+            24,
+            CLASSIC_RTS_REBUILD_CORE_COLOR,
+        );
+    }
+    for (index, _unit_id) in runtime.rts_garrison_unit_ids.iter().enumerate() {
+        let tile = match index % 3 {
+            0 => (13, 3),
+            1 => (13, 4),
+            _ => (12, 3),
+        };
+        let (garrison_x, garrison_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            garrison_x - 8,
+            garrison_y + tile_h - 38,
+            16,
+            16,
+            CLASSIC_RTS_GARRISON_COLOR,
+        );
+    }
+    if runtime
+        .rts_victory_handoff_state
+        .starts_with("handoff_ready:")
+    {
+        let (handoff_x, handoff_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, (13, 3));
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            handoff_x,
+            handoff_y + tile_h - 62,
+            42,
+            12,
+            CLASSIC_RTS_HANDOFF_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -25772,6 +26082,57 @@ fn classic_draw_rts_strategy_overlay(
             32,
             5,
             CLASSIC_RTS_KEEP_VICTORY_COLOR,
+        );
+    }
+    if !runtime.rts_restored_zone_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 154,
+            32,
+            5,
+            CLASSIC_RTS_RESTORE_ZONE_COLOR,
+        );
+    }
+    if !runtime.rts_rebuild_structure_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 44,
+            tactical_y + 154,
+            32,
+            5,
+            CLASSIC_RTS_REBUILD_CORE_COLOR,
+        );
+    }
+    if !runtime.rts_garrison_unit_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 84,
+            tactical_y + 154,
+            32,
+            5,
+            CLASSIC_RTS_GARRISON_COLOR,
+        );
+    }
+    if runtime
+        .rts_victory_handoff_state
+        .starts_with("handoff_ready:")
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 120,
+            tactical_y + 154,
+            32,
+            5,
+            CLASSIC_RTS_HANDOFF_COLOR,
         );
     }
     true
@@ -32078,6 +32439,57 @@ fn sha256_hex(bytes: &[u8]) -> String {
         .collect::<String>()
 }
 
+static RUNTIME_TEXTURE_MANIFEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+struct RuntimeTextureManifestEnvRestore {
+    previous_manifest: Option<String>,
+    previous_sha256: Option<String>,
+}
+
+impl RuntimeTextureManifestEnvRestore {
+    fn set(runtime_manifest_path: &str, manifest_sha256: &str) -> Self {
+        let previous_manifest = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST").ok();
+        let previous_sha256 = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256").ok();
+        env::set_var(
+            "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST",
+            runtime_manifest_path,
+        );
+        env::set_var(
+            "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256",
+            manifest_sha256,
+        );
+        Self {
+            previous_manifest,
+            previous_sha256,
+        }
+    }
+}
+
+impl Drop for RuntimeTextureManifestEnvRestore {
+    fn drop(&mut self) {
+        match self.previous_manifest.take() {
+            Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST", value),
+            None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST"),
+        }
+        match self.previous_sha256.take() {
+            Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256", value),
+            None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256"),
+        }
+    }
+}
+
+fn with_runtime_texture_manifest_env<T>(
+    runtime_manifest_path: &str,
+    manifest_sha256: &str,
+    f: impl FnOnce() -> T,
+) -> T {
+    let _guard = RUNTIME_TEXTURE_MANIFEST_ENV_LOCK
+        .lock()
+        .expect("runtime texture manifest env lock is not poisoned");
+    let _restore = RuntimeTextureManifestEnvRestore::set(runtime_manifest_path, manifest_sha256);
+    f()
+}
+
 fn runtime_texture_manifest_probe_from_env() -> NativeRuntimeTextureManifestProbe {
     let manifest_path =
         env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST").unwrap_or_default();
@@ -32520,17 +32932,10 @@ pub fn native_runtime_texture_manifest_probe_evidence_json(
         serde_json::from_str(&runtime_summary_text).unwrap_or_else(|_| json!({}));
     let manifest_bytes_data = fs::read(runtime_manifest_path).unwrap_or_default();
     let manifest_sha256 = sha256_hex(&manifest_bytes_data);
-    let previous_manifest = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST").ok();
-    let previous_sha256 = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256").ok();
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST",
-        runtime_manifest_path,
-    );
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256",
-        &manifest_sha256,
-    );
-    let (app, _report) = build_native_bevy_app(native_bevy_playable_fixture(), actor_id);
+    let (app, _report) =
+        with_runtime_texture_manifest_env(runtime_manifest_path, &manifest_sha256, || {
+            build_native_bevy_app(native_bevy_playable_fixture(), actor_id)
+        });
     let probe = app
         .world()
         .resource::<NativeRuntimeTextureManifestProbe>()
@@ -32552,14 +32957,6 @@ pub fn native_runtime_texture_manifest_probe_evidence_json(
         Some(&probe),
         Some(&asset_store_registration),
     );
-    match previous_manifest {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST"),
-    }
-    match previous_sha256 {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256"),
-    }
     let runtime_summary_gate = runtime_summary.get("green").and_then(Value::as_bool) == Some(true)
         && runtime_summary
             .get("runtime_asset_path")
@@ -32629,17 +33026,10 @@ pub fn native_runtime_texture_asset_store_registration_evidence_json(
         serde_json::from_str(&runtime_summary_text).unwrap_or_else(|_| json!({}));
     let manifest_bytes_data = fs::read(runtime_manifest_path).unwrap_or_default();
     let manifest_sha256 = sha256_hex(&manifest_bytes_data);
-    let previous_manifest = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST").ok();
-    let previous_sha256 = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256").ok();
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST",
-        runtime_manifest_path,
-    );
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256",
-        &manifest_sha256,
-    );
-    let (app, _report) = build_native_bevy_app(native_bevy_playable_fixture(), actor_id);
+    let (app, _report) =
+        with_runtime_texture_manifest_env(runtime_manifest_path, &manifest_sha256, || {
+            build_native_bevy_app(native_bevy_playable_fixture(), actor_id)
+        });
     let probe = app
         .world()
         .resource::<NativeRuntimeTextureManifestProbe>()
@@ -32661,14 +33051,6 @@ pub fn native_runtime_texture_asset_store_registration_evidence_json(
         Some(&probe),
         Some(&asset_store_registration),
     );
-    match previous_manifest {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST"),
-    }
-    match previous_sha256 {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256"),
-    }
     let runtime_summary_gate = runtime_summary.get("green").and_then(Value::as_bool) == Some(true)
         && runtime_summary
             .get("runtime_asset_path")
@@ -32746,32 +33128,26 @@ pub fn native_runtime_texture_sprite_asset_binding_evidence_json(
         serde_json::from_str(&runtime_summary_text).unwrap_or_else(|_| json!({}));
     let manifest_bytes_data = fs::read(runtime_manifest_path).unwrap_or_default();
     let manifest_sha256 = sha256_hex(&manifest_bytes_data);
-    let previous_manifest = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST").ok();
-    let previous_sha256 = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256").ok();
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST",
-        runtime_manifest_path,
-    );
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256",
-        &manifest_sha256,
-    );
-    let mut app = App::new();
-    app.init_resource::<InputFocus>()
-        .add_plugins(MinimalPlugins)
-        .add_plugins(TrillionniumWorldBevyPlugin::new(
-            native_bevy_playable_fixture(),
-            actor_id,
-        ))
-        .add_systems(
-            Startup,
-            (
-                spawn_native_render_scene,
-                bind_runtime_textures_to_authored_sprite_surfaces,
-            )
-                .chain(),
-        );
-    app.update();
+    let mut app =
+        with_runtime_texture_manifest_env(runtime_manifest_path, &manifest_sha256, || {
+            let mut app = App::new();
+            app.init_resource::<InputFocus>()
+                .add_plugins(MinimalPlugins)
+                .add_plugins(TrillionniumWorldBevyPlugin::new(
+                    native_bevy_playable_fixture(),
+                    actor_id,
+                ))
+                .add_systems(
+                    Startup,
+                    (
+                        spawn_native_render_scene,
+                        bind_runtime_textures_to_authored_sprite_surfaces,
+                    )
+                        .chain(),
+                );
+            app.update();
+            app
+        });
     let probe = app
         .world()
         .resource::<NativeRuntimeTextureManifestProbe>()
@@ -32841,14 +33217,6 @@ pub fn native_runtime_texture_sprite_asset_binding_evidence_json(
             })
         })
         .collect::<Vec<_>>();
-    match previous_manifest {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST"),
-    }
-    match previous_sha256 {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256"),
-    }
     let runtime_summary_gate = runtime_summary.get("green").and_then(Value::as_bool) == Some(true)
         && runtime_summary
             .get("runtime_asset_path")
@@ -33132,32 +33500,26 @@ pub fn native_runtime_texture_sprite_texture_sampling_evidence_json(
         serde_json::from_str(&runtime_summary_text).unwrap_or_else(|_| json!({}));
     let manifest_bytes_data = fs::read(runtime_manifest_path).unwrap_or_default();
     let manifest_sha256 = sha256_hex(&manifest_bytes_data);
-    let previous_manifest = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST").ok();
-    let previous_sha256 = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256").ok();
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST",
-        runtime_manifest_path,
-    );
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256",
-        &manifest_sha256,
-    );
-    let mut app = App::new();
-    app.init_resource::<InputFocus>()
-        .add_plugins(MinimalPlugins)
-        .add_plugins(TrillionniumWorldBevyPlugin::new(
-            native_bevy_playable_fixture(),
-            actor_id,
-        ))
-        .add_systems(
-            Startup,
-            (
-                spawn_native_render_scene,
-                bind_runtime_textures_to_authored_sprite_surfaces,
-            )
-                .chain(),
-        );
-    app.update();
+    let mut app =
+        with_runtime_texture_manifest_env(runtime_manifest_path, &manifest_sha256, || {
+            let mut app = App::new();
+            app.init_resource::<InputFocus>()
+                .add_plugins(MinimalPlugins)
+                .add_plugins(TrillionniumWorldBevyPlugin::new(
+                    native_bevy_playable_fixture(),
+                    actor_id,
+                ))
+                .add_systems(
+                    Startup,
+                    (
+                        spawn_native_render_scene,
+                        bind_runtime_textures_to_authored_sprite_surfaces,
+                    )
+                        .chain(),
+                );
+            app.update();
+            app
+        });
     let probe = app
         .world()
         .resource::<NativeRuntimeTextureManifestProbe>()
@@ -33190,14 +33552,6 @@ pub fn native_runtime_texture_sprite_texture_sampling_evidence_json(
             })
             .collect::<Vec<_>>()
     };
-    match previous_manifest {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST"),
-    }
-    match previous_sha256 {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256"),
-    }
     let runtime_summary_gate = runtime_summary.get("green").and_then(Value::as_bool) == Some(true)
         && runtime_summary
             .get("runtime_asset_path")
@@ -33372,32 +33726,26 @@ pub fn native_runtime_texture_render_asset_eligibility_evidence_json(
         serde_json::from_str(&sampled_live_text).unwrap_or_else(|_| json!({}));
     let manifest_bytes_data = fs::read(runtime_manifest_path).unwrap_or_default();
     let manifest_sha256 = sha256_hex(&manifest_bytes_data);
-    let previous_manifest = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST").ok();
-    let previous_sha256 = env::var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256").ok();
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST",
-        runtime_manifest_path,
-    );
-    env::set_var(
-        "TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256",
-        &manifest_sha256,
-    );
-    let mut app = App::new();
-    app.init_resource::<InputFocus>()
-        .add_plugins(MinimalPlugins)
-        .add_plugins(TrillionniumWorldBevyPlugin::new(
-            native_bevy_playable_fixture(),
-            actor_id,
-        ))
-        .add_systems(
-            Startup,
-            (
-                spawn_native_render_scene,
-                bind_runtime_textures_to_authored_sprite_surfaces,
-            )
-                .chain(),
-        );
-    app.update();
+    let mut app =
+        with_runtime_texture_manifest_env(runtime_manifest_path, &manifest_sha256, || {
+            let mut app = App::new();
+            app.init_resource::<InputFocus>()
+                .add_plugins(MinimalPlugins)
+                .add_plugins(TrillionniumWorldBevyPlugin::new(
+                    native_bevy_playable_fixture(),
+                    actor_id,
+                ))
+                .add_systems(
+                    Startup,
+                    (
+                        spawn_native_render_scene,
+                        bind_runtime_textures_to_authored_sprite_surfaces,
+                    )
+                        .chain(),
+                );
+            app.update();
+            app
+        });
     let probe = app
         .world()
         .resource::<NativeRuntimeTextureManifestProbe>()
@@ -33519,14 +33867,6 @@ pub fn native_runtime_texture_render_asset_eligibility_evidence_json(
             sprite_render_references,
         )
     };
-    match previous_manifest {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST"),
-    }
-    match previous_sha256 {
-        Some(value) => env::set_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256", value),
-        None => env::remove_var("TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256"),
-    }
     let runtime_summary_gate = runtime_summary.get("green").and_then(Value::as_bool) == Some(true)
         && runtime_summary
             .get("runtime_asset_path")
@@ -58093,6 +58433,30 @@ fn classic_rts_keep_claim_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<St
     }
 }
 
+fn classic_rts_restored_zones_for_id(zone_id: &str) -> Vec<String> {
+    if zone_id == "mirror_city" {
+        string_vec(["central_keep", "signal_core", "inner_lane", "forest_relay"])
+    } else {
+        vec![zone_id.to_string()]
+    }
+}
+
+fn classic_rts_rebuild_structures_for_id(structure_id: &str) -> Vec<String> {
+    if structure_id == "signal_core" {
+        string_vec(["signal_core", "inner_latch", "mirror_ward"])
+    } else {
+        vec![structure_id.to_string()]
+    }
+}
+
+fn classic_rts_garrison_units_for_id(garrison_id: &str) -> Vec<String> {
+    if garrison_id == "central_keep" {
+        string_vec(["mirror_guard_alpha", "signal_lancer", "field_engineer"])
+    } else {
+        vec![format!("{garrison_id}_garrison")]
+    }
+}
+
 fn classic_rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
     match unit_id {
         "stonebreak_cart" => (9, 3),
@@ -59798,6 +60162,74 @@ fn apply_classic_rts_tier_two_siege_push_runtime(
             first_playable.objective_status =
                 "classic_rts_central_keep_breakthrough_complete".to_string();
         }
+        "restore_city" => {
+            ensure_classic_rts_central_keep_breakthrough_ready(first_playable);
+            first_playable.rts_restored_zone_ids = classic_rts_restored_zones_for_id(&id);
+            first_playable.rts_victory_handoff_state = format!("restoring:{id}");
+            push_history(
+                &mut first_playable.rts_resource_delta_log,
+                "mirror_city_restore:+4zones",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_restore_city:{id}@{source_id}:{}",
+                    first_playable.rts_restored_zone_ids.join("|")
+                ),
+            );
+        }
+        "rebuild_core" => {
+            ensure_classic_rts_central_keep_breakthrough_ready(first_playable);
+            first_playable.rts_rebuild_structure_ids = classic_rts_rebuild_structures_for_id(&id);
+            first_playable.rts_victory_handoff_state = format!("rebuilding:{id}");
+            push_history(
+                &mut first_playable.rts_resource_delta_log,
+                "signal_core_rebuild:+3structures",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_rebuild_core:{id}@{source_id}:{}",
+                    first_playable.rts_rebuild_structure_ids.join("|")
+                ),
+            );
+        }
+        "assign_garrison" => {
+            ensure_classic_rts_central_keep_breakthrough_ready(first_playable);
+            first_playable.rts_garrison_unit_ids = classic_rts_garrison_units_for_id(&id);
+            first_playable.rts_victory_handoff_state = format!("garrisoned:{id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_assign_garrison:{id}@{source_id}:{}",
+                    first_playable.rts_garrison_unit_ids.join("|")
+                ),
+            );
+        }
+        "victory_handoff" => {
+            ensure_classic_rts_central_keep_breakthrough_ready(first_playable);
+            first_playable.rts_victory_handoff_state = format!("handoff_ready:{id}");
+            first_playable.rts_match_result_state = format!("classic_rts_restored:{id}");
+            push_unique_string(
+                &mut first_playable.rts_next_action_ids,
+                "open_world_after_action",
+            );
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "mirror_city_handoff:+restoration_complete",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_victory_handoff:{id}@{source_id}:ready"),
+            );
+            push_completed_step(first_playable, "classic_rts_mirror_city_restoration_ready");
+            push_progression_checkpoint(
+                first_playable,
+                "classic_rts_mirror_city_restoration_ready",
+            );
+            first_playable.objective_status =
+                "classic_rts_mirror_city_restoration_complete".to_string();
+        }
         _ => {
             if first_playable.rts_siege_unit_ids.is_empty() {
                 for unit_id in classic_rts_siege_units_for_id("stonebreak_cart") {
@@ -59926,6 +60358,27 @@ fn ensure_classic_rts_central_keep_pressure_ready(first_playable: &mut NativeFir
             "keep_guard:warden_line@12,3",
             "keep_siege:final_line@12,4",
             "keep_pressure:central_keep@13,3",
+        ] {
+            apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
+        }
+    }
+}
+
+fn ensure_classic_rts_central_keep_breakthrough_ready(
+    first_playable: &mut NativeFirstPlayableRuntime,
+) {
+    if first_playable.rts_match_result_state != "classic_rts_victory:central_keep"
+        || !first_playable
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "restore_mirror_city")
+    {
+        for command in [
+            "keep_breach:central_keep@13,3",
+            "guardian_counter:high_warden@13,4",
+            "keep_hold:final_line@12,4",
+            "keep_break:central_keep@13,3",
+            "keep_claim:central_keep@13,3",
         ] {
             apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
         }
