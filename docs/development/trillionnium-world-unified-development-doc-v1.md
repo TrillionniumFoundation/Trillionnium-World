@@ -365,6 +365,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第二十组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_expansion_counterattack.sh` 把 `secure_expansion` 下一步落成可操作扩张经营：`expansion:claim` 占领 `forest_relay`，`expansion:build` 建成 `relay_outpost`，`expansion:workers` 接入二矿收入曲线，`expansion:defend` 触发并守住敌方 `counter_wave`；它把指挥官 aura、二基地经济、敌方反扑和防守结果收进同一条 Bevy-native live input 证据链。
 
+2026-05-20 继续追加第二十一组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_tier_two_siege_push.sh` 把守住二基地后的 `tier2:tech`、`tier2:upgrade`、`tier2:train`、`tier2:enemy_fortify` 和 `tier2:push` live inputs 推进到二本科技建筑、攻城升级、攻城单位生产、敌方加固据点、推进路线和攻城伤害反馈；它让扩张经济转化为下一轮基地突破能力，同时继续保持 Trillionnium 原创命名、像素和 Bevy-native source-of-truth。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

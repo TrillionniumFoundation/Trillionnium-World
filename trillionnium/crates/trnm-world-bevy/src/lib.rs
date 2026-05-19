@@ -194,6 +194,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMANDER_PROGRESSION_CONTRACT: &s
     "trillionnium_world_bevy_classic_rts_commander_progression_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_EXPANSION_COUNTERATTACK_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_expansion_counterattack_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TIER_TWO_SIEGE_PUSH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_tier_two_siege_push_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -308,6 +310,11 @@ const CLASSIC_RTS_EXPANSION_WORKER_COLOR: u32 = 0xf3ce67;
 const CLASSIC_RTS_EXPANSION_INCOME_COLOR: u32 = 0xb7ff6a;
 const CLASSIC_RTS_COUNTERATTACK_COLOR: u32 = 0xff6c7d;
 const CLASSIC_RTS_EXPANSION_DEFENSE_COLOR: u32 = 0x80d8ff;
+const CLASSIC_RTS_TIER_TWO_TECH_COLOR: u32 = 0x58e8ff;
+const CLASSIC_RTS_SIEGE_UNIT_COLOR: u32 = 0xe8b76a;
+const CLASSIC_RTS_SIEGE_ROUTE_COLOR: u32 = 0xffb25f;
+const CLASSIC_RTS_ENEMY_FORTIFY_COLOR: u32 = 0xff4c72;
+const CLASSIC_RTS_SIEGE_DAMAGE_COLOR: u32 = 0xfff172;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1724,6 +1731,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_enemy_counterattack_route_tile_ids: Vec<String>,
     #[serde(default)]
     pub rts_expansion_defense_state: String,
+    #[serde(default)]
+    pub rts_tier_two_tech_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_tier_two_upgrade_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_siege_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_siege_push_route_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_enemy_fortification_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_siege_damage_log: Vec<String>,
+    #[serde(default)]
+    pub rts_tier_two_push_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -2087,6 +2108,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_enemy_counterattack_unit_ids: Vec::new(),
             rts_enemy_counterattack_route_tile_ids: Vec::new(),
             rts_expansion_defense_state: String::new(),
+            rts_tier_two_tech_ids: Vec::new(),
+            rts_tier_two_upgrade_ids: Vec::new(),
+            rts_siege_unit_ids: Vec::new(),
+            rts_siege_push_route_tile_ids: Vec::new(),
+            rts_enemy_fortification_ids: Vec::new(),
+            rts_siege_damage_log: Vec::new(),
+            rts_tier_two_push_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -14447,6 +14475,395 @@ pub fn native_classic_rts_expansion_counterattack_evidence_json(preview_path: &s
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_tier_two_siege_push_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 5;
+    const PREVIEW_ROWS: usize = 5;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 720,
+        xp: 520,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 6,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_assault_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "raise_supply_cap",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:supply:field_lodge@6,4".to_string(),
+            },
+        ),
+        (
+            "train_guard_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:guard_pair@training_hall".to_string(),
+            },
+        ),
+        (
+            "train_wayfinder_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:wayfinder_pair@signal_spire".to_string(),
+            },
+        ),
+        (
+            "set_forward_rally",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:rally:forward_watch@7,4".to_string(),
+            },
+        ),
+        (
+            "assign_control_group",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:assign:control_group_3@forward_watch".to_string(),
+            },
+        ),
+        (
+            "siege_move",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "10,3:siege".to_string(),
+            },
+        ),
+        (
+            "attack_enemy_barracks",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "enemy_barracks".to_string(),
+            },
+        ),
+        (
+            "breach_enemy_barracks",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "assault:breach:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "destroy_enemy_barracks",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:destroy:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "promote_veterans",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:promote:control_group_3@10,3".to_string(),
+            },
+        ),
+        (
+            "surface_next_action",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:next:secure_expansion@9,2".to_string(),
+            },
+        ),
+        (
+            "loot_enemy_cache",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "commander:loot:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "level_commander",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "commander:level:mirror_captain@battlefield".to_string(),
+            },
+        ),
+        (
+            "activate_rally_aura",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "commander:ability:rally_aura@mirror_captain".to_string(),
+            },
+        ),
+        (
+            "claim_forest_relay",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:claim:forest_relay@9,2".to_string(),
+            },
+        ),
+        (
+            "build_relay_outpost",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:build:relay_outpost@9,2".to_string(),
+            },
+        ),
+        (
+            "assign_gold_workers",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:workers:gold_line@9,2".to_string(),
+            },
+        ),
+        (
+            "defend_counter_wave",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:defend:counter_wave@8,3".to_string(),
+            },
+        ),
+        (
+            "build_relay_foundry",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:tech:relay_foundry@relay_outpost".to_string(),
+            },
+        ),
+        (
+            "research_siege_harness",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:upgrade:siege_harness@relay_foundry".to_string(),
+            },
+        ),
+        (
+            "train_stonebreak_cart",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:train:stonebreak_cart@relay_foundry".to_string(),
+            },
+        ),
+        (
+            "enemy_gate_bulwark",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:enemy_fortify:gate_bulwark@10,3".to_string(),
+            },
+        ),
+        (
+            "push_gate_bulwark",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:push:gate_bulwark@10,3".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_tier_two_siege_push_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS TIER2 {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "tier_two_tech_ids": runtime.rts_tier_two_tech_ids.clone(),
+            "tier_two_upgrade_ids": runtime.rts_tier_two_upgrade_ids.clone(),
+            "siege_unit_ids": runtime.rts_siege_unit_ids.clone(),
+            "siege_push_route_tile_ids": runtime.rts_siege_push_route_tile_ids.clone(),
+            "enemy_fortification_ids": runtime.rts_enemy_fortification_ids.clone(),
+            "siege_damage_log": runtime.rts_siege_damage_log.clone(),
+            "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+            "base_assault_result_state": runtime.rts_base_assault_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let tier_two_tech_pixel_count = count_color(CLASSIC_RTS_TIER_TWO_TECH_COLOR);
+    let siege_unit_pixel_count = count_color(CLASSIC_RTS_SIEGE_UNIT_COLOR);
+    let siege_route_pixel_count = count_color(CLASSIC_RTS_SIEGE_ROUTE_COLOR);
+    let enemy_fortification_pixel_count = count_color(CLASSIC_RTS_ENEMY_FORTIFY_COLOR);
+    let siege_damage_pixel_count = count_color(CLASSIC_RTS_SIEGE_DAMAGE_COLOR);
+    let live_tier_two_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_tier_two_siege_push_input");
+    let expansion_dependency_gate = runtime.rts_expansion_defense_state == "defended:counter_wave"
+        && runtime.rts_expansion_income_per_minute >= 220
+        && runtime
+            .rts_expansion_structure_ids
+            .iter()
+            .any(|structure| structure == "relay_outpost");
+    let tier_two_tech_gate = runtime
+        .rts_tier_two_tech_ids
+        .iter()
+        .any(|tech| tech == "relay_foundry")
+        && runtime
+            .rts_unlocked_structure_ids
+            .iter()
+            .any(|structure| structure == "relay_foundry")
+        && runtime.rts_tech_state == "tier_two_online:relay_foundry@relay_outpost"
+        && tier_two_tech_pixel_count > 60;
+    let tier_two_upgrade_gate = runtime
+        .rts_tier_two_upgrade_ids
+        .iter()
+        .any(|upgrade| upgrade == "siege_harness")
+        && runtime
+            .rts_completed_upgrade_ids
+            .iter()
+            .any(|upgrade| upgrade == "siege_harness")
+        && runtime
+            .rts_ability_command_ids
+            .iter()
+            .any(|ability| ability == "siege_push")
+        && runtime.rts_active_ability_id.as_deref() == Some("siege_push");
+    let siege_unit_gate = runtime
+        .rts_siege_unit_ids
+        .iter()
+        .any(|unit| unit == "stonebreak_cart")
+        && runtime
+            .rts_army_spawned_unit_ids
+            .iter()
+            .any(|unit| unit == "stonebreak_cart")
+        && runtime.rts_army_supply_cap >= 24
+        && siege_unit_pixel_count > 60;
+    let enemy_fortification_gate = runtime
+        .rts_enemy_fortification_ids
+        .iter()
+        .any(|fortification| fortification == "gate_bulwark")
+        && runtime
+            .rts_revealed_enemy_structure_ids
+            .iter()
+            .any(|structure| structure == "gate_bulwark")
+        && runtime.rts_enemy_base_pressure_state == "fortified:gate_bulwark@10,3"
+        && enemy_fortification_pixel_count > 80;
+    let siege_push_gate = runtime.rts_siege_push_route_tile_ids.len() >= 6
+        && runtime
+            .rts_siege_push_route_tile_ids
+            .iter()
+            .any(|tile| tile == "10,3")
+        && runtime
+            .rts_siege_damage_log
+            .iter()
+            .any(|entry| entry == "stonebreak_cart:gate_bulwark:-60")
+        && runtime.rts_enemy_structure_health_percents == vec![40]
+        && runtime.rts_base_breach_percent == 62
+        && runtime.rts_tier_two_push_state == "siege_push_ready:gate_bulwark"
+        && runtime.rts_base_assault_result_state == "siege_softened:gate_bulwark"
+        && siege_route_pixel_count > 80
+        && siege_damage_pixel_count > 40;
+    let green = write_gate
+        && non_background_pixels > 700_000
+        && live_tier_two_input_gate
+        && expansion_dependency_gate
+        && tier_two_tech_gate
+        && tier_two_upgrade_gate
+        && siege_unit_gate
+        && enemy_fortification_gate
+        && siege_push_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TIER_TWO_SIEGE_PUSH_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_tier_two_siege_push_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_expansion_defense_state": runtime.rts_expansion_defense_state,
+        "final_expansion_income_per_minute": runtime.rts_expansion_income_per_minute,
+        "final_expansion_structure_ids": runtime.rts_expansion_structure_ids,
+        "final_tier_two_tech_ids": runtime.rts_tier_two_tech_ids,
+        "final_tier_two_upgrade_ids": runtime.rts_tier_two_upgrade_ids,
+        "final_siege_unit_ids": runtime.rts_siege_unit_ids,
+        "final_siege_push_route_tile_ids": runtime.rts_siege_push_route_tile_ids,
+        "final_enemy_fortification_ids": runtime.rts_enemy_fortification_ids,
+        "final_siege_damage_log": runtime.rts_siege_damage_log,
+        "final_tier_two_push_state": runtime.rts_tier_two_push_state,
+        "final_enemy_structure_health_percents": runtime.rts_enemy_structure_health_percents,
+        "final_base_breach_percent": runtime.rts_base_breach_percent,
+        "final_base_assault_result_state": runtime.rts_base_assault_result_state,
+        "final_tech_state": runtime.rts_tech_state,
+        "final_army_production_state": runtime.rts_army_production_state,
+        "final_ability_command_ids": runtime.rts_ability_command_ids,
+        "final_active_ability_id": runtime.rts_active_ability_id,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "tier_two_tech_pixel_count": tier_two_tech_pixel_count,
+        "siege_unit_pixel_count": siege_unit_pixel_count,
+        "siege_route_pixel_count": siege_route_pixel_count,
+        "enemy_fortification_pixel_count": enemy_fortification_pixel_count,
+        "siege_damage_pixel_count": siege_damage_pixel_count,
+        "live_tier_two_input_gate": live_tier_two_input_gate,
+        "expansion_dependency_gate": expansion_dependency_gate,
+        "tier_two_tech_gate": tier_two_tech_gate,
+        "tier_two_upgrade_gate": tier_two_upgrade_gate,
+        "siege_unit_gate": siege_unit_gate,
+        "enemy_fortification_gate": enemy_fortification_gate,
+        "siege_push_gate": siege_push_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS tier-two siege push evidence extends the defended expansion into a second-tier tech structure, siege upgrade, siege unit production, fortified enemy gate, and readable push route/damage state through live native input and Trillionnium-owned low-spec Bevy rendering."
+    }))
+    .expect("classic RTS tier-two siege push evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -19472,6 +19889,160 @@ fn classic_draw_iso_command_feedback(
             }
         }
     }
+    for tech_id in &runtime.rts_tier_two_tech_ids {
+        let tile = classic_rts_expansion_structure_tile_for_id(tech_id);
+        let (tech_x, tech_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tech_x - 26,
+            tech_y + tile_h - 74,
+            52,
+            7,
+            CLASSIC_RTS_TIER_TWO_TECH_COLOR,
+        );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            tech_x,
+            tech_y + tile_h - 22,
+            26,
+            8,
+            CLASSIC_RTS_TIER_TWO_TECH_COLOR,
+        );
+    }
+    for (index, _upgrade_id) in runtime.rts_tier_two_upgrade_ids.iter().enumerate() {
+        let tile = (9 + index as i32 % 2, 2);
+        let (upgrade_x, upgrade_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            upgrade_x - 16,
+            upgrade_y + tile_h - 84,
+            32,
+            5,
+            CLASSIC_RTS_TIER_TWO_TECH_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            upgrade_x - 5,
+            upgrade_y + tile_h - 97,
+            10,
+            10,
+            CLASSIC_RTS_TIER_TWO_TECH_COLOR,
+        );
+    }
+    if !runtime.rts_siege_push_route_tile_ids.is_empty() {
+        let mut previous_screen: Option<(i32, i32)> = None;
+        for tile_id in &runtime.rts_siege_push_route_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (route_x, route_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    route_x,
+                    route_y + tile_h - 2,
+                    16,
+                    5,
+                    CLASSIC_RTS_SIEGE_ROUTE_COLOR,
+                );
+                if let Some((prev_x, prev_y)) = previous_screen {
+                    for step in 0..=7 {
+                        let line_x = prev_x + ((route_x - prev_x) * step) / 7;
+                        let line_y = prev_y + tile_h - 2 + ((route_y - prev_y) * step) / 7;
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            line_x - 2,
+                            line_y - 1,
+                            5,
+                            3,
+                            CLASSIC_RTS_SIEGE_ROUTE_COLOR,
+                        );
+                    }
+                }
+                previous_screen = Some((route_x, route_y));
+            }
+        }
+    }
+    for (index, unit_id) in runtime.rts_siege_unit_ids.iter().enumerate() {
+        let tile = classic_rts_siege_unit_tile_for_id(unit_id, index);
+        let (siege_x, siege_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            siege_x,
+            siege_y + tile_h - 7,
+            20,
+            7,
+            CLASSIC_RTS_SIEGE_UNIT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            siege_x - 15,
+            siege_y + tile_h - 36,
+            30,
+            14,
+            CLASSIC_RTS_SIEGE_UNIT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            siege_x + 9,
+            siege_y + tile_h - 32,
+            18,
+            4,
+            CLASSIC_RTS_SIEGE_UNIT_COLOR,
+        );
+    }
+    for fortification_id in &runtime.rts_enemy_fortification_ids {
+        let tile = classic_rts_enemy_fortification_tile_for_id(fortification_id);
+        let (fort_x, fort_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            fort_x - 25,
+            fort_y + tile_h - 54,
+            50,
+            26,
+            CLASSIC_RTS_ENEMY_FORTIFY_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            fort_x - 30,
+            fort_y + tile_h - 62,
+            60,
+            6,
+            CLASSIC_RTS_ENEMY_FORTIFY_COLOR,
+        );
+        if !runtime.rts_siege_damage_log.is_empty() {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                fort_x,
+                fort_y + tile_h - 28,
+                30,
+                9,
+                CLASSIC_RTS_SIEGE_DAMAGE_COLOR,
+            );
+        }
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -21638,6 +22209,71 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_RTS_EXPANSION_DEFENSE_COLOR,
         );
     }
+    for tech_id in &runtime.rts_tier_two_tech_ids {
+        let tile = classic_rts_expansion_structure_tile_for_id(tech_id);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            6,
+            5,
+            CLASSIC_RTS_TIER_TWO_TECH_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_siege_push_route_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                4,
+                2,
+                CLASSIC_RTS_SIEGE_ROUTE_COLOR,
+            );
+        }
+    }
+    for (index, unit_id) in runtime.rts_siege_unit_ids.iter().enumerate() {
+        let tile = classic_rts_siege_unit_tile_for_id(unit_id, index);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            5,
+            4,
+            CLASSIC_RTS_SIEGE_UNIT_COLOR,
+        );
+    }
+    for fortification_id in &runtime.rts_enemy_fortification_ids {
+        let tile = classic_rts_enemy_fortification_tile_for_id(fortification_id);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            6,
+            5,
+            CLASSIC_RTS_ENEMY_FORTIFY_COLOR,
+        );
+    }
+    if !runtime.rts_siege_damage_log.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + 10 * cell_w + 1,
+            map_y + 3 * cell_h + 1,
+            4,
+            3,
+            CLASSIC_RTS_SIEGE_DAMAGE_COLOR,
+        );
+    }
 
     let resource_x = panel_x + minimap_w + 8;
     let resource_y = panel_y;
@@ -22580,6 +23216,66 @@ fn classic_draw_rts_strategy_overlay(
             32,
             5,
             CLASSIC_RTS_EXPANSION_DEFENSE_COLOR,
+        );
+    }
+    if !runtime.rts_tier_two_tech_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 104,
+            32,
+            5,
+            CLASSIC_RTS_TIER_TWO_TECH_COLOR,
+        );
+    }
+    if !runtime.rts_siege_unit_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 44,
+            tactical_y + 104,
+            32,
+            5,
+            CLASSIC_RTS_SIEGE_UNIT_COLOR,
+        );
+    }
+    if !runtime.rts_siege_push_route_tile_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 84,
+            tactical_y + 104,
+            32,
+            5,
+            CLASSIC_RTS_SIEGE_ROUTE_COLOR,
+        );
+    }
+    if !runtime.rts_enemy_fortification_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 120,
+            tactical_y + 104,
+            32,
+            5,
+            CLASSIC_RTS_ENEMY_FORTIFY_COLOR,
+        );
+    }
+    if !runtime.rts_siege_damage_log.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 156,
+            tactical_y + 104,
+            32,
+            5,
+            CLASSIC_RTS_SIEGE_DAMAGE_COLOR,
         );
     }
     true
@@ -54636,6 +55332,7 @@ fn classic_rts_expansion_tiles_for_id(expansion_id: &str, tile_id: &str) -> Vec<
 fn classic_rts_expansion_structure_tile_for_id(structure_id: &str) -> (i32, i32) {
     match structure_id {
         "relay_outpost" => (9, 2),
+        "relay_foundry" => (9, 2),
         "relay_storehouse" => (10, 2),
         "watch_lantern" => (8, 3),
         _ => (9, 2),
@@ -54676,6 +55373,50 @@ fn classic_rts_counterattack_route_tiles_for_wave(wave_id: &str, tile_id: &str) 
             format!("{},{}", tile.0 + 1, tile.1),
             format!("{},{}", tile.0, tile.1),
         ]
+    }
+}
+
+fn classic_rts_tier_two_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("tech", command));
+    let (id, source_id) = payload
+        .split_once('@')
+        .unwrap_or((payload, "relay_outpost"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+fn classic_rts_siege_units_for_id(unit_id: &str) -> Vec<String> {
+    if unit_id == "stonebreak_cart" {
+        string_vec(["stonebreak_cart"])
+    } else {
+        vec![unit_id.to_string()]
+    }
+}
+
+fn classic_rts_siege_push_route_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "stonebreak_cart" || tile_id == "10,3" {
+        string_vec(["9,2", "9,3", "10,3", "10,2", "11,2", "10,3"])
+    } else {
+        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
+        vec![
+            "9,2".to_string(),
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+        ]
+    }
+}
+
+fn classic_rts_enemy_fortification_tile_for_id(fortification_id: &str) -> (i32, i32) {
+    match fortification_id {
+        "gate_bulwark" => (10, 3),
+        "watch_redoubt" => (10, 2),
+        _ => (10, 3),
+    }
+}
+
+fn classic_rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
+    match unit_id {
+        "stonebreak_cart" => (9, 3),
+        _ => (9 + (index as i32 % 2), 3),
     }
 }
 
@@ -55790,6 +56531,171 @@ fn apply_classic_rts_expansion_counterattack_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn ensure_classic_rts_expansion_counterattack_ready(
+    first_playable: &mut NativeFirstPlayableRuntime,
+) {
+    if first_playable.rts_expansion_defense_state != "defended:counter_wave"
+        || first_playable.rts_expansion_income_per_minute < 220
+        || !first_playable
+            .rts_expansion_structure_ids
+            .iter()
+            .any(|structure| structure == "relay_outpost")
+    {
+        apply_classic_rts_expansion_counterattack_runtime(first_playable, "claim:forest_relay@9,2");
+        apply_classic_rts_expansion_counterattack_runtime(
+            first_playable,
+            "build:relay_outpost@9,2",
+        );
+        apply_classic_rts_expansion_counterattack_runtime(first_playable, "workers:gold_line@9,2");
+        apply_classic_rts_expansion_counterattack_runtime(
+            first_playable,
+            "defend:counter_wave@8,3",
+        );
+    }
+}
+
+fn apply_classic_rts_tier_two_siege_push_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    tier_two_command: &str,
+) {
+    ensure_classic_rts_expansion_counterattack_ready(first_playable);
+    let (kind, id, source_id) = classic_rts_tier_two_parts(tier_two_command);
+    match kind.as_str() {
+        "tech" => {
+            push_unique_string(&mut first_playable.rts_tier_two_tech_ids, &id);
+            push_unique_string(&mut first_playable.rts_completed_structure_ids, &id);
+            push_unique_string(&mut first_playable.rts_expansion_structure_ids, &id);
+            push_unique_string(&mut first_playable.rts_unlocked_structure_ids, &id);
+            first_playable.rts_tech_progress_percent = 100;
+            first_playable.rts_tech_state = format!("tier_two_online:{id}@{source_id}");
+            first_playable.rts_structure_state = format!("completed:{id}@{source_id}");
+            first_playable.rts_command_destination_tile = Some("9,2".to_string());
+            first_playable.rts_minimap_command_tile_id = Some("9,2".to_string());
+            first_playable.rts_minimap_command_kind = "tier_two_tech".to_string();
+            push_history(
+                &mut first_playable.rts_resource_spend_log,
+                "tier_two_tech:-320g:-180l",
+            );
+            push_history(
+                &mut first_playable.rts_tech_requirements_log,
+                &format!("tier_two:{id}|requires:relay_outpost|source:{source_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_tech:{id}@{source_id}"),
+            );
+        }
+        "upgrade" => {
+            push_unique_string(&mut first_playable.rts_tier_two_upgrade_ids, &id);
+            push_unique_string(&mut first_playable.rts_completed_upgrade_ids, &id);
+            first_playable.rts_target_armor_percent =
+                first_playable.rts_target_armor_percent.max(45);
+            first_playable.rts_ability_command_ids =
+                string_vec(["rally_aura", "siege_push", "guard_break", "hold"]);
+            first_playable.rts_ability_cooldown_percents = vec![0, 0, 20, 0];
+            first_playable.rts_active_ability_id = Some("siege_push".to_string());
+            push_history(
+                &mut first_playable.rts_tech_requirements_log,
+                &format!("upgrade:{id}|source:{source_id}|unlocks:stonebreak_cart"),
+            );
+            push_history(
+                &mut first_playable.rts_resource_spend_log,
+                "tier_two_upgrade:-180g:-90l",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_upgrade:{id}@{source_id}"),
+            );
+        }
+        "train" => {
+            let units = classic_rts_siege_units_for_id(&id);
+            for unit_id in &units {
+                push_unique_string(&mut first_playable.rts_siege_unit_ids, unit_id);
+                push_unique_string(&mut first_playable.rts_unlocked_unit_ids, unit_id);
+                push_unique_string(&mut first_playable.rts_army_spawned_unit_ids, unit_id);
+            }
+            first_playable.rts_army_supply_used = first_playable.rts_army_supply_used.max(13);
+            first_playable.rts_army_supply_cap = first_playable.rts_army_supply_cap.max(24);
+            first_playable.rts_training_progress_percent = 100;
+            first_playable.rts_army_production_state = format!("tier_two_siege_ready:{id}");
+            first_playable.rts_army_composition_log = string_vec([
+                "guard_screen:4",
+                "wayfinder_screen:2",
+                "siege:stonebreak_cart:1",
+            ]);
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_train:{id}@{source_id}:{}", units.join("|")),
+            );
+        }
+        "enemy_fortify" => {
+            push_unique_string(&mut first_playable.rts_enemy_fortification_ids, &id);
+            push_unique_string(&mut first_playable.rts_revealed_enemy_structure_ids, &id);
+            first_playable.rts_enemy_structure_health_percents = vec![100];
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.max(58);
+            first_playable.rts_enemy_base_pressure_state = format!("fortified:{id}@{source_id}");
+            first_playable.rts_target_health_percent = 100;
+            first_playable.rts_target_armor_percent =
+                first_playable.rts_target_armor_percent.max(52);
+            push_history(
+                &mut first_playable.rts_intel_log,
+                &format!("enemy_fortify:{id}@{source_id}:armor=52"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_enemy_fortify:{id}@{source_id}"),
+            );
+        }
+        _ => {
+            if first_playable.rts_siege_unit_ids.is_empty() {
+                for unit_id in classic_rts_siege_units_for_id("stonebreak_cart") {
+                    push_unique_string(&mut first_playable.rts_siege_unit_ids, &unit_id);
+                    push_unique_string(&mut first_playable.rts_army_spawned_unit_ids, &unit_id);
+                }
+            }
+            if first_playable.rts_enemy_fortification_ids.is_empty() {
+                push_unique_string(
+                    &mut first_playable.rts_enemy_fortification_ids,
+                    "gate_bulwark",
+                );
+            }
+            first_playable.rts_siege_push_route_tile_ids =
+                classic_rts_siege_push_route_tiles_for_target(&id, &source_id);
+            for tile in first_playable.rts_siege_push_route_tile_ids.clone() {
+                push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+            }
+            first_playable.rts_enemy_structure_health_percents = vec![40];
+            first_playable.rts_target_health_percent = 40;
+            first_playable.rts_base_breach_percent = 62;
+            first_playable.rts_tier_two_push_state = "siege_push_ready:gate_bulwark".to_string();
+            first_playable.rts_base_assault_result_state =
+                "siege_softened:gate_bulwark".to_string();
+            push_history(
+                &mut first_playable.rts_siege_damage_log,
+                "stonebreak_cart:gate_bulwark:-60",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_push:{id}@{source_id}:route={}",
+                    first_playable.rts_siege_push_route_tile_ids.join(">")
+                ),
+            );
+            push_completed_step(first_playable, "classic_rts_tier_two_siege_push_ready");
+            push_progression_checkpoint(first_playable, "classic_rts_tier_two_siege_push_ready");
+            first_playable.objective_status =
+                "classic_rts_tier_two_siege_push_complete".to_string();
+        }
+    }
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("tier2:{kind}:{id}@{source_id}"),
+    );
+    first_playable.last_feedback = format!("RTS tier two {kind}: {id} from {source_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -55816,6 +56722,8 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_commander_progression_runtime(first_playable, commander_command);
     } else if let Some(expansion_command) = queue_id.strip_prefix("expansion:") {
         apply_classic_rts_expansion_counterattack_runtime(first_playable, expansion_command);
+    } else if let Some(tier_two_command) = queue_id.strip_prefix("tier2:") {
+        apply_classic_rts_tier_two_siege_push_runtime(first_playable, tier_two_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("scout:") {
         apply_classic_rts_creep_camp_runtime(first_playable, "scout", camp_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("camp:") {

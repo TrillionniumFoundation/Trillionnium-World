@@ -711,6 +711,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-tier-two-siege-push" | "--classic-rts-tier-two-siege-push")
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tier-two-siege-push.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_tier_two_siege_push_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )
