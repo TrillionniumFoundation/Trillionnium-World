@@ -198,6 +198,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TIER_TWO_SIEGE_PUSH_CONTRACT: &str
     "trillionnium_world_bevy_classic_rts_tier_two_siege_push_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SIEGE_BREACH_COUNTERPLAY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_siege_breach_counterplay_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_INNER_LANE_BREAKTHROUGH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_inner_lane_breakthrough_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -322,6 +324,12 @@ const CLASSIC_RTS_ENEMY_REPAIR_COLOR: u32 = 0xd78fff;
 const CLASSIC_RTS_ENEMY_FLANK_COLOR: u32 = 0xff6fa8;
 const CLASSIC_RTS_PLAYER_HOLD_COLOR: u32 = 0x71e8a5;
 const CLASSIC_RTS_COUNTERPLAY_RESOLUTION_COLOR: u32 = 0xf7ff8a;
+const CLASSIC_RTS_INNER_ROUTE_COLOR: u32 = 0x70a6ff;
+const CLASSIC_RTS_INNER_GATE_COLOR: u32 = 0xffa14f;
+const CLASSIC_RTS_INNER_DEFENDER_COLOR: u32 = 0xd955ff;
+const CLASSIC_RTS_INNER_SUPPLY_COLOR: u32 = 0x9cff73;
+const CLASSIC_RTS_INNER_SPLIT_COLOR: u32 = 0x5fffe3;
+const CLASSIC_RTS_INNER_CORE_COLOR: u32 = 0xfff36a;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1764,6 +1772,18 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_player_hold_tile_ids: Vec<String>,
     #[serde(default)]
     pub rts_siege_breach_state: String,
+    #[serde(default)]
+    pub rts_inner_lane_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_inner_gate_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_inner_defender_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_supply_convoy_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_split_squad_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_inner_objective_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -2140,6 +2160,12 @@ impl Default for NativeFirstPlayableRuntime {
             rts_enemy_flank_unit_ids: Vec::new(),
             rts_player_hold_tile_ids: Vec::new(),
             rts_siege_breach_state: String::new(),
+            rts_inner_lane_tile_ids: Vec::new(),
+            rts_inner_gate_ids: Vec::new(),
+            rts_inner_defender_unit_ids: Vec::new(),
+            rts_supply_convoy_ids: Vec::new(),
+            rts_split_squad_tile_ids: Vec::new(),
+            rts_inner_objective_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -15305,6 +15331,464 @@ pub fn native_classic_rts_siege_breach_counterplay_evidence_json(preview_path: &
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_inner_lane_breakthrough_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 5;
+    const PREVIEW_ROWS: usize = 7;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 840,
+        xp: 660,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 8,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_assault_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "raise_supply_cap",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:supply:field_lodge@6,4".to_string(),
+            },
+        ),
+        (
+            "train_guard_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:guard_pair@training_hall".to_string(),
+            },
+        ),
+        (
+            "train_wayfinder_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:wayfinder_pair@signal_spire".to_string(),
+            },
+        ),
+        (
+            "set_forward_rally",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:rally:forward_watch@7,4".to_string(),
+            },
+        ),
+        (
+            "assign_control_group",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:assign:control_group_3@forward_watch".to_string(),
+            },
+        ),
+        (
+            "siege_move",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "10,3:siege".to_string(),
+            },
+        ),
+        (
+            "attack_enemy_barracks",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "enemy_barracks".to_string(),
+            },
+        ),
+        (
+            "breach_enemy_barracks",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "assault:breach:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "destroy_enemy_barracks",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:destroy:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "promote_veterans",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:promote:control_group_3@10,3".to_string(),
+            },
+        ),
+        (
+            "surface_next_action",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "aftermath:next:secure_expansion@9,2".to_string(),
+            },
+        ),
+        (
+            "loot_enemy_cache",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "commander:loot:enemy_barracks@10,3".to_string(),
+            },
+        ),
+        (
+            "level_commander",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "commander:level:mirror_captain@battlefield".to_string(),
+            },
+        ),
+        (
+            "activate_rally_aura",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "commander:ability:rally_aura@mirror_captain".to_string(),
+            },
+        ),
+        (
+            "claim_forest_relay",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:claim:forest_relay@9,2".to_string(),
+            },
+        ),
+        (
+            "build_relay_outpost",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:build:relay_outpost@9,2".to_string(),
+            },
+        ),
+        (
+            "assign_gold_workers",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:workers:gold_line@9,2".to_string(),
+            },
+        ),
+        (
+            "defend_counter_wave",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "expansion:defend:counter_wave@8,3".to_string(),
+            },
+        ),
+        (
+            "build_relay_foundry",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:tech:relay_foundry@relay_outpost".to_string(),
+            },
+        ),
+        (
+            "research_siege_harness",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:upgrade:siege_harness@relay_foundry".to_string(),
+            },
+        ),
+        (
+            "train_stonebreak_cart",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:train:stonebreak_cart@relay_foundry".to_string(),
+            },
+        ),
+        (
+            "enemy_gate_bulwark",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:enemy_fortify:gate_bulwark@10,3".to_string(),
+            },
+        ),
+        (
+            "push_gate_bulwark",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:push:gate_bulwark@10,3".to_string(),
+            },
+        ),
+        (
+            "open_breach_window",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:breach:gate_bulwark@10,3".to_string(),
+            },
+        ),
+        (
+            "enemy_repair_response",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:enemy_repair:gate_bulwark@10,3".to_string(),
+            },
+        ),
+        (
+            "enemy_flank_response",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:enemy_flank:ridge_sentries@9,4".to_string(),
+            },
+        ),
+        (
+            "hold_siege_line",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:hold:shield_line@9,3".to_string(),
+            },
+        ),
+        (
+            "finish_gate_breach",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:finish:gate_bulwark@10,3".to_string(),
+            },
+        ),
+        (
+            "enter_inner_lane",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:inner_route:inner_lane@11,2".to_string(),
+            },
+        ),
+        (
+            "mark_inner_gate",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:inner_gate:inner_latch@11,3".to_string(),
+            },
+        ),
+        (
+            "move_supply_convoy",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:inner_supply:relay_convoy@9,3".to_string(),
+            },
+        ),
+        (
+            "split_flank_team",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:inner_split:flank_team@10,4".to_string(),
+            },
+        ),
+        (
+            "clear_second_line",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:inner_clear:second_line@11,3".to_string(),
+            },
+        ),
+        (
+            "secure_signal_core",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:inner_secure:signal_core@12,3".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_inner_lane_breakthrough_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS INNER {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "inner_lane_tile_ids": runtime.rts_inner_lane_tile_ids.clone(),
+            "inner_gate_ids": runtime.rts_inner_gate_ids.clone(),
+            "inner_defender_unit_ids": runtime.rts_inner_defender_unit_ids.clone(),
+            "supply_convoy_ids": runtime.rts_supply_convoy_ids.clone(),
+            "split_squad_tile_ids": runtime.rts_split_squad_tile_ids.clone(),
+            "inner_objective_state": runtime.rts_inner_objective_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let inner_route_pixel_count = count_color(CLASSIC_RTS_INNER_ROUTE_COLOR);
+    let inner_gate_pixel_count = count_color(CLASSIC_RTS_INNER_GATE_COLOR);
+    let inner_defender_pixel_count = count_color(CLASSIC_RTS_INNER_DEFENDER_COLOR);
+    let inner_supply_pixel_count = count_color(CLASSIC_RTS_INNER_SUPPLY_COLOR);
+    let inner_split_pixel_count = count_color(CLASSIC_RTS_INNER_SPLIT_COLOR);
+    let inner_core_pixel_count = count_color(CLASSIC_RTS_INNER_CORE_COLOR);
+    let live_inner_lane_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_inner_lane_breakthrough_input");
+    let siege_breach_dependency_gate = runtime.rts_siege_breach_state
+        == "counterplay_won:gate_bulwark"
+        && runtime.rts_base_assault_result_state == "breached:gate_bulwark"
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "enter_inner_lane");
+    let inner_route_gate = runtime.rts_inner_lane_tile_ids.len() >= 5
+        && runtime
+            .rts_inner_lane_tile_ids
+            .iter()
+            .any(|tile| tile == "12,3")
+        && runtime.rts_inner_objective_state == "inner_core_secured:signal_core"
+        && inner_route_pixel_count > 90;
+    let inner_gate_gate = runtime
+        .rts_inner_gate_ids
+        .iter()
+        .any(|gate| gate == "inner_latch")
+        && runtime
+            .rts_inner_gate_ids
+            .iter()
+            .any(|gate| gate == "signal_lock")
+        && runtime
+            .rts_intel_log
+            .iter()
+            .any(|entry| entry == "inner_gate:inner_latch@11,3:lock=76")
+        && inner_gate_pixel_count > 40;
+    let supply_convoy_gate = runtime.rts_supply_convoy_ids.len() >= 3
+        && runtime
+            .rts_resource_delta_log
+            .iter()
+            .any(|entry| entry == "field_medic:+18hp")
+        && inner_supply_pixel_count > 40;
+    let split_squad_gate = runtime.rts_split_squad_tile_ids.len() >= 4
+        && runtime
+            .rts_active_control_group_ids
+            .iter()
+            .any(|group| group == "4")
+        && runtime.rts_group_command_state == "split:flank_team"
+        && inner_split_pixel_count > 45;
+    let second_line_clear_gate = runtime.rts_inner_defender_unit_ids.len() >= 3
+        && runtime.rts_combat_event_log.iter().any(|entry| {
+            entry == "inner_clear:second_line:inner_guard_alpha|inner_guard_beta|signal_lancer"
+        })
+        && runtime.rts_target_health_percent == 0
+        && inner_defender_pixel_count > 45;
+    let signal_core_secure_gate = runtime.rts_inner_objective_state
+        == "inner_core_secured:signal_core"
+        && runtime.rts_match_result_state == "inner_lane_control:signal_core"
+        && runtime.rts_objective_owner_state == "player:signal_core"
+        && runtime.rts_objective_capture_percent == 100
+        && runtime.rts_enemy_structure_health_percents == vec![0]
+        && runtime
+            .rts_base_assault_reward_log
+            .iter()
+            .any(|entry| entry == "inner_lane_control:+240xp:+160gold")
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "press_central_keep")
+        && inner_core_pixel_count > 35;
+    let green = write_gate
+        && non_background_pixels > 950_000
+        && live_inner_lane_input_gate
+        && siege_breach_dependency_gate
+        && inner_route_gate
+        && inner_gate_gate
+        && supply_convoy_gate
+        && split_squad_gate
+        && second_line_clear_gate
+        && signal_core_secure_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_INNER_LANE_BREAKTHROUGH_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_inner_lane_breakthrough_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_siege_breach_state": runtime.rts_siege_breach_state,
+        "final_base_assault_result_state": runtime.rts_base_assault_result_state,
+        "final_inner_lane_tile_ids": runtime.rts_inner_lane_tile_ids,
+        "final_inner_gate_ids": runtime.rts_inner_gate_ids,
+        "final_inner_defender_unit_ids": runtime.rts_inner_defender_unit_ids,
+        "final_supply_convoy_ids": runtime.rts_supply_convoy_ids,
+        "final_split_squad_tile_ids": runtime.rts_split_squad_tile_ids,
+        "final_inner_objective_state": runtime.rts_inner_objective_state,
+        "final_enemy_structure_health_percents": runtime.rts_enemy_structure_health_percents,
+        "final_target_health_percent": runtime.rts_target_health_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_objective_owner_state": runtime.rts_objective_owner_state,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_base_assault_reward_log": runtime.rts_base_assault_reward_log,
+        "final_next_action_ids": runtime.rts_next_action_ids,
+        "final_active_control_group_ids": runtime.rts_active_control_group_ids,
+        "final_group_command_state": runtime.rts_group_command_state,
+        "final_resource_delta_log": runtime.rts_resource_delta_log,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_intel_log": runtime.rts_intel_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "inner_route_pixel_count": inner_route_pixel_count,
+        "inner_gate_pixel_count": inner_gate_pixel_count,
+        "inner_defender_pixel_count": inner_defender_pixel_count,
+        "inner_supply_pixel_count": inner_supply_pixel_count,
+        "inner_split_pixel_count": inner_split_pixel_count,
+        "inner_core_pixel_count": inner_core_pixel_count,
+        "live_inner_lane_input_gate": live_inner_lane_input_gate,
+        "siege_breach_dependency_gate": siege_breach_dependency_gate,
+        "inner_route_gate": inner_route_gate,
+        "inner_gate_gate": inner_gate_gate,
+        "supply_convoy_gate": supply_convoy_gate,
+        "split_squad_gate": split_squad_gate,
+        "second_line_clear_gate": second_line_clear_gate,
+        "signal_core_secure_gate": signal_core_secure_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS inner lane breakthrough evidence extends the gate breach into a playable inner-route advance with an inner lock, supply convoy, split squad, second-line defenders, and secured signal core through live native input and Trillionnium-owned low-spec Bevy rendering."
+    }))
+    .expect("classic RTS inner lane breakthrough evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -20585,6 +21069,168 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_COUNTERPLAY_RESOLUTION_COLOR,
         );
     }
+    if !runtime.rts_inner_lane_tile_ids.is_empty() {
+        let mut previous_screen: Option<(i32, i32)> = None;
+        for tile_id in &runtime.rts_inner_lane_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (route_x, route_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    route_x,
+                    route_y + tile_h - 3,
+                    18,
+                    5,
+                    CLASSIC_RTS_INNER_ROUTE_COLOR,
+                );
+                if let Some((prev_x, prev_y)) = previous_screen {
+                    for step in 0..=7 {
+                        let line_x = prev_x + ((route_x - prev_x) * step) / 7;
+                        let line_y = prev_y + tile_h - 3 + ((route_y - prev_y) * step) / 7;
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            line_x - 2,
+                            line_y - 1,
+                            5,
+                            3,
+                            CLASSIC_RTS_INNER_ROUTE_COLOR,
+                        );
+                    }
+                }
+                previous_screen = Some((route_x, route_y));
+            }
+        }
+    }
+    for gate_id in &runtime.rts_inner_gate_ids {
+        let tile = classic_rts_inner_gate_tile_for_id(gate_id);
+        let (gate_x, gate_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            gate_x - 20,
+            gate_y + tile_h - 58,
+            40,
+            24,
+            CLASSIC_RTS_INNER_GATE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            gate_x - 24,
+            gate_y + tile_h - 66,
+            48,
+            5,
+            CLASSIC_RTS_INNER_GATE_COLOR,
+        );
+    }
+    for (index, _defender_id) in runtime.rts_inner_defender_unit_ids.iter().enumerate() {
+        let tile = match index % 3 {
+            0 => (11, 3),
+            1 => (12, 3),
+            _ => (12, 4),
+        };
+        let (def_x, def_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            def_x,
+            def_y + tile_h - 6,
+            16,
+            5,
+            CLASSIC_RTS_INNER_DEFENDER_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            def_x - 8,
+            def_y + tile_h - 34,
+            16,
+            14,
+            CLASSIC_RTS_INNER_DEFENDER_COLOR,
+        );
+    }
+    for (index, _convoy_id) in runtime.rts_supply_convoy_ids.iter().enumerate() {
+        let tile = match index % 3 {
+            0 => (9, 3),
+            1 => (10, 3),
+            _ => (10, 4),
+        };
+        let (convoy_x, convoy_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            convoy_x - 14,
+            convoy_y + tile_h - 31,
+            28,
+            12,
+            CLASSIC_RTS_INNER_SUPPLY_COLOR,
+        );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            convoy_x,
+            convoy_y + tile_h - 5,
+            18,
+            5,
+            CLASSIC_RTS_INNER_SUPPLY_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_split_squad_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (split_x, split_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                split_x,
+                split_y + tile_h - 14,
+                18,
+                6,
+                CLASSIC_RTS_INNER_SPLIT_COLOR,
+            );
+        }
+    }
+    if runtime
+        .rts_inner_objective_state
+        .starts_with("inner_core_secured:")
+    {
+        let core_id = runtime
+            .rts_inner_objective_state
+            .strip_prefix("inner_core_secured:")
+            .unwrap_or("signal_core");
+        let tile = classic_rts_inner_core_tile_for_id(core_id);
+        let (core_x, core_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            core_x,
+            core_y + tile_h - 32,
+            34,
+            11,
+            CLASSIC_RTS_INNER_CORE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            core_x - 8,
+            core_y + tile_h - 70,
+            16,
+            35,
+            CLASSIC_RTS_INNER_CORE_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -23881,6 +24527,78 @@ fn classic_draw_rts_strategy_overlay(
             32,
             5,
             CLASSIC_RTS_COUNTERPLAY_RESOLUTION_COLOR,
+        );
+    }
+    if !runtime.rts_inner_lane_tile_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 124,
+            32,
+            5,
+            CLASSIC_RTS_INNER_ROUTE_COLOR,
+        );
+    }
+    if !runtime.rts_inner_gate_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 44,
+            tactical_y + 124,
+            32,
+            5,
+            CLASSIC_RTS_INNER_GATE_COLOR,
+        );
+    }
+    if !runtime.rts_inner_defender_unit_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 84,
+            tactical_y + 124,
+            32,
+            5,
+            CLASSIC_RTS_INNER_DEFENDER_COLOR,
+        );
+    }
+    if !runtime.rts_supply_convoy_ids.is_empty() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 120,
+            tactical_y + 124,
+            32,
+            5,
+            CLASSIC_RTS_INNER_SUPPLY_COLOR,
+        );
+    }
+    if !runtime.rts_split_squad_tile_ids.is_empty()
+        || runtime
+            .rts_inner_objective_state
+            .starts_with("inner_core_secured:")
+    {
+        let color = if runtime
+            .rts_inner_objective_state
+            .starts_with("inner_core_secured:")
+        {
+            CLASSIC_RTS_INNER_CORE_COLOR
+        } else {
+            CLASSIC_RTS_INNER_SPLIT_COLOR
+        };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 156,
+            tactical_y + 124,
+            32,
+            5,
+            color,
         );
     }
     true
@@ -30439,7 +31157,7 @@ fn register_runtime_texture_asset_store_from_probe(
             TextureDimension::D2,
             rgba,
             TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::default(),
+            RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
         );
         let image_handle = world.resource_mut::<Assets<Image>>().add(image);
         bevy_image_asset_id_debug = format!("{:?}", image_handle.id());
@@ -56068,6 +56786,64 @@ fn classic_rts_player_hold_tiles_for_id(hold_id: &str, tile_id: &str) -> Vec<Str
     }
 }
 
+fn classic_rts_inner_lane_tiles_for_id(lane_id: &str, tile_id: &str) -> Vec<String> {
+    if lane_id == "inner_lane" {
+        string_vec(["10,3", "11,2", "11,3", "12,3", "12,4"])
+    } else {
+        let tile = classic_parse_rts_tile(tile_id).unwrap_or((11, 2));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
+    }
+}
+
+fn classic_rts_inner_gate_tile_for_id(gate_id: &str) -> (i32, i32) {
+    match gate_id {
+        "inner_latch" => (11, 3),
+        "signal_lock" => (12, 3),
+        _ => (11, 3),
+    }
+}
+
+fn classic_rts_inner_defenders_for_id(defender_id: &str) -> Vec<String> {
+    if defender_id == "second_line" {
+        string_vec(["inner_guard_alpha", "inner_guard_beta", "signal_lancer"])
+    } else {
+        vec![format!("{defender_id}_guard")]
+    }
+}
+
+fn classic_rts_supply_convoy_for_id(convoy_id: &str) -> Vec<String> {
+    if convoy_id == "relay_convoy" {
+        string_vec(["convoy_cart", "field_medic", "ammo_runner"])
+    } else {
+        vec![format!("{convoy_id}_cart")]
+    }
+}
+
+fn classic_rts_split_squad_tiles_for_id(split_id: &str, tile_id: &str) -> Vec<String> {
+    if split_id == "flank_team" {
+        string_vec(["10,4", "11,4", "12,4", "12,3"])
+    } else {
+        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 4));
+        vec![
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+            format!("{},{}", tile.0 + 2, tile.1),
+        ]
+    }
+}
+
+fn classic_rts_inner_core_tile_for_id(core_id: &str) -> (i32, i32) {
+    match core_id {
+        "signal_core" => (12, 3),
+        "relay_core" => (12, 4),
+        _ => (12, 3),
+    }
+}
+
 fn classic_rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
     match unit_id {
         "stonebreak_cart" => (9, 3),
@@ -57418,6 +58194,138 @@ fn apply_classic_rts_tier_two_siege_push_runtime(
             first_playable.objective_status =
                 "classic_rts_siege_breach_counterplay_complete".to_string();
         }
+        "inner_route" => {
+            ensure_classic_rts_siege_breach_counterplay_ready(first_playable);
+            first_playable.rts_inner_lane_tile_ids =
+                classic_rts_inner_lane_tiles_for_id(&id, &source_id);
+            for tile in first_playable.rts_inner_lane_tile_ids.clone() {
+                push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+            }
+            first_playable.rts_command_destination_tile = Some(source_id.clone());
+            first_playable.rts_minimap_command_tile_id = Some(source_id.clone());
+            first_playable.rts_minimap_command_kind = "inner_lane_route".to_string();
+            first_playable.rts_inner_objective_state = format!("inner_lane_entered:{id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_inner_route:{id}@{source_id}:{}",
+                    first_playable.rts_inner_lane_tile_ids.join(">")
+                ),
+            );
+        }
+        "inner_gate" => {
+            ensure_classic_rts_siege_breach_counterplay_ready(first_playable);
+            push_unique_string(&mut first_playable.rts_inner_gate_ids, &id);
+            first_playable.rts_enemy_structure_health_percents = vec![76];
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.max(66);
+            first_playable.rts_inner_objective_state = format!("inner_gate_locked:{id}");
+            first_playable.rts_enemy_base_pressure_state = format!("inner_gate:{id}@{source_id}");
+            push_history(
+                &mut first_playable.rts_intel_log,
+                &format!("inner_gate:{id}@{source_id}:lock=76"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_inner_gate:{id}@{source_id}"),
+            );
+        }
+        "inner_supply" => {
+            ensure_classic_rts_siege_breach_counterplay_ready(first_playable);
+            first_playable.rts_supply_convoy_ids = classic_rts_supply_convoy_for_id(&id);
+            first_playable.rts_resource_delta_log = string_vec([
+                "inner_supply:+60g",
+                "inner_supply:+40l",
+                "field_medic:+18hp",
+            ]);
+            first_playable.rts_unit_health_percents = vec![88, 84, 78, 92];
+            first_playable.rts_inner_objective_state = format!("supplied:{id}");
+            first_playable.coins = first_playable.coins.saturating_add(60);
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_inner_supply:{id}@{source_id}:{}",
+                    first_playable.rts_supply_convoy_ids.join("|")
+                ),
+            );
+        }
+        "inner_split" => {
+            ensure_classic_rts_siege_breach_counterplay_ready(first_playable);
+            first_playable.rts_split_squad_tile_ids =
+                classic_rts_split_squad_tiles_for_id(&id, &source_id);
+            first_playable.rts_group_route_tile_ids =
+                first_playable.rts_split_squad_tile_ids.clone();
+            push_unique_string(&mut first_playable.rts_active_control_group_ids, "4");
+            first_playable.rts_group_command_state = format!("split:{id}");
+            first_playable.rts_inner_objective_state = format!("split_active:{id}");
+            push_history(
+                &mut first_playable.rts_control_group_assignments,
+                "group_4:flank_team:inner_lane",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "tier2_inner_split:{id}@{source_id}:{}",
+                    first_playable.rts_split_squad_tile_ids.join("|")
+                ),
+            );
+        }
+        "inner_clear" => {
+            ensure_classic_rts_siege_breach_counterplay_ready(first_playable);
+            first_playable.rts_inner_defender_unit_ids = classic_rts_inner_defenders_for_id(&id);
+            first_playable.rts_target_health_percent = 0;
+            first_playable.rts_enemy_structure_health_percents = vec![18];
+            first_playable.rts_inner_objective_state = format!("cleared:{id}");
+            push_history(
+                &mut first_playable.rts_combat_event_log,
+                &format!(
+                    "inner_clear:{id}:{}",
+                    first_playable.rts_inner_defender_unit_ids.join("|")
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_inner_clear:{id}@{source_id}"),
+            );
+        }
+        "inner_secure" => {
+            ensure_classic_rts_siege_breach_counterplay_ready(first_playable);
+            push_unique_string(&mut first_playable.rts_inner_gate_ids, "signal_lock");
+            if first_playable.rts_inner_lane_tile_ids.is_empty() {
+                first_playable.rts_inner_lane_tile_ids =
+                    classic_rts_inner_lane_tiles_for_id("inner_lane", "11,2");
+            }
+            first_playable.rts_enemy_structure_health_percents = vec![0];
+            first_playable.rts_base_breach_percent = 100;
+            first_playable.rts_inner_objective_state = format!("inner_core_secured:{id}");
+            first_playable.rts_match_result_state = format!("inner_lane_control:{id}");
+            first_playable.rts_objective_owner_state = format!("player:{id}");
+            first_playable.rts_objective_capture_percent = 100;
+            push_history(
+                &mut first_playable.rts_base_assault_reward_log,
+                "inner_lane_control:+240xp:+160gold",
+            );
+            push_unique_string(
+                &mut first_playable.rts_next_action_ids,
+                "press_central_keep",
+            );
+            first_playable.xp = first_playable.xp.saturating_add(240);
+            first_playable.coins = first_playable.coins.saturating_add(160);
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("tier2_inner_secure:{id}@{source_id}:capture=100"),
+            );
+            push_completed_step(
+                first_playable,
+                "classic_rts_inner_lane_breakthrough_secured",
+            );
+            push_progression_checkpoint(
+                first_playable,
+                "classic_rts_inner_lane_breakthrough_secured",
+            );
+            first_playable.objective_status =
+                "classic_rts_inner_lane_breakthrough_complete".to_string();
+        }
         _ => {
             if first_playable.rts_siege_unit_ids.is_empty() {
                 for unit_id in classic_rts_siege_units_for_id("stonebreak_cart") {
@@ -57481,6 +58389,27 @@ fn ensure_classic_rts_tier_two_siege_push_ready(first_playable: &mut NativeFirst
             "train:stonebreak_cart@relay_foundry",
             "enemy_fortify:gate_bulwark@10,3",
             "push:gate_bulwark@10,3",
+        ] {
+            apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
+        }
+    }
+}
+
+fn ensure_classic_rts_siege_breach_counterplay_ready(
+    first_playable: &mut NativeFirstPlayableRuntime,
+) {
+    if first_playable.rts_siege_breach_state != "counterplay_won:gate_bulwark"
+        || !first_playable
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "enter_inner_lane")
+    {
+        for command in [
+            "breach:gate_bulwark@10,3",
+            "enemy_repair:gate_bulwark@10,3",
+            "enemy_flank:ridge_sentries@9,4",
+            "hold:shield_line@9,3",
+            "finish:gate_bulwark@10,3",
         ] {
             apply_classic_rts_tier_two_siege_push_runtime(first_playable, command);
         }

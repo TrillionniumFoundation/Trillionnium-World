@@ -41,6 +41,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_expansion_counterattack.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tier_two_siege_push.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_siege_breach_counterplay.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_inner_lane_breakthrough.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -81,6 +82,7 @@ jq -n \
   --slurpfile rts_expansion "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-expansion-counterattack.json" \
   --slurpfile rts_tier_two "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tier-two-siege-push.json" \
   --slurpfile rts_breach "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.json" \
+  --slurpfile rts_inner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-inner-lane-breakthrough.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -123,6 +125,7 @@ jq -n \
       and ok($rts_expansion)
       and ok($rts_tier_two)
       and ok($rts_breach)
+      and ok($rts_inner)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -323,6 +326,15 @@ jq -n \
       and $rts_breach[0].hold_line_gate == true
       and $rts_breach[0].resolution_gate == true
       and $rts_breach[0].accepted_input_count == 29
+      and $rts_inner[0].live_inner_lane_input_gate == true
+      and $rts_inner[0].siege_breach_dependency_gate == true
+      and $rts_inner[0].inner_route_gate == true
+      and $rts_inner[0].inner_gate_gate == true
+      and $rts_inner[0].supply_convoy_gate == true
+      and $rts_inner[0].split_squad_gate == true
+      and $rts_inner[0].second_line_clear_gate == true
+      and $rts_inner[0].signal_core_secure_gate == true
+      and $rts_inner[0].accepted_input_count == 35
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -363,6 +375,7 @@ jq -n \
       classic_rts_expansion_counterattack_green: ok($rts_expansion),
       classic_rts_tier_two_siege_push_green: ok($rts_tier_two),
       classic_rts_siege_breach_counterplay_green: ok($rts_breach),
+      classic_rts_inner_lane_breakthrough_green: ok($rts_inner),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -850,6 +863,29 @@ jq -n \
       rts_siege_breach_counterplay_flank_pixel_count: $rts_breach[0].flank_pixel_count,
       rts_siege_breach_counterplay_hold_pixel_count: $rts_breach[0].hold_pixel_count,
       rts_siege_breach_counterplay_resolution_pixel_count: $rts_breach[0].resolution_pixel_count,
+      rts_inner_lane_breakthrough_accepted_input_count: $rts_inner[0].accepted_input_count,
+      rts_inner_lane_breakthrough_tile_count: ($rts_inner[0].final_inner_lane_tile_ids | length),
+      rts_inner_lane_breakthrough_gate_count: ($rts_inner[0].final_inner_gate_ids | length),
+      rts_inner_lane_breakthrough_defender_count: ($rts_inner[0].final_inner_defender_unit_ids | length),
+      rts_inner_lane_breakthrough_supply_count: ($rts_inner[0].final_supply_convoy_ids | length),
+      rts_inner_lane_breakthrough_split_tile_count: ($rts_inner[0].final_split_squad_tile_ids | length),
+      rts_inner_lane_breakthrough_state: $rts_inner[0].final_inner_objective_state,
+      rts_inner_lane_breakthrough_match_result: $rts_inner[0].final_match_result_state,
+      rts_inner_lane_breakthrough_capture_percent: $rts_inner[0].final_objective_capture_percent,
+      rts_inner_lane_breakthrough_pixel_count: (
+        $rts_inner[0].inner_route_pixel_count
+        + $rts_inner[0].inner_gate_pixel_count
+        + $rts_inner[0].inner_defender_pixel_count
+        + $rts_inner[0].inner_supply_pixel_count
+        + $rts_inner[0].inner_split_pixel_count
+        + $rts_inner[0].inner_core_pixel_count
+      ),
+      rts_inner_lane_breakthrough_route_pixel_count: $rts_inner[0].inner_route_pixel_count,
+      rts_inner_lane_breakthrough_gate_pixel_count: $rts_inner[0].inner_gate_pixel_count,
+      rts_inner_lane_breakthrough_defender_pixel_count: $rts_inner[0].inner_defender_pixel_count,
+      rts_inner_lane_breakthrough_supply_pixel_count: $rts_inner[0].inner_supply_pixel_count,
+      rts_inner_lane_breakthrough_split_pixel_count: $rts_inner[0].inner_split_pixel_count,
+      rts_inner_lane_breakthrough_core_pixel_count: $rts_inner[0].inner_core_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -1045,6 +1081,14 @@ jq -n \
       rts_siege_breach_counterplay_flank_pressure_gate: $rts_breach[0].flank_pressure_gate,
       rts_siege_breach_counterplay_hold_line_gate: $rts_breach[0].hold_line_gate,
       rts_siege_breach_counterplay_resolution_gate: $rts_breach[0].resolution_gate,
+      rts_inner_lane_breakthrough_live_input_gate: $rts_inner[0].live_inner_lane_input_gate,
+      rts_inner_lane_breakthrough_siege_breach_dependency_gate: $rts_inner[0].siege_breach_dependency_gate,
+      rts_inner_lane_breakthrough_route_gate: $rts_inner[0].inner_route_gate,
+      rts_inner_lane_breakthrough_gate_gate: $rts_inner[0].inner_gate_gate,
+      rts_inner_lane_breakthrough_supply_gate: $rts_inner[0].supply_convoy_gate,
+      rts_inner_lane_breakthrough_split_gate: $rts_inner[0].split_squad_gate,
+      rts_inner_lane_breakthrough_clear_gate: $rts_inner[0].second_line_clear_gate,
+      rts_inner_lane_breakthrough_secure_gate: $rts_inner[0].signal_core_secure_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1119,6 +1163,8 @@ jq -n \
       classic_rts_tier_two_siege_push_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tier-two-siege-push.ppm",
       classic_rts_siege_breach_counterplay: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.json",
       classic_rts_siege_breach_counterplay_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.ppm",
+      classic_rts_inner_lane_breakthrough: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-inner-lane-breakthrough.json",
+      classic_rts_inner_lane_breakthrough_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-inner-lane-breakthrough.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -1163,6 +1209,7 @@ jq -e '
   and .checks.classic_rts_expansion_counterattack_green == true
   and .checks.classic_rts_tier_two_siege_push_green == true
   and .checks.classic_rts_siege_breach_counterplay_green == true
+  and .checks.classic_rts_inner_lane_breakthrough_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1703,6 +1750,14 @@ jq -e '
   and .gates.rts_siege_breach_counterplay_flank_pressure_gate == true
   and .gates.rts_siege_breach_counterplay_hold_line_gate == true
   and .gates.rts_siege_breach_counterplay_resolution_gate == true
+  and .gates.rts_inner_lane_breakthrough_live_input_gate == true
+  and .gates.rts_inner_lane_breakthrough_siege_breach_dependency_gate == true
+  and .gates.rts_inner_lane_breakthrough_route_gate == true
+  and .gates.rts_inner_lane_breakthrough_gate_gate == true
+  and .gates.rts_inner_lane_breakthrough_supply_gate == true
+  and .gates.rts_inner_lane_breakthrough_split_gate == true
+  and .gates.rts_inner_lane_breakthrough_clear_gate == true
+  and .gates.rts_inner_lane_breakthrough_secure_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

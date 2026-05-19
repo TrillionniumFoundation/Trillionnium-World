@@ -369,6 +369,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第二十二组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_siege_breach_counterplay.sh` 把二本攻城从“打出破口”推进到“敌方修门/侧翼反扑/玩家守线/最终破门”的反应闭环：`tier2:breach` 打开 `gate_bulwark` 破口窗口，`tier2:enemy_repair` 和 `tier2:enemy_flank` 驱动敌方反制，`tier2:hold` 用指挥官光环稳住攻城线，`tier2:finish` 结算 100% 破门、奖励和下一步 `enter_inner_lane`；整条证据仍来自 Bevy native live input 与 Trillionnium-owned low-spec 渲染。
 
+同日继续追加第二十三组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_inner_lane_breakthrough.sh` 把 `enter_inner_lane` 下一步落成内线战役推进：`tier2:inner_route` 进入内线通道，`tier2:inner_gate` 标记内门锁，`tier2:inner_supply` 送入补给队，`tier2:inner_split` 建立分兵路线，`tier2:inner_clear` 清掉二线守军，`tier2:inner_secure` 占领 `signal_core` 并给出下一步 `press_central_keep`；它把破门胜利继续接成有补给、分兵、二线防守和核心目标的中后期循环。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
