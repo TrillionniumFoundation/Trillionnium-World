@@ -178,6 +178,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_AI_SKIRMISH_PRESSURE_CONTRACT: &st
     "trillionnium_world_bevy_classic_rts_ai_skirmish_pressure_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_VICTORY_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_objective_victory_loop_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CREEP_CAMP_TERRAIN_ROUTE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_creep_camp_terrain_route_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -255,6 +257,11 @@ const CLASSIC_RTS_CAPTURE_BAR_COLOR: u32 = 0xd7ff78;
 const CLASSIC_RTS_VICTORY_COLOR: u32 = 0xfff07a;
 const CLASSIC_RTS_DEFEAT_RISK_COLOR: u32 = 0xff5a5a;
 const CLASSIC_RTS_EXTRACTION_COLOR: u32 = 0x7bdcff;
+const CLASSIC_RTS_CREEP_CAMP_COLOR: u32 = 0xba75ff;
+const CLASSIC_RTS_TERRAIN_ROUTE_COLOR: u32 = 0x6ee2a5;
+const CLASSIC_RTS_CHOKE_COLOR: u32 = 0xff865d;
+const CLASSIC_RTS_EXPANSION_COLOR: u32 = 0x78ddff;
+const CLASSIC_RTS_SCOUT_REVEAL_COLOR: u32 = 0xd8ff6f;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1561,6 +1568,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_objective_extraction_tile_id: Option<String>,
     #[serde(default)]
     pub rts_defeat_risk_percent: u8,
+    #[serde(default)]
+    pub rts_creep_camp_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_creep_camp_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_creep_camp_state: String,
+    #[serde(default)]
+    pub rts_terrain_route_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_terrain_choke_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_expansion_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_scout_reveal_percent: u8,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1869,6 +1890,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_objective_score_delta_log: Vec::new(),
             rts_objective_extraction_tile_id: None,
             rts_defeat_risk_percent: 0,
+            rts_creep_camp_tile_ids: Vec::new(),
+            rts_creep_camp_unit_ids: Vec::new(),
+            rts_creep_camp_state: String::new(),
+            rts_terrain_route_tile_ids: Vec::new(),
+            rts_terrain_choke_tile_ids: Vec::new(),
+            rts_expansion_tile_ids: Vec::new(),
+            rts_scout_reveal_percent: 0,
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -12146,6 +12174,227 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_creep_camp_terrain_route_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 260,
+        xp: 210,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_route_party",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "scout_forest_camp",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "scout:creep_camp@8,3".to_string(),
+            },
+        ),
+        (
+            "thread_choke_route",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,3:wedge".to_string(),
+            },
+        ),
+        (
+            "engage_camp_guard",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "forest_creep_camp".to_string(),
+            },
+        ),
+        (
+            "break_camp_armor",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "guard_break".to_string(),
+            },
+        ),
+        (
+            "clear_camp_unlock_expand",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "camp:clear:forest_creep_camp@8,3".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_creep_camp_terrain_route_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS CAMP {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "creep_camp_tile_ids": runtime.rts_creep_camp_tile_ids.clone(),
+            "creep_camp_unit_ids": runtime.rts_creep_camp_unit_ids.clone(),
+            "creep_camp_state": runtime.rts_creep_camp_state.clone(),
+            "terrain_route_tile_ids": runtime.rts_terrain_route_tile_ids.clone(),
+            "terrain_choke_tile_ids": runtime.rts_terrain_choke_tile_ids.clone(),
+            "expansion_tile_ids": runtime.rts_expansion_tile_ids.clone(),
+            "scout_reveal_percent": runtime.rts_scout_reveal_percent,
+            "target_health_percent": runtime.rts_target_health_percent,
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let camp_pixel_count = count_color(CLASSIC_RTS_CREEP_CAMP_COLOR);
+    let terrain_route_pixel_count = count_color(CLASSIC_RTS_TERRAIN_ROUTE_COLOR);
+    let choke_pixel_count = count_color(CLASSIC_RTS_CHOKE_COLOR);
+    let expansion_pixel_count = count_color(CLASSIC_RTS_EXPANSION_COLOR);
+    let scout_reveal_pixel_count = count_color(CLASSIC_RTS_SCOUT_REVEAL_COLOR);
+    let live_creep_camp_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_creep_camp_terrain_route_input");
+    let terrain_route_gate =
+        runtime.rts_terrain_route_tile_ids.len() >= 4 && terrain_route_pixel_count > 80;
+    let choke_gate = runtime.rts_terrain_choke_tile_ids.len() >= 3 && choke_pixel_count > 40;
+    let camp_clear_gate = runtime.rts_creep_camp_state == "cleared:forest_creep_camp"
+        && runtime.rts_creep_camp_unit_ids.len() >= 3
+        && runtime.rts_target_health_percent <= 18
+        && camp_pixel_count > 100;
+    let scout_reveal_gate =
+        runtime.rts_scout_reveal_percent == 100 && scout_reveal_pixel_count > 20;
+    let expansion_route_gate = runtime.rts_expansion_tile_ids.len() >= 3
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "expansion:forest_relay@9,2")
+        && expansion_pixel_count > 50;
+    let green = write_gate
+        && non_background_pixels > 250_000
+        && live_creep_camp_input_gate
+        && terrain_route_gate
+        && choke_gate
+        && camp_clear_gate
+        && scout_reveal_gate
+        && expansion_route_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CREEP_CAMP_TERRAIN_ROUTE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_creep_camp_terrain_route_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_creep_camp_tile_ids": runtime.rts_creep_camp_tile_ids,
+        "final_creep_camp_unit_ids": runtime.rts_creep_camp_unit_ids,
+        "final_creep_camp_state": runtime.rts_creep_camp_state,
+        "final_terrain_route_tile_ids": runtime.rts_terrain_route_tile_ids,
+        "final_terrain_choke_tile_ids": runtime.rts_terrain_choke_tile_ids,
+        "final_expansion_tile_ids": runtime.rts_expansion_tile_ids,
+        "final_scout_reveal_percent": runtime.rts_scout_reveal_percent,
+        "final_target_health_percent": runtime.rts_target_health_percent,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "camp_pixel_count": camp_pixel_count,
+        "terrain_route_pixel_count": terrain_route_pixel_count,
+        "choke_pixel_count": choke_pixel_count,
+        "expansion_pixel_count": expansion_pixel_count,
+        "scout_reveal_pixel_count": scout_reveal_pixel_count,
+        "live_creep_camp_input_gate": live_creep_camp_input_gate,
+        "terrain_route_gate": terrain_route_gate,
+        "choke_gate": choke_gate,
+        "camp_clear_gate": camp_clear_gate,
+        "scout_reveal_gate": scout_reveal_gate,
+        "expansion_route_gate": expansion_route_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS creep-camp terrain-route evidence drives scouting, terrain/choke routing, camp combat, clear-state resolution, and expansion unlock through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS creep camp terrain route evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -16379,6 +16628,119 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_EXTRACTION_COLOR,
         );
     }
+    for tile_id in &runtime.rts_terrain_route_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (route_x, route_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                route_x,
+                route_y + tile_h - 6,
+                18,
+                6,
+                CLASSIC_RTS_TERRAIN_ROUTE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                route_x - 14,
+                route_y + tile_h - 28,
+                28,
+                4,
+                CLASSIC_RTS_TERRAIN_ROUTE_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_terrain_choke_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (choke_x, choke_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                choke_x - 18,
+                choke_y + tile_h - 10,
+                36,
+                4,
+                CLASSIC_RTS_CHOKE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                choke_x - 3,
+                choke_y + tile_h - 32,
+                6,
+                25,
+                CLASSIC_RTS_CHOKE_COLOR,
+            );
+        }
+    }
+    for (index, tile_id) in runtime.rts_creep_camp_tile_ids.iter().enumerate() {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (camp_x, camp_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                camp_x,
+                camp_y + tile_h - 8,
+                22,
+                8,
+                CLASSIC_RTS_CREEP_CAMP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                camp_x - 12,
+                camp_y + tile_h - 35,
+                24,
+                16,
+                CLASSIC_RTS_CREEP_CAMP_COLOR,
+            );
+            if runtime.rts_creep_camp_unit_ids.get(index).is_some() {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    camp_x - 8,
+                    camp_y + tile_h - 28,
+                    16,
+                    12,
+                    CLASSIC_ISO_UNIT_CREEP_COLOR,
+                );
+            }
+        }
+    }
+    for tile_id in &runtime.rts_expansion_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (expand_x, expand_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                expand_x,
+                expand_y + tile_h - 9,
+                25,
+                8,
+                CLASSIC_RTS_EXPANSION_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                expand_x - 11,
+                expand_y + tile_h - 39,
+                22,
+                18,
+                CLASSIC_RTS_EXPANSION_COLOR,
+            );
+        }
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -18175,6 +18537,62 @@ fn classic_draw_rts_strategy_overlay(
             );
         }
     }
+    for tile_id in &runtime.rts_terrain_route_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 1,
+                4,
+                3,
+                CLASSIC_RTS_TERRAIN_ROUTE_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_terrain_choke_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w,
+                map_y + tile.1.clamp(0, 7) * cell_h,
+                5,
+                2,
+                CLASSIC_RTS_CHOKE_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_creep_camp_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w,
+                map_y + tile.1.clamp(0, 7) * cell_h,
+                5,
+                4,
+                CLASSIC_RTS_CREEP_CAMP_COLOR,
+            );
+        }
+    }
+    for tile_id in &runtime.rts_expansion_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h,
+                4,
+                4,
+                CLASSIC_RTS_EXPANSION_COLOR,
+            );
+        }
+    }
 
     let resource_x = panel_x + minimap_w + 8;
     let resource_y = panel_y;
@@ -18652,6 +19070,38 @@ fn classic_draw_rts_strategy_overlay(
             (runtime.rts_objective_capture_percent.min(100) as i32 * 50) / 100,
             4,
             CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+    }
+    if runtime.rts_scout_reveal_percent > 0 {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 61,
+            "CAMP",
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 35,
+            tactical_y + 62,
+            52,
+            4,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 35,
+            tactical_y + 62,
+            (runtime.rts_scout_reveal_percent.min(100) as i32 * 52) / 100,
+            4,
+            CLASSIC_RTS_SCOUT_REVEAL_COLOR,
         );
     }
     if runtime.rts_defeat_risk_percent > 0 {
@@ -50291,7 +50741,9 @@ fn classic_rts_disperse_slots_for_destination(destination_tile: (i32, i32)) -> V
 }
 
 fn classic_rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "arena_creep_attack" {
+    if target_id == "forest_creep_camp" {
+        string_vec(["8,3", "8,2", "9,3", "7,3"])
+    } else if target_id == "arena_creep_attack" {
         string_vec(["6,5", "6,4", "7,5", "5,5"])
     } else {
         string_vec(["6,5", "6,4"])
@@ -50299,7 +50751,9 @@ fn classic_rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_contact_flash_tiles_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "arena_creep_attack" {
+    if target_id == "forest_creep_camp" {
+        string_vec(["8,3", "9,3"])
+    } else if target_id == "arena_creep_attack" {
         string_vec(["6,5", "6,4"])
     } else {
         string_vec(["6,5"])
@@ -50311,12 +50765,21 @@ fn classic_rts_target_tile_for_id(target_id: &str, fallback_index: usize) -> (i3
         "arena_creep_attack" => (6, 5),
         "arena_guard_support" => (6, 4),
         "arena_worker_support" => (7, 5),
+        "forest_creep_camp" => (8, 3),
+        "forest_stalker_support" => (8, 2),
+        "forest_shaman_support" => (9, 3),
         _ => (6 + fallback_index as i32, 5),
     }
 }
 
 fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "arena_creep_attack" {
+    if target_id == "forest_creep_camp" {
+        string_vec([
+            "forest_creep_camp",
+            "forest_stalker_support",
+            "forest_shaman_support",
+        ])
+    } else if target_id == "arena_creep_attack" {
         string_vec([
             "arena_creep_attack",
             "arena_guard_support",
@@ -50328,7 +50791,7 @@ fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "arena_creep_attack" {
+    if target_id == "forest_creep_camp" || target_id == "arena_creep_attack" {
         classic_rts_default_group_units()
     } else {
         string_vec(["player", "square_guard_patrol"])
@@ -50336,7 +50799,9 @@ fn classic_rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
-    if target_id == "arena_creep_attack" {
+    if target_id == "forest_creep_camp" {
+        vec![92, 70, 46]
+    } else if target_id == "arena_creep_attack" {
         vec![100, 64, 32]
     } else {
         vec![72]
@@ -50344,7 +50809,9 @@ fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
 }
 
 fn classic_rts_projectile_trail_tiles_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "arena_creep_attack" {
+    if target_id == "forest_creep_camp" {
+        string_vec(["5,5", "6,5", "7,4", "8,3"])
+    } else if target_id == "arena_creep_attack" {
         string_vec(["5,5", "5,4", "6,4", "6,5"])
     } else {
         string_vec(["5,5", "6,5"])
@@ -50352,7 +50819,11 @@ fn classic_rts_projectile_trail_tiles_for_target(target_id: &str) -> Vec<String>
 }
 
 fn classic_rts_ability_effect_tiles_for_target(target_id: &str, ability_id: &str) -> Vec<String> {
-    if target_id == "arena_creep_attack" && ability_id == "guard_break" {
+    if target_id == "forest_creep_camp" && ability_id == "guard_break" {
+        string_vec(["8,3", "8,2", "9,3", "7,3"])
+    } else if target_id == "forest_creep_camp" {
+        string_vec(["8,3", "8,2", "9,3"])
+    } else if target_id == "arena_creep_attack" && ability_id == "guard_break" {
         string_vec(["6,5", "6,4", "7,5", "5,5"])
     } else if target_id == "arena_creep_attack" {
         string_vec(["6,5", "6,4", "7,5"])
@@ -50414,8 +50885,69 @@ fn classic_rts_objective_parts(command: &str) -> (String, String, String) {
 fn classic_rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
     if objective_id == "relay_beacon" {
         string_vec(["6,5", "6,4", "7,5"])
+    } else if objective_id == "forest_relay" {
+        string_vec(["8,3", "9,2", "9,3"])
     } else {
         vec![tile_id.to_string()]
+    }
+}
+
+fn classic_rts_creep_camp_parts(kind_hint: &str, command: &str) -> (String, String, String) {
+    let (kind, payload) = if kind_hint == "camp" {
+        command.split_once(':').unwrap_or(("clear", command))
+    } else {
+        (kind_hint, command)
+    };
+    let (camp_id, tile_id) = payload.split_once('@').unwrap_or((payload, "8,3"));
+    let normalized_camp_id = if camp_id == "creep_camp" {
+        "forest_creep_camp"
+    } else {
+        camp_id
+    };
+    (
+        kind.to_string(),
+        normalized_camp_id.to_string(),
+        tile_id.to_string(),
+    )
+}
+
+fn classic_rts_creep_camp_tiles_for_id(camp_id: &str, tile_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        string_vec(["8,3", "8,2", "9,3", "9,2"])
+    } else {
+        vec![tile_id.to_string()]
+    }
+}
+
+fn classic_rts_creep_camp_units_for_id(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        string_vec(["forest_alpha_creep", "forest_stalker", "forest_shaman"])
+    } else {
+        string_vec(["camp_scout"])
+    }
+}
+
+fn classic_rts_terrain_route_tiles_for_camp(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        string_vec(["5,5", "6,5", "7,4", "8,3"])
+    } else {
+        string_vec(["5,5", "6,5"])
+    }
+}
+
+fn classic_rts_terrain_choke_tiles_for_camp(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        string_vec(["7,4", "7,3", "8,4"])
+    } else {
+        string_vec(["6,5"])
+    }
+}
+
+fn classic_rts_expansion_tiles_for_camp(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        string_vec(["9,2", "10,2", "10,3"])
+    } else {
+        string_vec(["8,3"])
     }
 }
 
@@ -50692,6 +51224,99 @@ fn apply_classic_rts_objective_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_creep_camp_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    kind_hint: &str,
+    camp_command: &str,
+) {
+    if first_playable.rts_control_group_id.is_none() {
+        apply_classic_rts_select_group_runtime(first_playable, "1");
+    }
+    let (kind, camp_id, tile_id) = classic_rts_creep_camp_parts(kind_hint, camp_command);
+    first_playable.rts_creep_camp_tile_ids =
+        classic_rts_creep_camp_tiles_for_id(&camp_id, &tile_id);
+    first_playable.rts_creep_camp_unit_ids = classic_rts_creep_camp_units_for_id(&camp_id);
+    first_playable.rts_terrain_route_tile_ids = classic_rts_terrain_route_tiles_for_camp(&camp_id);
+    first_playable.rts_terrain_choke_tile_ids = classic_rts_terrain_choke_tiles_for_camp(&camp_id);
+    first_playable.rts_command_destination_tile = Some(tile_id.clone());
+    for tile in first_playable
+        .rts_creep_camp_tile_ids
+        .iter()
+        .chain(first_playable.rts_terrain_route_tile_ids.iter())
+        .chain(first_playable.rts_terrain_choke_tile_ids.iter())
+    {
+        push_unique_string(&mut first_playable.rts_visible_tile_ids, tile);
+    }
+    match kind.as_str() {
+        "clear" => {
+            first_playable.rts_creep_camp_state = format!("cleared:{camp_id}");
+            first_playable.rts_scout_reveal_percent = 100;
+            first_playable.rts_expansion_tile_ids = classic_rts_expansion_tiles_for_camp(&camp_id);
+            for tile in first_playable.rts_expansion_tile_ids.clone() {
+                push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+            }
+            first_playable.rts_target_health_percent =
+                first_playable.rts_target_health_percent.min(18);
+            first_playable.rts_defeat_risk_percent = first_playable.rts_defeat_risk_percent.min(12);
+            first_playable.rts_objective_tile_ids =
+                classic_rts_objective_tiles_for_id("forest_relay", "9,2");
+            first_playable.rts_objective_capture_percent =
+                first_playable.rts_objective_capture_percent.max(40);
+            first_playable.rts_objective_owner_state = "neutral:forest_relay".to_string();
+            first_playable.rts_objective_result_state =
+                "expansion_unlocked:forest_relay".to_string();
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("camp_clear:{camp_id}@{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                "loot:forest_camp:+90g:+35xp",
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                "expansion:forest_relay@9,2",
+            );
+            push_history(
+                &mut first_playable.rts_objective_score_delta_log,
+                "camp:+35xp:+90g",
+            );
+            push_completed_step(first_playable, "classic_rts_creep_camp_cleared");
+            push_progression_checkpoint(first_playable, "classic_rts_creep_camp_cleared");
+            first_playable.objective_status = "classic_rts_creep_camp_route_open".to_string();
+        }
+        _ => {
+            first_playable.rts_creep_camp_state = format!("scouted:{camp_id}");
+            first_playable.rts_scout_reveal_percent =
+                first_playable.rts_scout_reveal_percent.max(64);
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("scout:{camp_id}@{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "terrain_route:{}",
+                    first_playable.rts_terrain_route_tile_ids.join(">")
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "terrain_choke:{}",
+                    first_playable.rts_terrain_choke_tile_ids.join("|")
+                ),
+            );
+        }
+    }
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!("creep_camp:{kind}:{camp_id}@{tile_id}"),
+    );
+    first_playable.last_feedback = format!("RTS creep camp {kind}: {camp_id} at {tile_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -50702,6 +51327,10 @@ fn apply_classic_rts_queue_runtime(
     push_unique_string(&mut first_playable.rts_production_queue, queue_id);
     if let Some(objective_command) = queue_id.strip_prefix("objective:") {
         apply_classic_rts_objective_runtime(first_playable, objective_command);
+    } else if let Some(camp_command) = queue_id.strip_prefix("scout:") {
+        apply_classic_rts_creep_camp_runtime(first_playable, "scout", camp_command);
+    } else if let Some(camp_command) = queue_id.strip_prefix("camp:") {
+        apply_classic_rts_creep_camp_runtime(first_playable, "camp", camp_command);
     } else if let Some(pressure_id) = queue_id.strip_prefix("ai:") {
         apply_classic_rts_ai_skirmish_runtime(first_playable, pressure_id);
     } else if let Some(faction_id) = queue_id.strip_prefix("faction:") {
@@ -50997,14 +51626,15 @@ fn apply_classic_rts_attack_runtime(
     first_playable.combat_overlay_visible = true;
     first_playable.combat_overlay_was_visible = true;
     first_playable.rts_attack_target_id = Some(target_id.to_string());
-    first_playable.rts_command_destination_tile = Some("6,5".to_string());
+    let target_tile_id = classic_rts_tile_id(classic_rts_target_tile_for_id(target_id, 0));
+    first_playable.rts_command_destination_tile = Some(target_tile_id.clone());
     first_playable.rts_engagement_tile_ids = classic_rts_engagement_tiles_for_target(target_id);
     first_playable.rts_contact_flash_tile_ids =
         classic_rts_contact_flash_tiles_for_target(target_id);
     first_playable.rts_unit_response_state = format!("engaged:{target_id}");
     first_playable.rts_projectile_trail_tile_ids =
         classic_rts_projectile_trail_tiles_for_target(target_id);
-    first_playable.rts_projectile_impact_tile_id = Some("6,5".to_string());
+    first_playable.rts_projectile_impact_tile_id = Some(target_tile_id.clone());
     first_playable.rts_active_projectile_id = Some("guard_volley".to_string());
     first_playable.rts_ability_effect_tile_ids = Vec::new();
     first_playable.rts_ability_damage_ticks = vec![18];
@@ -51060,7 +51690,7 @@ fn apply_classic_rts_attack_runtime(
             first_playable
                 .rts_projectile_impact_tile_id
                 .as_deref()
-                .unwrap_or("6,5")
+                .unwrap_or(&target_tile_id)
         ),
     );
     push_history(
@@ -51111,7 +51741,8 @@ fn apply_classic_rts_ability_runtime(
     }
     first_playable.rts_projectile_trail_tile_ids =
         classic_rts_projectile_trail_tiles_for_target(&target_id);
-    first_playable.rts_projectile_impact_tile_id = Some("6,5".to_string());
+    let target_tile_id = classic_rts_tile_id(classic_rts_target_tile_for_id(&target_id, 0));
+    first_playable.rts_projectile_impact_tile_id = Some(target_tile_id);
     first_playable.rts_active_projectile_id =
         Some(classic_rts_projectile_id_for_ability(ability_id).to_string());
     first_playable.rts_ability_effect_tile_ids =
