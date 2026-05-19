@@ -192,6 +192,13 @@ const CLASSIC_ISO_CONTROL_GROUP_COLOR: u32 = 0xb9f2ff;
 const CLASSIC_ISO_FORMATION_LINE_COLOR: u32 = 0xa4e86f;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
+const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
+const CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR: u32 = 0x405345;
+const CLASSIC_RTS_MINIMAP_TERRAIN_COLOR: u32 = 0x2d4a34;
+const CLASSIC_RTS_MINIMAP_ROAD_COLOR: u32 = 0x8a6a42;
+const CLASSIC_RTS_MINIMAP_WATER_COLOR: u32 = 0x246276;
+const CLASSIC_RTS_RESOURCE_LUMBER_COLOR: u32 = 0x75b85a;
+const CLASSIC_RTS_RESOURCE_FOOD_COLOR: u32 = 0xc8d7d0;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -9003,10 +9010,12 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
     let assets = load_classic_runtime_assets();
-    let mirror_scene = assets.scene_by_id.get("mirror_city_square");
-    let coliseum_scene = assets.scene_by_id.get("league_coliseum");
     let move_runtime = NativeFirstPlayableRuntime {
         map_scene: "mirror_city_square".to_string(),
+        coins: 64,
+        xp: 46,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
         rts_control_group_id: Some("1".to_string()),
         rts_selected_unit_ids: string_vec([
             "player",
@@ -9021,6 +9030,10 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
     };
     let attack_runtime = NativeFirstPlayableRuntime {
         map_scene: "arena_league_coliseum".to_string(),
+        coins: 82,
+        xp: 58,
+        facing_direction: "west".to_string(),
+        walk_cycle_frame: 1,
         combat_overlay_visible: true,
         combat_overlay_was_visible: true,
         combat_turn: 1,
@@ -9041,25 +9054,21 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
     let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * 2 * PANEL_HEIGHT];
     let mut move_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
     let mut attack_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
-    classic_draw_isometric_scene(
+    classic_draw_scene(
         &mut move_pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        mirror_scene,
-        &assets,
-        &move_runtime,
         (5, 5),
-        "actor_player_walk_east_1",
+        &move_runtime,
+        &assets,
     );
-    classic_draw_isometric_scene(
+    classic_draw_scene(
         &mut attack_pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        coliseum_scene,
-        &assets,
-        &attack_runtime,
         (5, 5),
-        "actor_player_walk_west_1",
+        &attack_runtime,
+        &assets,
     );
     classic_copy_pixels(
         &mut preview_pixels,
@@ -9115,6 +9124,14 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
     let command_marker_pixel_count = count_color(CLASSIC_ISO_COMMAND_MARKER_COLOR);
     let attack_feedback_pixel_count =
         count_color(CLASSIC_ISO_ATTACK_ARC_COLOR) + count_color(CLASSIC_ISO_HIT_FLASH_COLOR);
+    let strategy_panel_pixel_count = count_color(CLASSIC_RTS_STRATEGY_PANEL_COLOR)
+        + count_color(CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR);
+    let minimap_pixel_count = count_color(CLASSIC_RTS_MINIMAP_TERRAIN_COLOR)
+        + count_color(CLASSIC_RTS_MINIMAP_ROAD_COLOR)
+        + count_color(CLASSIC_RTS_MINIMAP_WATER_COLOR);
+    let resource_hud_pixel_count = count_color(CLASSIC_ISO_GOLD_COLOR)
+        + count_color(CLASSIC_RTS_RESOURCE_LUMBER_COLOR)
+        + count_color(CLASSIC_RTS_RESOURCE_FOOD_COLOR);
     let non_background_pixels = preview_pixels
         .iter()
         .filter(|color| **color != 0x0b0d0c_u32)
@@ -9135,13 +9152,15 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         && formation_line_pixel_count > 200
         && command_marker_pixel_count > 600
         && attack_feedback_pixel_count > 180;
+    let strategy_hud_gate = strategy_panel_pixel_count > 4_000
+        && minimap_pixel_count > 2_800
+        && resource_hud_pixel_count > 120;
     let gameplay_surface_gate = selection_gate
         && command_queue_gate
+        && strategy_hud_gate
         && move_runtime.rts_control_group_id.as_deref() == Some("1")
         && attack_runtime.rts_attack_target_id.as_deref() == Some("arena_creep_attack");
     let green = write_gate
-        && mirror_scene.is_some()
-        && coliseum_scene.is_some()
         && non_background_pixels > 120_000
         && gameplay_surface_gate
         && assets.manifest.asset_boundary.contains("not_cex_runtime")
@@ -9155,8 +9174,8 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         "preview_width": PANEL_WIDTH * 2,
         "preview_height": PANEL_HEIGHT,
         "write_gate": write_gate,
-        "mirror_scene_gate": mirror_scene.is_some(),
-        "coliseum_scene_gate": coliseum_scene.is_some(),
+        "mirror_scene_gate": assets.scene_by_id.contains_key("mirror_city_square"),
+        "coliseum_scene_gate": assets.scene_by_id.contains_key("league_coliseum"),
         "non_background_pixels": non_background_pixels,
         "control_group_id": "1",
         "move_selected_unit_count": move_selected_unit_count,
@@ -9168,12 +9187,16 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         "formation_line_pixel_count": formation_line_pixel_count,
         "command_marker_pixel_count": command_marker_pixel_count,
         "attack_feedback_pixel_count": attack_feedback_pixel_count,
+        "strategy_panel_pixel_count": strategy_panel_pixel_count,
+        "minimap_pixel_count": minimap_pixel_count,
+        "resource_hud_pixel_count": resource_hud_pixel_count,
         "selection_gate": selection_gate,
         "command_queue_gate": command_queue_gate,
+        "strategy_hud_gate": strategy_hud_gate,
         "gameplay_surface_gate": gameplay_surface_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, and queued attack feedback through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, queued attack feedback, minimap, resources, and command panel through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS control loop evidence serializes")
 }
@@ -10914,6 +10937,7 @@ fn classic_draw_scene(
         scene_id,
         &player_frame,
     );
+    classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
 }
 
 #[cfg(not(target_os = "android"))]
@@ -13897,6 +13921,279 @@ fn classic_draw_model_overlay(
             CLASSIC_HUD_ACCENT_TEXT_COLOR
         },
     );
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_strategy_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    scene_id: &str,
+    player_tile: (i32, i32),
+) -> bool {
+    let rts_surface_active = runtime.rts_control_group_id.is_some()
+        || !runtime.rts_selected_unit_ids.is_empty()
+        || !runtime.rts_command_queue.is_empty();
+    if !rts_surface_active {
+        return false;
+    }
+
+    let panel_x = 14;
+    let panel_y = 46;
+    let minimap_w = 92;
+    let minimap_h = 70;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        minimap_w,
+        minimap_h,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    for (x, y, w, h) in [
+        (panel_x, panel_y, minimap_w, 2),
+        (panel_x, panel_y + minimap_h - 2, minimap_w, 2),
+        (panel_x, panel_y, 2, minimap_h),
+        (panel_x + minimap_w - 2, panel_y, 2, minimap_h),
+    ] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            w,
+            h,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+    }
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 6,
+        panel_y + 5,
+        "MINI MAP",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let map_x = panel_x + 7;
+    let map_y = panel_y + 18;
+    let cell_w = 6;
+    let cell_h = 5;
+    for row in 0..8 {
+        for col in 0..12 {
+            let color = if scene_id == "league_coliseum" && (row == 2 || row == 5) {
+                CLASSIC_RTS_MINIMAP_ROAD_COLOR
+            } else if scene_id == "mentor_training_room" && row <= 1 {
+                CLASSIC_RTS_MINIMAP_WATER_COLOR
+            } else if (col + row) % 5 == 0 {
+                CLASSIC_RTS_MINIMAP_ROAD_COLOR
+            } else {
+                CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
+            };
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + col * cell_w,
+                map_y + row * cell_h,
+                cell_w - 1,
+                cell_h - 1,
+                color,
+            );
+        }
+    }
+
+    let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
+    for entity in &selected_units {
+        let dot_x = map_x + entity.tile.0.clamp(0, 11) * cell_w;
+        let dot_y = map_y + entity.tile.1.clamp(0, 7) * cell_h;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            dot_x,
+            dot_y,
+            4,
+            4,
+            CLASSIC_ISO_CONTROL_GROUP_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        map_x + player_tile.0.clamp(0, 11) * cell_w,
+        map_y + player_tile.1.clamp(0, 7) * cell_h,
+        5,
+        5,
+        CLASSIC_ISO_UNIT_PLAYER_COLOR,
+    );
+    if let Some(destination_tile) = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + destination_tile.0.clamp(0, 11) * cell_w,
+            map_y + destination_tile.1.clamp(0, 7) * cell_h,
+            5,
+            5,
+            CLASSIC_ISO_COMMAND_MARKER_COLOR,
+        );
+    }
+
+    let resource_x = panel_x + minimap_w + 8;
+    let resource_y = panel_y;
+    let resource_w = 196;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x,
+        resource_y,
+        resource_w,
+        22,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x,
+        resource_y,
+        resource_w,
+        2,
+        CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+    );
+    let gold = 520_u64.saturating_add(runtime.coins);
+    let lumber = 180_u64.saturating_add(runtime.xp / 2);
+    let food_used = 4_u64.saturating_add(selected_units.len() as u64);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 8,
+        resource_y + 7,
+        8,
+        8,
+        CLASSIC_ISO_GOLD_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 69,
+        resource_y + 7,
+        8,
+        8,
+        CLASSIC_RTS_RESOURCE_LUMBER_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x + 130,
+        resource_y + 7,
+        8,
+        8,
+        CLASSIC_RTS_RESOURCE_FOOD_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 19,
+        resource_y + 7,
+        &format!("{gold}"),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 80,
+        resource_y + 7,
+        &format!("{lumber}"),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 141,
+        resource_y + 7,
+        &format!("{food_used}/12"),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let command_y = resource_y + 27;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x,
+        command_y,
+        resource_w,
+        43,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        resource_x,
+        command_y,
+        resource_w,
+        2,
+        CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+    );
+    let group_id = runtime.rts_control_group_id.as_deref().unwrap_or("-");
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 8,
+        command_y + 7,
+        &format!("GROUP {group_id} SEL {}", selected_units.len()),
+        1,
+        CLASSIC_ISO_CONTROL_GROUP_COLOR,
+    );
+    let command_label = runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .find(|entry| entry.starts_with("attack:") || entry.starts_with("move:"))
+        .map(|entry| {
+            entry
+                .replace("attack:", "ATTACK ")
+                .replace("move:", "MOVE ")
+                .replace(',', " ")
+        })
+        .unwrap_or_else(|| "HOLD POSITION".to_string());
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        resource_x + 8,
+        command_y + 23,
+        &classic_catalog_text_label(&format!("CMD {command_label}"), 28),
+        1,
+        CLASSIC_ISO_COMMAND_MARKER_COLOR,
+    );
+    true
 }
 
 #[cfg(not(target_os = "android"))]

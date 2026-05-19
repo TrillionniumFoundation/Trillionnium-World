@@ -23,8 +23,12 @@ required_script_lines=(
   'formation_line_pixel_count > 200'
   'command_marker_pixel_count > 600'
   'attack_feedback_pixel_count > 180'
+  'strategy_panel_pixel_count > 4000'
+  'minimap_pixel_count > 2800'
+  'resource_hud_pixel_count > 120'
   'selection_gate == true'
   'command_queue_gate == true'
+  'strategy_hud_gate == true'
   'gameplay_surface_gate == true'
   'cex_runtime_player_client_allowed == false'
   'wgpu_required == false'
@@ -51,12 +55,19 @@ required_source_lines=(
   'classic_rts_control_group_entities'
   'classic_draw_iso_rts_selection_marker'
   'classic_draw_iso_rts_formation_line'
+  'classic_draw_rts_strategy_overlay'
   'CLASSIC_ISO_CONTROL_GROUP_COLOR'
   'CLASSIC_ISO_FORMATION_LINE_COLOR'
+  'CLASSIC_RTS_MINIMAP_TERRAIN_COLOR'
+  'CLASSIC_RTS_RESOURCE_LUMBER_COLOR'
   'selection_marker_pixel_count'
   'formation_line_pixel_count'
   'command_marker_pixel_count'
   'attack_feedback_pixel_count'
+  'strategy_panel_pixel_count'
+  'minimap_pixel_count'
+  'resource_hud_pixel_count'
+  'strategy_hud_gate'
   'gameplay_surface_gate'
   'RTS group 1 moving to waypoint'
   'RTS attack order accepted'
@@ -79,8 +90,10 @@ required_readiness_lines=(
   'rts_control_loop_selection_gate'
   'rts_control_loop_command_queue_gate'
   'rts_control_loop_gameplay_surface_gate'
+  'rts_control_loop_strategy_hud_gate'
   'rts_control_loop_move_selected_unit_count'
   'rts_control_loop_attack_selected_unit_count'
+  'rts_control_loop_minimap_pixel_count'
 )
 
 for line in "${required_readiness_lines[@]}"; do
@@ -90,4 +103,4 @@ for line in "${required_readiness_lines[@]}"; do
   fi
 done
 
-echo "[PASS] classic RTS control loop keeps selection, command queue, attack feedback, and readiness gates connected"
+echo "[PASS] classic RTS control loop keeps selection, command queue, attack feedback, minimap/resource HUD, and readiness gates connected"

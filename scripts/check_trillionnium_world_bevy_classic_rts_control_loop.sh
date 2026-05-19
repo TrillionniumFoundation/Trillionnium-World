@@ -33,8 +33,12 @@ jq -e '
   and .formation_line_pixel_count > 200
   and .command_marker_pixel_count > 600
   and .attack_feedback_pixel_count > 180
+  and .strategy_panel_pixel_count > 4000
+  and .minimap_pixel_count > 2800
+  and .resource_hud_pixel_count > 120
   and .selection_gate == true
   and .command_queue_gate == true
+  and .strategy_hud_gate == true
   and .gameplay_surface_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false

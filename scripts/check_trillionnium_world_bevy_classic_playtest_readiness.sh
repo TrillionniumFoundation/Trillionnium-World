@@ -110,6 +110,7 @@ jq -n \
       and $override[0].replacement_boundary_gate == true
       and $rts[0].selection_gate == true
       and $rts[0].command_queue_gate == true
+      and $rts[0].strategy_hud_gate == true
       and $rts[0].gameplay_surface_gate == true
       and $rts[0].move_selected_unit_count >= 4
       and $rts[0].attack_selected_unit_count >= 4
@@ -249,6 +250,9 @@ jq -n \
       rts_control_loop_formation_line_pixel_count: $rts[0].formation_line_pixel_count,
       rts_control_loop_command_marker_pixel_count: $rts[0].command_marker_pixel_count,
       rts_control_loop_attack_feedback_pixel_count: $rts[0].attack_feedback_pixel_count,
+      rts_control_loop_strategy_panel_pixel_count: $rts[0].strategy_panel_pixel_count,
+      rts_control_loop_minimap_pixel_count: $rts[0].minimap_pixel_count,
+      rts_control_loop_resource_hud_pixel_count: $rts[0].resource_hud_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -317,6 +321,7 @@ jq -n \
       asset_override_replacement_boundary_gate: $override[0].replacement_boundary_gate,
       rts_control_loop_selection_gate: $rts[0].selection_gate,
       rts_control_loop_command_queue_gate: $rts[0].command_queue_gate,
+      rts_control_loop_strategy_hud_gate: $rts[0].strategy_hud_gate,
       rts_control_loop_gameplay_surface_gate: $rts[0].gameplay_surface_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
@@ -486,6 +491,9 @@ jq -e '
   and .headline.rts_control_loop_formation_line_pixel_count > 200
   and .headline.rts_control_loop_command_marker_pixel_count > 600
   and .headline.rts_control_loop_attack_feedback_pixel_count > 180
+  and .headline.rts_control_loop_strategy_panel_pixel_count > 4000
+  and .headline.rts_control_loop_minimap_pixel_count > 2800
+  and .headline.rts_control_loop_resource_hud_pixel_count > 120
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -550,6 +558,7 @@ jq -e '
   and .gates.asset_override_replacement_boundary_gate == true
   and .gates.rts_control_loop_selection_gate == true
   and .gates.rts_control_loop_command_queue_gate == true
+  and .gates.rts_control_loop_strategy_hud_gate == true
   and .gates.rts_control_loop_gameplay_surface_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
