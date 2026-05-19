@@ -353,6 +353,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第十四组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh` 把 `RTS:QUEUE:recon:scout_enemy_base@10,2`、`RTS:MOVE:9,2:rally`、`RTS:QUEUE:recon:sweep:enemy_base@10,2`、`RTS:QUEUE:recon:watchtower_scan@7,4` 和 `RTS:QUEUE:recon:mark:enemy_base@10,2` 推进到侦察小队、fog reveal、敌方建筑/单位情报、intel log、可见度条与小地图情报 overlay；它继续保持 Bevy native source-of-truth，不引入任何外部 RTS IP 资产或 CEX player runtime。
 
+同日继续追加第十五组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh` 把侦察后的 `enemy:tech`、`enemy:train`、`counter:research`、`counter:fortify` live inputs 推进到敌方基地科技升级、敌方出兵压力波、玩家反制科技、防御结构就绪、压力警戒条与小地图压力线；它把 fog/intel 结果接到后续对局决策，而不是停在发现敌方基地。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

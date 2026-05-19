@@ -182,6 +182,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CREEP_CAMP_TERRAIN_ROUTE_CONTRACT:
     "trillionnium_world_bevy_classic_rts_creep_camp_terrain_route_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FOG_SCOUTING_INTEL_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_fog_scouting_intel_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENEMY_BASE_TECH_PRESSURE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -269,6 +271,11 @@ const CLASSIC_RTS_FOG_REVEAL_COLOR: u32 = 0xd2f56d;
 const CLASSIC_RTS_ENEMY_INTEL_COLOR: u32 = 0xff6f92;
 const CLASSIC_RTS_ENEMY_STRUCTURE_COLOR: u32 = 0xff3f64;
 const CLASSIC_RTS_VISIBILITY_BAR_COLOR: u32 = 0x9ff27a;
+const CLASSIC_RTS_ENEMY_TECH_COLOR: u32 = 0xc66bff;
+const CLASSIC_RTS_ENEMY_PRODUCTION_COLOR: u32 = 0xff525f;
+const CLASSIC_RTS_PLAYER_COUNTER_TECH_COLOR: u32 = 0x6effd4;
+const CLASSIC_RTS_DEFENSE_READY_COLOR: u32 = 0x79a8ff;
+const CLASSIC_RTS_PRESSURE_WARNING_COLOR: u32 = 0xffbd57;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1603,6 +1610,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_intel_log: Vec<String>,
     #[serde(default)]
     pub rts_visibility_percent: u8,
+    #[serde(default)]
+    pub rts_enemy_base_tech_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_enemy_production_queue: Vec<String>,
+    #[serde(default)]
+    pub rts_enemy_pressure_wave_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_player_counter_tech_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_player_defense_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_enemy_pressure_warning_percent: u8,
+    #[serde(default)]
+    pub rts_enemy_base_pressure_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1925,6 +1946,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_revealed_enemy_unit_ids: Vec::new(),
             rts_intel_log: Vec::new(),
             rts_visibility_percent: 0,
+            rts_enemy_base_tech_ids: Vec::new(),
+            rts_enemy_production_queue: Vec::new(),
+            rts_enemy_pressure_wave_unit_ids: Vec::new(),
+            rts_player_counter_tech_ids: Vec::new(),
+            rts_player_defense_structure_ids: Vec::new(),
+            rts_enemy_pressure_warning_percent: 0,
+            rts_enemy_base_pressure_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -12648,6 +12676,233 @@ pub fn native_classic_rts_fog_scouting_intel_evidence_json(preview_path: &str) -
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_enemy_base_tech_pressure_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 360,
+        xp: 280,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 3,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_scout_party",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "2".to_string(),
+            },
+        ),
+        (
+            "mark_enemy_base",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "recon:mark:enemy_base@10,2".to_string(),
+            },
+        ),
+        (
+            "enemy_research_pressure",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "enemy:tech:shadow_lattice@enemy_barracks".to_string(),
+            },
+        ),
+        (
+            "enemy_train_wave",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "enemy:train:raider_wave@enemy_barracks".to_string(),
+            },
+        ),
+        (
+            "counter_research",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "counter:research:sentinel_lantern@signal_spire".to_string(),
+            },
+        ),
+        (
+            "fortify_watch_tower",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "counter:fortify:watch_tower@7,4".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_enemy_base_tech_pressure_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS TECH {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "enemy_base_tech_ids": runtime.rts_enemy_base_tech_ids.clone(),
+            "enemy_production_queue": runtime.rts_enemy_production_queue.clone(),
+            "enemy_pressure_wave_unit_ids": runtime.rts_enemy_pressure_wave_unit_ids.clone(),
+            "player_counter_tech_ids": runtime.rts_player_counter_tech_ids.clone(),
+            "player_defense_structure_ids": runtime.rts_player_defense_structure_ids.clone(),
+            "enemy_pressure_warning_percent": runtime.rts_enemy_pressure_warning_percent,
+            "enemy_base_pressure_state": runtime.rts_enemy_base_pressure_state.clone(),
+            "intel_log": runtime.rts_intel_log.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let enemy_tech_pixel_count = count_color(CLASSIC_RTS_ENEMY_TECH_COLOR);
+    let enemy_production_pixel_count = count_color(CLASSIC_RTS_ENEMY_PRODUCTION_COLOR);
+    let player_counter_tech_pixel_count = count_color(CLASSIC_RTS_PLAYER_COUNTER_TECH_COLOR);
+    let defense_ready_pixel_count = count_color(CLASSIC_RTS_DEFENSE_READY_COLOR);
+    let pressure_warning_pixel_count = count_color(CLASSIC_RTS_PRESSURE_WARNING_COLOR);
+    let live_enemy_base_tech_pressure_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_enemy_base_tech_pressure_input");
+    let intel_dependency_gate = runtime
+        .rts_intel_log
+        .iter()
+        .any(|entry| entry == "marked:enemy_base@10,2")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "recon_mark:enemy_base@10,2");
+    let enemy_tech_gate = runtime.rts_enemy_base_tech_ids.len() >= 2 && enemy_tech_pixel_count > 80;
+    let enemy_production_gate = runtime.rts_enemy_production_queue.len() >= 2
+        && runtime.rts_enemy_pressure_wave_unit_ids.len() >= 3
+        && enemy_production_pixel_count > 80;
+    let player_counter_gate =
+        runtime.rts_player_counter_tech_ids.len() >= 2 && player_counter_tech_pixel_count > 50;
+    let defense_ready_gate =
+        runtime.rts_player_defense_structure_ids.len() >= 2 && defense_ready_pixel_count > 80;
+    let pressure_warning_gate = runtime.rts_enemy_pressure_warning_percent <= 48
+        && pressure_warning_pixel_count > 20
+        && runtime.rts_enemy_base_pressure_state == "counter_ready:enemy_base";
+    let green = write_gate
+        && non_background_pixels > 250_000
+        && live_enemy_base_tech_pressure_input_gate
+        && intel_dependency_gate
+        && enemy_tech_gate
+        && enemy_production_gate
+        && player_counter_gate
+        && defense_ready_gate
+        && pressure_warning_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENEMY_BASE_TECH_PRESSURE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_enemy_base_tech_pressure_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_enemy_base_tech_ids": runtime.rts_enemy_base_tech_ids,
+        "final_enemy_production_queue": runtime.rts_enemy_production_queue,
+        "final_enemy_pressure_wave_unit_ids": runtime.rts_enemy_pressure_wave_unit_ids,
+        "final_player_counter_tech_ids": runtime.rts_player_counter_tech_ids,
+        "final_player_defense_structure_ids": runtime.rts_player_defense_structure_ids,
+        "final_enemy_pressure_warning_percent": runtime.rts_enemy_pressure_warning_percent,
+        "final_enemy_base_pressure_state": runtime.rts_enemy_base_pressure_state,
+        "final_intel_log": runtime.rts_intel_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "enemy_tech_pixel_count": enemy_tech_pixel_count,
+        "enemy_production_pixel_count": enemy_production_pixel_count,
+        "player_counter_tech_pixel_count": player_counter_tech_pixel_count,
+        "defense_ready_pixel_count": defense_ready_pixel_count,
+        "pressure_warning_pixel_count": pressure_warning_pixel_count,
+        "live_enemy_base_tech_pressure_input_gate": live_enemy_base_tech_pressure_input_gate,
+        "intel_dependency_gate": intel_dependency_gate,
+        "enemy_tech_gate": enemy_tech_gate,
+        "enemy_production_gate": enemy_production_gate,
+        "player_counter_gate": player_counter_gate,
+        "defense_ready_gate": defense_ready_gate,
+        "pressure_warning_gate": pressure_warning_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS enemy-base tech-pressure evidence drives post-scout enemy tech escalation, enemy production pressure, player counter research, defensive structure readiness, and pressure warning resolution through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS enemy base tech pressure evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -17105,6 +17360,128 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_ENEMY_INTEL_COLOR,
         );
     }
+    for (index, tech_id) in runtime.rts_enemy_base_tech_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_structure_tile_for_id(
+            if tech_id.contains("forge") {
+                "enemy_resource_vault"
+            } else {
+                "enemy_barracks"
+            },
+            index,
+        );
+        let (tech_x, tech_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            tech_x,
+            tech_y + tile_h - 18 - index as i32 * 4,
+            24,
+            9,
+            CLASSIC_RTS_ENEMY_TECH_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tech_x - 11,
+            tech_y + tile_h - 56 - index as i32 * 3,
+            22,
+            5,
+            CLASSIC_RTS_ENEMY_TECH_COLOR,
+        );
+    }
+    for (index, unit_id) in runtime.rts_enemy_pressure_wave_unit_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_unit_tile_for_id(unit_id, index);
+        let (wave_x, wave_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            wave_x - 10,
+            wave_y + tile_h - 36,
+            20,
+            18,
+            CLASSIC_RTS_ENEMY_PRODUCTION_COLOR,
+        );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            wave_x,
+            wave_y + tile_h - 8,
+            18,
+            6,
+            CLASSIC_RTS_ENEMY_PRODUCTION_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_ai_pressure_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (lane_x, lane_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                lane_x - 13,
+                lane_y + tile_h - 5,
+                26,
+                3,
+                CLASSIC_RTS_PRESSURE_WARNING_COLOR,
+            );
+        }
+    }
+    for (index, tech_id) in runtime.rts_player_counter_tech_ids.iter().enumerate() {
+        let tile = classic_rts_structure_tile_for_id(if tech_id.contains("lantern") {
+            "signal_spire"
+        } else {
+            "training_hall"
+        });
+        let (counter_x, counter_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            counter_x,
+            counter_y + tile_h - 18 - index as i32 * 4,
+            20,
+            8,
+            CLASSIC_RTS_PLAYER_COUNTER_TECH_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            counter_x - 8,
+            counter_y + tile_h - 50 - index as i32 * 3,
+            16,
+            5,
+            CLASSIC_RTS_PLAYER_COUNTER_TECH_COLOR,
+        );
+    }
+    for structure_id in &runtime.rts_player_defense_structure_ids {
+        let tile = classic_rts_structure_tile_for_id(structure_id);
+        let (defense_x, defense_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            defense_x - 14,
+            defense_y + tile_h - 44,
+            28,
+            6,
+            CLASSIC_RTS_DEFENSE_READY_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            defense_x - 4,
+            defense_y + tile_h - 56,
+            8,
+            16,
+            CLASSIC_RTS_DEFENSE_READY_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -19011,6 +19388,66 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_RTS_ENEMY_INTEL_COLOR,
         );
     }
+    for (index, tech_id) in runtime.rts_enemy_base_tech_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_structure_tile_for_id(
+            if tech_id.contains("forge") {
+                "enemy_resource_vault"
+            } else {
+                "enemy_barracks"
+            },
+            index,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            5,
+            3,
+            CLASSIC_RTS_ENEMY_TECH_COLOR,
+        );
+    }
+    for (index, unit_id) in runtime.rts_enemy_pressure_wave_unit_ids.iter().enumerate() {
+        let tile = classic_rts_enemy_unit_tile_for_id(unit_id, index);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w + 1,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            4,
+            4,
+            CLASSIC_RTS_ENEMY_PRODUCTION_COLOR,
+        );
+    }
+    for tile_id in &runtime.rts_ai_pressure_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                4,
+                2,
+                CLASSIC_RTS_PRESSURE_WARNING_COLOR,
+            );
+        }
+    }
+    for structure_id in &runtime.rts_player_defense_structure_ids {
+        let tile = classic_rts_structure_tile_for_id(structure_id);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w + 1,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            4,
+            4,
+            CLASSIC_RTS_DEFENSE_READY_COLOR,
+        );
+    }
 
     let resource_x = panel_x + minimap_w + 8;
     let resource_y = panel_y;
@@ -19633,6 +20070,38 @@ fn classic_draw_rts_strategy_overlay(
             (runtime.rts_visibility_percent.min(100) as i32 * 52) / 100,
             3,
             CLASSIC_RTS_VISIBILITY_BAR_COLOR,
+        );
+    }
+    if runtime.rts_enemy_pressure_warning_percent > 0 {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 66,
+            "PRS",
+            1,
+            CLASSIC_HUD_WARN_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 30,
+            tactical_y + 67,
+            54,
+            4,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 31,
+            tactical_y + 68,
+            (runtime.rts_enemy_pressure_warning_percent.min(100) as i32 * 52) / 100,
+            2,
+            CLASSIC_RTS_PRESSURE_WARNING_COLOR,
         );
     }
     true
@@ -51486,8 +51955,45 @@ fn classic_rts_enemy_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32)
         "enemy_scout" => (9, 2),
         "enemy_worker" => (10, 3),
         "enemy_guard" => (11, 2),
+        "enemy_raider" => (9, 3),
+        "enemy_signal_guard" => (10, 3),
+        "enemy_sapper" => (11, 2),
         _ => (9 + (index as i32 % 3), 2),
     }
+}
+
+fn classic_rts_enemy_pressure_wave_units_for_id(wave_id: &str) -> Vec<String> {
+    if wave_id == "raider_wave" {
+        string_vec(["enemy_raider", "enemy_signal_guard", "enemy_sapper"])
+    } else {
+        string_vec(["enemy_raider"])
+    }
+}
+
+fn classic_rts_enemy_pressure_lane_tiles_for_wave(wave_id: &str) -> Vec<String> {
+    if wave_id == "raider_wave" {
+        string_vec(["10,2", "9,3", "8,4", "7,4", "6,5"])
+    } else {
+        string_vec(["9,3", "8,4"])
+    }
+}
+
+fn classic_rts_enemy_command_parts(
+    command: &str,
+    fallback_kind: &str,
+    fallback_source: &str,
+) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or((fallback_kind, command));
+    let (id, source_id) = payload
+        .split_once('@')
+        .unwrap_or((payload, fallback_source));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+fn classic_rts_counter_command_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("research", command));
+    let (id, source_id) = payload.split_once('@').unwrap_or((payload, "signal_spire"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
 }
 
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
@@ -51935,6 +52441,136 @@ fn apply_classic_rts_recon_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_enemy_base_tech_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    enemy_command: &str,
+) {
+    let (kind, id, source_id) =
+        classic_rts_enemy_command_parts(enemy_command, "tech", "enemy_barracks");
+    if !first_playable
+        .rts_intel_log
+        .iter()
+        .any(|entry| entry == "marked:enemy_base@10,2")
+    {
+        apply_classic_rts_recon_runtime(first_playable, "mark:enemy_base@10,2");
+    }
+    push_unique_string(
+        &mut first_playable.rts_revealed_enemy_structure_ids,
+        &source_id,
+    );
+    push_unique_string(
+        &mut first_playable.rts_revealed_enemy_structure_ids,
+        "enemy_resource_vault",
+    );
+    match kind.as_str() {
+        "train" => {
+            push_unique_string(&mut first_playable.rts_enemy_production_queue, &id);
+            push_unique_string(
+                &mut first_playable.rts_enemy_production_queue,
+                "enemy_guard_reserve",
+            );
+            first_playable.rts_enemy_pressure_wave_unit_ids =
+                classic_rts_enemy_pressure_wave_units_for_id(&id);
+            first_playable.rts_ai_wave_unit_ids =
+                first_playable.rts_enemy_pressure_wave_unit_ids.clone();
+            first_playable.rts_ai_pressure_tile_ids =
+                classic_rts_enemy_pressure_lane_tiles_for_wave(&id);
+            for tile in first_playable.rts_ai_pressure_tile_ids.clone() {
+                push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+            }
+            first_playable.rts_enemy_pressure_warning_percent = 88;
+            first_playable.rts_enemy_base_pressure_state = format!("wave_staging:{id}@{source_id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("enemy_train:{id}@{source_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_ai_response_log,
+                &format!(
+                    "enemy_wave:{id}:{}",
+                    first_playable.rts_enemy_pressure_wave_unit_ids.join("|")
+                ),
+            );
+        }
+        _ => {
+            push_unique_string(&mut first_playable.rts_enemy_base_tech_ids, &id);
+            push_unique_string(
+                &mut first_playable.rts_enemy_base_tech_ids,
+                "enemy_forge_signal",
+            );
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.max(72);
+            first_playable.rts_enemy_base_pressure_state =
+                format!("tech_escalating:{id}@{source_id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("enemy_tech:{id}@{source_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_intel_log,
+                &format!("enemy_tech_seen:{id}@{source_id}"),
+            );
+        }
+    }
+    first_playable.last_feedback = format!("RTS enemy {kind}: {id} at {source_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
+fn apply_classic_rts_counter_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    counter_command: &str,
+) {
+    let (kind, id, source_id) = classic_rts_counter_command_parts(counter_command);
+    match kind.as_str() {
+        "fortify" => {
+            push_unique_string(&mut first_playable.rts_player_defense_structure_ids, &id);
+            push_unique_string(
+                &mut first_playable.rts_player_defense_structure_ids,
+                "signal_spire",
+            );
+            push_unique_string(&mut first_playable.rts_completed_structure_ids, &id);
+            push_unique_string(
+                &mut first_playable.rts_completed_structure_ids,
+                "signal_spire",
+            );
+            first_playable.rts_repair_progress_percent =
+                first_playable.rts_repair_progress_percent.max(90);
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.min(42);
+            first_playable.rts_enemy_base_pressure_state = "counter_ready:enemy_base".to_string();
+            first_playable.rts_defeat_risk_percent = first_playable.rts_defeat_risk_percent.min(16);
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("counter_fortify:{id}@{source_id}"),
+            );
+        }
+        _ => {
+            push_unique_string(&mut first_playable.rts_player_counter_tech_ids, &id);
+            push_unique_string(
+                &mut first_playable.rts_player_counter_tech_ids,
+                "guard_signal_drill",
+            );
+            push_unique_string(&mut first_playable.rts_base_structure_ids, &source_id);
+            first_playable.rts_tech_progress_percent =
+                first_playable.rts_tech_progress_percent.max(74);
+            first_playable.rts_tech_state = format!("counter_research:{id}@{source_id}");
+            first_playable.rts_enemy_pressure_warning_percent =
+                first_playable.rts_enemy_pressure_warning_percent.min(58);
+            first_playable.rts_enemy_base_pressure_state = format!("counter_research:{id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("counter_research:{id}@{source_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_tech_requirements_log,
+                &format!("counter:{id}:requires:{source_id}+enemy_base_mark"),
+            );
+        }
+    }
+    first_playable.last_feedback = format!("RTS counter {kind}: {id} at {source_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -51947,6 +52583,10 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_objective_runtime(first_playable, objective_command);
     } else if let Some(recon_command) = queue_id.strip_prefix("recon:") {
         apply_classic_rts_recon_runtime(first_playable, recon_command);
+    } else if let Some(enemy_command) = queue_id.strip_prefix("enemy:") {
+        apply_classic_rts_enemy_base_tech_runtime(first_playable, enemy_command);
+    } else if let Some(counter_command) = queue_id.strip_prefix("counter:") {
+        apply_classic_rts_counter_runtime(first_playable, counter_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("scout:") {
         apply_classic_rts_creep_camp_runtime(first_playable, "scout", camp_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("camp:") {
