@@ -168,6 +168,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ECONOMY_BUILD_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_economy_build_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_MINIMAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_selection_minimap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_build_lifecycle_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -221,6 +223,10 @@ const CLASSIC_RTS_SELECTION_BOX_COLOR: u32 = 0xf6ff7a;
 const CLASSIC_RTS_MINIMAP_COMMAND_COLOR: u32 = 0xff8ac7;
 const CLASSIC_RTS_GROUP_TWO_COLOR: u32 = 0x8fa8ff;
 const CLASSIC_RTS_SPLIT_ROUTE_COLOR: u32 = 0x48f0bd;
+const CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR: u32 = 0x7cff8d;
+const CLASSIC_RTS_STRUCTURE_REPAIR_COLOR: u32 = 0x55d7ff;
+const CLASSIC_RTS_STRUCTURE_CANCEL_COLOR: u32 = 0xffb35a;
+const CLASSIC_RTS_STRUCTURE_HEALTH_COLOR: u32 = 0x76f2a0;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1451,6 +1457,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_group_route_tile_ids: Vec<String>,
     #[serde(default)]
     pub rts_group_command_state: String,
+    #[serde(default)]
+    pub rts_completed_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_repair_target_id: Option<String>,
+    #[serde(default)]
+    pub rts_repair_progress_percent: u8,
+    #[serde(default)]
+    pub rts_cancelled_structure_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_refund_delta_log: Vec<String>,
+    #[serde(default)]
+    pub rts_structure_health_percents: Vec<u8>,
+    #[serde(default)]
+    pub rts_structure_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1721,6 +1741,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_minimap_command_kind: String::new(),
             rts_group_route_tile_ids: Vec::new(),
             rts_group_command_state: String::new(),
+            rts_completed_structure_ids: Vec::new(),
+            rts_repair_target_id: None,
+            rts_repair_progress_percent: 0,
+            rts_cancelled_structure_ids: Vec::new(),
+            rts_refund_delta_log: Vec::new(),
+            rts_structure_health_percents: Vec::new(),
+            rts_structure_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -10789,6 +10816,230 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 220,
+        xp: 72,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+        NativeControlAction::RtsQueueProduction {
+            queue_id: "build:watch_tower@7,4".to_string(),
+        },
+        NativeControlAction::RtsQueueProduction {
+            queue_id: "complete:watch_tower@7,4".to_string(),
+        },
+        NativeControlAction::RtsQueueProduction {
+            queue_id: "repair:watch_tower@7,4".to_string(),
+        },
+        NativeControlAction::RtsQueueProduction {
+            queue_id: "build:scout_tower@8,4".to_string(),
+        },
+        NativeControlAction::RtsQueueProduction {
+            queue_id: "cancel:scout_tower@8,4".to_string(),
+        },
+    ];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+    for action in &actions {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_build_lifecycle_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        stage_summaries.push(json!({
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "economy_state": runtime.rts_economy_state.clone(),
+            "structure_state": runtime.rts_structure_state.clone(),
+            "build_site_tile_ids": runtime.rts_build_site_tile_ids.clone(),
+            "building_blueprint_id": runtime.rts_building_blueprint_id.clone(),
+            "building_progress_percent": runtime.rts_building_progress_percent,
+            "completed_structure_ids": runtime.rts_completed_structure_ids.clone(),
+            "repair_target_id": runtime.rts_repair_target_id.clone(),
+            "repair_progress_percent": runtime.rts_repair_progress_percent,
+            "cancelled_structure_ids": runtime.rts_cancelled_structure_ids.clone(),
+            "refund_delta_log": runtime.rts_refund_delta_log.clone(),
+            "structure_health_percents": runtime.rts_structure_health_percents.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_scene(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        12,
+        12,
+        "LIVE RTS BUILD LIFECYCLE",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let build_blueprint_pixel_count = count_color(CLASSIC_RTS_BUILD_BLUEPRINT_COLOR);
+    let build_progress_pixel_count = count_color(CLASSIC_RTS_BLUEPRINT_PROGRESS_COLOR);
+    let structure_complete_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR);
+    let structure_health_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_HEALTH_COLOR);
+    let repair_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_REPAIR_COLOR);
+    let cancel_refund_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_CANCEL_COLOR);
+    let live_build_lifecycle_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_build_lifecycle_input");
+    let build_placement_gate = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "blueprint:watch_tower@7,4")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "blueprint:scout_tower@8,4")
+        && runtime.rts_build_site_tile_ids.len() >= 3
+        && build_blueprint_pixel_count > 40
+        && build_progress_pixel_count > 20;
+    let completion_gate = runtime
+        .rts_completed_structure_ids
+        .iter()
+        .any(|entry| entry == "watch_tower")
+        && runtime.rts_building_progress_percent == 100
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "complete:watch_tower@7,4")
+        && structure_complete_pixel_count > 80
+        && structure_health_pixel_count > 20;
+    let repair_gate = runtime.rts_repair_target_id.as_deref() == Some("watch_tower")
+        && runtime.rts_repair_progress_percent >= 76
+        && runtime
+            .rts_resource_spend_log
+            .iter()
+            .any(|entry| entry == "repair:-45g:-20l")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "repair:watch_tower@7,4")
+        && repair_pixel_count > 60;
+    let cancel_refund_gate = runtime
+        .rts_cancelled_structure_ids
+        .iter()
+        .any(|entry| entry == "scout_tower")
+        && runtime
+            .rts_refund_delta_log
+            .iter()
+            .any(|entry| entry == "gold:+90")
+        && runtime
+            .rts_refund_delta_log
+            .iter()
+            .any(|entry| entry == "lumber:+30")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "refund:gold:+90|lumber:+30")
+        && cancel_refund_pixel_count > 40;
+    let green = write_gate
+        && non_background_pixels > 120_000
+        && live_build_lifecycle_input_gate
+        && build_placement_gate
+        && completion_gate
+        && repair_gate
+        && cancel_refund_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_build_lifecycle_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_structure_state": runtime.rts_structure_state,
+        "final_build_site_tile_ids": runtime.rts_build_site_tile_ids,
+        "final_building_blueprint_id": runtime.rts_building_blueprint_id,
+        "final_building_progress_percent": runtime.rts_building_progress_percent,
+        "final_completed_structure_ids": runtime.rts_completed_structure_ids,
+        "final_repair_target_id": runtime.rts_repair_target_id,
+        "final_repair_progress_percent": runtime.rts_repair_progress_percent,
+        "final_cancelled_structure_ids": runtime.rts_cancelled_structure_ids,
+        "final_refund_delta_log": runtime.rts_refund_delta_log,
+        "final_structure_health_percents": runtime.rts_structure_health_percents,
+        "final_resource_spend_log": runtime.rts_resource_spend_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "build_blueprint_pixel_count": build_blueprint_pixel_count,
+        "build_progress_pixel_count": build_progress_pixel_count,
+        "structure_complete_pixel_count": structure_complete_pixel_count,
+        "structure_health_pixel_count": structure_health_pixel_count,
+        "repair_pixel_count": repair_pixel_count,
+        "cancel_refund_pixel_count": cancel_refund_pixel_count,
+        "live_build_lifecycle_input_gate": live_build_lifecycle_input_gate,
+        "build_placement_gate": build_placement_gate,
+        "completion_gate": completion_gate,
+        "repair_gate": repair_gate,
+        "cancel_refund_gate": cancel_refund_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS build lifecycle evidence drives build placement, structure completion, repair, and cancel/refund queue input into native runtime structure state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS build lifecycle evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -14775,6 +15026,116 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    for (index, structure_id) in runtime.rts_completed_structure_ids.iter().enumerate() {
+        let structure_tile = classic_rts_structure_tile_for_id(structure_id);
+        let (structure_x, structure_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, structure_tile);
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            structure_x,
+            structure_y + tile_h - 11,
+            tile_w / 2,
+            tile_h / 2,
+            CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            structure_x - 16,
+            structure_y + tile_h - 37,
+            32,
+            5,
+            CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR,
+        );
+        let health = runtime
+            .rts_structure_health_percents
+            .get(index)
+            .copied()
+            .unwrap_or(100);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            structure_x - 18,
+            structure_y + tile_h - 30,
+            36,
+            4,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            structure_x - 18,
+            structure_y + tile_h - 30,
+            (health.min(100) as i32 * 36) / 100,
+            4,
+            CLASSIC_RTS_STRUCTURE_HEALTH_COLOR,
+        );
+    }
+    if let Some(repair_target_id) = runtime.rts_repair_target_id.as_deref() {
+        let repair_tile = classic_rts_structure_tile_for_id(repair_target_id);
+        let (repair_x, repair_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, repair_tile);
+        for entity in &selected_units {
+            let (unit_x, unit_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, entity.tile);
+            for step in 0..=8 {
+                let beam_x = unit_x + ((repair_x - unit_x) * step) / 8;
+                let beam_y = unit_y + tile_h - 8 + ((repair_y - unit_y) * step) / 8;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    beam_x - 1,
+                    beam_y - 1,
+                    4,
+                    3,
+                    CLASSIC_RTS_STRUCTURE_REPAIR_COLOR,
+                );
+            }
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            repair_x - 20,
+            repair_y + tile_h - 44,
+            (runtime.rts_repair_progress_percent.min(100) as i32 * 40) / 100,
+            5,
+            CLASSIC_RTS_STRUCTURE_REPAIR_COLOR,
+        );
+    }
+    for structure_id in &runtime.rts_cancelled_structure_ids {
+        let cancel_tile = classic_rts_structure_tile_for_id(structure_id);
+        let (cancel_x, cancel_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, cancel_tile);
+        for step in -10..=10 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cancel_x + step,
+                cancel_y + tile_h - 25 + step,
+                3,
+                3,
+                CLASSIC_RTS_STRUCTURE_CANCEL_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cancel_x + step,
+                cancel_y + tile_h - 5 - step,
+                3,
+                3,
+                CLASSIC_RTS_STRUCTURE_CANCEL_COLOR,
+            );
+        }
+    }
     let command_marker_drawn = classic_blit_frame_override_bottom_center(
         buffer,
         width,
@@ -16402,6 +16763,26 @@ fn classic_draw_rts_strategy_overlay(
         1,
         CLASSIC_ISO_COMMAND_MARKER_COLOR,
     );
+    if !runtime.rts_structure_state.is_empty() {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 112,
+            command_y + 23,
+            &classic_catalog_text_label(
+                &runtime
+                    .rts_structure_state
+                    .replace("completed:", "DONE ")
+                    .replace("repairing:", "FIX ")
+                    .replace("cancelled:", "CNX ")
+                    .replace('@', " "),
+                15,
+            ),
+            1,
+            CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR,
+        );
+    }
     let production_y = command_y + 40;
     classic_draw_rts_queue_slot(
         buffer,
@@ -48245,11 +48626,35 @@ fn classic_rts_build_parts(queue_id: &str) -> (String, String) {
     }
 }
 
+fn classic_rts_structure_parts(
+    queue_id: &str,
+    prefix: &str,
+    fallback_tile_id: &str,
+) -> (String, String) {
+    let payload = queue_id.strip_prefix(prefix).unwrap_or(queue_id);
+    if let Some((structure_id, tile_id)) = payload.split_once('@') {
+        (structure_id.to_string(), tile_id.to_string())
+    } else {
+        (payload.to_string(), fallback_tile_id.to_string())
+    }
+}
+
 fn classic_rts_build_site_tiles(tile_id: &str) -> Vec<String> {
     if tile_id == "7,4" {
         string_vec(["7,4", "7,5", "8,4"])
+    } else if tile_id == "8,4" {
+        string_vec(["8,4", "8,5", "9,4"])
     } else {
         vec![tile_id.to_string()]
+    }
+}
+
+fn classic_rts_structure_tile_for_id(structure_id: &str) -> (i32, i32) {
+    match structure_id {
+        "watch_tower" => (7, 4),
+        "scout_tower" => (8, 4),
+        "town_hall" => (5, 5),
+        _ => (7, 4),
     }
 }
 
@@ -48366,6 +48771,58 @@ fn apply_classic_rts_queue_runtime(
                 "build_site:{}",
                 first_playable.rts_build_site_tile_ids.join("|")
             ),
+        );
+    } else if queue_id.starts_with("complete:") {
+        let (structure_id, tile_id) = classic_rts_structure_parts(queue_id, "complete:", "7,4");
+        push_unique_string(
+            &mut first_playable.rts_completed_structure_ids,
+            &structure_id,
+        );
+        first_playable.rts_building_blueprint_id = Some(structure_id.clone());
+        first_playable.rts_build_site_tile_ids = classic_rts_build_site_tiles(&tile_id);
+        first_playable.rts_command_destination_tile = Some(tile_id.clone());
+        first_playable.rts_building_progress_percent = 100;
+        first_playable.rts_build_progress_percent = 100;
+        first_playable.rts_structure_health_percents = vec![100];
+        first_playable.rts_structure_state = format!("completed:{structure_id}@{tile_id}");
+        first_playable.rts_economy_state = first_playable.rts_structure_state.clone();
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("complete:{structure_id}@{tile_id}"),
+        );
+    } else if queue_id.starts_with("repair:") {
+        let (structure_id, tile_id) = classic_rts_structure_parts(queue_id, "repair:", "7,4");
+        first_playable.rts_repair_target_id = Some(structure_id.clone());
+        first_playable.rts_command_destination_tile = Some(tile_id.clone());
+        first_playable.rts_repair_progress_percent =
+            first_playable.rts_repair_progress_percent.max(76);
+        first_playable.rts_structure_health_percents = vec![54, 91];
+        first_playable.rts_structure_state = format!("repairing:{structure_id}@{tile_id}");
+        push_history(
+            &mut first_playable.rts_resource_spend_log,
+            "repair:-45g:-20l",
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("repair:{structure_id}@{tile_id}"),
+        );
+    } else if queue_id.starts_with("cancel:") {
+        let (structure_id, tile_id) = classic_rts_structure_parts(queue_id, "cancel:", "8,4");
+        push_unique_string(
+            &mut first_playable.rts_cancelled_structure_ids,
+            &structure_id,
+        );
+        first_playable.rts_command_destination_tile = Some(tile_id.clone());
+        first_playable.rts_structure_state = format!("cancelled:{structure_id}@{tile_id}");
+        push_history(&mut first_playable.rts_refund_delta_log, "gold:+90");
+        push_history(&mut first_playable.rts_refund_delta_log, "lumber:+30");
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("cancel:{structure_id}@{tile_id}"),
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            "refund:gold:+90|lumber:+30",
         );
     }
     if first_playable.rts_build_queue.is_empty() {
