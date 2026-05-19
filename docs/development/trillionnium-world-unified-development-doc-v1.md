@@ -355,6 +355,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第十五组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh` 把侦察后的 `enemy:tech`、`enemy:train`、`counter:research`、`counter:fortify` live inputs 推进到敌方基地科技升级、敌方出兵压力波、玩家反制科技、防御结构就绪、压力警戒条与小地图压力线；它把 fog/intel 结果接到后续对局决策，而不是停在发现敌方基地。
 
+同日继续追加第十六组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_army_production_rally.sh` 把 `army:supply`、`army:train`、`army:rally`、`army:assign` live inputs 推进到人口上限、多批训练、出兵集合、控制组编队、兵种组合日志、低配 HUD 供给条与小地图 rally 线；它把基地生产从单次排队扩成可读的部队补员循环。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

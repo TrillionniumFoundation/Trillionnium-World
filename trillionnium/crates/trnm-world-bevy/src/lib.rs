@@ -184,6 +184,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FOG_SCOUTING_INTEL_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_fog_scouting_intel_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENEMY_BASE_TECH_PRESSURE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ARMY_PRODUCTION_RALLY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_army_production_rally_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -276,6 +278,10 @@ const CLASSIC_RTS_ENEMY_PRODUCTION_COLOR: u32 = 0xff525f;
 const CLASSIC_RTS_PLAYER_COUNTER_TECH_COLOR: u32 = 0x6effd4;
 const CLASSIC_RTS_DEFENSE_READY_COLOR: u32 = 0x79a8ff;
 const CLASSIC_RTS_PRESSURE_WARNING_COLOR: u32 = 0xffbd57;
+const CLASSIC_RTS_ARMY_SUPPLY_COLOR: u32 = 0x8fd1ff;
+const CLASSIC_RTS_ARMY_SPAWN_COLOR: u32 = 0xb9ff72;
+const CLASSIC_RTS_RALLY_LINE_COLOR: u32 = 0x69f0ff;
+const CLASSIC_RTS_COMPOSITION_COLOR: u32 = 0xffe074;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1624,6 +1630,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_enemy_pressure_warning_percent: u8,
     #[serde(default)]
     pub rts_enemy_base_pressure_state: String,
+    #[serde(default)]
+    pub rts_army_supply_used: u8,
+    #[serde(default)]
+    pub rts_army_supply_cap: u8,
+    #[serde(default)]
+    pub rts_army_production_batch_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_army_spawned_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_army_rally_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_army_composition_log: Vec<String>,
+    #[serde(default)]
+    pub rts_army_production_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1953,6 +1973,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_player_defense_structure_ids: Vec::new(),
             rts_enemy_pressure_warning_percent: 0,
             rts_enemy_base_pressure_state: String::new(),
+            rts_army_supply_used: 0,
+            rts_army_supply_cap: 0,
+            rts_army_production_batch_ids: Vec::new(),
+            rts_army_spawned_unit_ids: Vec::new(),
+            rts_army_rally_tile_ids: Vec::new(),
+            rts_army_composition_log: Vec::new(),
+            rts_army_production_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -12903,6 +12930,246 @@ pub fn native_classic_rts_enemy_base_tech_pressure_evidence_json(preview_path: &
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_army_production_rally_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 460,
+        xp: 320,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 4,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_base_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "raise_supply_cap",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:supply:field_lodge@6,4".to_string(),
+            },
+        ),
+        (
+            "train_guard_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:guard_pair@training_hall".to_string(),
+            },
+        ),
+        (
+            "train_wayfinder_pair",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:train:wayfinder_pair@signal_spire".to_string(),
+            },
+        ),
+        (
+            "set_forward_rally",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:rally:forward_watch@7,4".to_string(),
+            },
+        ),
+        (
+            "assign_control_group",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "army:assign:control_group_3@forward_watch".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_army_production_rally_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS ARMY {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "army_supply_used": runtime.rts_army_supply_used,
+            "army_supply_cap": runtime.rts_army_supply_cap,
+            "army_production_batch_ids": runtime.rts_army_production_batch_ids.clone(),
+            "army_spawned_unit_ids": runtime.rts_army_spawned_unit_ids.clone(),
+            "army_rally_tile_ids": runtime.rts_army_rally_tile_ids.clone(),
+            "army_composition_log": runtime.rts_army_composition_log.clone(),
+            "army_production_state": runtime.rts_army_production_state.clone(),
+            "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let supply_pixel_count = count_color(CLASSIC_RTS_ARMY_SUPPLY_COLOR);
+    let spawned_unit_pixel_count = count_color(CLASSIC_RTS_ARMY_SPAWN_COLOR);
+    let rally_line_pixel_count = count_color(CLASSIC_RTS_RALLY_LINE_COLOR);
+    let composition_pixel_count = count_color(CLASSIC_RTS_COMPOSITION_COLOR);
+    let live_army_production_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_army_production_rally_input");
+    let supply_gate = runtime.rts_army_supply_cap >= 18
+        && runtime.rts_army_supply_used >= 10
+        && runtime.rts_army_supply_used <= runtime.rts_army_supply_cap
+        && supply_pixel_count > 20;
+    let production_batch_gate = runtime.rts_army_production_batch_ids.len() >= 2
+        && runtime.rts_army_spawned_unit_ids.len() >= 4
+        && runtime.rts_training_progress_percent == 100
+        && spawned_unit_pixel_count > 160;
+    let rally_gate = runtime.rts_army_rally_tile_ids.len() >= 5
+        && runtime.rts_group_route_tile_ids == runtime.rts_army_rally_tile_ids
+        && runtime.rts_minimap_command_kind == "rally"
+        && rally_line_pixel_count > 80;
+    let control_group_gate = runtime.rts_control_group_id.as_deref() == Some("3")
+        && runtime
+            .rts_active_control_group_ids
+            .iter()
+            .any(|group_id| group_id == "3")
+        && runtime.rts_selected_unit_ids == runtime.rts_army_spawned_unit_ids
+        && runtime
+            .rts_control_group_assignments
+            .iter()
+            .any(|entry| entry.starts_with("3:"));
+    let composition_gate = runtime.rts_army_composition_log.len() >= 5
+        && runtime
+            .rts_army_composition_log
+            .iter()
+            .any(|entry| entry.contains("guard_pair"))
+        && runtime
+            .rts_army_composition_log
+            .iter()
+            .any(|entry| entry.contains("wayfinder_pair"))
+        && composition_pixel_count > 80;
+    let green = write_gate
+        && non_background_pixels > 250_000
+        && live_army_production_input_gate
+        && supply_gate
+        && production_batch_gate
+        && rally_gate
+        && control_group_gate
+        && composition_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ARMY_PRODUCTION_RALLY_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_army_production_rally_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_army_supply_used": runtime.rts_army_supply_used,
+        "final_army_supply_cap": runtime.rts_army_supply_cap,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "final_army_spawned_unit_ids": runtime.rts_army_spawned_unit_ids,
+        "final_army_rally_tile_ids": runtime.rts_army_rally_tile_ids,
+        "final_army_composition_log": runtime.rts_army_composition_log,
+        "final_army_production_state": runtime.rts_army_production_state,
+        "final_selected_unit_ids": runtime.rts_selected_unit_ids,
+        "final_active_control_group_ids": runtime.rts_active_control_group_ids,
+        "final_control_group_assignments": runtime.rts_control_group_assignments,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_training_progress_percent": runtime.rts_training_progress_percent,
+        "non_background_pixels": non_background_pixels,
+        "supply_pixel_count": supply_pixel_count,
+        "spawned_unit_pixel_count": spawned_unit_pixel_count,
+        "rally_line_pixel_count": rally_line_pixel_count,
+        "composition_pixel_count": composition_pixel_count,
+        "live_army_production_input_gate": live_army_production_input_gate,
+        "supply_gate": supply_gate,
+        "production_batch_gate": production_batch_gate,
+        "rally_gate": rally_gate,
+        "control_group_gate": control_group_gate,
+        "composition_gate": composition_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS army production/rally evidence drives population-cap preparation, multi-batch unit training, rally routing, and control-group assignment through live native input before rendering those production and composition overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS army production rally evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -17482,6 +17749,76 @@ fn classic_draw_iso_command_feedback(
             CLASSIC_RTS_DEFENSE_READY_COLOR,
         );
     }
+    if !runtime.rts_army_rally_tile_ids.is_empty() {
+        let mut previous_screen: Option<(i32, i32)> = None;
+        for tile_id in &runtime.rts_army_rally_tile_ids {
+            if let Some(tile) = classic_parse_rts_tile(tile_id) {
+                let (rally_x, rally_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    rally_x,
+                    rally_y + tile_h - 4,
+                    16,
+                    5,
+                    CLASSIC_RTS_RALLY_LINE_COLOR,
+                );
+                if let Some((prev_x, prev_y)) = previous_screen {
+                    for step in 0..=7 {
+                        let line_x = prev_x + ((rally_x - prev_x) * step) / 7;
+                        let line_y = prev_y + tile_h - 4 + ((rally_y - prev_y) * step) / 7;
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            line_x - 2,
+                            line_y - 1,
+                            5,
+                            3,
+                            CLASSIC_RTS_RALLY_LINE_COLOR,
+                        );
+                    }
+                }
+                previous_screen = Some((rally_x, rally_y));
+            }
+        }
+    }
+    for (index, unit_id) in runtime.rts_army_spawned_unit_ids.iter().enumerate() {
+        let tile = classic_rts_player_army_unit_tile_for_id(unit_id, index);
+        let (unit_x, unit_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            unit_x,
+            unit_y + tile_h - 7,
+            18,
+            6,
+            CLASSIC_RTS_ARMY_SPAWN_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit_x - 8,
+            unit_y + tile_h - 34,
+            16,
+            15,
+            CLASSIC_RTS_ARMY_SPAWN_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit_x - 12,
+            unit_y + tile_h - 40,
+            24,
+            3,
+            CLASSIC_RTS_COMPOSITION_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -19448,6 +19785,33 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_RTS_DEFENSE_READY_COLOR,
         );
     }
+    for tile_id in &runtime.rts_army_rally_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + tile.0.clamp(0, 11) * cell_w + 1,
+                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                4,
+                2,
+                CLASSIC_RTS_RALLY_LINE_COLOR,
+            );
+        }
+    }
+    for (index, unit_id) in runtime.rts_army_spawned_unit_ids.iter().enumerate() {
+        let tile = classic_rts_player_army_unit_tile_for_id(unit_id, index);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + tile.0.clamp(0, 11) * cell_w,
+            map_y + tile.1.clamp(0, 7) * cell_h,
+            5,
+            4,
+            CLASSIC_RTS_ARMY_SPAWN_COLOR,
+        );
+    }
 
     let resource_x = panel_x + minimap_w + 8;
     let resource_y = panel_y;
@@ -19474,7 +19838,16 @@ fn classic_draw_rts_strategy_overlay(
     );
     let gold = 520_u64.saturating_add(runtime.coins);
     let lumber = 180_u64.saturating_add(runtime.xp / 2);
-    let food_used = 4_u64.saturating_add(selected_units.len() as u64);
+    let food_used = if runtime.rts_army_supply_used > 0 {
+        u64::from(runtime.rts_army_supply_used)
+    } else {
+        4_u64.saturating_add(selected_units.len() as u64)
+    };
+    let food_cap = if runtime.rts_army_supply_cap > 0 {
+        u64::from(runtime.rts_army_supply_cap)
+    } else {
+        12
+    };
     classic_draw_rect(
         buffer,
         width,
@@ -19531,7 +19904,7 @@ fn classic_draw_rts_strategy_overlay(
         height,
         resource_x + 141,
         resource_y + 7,
-        &format!("{food_used}/12"),
+        &format!("{food_used}/{food_cap}"),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -20102,6 +20475,68 @@ fn classic_draw_rts_strategy_overlay(
             (runtime.rts_enemy_pressure_warning_percent.min(100) as i32 * 52) / 100,
             2,
             CLASSIC_RTS_PRESSURE_WARNING_COLOR,
+        );
+    }
+    if runtime.rts_army_supply_cap > 0 {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 92,
+            tactical_y + 66,
+            "SUP",
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 114,
+            tactical_y + 67,
+            52,
+            4,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+        let supply_width = if runtime.rts_army_supply_cap == 0 {
+            0
+        } else {
+            (runtime
+                .rts_army_supply_used
+                .min(runtime.rts_army_supply_cap) as i32
+                * 50)
+                / runtime.rts_army_supply_cap.max(1) as i32
+        };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 115,
+            tactical_y + 68,
+            supply_width,
+            2,
+            CLASSIC_RTS_ARMY_SUPPLY_COLOR,
+        );
+    }
+    if !runtime.rts_army_production_state.is_empty() {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 71,
+            &classic_catalog_text_label(
+                &runtime
+                    .rts_army_production_state
+                    .replace("trained:", "TRN ")
+                    .replace("supply_ready:", "SUP ")
+                    .replace("rally_set:", "RLY ")
+                    .replace("assigned:", "ASN ")
+                    .replace('@', " "),
+                24,
+            ),
+            1,
+            CLASSIC_RTS_COMPOSITION_COLOR,
         );
     }
     true
@@ -51996,6 +52431,47 @@ fn classic_rts_counter_command_parts(command: &str) -> (String, String, String) 
     (kind.to_string(), id.to_string(), source_id.to_string())
 }
 
+fn classic_rts_army_command_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("train", command));
+    let (id, source_id) = payload
+        .split_once('@')
+        .unwrap_or((payload, "training_hall"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+fn classic_rts_army_units_for_batch(batch_id: &str) -> Vec<String> {
+    match batch_id {
+        "guard_pair" => string_vec(["relay_guard_alpha", "relay_guard_beta"]),
+        "wayfinder_pair" => string_vec(["wayfinder_scout", "wayfinder_signal"]),
+        "mixed_vanguard" => string_vec([
+            "relay_guard_alpha",
+            "relay_guard_beta",
+            "wayfinder_scout",
+            "field_mender",
+        ]),
+        _ => vec![batch_id.to_string()],
+    }
+}
+
+fn classic_rts_army_rally_tiles_for_id(rally_id: &str) -> Vec<String> {
+    match rally_id {
+        "forward_watch" => string_vec(["5,5", "6,5", "7,4", "8,4", "8,3"]),
+        "forest_relay" => string_vec(["5,5", "6,4", "7,4", "8,3", "9,2"]),
+        _ => string_vec(["5,5", "6,5", "7,4"]),
+    }
+}
+
+fn classic_rts_player_army_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
+    match unit_id {
+        "relay_guard_alpha" => (6, 5),
+        "relay_guard_beta" => (7, 5),
+        "wayfinder_scout" => (7, 4),
+        "wayfinder_signal" => (8, 4),
+        "field_mender" => (6, 4),
+        _ => (6 + (index as i32 % 3), 5 - (index as i32 / 3)),
+    }
+}
+
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
     match node_id {
         "gold_vein" => (3, 3),
@@ -52571,6 +53047,123 @@ fn apply_classic_rts_counter_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_army_production_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    army_command: &str,
+) {
+    let (kind, id, source_id) = classic_rts_army_command_parts(army_command);
+    if first_playable.rts_faction_id.is_none() {
+        first_playable.rts_faction_id = Some("mirror_guard".to_string());
+    }
+    for structure_id in ["town_hall", "training_hall", "signal_spire"] {
+        push_unique_string(&mut first_playable.rts_base_structure_ids, structure_id);
+    }
+    if first_playable.rts_army_supply_cap == 0 {
+        first_playable.rts_army_supply_cap = 12;
+    }
+    match kind.as_str() {
+        "supply" => {
+            push_unique_string(&mut first_playable.rts_completed_structure_ids, &id);
+            push_unique_string(&mut first_playable.rts_player_defense_structure_ids, &id);
+            first_playable.rts_army_supply_cap = first_playable.rts_army_supply_cap.max(18);
+            first_playable.rts_army_supply_used = first_playable.rts_army_supply_used.max(6);
+            first_playable.rts_build_progress_percent = 100;
+            first_playable.rts_structure_state = format!("supply_ready:{id}@{source_id}");
+            first_playable.rts_army_production_state = format!("supply_ready:{id}");
+            push_history(
+                &mut first_playable.rts_army_composition_log,
+                &format!("supply:{id}:cap={}", first_playable.rts_army_supply_cap),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("army_supply:{id}@{source_id}"),
+            );
+        }
+        "rally" => {
+            first_playable.rts_army_rally_tile_ids = classic_rts_army_rally_tiles_for_id(&id);
+            first_playable.rts_group_route_tile_ids =
+                first_playable.rts_army_rally_tile_ids.clone();
+            first_playable.rts_command_destination_tile = first_playable
+                .rts_army_rally_tile_ids
+                .last()
+                .cloned()
+                .or_else(|| Some(source_id.clone()));
+            first_playable.rts_minimap_command_tile_id =
+                first_playable.rts_command_destination_tile.clone();
+            first_playable.rts_minimap_command_kind = "rally".to_string();
+            for tile in first_playable.rts_army_rally_tile_ids.clone() {
+                push_unique_string(&mut first_playable.rts_visible_tile_ids, &tile);
+            }
+            first_playable.rts_army_production_state = format!("rally_set:{id}");
+            push_history(
+                &mut first_playable.rts_army_composition_log,
+                &format!(
+                    "rally:{id}:{}",
+                    first_playable.rts_army_rally_tile_ids.join(">")
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("army_rally:{id}@{source_id}"),
+            );
+        }
+        "assign" => {
+            first_playable.rts_control_group_id = Some("3".to_string());
+            push_unique_string(&mut first_playable.rts_active_control_group_ids, "3");
+            if first_playable.rts_army_spawned_unit_ids.is_empty() {
+                first_playable.rts_army_spawned_unit_ids =
+                    classic_rts_army_units_for_batch("mixed_vanguard");
+            }
+            first_playable.rts_selected_unit_ids = first_playable.rts_army_spawned_unit_ids.clone();
+            push_history(
+                &mut first_playable.rts_control_group_assignments,
+                &format!("3:{}", first_playable.rts_army_spawned_unit_ids.join("|")),
+            );
+            push_history(
+                &mut first_playable.rts_army_composition_log,
+                &format!(
+                    "control_group:3:{}",
+                    first_playable.rts_army_spawned_unit_ids.join("|")
+                ),
+            );
+            first_playable.rts_army_production_state = format!("assigned:{id}:group_3");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("army_assign:{id}@{source_id}:group_3"),
+            );
+        }
+        _ => {
+            push_unique_string(&mut first_playable.rts_army_production_batch_ids, &id);
+            let batch_units = classic_rts_army_units_for_batch(&id);
+            for unit_id in &batch_units {
+                push_unique_string(&mut first_playable.rts_army_spawned_unit_ids, unit_id);
+                push_unique_string(&mut first_playable.rts_unlocked_unit_ids, unit_id);
+            }
+            let new_supply_used = first_playable
+                .rts_army_supply_used
+                .saturating_add(batch_units.len() as u8);
+            first_playable.rts_army_supply_used =
+                new_supply_used.min(first_playable.rts_army_supply_cap.max(12));
+            first_playable.rts_training_progress_percent = 100;
+            first_playable.rts_army_production_state = format!("trained:{id}@{source_id}");
+            push_history(
+                &mut first_playable.rts_resource_spend_log,
+                &format!("train:{id}:-120g:-40l"),
+            );
+            push_history(
+                &mut first_playable.rts_army_composition_log,
+                &format!("train:{id}:{}", batch_units.join("|")),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("army_train:{id}@{source_id}"),
+            );
+        }
+    }
+    first_playable.last_feedback = format!("RTS army {kind}: {id} at {source_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -52587,6 +53180,8 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_enemy_base_tech_runtime(first_playable, enemy_command);
     } else if let Some(counter_command) = queue_id.strip_prefix("counter:") {
         apply_classic_rts_counter_runtime(first_playable, counter_command);
+    } else if let Some(army_command) = queue_id.strip_prefix("army:") {
+        apply_classic_rts_army_production_runtime(first_playable, army_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("scout:") {
         apply_classic_rts_creep_camp_runtime(first_playable, "scout", camp_command);
     } else if let Some(camp_command) = queue_id.strip_prefix("camp:") {
