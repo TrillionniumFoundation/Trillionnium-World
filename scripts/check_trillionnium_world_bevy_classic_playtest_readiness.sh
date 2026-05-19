@@ -29,6 +29,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_build_lifecycle.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tech_tree.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_projectile_ability.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_ai_skirmish_pressure.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -57,6 +58,7 @@ jq -n \
   --slurpfile rts_build_lifecycle "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.json" \
   --slurpfile rts_tech_tree "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.json" \
   --slurpfile rts_projectile "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json" \
+  --slurpfile rts_ai "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -87,6 +89,7 @@ jq -n \
       and ok($rts_build_lifecycle)
       and ok($rts_tech_tree)
       and ok($rts_projectile)
+      and ok($rts_ai)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -197,6 +200,13 @@ jq -n \
       and $rts_projectile[0].damage_tick_gate == true
       and $rts_projectile[0].armor_shield_gate == true
       and $rts_projectile[0].accepted_input_count == 5
+      and $rts_ai[0].live_ai_skirmish_input_gate == true
+      and $rts_ai[0].ai_wave_gate == true
+      and $rts_ai[0].ai_counter_gate == true
+      and $rts_ai[0].ai_pressure_resolution_gate == true
+      and $rts_ai[0].ai_retreat_gate == true
+      and $rts_ai[0].player_response_gate == true
+      and $rts_ai[0].accepted_input_count == 5
       and $runner[0].gates.override_dir_gate == true
       and $runner[0].gates.cex_path_gate == true
     ),
@@ -225,6 +235,7 @@ jq -n \
       classic_rts_build_lifecycle_green: ok($rts_build_lifecycle),
       classic_rts_tech_tree_green: ok($rts_tech_tree),
       classic_rts_projectile_ability_green: ok($rts_projectile),
+      classic_rts_ai_skirmish_pressure_green: ok($rts_ai),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -473,6 +484,25 @@ jq -n \
       rts_projectile_ability_radius_pixel_count: $rts_projectile[0].ability_radius_pixel_count,
       rts_projectile_ability_damage_tick_pixel_count: $rts_projectile[0].damage_tick_pixel_count,
       rts_projectile_ability_armor_shield_pixel_count: $rts_projectile[0].armor_shield_pixel_count,
+      rts_ai_skirmish_accepted_input_count: $rts_ai[0].accepted_input_count,
+      rts_ai_skirmish_wave_unit_count: ($rts_ai[0].final_ai_wave_unit_ids | length),
+      rts_ai_skirmish_pressure_tile_count: ($rts_ai[0].final_ai_pressure_tile_ids | length),
+      rts_ai_skirmish_counter_tile_count: ($rts_ai[0].final_ai_counter_tile_ids | length),
+      rts_ai_skirmish_retreat_tile_id: $rts_ai[0].final_ai_retreat_tile_id,
+      rts_ai_skirmish_pressure_percent: $rts_ai[0].final_ai_pressure_percent,
+      rts_ai_skirmish_state: $rts_ai[0].final_ai_skirmish_state,
+      rts_ai_skirmish_pressure_pixel_count: (
+        $rts_ai[0].ai_wave_pixel_count
+        + $rts_ai[0].ai_pressure_pixel_count
+        + $rts_ai[0].ai_counter_pixel_count
+        + $rts_ai[0].ai_retreat_pixel_count
+        + $rts_ai[0].ai_pressure_bar_pixel_count
+      ),
+      rts_ai_skirmish_wave_pixel_count: $rts_ai[0].ai_wave_pixel_count,
+      rts_ai_skirmish_lane_pixel_count: $rts_ai[0].ai_pressure_pixel_count,
+      rts_ai_skirmish_counter_pixel_count: $rts_ai[0].ai_counter_pixel_count,
+      rts_ai_skirmish_retreat_pixel_count: $rts_ai[0].ai_retreat_pixel_count,
+      rts_ai_skirmish_pressure_bar_pixel_count: $rts_ai[0].ai_pressure_bar_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -590,6 +620,12 @@ jq -n \
       rts_projectile_ability_ability_radius_gate: $rts_projectile[0].ability_radius_gate,
       rts_projectile_ability_damage_tick_gate: $rts_projectile[0].damage_tick_gate,
       rts_projectile_ability_armor_shield_gate: $rts_projectile[0].armor_shield_gate,
+      rts_ai_skirmish_pressure_live_input_gate: $rts_ai[0].live_ai_skirmish_input_gate,
+      rts_ai_skirmish_pressure_ai_wave_gate: $rts_ai[0].ai_wave_gate,
+      rts_ai_skirmish_pressure_ai_counter_gate: $rts_ai[0].ai_counter_gate,
+      rts_ai_skirmish_pressure_resolution_gate: $rts_ai[0].ai_pressure_resolution_gate,
+      rts_ai_skirmish_pressure_retreat_gate: $rts_ai[0].ai_retreat_gate,
+      rts_ai_skirmish_player_response_gate: $rts_ai[0].player_response_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -640,6 +676,8 @@ jq -n \
       classic_rts_tech_tree_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.ppm",
       classic_rts_projectile_ability: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json",
       classic_rts_projectile_ability_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.ppm",
+      classic_rts_ai_skirmish_pressure: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.json",
+      classic_rts_ai_skirmish_pressure_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -672,6 +710,7 @@ jq -e '
   and .checks.classic_rts_build_lifecycle_green == true
   and .checks.classic_rts_tech_tree_green == true
   and .checks.classic_rts_projectile_ability_green == true
+  and .checks.classic_rts_ai_skirmish_pressure_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -894,6 +933,19 @@ jq -e '
   and .headline.rts_projectile_ability_radius_pixel_count > 140
   and .headline.rts_projectile_ability_damage_tick_pixel_count > 40
   and .headline.rts_projectile_ability_armor_shield_pixel_count > 20
+  and .headline.rts_ai_skirmish_accepted_input_count == 5
+  and .headline.rts_ai_skirmish_wave_unit_count >= 3
+  and .headline.rts_ai_skirmish_pressure_tile_count >= 4
+  and .headline.rts_ai_skirmish_counter_tile_count >= 4
+  and .headline.rts_ai_skirmish_retreat_tile_id == "9,2"
+  and .headline.rts_ai_skirmish_pressure_percent <= 34
+  and .headline.rts_ai_skirmish_state == "countered:guard_break:skirmish_wave"
+  and .headline.rts_ai_skirmish_pressure_pixel_count > 420
+  and .headline.rts_ai_skirmish_wave_pixel_count > 80
+  and .headline.rts_ai_skirmish_lane_pixel_count > 120
+  and .headline.rts_ai_skirmish_counter_pixel_count > 80
+  and .headline.rts_ai_skirmish_retreat_pixel_count > 40
+  and .headline.rts_ai_skirmish_pressure_bar_pixel_count > 20
   and .gates.cex_runtime_player_client_allowed == false
   and .gates.wgpu_required == false
   and .gates.manifest_boundary_gate == true
@@ -1007,6 +1059,12 @@ jq -e '
   and .gates.rts_projectile_ability_ability_radius_gate == true
   and .gates.rts_projectile_ability_damage_tick_gate == true
   and .gates.rts_projectile_ability_armor_shield_gate == true
+  and .gates.rts_ai_skirmish_pressure_live_input_gate == true
+  and .gates.rts_ai_skirmish_pressure_ai_wave_gate == true
+  and .gates.rts_ai_skirmish_pressure_ai_counter_gate == true
+  and .gates.rts_ai_skirmish_pressure_resolution_gate == true
+  and .gates.rts_ai_skirmish_pressure_retreat_gate == true
+  and .gates.rts_ai_skirmish_player_response_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

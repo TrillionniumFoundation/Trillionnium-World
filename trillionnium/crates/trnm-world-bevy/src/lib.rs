@@ -174,6 +174,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TECH_TREE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_tech_tree_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PROJECTILE_ABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_projectile_ability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_AI_SKIRMISH_PRESSURE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_ai_skirmish_pressure_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -241,6 +243,11 @@ const CLASSIC_RTS_PROJECTILE_IMPACT_COLOR: u32 = 0xfff2a0;
 const CLASSIC_RTS_ABILITY_RADIUS_COLOR: u32 = 0xa881ff;
 const CLASSIC_RTS_DAMAGE_TICK_COLOR: u32 = 0xff6670;
 const CLASSIC_RTS_ARMOR_SHIELD_COLOR: u32 = 0x6fdcff;
+const CLASSIC_RTS_AI_WAVE_COLOR: u32 = 0xe05a80;
+const CLASSIC_RTS_AI_PRESSURE_COLOR: u32 = 0xff9b54;
+const CLASSIC_RTS_AI_COUNTER_COLOR: u32 = 0x72f5d2;
+const CLASSIC_RTS_AI_RETREAT_COLOR: u32 = 0xb6d7ff;
+const CLASSIC_RTS_AI_PRESSURE_BAR_COLOR: u32 = 0xffc44d;
 const CLASSIC_ISO_ATTACK_ARC_COLOR: u32 = 0xffe071;
 const CLASSIC_ISO_HIT_FLASH_COLOR: u32 = 0xff7a5f;
 const CLASSIC_RTS_STRATEGY_PANEL_COLOR: u32 = 0x111814;
@@ -1519,6 +1526,20 @@ pub struct NativeFirstPlayableRuntime {
     pub rts_target_shield_percent: u8,
     #[serde(default)]
     pub rts_ability_resolution_state: String,
+    #[serde(default)]
+    pub rts_ai_wave_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_ai_pressure_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_ai_counter_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_ai_retreat_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_ai_pressure_percent: u8,
+    #[serde(default)]
+    pub rts_ai_response_log: Vec<String>,
+    #[serde(default)]
+    pub rts_ai_skirmish_state: String,
     pub inventory_items: Vec<String>,
     pub bag_open: bool,
     pub equipped_items: Vec<String>,
@@ -1813,6 +1834,13 @@ impl Default for NativeFirstPlayableRuntime {
             rts_target_armor_percent: 0,
             rts_target_shield_percent: 0,
             rts_ability_resolution_state: String::new(),
+            rts_ai_wave_unit_ids: Vec::new(),
+            rts_ai_pressure_tile_ids: Vec::new(),
+            rts_ai_counter_tile_ids: Vec::new(),
+            rts_ai_retreat_tile_id: None,
+            rts_ai_pressure_percent: 0,
+            rts_ai_response_log: Vec::new(),
+            rts_ai_skirmish_state: String::new(),
             inventory_items: vec!["small_healing_pill".to_string()],
             bag_open: false,
             equipped_items: Vec::new(),
@@ -11628,6 +11656,242 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 196,
+        xp: 108,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "select_defense_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ),
+        (
+            "spawn_ai_pressure",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "ai:skirmish_wave".to_string(),
+            },
+        ),
+        (
+            "take_counter_position",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:wedge".to_string(),
+            },
+        ),
+        (
+            "engage_wave",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            },
+        ),
+        (
+            "break_pressure",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "guard_break".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_ai_skirmish_pressure_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RTS AI {} {}", index + 1, stage),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "ai_wave_unit_ids": runtime.rts_ai_wave_unit_ids.clone(),
+            "ai_pressure_tile_ids": runtime.rts_ai_pressure_tile_ids.clone(),
+            "ai_counter_tile_ids": runtime.rts_ai_counter_tile_ids.clone(),
+            "ai_retreat_tile_id": runtime.rts_ai_retreat_tile_id.clone(),
+            "ai_pressure_percent": runtime.rts_ai_pressure_percent,
+            "ai_response_log": runtime.rts_ai_response_log.clone(),
+            "ai_skirmish_state": runtime.rts_ai_skirmish_state.clone(),
+            "ability_resolution_state": runtime.rts_ability_resolution_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let ai_retreat_pixel_count = count_color(CLASSIC_RTS_AI_RETREAT_COLOR);
+    let ai_pressure_bar_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_BAR_COLOR);
+    let live_ai_skirmish_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_ai_skirmish_pressure_input");
+    let ai_wave_gate = runtime.rts_ai_wave_unit_ids.len() >= 3
+        && runtime.rts_ai_pressure_tile_ids.len() >= 4
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("ai_wave:skirmish_wave"))
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120;
+    let ai_counter_gate = runtime.rts_ai_counter_tile_ids.len() >= 4
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "ai_counter:5,5>6,5>6,4>7,5")
+        && ai_counter_pixel_count > 80;
+    let ai_pressure_resolution_gate = runtime.rts_ai_pressure_percent <= 34
+        && runtime.rts_ai_skirmish_state == "countered:guard_break:skirmish_wave"
+        && runtime
+            .rts_ai_response_log
+            .iter()
+            .any(|entry| entry == "counter_window:guard_break:skirmish_wave")
+        && ai_pressure_bar_pixel_count > 20;
+    let ai_retreat_gate = runtime.rts_ai_retreat_tile_id.as_deref() == Some("9,2")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "ai_retreat:9,2")
+        && ai_retreat_pixel_count > 40;
+    let player_response_gate = runtime.rts_ability_resolution_state
+        == "resolved:guard_break:arena_creep_attack"
+        && runtime.rts_target_health_percent <= 18
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry == "shield_broken");
+    let green = write_gate
+        && non_background_pixels > 250_000
+        && live_ai_skirmish_input_gate
+        && ai_wave_gate
+        && ai_counter_gate
+        && ai_pressure_resolution_gate
+        && ai_retreat_gate
+        && player_response_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_AI_SKIRMISH_PRESSURE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_ai_skirmish_pressure_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_ai_wave_unit_ids": runtime.rts_ai_wave_unit_ids,
+        "final_ai_pressure_tile_ids": runtime.rts_ai_pressure_tile_ids,
+        "final_ai_counter_tile_ids": runtime.rts_ai_counter_tile_ids,
+        "final_ai_retreat_tile_id": runtime.rts_ai_retreat_tile_id,
+        "final_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_ai_response_log": runtime.rts_ai_response_log,
+        "final_ai_skirmish_state": runtime.rts_ai_skirmish_state,
+        "final_ability_resolution_state": runtime.rts_ability_resolution_state,
+        "final_target_health_percent": runtime.rts_target_health_percent,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "ai_retreat_pixel_count": ai_retreat_pixel_count,
+        "ai_pressure_bar_pixel_count": ai_pressure_bar_pixel_count,
+        "live_ai_skirmish_input_gate": live_ai_skirmish_input_gate,
+        "ai_wave_gate": ai_wave_gate,
+        "ai_counter_gate": ai_counter_gate,
+        "ai_pressure_resolution_gate": ai_pressure_resolution_gate,
+        "ai_retreat_gate": ai_retreat_gate,
+        "player_response_gate": player_response_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS AI skirmish pressure evidence drives an AI wave, pressure lane, player counter-line, retreat marker, and ability response through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+    }))
+    .expect("classic RTS AI skirmish pressure evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_copy_pixels(
     dest: &mut [u32],
@@ -15677,6 +15941,108 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    for (index, tile_id) in runtime.rts_ai_pressure_tile_ids.iter().enumerate() {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (pressure_x, pressure_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                pressure_x,
+                pressure_y + tile_h - 8,
+                20,
+                8,
+                CLASSIC_RTS_AI_PRESSURE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                pressure_x - 14,
+                pressure_y + tile_h - 34,
+                28,
+                4,
+                CLASSIC_RTS_AI_PRESSURE_COLOR,
+            );
+            if runtime.rts_ai_wave_unit_ids.get(index).is_some() {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    pressure_x - 9,
+                    pressure_y + tile_h - 27,
+                    18,
+                    13,
+                    CLASSIC_RTS_AI_WAVE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    pressure_x - 5,
+                    pressure_y + tile_h - 38,
+                    10,
+                    10,
+                    CLASSIC_RTS_AI_WAVE_COLOR,
+                );
+            }
+        }
+    }
+    for tile_id in &runtime.rts_ai_counter_tile_ids {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (counter_x, counter_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                counter_x - 18,
+                counter_y + tile_h - 12,
+                36,
+                4,
+                CLASSIC_RTS_AI_COUNTER_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                counter_x + 10,
+                counter_y + tile_h - 22,
+                7,
+                16,
+                CLASSIC_RTS_AI_COUNTER_COLOR,
+            );
+        }
+    }
+    if let Some(retreat_tile) = runtime
+        .rts_ai_retreat_tile_id
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        let (retreat_x, retreat_y) =
+            classic_iso_project(origin_x, origin_y, tile_w, tile_h, retreat_tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            retreat_x,
+            retreat_y + tile_h - 5,
+            17,
+            7,
+            CLASSIC_RTS_AI_RETREAT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            retreat_x - 15,
+            retreat_y + tile_h - 29,
+            30,
+            5,
+            CLASSIC_RTS_AI_RETREAT_COLOR,
+        );
+    }
     for node_id in &runtime.rts_harvest_node_ids {
         let node_tile = classic_rts_harvest_tile_for_node(node_id);
         let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
@@ -17886,6 +18252,38 @@ fn classic_draw_rts_strategy_overlay(
             ((*tick).min(40) as i32 / 2).max(5),
             3,
             CLASSIC_RTS_DAMAGE_TICK_COLOR,
+        );
+    }
+    if runtime.rts_ai_pressure_percent > 0 {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            resource_x + 8,
+            tactical_y + 55,
+            "AI",
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 24,
+            tactical_y + 56,
+            62,
+            4,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            resource_x + 24,
+            tactical_y + 56,
+            (runtime.rts_ai_pressure_percent.min(100) as i32 * 62) / 100,
+            4,
+            CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
         );
     }
     for (index, threat) in runtime.rts_threat_level_percents.iter().take(3).enumerate() {
@@ -49587,6 +49985,30 @@ fn classic_rts_projectile_id_for_ability(ability_id: &str) -> &'static str {
     }
 }
 
+fn classic_rts_ai_wave_unit_ids_for_pressure(pressure_id: &str) -> Vec<String> {
+    if pressure_id == "skirmish_wave" {
+        string_vec(["lane_scout", "mirror_raider", "siege_runner"])
+    } else {
+        string_vec(["lane_scout"])
+    }
+}
+
+fn classic_rts_ai_pressure_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
+    if pressure_id == "skirmish_wave" {
+        string_vec(["9,3", "8,4", "7,4", "6,5"])
+    } else {
+        string_vec(["8,4", "7,4"])
+    }
+}
+
+fn classic_rts_ai_counter_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
+    if pressure_id == "skirmish_wave" {
+        string_vec(["5,5", "6,5", "6,4", "7,5"])
+    } else {
+        string_vec(["5,5", "6,5"])
+    }
+}
+
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
     match node_id {
         "gold_vein" => (3, 3),
@@ -49728,6 +50150,64 @@ fn apply_classic_rts_select_group_runtime(
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
+fn apply_classic_rts_ai_skirmish_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    pressure_id: &str,
+) {
+    if first_playable.rts_control_group_id.is_none() {
+        apply_classic_rts_select_group_runtime(first_playable, "1");
+    }
+    first_playable.rts_ai_wave_unit_ids = classic_rts_ai_wave_unit_ids_for_pressure(pressure_id);
+    first_playable.rts_ai_pressure_tile_ids =
+        classic_rts_ai_pressure_tiles_for_pressure(pressure_id);
+    first_playable.rts_ai_counter_tile_ids = classic_rts_ai_counter_tiles_for_pressure(pressure_id);
+    first_playable.rts_ai_retreat_tile_id = Some("9,2".to_string());
+    first_playable.rts_ai_pressure_percent = 78;
+    first_playable.rts_ai_skirmish_state = format!("pressure_active:{pressure_id}");
+    first_playable.rts_threat_level_percents = vec![88, 71, 48];
+    first_playable.rts_visible_tile_ids = string_vec(["5,5", "6,5", "6,4", "7,5", "8,4", "9,3"]);
+    push_history(
+        &mut first_playable.rts_ai_response_log,
+        &format!(
+            "spawn:{pressure_id}:{}",
+            first_playable.rts_ai_wave_unit_ids.join("|")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_ai_response_log,
+        &format!(
+            "pressure_path:{}",
+            first_playable.rts_ai_pressure_tile_ids.join(">")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "ai_wave:{pressure_id}:{}",
+            first_playable.rts_ai_wave_unit_ids.join("|")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "ai_pressure:{}",
+            first_playable.rts_ai_pressure_tile_ids.join(">")
+        ),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &format!(
+            "ai_retreat:{}",
+            first_playable
+                .rts_ai_retreat_tile_id
+                .as_deref()
+                .unwrap_or("9,2")
+        ),
+    );
+    first_playable.last_feedback = format!("RTS AI skirmish pressure active: {pressure_id}");
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
@@ -49736,7 +50216,9 @@ fn apply_classic_rts_queue_runtime(
         apply_classic_rts_select_group_runtime(first_playable, "1");
     }
     push_unique_string(&mut first_playable.rts_production_queue, queue_id);
-    if let Some(faction_id) = queue_id.strip_prefix("faction:") {
+    if let Some(pressure_id) = queue_id.strip_prefix("ai:") {
+        apply_classic_rts_ai_skirmish_runtime(first_playable, pressure_id);
+    } else if let Some(faction_id) = queue_id.strip_prefix("faction:") {
         first_playable.rts_faction_id = Some(faction_id.to_string());
         for structure_id in ["town_hall", "training_hall", "signal_spire"] {
             push_unique_string(&mut first_playable.rts_base_structure_ids, structure_id);
@@ -50167,6 +50649,35 @@ fn apply_classic_rts_ability_runtime(
     first_playable.rts_targeting_state = format!("{ability_id}:{target_id}");
     first_playable.rts_aggro_target_id = Some(target_id.clone());
     first_playable.rts_ability_resolution_state = format!("resolved:{ability_id}:{target_id}");
+    if ability_id == "guard_break"
+        && first_playable
+            .rts_ai_skirmish_state
+            .starts_with("pressure_active")
+    {
+        let pressure_id = first_playable
+            .rts_ai_skirmish_state
+            .strip_prefix("pressure_active:")
+            .filter(|value| !value.is_empty())
+            .unwrap_or("skirmish_wave")
+            .to_string();
+        first_playable.rts_ai_pressure_percent = 34;
+        first_playable.rts_ai_skirmish_state = format!("countered:guard_break:{pressure_id}");
+        if first_playable.rts_ai_counter_tile_ids.is_empty() {
+            first_playable.rts_ai_counter_tile_ids =
+                classic_rts_ai_counter_tiles_for_pressure(&pressure_id);
+        }
+        push_history(
+            &mut first_playable.rts_ai_response_log,
+            &format!("counter_window:guard_break:{pressure_id}"),
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "ai_counter:{}",
+                first_playable.rts_ai_counter_tile_ids.join(">")
+            ),
+        );
+    }
     if first_playable.rts_focus_fire_unit_ids.is_empty() {
         first_playable.rts_focus_fire_unit_ids =
             classic_rts_focus_fire_units_for_target(&target_id);
