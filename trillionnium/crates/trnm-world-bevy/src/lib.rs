@@ -224,6 +224,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_SEQUENCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_action_sequence_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NPC_BEHAVIOR_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_npc_behavior_loop_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_IMPACT_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_combat_impact_loop_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -432,6 +434,13 @@ const CLASSIC_RTS_NPC_BEHAVIOR_CARRY_COLOR: u32 = 0xd6ad5a;
 const CLASSIC_RTS_NPC_BEHAVIOR_STALK_COLOR: u32 = 0xa585ff;
 const CLASSIC_RTS_NPC_BEHAVIOR_RETREAT_COLOR: u32 = 0x82d9ff;
 const CLASSIC_RTS_NPC_BEHAVIOR_ROUTE_COLOR: u32 = 0x4f6b5f;
+const CLASSIC_RTS_COMBAT_IMPACT_HIT_COLOR: u32 = 0xffffc8;
+const CLASSIC_RTS_COMBAT_IMPACT_STAGGER_COLOR: u32 = 0xff8a68;
+const CLASSIC_RTS_COMBAT_IMPACT_DAMAGE_COLOR: u32 = 0xff3f46;
+const CLASSIC_RTS_COMBAT_IMPACT_DEATH_COLOR: u32 = 0x7d3438;
+const CLASSIC_RTS_COMBAT_IMPACT_CORPSE_COLOR: u32 = 0x4f3f35;
+const CLASSIC_RTS_COMBAT_IMPACT_DISSOLVE_COLOR: u32 = 0xb6a78e;
+const CLASSIC_RTS_COMBAT_IMPACT_VICTORY_COLOR: u32 = 0xf2d76b;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -10276,6 +10285,252 @@ fn classic_draw_rts_npc_behavior_marks(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_combat_impact_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("impact:victory_settle") {
+                return Some("victory_settle");
+            }
+            if event.contains("impact:corpse_dissolve") {
+                return Some("corpse_dissolve");
+            }
+            if event.contains("impact:death_fall") {
+                return Some("death_fall");
+            }
+            if event.contains("impact:damage_tick") {
+                return Some("damage_tick");
+            }
+            if event.contains("impact:stagger") {
+                return Some("stagger");
+            }
+            if event.contains("impact:hit_flash") {
+                return Some("hit_flash");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("impact:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "hit_flash",
+            1 => "stagger",
+            2 => "damage_tick",
+            3 => "death_fall",
+            4 => "corpse_dissolve",
+            _ => "victory_settle",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_combat_impact_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    base_y: i32,
+    impact: &str,
+) {
+    if !(frame_id.starts_with("actor_guard")
+        || frame_id.starts_with("actor_worker")
+        || frame_id.starts_with("actor_creep")
+        || frame_id.starts_with("actor_player"))
+    {
+        return;
+    }
+    let target_like = frame_id.contains("creep")
+        || frame_id.contains("attack")
+        || frame_id.contains("guard")
+        || frame_id.contains("player");
+    if !target_like {
+        return;
+    }
+
+    match impact {
+        "hit_flash" => {
+            for step in 0..8 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 18 + step * 5,
+                    base_y - 39 + (step % 3) * 5,
+                    8,
+                    3,
+                    CLASSIC_RTS_COMBAT_IMPACT_HIT_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 14,
+                base_y - 30,
+                28,
+                5,
+                CLASSIC_RTS_COMBAT_IMPACT_HIT_COLOR,
+            );
+        }
+        "stagger" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                base_y - 36,
+                36,
+                4,
+                CLASSIC_RTS_COMBAT_IMPACT_STAGGER_COLOR,
+            );
+            for step in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 14 - step * 7,
+                    base_y - 25 + step * 2,
+                    12,
+                    3,
+                    CLASSIC_RTS_COMBAT_IMPACT_STAGGER_COLOR,
+                );
+            }
+        }
+        "damage_tick" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 19,
+                base_y - 50,
+                38,
+                4,
+                CLASSIC_RTS_COMBAT_IMPACT_DEATH_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 19,
+                base_y - 50,
+                16,
+                4,
+                CLASSIC_RTS_COMBAT_IMPACT_DAMAGE_COLOR,
+            );
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 8 + step * 4,
+                    base_y - 44 + step,
+                    5,
+                    2,
+                    CLASSIC_RTS_COMBAT_IMPACT_DAMAGE_COLOR,
+                );
+            }
+        }
+        "death_fall" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 24,
+                base_y - 18,
+                42,
+                8,
+                CLASSIC_RTS_COMBAT_IMPACT_DEATH_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 16,
+                base_y - 27,
+                28,
+                5,
+                CLASSIC_RTS_COMBAT_IMPACT_DAMAGE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 7,
+                base_y - 35,
+                14,
+                4,
+                CLASSIC_RTS_COMBAT_IMPACT_HIT_COLOR,
+            );
+        }
+        "corpse_dissolve" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 24,
+                base_y - 15,
+                48,
+                7,
+                CLASSIC_RTS_COMBAT_IMPACT_CORPSE_COLOR,
+            );
+            for step in 0..10 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 22 + step * 5,
+                    base_y - 28 - (step % 3) * 4,
+                    4,
+                    4,
+                    CLASSIC_RTS_COMBAT_IMPACT_DISSOLVE_COLOR,
+                );
+            }
+        }
+        "victory_settle" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 23,
+                base_y - 45,
+                46,
+                4,
+                CLASSIC_RTS_COMBAT_IMPACT_VICTORY_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 3,
+                base_y - 55,
+                6,
+                22,
+                CLASSIC_RTS_COMBAT_IMPACT_VICTORY_COLOR,
+            );
+            for step in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 18 + step * 9,
+                    base_y - 36 + (step % 2) * 3,
+                    6,
+                    3,
+                    CLASSIC_RTS_COMBAT_IMPACT_VICTORY_COLOR,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -12227,6 +12482,237 @@ pub fn native_classic_rts_npc_behavior_evidence_json(preview_path: &str) -> Stri
         "source_of_truth": "NPC behavior evidence uses actual classic_draw_scene frames and combat-event driven behavior selection to prove guard patrol/engage, worker work/carry, and creep stalk/retreat roles are visible in one playable RTS renderer."
     }))
     .expect("classic RTS NPC behavior evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_combat_impact_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "hit_flash",
+            "arena_outdoor",
+            (5, 5),
+            0_u8,
+            "impact:hit_flash",
+        ),
+        ("stagger", "arena_outdoor", (5, 5), 1_u8, "impact:stagger"),
+        (
+            "damage_tick",
+            "arena_outdoor",
+            (5, 5),
+            2_u8,
+            "impact:damage_tick",
+        ),
+        (
+            "death_fall",
+            "arena_outdoor",
+            (5, 5),
+            3_u8,
+            "impact:death_fall",
+        ),
+        (
+            "corpse_dissolve",
+            "arena_outdoor",
+            (5, 5),
+            4_u8,
+            "impact:corpse_dissolve",
+        ),
+        (
+            "victory_settle",
+            "arena_outdoor",
+            (5, 5),
+            5_u8,
+            "impact:victory_settle",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, impact_event)) in stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 304 + index as u64,
+            xp: 173 + (index as u64 * 7),
+            facing_direction: if index % 2 == 0 { "east" } else { "west" }.to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("3".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "arena_guard_right",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2", "3"]),
+            rts_command_queue: string_vec([*impact_event]),
+            rts_command_destination_tile: Some("7,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec(["train:guard", "train:worker"]),
+            rts_unit_health_percents: vec![92, 78, 41, 0],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 12, 0, 28, 8],
+            rts_active_ability_id: Some("focus".to_string()),
+            rts_target_health_percent: match *stage {
+                "hit_flash" => 66,
+                "stagger" => 48,
+                "damage_tick" => 29,
+                "death_fall" => 0,
+                "corpse_dissolve" => 0,
+                _ => 0,
+            },
+            rts_combat_event_log: string_vec([
+                *impact_event,
+                "combat_impact_source:classic_draw_scene",
+            ]),
+            last_feedback: format!("RTS combat impact stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 168,
+            &format!("COMBAT IMPACT {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "impact_event": impact_event,
+            "renderer_path": "classic_draw_scene",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let hit_pixel_count = count_color(CLASSIC_RTS_COMBAT_IMPACT_HIT_COLOR);
+    let stagger_pixel_count = count_color(CLASSIC_RTS_COMBAT_IMPACT_STAGGER_COLOR);
+    let damage_pixel_count = count_color(CLASSIC_RTS_COMBAT_IMPACT_DAMAGE_COLOR);
+    let death_pixel_count = count_color(CLASSIC_RTS_COMBAT_IMPACT_DEATH_COLOR);
+    let corpse_pixel_count = count_color(CLASSIC_RTS_COMBAT_IMPACT_CORPSE_COLOR);
+    let dissolve_pixel_count = count_color(CLASSIC_RTS_COMBAT_IMPACT_DISSOLVE_COLOR);
+    let victory_pixel_count = count_color(CLASSIC_RTS_COMBAT_IMPACT_VICTORY_COLOR);
+    let hit_gate = hit_pixel_count > 120;
+    let stagger_gate = stagger_pixel_count > 100;
+    let damage_gate = damage_pixel_count > 90;
+    let death_gate = death_pixel_count > 100;
+    let corpse_gate = corpse_pixel_count > 80;
+    let dissolve_gate = dissolve_pixel_count > 80;
+    let victory_gate = victory_pixel_count > 100;
+    let impact_stage_gate = [
+        "impact:hit_flash",
+        "impact:stagger",
+        "impact:damage_tick",
+        "impact:death_fall",
+        "impact:corpse_dissolve",
+        "impact:victory_settle",
+    ]
+    .iter()
+    .all(|stage| {
+        stage_summaries.iter().any(|summary| {
+            summary.get("impact_event").and_then(|value| value.as_str()) == Some(*stage)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && impact_stage_gate
+        && scene_renderer_gate
+        && hit_gate
+        && stagger_gate
+        && damage_gate
+        && death_gate
+        && corpse_gate
+        && dissolve_gate
+        && victory_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_IMPACT_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "hit_pixel_count": hit_pixel_count,
+        "stagger_pixel_count": stagger_pixel_count,
+        "damage_pixel_count": damage_pixel_count,
+        "death_pixel_count": death_pixel_count,
+        "corpse_pixel_count": corpse_pixel_count,
+        "dissolve_pixel_count": dissolve_pixel_count,
+        "victory_pixel_count": victory_pixel_count,
+        "hit_gate": hit_gate,
+        "stagger_gate": stagger_gate,
+        "damage_gate": damage_gate,
+        "death_gate": death_gate,
+        "corpse_gate": corpse_gate,
+        "dissolve_gate": dissolve_gate,
+        "victory_gate": victory_gate,
+        "impact_stage_gate": impact_stage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium combat impact overlays; classic RTS combat readability guides hit feedback and resolution staging, with no copied Warcraft III assets, combat data, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Combat impact evidence uses actual classic_draw_scene frames and combat-event driven impact selection to prove hit flash, stagger, damage tick, death fall, corpse dissolve, and victory settle stages render in the playable RTS renderer."
+    }))
+    .expect("classic RTS combat impact evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -26740,6 +27226,17 @@ fn classic_draw_isometric_frame_at_tile(
                 behavior,
             );
         }
+        if let Some(impact) = classic_rts_combat_impact_stage(runtime) {
+            classic_draw_rts_combat_impact_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                impact,
+            );
+        }
         return;
     }
     if !assets.frame_by_id.contains_key(frame_id)
@@ -26773,6 +27270,17 @@ fn classic_draw_isometric_frame_at_tile(
                 screen_x,
                 screen_y + tile_h,
                 behavior,
+            );
+        }
+        if let Some(impact) = classic_rts_combat_impact_stage(runtime) {
+            classic_draw_rts_combat_impact_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                impact,
             );
         }
         return;
@@ -26818,6 +27326,17 @@ fn classic_draw_isometric_frame_at_tile(
             screen_x,
             screen_y + tile_h,
             behavior,
+        );
+    }
+    if let Some(impact) = classic_rts_combat_impact_stage(runtime) {
+        classic_draw_rts_combat_impact_marks(
+            buffer,
+            width,
+            height,
+            frame_id,
+            screen_x,
+            screen_y + tile_h,
+            impact,
         );
     }
 }

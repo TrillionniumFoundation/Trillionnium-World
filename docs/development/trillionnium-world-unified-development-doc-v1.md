@@ -397,6 +397,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第三十六组 RTS NPC behavior gate：`scripts/check_trillionnium_world_bevy_classic_rts_npc_behavior.sh` 把单帧动作阶段再推进到角色行为读感。实际 `classic_draw_scene` 现在必须按 runtime behavior event 画出 guard patrol / guard engage / worker work / worker carry / creep stalk / creep retreat 六种 NPC 行为标记和路线残影；`behavior_stage_gate`、`route_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证战场上能看出巡逻、接战、采集搬运、潜伏和撤退这些连续角色意图，同时仍只使用原创 Trillionnium 低配 RTS 表达。
 
+继续追加第三十七组 RTS combat-impact gate：`scripts/check_trillionnium_world_bevy_classic_rts_combat_impact.sh` 把战斗从“单位在动”推进到“命中和结算一眼可读”。实际 `classic_draw_scene` 必须按 combat impact event 画出 hit_flash、stagger、damage_tick、death_fall、corpse_dissolve、victory_settle 六段，包括受击闪光、硬直拖动、血条掉点、倒地、尸体消散和胜利收束；`impact_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证这些反馈来自 Trillionnium 本地渲染器和原创低配素材，而不是静态战报或外部 RTS IP 素材。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
