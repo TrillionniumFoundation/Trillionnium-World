@@ -387,6 +387,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第三十一组 RTS visual gate：`scripts/check_trillionnium_world_bevy_classic_rts_visual_fidelity.sh` 专门回应“画面还不像成熟 RTS、建模和 NPC 动作粗糙”的问题。它不复制《魔兽争霸 III》的资产、命名或 UI 图形，只把成熟 RTS 的信息架构作为质量方向：实际 classic scene renderer 现在要画底部指挥栏、选中单位头像/状态卡、3x3 command grid、队伍行动日志、单位轮廓高光、NPC attack/carry/idle 的动作差异，并由 `mature_rts_hud_gate`、`model_fidelity_gate`、`npc_animation_gate` 和 `original_art_policy_gate` 卡住。
 
+继续追加第三十二组 RTS command-affordance gate：`scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh` 把“像即时战略”的操作反馈补进实际战场渲染路径。它要求 live native input 依次经过拖选、右键移动、攻击目标、能力热键确认，并在 `classic_draw_scene` 中画出拖选 marquee、右键落点、攻击光标、鼠标箭头、控制组/热键条、命令确认反馈；仍然只使用原创 Trillionnium 低配 2.5D/isometric RTS 表达，不复制《魔兽争霸 III》的光标、UI 图形、资产、文本、名称或模型。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

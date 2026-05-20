@@ -214,6 +214,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_visual_fidelity_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -390,6 +392,12 @@ const CLASSIC_RTS_FIDELITY_COMMAND_ACTIVE_COLOR: u32 = 0xd4c967;
 const CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR: u32 = 0x6a7d8d;
 const CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR: u32 = 0xffa663;
 const CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR: u32 = 0x87d7ff;
+const CLASSIC_RTS_COMMAND_AFFORDANCE_DRAG_COLOR: u32 = 0x9ad9ff;
+const CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR: u32 = 0x7dffb2;
+const CLASSIC_RTS_COMMAND_AFFORDANCE_ATTACK_CURSOR_COLOR: u32 = 0xff6f6f;
+const CLASSIC_RTS_COMMAND_AFFORDANCE_CURSOR_ARROW_COLOR: u32 = 0xf8f2c4;
+const CLASSIC_RTS_COMMAND_AFFORDANCE_HOTKEY_COLOR: u32 = 0x445a4a;
+const CLASSIC_RTS_COMMAND_AFFORDANCE_ACK_COLOR: u32 = 0xd7b957;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -10279,6 +10287,228 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "source_of_truth": "Visual fidelity evidence must exercise the actual classic RTS scene renderer: mature command HUD, selected-unit portraits/cards, original pseudo-3D silhouettes, and distinct NPC action states."
     }))
     .expect("classic RTS visual fidelity evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_command_affordance_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "arena_outdoor".to_string(),
+        coins: 188,
+        xp: 96,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let actions = [
+        (
+            "drag_select_marquee",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ),
+        (
+            "right_click_move",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "7,4:diamond".to_string(),
+            },
+        ),
+        (
+            "attack_cursor",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            },
+        ),
+        (
+            "ability_hotkey_ack",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "guard_break".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut input_sources = HashSet::new();
+    let mut action_labels = Vec::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_command_affordance_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 126,
+            &format!("{:02} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "last_feedback": runtime.last_feedback,
+            "control_group_id": runtime.rts_control_group_id.clone(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "selection_box_tile_ids": runtime.rts_selection_box_tile_ids.clone(),
+            "command_destination_tile": runtime.rts_command_destination_tile.clone(),
+            "attack_target_id": runtime.rts_attack_target_id.clone(),
+            "active_ability_id": runtime.rts_active_ability_id.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let drag_marquee_pixel_count = count_color(CLASSIC_RTS_COMMAND_AFFORDANCE_DRAG_COLOR);
+    let right_click_marker_pixel_count =
+        count_color(CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR);
+    let attack_cursor_pixel_count = count_color(CLASSIC_RTS_COMMAND_AFFORDANCE_ATTACK_CURSOR_COLOR);
+    let cursor_arrow_pixel_count = count_color(CLASSIC_RTS_COMMAND_AFFORDANCE_CURSOR_ARROW_COLOR);
+    let hotkey_pixel_count = count_color(CLASSIC_RTS_COMMAND_AFFORDANCE_HOTKEY_COLOR);
+    let command_ack_pixel_count = count_color(CLASSIC_RTS_COMMAND_AFFORDANCE_ACK_COLOR);
+    let live_command_affordance_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_command_affordance_input");
+    let drag_select_gate = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry.starts_with("box_select:"))
+        && runtime.rts_selected_unit_ids.len() >= 4
+        && runtime.rts_selection_box_tile_ids.len() >= 4
+        && drag_marquee_pixel_count > 80;
+    let right_click_move_gate = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "move:7,4")
+        && right_click_marker_pixel_count > 120
+        && cursor_arrow_pixel_count > 60;
+    let attack_cursor_gate = runtime.rts_attack_target_id.as_deref() == Some("arena_creep_attack")
+        && attack_cursor_pixel_count > 120
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "attack:arena_creep_attack");
+    let hotkey_ack_gate = runtime.rts_active_ability_id.as_deref() == Some("guard_break")
+        && hotkey_pixel_count > 200
+        && command_ack_pixel_count > 160
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "ability:guard_break");
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && non_background_pixels > 220_000
+        && live_command_affordance_input_gate
+        && drag_select_gate
+        && right_click_move_gate
+        && attack_cursor_gate
+        && hotkey_ack_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_command_affordance_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_selected_unit_ids": runtime.rts_selected_unit_ids,
+        "final_selection_box_tile_ids": runtime.rts_selection_box_tile_ids,
+        "final_command_destination_tile": runtime.rts_command_destination_tile,
+        "final_attack_target_id": runtime.rts_attack_target_id,
+        "final_active_ability_id": runtime.rts_active_ability_id,
+        "final_command_queue": runtime.rts_command_queue,
+        "non_background_pixels": non_background_pixels,
+        "drag_marquee_pixel_count": drag_marquee_pixel_count,
+        "right_click_marker_pixel_count": right_click_marker_pixel_count,
+        "attack_cursor_pixel_count": attack_cursor_pixel_count,
+        "cursor_arrow_pixel_count": cursor_arrow_pixel_count,
+        "hotkey_pixel_count": hotkey_pixel_count,
+        "command_ack_pixel_count": command_ack_pixel_count,
+        "live_command_affordance_input_gate": live_command_affordance_input_gate,
+        "drag_select_gate": drag_select_gate,
+        "right_click_move_gate": right_click_move_gate,
+        "attack_cursor_gate": attack_cursor_gate,
+        "hotkey_ack_gate": hotkey_ack_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium RTS command affordances; genre-control expectations are used as quality direction, not copied Warcraft III assets, cursor art, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Command affordance evidence drives drag-select, right-click move, attack cursor, and hotkey/ability acknowledgement through live native RTS input and the actual classic_draw_scene renderer."
+    }))
+    .expect("classic RTS command affordance evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -21832,6 +22062,125 @@ fn classic_draw_iso_rts_formation_line(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_affordance_drag_marquee(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    screen_points: &[(i32, i32)],
+) {
+    if screen_points.len() < 2 {
+        return;
+    }
+    let min_x = screen_points.iter().map(|point| point.0).min().unwrap_or(0) - 28;
+    let max_x = screen_points.iter().map(|point| point.0).max().unwrap_or(0) + 28;
+    let min_y = screen_points.iter().map(|point| point.1).min().unwrap_or(0) - 22;
+    let max_y = screen_points.iter().map(|point| point.1).max().unwrap_or(0) + 18;
+    let dash: usize = 12;
+    for x in (min_x..=max_x).step_by(dash) {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            min_y,
+            ((dash / 2) as i32).min(max_x - x + 1),
+            3,
+            CLASSIC_RTS_COMMAND_AFFORDANCE_DRAG_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            max_y,
+            ((dash / 2) as i32).min(max_x - x + 1),
+            3,
+            CLASSIC_RTS_COMMAND_AFFORDANCE_DRAG_COLOR,
+        );
+    }
+    for y in (min_y..=max_y).step_by(dash) {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            min_x,
+            y,
+            3,
+            ((dash / 2) as i32).min(max_y - y + 1),
+            CLASSIC_RTS_COMMAND_AFFORDANCE_DRAG_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            max_x,
+            y,
+            3,
+            ((dash / 2) as i32).min(max_y - y + 1),
+            CLASSIC_RTS_COMMAND_AFFORDANCE_DRAG_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_affordance_cursor_arrow(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+) {
+    for step in 0..10 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + step,
+            y + step,
+            3,
+            3,
+            CLASSIC_RTS_COMMAND_AFFORDANCE_CURSOR_ARROW_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 8,
+        y + 16,
+        8,
+        3,
+        CLASSIC_RTS_COMMAND_AFFORDANCE_CURSOR_ARROW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 16,
+        y + 8,
+        3,
+        8,
+        CLASSIC_RTS_COMMAND_AFFORDANCE_CURSOR_ARROW_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_affordance_target_marker(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    color: u32,
+) {
+    classic_draw_iso_ellipse(buffer, width, height, x, y, 25, 10, color);
+    classic_draw_rect(buffer, width, height, x - 29, y - 1, 18, 3, color);
+    classic_draw_rect(buffer, width, height, x + 11, y - 1, 18, 3, color);
+    classic_draw_rect(buffer, width, height, x - 2, y - 22, 4, 17, color);
+    classic_draw_rect(buffer, width, height, x - 2, y + 8, 4, 15, color);
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_iso_command_feedback(
     buffer: &mut [u32],
@@ -22001,9 +22350,11 @@ fn classic_draw_iso_command_feedback(
             );
         }
     }
+    let mut selection_box_screen_points = Vec::new();
     for tile_id in &runtime.rts_selection_box_tile_ids {
         if let Some(tile) = classic_parse_rts_tile(tile_id) {
             let (box_x, box_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, tile);
+            selection_box_screen_points.push((box_x, box_y + tile_h));
             classic_draw_rect(
                 buffer,
                 width,
@@ -22043,6 +22394,49 @@ fn classic_draw_iso_command_feedback(
                 3,
                 18,
                 CLASSIC_RTS_SELECTION_BOX_COLOR,
+            );
+        }
+    }
+    if width >= 640 && height >= 320 {
+        classic_draw_rts_command_affordance_drag_marquee(
+            buffer,
+            width,
+            height,
+            &selection_box_screen_points,
+        );
+        classic_draw_rts_command_affordance_cursor_arrow(
+            buffer,
+            width,
+            height,
+            dest_x + 22,
+            dest_y + tile_h - 38,
+        );
+        classic_draw_rts_command_affordance_target_marker(
+            buffer,
+            width,
+            height,
+            dest_x,
+            dest_y + tile_h - 2,
+            CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR,
+        );
+        if let Some(target_id) = runtime.rts_attack_target_id.as_deref() {
+            let target_tile = classic_rts_target_tile_for_id(target_id, 0);
+            let (target_x, target_y) =
+                classic_iso_project(origin_x, origin_y, tile_w, tile_h, target_tile);
+            classic_draw_rts_command_affordance_target_marker(
+                buffer,
+                width,
+                height,
+                target_x,
+                target_y + tile_h - 2,
+                CLASSIC_RTS_COMMAND_AFFORDANCE_ATTACK_CURSOR_COLOR,
+            );
+            classic_draw_rts_command_affordance_cursor_arrow(
+                buffer,
+                width,
+                height,
+                target_x + 24,
+                target_y + tile_h - 44,
             );
         }
     }
@@ -27663,8 +28057,112 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR,
         );
     }
+    classic_draw_rts_command_affordance_panel(buffer, width, height, runtime);
     classic_draw_rts_fidelity_overlay(buffer, width, height, runtime, &selected_units);
     true
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_affordance_panel(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    if width < 640 || height < 320 {
+        return;
+    }
+    let panel_w = 250_i32.min(width as i32 - 24);
+    let x = ((width as i32 - panel_w) / 2).max(12);
+    let y = height as i32 - 124;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        panel_w,
+        30,
+        CLASSIC_RTS_COMMAND_AFFORDANCE_HOTKEY_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 4,
+        y + 4,
+        panel_w - 8,
+        3,
+        CLASSIC_RTS_COMMAND_AFFORDANCE_ACK_COLOR,
+    );
+    let hotkeys = ["1", "2", "A", "M", "H", "B", "F"];
+    for (index, label) in hotkeys.iter().enumerate() {
+        let key_x = x + 10 + index as i32 * 28;
+        let active = match *label {
+            "1" | "2" => {
+                runtime
+                    .rts_active_control_group_ids
+                    .iter()
+                    .any(|group_id| group_id == *label)
+                    || runtime.rts_control_group_id.as_deref() == Some(*label)
+            }
+            "A" => runtime.rts_attack_target_id.is_some(),
+            "M" => runtime.rts_command_destination_tile.is_some(),
+            "F" => {
+                runtime.rts_active_ability_id.as_deref() == Some("focus")
+                    || runtime
+                        .rts_active_ability_id
+                        .as_deref()
+                        .is_some_and(|ability| ability.contains("fire"))
+            }
+            _ => runtime
+                .rts_ability_command_ids
+                .iter()
+                .any(|ability| ability.starts_with(&label.to_ascii_lowercase())),
+        };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            key_x,
+            y + 10,
+            21,
+            16,
+            if active {
+                CLASSIC_RTS_COMMAND_AFFORDANCE_ACK_COLOR
+            } else {
+                CLASSIC_RTS_ABILITY_SLOT_COLOR
+            },
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            key_x + 6,
+            y + 14,
+            label,
+            1,
+            if active {
+                CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR
+            } else {
+                CLASSIC_HUD_MUTED_TEXT_COLOR
+            },
+        );
+    }
+    let feedback = runtime
+        .last_feedback
+        .strip_prefix("RTS ")
+        .unwrap_or(runtime.last_feedback.as_str());
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        x + 10,
+        y - 10,
+        &classic_catalog_text_label(feedback, 26),
+        1,
+        CLASSIC_RTS_COMMAND_AFFORDANCE_ACK_COLOR,
+    );
 }
 
 #[cfg(not(target_os = "android"))]

@@ -66,6 +66,23 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-rts-command-affordance"
+                | "--classic-rts-command-affordance"
+                | "command-affordance"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_command_affordance_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("scene-transition-playability" | "--scene-transition-playability")
     ) {
         println!(
