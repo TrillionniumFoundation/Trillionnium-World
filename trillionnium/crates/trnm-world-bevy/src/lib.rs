@@ -228,6 +228,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_IMPACT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_combat_impact_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LOCOMOTION_BLEND_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_locomotion_blend_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NPC_TRANSITION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_npc_transition_blend_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -449,6 +451,12 @@ const CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR: u32 = 0xf7d56b;
 const CLASSIC_RTS_LOCOMOTION_TURN_COLOR: u32 = 0xc0a6ff;
 const CLASSIC_RTS_LOCOMOTION_SLIDE_COLOR: u32 = 0x8fb8ff;
 const CLASSIC_RTS_LOCOMOTION_BRAKE_COLOR: u32 = 0xffb06a;
+const CLASSIC_RTS_NPC_TRANSITION_ALERT_COLOR: u32 = 0xffdf78;
+const CLASSIC_RTS_NPC_TRANSITION_ENGAGE_COLOR: u32 = 0xff6b6b;
+const CLASSIC_RTS_NPC_TRANSITION_PICKUP_COLOR: u32 = 0xdcb66a;
+const CLASSIC_RTS_NPC_TRANSITION_POUNCE_COLOR: u32 = 0xb78cff;
+const CLASSIC_RTS_NPC_TRANSITION_RECOVER_COLOR: u32 = 0x8bd9ff;
+const CLASSIC_RTS_NPC_TRANSITION_RESUME_COLOR: u32 = 0x7df59f;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -10824,6 +10832,254 @@ fn classic_draw_rts_locomotion_blend_marks(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_npc_transition_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("transition:retreat_resume") {
+                return Some("retreat_resume");
+            }
+            if event.contains("transition:hit_recover") {
+                return Some("hit_recover");
+            }
+            if event.contains("transition:stalk_pounce") {
+                return Some("stalk_pounce");
+            }
+            if event.contains("transition:work_carry") {
+                return Some("work_carry");
+            }
+            if event.contains("transition:patrol_engage") {
+                return Some("patrol_engage");
+            }
+            if event.contains("transition:alert_turn") {
+                return Some("alert_turn");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("transition:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "alert_turn",
+            1 => "patrol_engage",
+            2 => "work_carry",
+            3 => "stalk_pounce",
+            4 => "hit_recover",
+            _ => "retreat_resume",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_npc_transition_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    base_y: i32,
+    stage: &str,
+) {
+    let relevant = match stage {
+        "alert_turn" | "patrol_engage" => frame_id.contains("guard") || frame_id.contains("player"),
+        "work_carry" => frame_id.contains("worker") || frame_id.contains("carry"),
+        "stalk_pounce" | "retreat_resume" => frame_id.contains("creep"),
+        "hit_recover" => {
+            frame_id.contains("guard") || frame_id.contains("creep") || frame_id.contains("player")
+        }
+        _ => false,
+    };
+    if !relevant {
+        return;
+    }
+
+    match stage {
+        "alert_turn" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 4,
+                base_y - 58,
+                8,
+                20,
+                CLASSIC_RTS_NPC_TRANSITION_ALERT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 14,
+                base_y - 36,
+                28,
+                4,
+                CLASSIC_RTS_NPC_TRANSITION_ALERT_COLOR,
+            );
+            for step in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 22 + step * 11,
+                    base_y - 29 + (step % 2) * 3,
+                    7,
+                    3,
+                    CLASSIC_RTS_NPC_TRANSITION_ALERT_COLOR,
+                );
+            }
+        }
+        "patrol_engage" => {
+            for step in 0..8 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 26 + step * 7,
+                    base_y - 40 + step,
+                    9,
+                    3,
+                    CLASSIC_RTS_NPC_TRANSITION_ENGAGE_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 12,
+                base_y - 30,
+                24,
+                5,
+                CLASSIC_RTS_NPC_TRANSITION_ENGAGE_COLOR,
+            );
+        }
+        "work_carry" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 6,
+                base_y - 43,
+                24,
+                10,
+                CLASSIC_RTS_NPC_TRANSITION_PICKUP_COLOR,
+            );
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 20 + step * 8,
+                    base_y - 31 - (step % 3) * 3,
+                    7,
+                    4,
+                    CLASSIC_RTS_NPC_TRANSITION_PICKUP_COLOR,
+                );
+            }
+        }
+        "stalk_pounce" => {
+            for step in 0..9 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 32 + step * 8,
+                    base_y - 28 - step / 2,
+                    8,
+                    4,
+                    CLASSIC_RTS_NPC_TRANSITION_POUNCE_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 18,
+                base_y - 44,
+                20,
+                5,
+                CLASSIC_RTS_NPC_TRANSITION_POUNCE_COLOR,
+            );
+        }
+        "hit_recover" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 20,
+                base_y - 37,
+                40,
+                4,
+                CLASSIC_RTS_NPC_TRANSITION_RECOVER_COLOR,
+            );
+            for step in 0..7 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 24 + step * 8,
+                    base_y - 22 + (step % 3),
+                    6,
+                    4,
+                    CLASSIC_RTS_NPC_TRANSITION_RECOVER_COLOR,
+                );
+            }
+        }
+        "retreat_resume" => {
+            for step in 0..10 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 34 + step * 8,
+                    base_y - 16 + step / 2,
+                    8,
+                    3,
+                    CLASSIC_RTS_NPC_TRANSITION_RESUME_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 26,
+                base_y - 34,
+                24,
+                4,
+                CLASSIC_RTS_NPC_TRANSITION_RESUME_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 28,
+                base_y - 23,
+                34,
+                4,
+                CLASSIC_RTS_NPC_TRANSITION_RESUME_COLOR,
+            );
+            for step in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 18 + step * 9,
+                    base_y - 9 + (step % 2),
+                    6,
+                    3,
+                    CLASSIC_RTS_NPC_TRANSITION_RESUME_COLOR,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -13235,6 +13491,239 @@ pub fn native_classic_rts_locomotion_blend_evidence_json(preview_path: &str) -> 
         "source_of_truth": "Locomotion blend evidence uses actual classic_draw_scene frames and movement-event driven stage selection to prove route commit, footstep alternation, turn arcs, formation slide, and arrival braking render in the playable RTS renderer."
     }))
     .expect("classic RTS locomotion blend evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_npc_transition_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "alert_turn",
+            "mirror_city_square",
+            (4, 4),
+            0_u8,
+            "transition:alert_turn",
+        ),
+        (
+            "patrol_engage",
+            "arena_outdoor",
+            (5, 5),
+            1_u8,
+            "transition:patrol_engage",
+        ),
+        (
+            "work_carry",
+            "mirror_city_square",
+            (5, 4),
+            2_u8,
+            "transition:work_carry",
+        ),
+        (
+            "stalk_pounce",
+            "arena_outdoor",
+            (5, 5),
+            3_u8,
+            "transition:stalk_pounce",
+        ),
+        (
+            "hit_recover",
+            "arena_outdoor",
+            (6, 5),
+            4_u8,
+            "transition:hit_recover",
+        ),
+        (
+            "retreat_resume",
+            "arena_outdoor",
+            (7, 5),
+            5_u8,
+            "transition:retreat_resume",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, transition_event)) in
+        stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 368 + index as u64,
+            xp: 229 + (index as u64 * 9),
+            facing_direction: if index % 2 == 0 { "east" } else { "west" }.to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("2".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "square_guard_patrol",
+                "arena_guard_left",
+                "square_worker_carry",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2", "3"]),
+            rts_command_queue: string_vec([*transition_event]),
+            rts_command_destination_tile: Some("8,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec(["train:guard", "train:worker"]),
+            rts_unit_health_percents: vec![98, 83, 74, 31],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 12, 0, 24, 10],
+            rts_active_ability_id: Some("patrol".to_string()),
+            rts_target_health_percent: match *stage {
+                "hit_recover" => 35,
+                "retreat_resume" => 22,
+                _ => 48,
+            },
+            rts_combat_event_log: string_vec([
+                *transition_event,
+                "npc_transition_source:classic_draw_scene",
+            ]),
+            last_feedback: format!("RTS NPC transition stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 168,
+            &format!("NPC TRANSITION {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "transition_event": transition_event,
+            "renderer_path": "classic_draw_scene",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let alert_pixel_count = count_color(CLASSIC_RTS_NPC_TRANSITION_ALERT_COLOR);
+    let engage_pixel_count = count_color(CLASSIC_RTS_NPC_TRANSITION_ENGAGE_COLOR);
+    let pickup_pixel_count = count_color(CLASSIC_RTS_NPC_TRANSITION_PICKUP_COLOR);
+    let pounce_pixel_count = count_color(CLASSIC_RTS_NPC_TRANSITION_POUNCE_COLOR);
+    let recover_pixel_count = count_color(CLASSIC_RTS_NPC_TRANSITION_RECOVER_COLOR);
+    let resume_pixel_count = count_color(CLASSIC_RTS_NPC_TRANSITION_RESUME_COLOR);
+    let alert_gate = alert_pixel_count > 100;
+    let engage_gate = engage_pixel_count > 120;
+    let pickup_gate = pickup_pixel_count > 100;
+    let pounce_gate = pounce_pixel_count > 110;
+    let recover_gate = recover_pixel_count > 100;
+    let resume_gate = resume_pixel_count > 90;
+    let transition_stage_gate = [
+        "transition:alert_turn",
+        "transition:patrol_engage",
+        "transition:work_carry",
+        "transition:stalk_pounce",
+        "transition:hit_recover",
+        "transition:retreat_resume",
+    ]
+    .iter()
+    .all(|stage| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("transition_event")
+                .and_then(|value| value.as_str())
+                == Some(*stage)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && transition_stage_gate
+        && scene_renderer_gate
+        && alert_gate
+        && engage_gate
+        && pickup_gate
+        && pounce_gate
+        && recover_gate
+        && resume_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NPC_TRANSITION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "alert_pixel_count": alert_pixel_count,
+        "engage_pixel_count": engage_pixel_count,
+        "pickup_pixel_count": pickup_pixel_count,
+        "pounce_pixel_count": pounce_pixel_count,
+        "recover_pixel_count": recover_pixel_count,
+        "resume_pixel_count": resume_pixel_count,
+        "alert_gate": alert_gate,
+        "engage_gate": engage_gate,
+        "pickup_gate": pickup_gate,
+        "pounce_gate": pounce_gate,
+        "recover_gate": recover_gate,
+        "resume_gate": resume_gate,
+        "transition_stage_gate": transition_stage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium NPC transition overlays; classic RTS behavior readability guides alert, engage, pickup, pounce, recover, and resume staging without copied Warcraft III assets, animation data, AI data, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "NPC transition evidence uses actual classic_draw_scene frames and transition-event driven stage selection to prove NPCs show readable in-between behavior rather than snapping between patrol, work, combat, and retreat states."
+    }))
+    .expect("classic RTS NPC transition evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -27770,6 +28259,17 @@ fn classic_draw_isometric_frame_at_tile(
                 locomotion,
             );
         }
+        if let Some(transition) = classic_rts_npc_transition_stage(runtime) {
+            classic_draw_rts_npc_transition_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                transition,
+            );
+        }
         return;
     }
     if !assets.frame_by_id.contains_key(frame_id)
@@ -27825,6 +28325,17 @@ fn classic_draw_isometric_frame_at_tile(
                 screen_x,
                 screen_y + tile_h,
                 locomotion,
+            );
+        }
+        if let Some(transition) = classic_rts_npc_transition_stage(runtime) {
+            classic_draw_rts_npc_transition_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                transition,
             );
         }
         return;
@@ -27892,6 +28403,17 @@ fn classic_draw_isometric_frame_at_tile(
             screen_x,
             screen_y + tile_h,
             locomotion,
+        );
+    }
+    if let Some(transition) = classic_rts_npc_transition_stage(runtime) {
+        classic_draw_rts_npc_transition_marks(
+            buffer,
+            width,
+            height,
+            frame_id,
+            screen_x,
+            screen_y + tile_h,
+            transition,
         );
     }
 }

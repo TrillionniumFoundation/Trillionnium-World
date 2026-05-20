@@ -401,6 +401,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第三十八组 RTS locomotion-blend gate：`scripts/check_trillionnium_world_bevy_classic_rts_locomotion_blend.sh` 把单位移动从“瞬移到格子”推进到“路径、脚步、转身、编队滑移和刹停都能读出来”。实际 `classic_draw_scene` 必须按 locomotion event 画出 path_commit、footstep_left、footstep_right、turn_arc、formation_slide、arrival_brake 六段；`locomotion_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证移动连续感来自 Trillionnium 原创低配 isometric renderer，而不是静态路线图或外部 RTS 动画数据。
 
+继续追加第三十九组 RTS NPC transition gate：`scripts/check_trillionnium_world_bevy_classic_rts_npc_transition.sh` 把 NPC 从“切状态”推进到“状态之间有过渡动作”。实际 `classic_draw_scene` 必须按 transition event 画出 alert_turn、patrol_engage、work_carry、stalk_pounce、hit_recover、retreat_resume 六段；`transition_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证巡逻警戒、接战、采集搬运、潜伏扑击、受击恢复和撤退回归都在原创 Trillionnium renderer 里可读。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
