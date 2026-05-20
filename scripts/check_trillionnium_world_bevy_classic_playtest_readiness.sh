@@ -55,6 +55,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_environment_life.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_worker_harvest_animation.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_spawn_animation.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_status_portrait.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -118,6 +119,7 @@ jq -n \
   --slurpfile rts_environment_life "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.json" \
   --slurpfile rts_worker_harvest_animation "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.json" \
   --slurpfile rts_production_spawn_animation "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-spawn-animation.json" \
+  --slurpfile rts_unit_status_portrait "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-status-portrait.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -183,6 +185,7 @@ jq -n \
       and ok($rts_environment_life)
       and ok($rts_worker_harvest_animation)
       and ok($rts_production_spawn_animation)
+      and ok($rts_unit_status_portrait)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -455,6 +458,7 @@ jq -n \
       classic_rts_environment_life_green: ok($rts_environment_life),
       classic_rts_worker_harvest_animation_green: ok($rts_worker_harvest_animation),
       classic_rts_production_spawn_animation_green: ok($rts_production_spawn_animation),
+      classic_rts_unit_status_portrait_green: ok($rts_unit_status_portrait),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1110,6 +1114,13 @@ jq -n \
       rts_production_spawn_animation_spawned_unit_count: ($rts_production_spawn_animation[0].final_army_spawned_unit_ids | length),
       rts_production_spawn_animation_rally_tile_count: ($rts_production_spawn_animation[0].final_army_rally_tile_ids | length),
       rts_production_spawn_animation_training_progress_percent: $rts_production_spawn_animation[0].final_training_progress_percent,
+      rts_unit_status_portrait_frame_pixel_count: $rts_unit_status_portrait[0].portrait_frame_pixel_count,
+      rts_unit_status_health_bar_pixel_count: $rts_unit_status_portrait[0].health_bar_pixel_count,
+      rts_unit_status_mana_bar_pixel_count: $rts_unit_status_portrait[0].mana_bar_pixel_count,
+      rts_unit_status_xp_bar_pixel_count: $rts_unit_status_portrait[0].xp_bar_pixel_count,
+      rts_unit_status_buff_badge_pixel_count: $rts_unit_status_portrait[0].buff_badge_pixel_count,
+      rts_unit_status_role_badge_pixel_count: $rts_unit_status_portrait[0].role_badge_pixel_count,
+      rts_unit_status_queue_badge_pixel_count: $rts_unit_status_portrait[0].queue_badge_pixel_count,
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1465,6 +1476,17 @@ jq -n \
       rts_production_spawn_animation_production_runtime_gate: $rts_production_spawn_animation[0].production_runtime_gate,
       rts_production_spawn_animation_scene_renderer_gate: $rts_production_spawn_animation[0].scene_renderer_gate,
       rts_production_spawn_animation_original_art_policy_gate: $rts_production_spawn_animation[0].original_art_policy_gate,
+      rts_unit_status_portrait_frame_gate: $rts_unit_status_portrait[0].portrait_frame_gate,
+      rts_unit_status_health_bar_gate: $rts_unit_status_portrait[0].health_bar_gate,
+      rts_unit_status_mana_bar_gate: $rts_unit_status_portrait[0].mana_bar_gate,
+      rts_unit_status_xp_bar_gate: $rts_unit_status_portrait[0].xp_bar_gate,
+      rts_unit_status_buff_badge_gate: $rts_unit_status_portrait[0].buff_badge_gate,
+      rts_unit_status_role_badge_gate: $rts_unit_status_portrait[0].role_badge_gate,
+      rts_unit_status_queue_badge_gate: $rts_unit_status_portrait[0].queue_badge_gate,
+      rts_unit_status_status_stage_gate: $rts_unit_status_portrait[0].status_stage_gate,
+      rts_unit_status_status_runtime_gate: $rts_unit_status_portrait[0].status_runtime_gate,
+      rts_unit_status_scene_renderer_gate: $rts_unit_status_portrait[0].scene_renderer_gate,
+      rts_unit_status_original_art_policy_gate: $rts_unit_status_portrait[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1649,6 +1671,8 @@ jq -n \
       classic_rts_worker_harvest_animation_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.ppm",
       classic_rts_production_spawn_animation: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-spawn-animation.json",
       classic_rts_production_spawn_animation_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-spawn-animation.ppm",
+      classic_rts_unit_status_portrait: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-status-portrait.json",
+      classic_rts_unit_status_portrait_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-status-portrait.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1724,6 +1748,7 @@ jq -e '
   and .checks.classic_rts_environment_life_green == true
   and .checks.classic_rts_worker_harvest_animation_green == true
   and .checks.classic_rts_production_spawn_animation_green == true
+  and .checks.classic_rts_unit_status_portrait_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2052,6 +2077,13 @@ jq -e '
   and .headline.rts_production_spawn_animation_rally_flag_pixel_count > 120
   and .headline.rts_production_spawn_animation_formation_join_pixel_count > 120
   and .headline.rts_production_spawn_animation_supply_flash_pixel_count > 120
+  and .headline.rts_unit_status_portrait_frame_pixel_count > 1200
+  and .headline.rts_unit_status_health_bar_pixel_count > 300
+  and .headline.rts_unit_status_mana_bar_pixel_count > 240
+  and .headline.rts_unit_status_xp_bar_pixel_count > 200
+  and .headline.rts_unit_status_buff_badge_pixel_count > 160
+  and .headline.rts_unit_status_role_badge_pixel_count > 600
+  and .headline.rts_unit_status_queue_badge_pixel_count > 500
   and .headline.rts_base_assault_resolution_accepted_input_count == 9
   and .headline.rts_base_assault_resolution_army_spawned_unit_count >= 4
   and .headline.rts_base_assault_resolution_target_count >= 3
@@ -2390,6 +2422,17 @@ jq -e '
   and .gates.rts_production_spawn_animation_production_runtime_gate == true
   and .gates.rts_production_spawn_animation_scene_renderer_gate == true
   and .gates.rts_production_spawn_animation_original_art_policy_gate == true
+  and .gates.rts_unit_status_portrait_frame_gate == true
+  and .gates.rts_unit_status_health_bar_gate == true
+  and .gates.rts_unit_status_mana_bar_gate == true
+  and .gates.rts_unit_status_xp_bar_gate == true
+  and .gates.rts_unit_status_buff_badge_gate == true
+  and .gates.rts_unit_status_role_badge_gate == true
+  and .gates.rts_unit_status_queue_badge_gate == true
+  and .gates.rts_unit_status_status_stage_gate == true
+  and .gates.rts_unit_status_status_runtime_gate == true
+  and .gates.rts_unit_status_scene_renderer_gate == true
+  and .gates.rts_unit_status_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true

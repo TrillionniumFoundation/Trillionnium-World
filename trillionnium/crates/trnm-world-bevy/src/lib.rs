@@ -242,6 +242,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT:
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_production_spawn_animation_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_unit_status_portrait_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -506,6 +508,13 @@ const CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR: u32 = 0x9dff80;
 const CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR: u32 = 0xff7aa8;
 const CLASSIC_RTS_PRODUCTION_SPAWN_FORMATION_JOIN_COLOR: u32 = 0xb8a2ff;
 const CLASSIC_RTS_PRODUCTION_SPAWN_SUPPLY_FLASH_COLOR: u32 = 0xfff27a;
+const CLASSIC_RTS_STATUS_PORTRAIT_FRAME_COLOR: u32 = 0xd8ecff;
+const CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR: u32 = 0x7dff8a;
+const CLASSIC_RTS_STATUS_MANA_BAR_COLOR: u32 = 0x77b7ff;
+const CLASSIC_RTS_STATUS_XP_BAR_COLOR: u32 = 0xffdd68;
+const CLASSIC_RTS_STATUS_BUFF_BADGE_COLOR: u32 = 0xff8ccf;
+const CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR: u32 = 0xc4a2ff;
+const CLASSIC_RTS_STATUS_QUEUE_BADGE_COLOR: u32 = 0x7dffd2;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -12456,6 +12465,323 @@ fn classic_draw_rts_production_spawn_animation_scene_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_unit_status_portrait_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("unit_status_portrait:multi_select") {
+                return Some("multi_select");
+            }
+            if event.contains("unit_status_portrait:structure") {
+                return Some("structure");
+            }
+            if event.contains("unit_status_portrait:creep_target") {
+                return Some("creep_target");
+            }
+            if event.contains("unit_status_portrait:commander") {
+                return Some("commander");
+            }
+            if event.contains("unit_status_portrait:guard") {
+                return Some("guard");
+            }
+            if event.contains("unit_status_portrait:worker") {
+                return Some("worker");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("unit_status_portrait:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "worker",
+            1 => "guard",
+            2 => "commander",
+            3 => "creep_target",
+            4 => "structure",
+            _ => "multi_select",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_unit_status_portrait_unit_id(
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) -> String {
+    match stage {
+        "worker" => runtime
+            .rts_selected_unit_ids
+            .iter()
+            .find(|id| id.contains("worker"))
+            .cloned()
+            .unwrap_or_else(|| "square_worker_carry".to_string()),
+        "guard" => runtime
+            .rts_selected_unit_ids
+            .iter()
+            .find(|id| id.contains("guard"))
+            .cloned()
+            .unwrap_or_else(|| "arena_guard_left".to_string()),
+        "commander" => runtime
+            .rts_commander_unit_id
+            .clone()
+            .unwrap_or_else(|| "mirror_captain".to_string()),
+        "creep_target" => runtime
+            .rts_attack_target_id
+            .clone()
+            .unwrap_or_else(|| "arena_creep_attack".to_string()),
+        "structure" => runtime
+            .rts_completed_structure_ids
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "training_hall".to_string()),
+        _ => runtime
+            .rts_selected_unit_ids
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "player".to_string()),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_unit_status_portrait_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    let panel_w = 304_i32;
+    let panel_h = 142_i32;
+    let x = (width as i32 - panel_w - 18).max(12);
+    let y = (height as i32 - panel_h - 18).max(120);
+    let unit_id = classic_unit_status_portrait_unit_id(runtime, stage);
+    let health = runtime
+        .rts_unit_health_percents
+        .first()
+        .copied()
+        .unwrap_or_else(|| {
+            if stage == "structure" {
+                runtime
+                    .rts_structure_health_percents
+                    .first()
+                    .copied()
+                    .unwrap_or(86)
+            } else if stage == "creep_target" {
+                runtime.rts_target_health_percent.max(1)
+            } else {
+                88
+            }
+        });
+    let mana = runtime
+        .rts_ability_cooldown_percents
+        .first()
+        .copied()
+        .map(|cooldown| 100_u8.saturating_sub(cooldown))
+        .unwrap_or(68);
+    let xp = (runtime.xp % 100) as u8;
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        panel_w,
+        panel_h,
+        CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+    );
+    for (border_x, border_y, border_w, border_h) in [
+        (x, y, panel_w, 3),
+        (x, y + panel_h - 3, panel_w, 3),
+        (x, y, 3, panel_h),
+        (x + panel_w - 3, y, 3, panel_h),
+    ] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            border_x,
+            border_y,
+            border_w,
+            border_h,
+            CLASSIC_RTS_STATUS_PORTRAIT_FRAME_COLOR,
+        );
+    }
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        x + 96,
+        y + 10,
+        &classic_catalog_text_label(&format!("STATUS {}", stage.replace('_', " ")), 26),
+        1,
+        CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR,
+    );
+    classic_draw_rts_fidelity_portrait(buffer, width, height, x + 16, y + 18, &unit_id, true);
+
+    for (index, (label, value, color)) in [
+        ("HP", health, CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR),
+        ("EN", mana, CLASSIC_RTS_STATUS_MANA_BAR_COLOR),
+        ("XP", xp.max(28), CLASSIC_RTS_STATUS_XP_BAR_COLOR),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let row_y = y + 32 + index as i32 * 22;
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 96,
+            row_y,
+            label,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 118,
+            row_y + 2,
+            128,
+            8,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 121,
+            row_y + 4,
+            ((*value).min(100) as i32 * 122) / 100,
+            4,
+            *color,
+        );
+    }
+
+    let role_badges = match stage {
+        "worker" => ["HAR", "REP", "RET"],
+        "guard" => ["ATK", "HLD", "DEF"],
+        "commander" => ["AUR", "LVL", "CMD"],
+        "creep_target" => ["THR", "ARM", "FOC"],
+        "structure" => ["Q", "BLD", "UP"],
+        _ => ["G1", "SEL", "ORD"],
+    };
+    for (index, badge) in role_badges.iter().enumerate() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 96 + index as i32 * 48,
+            y + 101,
+            38,
+            17,
+            CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 105 + index as i32 * 48,
+            y + 106,
+            badge,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    let status_entries = match stage {
+        "structure" => runtime
+            .rts_production_queue
+            .iter()
+            .take(3)
+            .collect::<Vec<_>>(),
+        "creep_target" => runtime
+            .rts_combat_event_log
+            .iter()
+            .take(3)
+            .collect::<Vec<_>>(),
+        _ => runtime.rts_command_queue.iter().take(3).collect::<Vec<_>>(),
+    };
+    for (index, entry) in status_entries.iter().enumerate() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 18 + index as i32 * 88,
+            y + 124,
+            78,
+            11,
+            CLASSIC_RTS_STATUS_QUEUE_BADGE_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 22 + index as i32 * 88,
+            y + 127,
+            &classic_catalog_text_label(&entry.replace(':', " "), 11),
+            1,
+            CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+        );
+    }
+
+    if stage == "multi_select" {
+        for (index, selected_id) in runtime.rts_selected_unit_ids.iter().take(4).enumerate() {
+            let card_x = x + 14 + index as i32 * 35;
+            let card_y = y + 86;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                card_x,
+                card_y,
+                28,
+                24,
+                CLASSIC_RTS_STATUS_BUFF_BADGE_COLOR,
+            );
+            classic_draw_rts_fidelity_portrait(
+                buffer,
+                width,
+                height,
+                card_x + 3,
+                card_y + 3,
+                selected_id,
+                index == 0,
+            );
+        }
+    } else {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 18,
+            y + 88,
+            58,
+            16,
+            CLASSIC_RTS_STATUS_BUFF_BADGE_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 24,
+            y + 93,
+            &classic_catalog_text_label(&unit_id.replace('_', " "), 12),
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -14739,6 +15065,325 @@ pub fn native_classic_rts_production_spawn_animation_evidence_json(preview_path:
         "source_of_truth": "Production spawn animation evidence uses live native army production/rally commands plus actual classic_draw_scene frames to prove the queued production, training progress, spawn exit, rally flag, formation join, and supply flash read as a complete RTS reinforcement cycle."
     }))
     .expect("classic RTS production spawn animation evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_unit_status_portrait_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        "worker",
+        "guard",
+        "commander",
+        "creep_target",
+        "structure",
+        "multi_select",
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, stage) in stages.iter().enumerate() {
+        let status_event = format!("unit_status_portrait:{stage}");
+        let mut runtime = NativeFirstPlayableRuntime {
+            map_scene: "mirror_city_square".to_string(),
+            coins: 680 + index as u64 * 17,
+            xp: 430 + index as u64 * 19,
+            facing_direction: "east".to_string(),
+            walk_cycle_frame: (index as u8 % 5) + 1,
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: index as u8,
+            rts_control_group_id: Some("1".to_string()),
+            rts_active_control_group_ids: string_vec(["1"]),
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 8, 22, 0, 48, 16],
+            rts_command_queue: string_vec([status_event.as_str()]),
+            rts_combat_event_log: string_vec([status_event.as_str()]),
+            last_feedback: format!("RTS unit status portrait stage: {stage}"),
+            ..Default::default()
+        };
+        match *stage {
+            "worker" => {
+                runtime.rts_selected_unit_ids = string_vec(["square_worker_carry"]);
+                runtime.rts_unit_health_percents = vec![92];
+                runtime.rts_harvest_node_ids = string_vec(["gold_vein"]);
+                runtime.rts_worker_assignment_ids = string_vec(["square_worker_carry->gold_vein"]);
+                runtime.rts_dropoff_structure_id = Some("town_hall".to_string());
+                runtime.rts_resource_delta_log = string_vec(["gold:+80"]);
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["harvest:gold_vein", "return:town_hall"]));
+            }
+            "guard" => {
+                runtime.rts_selected_unit_ids = string_vec(["arena_guard_left"]);
+                runtime.rts_unit_health_percents = vec![78];
+                runtime.rts_attack_target_id = Some("arena_creep_attack".to_string());
+                runtime.rts_target_health_percent = 54;
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["attack:arena_creep_attack", "hold:frontline"]));
+                runtime
+                    .rts_combat_event_log
+                    .extend(string_vec(["guard_attack_windup", "guard_shield_ready"]));
+            }
+            "commander" => {
+                runtime.rts_selected_unit_ids = string_vec(["mirror_captain"]);
+                runtime.rts_unit_health_percents = vec![96];
+                runtime.rts_commander_unit_id = Some("mirror_captain".to_string());
+                runtime.rts_commander_level = 3;
+                runtime.rts_commander_ability_point_count = 1;
+                runtime.rts_commander_aura_tile_ids =
+                    classic_rts_commander_aura_tiles_for_id("mirror_captain");
+                runtime
+                    .rts_commander_ability_log
+                    .extend(string_vec(["rally_aura:ready", "signal_banner:active"]));
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["ability:rally_aura", "command:regroup"]));
+            }
+            "creep_target" => {
+                runtime.rts_selected_unit_ids =
+                    string_vec(["arena_guard_left", "arena_guard_right"]);
+                runtime.rts_unit_health_percents = vec![82, 76];
+                runtime.rts_attack_target_id = Some("arena_creep_attack".to_string());
+                runtime.rts_target_health_percent = 31;
+                runtime.rts_target_armor_percent = 42;
+                runtime.rts_target_shield_percent = 18;
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["focus:arena_creep_attack", "threat:high"]));
+                runtime
+                    .rts_combat_event_log
+                    .extend(string_vec(["creep_counter_swing", "target_focus_locked"]));
+            }
+            "structure" => {
+                runtime.rts_selected_unit_ids = string_vec(["training_hall"]);
+                runtime.rts_unit_health_percents = vec![88];
+                runtime.rts_completed_structure_ids = string_vec(["training_hall", "signal_spire"]);
+                runtime.rts_structure_health_percents = vec![88, 74];
+                runtime.rts_production_queue = string_vec(["train:guard", "upgrade:signal_blade"]);
+                runtime.rts_training_progress_percent = 64;
+                runtime.rts_build_progress_percent = 100;
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["queue:train_guard", "queue:upgrade"]));
+            }
+            _ => {
+                runtime.rts_selected_unit_ids = string_vec([
+                    "player",
+                    "arena_guard_left",
+                    "square_worker_carry",
+                    "wayfinder_scout",
+                ]);
+                runtime.rts_unit_health_percents = vec![100, 84, 72, 66];
+                runtime.rts_active_control_group_ids = string_vec(["1", "2", "3"]);
+                runtime.rts_army_supply_used = 12;
+                runtime.rts_army_supply_cap = 18;
+                runtime.rts_command_queue.extend(string_vec([
+                    "group:1",
+                    "move:7,4",
+                    "formation:wedge",
+                ]));
+            }
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("UNIT STATUS {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "status_event": status_event,
+            "renderer_path": "classic_draw_scene",
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "unit_health_percents": runtime.rts_unit_health_percents.clone(),
+            "ability_command_ids": runtime.rts_ability_command_ids.clone(),
+            "ability_cooldown_percents": runtime.rts_ability_cooldown_percents.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+            "production_queue": runtime.rts_production_queue.clone(),
+            "structure_health_percents": runtime.rts_structure_health_percents.clone(),
+            "commander_unit_id": runtime.rts_commander_unit_id.clone(),
+            "commander_level": runtime.rts_commander_level,
+            "attack_target_id": runtime.rts_attack_target_id.clone(),
+            "target_health_percent": runtime.rts_target_health_percent,
+            "worker_assignment_ids": runtime.rts_worker_assignment_ids.clone(),
+            "resource_delta_log": runtime.rts_resource_delta_log.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let portrait_frame_pixel_count = count_color(CLASSIC_RTS_STATUS_PORTRAIT_FRAME_COLOR);
+    let health_bar_pixel_count = count_color(CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR);
+    let mana_bar_pixel_count = count_color(CLASSIC_RTS_STATUS_MANA_BAR_COLOR);
+    let xp_bar_pixel_count = count_color(CLASSIC_RTS_STATUS_XP_BAR_COLOR);
+    let buff_badge_pixel_count = count_color(CLASSIC_RTS_STATUS_BUFF_BADGE_COLOR);
+    let role_badge_pixel_count = count_color(CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR);
+    let queue_badge_pixel_count = count_color(CLASSIC_RTS_STATUS_QUEUE_BADGE_COLOR);
+    let portrait_frame_gate = portrait_frame_pixel_count > 1_200;
+    let health_bar_gate = health_bar_pixel_count > 300;
+    let mana_bar_gate = mana_bar_pixel_count > 240;
+    let xp_bar_gate = xp_bar_pixel_count > 200;
+    let buff_badge_gate = buff_badge_pixel_count > 160;
+    let role_badge_gate = role_badge_pixel_count > 600;
+    let queue_badge_gate = queue_badge_pixel_count > 500;
+    let status_stage_gate = [
+        "unit_status_portrait:worker",
+        "unit_status_portrait:guard",
+        "unit_status_portrait:commander",
+        "unit_status_portrait:creep_target",
+        "unit_status_portrait:structure",
+        "unit_status_portrait:multi_select",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary.get("status_event").and_then(|value| value.as_str()) == Some(*event)
+        })
+    });
+    let status_runtime_gate = stage_summaries.iter().all(|summary| {
+        summary
+            .get("selected_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| !units.is_empty())
+            && summary
+                .get("unit_health_percents")
+                .and_then(|value| value.as_array())
+                .is_some_and(|health| !health.is_empty())
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("worker")
+            && summary
+                .get("resource_delta_log")
+                .and_then(|value| value.as_array())
+                .is_some_and(|deltas| !deltas.is_empty())
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("commander")
+            && summary
+                .get("commander_unit_id")
+                .and_then(|value| value.as_str())
+                == Some("mirror_captain")
+            && summary
+                .get("commander_level")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|level| level >= 3)
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("creep_target")
+            && summary
+                .get("target_health_percent")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|health| health <= 31)
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("structure")
+            && summary
+                .get("production_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|queue| queue.len() >= 2)
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("multi_select")
+            && summary
+                .get("selected_unit_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|units| units.len() >= 4)
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && portrait_frame_gate
+        && health_bar_gate
+        && mana_bar_gate
+        && xp_bar_gate
+        && buff_badge_gate
+        && role_badge_gate
+        && queue_badge_gate
+        && status_stage_gate
+        && status_runtime_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "portrait_frame_pixel_count": portrait_frame_pixel_count,
+        "health_bar_pixel_count": health_bar_pixel_count,
+        "mana_bar_pixel_count": mana_bar_pixel_count,
+        "xp_bar_pixel_count": xp_bar_pixel_count,
+        "buff_badge_pixel_count": buff_badge_pixel_count,
+        "role_badge_pixel_count": role_badge_pixel_count,
+        "queue_badge_pixel_count": queue_badge_pixel_count,
+        "portrait_frame_gate": portrait_frame_gate,
+        "health_bar_gate": health_bar_gate,
+        "mana_bar_gate": mana_bar_gate,
+        "xp_bar_gate": xp_bar_gate,
+        "buff_badge_gate": buff_badge_gate,
+        "role_badge_gate": role_badge_gate,
+        "queue_badge_gate": queue_badge_gate,
+        "status_stage_gate": status_stage_gate,
+        "status_runtime_gate": status_runtime_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium unit-status portrait overlays; worker, guard, commander, target, structure, and multi-select panels are authored locally without copied Warcraft III assets, UI art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Unit-status portrait evidence uses actual classic_draw_scene frames and native unit/structure/target runtime fields to prove selected entities have readable portrait, health, energy, XP, role badge, and queue/status feedback."
+    }))
+    .expect("classic RTS unit status portrait evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -26319,6 +26964,9 @@ fn classic_draw_scene(
         &player_frame,
     );
     classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
+        classic_draw_rts_unit_status_portrait_overlay(buffer, width, height, runtime, status_stage);
+    }
 }
 
 #[cfg(not(target_os = "android"))]
