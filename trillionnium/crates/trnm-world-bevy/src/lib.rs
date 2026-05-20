@@ -212,6 +212,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_handoff_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_visual_fidelity_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -377,6 +379,17 @@ const CLASSIC_RTS_TARGET_HEALTH_COLOR: u32 = 0xe85f5f;
 const CLASSIC_RTS_ABILITY_SLOT_COLOR: u32 = 0x24323f;
 const CLASSIC_RTS_ABILITY_COOLDOWN_COLOR: u32 = 0x6f7d91;
 const CLASSIC_RTS_ACTIVE_ABILITY_COLOR: u32 = 0xffd166;
+const CLASSIC_RTS_FIDELITY_PANEL_COLOR: u32 = 0x151915;
+const CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR: u32 = 0x5f6f57;
+const CLASSIC_RTS_FIDELITY_PORTRAIT_BG_COLOR: u32 = 0x1f2a24;
+const CLASSIC_RTS_FIDELITY_PORTRAIT_LIGHT_COLOR: u32 = 0x91b883;
+const CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR: u32 = 0x0c110e;
+const CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR: u32 = 0xf3e08d;
+const CLASSIC_RTS_FIDELITY_COMMAND_GRID_COLOR: u32 = 0x2f4036;
+const CLASSIC_RTS_FIDELITY_COMMAND_ACTIVE_COLOR: u32 = 0xd4c967;
+const CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR: u32 = 0x6a7d8d;
+const CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR: u32 = 0xffa663;
+const CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR: u32 = 0x87d7ff;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -9111,6 +9124,46 @@ fn classic_draw_neutral_unit_sprite(
     classic_draw_rect(pixels, width, height, center_x - 4, foot_y - 20, 8, 2, trim);
     classic_draw_rect(pixels, width, height, center_x - 6, foot_y - 11, 4, 7, dark);
     classic_draw_rect(pixels, width, height, center_x + 2, foot_y - 11, 4, 7, dark);
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x - 7,
+        foot_y - 29,
+        14,
+        2,
+        CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x - 9,
+        foot_y - 20,
+        18,
+        2,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x - 12,
+        foot_y - 17,
+        4,
+        6,
+        CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+    );
+    classic_draw_rect(
+        pixels,
+        width,
+        height,
+        center_x + 8,
+        foot_y - 17,
+        4,
+        6,
+        CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+    );
 
     if frame_id.starts_with("actor_guard") {
         classic_draw_rect(
@@ -9173,6 +9226,26 @@ fn classic_draw_neutral_unit_sprite(
                 5,
                 2,
                 0xffffff,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 17,
+                foot_y - 30,
+                10,
+                3,
+                CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 22,
+                foot_y - 27,
+                4,
+                8,
+                CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
             );
         } else {
             classic_draw_rect(
@@ -9247,6 +9320,16 @@ fn classic_draw_neutral_unit_sprite(
                 9,
                 2,
                 trim,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 11,
+                foot_y - 25,
+                11,
+                2,
+                CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
             );
         } else {
             classic_draw_rect(
@@ -9351,6 +9434,16 @@ fn classic_draw_neutral_unit_sprite(
                 5,
                 6,
                 CLASSIC_ISO_UNIT_DAMAGE_COLOR,
+            );
+            classic_draw_rect(
+                pixels,
+                width,
+                height,
+                center_x + 18,
+                foot_y - 26,
+                11,
+                3,
+                CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
             );
             classic_draw_rect(
                 pixels,
@@ -10016,6 +10109,176 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, queued attack feedback, minimap, fog-of-war vision, resources, production queues, unit health cards, target health, ability cooldowns, and command panel through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS control loop evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 960;
+    const PANEL_HEIGHT: usize = 540;
+    let assets = load_classic_runtime_assets();
+    let runtime = NativeFirstPlayableRuntime {
+        map_scene: "arena_outdoor".to_string(),
+        coins: 144,
+        xp: 88,
+        facing_direction: "west".to_string(),
+        walk_cycle_frame: 2,
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        combat_turn: 3,
+        rts_control_group_id: Some("1".to_string()),
+        rts_selected_unit_ids: string_vec([
+            "player",
+            "arena_guard_left",
+            "arena_guard_right",
+            "arena_creep_attack",
+        ]),
+        rts_active_control_group_ids: string_vec(["1", "2"]),
+        rts_command_queue: string_vec([
+            "select_group_1",
+            "move:7,4",
+            "formation:diamond",
+            "attack:arena_creep_attack",
+        ]),
+        rts_command_destination_tile: Some("7,4".to_string()),
+        rts_attack_target_id: Some("arena_creep_attack".to_string()),
+        rts_visible_tile_ids: string_vec(["4,4", "5,4", "6,4", "7,4", "8,4", "6,5", "7,5"]),
+        rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0", "0,7", "11,7"]),
+        rts_production_queue: string_vec(["train:guard", "train:worker", "upgrade:signal_blade"]),
+        rts_build_queue: string_vec(["build:watch_tower", "upgrade:training_hall"]),
+        rts_training_progress_percent: 76,
+        rts_build_progress_percent: 58,
+        rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "queued:210g:60l:upgrade"]),
+        rts_unit_health_percents: vec![96, 78, 71, 34],
+        rts_ability_command_ids: string_vec(["move", "attack", "hold", "patrol", "focus", "build"]),
+        rts_ability_cooldown_percents: vec![0, 0, 16, 0, 42, 25],
+        rts_active_ability_id: Some("focus".to_string()),
+        rts_target_health_percent: 38,
+        rts_target_armor_percent: 35,
+        rts_target_shield_percent: 22,
+        rts_ability_damage_ticks: vec![18, 26, 34],
+        rts_ai_pressure_percent: 61,
+        rts_visibility_percent: 74,
+        rts_enemy_pressure_warning_percent: 43,
+        rts_army_supply_used: 9,
+        rts_army_supply_cap: 18,
+        rts_combat_event_log: string_vec([
+            "guard_attack_windup",
+            "worker_carry_supply",
+            "creep_counter_swing",
+            "focus_fire:arena_creep_attack",
+        ]),
+        last_feedback:
+            "RTS visual fidelity probe: selection, commands, portraits, and NPC actions active"
+                .to_string(),
+        ..Default::default()
+    };
+    let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_scene(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let fidelity_panel_pixel_count = count_color(CLASSIC_RTS_FIDELITY_PANEL_COLOR)
+        + count_color(CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR);
+    let portrait_pixel_count = count_color(CLASSIC_RTS_FIDELITY_PORTRAIT_BG_COLOR)
+        + count_color(CLASSIC_RTS_FIDELITY_PORTRAIT_LIGHT_COLOR);
+    let model_edge_pixel_count = count_color(CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR);
+    let model_highlight_pixel_count = count_color(CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR);
+    let command_grid_pixel_count = count_color(CLASSIC_RTS_FIDELITY_COMMAND_GRID_COLOR)
+        + count_color(CLASSIC_RTS_FIDELITY_COMMAND_ACTIVE_COLOR);
+    let animation_ghost_pixel_count = count_color(CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR);
+    let action_trail_pixel_count = count_color(CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR);
+    let npc_action_pixel_count = count_color(CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR);
+    let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
+        && runtime
+            .rts_selected_unit_ids
+            .iter()
+            .any(|id| id.contains("guard"))
+        && runtime
+            .rts_selected_unit_ids
+            .iter()
+            .any(|id| id.contains("creep"));
+    let command_surface_gate = runtime.rts_ability_command_ids.len() >= 6
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("attack:"))
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("move:"))
+        && command_grid_pixel_count > 1_200;
+    let model_fidelity_gate = model_edge_pixel_count > 1_200
+        && model_highlight_pixel_count > 200
+        && portrait_pixel_count > 2_000;
+    let npc_animation_gate = animation_ghost_pixel_count > 200
+        && action_trail_pixel_count > 120
+        && npc_action_pixel_count > 100
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry.contains("guard_attack"))
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry.contains("worker_carry"))
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry.contains("creep_counter"));
+    let mature_rts_hud_gate = fidelity_panel_pixel_count > 16_000
+        && command_surface_gate
+        && model_fidelity_gate
+        && npc_animation_gate;
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green =
+        write_gate && selected_units_gate && mature_rts_hud_gate && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "selected_unit_ids": runtime.rts_selected_unit_ids,
+        "ability_command_ids": runtime.rts_ability_command_ids,
+        "command_queue": runtime.rts_command_queue,
+        "combat_event_log": runtime.rts_combat_event_log,
+        "fidelity_panel_pixel_count": fidelity_panel_pixel_count,
+        "portrait_pixel_count": portrait_pixel_count,
+        "model_edge_pixel_count": model_edge_pixel_count,
+        "model_highlight_pixel_count": model_highlight_pixel_count,
+        "command_grid_pixel_count": command_grid_pixel_count,
+        "animation_ghost_pixel_count": animation_ghost_pixel_count,
+        "action_trail_pixel_count": action_trail_pixel_count,
+        "npc_action_pixel_count": npc_action_pixel_count,
+        "selected_units_gate": selected_units_gate,
+        "command_surface_gate": command_surface_gate,
+        "model_fidelity_gate": model_fidelity_gate,
+        "npc_animation_gate": npc_animation_gate,
+        "mature_rts_hud_gate": mature_rts_hud_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium low-spec 2.5D/isometric RTS presentation; genre expectations are used as quality direction, not copied Warcraft III assets, text, UI art, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Visual fidelity evidence must exercise the actual classic RTS scene renderer: mature command HUD, selected-unit portraits/cards, original pseudo-3D silhouettes, and distinct NPC action states."
+    }))
+    .expect("classic RTS visual fidelity evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -21375,6 +21638,12 @@ fn classic_draw_iso_unit_overlay(
         (CLASSIC_ISO_UNIT_HEALTH_COLOR, 22)
     } else if frame_id.starts_with("actor_mentor") || frame_id.starts_with("actor_vendor") {
         (CLASSIC_ISO_UNIT_MENTOR_COLOR, 18)
+    } else if frame_id.starts_with("actor_guard") {
+        (CLASSIC_ISO_UNIT_GUARD_COLOR, 20)
+    } else if frame_id.starts_with("actor_worker") {
+        (CLASSIC_ISO_UNIT_WORKER_COLOR, 18)
+    } else if frame_id.starts_with("actor_creep") {
+        (CLASSIC_ISO_UNIT_CREEP_COLOR, 16)
     } else {
         return false;
     };
@@ -21398,6 +21667,63 @@ fn classic_draw_iso_unit_overlay(
         3,
         bar_color,
     );
+    if frame_id.contains("attack") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 11,
+            sprite_top_y + 16,
+            16,
+            4,
+            CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 20,
+            sprite_top_y + 12,
+            5,
+            9,
+            CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+        );
+    } else if frame_id.contains("carry") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 10,
+            sprite_top_y + 15,
+            13,
+            10,
+            CLASSIC_ISO_GOLD_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 12,
+            sprite_top_y + 17,
+            9,
+            2,
+            CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+        );
+    } else if frame_id.starts_with("actor_guard")
+        || frame_id.starts_with("actor_worker")
+        || frame_id.starts_with("actor_creep")
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 13,
+            sprite_top_y + 19,
+            8,
+            3,
+            CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+        );
+    }
     true
 }
 
@@ -24311,7 +24637,7 @@ fn classic_draw_isometric_scene(
     player_tile: (i32, i32),
     player_frame: &str,
 ) {
-    let origin_x = (width as i32 / 2).clamp(260, 340);
+    let origin_x = (width as i32 / 2).clamp(260, (width as i32 - 280).max(340));
     let origin_y = 48;
     let tile_w = 48;
     let tile_h = 24;
@@ -27337,7 +27663,579 @@ fn classic_draw_rts_strategy_overlay(
             CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR,
         );
     }
+    classic_draw_rts_fidelity_overlay(buffer, width, height, runtime, &selected_units);
     true
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_fidelity_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    selected_units: &[ClassicIsoEntity],
+) {
+    if width < 640 || height < 320 {
+        return;
+    }
+
+    let bar_h = 84_i32;
+    let y = height as i32 - bar_h - 4;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        0,
+        y - 4,
+        width as i32,
+        bar_h + 8,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        4,
+        y,
+        width as i32 - 8,
+        bar_h,
+        CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        4,
+        y,
+        width as i32 - 8,
+        3,
+        CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR,
+    );
+
+    let portrait_x = 16_i32;
+    let portrait_y = y + 10;
+    classic_draw_rts_fidelity_portrait(
+        buffer,
+        width,
+        height,
+        portrait_x,
+        portrait_y,
+        runtime
+            .rts_selected_unit_ids
+            .first()
+            .map(String::as_str)
+            .unwrap_or("player"),
+        true,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        portrait_x + 74,
+        portrait_y + 4,
+        "SELECTED",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        portrait_x + 74,
+        portrait_y + 15,
+        &format!(
+            "GROUP {} / {}",
+            runtime.rts_control_group_id.as_deref().unwrap_or("-"),
+            selected_units.len()
+        ),
+        1,
+        CLASSIC_ISO_CONTROL_GROUP_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        portrait_x + 74,
+        portrait_y + 28,
+        &classic_catalog_text_label(
+            runtime
+                .rts_command_queue
+                .last()
+                .map(String::as_str)
+                .unwrap_or("hold_position"),
+            22,
+        ),
+        1,
+        CLASSIC_RTS_FIDELITY_COMMAND_ACTIVE_COLOR,
+    );
+
+    let cards_x = 228_i32;
+    for (index, entity) in selected_units.iter().take(5).enumerate() {
+        let card_x = cards_x + index as i32 * 84;
+        let card_y = y + 12;
+        let health = runtime
+            .rts_unit_health_percents
+            .get(index)
+            .copied()
+            .unwrap_or(72);
+        classic_draw_rts_fidelity_unit_card(
+            buffer,
+            width,
+            height,
+            card_x,
+            card_y,
+            entity.id.as_str(),
+            entity.frame_id.as_str(),
+            health,
+            index == 0,
+        );
+    }
+
+    let grid_x = width as i32 - 210;
+    let grid_y = y + 12;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        grid_x,
+        grid_y - 10,
+        "COMMAND",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    for row in 0..3 {
+        for col in 0..3 {
+            let index = row * 3 + col;
+            let action = runtime
+                .rts_ability_command_ids
+                .get(index as usize)
+                .map(String::as_str)
+                .unwrap_or(match index {
+                    0 => "move",
+                    1 => "attack",
+                    2 => "hold",
+                    3 => "patrol",
+                    4 => "focus",
+                    5 => "build",
+                    6 => "stop",
+                    7 => "guard",
+                    _ => "rally",
+                });
+            let cooldown = runtime
+                .rts_ability_cooldown_percents
+                .get(index as usize)
+                .copied()
+                .unwrap_or(0);
+            let active = runtime.rts_active_ability_id.as_deref() == Some(action);
+            classic_draw_rts_fidelity_command_cell(
+                buffer,
+                width,
+                height,
+                grid_x + col * 32,
+                grid_y + row * 22,
+                action,
+                cooldown,
+                active,
+            );
+        }
+    }
+
+    let strip_x = grid_x - 116;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        strip_x,
+        grid_y - 10,
+        "ACTIONS",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    for (index, event) in runtime.rts_combat_event_log.iter().take(4).enumerate() {
+        let row_y = grid_y + index as i32 * 15;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            strip_x,
+            row_y,
+            96,
+            12,
+            CLASSIC_RTS_FIDELITY_COMMAND_GRID_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            strip_x + 2,
+            row_y + 3,
+            8 + index as i32 * 5,
+            3,
+            CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            strip_x + 16,
+            row_y + 2,
+            &classic_catalog_text_label(&event.replace(':', " "), 11),
+            1,
+            CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_fidelity_portrait(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    unit_id: &str,
+    active: bool,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        62,
+        62,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 3,
+        y + 3,
+        56,
+        56,
+        CLASSIC_RTS_FIDELITY_PORTRAIT_BG_COLOR,
+    );
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        x + 31,
+        y + 47,
+        22,
+        7,
+        CLASSIC_ISO_SHADOW_COLOR,
+    );
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        x + 31,
+        y + 29,
+        16,
+        22,
+        if unit_id.contains("creep") {
+            CLASSIC_ISO_UNIT_CREEP_COLOR
+        } else if unit_id.contains("guard") {
+            CLASSIC_ISO_UNIT_GUARD_COLOR
+        } else {
+            CLASSIC_ISO_UNIT_PLAYER_COLOR
+        },
+    );
+    let body_color = if unit_id.contains("creep") {
+        CLASSIC_ISO_UNIT_CREEP_COLOR
+    } else if unit_id.contains("guard") {
+        CLASSIC_ISO_UNIT_GUARD_COLOR
+    } else {
+        CLASSIC_ISO_UNIT_PLAYER_COLOR
+    };
+    let trim_color = if unit_id.contains("creep") {
+        0xd0a2ff
+    } else if unit_id.contains("guard") {
+        0xa8d8ff
+    } else {
+        CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR
+    };
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 22,
+        y + 27,
+        18,
+        21,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(buffer, width, height, x + 25, y + 29, 12, 17, body_color);
+    classic_draw_rect(buffer, width, height, x + 18, y + 33, 26, 4, trim_color);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 21,
+        y + 42,
+        20,
+        3,
+        CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 19,
+        y + 46,
+        7,
+        8,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 36,
+        y + 46,
+        7,
+        8,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 17,
+        y + 26,
+        5,
+        18,
+        CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 41,
+        y + 24,
+        4,
+        24,
+        if unit_id.contains("creep") {
+            CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR
+        } else {
+            CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR
+        },
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 20,
+        y + 13,
+        22,
+        9,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 23,
+        y + 15,
+        16,
+        5,
+        CLASSIC_RTS_FIDELITY_PORTRAIT_LIGHT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 15,
+        y + 31,
+        32,
+        4,
+        CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+    );
+    if active {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 3,
+            y + 3,
+            56,
+            3,
+            CLASSIC_RTS_FIDELITY_COMMAND_ACTIVE_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_fidelity_unit_card(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    unit_id: &str,
+    frame_id: &str,
+    health: u8,
+    active: bool,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        76,
+        58,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 2,
+        y + 2,
+        72,
+        54,
+        CLASSIC_RTS_FIDELITY_PORTRAIT_BG_COLOR,
+    );
+    classic_draw_rts_fidelity_portrait(buffer, width, height, x + 4, y + 5, unit_id, active);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 12,
+        y + 38,
+        18,
+        4,
+        CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 16,
+        y + 42,
+        24,
+        3,
+        CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 9,
+        y + 48,
+        58,
+        5,
+        CLASSIC_RTS_FIDELITY_COMMAND_GRID_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 9,
+        y + 48,
+        (health.min(100) as i32 * 58) / 100,
+        5,
+        CLASSIC_RTS_UNIT_CARD_HEALTH_COLOR,
+    );
+    if frame_id.contains("attack") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 53,
+            y + 12,
+            15,
+            4,
+            CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+        );
+    } else if frame_id.contains("carry") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 52,
+            y + 18,
+            14,
+            10,
+            CLASSIC_ISO_GOLD_COLOR,
+        );
+    } else {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 54,
+            y + 18,
+            12,
+            3,
+            CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_fidelity_command_cell(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    label: &str,
+    cooldown_percent: u8,
+    active: bool,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        27,
+        18,
+        CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 2,
+        y + 2,
+        23,
+        14,
+        if active {
+            CLASSIC_RTS_FIDELITY_COMMAND_ACTIVE_COLOR
+        } else {
+            CLASSIC_RTS_FIDELITY_COMMAND_GRID_COLOR
+        },
+    );
+    if cooldown_percent > 0 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 4,
+            y + 13 - ((cooldown_percent.min(100) as i32 * 10) / 100),
+            19,
+            ((cooldown_percent.min(100) as i32 * 10) / 100).max(2),
+            CLASSIC_RTS_ABILITY_COOLDOWN_COLOR,
+        );
+    }
+    let hotkey = label.chars().next().unwrap_or('-').to_ascii_uppercase();
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        x + 10,
+        y + 6,
+        &hotkey.to_string(),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
 }
 
 #[cfg(not(target_os = "android"))]

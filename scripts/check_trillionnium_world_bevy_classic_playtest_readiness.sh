@@ -48,6 +48,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_open_world_after_action.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_handoff.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_entry.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_visual_fidelity.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
@@ -96,6 +97,7 @@ jq -n \
   --slurpfile rts_open_world "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-open-world-after-action.json" \
   --slurpfile rts_campaign "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.json" \
   --slurpfile rts_campaign_entry "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json" \
+  --slurpfile rts_visual_fidelity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-visual-fidelity.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
@@ -146,6 +148,7 @@ jq -n \
       and ok($rts_open_world)
       and ok($rts_campaign)
       and ok($rts_campaign_entry)
+      and ok($rts_visual_fidelity)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -403,6 +406,7 @@ jq -n \
       classic_rts_open_world_after_action_green: ok($rts_open_world),
       classic_rts_campaign_handoff_green: ok($rts_campaign),
       classic_rts_campaign_entry_green: ok($rts_campaign_entry),
+      classic_rts_visual_fidelity_green: ok($rts_visual_fidelity),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -1004,6 +1008,10 @@ jq -n \
       rts_campaign_entry_room_id: $rts_campaign_entry[0].final_current_room_id,
       rts_campaign_entry_map_scene: $rts_campaign_entry[0].final_map_scene,
       rts_campaign_entry_open_world_handoff_state: $rts_campaign_entry[0].final_open_world_handoff_state,
+      rts_visual_fidelity_panel_pixel_count: $rts_visual_fidelity[0].fidelity_panel_pixel_count,
+      rts_visual_fidelity_model_edge_pixel_count: $rts_visual_fidelity[0].model_edge_pixel_count,
+      rts_visual_fidelity_command_grid_pixel_count: $rts_visual_fidelity[0].command_grid_pixel_count,
+      rts_visual_fidelity_npc_action_pixel_count: $rts_visual_fidelity[0].npc_action_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd,
       launcher_main_pid: $launcher[0].live_runner.service.main_pid,
@@ -1251,6 +1259,12 @@ jq -n \
       rts_campaign_entry_continue_gate: $rts_campaign_entry[0].continue_gate,
       rts_campaign_entry_continue_unlock_gate: $rts_campaign_entry[0].continue_unlock_gate,
       rts_campaign_entry_replay_gate: $rts_campaign_entry[0].replay_gate,
+      rts_visual_fidelity_mature_hud_gate: $rts_visual_fidelity[0].mature_rts_hud_gate,
+      rts_visual_fidelity_selected_units_gate: $rts_visual_fidelity[0].selected_units_gate,
+      rts_visual_fidelity_command_surface_gate: $rts_visual_fidelity[0].command_surface_gate,
+      rts_visual_fidelity_model_gate: $rts_visual_fidelity[0].model_fidelity_gate,
+      rts_visual_fidelity_npc_animation_gate: $rts_visual_fidelity[0].npc_animation_gate,
+      rts_visual_fidelity_original_art_policy_gate: $rts_visual_fidelity[0].original_art_policy_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1346,6 +1360,8 @@ jq -n \
       classic_rts_campaign_handoff: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.json",
       classic_rts_campaign_handoff_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.ppm",
       classic_rts_campaign_entry: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json",
+      classic_rts_visual_fidelity: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-visual-fidelity.json",
+      classic_rts_visual_fidelity_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-visual-fidelity.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -1398,6 +1414,7 @@ jq -e '
   and .checks.classic_rts_open_world_after_action_green == true
   and .checks.classic_rts_campaign_handoff_green == true
   and .checks.classic_rts_campaign_entry_green == true
+  and .checks.classic_rts_visual_fidelity_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
@@ -1986,6 +2003,12 @@ jq -e '
   and .gates.rts_campaign_entry_continue_gate == true
   and .gates.rts_campaign_entry_continue_unlock_gate == true
   and .gates.rts_campaign_entry_replay_gate == true
+  and .gates.rts_visual_fidelity_mature_hud_gate == true
+  and .gates.rts_visual_fidelity_selected_units_gate == true
+  and .gates.rts_visual_fidelity_command_surface_gate == true
+  and .gates.rts_visual_fidelity_model_gate == true
+  and .gates.rts_visual_fidelity_npc_animation_gate == true
+  and .gates.rts_visual_fidelity_original_art_policy_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

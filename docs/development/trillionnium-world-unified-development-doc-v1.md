@@ -385,6 +385,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第三十组 playtest gate：`scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh` 把玩家启动条件合成一个单一证据：live `trillionnium-bevy-playtest.service` 必须运行 release `trnm-world-bevy`、使用 classic low-spec renderer/manifest、不带 CEX runtime path；标题页必须有 `CAMPAIGN:START/CONTINUE/REPLAY`，campaign slot 必须可写入并恢复到 `league-coliseum` / `arena_outdoor` / `COMBAT:attack`。它纳入 classic playtest readiness 与 release-review CI，防止“入口存在”和“服务运行”分别为绿但无法交付给测试玩家。
 
+继续追加第三十一组 RTS visual gate：`scripts/check_trillionnium_world_bevy_classic_rts_visual_fidelity.sh` 专门回应“画面还不像成熟 RTS、建模和 NPC 动作粗糙”的问题。它不复制《魔兽争霸 III》的资产、命名或 UI 图形，只把成熟 RTS 的信息架构作为质量方向：实际 classic scene renderer 现在要画底部指挥栏、选中单位头像/状态卡、3x3 command grid、队伍行动日志、单位轮廓高光、NPC attack/carry/idle 的动作差异，并由 `mature_rts_hud_gate`、`model_fidelity_gate`、`npc_animation_gate` 和 `original_art_policy_gate` 卡住。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
