@@ -43,6 +43,16 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-campaign-entry" | "--classic-rts-campaign-entry" | "campaign-entry")
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_campaign_entry_evidence_json("local-player")
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("scene-transition-playability" | "--scene-transition-playability")
     ) {
         println!(

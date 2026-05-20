@@ -47,6 +47,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_mirror_city_restoration.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_open_world_after_action.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_handoff.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_entry.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
@@ -93,6 +94,7 @@ jq -n \
   --slurpfile rts_restore "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-mirror-city-restoration.json" \
   --slurpfile rts_open_world "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-open-world-after-action.json" \
   --slurpfile rts_campaign "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.json" \
+  --slurpfile rts_campaign_entry "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
   def ok($x): ($x[0].green == true);
@@ -141,6 +143,7 @@ jq -n \
       and ok($rts_restore)
       and ok($rts_open_world)
       and ok($rts_campaign)
+      and ok($rts_campaign_entry)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and $manifest[0].cex_runtime_player_client_allowed == false
@@ -396,6 +399,7 @@ jq -n \
       classic_rts_mirror_city_restoration_green: ok($rts_restore),
       classic_rts_open_world_after_action_green: ok($rts_open_world),
       classic_rts_campaign_handoff_green: ok($rts_campaign),
+      classic_rts_campaign_entry_green: ok($rts_campaign_entry),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner)
     },
@@ -989,6 +993,13 @@ jq -n \
         + $rts_campaign[0].restoration_pixel_count
         + $rts_campaign[0].open_world_pixel_count
       ),
+      rts_campaign_entry_input_action_count: $rts_campaign_entry[0].input_action_count,
+      rts_campaign_entry_start_input_count: $rts_campaign_entry[0].start_input_count,
+      rts_campaign_entry_replay_input_count: $rts_campaign_entry[0].replay_input_count,
+      rts_campaign_entry_slot_bytes: $rts_campaign_entry[0].campaign_slot_bytes,
+      rts_campaign_entry_room_id: $rts_campaign_entry[0].final_current_room_id,
+      rts_campaign_entry_map_scene: $rts_campaign_entry[0].final_map_scene,
+      rts_campaign_entry_open_world_handoff_state: $rts_campaign_entry[0].final_open_world_handoff_state,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd
     },
@@ -1225,6 +1236,12 @@ jq -n \
       rts_campaign_handoff_open_world_resume_gate: $rts_campaign[0].open_world_resume_gate,
       rts_campaign_handoff_snapshot_round_trip_gate: $rts_campaign[0].snapshot_round_trip_gate,
       rts_campaign_handoff_render_milestone_gate: $rts_campaign[0].render_milestone_gate,
+      rts_campaign_entry_title_entry_gate: $rts_campaign_entry[0].title_entry_gate,
+      rts_campaign_entry_start_gate: $rts_campaign_entry[0].start_gate,
+      rts_campaign_entry_slot_snapshot_gate: $rts_campaign_entry[0].slot_snapshot_gate,
+      rts_campaign_entry_continue_gate: $rts_campaign_entry[0].continue_gate,
+      rts_campaign_entry_continue_unlock_gate: $rts_campaign_entry[0].continue_unlock_gate,
+      rts_campaign_entry_replay_gate: $rts_campaign_entry[0].replay_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1311,6 +1328,7 @@ jq -n \
       classic_rts_open_world_after_action_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-open-world-after-action.ppm",
       classic_rts_campaign_handoff: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.json",
       classic_rts_campaign_handoff_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.ppm",
+      classic_rts_campaign_entry: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
@@ -1361,6 +1379,7 @@ jq -e '
   and .checks.classic_rts_mirror_city_restoration_green == true
   and .checks.classic_rts_open_world_after_action_green == true
   and .checks.classic_rts_campaign_handoff_green == true
+  and .checks.classic_rts_campaign_entry_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .headline.frame_count >= 43
@@ -1942,6 +1961,12 @@ jq -e '
   and .gates.rts_campaign_handoff_open_world_resume_gate == true
   and .gates.rts_campaign_handoff_snapshot_round_trip_gate == true
   and .gates.rts_campaign_handoff_render_milestone_gate == true
+  and .gates.rts_campaign_entry_title_entry_gate == true
+  and .gates.rts_campaign_entry_start_gate == true
+  and .gates.rts_campaign_entry_slot_snapshot_gate == true
+  and .gates.rts_campaign_entry_continue_gate == true
+  and .gates.rts_campaign_entry_continue_unlock_gate == true
+  and .gates.rts_campaign_entry_replay_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

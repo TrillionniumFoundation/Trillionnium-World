@@ -381,6 +381,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第二十八组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_campaign_handoff.sh` 把前面分段 gate 重新压成一条 live native input 全链路：从初始 RTS control group、objective victory、creep camp、recon、enemy tech/counter、army rally、base assault、aftermath、commander、expansion、tier-two siege、inner lane、central keep、Mirror City restoration，一直跑到 `league-coliseum` 的 open-world resume；这个 gate 专门防止分段证据只靠 dependency helper 串联，而没有一条连续可回放路线，并且要求最终 open-world handoff 通过 native snapshot save/restore 后仍保持 route director、active task 和 combat contextual deck。
 
+继续追加第二十九组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_campaign_entry.sh` 把这条 campaign handoff 推到玩家可见入口。Bevy title surface 现在暴露 `CAMPAIGN:START`、`CAMPAIGN:CONTINUE`、`CAMPAIGN:REPLAY` 三个 native actions；`START/REPLAY` 从标题菜单触发完整 73 步 campaign handoff、写入 `NativePlayableSaveSnapshot`，`CONTINUE` 从 campaign slot 恢复到 `league-coliseum` open-world handoff 并要求 `CONTINUE:SESSION` 解锁地图控制。它纳入 classic playtest readiness 与 release-review CI，防止 campaign 只存在于 evidence CLI、玩家入口不可达。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

@@ -210,6 +210,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT: 
     "trillionnium_world_bevy_classic_rts_open_world_after_action_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_handoff_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -1235,6 +1237,9 @@ pub enum NativeControlAction {
     NewGameFromTitle,
     LoadFromTitle,
     ContinueFromTitle,
+    StartCampaignFromTitle,
+    ContinueCampaignFromTitle,
+    ReplayCampaignFromTitle,
     RegisterAccountFromTitle,
     LoginAccountFromTitle,
     ContinueAccountFromTitle,
@@ -2879,6 +2884,27 @@ fn native_contextual_action_deck(
         NativeControlAction::OpenTitleMenu,
         "title",
         "title_open",
+    );
+    push_contextual_action(
+        runtime,
+        &mut entries,
+        NativeControlAction::StartCampaignFromTitle,
+        "campaign",
+        "title_campaign_start",
+    );
+    push_contextual_action(
+        runtime,
+        &mut entries,
+        NativeControlAction::ContinueCampaignFromTitle,
+        "campaign",
+        "title_campaign_continue",
+    );
+    push_contextual_action(
+        runtime,
+        &mut entries,
+        NativeControlAction::ReplayCampaignFromTitle,
+        "campaign",
+        "title_campaign_replay",
     );
     push_contextual_action(
         runtime,
@@ -17165,6 +17191,274 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
     .expect("classic RTS open world after action evidence serializes")
 }
 
+fn classic_rts_campaign_handoff_action_sequence() -> Vec<(&'static str, NativeControlAction)> {
+    let mut actions: Vec<(&'static str, NativeControlAction)> = Vec::new();
+    macro_rules! queue {
+        ($stage:expr, $queue:expr) => {
+            actions.push((
+                $stage,
+                NativeControlAction::RtsQueueProduction {
+                    queue_id: $queue.to_string(),
+                },
+            ));
+        };
+    }
+    actions.push((
+        "select_assault_group",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+    ));
+    queue!("spawn_objective_pressure", "ai:skirmish_wave");
+    actions.push((
+        "engage_objective_guard",
+        NativeControlAction::RtsAttackCommand {
+            target_id: "arena_creep_attack".to_string(),
+        },
+    ));
+    actions.push((
+        "break_defeat_window",
+        NativeControlAction::RtsAbilityCommand {
+            ability_id: "guard_break".to_string(),
+        },
+    ));
+    queue!("claim_relay_beacon", "objective:claim:relay_beacon@6,5");
+    queue!(
+        "extract_after_victory",
+        "objective:extract:relay_beacon@9,2"
+    );
+    queue!("scout_forest_camp", "scout:creep_camp@8,3");
+    actions.push((
+        "thread_choke_route",
+        NativeControlAction::RtsMoveCommand {
+            command_id: "8,3:wedge".to_string(),
+        },
+    ));
+    actions.push((
+        "engage_camp_guard",
+        NativeControlAction::RtsAttackCommand {
+            target_id: "forest_creep_camp".to_string(),
+        },
+    ));
+    actions.push((
+        "break_camp_armor",
+        NativeControlAction::RtsAbilityCommand {
+            ability_id: "guard_break".to_string(),
+        },
+    ));
+    queue!(
+        "clear_camp_unlock_expand",
+        "camp:clear:forest_creep_camp@8,3"
+    );
+    actions.push((
+        "select_scout_party",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "2".to_string(),
+        },
+    ));
+    queue!("scout_enemy_base", "recon:scout_enemy_base@10,2");
+    actions.push((
+        "rally_near_fog_edge",
+        NativeControlAction::RtsMoveCommand {
+            command_id: "9,2:rally".to_string(),
+        },
+    ));
+    queue!("sweep_enemy_base", "recon:sweep:enemy_base@10,2");
+    queue!("scan_watchtower_lane", "recon:watchtower_scan@7,4");
+    queue!("mark_enemy_base", "recon:mark:enemy_base@10,2");
+    queue!(
+        "enemy_research_pressure",
+        "enemy:tech:shadow_lattice@enemy_barracks"
+    );
+    queue!("enemy_train_wave", "enemy:train:raider_wave@enemy_barracks");
+    queue!(
+        "counter_research",
+        "counter:research:sentinel_lantern@signal_spire"
+    );
+    queue!("fortify_watch_tower", "counter:fortify:watch_tower@7,4");
+    actions.push((
+        "reselect_assault_group",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+    ));
+    queue!("raise_supply_cap", "army:supply:field_lodge@6,4");
+    queue!("train_guard_pair", "army:train:guard_pair@training_hall");
+    queue!(
+        "train_wayfinder_pair",
+        "army:train:wayfinder_pair@signal_spire"
+    );
+    queue!("set_forward_rally", "army:rally:forward_watch@7,4");
+    queue!(
+        "assign_control_group",
+        "army:assign:control_group_3@forward_watch"
+    );
+    actions.push((
+        "siege_move",
+        NativeControlAction::RtsMoveCommand {
+            command_id: "10,3:siege".to_string(),
+        },
+    ));
+    actions.push((
+        "attack_enemy_barracks",
+        NativeControlAction::RtsAttackCommand {
+            target_id: "enemy_barracks".to_string(),
+        },
+    ));
+    queue!(
+        "breach_enemy_barracks",
+        "assault:breach:enemy_barracks@10,3"
+    );
+    queue!(
+        "destroy_enemy_barracks",
+        "aftermath:destroy:enemy_barracks@10,3"
+    );
+    queue!("promote_veterans", "aftermath:promote:control_group_3@10,3");
+    queue!("surface_next_action", "aftermath:next:secure_expansion@9,2");
+    queue!("loot_enemy_cache", "commander:loot:enemy_barracks@10,3");
+    queue!(
+        "level_commander",
+        "commander:level:mirror_captain@battlefield"
+    );
+    queue!(
+        "activate_rally_aura",
+        "commander:ability:rally_aura@mirror_captain"
+    );
+    queue!("claim_forest_relay", "expansion:claim:forest_relay@9,2");
+    queue!("build_relay_outpost", "expansion:build:relay_outpost@9,2");
+    queue!("assign_gold_workers", "expansion:workers:gold_line@9,2");
+    queue!("defend_counter_wave", "expansion:defend:counter_wave@8,3");
+    queue!(
+        "build_relay_foundry",
+        "tier2:tech:relay_foundry@relay_outpost"
+    );
+    queue!(
+        "research_siege_harness",
+        "tier2:upgrade:siege_harness@relay_foundry"
+    );
+    queue!(
+        "train_stonebreak_cart",
+        "tier2:train:stonebreak_cart@relay_foundry"
+    );
+    queue!(
+        "enemy_gate_bulwark",
+        "tier2:enemy_fortify:gate_bulwark@10,3"
+    );
+    queue!("push_gate_bulwark", "tier2:push:gate_bulwark@10,3");
+    queue!("open_breach_window", "tier2:breach:gate_bulwark@10,3");
+    queue!(
+        "enemy_repair_response",
+        "tier2:enemy_repair:gate_bulwark@10,3"
+    );
+    queue!(
+        "enemy_flank_response",
+        "tier2:enemy_flank:ridge_sentries@9,4"
+    );
+    queue!("hold_siege_line", "tier2:hold:shield_line@9,3");
+    queue!("finish_gate_breach", "tier2:finish:gate_bulwark@10,3");
+    queue!("enter_inner_lane", "tier2:inner_route:inner_lane@11,2");
+    queue!("mark_inner_gate", "tier2:inner_gate:inner_latch@11,3");
+    queue!("move_supply_convoy", "tier2:inner_supply:relay_convoy@9,3");
+    queue!("split_flank_team", "tier2:inner_split:flank_team@10,4");
+    queue!("clear_second_line", "tier2:inner_clear:second_line@11,3");
+    queue!("secure_signal_core", "tier2:inner_secure:signal_core@12,3");
+    queue!(
+        "route_to_central_keep",
+        "tier2:keep_route:central_keep@13,3"
+    );
+    queue!("raise_keep_shield", "tier2:keep_shield:mirror_ward@13,3");
+    queue!("reveal_keep_guards", "tier2:keep_guard:warden_line@12,3");
+    queue!("form_final_siege_line", "tier2:keep_siege:final_line@12,4");
+    queue!(
+        "pressure_central_keep",
+        "tier2:keep_pressure:central_keep@13,3"
+    );
+    queue!(
+        "open_central_keep_breach",
+        "tier2:keep_breach:central_keep@13,3"
+    );
+    queue!(
+        "answer_guardian_counter",
+        "tier2:guardian_counter:high_warden@13,4"
+    );
+    queue!("hold_final_line", "tier2:keep_hold:final_line@12,4");
+    queue!("break_central_keep", "tier2:keep_break:central_keep@13,3");
+    queue!("claim_central_keep", "tier2:keep_claim:central_keep@13,3");
+    queue!("restore_mirror_city", "tier2:restore_city:mirror_city@13,3");
+    queue!("rebuild_signal_core", "tier2:rebuild_core:signal_core@12,3");
+    queue!(
+        "assign_central_garrison",
+        "tier2:assign_garrison:central_keep@13,3"
+    );
+    queue!(
+        "handoff_restored_city",
+        "tier2:victory_handoff:mirror_city@13,3"
+    );
+    queue!(
+        "open_world_after_action",
+        "tier2:open_world:after_action@13,3"
+    );
+    queue!(
+        "route_world_panel",
+        "tier2:open_world_route:league-coliseum@12,3"
+    );
+    queue!(
+        "resume_open_world",
+        "tier2:open_world_resume:league-coliseum@12,3"
+    );
+    actions
+}
+
+fn seed_classic_rts_campaign_runtime(first_playable: &mut NativeFirstPlayableRuntime) {
+    first_playable.map_scene = "rts_battlefield".to_string();
+    first_playable.coins = 1120;
+    first_playable.xp = 520;
+    first_playable.facing_direction = "east".to_string();
+    first_playable.walk_cycle_frame = 3;
+    first_playable.session_title_menu_visible = false;
+    first_playable.session_title_input_locked = false;
+    first_playable.session_title_boot_state = "campaign_running".to_string();
+    first_playable.session_pause_menu_visible = false;
+    first_playable.session_pause_input_locked = false;
+    first_playable.session_settings_menu_visible = false;
+    first_playable.session_resume_overlay_visible = false;
+    first_playable.session_resume_input_locked = false;
+    first_playable.session_continue_cta_visible = false;
+}
+
+fn apply_classic_rts_campaign_handoff_sequence(
+    world: &mut WorldState,
+    character: &mut WorldTrillionniumCharacter,
+    gameplay_log: &mut NativeGameplayLog,
+    first_playable: &mut NativeFirstPlayableRuntime,
+    actor_id: &str,
+    input_source: &str,
+) -> usize {
+    seed_classic_rts_campaign_runtime(first_playable);
+    let actions = classic_rts_campaign_handoff_action_sequence();
+    let mut accepted_input_count = 0_usize;
+    for (_, action) in actions {
+        apply_live_native_action_with_source(
+            world,
+            character,
+            gameplay_log,
+            first_playable,
+            actor_id,
+            input_source,
+            action,
+        );
+        if first_playable
+            .input_feedback_history
+            .last()
+            .is_some_and(|event| event.accepted)
+        {
+            accepted_input_count += 1;
+        }
+    }
+    first_playable.session_title_boot_state = "campaign_handoff_complete".to_string();
+    accepted_input_count
+}
+
 pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 480;
     const PANEL_HEIGHT: usize = 270;
@@ -27977,6 +28271,9 @@ pub fn native_touch_control_labels() -> Vec<String> {
         "TITLE:NEW",
         "TITLE:LOAD",
         "TITLE:CONTINUE",
+        "CAMPAIGN:START",
+        "CAMPAIGN:CONTINUE",
+        "CAMPAIGN:REPLAY",
     ]
     .into_iter()
     .map(str::to_string)
@@ -28053,6 +28350,15 @@ fn native_action_session_slot_path(slot_id: &str) -> String {
         ))
         .to_string_lossy()
         .to_string()
+}
+
+fn native_campaign_entry_slot_path() -> String {
+    env::var("TRNM_WORLD_BEVY_CAMPAIGN_ENTRY_SLOT_PATH").unwrap_or_else(|_| {
+        Path::new(&native_action_session_slot_dir())
+            .join("bevy-classic-rts-campaign-entry.snapshot.json")
+            .to_string_lossy()
+            .to_string()
+    })
 }
 
 fn native_session_slot_statuses() -> Vec<NativeSessionSlotStatus> {
@@ -28241,7 +28547,10 @@ fn open_title_menu(runtime: &mut NativeFirstPlayableRuntime) {
     runtime.session_character_create_visible = false;
     runtime.session_character_create_input_locked = false;
     push_history(&mut runtime.session_title_history, "title_menu_opened");
-    push_feedback_event(runtime, "Title menu opened: choose NEW, LOAD, or CONTINUE");
+    push_feedback_event(
+        runtime,
+        "Title menu opened: choose NEW, LOAD, CONTINUE, or CAMPAIGN",
+    );
 }
 
 fn close_title_menu(runtime: &mut NativeFirstPlayableRuntime, reason: &str) {
@@ -28257,7 +28566,7 @@ fn close_title_menu(runtime: &mut NativeFirstPlayableRuntime, reason: &str) {
 fn title_menu_status_text(runtime: &NativeFirstPlayableRuntime) -> String {
     if runtime.session_title_menu_visible || runtime.session_title_input_locked {
         format!(
-            "TITLE ACTIVE | BOOT -> TITLE | selected {} | NEW LOAD CONTINUE",
+            "TITLE ACTIVE | BOOT -> TITLE | selected {} | NEW LOAD CONTINUE | CAMPAIGN START CONTINUE REPLAY",
             normalize_session_slot_id(&runtime.session_selected_slot_id)
         )
     } else {
@@ -28328,6 +28637,9 @@ fn title_menu_allows_action(action: &NativeControlAction) -> bool {
         NativeControlAction::NewGameFromTitle
             | NativeControlAction::LoadFromTitle
             | NativeControlAction::ContinueFromTitle
+            | NativeControlAction::StartCampaignFromTitle
+            | NativeControlAction::ContinueCampaignFromTitle
+            | NativeControlAction::ReplayCampaignFromTitle
             | NativeControlAction::RegisterAccountFromTitle
             | NativeControlAction::LoginAccountFromTitle
             | NativeControlAction::ContinueAccountFromTitle
@@ -38363,6 +38675,308 @@ pub fn native_title_menu_evidence_json(actor_id: &str, expected_slot_dir: &str) 
         evidence_object.insert(key.to_string(), value);
     }
     serde_json::to_string_pretty(&evidence).expect("title menu evidence serializes")
+}
+
+pub fn native_classic_rts_campaign_entry_evidence_json(actor_id: &str) -> String {
+    let action_slot_dir = native_action_session_slot_dir();
+    for slot_id in native_session_slot_ids() {
+        let _ = fs::remove_file(native_action_session_slot_path(slot_id));
+    }
+    let campaign_slot_path = native_campaign_entry_slot_path();
+    let _ = fs::remove_file(&campaign_slot_path);
+    let mut app = build_keyboard_runtime_app(native_bevy_playable_fixture(), actor_id);
+    seed_rendering_app_title_menu(&mut app);
+
+    let initial_title_sample = sample_live_app_state(&mut app, "campaign_entry_initial_title");
+    let initial_title_input_sample = sample_live_input_state(
+        app.world().resource::<NativeFirstPlayableRuntime>(),
+        "campaign_entry_initial_title",
+    );
+    let start_event =
+        press_live_button_action(&mut app, NativeControlAction::StartCampaignFromTitle);
+    let after_start_sample = sample_live_app_state(&mut app, "after_campaign_start");
+    let after_start_runtime = app.world().resource::<NativeFirstPlayableRuntime>().clone();
+    let after_start_summary = native_input_telemetry_summary(&after_start_runtime);
+    let slot_bytes_after_start = fs::metadata(&campaign_slot_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
+    let start_slot_snapshot = read_native_playable_snapshot_slot(&campaign_slot_path).ok();
+    let start_slot_runtime = start_slot_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.first_playable.clone());
+
+    let reopen_after_start_event =
+        press_live_button_action(&mut app, NativeControlAction::OpenTitleMenu);
+    let after_reopen_sample = sample_live_app_state(&mut app, "after_campaign_reopen_title");
+    let continue_event =
+        press_live_button_action(&mut app, NativeControlAction::ContinueCampaignFromTitle);
+    let after_continue_sample = sample_live_app_state(&mut app, "after_campaign_continue");
+    let after_continue_runtime = app.world().resource::<NativeFirstPlayableRuntime>().clone();
+    let continue_after_campaign_event =
+        press_live_button_action(&mut app, NativeControlAction::ContinueAfterLoad);
+    let after_continue_unlock_sample =
+        sample_live_app_state(&mut app, "after_campaign_continue_unlock");
+    let after_continue_unlock_runtime =
+        app.world().resource::<NativeFirstPlayableRuntime>().clone();
+
+    let reopen_after_continue_event =
+        press_live_button_action(&mut app, NativeControlAction::OpenTitleMenu);
+    let replay_event =
+        press_live_button_action(&mut app, NativeControlAction::ReplayCampaignFromTitle);
+    let after_replay_sample = sample_live_app_state(&mut app, "after_campaign_replay");
+    let final_runtime = app.world().resource::<NativeFirstPlayableRuntime>().clone();
+    let final_summary = native_input_telemetry_summary(&final_runtime);
+    let final_slot_snapshot = read_native_playable_snapshot_slot(&campaign_slot_path).ok();
+    let final_slot_runtime = final_slot_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.first_playable.clone());
+
+    let find_button_state = |sample: &serde_json::Value, action_label: &str| {
+        sample
+            .get("contextual_button_states")
+            .and_then(|value| value.as_array())
+            .and_then(|states| {
+                states.iter().find(|state| {
+                    state.get("action_label").and_then(|value| value.as_str()) == Some(action_label)
+                })
+            })
+            .cloned()
+            .unwrap_or_else(|| json!({}))
+    };
+    let availability_reason = |sample: &serde_json::Value, action_label: &str| {
+        sample
+            .get("availability")
+            .and_then(|value| value.as_array())
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("action").and_then(|value| value.as_str()) == Some(action_label)
+                })
+            })
+            .and_then(|item| item.get("reason"))
+            .and_then(|value| value.as_str())
+            .map(str::to_string)
+    };
+    let availability_is_enabled = |sample: &serde_json::Value, action_label: &str| {
+        sample
+            .get("availability")
+            .and_then(|value| value.as_array())
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("action").and_then(|value| value.as_str()) == Some(action_label)
+                })
+            })
+            .and_then(|item| item.get("enabled"))
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false)
+    };
+
+    let campaign_start_state = find_button_state(&initial_title_sample, "CAMPAIGN:START");
+    let campaign_continue_missing_state =
+        find_button_state(&initial_title_sample, "CAMPAIGN:CONTINUE");
+    let campaign_replay_state = find_button_state(&initial_title_sample, "CAMPAIGN:REPLAY");
+    let campaign_continue_state = find_button_state(&after_reopen_sample, "CAMPAIGN:CONTINUE");
+    let title_entry_gate = initial_title_sample
+        .get("title_menu_text")
+        .and_then(|value| value.as_str())
+        .is_some_and(|text| text.contains("CAMPAIGN START CONTINUE REPLAY"))
+        && availability_is_enabled(&initial_title_input_sample, "CAMPAIGN:START")
+        && !availability_is_enabled(&initial_title_input_sample, "CAMPAIGN:CONTINUE")
+        && availability_is_enabled(&initial_title_input_sample, "CAMPAIGN:REPLAY")
+        && availability_reason(&initial_title_input_sample, "CAMPAIGN:CONTINUE").as_deref()
+            == Some("title_campaign_continue_slot_missing")
+        && campaign_start_state
+            .get("visual_state")
+            .and_then(|value| value.as_str())
+            == Some("title_choice_required")
+        && campaign_continue_missing_state
+            .get("reason")
+            .and_then(|value| value.as_str())
+            == Some("title_campaign_continue_slot_missing")
+        && campaign_replay_state
+            .get("visual_state")
+            .and_then(|value| value.as_str())
+            == Some("title_choice_required");
+    let input_action_count = classic_rts_campaign_handoff_action_sequence().len();
+    let campaign_entry_input_count = |runtime: &NativeFirstPlayableRuntime| -> usize {
+        runtime
+            .progression_checkpoint_history
+            .iter()
+            .rev()
+            .find_map(|checkpoint| {
+                checkpoint
+                    .strip_prefix("campaign_entry_inputs_accepted:")
+                    .and_then(|value| value.parse::<usize>().ok())
+            })
+            .unwrap_or(0)
+    };
+    let start_input_count = campaign_entry_input_count(&after_start_runtime);
+    let start_gate = start_event
+        .get("accepted")
+        .and_then(|value| value.as_bool())
+        == Some(true)
+        && start_event
+            .get("availability_before")
+            .and_then(|value| value.as_str())
+            == Some("enabled_title_campaign_start")
+        && start_input_count == input_action_count
+        && after_start_runtime.current_room_id == "league-coliseum"
+        && after_start_runtime.map_scene == "arena_outdoor"
+        && after_start_runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+        && after_start_runtime.session_title_boot_state == "campaign_handoff_complete"
+        && after_start_runtime
+            .contextual_action_labels
+            .iter()
+            .any(|label| label == "COMBAT:attack");
+    let slot_snapshot_gate = slot_bytes_after_start > 20_000
+        && Path::new(&campaign_slot_path).exists()
+        && start_slot_snapshot.as_ref().is_some_and(|snapshot| {
+            snapshot.contract_version == TRILLIONNIUM_WORLD_BEVY_STATE_SNAPSHOT_CONTRACT
+                && snapshot.actor_id == actor_id
+        })
+        && start_slot_runtime.as_ref().is_some_and(|runtime| {
+            runtime.current_room_id == "league-coliseum"
+                && runtime.map_scene == "arena_outdoor"
+                && runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+                && runtime.route_director_task_id == "task-fixture-first-route"
+                && runtime.route_director_next_room_id.is_none()
+                && runtime
+                    .contextual_action_labels
+                    .iter()
+                    .any(|label| label == "COMBAT:attack")
+        });
+    let continue_gate = reopen_after_start_event
+        .get("accepted")
+        .and_then(|value| value.as_bool())
+        == Some(true)
+        && campaign_continue_state
+            .get("reason")
+            .and_then(|value| value.as_str())
+            == Some("enabled_title_campaign_continue")
+        && continue_event
+            .get("accepted")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && continue_event
+            .get("availability_before")
+            .and_then(|value| value.as_str())
+            == Some("enabled_title_campaign_continue")
+        && after_continue_runtime.session_resume_input_locked
+        && after_continue_runtime
+            .session_resume_source_slot_id
+            .as_deref()
+            == Some("CAMPAIGN")
+        && after_continue_runtime.current_room_id == "league-coliseum"
+        && after_continue_runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+        && after_continue_sample
+            .get("session_resume_text")
+            .and_then(|value| value.as_str())
+            .is_some_and(|text| text.contains("RESUME ACTIVE"));
+    let continue_unlock_gate = continue_after_campaign_event
+        .get("accepted")
+        .and_then(|value| value.as_bool())
+        == Some(true)
+        && !after_continue_unlock_runtime.session_resume_input_locked
+        && after_continue_unlock_runtime.session_title_boot_state == "game_active"
+        && after_continue_unlock_runtime
+            .contextual_action_labels
+            .iter()
+            .any(|label| label == "COMBAT:attack");
+    let replay_input_count = campaign_entry_input_count(&final_runtime);
+    let replay_gate = reopen_after_continue_event
+        .get("accepted")
+        .and_then(|value| value.as_bool())
+        == Some(true)
+        && replay_event
+            .get("accepted")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && replay_event
+            .get("availability_before")
+            .and_then(|value| value.as_str())
+            == Some("enabled_title_campaign_replay")
+        && replay_input_count == input_action_count
+        && final_runtime.current_room_id == "league-coliseum"
+        && final_runtime.map_scene == "arena_outdoor"
+        && final_runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+        && final_slot_runtime.as_ref().is_some_and(|runtime| {
+            runtime.current_room_id == "league-coliseum"
+                && runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+                && runtime
+                    .contextual_action_labels
+                    .iter()
+                    .any(|label| label == "COMBAT:attack")
+        });
+    let green = title_entry_gate
+        && start_gate
+        && slot_snapshot_gate
+        && continue_gate
+        && continue_unlock_gate
+        && replay_gate;
+    let mut evidence = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT,
+        "campaign_handoff_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
+        "title_menu_contract": TRILLIONNIUM_WORLD_BEVY_TITLE_MENU_CONTRACT,
+        "state_snapshot_contract": TRILLIONNIUM_WORLD_BEVY_STATE_SNAPSHOT_CONTRACT,
+        "actor_id": actor_id,
+        "green": green,
+        "source_of_truth": "Bevy TITLE exposes CAMPAIGN:START, CAMPAIGN:CONTINUE, and CAMPAIGN:REPLAY as player-facing native buttons that run the full classic RTS campaign handoff, persist it, and resume the open-world handoff from NativePlayableSaveSnapshot.",
+        "title_actions": ["CAMPAIGN:START", "CAMPAIGN:CONTINUE", "CAMPAIGN:REPLAY"],
+        "input_path": "apply_live_native_action_with_source(classic_rts_campaign_entry_title_input)",
+        "expected_slot_dir": action_slot_dir,
+        "campaign_slot_path": campaign_slot_path,
+        "campaign_slot_bytes": slot_bytes_after_start,
+        "input_action_count": input_action_count,
+        "start_input_count": start_input_count,
+        "replay_input_count": replay_input_count,
+        "final_current_room_id": final_runtime.current_room_id,
+        "final_map_scene": final_runtime.map_scene,
+        "final_open_world_handoff_state": final_runtime.rts_open_world_handoff_state,
+        "final_contextual_primary_action_label": final_runtime.contextual_primary_action_label,
+        "title_entry_gate": title_entry_gate,
+        "start_gate": start_gate,
+        "slot_snapshot_gate": slot_snapshot_gate,
+        "continue_gate": continue_gate,
+        "continue_unlock_gate": continue_unlock_gate,
+        "replay_gate": replay_gate,
+        "android_s5_real_device_claimed": false,
+    });
+    let evidence_object = evidence
+        .as_object_mut()
+        .expect("campaign entry evidence is object");
+    for (key, value) in [
+        ("initial_title_sample", initial_title_sample),
+        ("initial_title_input_sample", initial_title_input_sample),
+        ("campaign_start_state", campaign_start_state),
+        (
+            "campaign_continue_missing_state",
+            campaign_continue_missing_state,
+        ),
+        ("campaign_replay_state", campaign_replay_state),
+        ("start_event", start_event),
+        ("after_start_sample", after_start_sample),
+        (
+            "after_start_input_telemetry_summary",
+            serde_json::to_value(after_start_summary).expect("start summary serializes"),
+        ),
+        ("after_reopen_sample", after_reopen_sample),
+        ("campaign_continue_state", campaign_continue_state),
+        ("continue_event", continue_event),
+        ("after_continue_sample", after_continue_sample),
+        (
+            "continue_after_campaign_event",
+            continue_after_campaign_event,
+        ),
+        ("after_continue_unlock_sample", after_continue_unlock_sample),
+        ("replay_event", replay_event),
+        ("after_replay_sample", after_replay_sample),
+        (
+            "final_input_telemetry_summary",
+            serde_json::to_value(final_summary).expect("final summary serializes"),
+        ),
+    ] {
+        evidence_object.insert(key.to_string(), value);
+    }
+    serde_json::to_string_pretty(&evidence).expect("campaign entry evidence serializes")
 }
 
 pub fn native_character_create_evidence_json(actor_id: &str, expected_slot_dir: &str) -> String {
@@ -52448,6 +53062,9 @@ fn native_control_action_from_label(label: &str) -> Option<NativeControlAction> 
             "TITLE:LOAD" => Some(NativeControlAction::LoadFromTitle),
             "TITLE:CONTINUE" => Some(NativeControlAction::ContinueFromTitle),
             "TITLE:ROUTE" => Some(NativeControlAction::AcceptTitleRouteRecommendation),
+            "CAMPAIGN:START" => Some(NativeControlAction::StartCampaignFromTitle),
+            "CAMPAIGN:CONTINUE" => Some(NativeControlAction::ContinueCampaignFromTitle),
+            "CAMPAIGN:REPLAY" => Some(NativeControlAction::ReplayCampaignFromTitle),
             "ACCOUNT:REGISTER" => Some(NativeControlAction::RegisterAccountFromTitle),
             "ACCOUNT:LOGIN" => Some(NativeControlAction::LoginAccountFromTitle),
             "ACCOUNT:CONTINUE" => Some(NativeControlAction::ContinueAccountFromTitle),
@@ -52929,6 +53546,9 @@ fn native_live_probe_actions() -> Vec<NativeControlAction> {
         NativeControlAction::NewGameFromTitle,
         NativeControlAction::LoadFromTitle,
         NativeControlAction::ContinueFromTitle,
+        NativeControlAction::StartCampaignFromTitle,
+        NativeControlAction::ContinueCampaignFromTitle,
+        NativeControlAction::ReplayCampaignFromTitle,
         NativeControlAction::RegisterAccountFromTitle,
         NativeControlAction::LoginAccountFromTitle,
         NativeControlAction::ContinueAccountFromTitle,
@@ -55327,6 +55947,33 @@ fn native_tile_rpg_shell() -> impl Bundle {
                                     column_gap: px(6),
                                     ..default()
                                 },
+                                contextual_action_row_state("campaign_title_actions"),
+                                children![
+                                    native_control_button(
+                                        NativeControlAction::StartCampaignFromTitle,
+                                        "CAMPAIGN",
+                                        96.0
+                                    ),
+                                    native_control_button(
+                                        NativeControlAction::ContinueCampaignFromTitle,
+                                        "CONTINUE",
+                                        94.0
+                                    ),
+                                    native_control_button(
+                                        NativeControlAction::ReplayCampaignFromTitle,
+                                        "REPLAY",
+                                        78.0
+                                    ),
+                                ],
+                            ),
+                            (
+                                Node {
+                                    width: percent(100),
+                                    height: px(26),
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: px(6),
+                                    ..default()
+                                },
                                 contextual_action_row_state("character_create"),
                                 children![
                                     native_control_button(
@@ -56627,6 +57274,31 @@ pub fn native_live_action_availability(
             (false, "title_menu_not_active".to_string())
         };
     }
+    if matches!(
+        action,
+        NativeControlAction::StartCampaignFromTitle | NativeControlAction::ReplayCampaignFromTitle
+    ) {
+        let reason = if matches!(action, NativeControlAction::ReplayCampaignFromTitle) {
+            "enabled_title_campaign_replay"
+        } else {
+            "enabled_title_campaign_start"
+        };
+        return if runtime.session_title_menu_visible || runtime.session_title_input_locked {
+            (true, reason.to_string())
+        } else {
+            (false, "title_menu_not_active".to_string())
+        };
+    }
+    if matches!(action, NativeControlAction::ContinueCampaignFromTitle) {
+        let slot_path = native_campaign_entry_slot_path();
+        return if !(runtime.session_title_menu_visible || runtime.session_title_input_locked) {
+            (false, "title_menu_not_active".to_string())
+        } else if Path::new(&slot_path).exists() {
+            (true, "enabled_title_campaign_continue".to_string())
+        } else {
+            (false, "title_campaign_continue_slot_missing".to_string())
+        };
+    }
     if matches!(action, NativeControlAction::LoadFromTitle) {
         let slot_id = normalize_session_slot_id(&runtime.session_selected_slot_id);
         let slot_path = native_action_session_slot_path(&slot_id);
@@ -57211,6 +57883,9 @@ pub fn native_live_action_availability(
         | NativeControlAction::NewGameFromTitle
         | NativeControlAction::LoadFromTitle
         | NativeControlAction::ContinueFromTitle
+        | NativeControlAction::StartCampaignFromTitle
+        | NativeControlAction::ContinueCampaignFromTitle
+        | NativeControlAction::ReplayCampaignFromTitle
         | NativeControlAction::RegisterAccountFromTitle
         | NativeControlAction::LoginAccountFromTitle
         | NativeControlAction::ContinueAccountFromTitle
@@ -57279,6 +57954,9 @@ fn native_control_action_label(action: &NativeControlAction) -> String {
         NativeControlAction::NewGameFromTitle => "TITLE:NEW".to_string(),
         NativeControlAction::LoadFromTitle => "TITLE:LOAD".to_string(),
         NativeControlAction::ContinueFromTitle => "TITLE:CONTINUE".to_string(),
+        NativeControlAction::StartCampaignFromTitle => "CAMPAIGN:START".to_string(),
+        NativeControlAction::ContinueCampaignFromTitle => "CAMPAIGN:CONTINUE".to_string(),
+        NativeControlAction::ReplayCampaignFromTitle => "CAMPAIGN:REPLAY".to_string(),
         NativeControlAction::RegisterAccountFromTitle => "ACCOUNT:REGISTER".to_string(),
         NativeControlAction::LoginAccountFromTitle => "ACCOUNT:LOGIN".to_string(),
         NativeControlAction::ContinueAccountFromTitle => "ACCOUNT:CONTINUE".to_string(),
@@ -57651,6 +58329,9 @@ pub fn apply_native_control_action(
         | NativeControlAction::NewGameFromTitle
         | NativeControlAction::LoadFromTitle
         | NativeControlAction::ContinueFromTitle
+        | NativeControlAction::StartCampaignFromTitle
+        | NativeControlAction::ContinueCampaignFromTitle
+        | NativeControlAction::ReplayCampaignFromTitle
         | NativeControlAction::RegisterAccountFromTitle
         | NativeControlAction::LoginAccountFromTitle
         | NativeControlAction::ContinueAccountFromTitle
@@ -57928,6 +58609,142 @@ pub fn apply_native_first_playable_action(
                 first_playable,
                 actor_id,
             );
+        }
+        NativeControlAction::StartCampaignFromTitle
+        | NativeControlAction::ReplayCampaignFromTitle => {
+            let replay = matches!(action, NativeControlAction::ReplayCampaignFromTitle);
+            let slot_path = native_campaign_entry_slot_path();
+            let next_turn = gameplay_log.turn + 1;
+            *world = native_bevy_playable_fixture();
+            *character = WorldTrillionniumCharacter::default_for(actor_id);
+            character.ensure_defaults(native_now_epoch());
+            *gameplay_log = NativeGameplayLog {
+                turn: next_turn,
+                last_action: if replay {
+                    "campaign:replay:title".to_string()
+                } else {
+                    "campaign:start:title".to_string()
+                },
+                last_result: "classic_rts_campaign_entry_started".to_string(),
+                last_rejection: None,
+            };
+            *first_playable = NativeFirstPlayableRuntime::default();
+            push_history(
+                &mut first_playable.session_title_history,
+                if replay {
+                    "campaign_replay_from_title"
+                } else {
+                    "campaign_start_from_title"
+                },
+            );
+            let accepted_input_count = apply_classic_rts_campaign_handoff_sequence(
+                world,
+                character,
+                gameplay_log,
+                first_playable,
+                actor_id,
+                "classic_rts_campaign_entry_title_input",
+            );
+            push_progression_checkpoint(
+                first_playable,
+                &format!("campaign_entry_inputs_accepted:{accepted_input_count}"),
+            );
+            let snapshot = native_playable_save_snapshot(
+                world,
+                character,
+                gameplay_log,
+                first_playable,
+                actor_id,
+            );
+            let slot_result = write_native_playable_snapshot_slot(&slot_path, &snapshot);
+            gameplay_log.turn += 1;
+            gameplay_log.last_action = if replay {
+                "campaign:replay:title".to_string()
+            } else {
+                "campaign:start:title".to_string()
+            };
+            gameplay_log.last_rejection = None;
+            match slot_result {
+                Ok(bytes) => {
+                    gameplay_log.last_result =
+                        format!("classic_rts_campaign_entry_saved:{accepted_input_count}:{bytes}");
+                    first_playable.session_title_last_slot_id = Some("CAMPAIGN".to_string());
+                    push_history(
+                        &mut first_playable.session_title_history,
+                        &format!("campaign_entry_saved:{bytes}"),
+                    );
+                    push_progression_checkpoint(first_playable, "campaign_entry_snapshot_saved");
+                    push_feedback_event(
+                        first_playable,
+                        &format!(
+                            "Campaign entry complete: {accepted_input_count} inputs, saved {bytes} bytes"
+                        ),
+                    );
+                }
+                Err(error) => {
+                    gameplay_log.last_result = "classic_rts_campaign_entry_save_failed".to_string();
+                    gameplay_log.last_rejection = Some(error.to_string());
+                    push_feedback_event(
+                        first_playable,
+                        &format!("Campaign entry save failed: {error}"),
+                    );
+                }
+            }
+            refresh_contextual_action_runtime(first_playable);
+            return None;
+        }
+        NativeControlAction::ContinueCampaignFromTitle => {
+            let slot_path = native_campaign_entry_slot_path();
+            let slot_result = read_native_playable_snapshot_slot(&slot_path);
+            match slot_result {
+                Ok(snapshot) => {
+                    let (
+                        restored_world,
+                        restored_character,
+                        mut restored_log,
+                        mut restored_first_playable,
+                    ) = native_restore_playable_save_snapshot(snapshot);
+                    restored_first_playable.session_selected_slot_id =
+                        first_playable.session_selected_slot_id.clone();
+                    restored_first_playable.session_title_last_slot_id =
+                        Some("CAMPAIGN".to_string());
+                    push_progression_checkpoint(
+                        &mut restored_first_playable,
+                        "campaign_entry_snapshot_restored",
+                    );
+                    push_history(
+                        &mut restored_first_playable.session_title_history,
+                        "campaign_continue_from_title",
+                    );
+                    restored_log.turn += 1;
+                    restored_log.last_action = "campaign:continue:title".to_string();
+                    restored_log.last_result = "classic_rts_campaign_entry_continued".to_string();
+                    restored_log.last_rejection = None;
+                    push_feedback_event(
+                        &mut restored_first_playable,
+                        "Campaign continue restored the open-world handoff",
+                    );
+                    mark_session_resume_overlay(&mut restored_first_playable, "CAMPAIGN");
+                    refresh_contextual_action_runtime(&mut restored_first_playable);
+                    *world = restored_world;
+                    *character = restored_character;
+                    *gameplay_log = restored_log;
+                    *first_playable = restored_first_playable;
+                }
+                Err(error) => {
+                    gameplay_log.turn += 1;
+                    gameplay_log.last_action = "campaign:continue:title".to_string();
+                    gameplay_log.last_result =
+                        "classic_rts_campaign_entry_continue_failed".to_string();
+                    gameplay_log.last_rejection = Some(error.to_string());
+                    push_feedback_event(
+                        first_playable,
+                        &format!("Campaign continue failed: {error}"),
+                    );
+                    refresh_contextual_action_runtime(first_playable);
+                }
+            }
+            return None;
         }
         NativeControlAction::LoadFromTitle | NativeControlAction::ContinueFromTitle => {
             let selected_slot_id =
@@ -62829,6 +63646,9 @@ fn update_first_playable_runtime(
         | NativeControlAction::NewGameFromTitle
         | NativeControlAction::LoadFromTitle
         | NativeControlAction::ContinueFromTitle
+        | NativeControlAction::StartCampaignFromTitle
+        | NativeControlAction::ContinueCampaignFromTitle
+        | NativeControlAction::ReplayCampaignFromTitle
         | NativeControlAction::RegisterAccountFromTitle
         | NativeControlAction::LoginAccountFromTitle
         | NativeControlAction::ContinueAccountFromTitle
@@ -64968,6 +65788,7 @@ fn player_action_coach_shortcut_label(action_label: &str) -> String {
         "SAVE:SELECTED" | "TITLE:OPEN" | "TITLE:CONTINUE" | "CONTINUE:SESSION" => {
             "Enter".to_string()
         }
+        "CAMPAIGN:START" | "CAMPAIGN:CONTINUE" | "CAMPAIGN:REPLAY" => "Enter".to_string(),
         "CREATE:CONFIRM" => "Enter".to_string(),
         "STAT:confirm" => "M / Enter".to_string(),
         label if label.starts_with("ROOM:") => "tap room button / Enter".to_string(),
@@ -66073,6 +66894,15 @@ fn contextual_action_row_should_show(
         "account_title_actions" => row_signals
             .iter()
             .any(|(action_label, _, _, enabled)| *enabled && action_label.starts_with("ACCOUNT:")),
+        "campaign_title_actions" => row_signals
+            .iter()
+            .any(|(action_label, visual_state, _, _)| {
+                action_label.starts_with("CAMPAIGN:")
+                    && matches!(
+                        visual_state.as_str(),
+                        "title_menu_active" | "title_choice_required"
+                    )
+            }),
         "character_create" => row_signals.iter().any(|(_, visual_state, _, _)| {
             visual_state.as_str() == "character_create_choice_required"
         }),
@@ -66170,6 +67000,12 @@ pub fn update_native_contextual_button_visuals(
                 | NativeControlAction::LoginAccountFromTitle
                 | NativeControlAction::ContinueAccountFromTitle
         );
+        let campaign_title_action = matches!(
+            action,
+            NativeControlAction::StartCampaignFromTitle
+                | NativeControlAction::ContinueCampaignFromTitle
+                | NativeControlAction::ReplayCampaignFromTitle
+        );
         let enabled =
             entry_enabled || onboarding_next_highlight || title_route_dashboard_focus_enabled;
         let primary =
@@ -66209,6 +67045,9 @@ pub fn update_native_contextual_button_visuals(
             NativeControlAction::NewGameFromTitle
                 | NativeControlAction::LoadFromTitle
                 | NativeControlAction::ContinueFromTitle
+                | NativeControlAction::StartCampaignFromTitle
+                | NativeControlAction::ContinueCampaignFromTitle
+                | NativeControlAction::ReplayCampaignFromTitle
         ) && (first_playable.session_title_menu_visible
             || first_playable.session_title_input_locked);
         let character_create_choice = matches!(
@@ -66240,45 +67079,46 @@ pub fn update_native_contextual_button_visuals(
                 .map(|entry| entry.source.clone())
                 .unwrap_or_else(|| "static_button_outside_current_context".to_string())
         };
-        let visual_state = if account_title_action && !account_title_surface_active {
-            "hidden_or_not_current_context"
-        } else if onboarding_next_highlight {
-            "onboarding_next_button"
-        } else if title_route_dashboard_focus_enabled {
-            "title_route_dashboard_focus"
-        } else if title_route_dashboard_focus {
-            "title_route_dashboard_blocked"
-        } else if selected_slot {
-            "selected_slot"
-        } else if pending_overwrite {
-            "overwrite_pending"
-        } else if pending_stat_confirmation {
-            "stat_confirmation_pending"
-        } else if resume_continue_required {
-            "resume_continue_required"
-        } else if pause_resume_required {
-            "pause_resume_required"
-        } else if pause_menu_active {
-            "pause_menu_active"
-        } else if settings_back_required {
-            "settings_back_required"
-        } else if settings_menu_active {
-            "settings_menu_active"
-        } else if title_choice_required {
-            "title_choice_required"
-        } else if title_menu_active {
-            "title_menu_active"
-        } else if character_create_choice {
-            "character_create_choice_required"
-        } else if primary {
-            "primary_enabled"
-        } else if enabled {
-            "enabled_contextual"
-        } else if entry.is_some() {
-            "disabled_contextual"
-        } else {
-            "hidden_or_not_current_context"
-        };
+        let visual_state =
+            if (account_title_action || campaign_title_action) && !account_title_surface_active {
+                "hidden_or_not_current_context"
+            } else if onboarding_next_highlight {
+                "onboarding_next_button"
+            } else if title_route_dashboard_focus_enabled {
+                "title_route_dashboard_focus"
+            } else if title_route_dashboard_focus {
+                "title_route_dashboard_blocked"
+            } else if selected_slot {
+                "selected_slot"
+            } else if pending_overwrite {
+                "overwrite_pending"
+            } else if pending_stat_confirmation {
+                "stat_confirmation_pending"
+            } else if resume_continue_required {
+                "resume_continue_required"
+            } else if pause_resume_required {
+                "pause_resume_required"
+            } else if pause_menu_active {
+                "pause_menu_active"
+            } else if settings_back_required {
+                "settings_back_required"
+            } else if settings_menu_active {
+                "settings_menu_active"
+            } else if title_choice_required {
+                "title_choice_required"
+            } else if title_menu_active {
+                "title_menu_active"
+            } else if character_create_choice {
+                "character_create_choice_required"
+            } else if primary {
+                "primary_enabled"
+            } else if enabled {
+                "enabled_contextual"
+            } else if entry.is_some() {
+                "disabled_contextual"
+            } else {
+                "hidden_or_not_current_context"
+            };
         state.action_label = action_label.clone();
         state.visual_state = visual_state.to_string();
         state.enabled = enabled;
@@ -66286,10 +67126,12 @@ pub fn update_native_contextual_button_visuals(
         let movement_pad_button = matches!(action, NativeControlAction::Move { .. });
         let player_deck_visible = movement_pad_button
             || (account_title_action && account_title_surface_active)
+            || (campaign_title_action && account_title_surface_active)
             || !matches!(
                 visual_state,
                 "hidden_or_not_current_context" | "disabled_contextual"
-            ) && !account_title_action;
+            ) && !account_title_action
+                && !campaign_title_action;
         state.player_deck_visible = player_deck_visible;
         if player_deck_visible {
             visible_button_entities.insert(entity);
@@ -69828,6 +70670,60 @@ mod tests {
                 "{gate} should pass"
             );
         }
+        for slot_id in native_session_slot_ids() {
+            let _ = std::fs::remove_file(native_action_session_slot_path(slot_id));
+        }
+    }
+
+    #[test]
+    fn classic_rts_campaign_entry_evidence_gates_title_start_continue_and_replay() {
+        let _slot_guard = SESSION_SLOT_TEST_LOCK
+            .lock()
+            .expect("session slot tests serialize filesystem fixtures");
+        for slot_id in native_session_slot_ids() {
+            let _ = std::fs::remove_file(native_action_session_slot_path(slot_id));
+        }
+        let value: serde_json::Value = serde_json::from_str(
+            &native_classic_rts_campaign_entry_evidence_json("local-player"),
+        )
+        .expect("campaign entry evidence parses");
+        assert_eq!(
+            value
+                .get("contract_version")
+                .and_then(|value| value.as_str()),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT)
+        );
+        assert_eq!(
+            value.get("green").and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        for gate in [
+            "title_entry_gate",
+            "start_gate",
+            "slot_snapshot_gate",
+            "continue_gate",
+            "continue_unlock_gate",
+            "replay_gate",
+        ] {
+            assert_eq!(
+                value.get(gate).and_then(|value| value.as_bool()),
+                Some(true),
+                "{gate} should pass"
+            );
+        }
+        assert_eq!(
+            value
+                .get("input_action_count")
+                .and_then(|value| value.as_u64()),
+            Some(73)
+        );
+        assert_eq!(
+            value
+                .get("final_current_room_id")
+                .and_then(|value| value.as_str()),
+            Some("league-coliseum")
+        );
+        let _ = std::fs::remove_file(native_campaign_entry_slot_path());
         for slot_id in native_session_slot_ids() {
             let _ = std::fs::remove_file(native_action_session_slot_path(slot_id));
         }
