@@ -208,6 +208,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MIRROR_CITY_RESTORATION_CONTRACT: 
     "trillionnium_world_bevy_classic_rts_mirror_city_restoration_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_open_world_after_action_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_campaign_handoff_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -17161,6 +17163,521 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
         "source_of_truth": "Classic RTS open-world-after-action evidence extends restored Mirror City into a Rust-owned open-world room, route director, task panel, and combat-ready contextual deck through live native input and Trillionnium-owned low-spec Bevy rendering."
     }))
     .expect("classic RTS open world after action evidence serializes")
+}
+
+pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 480;
+    const PANEL_HEIGHT: usize = 270;
+    const PREVIEW_COLUMNS: usize = 4;
+    const PREVIEW_ROWS: usize = 4;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 1120,
+        xp: 520,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 3,
+        ..Default::default()
+    };
+    let mut actions: Vec<(&str, NativeControlAction)> = Vec::new();
+    macro_rules! queue {
+        ($stage:expr, $queue:expr) => {
+            actions.push((
+                $stage,
+                NativeControlAction::RtsQueueProduction {
+                    queue_id: $queue.to_string(),
+                },
+            ));
+        };
+    }
+    actions.push((
+        "select_assault_group",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+    ));
+    queue!("spawn_objective_pressure", "ai:skirmish_wave");
+    actions.push((
+        "engage_objective_guard",
+        NativeControlAction::RtsAttackCommand {
+            target_id: "arena_creep_attack".to_string(),
+        },
+    ));
+    actions.push((
+        "break_defeat_window",
+        NativeControlAction::RtsAbilityCommand {
+            ability_id: "guard_break".to_string(),
+        },
+    ));
+    queue!("claim_relay_beacon", "objective:claim:relay_beacon@6,5");
+    queue!(
+        "extract_after_victory",
+        "objective:extract:relay_beacon@9,2"
+    );
+    queue!("scout_forest_camp", "scout:creep_camp@8,3");
+    actions.push((
+        "thread_choke_route",
+        NativeControlAction::RtsMoveCommand {
+            command_id: "8,3:wedge".to_string(),
+        },
+    ));
+    actions.push((
+        "engage_camp_guard",
+        NativeControlAction::RtsAttackCommand {
+            target_id: "forest_creep_camp".to_string(),
+        },
+    ));
+    actions.push((
+        "break_camp_armor",
+        NativeControlAction::RtsAbilityCommand {
+            ability_id: "guard_break".to_string(),
+        },
+    ));
+    queue!(
+        "clear_camp_unlock_expand",
+        "camp:clear:forest_creep_camp@8,3"
+    );
+    actions.push((
+        "select_scout_party",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "2".to_string(),
+        },
+    ));
+    queue!("scout_enemy_base", "recon:scout_enemy_base@10,2");
+    actions.push((
+        "rally_near_fog_edge",
+        NativeControlAction::RtsMoveCommand {
+            command_id: "9,2:rally".to_string(),
+        },
+    ));
+    queue!("sweep_enemy_base", "recon:sweep:enemy_base@10,2");
+    queue!("scan_watchtower_lane", "recon:watchtower_scan@7,4");
+    queue!("mark_enemy_base", "recon:mark:enemy_base@10,2");
+    queue!(
+        "enemy_research_pressure",
+        "enemy:tech:shadow_lattice@enemy_barracks"
+    );
+    queue!("enemy_train_wave", "enemy:train:raider_wave@enemy_barracks");
+    queue!(
+        "counter_research",
+        "counter:research:sentinel_lantern@signal_spire"
+    );
+    queue!("fortify_watch_tower", "counter:fortify:watch_tower@7,4");
+    actions.push((
+        "reselect_assault_group",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        },
+    ));
+    queue!("raise_supply_cap", "army:supply:field_lodge@6,4");
+    queue!("train_guard_pair", "army:train:guard_pair@training_hall");
+    queue!(
+        "train_wayfinder_pair",
+        "army:train:wayfinder_pair@signal_spire"
+    );
+    queue!("set_forward_rally", "army:rally:forward_watch@7,4");
+    queue!(
+        "assign_control_group",
+        "army:assign:control_group_3@forward_watch"
+    );
+    actions.push((
+        "siege_move",
+        NativeControlAction::RtsMoveCommand {
+            command_id: "10,3:siege".to_string(),
+        },
+    ));
+    actions.push((
+        "attack_enemy_barracks",
+        NativeControlAction::RtsAttackCommand {
+            target_id: "enemy_barracks".to_string(),
+        },
+    ));
+    queue!(
+        "breach_enemy_barracks",
+        "assault:breach:enemy_barracks@10,3"
+    );
+    queue!(
+        "destroy_enemy_barracks",
+        "aftermath:destroy:enemy_barracks@10,3"
+    );
+    queue!("promote_veterans", "aftermath:promote:control_group_3@10,3");
+    queue!("surface_next_action", "aftermath:next:secure_expansion@9,2");
+    queue!("loot_enemy_cache", "commander:loot:enemy_barracks@10,3");
+    queue!(
+        "level_commander",
+        "commander:level:mirror_captain@battlefield"
+    );
+    queue!(
+        "activate_rally_aura",
+        "commander:ability:rally_aura@mirror_captain"
+    );
+    queue!("claim_forest_relay", "expansion:claim:forest_relay@9,2");
+    queue!("build_relay_outpost", "expansion:build:relay_outpost@9,2");
+    queue!("assign_gold_workers", "expansion:workers:gold_line@9,2");
+    queue!("defend_counter_wave", "expansion:defend:counter_wave@8,3");
+    queue!(
+        "build_relay_foundry",
+        "tier2:tech:relay_foundry@relay_outpost"
+    );
+    queue!(
+        "research_siege_harness",
+        "tier2:upgrade:siege_harness@relay_foundry"
+    );
+    queue!(
+        "train_stonebreak_cart",
+        "tier2:train:stonebreak_cart@relay_foundry"
+    );
+    queue!(
+        "enemy_gate_bulwark",
+        "tier2:enemy_fortify:gate_bulwark@10,3"
+    );
+    queue!("push_gate_bulwark", "tier2:push:gate_bulwark@10,3");
+    queue!("open_breach_window", "tier2:breach:gate_bulwark@10,3");
+    queue!(
+        "enemy_repair_response",
+        "tier2:enemy_repair:gate_bulwark@10,3"
+    );
+    queue!(
+        "enemy_flank_response",
+        "tier2:enemy_flank:ridge_sentries@9,4"
+    );
+    queue!("hold_siege_line", "tier2:hold:shield_line@9,3");
+    queue!("finish_gate_breach", "tier2:finish:gate_bulwark@10,3");
+    queue!("enter_inner_lane", "tier2:inner_route:inner_lane@11,2");
+    queue!("mark_inner_gate", "tier2:inner_gate:inner_latch@11,3");
+    queue!("move_supply_convoy", "tier2:inner_supply:relay_convoy@9,3");
+    queue!("split_flank_team", "tier2:inner_split:flank_team@10,4");
+    queue!("clear_second_line", "tier2:inner_clear:second_line@11,3");
+    queue!("secure_signal_core", "tier2:inner_secure:signal_core@12,3");
+    queue!(
+        "route_to_central_keep",
+        "tier2:keep_route:central_keep@13,3"
+    );
+    queue!("raise_keep_shield", "tier2:keep_shield:mirror_ward@13,3");
+    queue!("reveal_keep_guards", "tier2:keep_guard:warden_line@12,3");
+    queue!("form_final_siege_line", "tier2:keep_siege:final_line@12,4");
+    queue!(
+        "pressure_central_keep",
+        "tier2:keep_pressure:central_keep@13,3"
+    );
+    queue!(
+        "open_central_keep_breach",
+        "tier2:keep_breach:central_keep@13,3"
+    );
+    queue!(
+        "answer_guardian_counter",
+        "tier2:guardian_counter:high_warden@13,4"
+    );
+    queue!("hold_final_line", "tier2:keep_hold:final_line@12,4");
+    queue!("break_central_keep", "tier2:keep_break:central_keep@13,3");
+    queue!("claim_central_keep", "tier2:keep_claim:central_keep@13,3");
+    queue!("restore_mirror_city", "tier2:restore_city:mirror_city@13,3");
+    queue!("rebuild_signal_core", "tier2:rebuild_core:signal_core@12,3");
+    queue!(
+        "assign_central_garrison",
+        "tier2:assign_garrison:central_keep@13,3"
+    );
+    queue!(
+        "handoff_restored_city",
+        "tier2:victory_handoff:mirror_city@13,3"
+    );
+    queue!(
+        "open_world_after_action",
+        "tier2:open_world:after_action@13,3"
+    );
+    queue!(
+        "route_world_panel",
+        "tier2:open_world_route:league-coliseum@12,3"
+    );
+    queue!(
+        "resume_open_world",
+        "tier2:open_world_resume:league-coliseum@12,3"
+    );
+
+    let capture_stages = HashSet::from([
+        "select_assault_group",
+        "extract_after_victory",
+        "clear_camp_unlock_expand",
+        "mark_enemy_base",
+        "fortify_watch_tower",
+        "assign_control_group",
+        "surface_next_action",
+        "activate_rally_aura",
+        "defend_counter_wave",
+        "push_gate_bulwark",
+        "finish_gate_breach",
+        "secure_signal_core",
+        "pressure_central_keep",
+        "claim_central_keep",
+        "handoff_restored_city",
+        "resume_open_world",
+    ]);
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut input_sources = HashSet::new();
+    let mut action_labels = Vec::new();
+    let mut stage_summaries = Vec::new();
+    let mut capture_frame_count = 0_usize;
+    let mut objective_victory_seen = false;
+    let mut creep_camp_seen = false;
+    let mut recon_seen = false;
+    let mut enemy_pressure_seen = false;
+    let mut army_rally_seen = false;
+    let mut base_assault_seen = false;
+    let mut aftermath_seen = false;
+    let mut commander_seen = false;
+    let mut expansion_seen = false;
+    let mut tier_two_seen = false;
+    let mut breach_seen = false;
+    let mut inner_seen = false;
+    let mut keep_pressure_seen = false;
+    let mut keep_victory_seen = false;
+    let mut restoration_seen = false;
+    let mut open_world_seen = false;
+
+    for (index, (stage, action)) in actions.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_campaign_handoff_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+
+        objective_victory_seen |=
+            runtime.rts_objective_result_state == "victory:relay_beacon_extracted";
+        creep_camp_seen |= runtime.rts_creep_camp_state == "cleared:forest_creep_camp";
+        recon_seen |= runtime
+            .rts_intel_log
+            .iter()
+            .any(|entry| entry == "marked:enemy_base@10,2");
+        enemy_pressure_seen |= runtime.rts_enemy_base_pressure_state == "counter_ready:enemy_base";
+        army_rally_seen |= runtime
+            .rts_army_production_state
+            .starts_with("assigned:control_group_3");
+        base_assault_seen |= runtime.rts_base_assault_result_state == "breached:enemy_barracks";
+        aftermath_seen |= runtime.rts_match_result_state == "victory_ready:secure_expansion";
+        commander_seen |= runtime.rts_commander_level >= 2
+            && runtime
+                .rts_commander_ability_log
+                .iter()
+                .any(|entry| entry.starts_with("ability:rally_aura:"));
+        expansion_seen |= runtime.rts_expansion_defense_state == "defended:counter_wave";
+        tier_two_seen |= runtime.rts_tier_two_push_state == "siege_push_ready:gate_bulwark";
+        breach_seen |= runtime.rts_siege_breach_state == "counterplay_won:gate_bulwark";
+        inner_seen |= runtime.rts_inner_objective_state == "inner_core_secured:signal_core";
+        keep_pressure_seen |= runtime.rts_central_keep_state == "pressure_locked:central_keep";
+        keep_victory_seen |= runtime.rts_match_result_state == "classic_rts_victory:central_keep";
+        restoration_seen |= runtime.rts_match_result_state == "classic_rts_restored:mirror_city";
+        open_world_seen |= runtime.rts_open_world_handoff_state == "resumed:league-coliseum";
+
+        stage_summaries.push(json!({
+            "index": index + 1,
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "objective_status": runtime.objective_status.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "next_action_ids": runtime.rts_next_action_ids.clone(),
+            "current_room_id": runtime.current_room_id.clone(),
+            "map_scene": runtime.map_scene.clone(),
+            "open_world_handoff_state": runtime.rts_open_world_handoff_state.clone(),
+        }));
+        if capture_stages.contains(stage) && capture_frame_count < PREVIEW_COLUMNS * PREVIEW_ROWS {
+            frame_pixels.fill(0x0b0d0c_u32);
+            classic_draw_scene(
+                &mut frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                (5, 5),
+                &runtime,
+                &assets,
+            );
+            let offset_x = ((capture_frame_count % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+            let offset_y = ((capture_frame_count / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+            classic_copy_pixels(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                &frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                offset_x,
+                offset_y,
+            );
+            classic_draw_text(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 10,
+                offset_y + 10,
+                &format!("CAMPAIGN {:02} {}", index + 1, stage),
+                1,
+                CLASSIC_HUD_ACCENT_TEXT_COLOR,
+            );
+            capture_frame_count += 1;
+        }
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let victory_pixel_count = count_color(CLASSIC_RTS_VICTORY_COLOR);
+    let expansion_pixel_count = count_color(CLASSIC_RTS_EXPANSION_COLOR)
+        + count_color(CLASSIC_RTS_EXPANSION_BASE_COLOR)
+        + count_color(CLASSIC_RTS_EXPANSION_DEFENSE_COLOR);
+    let breach_pixel_count =
+        count_color(CLASSIC_RTS_BASE_BREACH_COLOR) + count_color(CLASSIC_RTS_SIEGE_BREACH_COLOR);
+    let keep_pixel_count = count_color(CLASSIC_RTS_KEEP_PRESSURE_COLOR)
+        + count_color(CLASSIC_RTS_KEEP_CLAIM_COLOR)
+        + count_color(CLASSIC_RTS_KEEP_VICTORY_COLOR);
+    let restoration_pixel_count =
+        count_color(CLASSIC_RTS_RESTORE_ZONE_COLOR) + count_color(CLASSIC_RTS_HANDOFF_COLOR);
+    let open_world_pixel_count = count_color(CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR)
+        + count_color(CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR)
+        + count_color(CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR);
+    let live_campaign_input_gate = accepted_input_count == actions.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_campaign_handoff_input");
+    let early_campaign_gate = objective_victory_seen
+        && creep_camp_seen
+        && recon_seen
+        && enemy_pressure_seen
+        && army_rally_seen
+        && base_assault_seen;
+    let mid_campaign_gate = aftermath_seen
+        && commander_seen
+        && expansion_seen
+        && tier_two_seen
+        && breach_seen
+        && inner_seen;
+    let end_campaign_gate =
+        keep_pressure_seen && keep_victory_seen && restoration_seen && open_world_seen;
+    let open_world_resume_gate = runtime.current_room_id == "league-coliseum"
+        && runtime.map_scene == "arena_outdoor"
+        && runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+        && runtime.route_director_task_id == "task-fixture-first-route"
+        && runtime.route_director_next_room_id.is_none()
+        && runtime
+            .contextual_action_labels
+            .iter()
+            .any(|label| label == "COMBAT:attack")
+        && runtime
+            .active_task_ids
+            .iter()
+            .any(|task| task == "task-fixture-first-route");
+    let render_milestone_gate = capture_frame_count == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && non_background_pixels > 500_000
+        && victory_pixel_count > 20
+        && expansion_pixel_count > 60
+        && breach_pixel_count > 40
+        && keep_pixel_count > 40
+        && restoration_pixel_count > 20
+        && open_world_pixel_count > 60;
+    let green = write_gate
+        && live_campaign_input_gate
+        && early_campaign_gate
+        && mid_campaign_gate
+        && end_campaign_gate
+        && open_world_resume_gate
+        && render_milestone_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_path": "apply_live_native_action_with_source(classic_rts_campaign_handoff_input)",
+        "input_action_count": actions.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "capture_frame_count": capture_frame_count,
+        "final_current_room_id": runtime.current_room_id,
+        "final_map_scene": runtime.map_scene,
+        "final_route_director_task_id": runtime.route_director_task_id,
+        "final_route_director_target_room_id": runtime.route_director_target_room_id,
+        "final_route_director_path": runtime.route_director_path,
+        "final_route_director_next_room_id": runtime.route_director_next_room_id,
+        "final_open_world_handoff_state": runtime.rts_open_world_handoff_state,
+        "final_contextual_action_labels": runtime.contextual_action_labels,
+        "final_contextual_primary_action_label": runtime.contextual_primary_action_label,
+        "final_active_task_ids": runtime.active_task_ids,
+        "final_objective_status": runtime.objective_status,
+        "final_next_action_ids": runtime.rts_next_action_ids,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_route_director_history": runtime.route_director_history,
+        "milestones": {
+            "objective_victory_seen": objective_victory_seen,
+            "creep_camp_seen": creep_camp_seen,
+            "recon_seen": recon_seen,
+            "enemy_pressure_seen": enemy_pressure_seen,
+            "army_rally_seen": army_rally_seen,
+            "base_assault_seen": base_assault_seen,
+            "aftermath_seen": aftermath_seen,
+            "commander_seen": commander_seen,
+            "expansion_seen": expansion_seen,
+            "tier_two_seen": tier_two_seen,
+            "breach_seen": breach_seen,
+            "inner_seen": inner_seen,
+            "keep_pressure_seen": keep_pressure_seen,
+            "keep_victory_seen": keep_victory_seen,
+            "restoration_seen": restoration_seen,
+            "open_world_seen": open_world_seen
+        },
+        "non_background_pixels": non_background_pixels,
+        "victory_pixel_count": victory_pixel_count,
+        "expansion_pixel_count": expansion_pixel_count,
+        "breach_pixel_count": breach_pixel_count,
+        "keep_pixel_count": keep_pixel_count,
+        "restoration_pixel_count": restoration_pixel_count,
+        "open_world_pixel_count": open_world_pixel_count,
+        "live_campaign_input_gate": live_campaign_input_gate,
+        "early_campaign_gate": early_campaign_gate,
+        "mid_campaign_gate": mid_campaign_gate,
+        "end_campaign_gate": end_campaign_gate,
+        "open_world_resume_gate": open_world_resume_gate,
+        "render_milestone_gate": render_milestone_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS campaign handoff evidence runs one live native Bevy input chain from first RTS selection through objective, creep, recon, enemy tech, army production, assault, aftermath, commander, expansion, tier-two siege, central-keep victory, Mirror City restoration, and open-world resume."
+    }))
+    .expect("classic RTS campaign handoff evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

@@ -379,6 +379,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 同日继续追加第二十七组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_open_world_after_action.sh` 把 `open_world_after_action` 做成 RTS 胜利后的开放世界恢复：`tier2:open_world` 打开回城路线，`tier2:open_world_route` 接回 `league-coliseum` 路线导演 / 任务面板，`tier2:open_world_resume` 恢复 `arena_outdoor` 房间、`task-fixture-first-route` active task、combat contextual deck；这个 gate 证明 RTS 终局不是停在 next-action 字符串，而是回到 Rust-owned open-world surface。
 
+同日继续追加第二十八组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_campaign_handoff.sh` 把前面分段 gate 重新压成一条 live native input 全链路：从初始 RTS control group、objective victory、creep camp、recon、enemy tech/counter、army rally、base assault、aftermath、commander、expansion、tier-two siege、inner lane、central keep、Mirror City restoration，一直跑到 `league-coliseum` 的 open-world resume；这个 gate 专门防止分段证据只靠 dependency helper 串联，而没有一条连续可回放路线。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
