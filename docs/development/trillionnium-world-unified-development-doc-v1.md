@@ -383,6 +383,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第二十九组 RTS gate：`scripts/check_trillionnium_world_bevy_classic_rts_campaign_entry.sh` 把这条 campaign handoff 推到玩家可见入口。Bevy title surface 现在暴露 `CAMPAIGN:START`、`CAMPAIGN:CONTINUE`、`CAMPAIGN:REPLAY` 三个 native actions；`START/REPLAY` 从标题菜单触发完整 73 步 campaign handoff、写入 `NativePlayableSaveSnapshot`，`CONTINUE` 从 campaign slot 恢复到 `league-coliseum` open-world handoff 并要求 `CONTINUE:SESSION` 解锁地图控制。它纳入 classic playtest readiness 与 release-review CI，防止 campaign 只存在于 evidence CLI、玩家入口不可达。
 
+继续追加第三十组 playtest gate：`scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh` 把玩家启动条件合成一个单一证据：live `trillionnium-bevy-playtest.service` 必须运行 release `trnm-world-bevy`、使用 classic low-spec renderer/manifest、不带 CEX runtime path；标题页必须有 `CAMPAIGN:START/CONTINUE/REPLAY`，campaign slot 必须可写入并恢复到 `league-coliseum` / `arena_outdoor` / `COMBAT:attack`。它纳入 classic playtest readiness 与 release-review CI，防止“入口存在”和“服务运行”分别为绿但无法交付给测试玩家。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

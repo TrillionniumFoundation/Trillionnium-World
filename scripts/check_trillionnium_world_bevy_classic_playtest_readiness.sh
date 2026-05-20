@@ -50,6 +50,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_entry.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
 
 jq -n \
   --slurpfile manifest "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-manifest-lint.json" \
@@ -96,7 +97,8 @@ jq -n \
   --slurpfile rts_campaign "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.json" \
   --slurpfile rts_campaign_entry "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
-  --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" '
+  --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
+  --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
   def ok($x): ($x[0].green == true);
   {
     contract_version: "trillionnium_world_bevy_classic_playtest_readiness_v1",
@@ -146,6 +148,7 @@ jq -n \
       and ok($rts_campaign_entry)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
+      and ok($launcher)
       and $manifest[0].cex_runtime_player_client_allowed == false
       and $budget[0].p95_budget_gate == true
       and $motion[0].accepted_input_gate == true
@@ -401,7 +404,8 @@ jq -n \
       classic_rts_campaign_handoff_green: ok($rts_campaign),
       classic_rts_campaign_entry_green: ok($rts_campaign_entry),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
-      playtest_runner_status_green: ok($runner)
+      playtest_runner_status_green: ok($runner),
+      playtest_launcher_green: ok($launcher)
     },
     headline: {
       frame_count: $manifest[0].frame_count,
@@ -1001,7 +1005,12 @@ jq -n \
       rts_campaign_entry_map_scene: $rts_campaign_entry[0].final_map_scene,
       rts_campaign_entry_open_world_handoff_state: $rts_campaign_entry[0].final_open_world_handoff_state,
       runner_main_pid: $runner[0].service.main_pid,
-      runner_process_cwd: $runner[0].runtime.process_cwd
+      runner_process_cwd: $runner[0].runtime.process_cwd,
+      launcher_main_pid: $launcher[0].live_runner.service.main_pid,
+      launcher_player_entry_action_count: $launcher[0].player_entry.input_action_count,
+      launcher_campaign_slot_bytes: $launcher[0].player_entry.campaign_slot_bytes,
+      launcher_resume_room_id: $launcher[0].player_entry.final_current_room_id,
+      launcher_resume_action_label: $launcher[0].player_entry.final_contextual_primary_action_label
     },
     gates: {
       cex_runtime_player_client_allowed: $manifest[0].cex_runtime_player_client_allowed,
@@ -1246,7 +1255,15 @@ jq -n \
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
       runner_override_dir_gate: $runner[0].gates.override_dir_gate,
-      runner_cex_path_gate: $runner[0].gates.cex_path_gate
+      runner_cex_path_gate: $runner[0].gates.cex_path_gate,
+      launcher_player_launch_ready_gate: $launcher[0].gates.player_launch_ready_gate,
+      launcher_campaign_entry_gate: $launcher[0].gates.campaign_entry_gate,
+      launcher_campaign_slot_gate: $launcher[0].gates.campaign_slot_gate,
+      launcher_open_world_resume_gate: $launcher[0].gates.open_world_resume_gate,
+      launcher_player_command_gate: $launcher[0].gates.player_command_gate,
+      launcher_service_process_gate: $launcher[0].gates.service_process_gate,
+      launcher_release_binary_gate: $launcher[0].gates.release_binary_gate,
+      launcher_cex_path_gate: $launcher[0].gates.cex_path_gate
     },
     artifacts: {
       manifest_lint: "acceptance/S5_native_bevy_device/latest/bevy-classic-manifest-lint.json",
@@ -1329,7 +1346,8 @@ jq -n \
       classic_rts_campaign_handoff: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.json",
       classic_rts_campaign_handoff_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-handoff.ppm",
       classic_rts_campaign_entry: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json",
-      playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json"
+      playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
+      playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
   }' >"$SUMMARY"
@@ -1382,6 +1400,7 @@ jq -e '
   and .checks.classic_rts_campaign_entry_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
+  and .checks.playtest_launcher_green == true
   and .headline.frame_count >= 43
   and .headline.animation_clip_count >= 4
   and .headline.motion_sample_count == 8
@@ -1972,6 +1991,14 @@ jq -e '
   and .gates.runner_classic_env_gate == true
   and .gates.runner_override_dir_gate == true
   and .gates.runner_cex_path_gate == true
+  and .gates.launcher_player_launch_ready_gate == true
+  and .gates.launcher_campaign_entry_gate == true
+  and .gates.launcher_campaign_slot_gate == true
+  and .gates.launcher_open_world_resume_gate == true
+  and .gates.launcher_player_command_gate == true
+  and .gates.launcher_service_process_gate == true
+  and .gates.launcher_release_binary_gate == true
+  and .gates.launcher_cex_path_gate == true
 ' "$SUMMARY" >/dev/null
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_PLAYTEST_READINESS_GREEN %s\n' "$SUMMARY"
