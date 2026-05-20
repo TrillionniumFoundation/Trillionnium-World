@@ -409,6 +409,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第四十二组 RTS structure-modeling gate：`scripts/check_trillionnium_world_bevy_classic_rts_structure_modeling.sh` 把建筑从“地图块/图标”推进到“结构状态一眼可读”。实际 `classic_draw_scene` 必须按 structure event 画出 foundation_shadow、scaffold、construction_spark、production_glow、damage_crack、repair_beam 六段，包括地基阴影、脚手架、建造火花、生产发光、受损裂纹和维修光束；`foundation_gate`、`scaffold_gate`、`construction_spark_gate`、`production_glow_gate`、`damage_crack_gate`、`repair_beam_gate`、`structure_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证建筑建造、生产、受损和维修状态都在原创 Trillionnium Bevy 低配 renderer 中可读，不借用外部 RTS IP 素材、模型或动画数据。
 
+继续追加第四十三组 RTS environment-life gate：`scripts/check_trillionnium_world_bevy_classic_rts_environment_life.sh` 把战场从“静态棋盘”推进到“有场景生命感”。实际 `classic_draw_scene` 必须按 environment event 画出 tree_sway、torch_flicker、water_shimmer、banner_flutter、resource_glint、ambient_dust 六段，包括树冠摆动、火把闪烁、水面高光、旗帜飘动、资源点闪光和行军尘土；`tree_sway_gate`、`torch_flicker_gate`、`water_shimmer_gate`、`banner_flutter_gate`、`resource_glint_gate`、`ambient_dust_gate`、`environment_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证场景动态都来自原创 Trillionnium Bevy 低配 renderer，不借用外部 RTS IP 素材、模型或动画数据。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

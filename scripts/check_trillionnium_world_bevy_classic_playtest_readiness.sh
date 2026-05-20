@@ -52,6 +52,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_surface.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_structure_modeling.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_environment_life.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -112,6 +113,7 @@ jq -n \
   --slurpfile rts_command_affordance "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.json" \
   --slurpfile rts_command_surface "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-surface.json" \
   --slurpfile rts_structure_modeling "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-structure-modeling.json" \
+  --slurpfile rts_environment_life "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -174,6 +176,7 @@ jq -n \
       and ok($rts_command_affordance)
       and ok($rts_command_surface)
       and ok($rts_structure_modeling)
+      and ok($rts_environment_life)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -443,6 +446,7 @@ jq -n \
       classic_rts_command_affordance_green: ok($rts_command_affordance),
       classic_rts_command_surface_green: ok($rts_command_surface),
       classic_rts_structure_modeling_green: ok($rts_structure_modeling),
+      classic_rts_environment_life_green: ok($rts_environment_life),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1074,6 +1078,12 @@ jq -n \
       rts_structure_modeling_production_glow_pixel_count: $rts_structure_modeling[0].production_glow_pixel_count,
       rts_structure_modeling_damage_crack_pixel_count: $rts_structure_modeling[0].damage_crack_pixel_count,
       rts_structure_modeling_repair_beam_pixel_count: $rts_structure_modeling[0].repair_beam_pixel_count,
+      rts_environment_life_tree_sway_pixel_count: $rts_environment_life[0].tree_sway_pixel_count,
+      rts_environment_life_torch_flicker_pixel_count: $rts_environment_life[0].torch_flicker_pixel_count,
+      rts_environment_life_water_shimmer_pixel_count: $rts_environment_life[0].water_shimmer_pixel_count,
+      rts_environment_life_banner_flutter_pixel_count: $rts_environment_life[0].banner_flutter_pixel_count,
+      rts_environment_life_resource_glint_pixel_count: $rts_environment_life[0].resource_glint_pixel_count,
+      rts_environment_life_ambient_dust_pixel_count: $rts_environment_life[0].ambient_dust_pixel_count,
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1400,6 +1410,15 @@ jq -n \
       rts_structure_modeling_structure_stage_gate: $rts_structure_modeling[0].structure_stage_gate,
       rts_structure_modeling_scene_renderer_gate: $rts_structure_modeling[0].scene_renderer_gate,
       rts_structure_modeling_original_art_policy_gate: $rts_structure_modeling[0].original_art_policy_gate,
+      rts_environment_life_tree_sway_gate: $rts_environment_life[0].tree_sway_gate,
+      rts_environment_life_torch_flicker_gate: $rts_environment_life[0].torch_flicker_gate,
+      rts_environment_life_water_shimmer_gate: $rts_environment_life[0].water_shimmer_gate,
+      rts_environment_life_banner_flutter_gate: $rts_environment_life[0].banner_flutter_gate,
+      rts_environment_life_resource_glint_gate: $rts_environment_life[0].resource_glint_gate,
+      rts_environment_life_ambient_dust_gate: $rts_environment_life[0].ambient_dust_gate,
+      rts_environment_life_environment_stage_gate: $rts_environment_life[0].environment_stage_gate,
+      rts_environment_life_scene_renderer_gate: $rts_environment_life[0].scene_renderer_gate,
+      rts_environment_life_original_art_policy_gate: $rts_environment_life[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1578,6 +1597,8 @@ jq -n \
       classic_rts_command_surface_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-surface.ppm",
       classic_rts_structure_modeling: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-structure-modeling.json",
       classic_rts_structure_modeling_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-structure-modeling.ppm",
+      classic_rts_environment_life: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.json",
+      classic_rts_environment_life_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1650,6 +1671,7 @@ jq -e '
   and .checks.classic_rts_command_affordance_green == true
   and .checks.classic_rts_command_surface_green == true
   and .checks.classic_rts_structure_modeling_green == true
+  and .checks.classic_rts_environment_life_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2274,6 +2296,15 @@ jq -e '
   and .gates.rts_structure_modeling_structure_stage_gate == true
   and .gates.rts_structure_modeling_scene_renderer_gate == true
   and .gates.rts_structure_modeling_original_art_policy_gate == true
+  and .gates.rts_environment_life_tree_sway_gate == true
+  and .gates.rts_environment_life_torch_flicker_gate == true
+  and .gates.rts_environment_life_water_shimmer_gate == true
+  and .gates.rts_environment_life_banner_flutter_gate == true
+  and .gates.rts_environment_life_resource_glint_gate == true
+  and .gates.rts_environment_life_ambient_dust_gate == true
+  and .gates.rts_environment_life_environment_stage_gate == true
+  and .gates.rts_environment_life_scene_renderer_gate == true
+  and .gates.rts_environment_life_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true

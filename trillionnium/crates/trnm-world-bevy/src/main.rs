@@ -226,6 +226,21 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-rts-environment-life" | "--classic-rts-environment-life" | "environment-life"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_environment_life_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("scene-transition-playability" | "--scene-transition-playability")
     ) {
         println!(

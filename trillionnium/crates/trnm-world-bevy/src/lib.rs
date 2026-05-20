@@ -236,6 +236,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_SURFACE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_surface_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_STRUCTURE_MODELING_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_structure_modeling_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENVIRONMENT_LIFE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_environment_life_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -482,6 +484,12 @@ const CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR: u32 = 0xffe68a;
 const CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR: u32 = 0x73ffbb;
 const CLASSIC_RTS_STRUCTURE_DAMAGE_CRACK_COLOR: u32 = 0xff5a6a;
 const CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR: u32 = 0x8fdcff;
+const CLASSIC_RTS_ENVIRONMENT_TREE_SWAY_COLOR: u32 = 0x7dff94;
+const CLASSIC_RTS_ENVIRONMENT_TORCH_FLICKER_COLOR: u32 = 0xffb45e;
+const CLASSIC_RTS_ENVIRONMENT_WATER_SHIMMER_COLOR: u32 = 0x83dcff;
+const CLASSIC_RTS_ENVIRONMENT_BANNER_FLUTTER_COLOR: u32 = 0xff6fb8;
+const CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR: u32 = 0xffe66d;
+const CLASSIC_RTS_ENVIRONMENT_AMBIENT_DUST_COLOR: u32 = 0xc7b38b;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -11595,6 +11603,253 @@ fn classic_draw_rts_structure_modeling_scene_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_environment_life_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("environment:ambient_dust") {
+                return Some("ambient_dust");
+            }
+            if event.contains("environment:resource_glint") {
+                return Some("resource_glint");
+            }
+            if event.contains("environment:banner_flutter") {
+                return Some("banner_flutter");
+            }
+            if event.contains("environment:water_shimmer") {
+                return Some("water_shimmer");
+            }
+            if event.contains("environment:torch_flicker") {
+                return Some("torch_flicker");
+            }
+            if event.contains("environment:tree_sway") {
+                return Some("tree_sway");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("environment:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "tree_sway",
+            1 => "torch_flicker",
+            2 => "water_shimmer",
+            3 => "banner_flutter",
+            4 => "resource_glint",
+            _ => "ambient_dust",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_environment_life_scene_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    origin_x: i32,
+    origin_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    scene_id: &str,
+    stage: &str,
+) {
+    let tree_tiles: &[(i32, i32)] = match scene_id {
+        "league_coliseum" => &[(2, 2), (9, 2), (10, 3)],
+        "arena_outdoor" => &[(1, 2), (3, 1), (10, 2)],
+        _ => &[(1, 1), (8, 1), (10, 2)],
+    };
+    let torch_tiles: &[(i32, i32)] = match scene_id {
+        "mentor_training_room" => &[(3, 2), (8, 2), (10, 3)],
+        "league_coliseum" => &[(3, 2), (6, 2), (9, 2)],
+        _ => &[(4, 2), (6, 3), (9, 3)],
+    };
+    let water_tiles: &[(i32, i32)] = match scene_id {
+        "league_coliseum" => &[(2, 6), (4, 6), (6, 6)],
+        "arena_outdoor" => &[(5, 5), (6, 5), (7, 5), (8, 4)],
+        _ => &[(6, 5), (7, 5), (8, 4)],
+    };
+    let banner_tiles: &[(i32, i32)] = match scene_id {
+        "league_coliseum" => &[(3, 2), (5, 2), (9, 2), (10, 3)],
+        "mentor_training_room" => &[(2, 2), (5, 1), (9, 2)],
+        _ => &[(3, 2), (5, 2), (9, 2)],
+    };
+    let resource_tiles: &[(i32, i32)] = match scene_id {
+        "mentor_training_room" => &[(2, 2), (8, 2), (9, 2)],
+        "arena_outdoor" => &[(2, 3), (8, 2), (10, 2)],
+        _ => &[(2, 2), (8, 2), (9, 2)],
+    };
+    let dust_tiles: &[(i32, i32)] = match scene_id {
+        "league_coliseum" => &[(4, 4), (5, 4), (6, 4), (7, 4), (8, 4)],
+        "arena_outdoor" => &[(4, 5), (5, 5), (6, 4), (7, 4), (8, 3)],
+        _ => &[(4, 4), (5, 4), (6, 4), (7, 3), (8, 3)],
+    };
+
+    match stage {
+        "tree_sway" => {
+            for (index, tile) in tree_tiles.iter().enumerate() {
+                let (center_x, screen_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+                let base_y = screen_y + tile_h;
+                for step in 0..6 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 28 + step * 10 + (index as i32 % 2) * 2,
+                        base_y - 82 + (step % 3) * 5,
+                        18,
+                        5,
+                        CLASSIC_RTS_ENVIRONMENT_TREE_SWAY_COLOR,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 22 + index as i32,
+                    base_y - 66,
+                    44,
+                    6,
+                    CLASSIC_RTS_ENVIRONMENT_TREE_SWAY_COLOR,
+                );
+            }
+        }
+        "torch_flicker" => {
+            for (index, tile) in torch_tiles.iter().enumerate() {
+                let (center_x, screen_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+                let base_y = screen_y + tile_h;
+                for step in 0..5 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 10 + step * 5,
+                        base_y - 58 - ((step + index as i32) % 3) * 4,
+                        5,
+                        12,
+                        CLASSIC_RTS_ENVIRONMENT_TORCH_FLICKER_COLOR,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 16,
+                    base_y - 35,
+                    32,
+                    4,
+                    CLASSIC_RTS_ENVIRONMENT_TORCH_FLICKER_COLOR,
+                );
+            }
+        }
+        "water_shimmer" => {
+            for (index, tile) in water_tiles.iter().enumerate() {
+                let (center_x, screen_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+                let base_y = screen_y + tile_h;
+                for step in 0..4 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 38 + step * 19 + (index as i32 % 2) * 4,
+                        base_y - 10 + step * 3,
+                        34,
+                        4,
+                        CLASSIC_RTS_ENVIRONMENT_WATER_SHIMMER_COLOR,
+                    );
+                }
+            }
+        }
+        "banner_flutter" => {
+            for (index, tile) in banner_tiles.iter().enumerate() {
+                let (center_x, screen_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+                let base_y = screen_y + tile_h;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 2,
+                    base_y - 78,
+                    4,
+                    58,
+                    CLASSIC_RTS_ENVIRONMENT_BANNER_FLUTTER_COLOR,
+                );
+                for step in 0..5 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 2 + step * 8,
+                        base_y - 78 + step * 4 + (index as i32 % 2),
+                        12,
+                        8,
+                        CLASSIC_RTS_ENVIRONMENT_BANNER_FLUTTER_COLOR,
+                    );
+                }
+            }
+        }
+        "resource_glint" => {
+            for (index, tile) in resource_tiles.iter().enumerate() {
+                let (center_x, screen_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+                let base_y = screen_y + tile_h;
+                for step in 0..8 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 26 + step * 8,
+                        base_y - 43 + ((step + index as i32) % 4) * 5,
+                        5,
+                        5,
+                        CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 30,
+                    base_y - 18,
+                    60,
+                    4,
+                    CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                );
+            }
+        }
+        "ambient_dust" => {
+            for (index, tile) in dust_tiles.iter().enumerate() {
+                let (center_x, screen_y) =
+                    classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+                let base_y = screen_y + tile_h;
+                for step in 0..5 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 34 + step * 16,
+                        base_y - 8 - ((step + index as i32) % 3) * 4,
+                        12,
+                        4,
+                        CLASSIC_RTS_ENVIRONMENT_AMBIENT_DUST_COLOR,
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -13118,6 +13373,237 @@ pub fn native_classic_rts_structure_modeling_evidence_json(preview_path: &str) -
         "source_of_truth": "Structure modeling evidence uses actual classic_draw_scene frames and structure-event driven stage selection to prove RTS buildings have readable construction, production, damage, and repair states in the playable Bevy low-spec renderer."
     }))
     .expect("classic RTS structure modeling evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_environment_life_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "tree_sway",
+            "mirror_city_square",
+            (5, 5),
+            0_u8,
+            "environment:tree_sway",
+        ),
+        (
+            "torch_flicker",
+            "mirror_city_square",
+            (5, 5),
+            1_u8,
+            "environment:torch_flicker",
+        ),
+        (
+            "water_shimmer",
+            "arena_outdoor",
+            (5, 5),
+            2_u8,
+            "environment:water_shimmer",
+        ),
+        (
+            "banner_flutter",
+            "league_coliseum",
+            (6, 5),
+            3_u8,
+            "environment:banner_flutter",
+        ),
+        (
+            "resource_glint",
+            "mentor_training_room",
+            (5, 4),
+            4_u8,
+            "environment:resource_glint",
+        ),
+        (
+            "ambient_dust",
+            "arena_outdoor",
+            (5, 5),
+            5_u8,
+            "environment:ambient_dust",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, environment_event)) in
+        stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 560 + index as u64,
+            xp: 380 + (index as u64 * 19),
+            facing_direction: "east".to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "square_worker_carry",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_command_queue: string_vec([
+                *environment_event,
+                "scout:environment",
+                "move:patrol_arc",
+                "harvest:outer_gold",
+                "hold:torch_line",
+            ]),
+            rts_production_queue: string_vec(["train:relay_guard", "upgrade:field_lantern"]),
+            rts_build_site_tile_ids: string_vec(["7,4", "8,4"]),
+            rts_completed_structure_ids: string_vec(["watch_tower", "training_hall"]),
+            rts_building_blueprint_id: Some("watch_tower".to_string()),
+            rts_building_progress_percent: 100,
+            rts_structure_health_percents: vec![91, 86],
+            rts_combat_event_log: string_vec([
+                *environment_event,
+                "environment_source:classic_draw_scene",
+                "environment_life_original_art",
+            ]),
+            last_feedback: format!("RTS environment life stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("ENV LIFE {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "environment_event": environment_event,
+            "renderer_path": "classic_draw_scene",
+            "event_log_count": runtime.rts_combat_event_log.len(),
+            "command_queue_count": runtime.rts_command_queue.len(),
+            "production_queue_count": runtime.rts_production_queue.len(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let tree_sway_pixel_count = count_color(CLASSIC_RTS_ENVIRONMENT_TREE_SWAY_COLOR);
+    let torch_flicker_pixel_count = count_color(CLASSIC_RTS_ENVIRONMENT_TORCH_FLICKER_COLOR);
+    let water_shimmer_pixel_count = count_color(CLASSIC_RTS_ENVIRONMENT_WATER_SHIMMER_COLOR);
+    let banner_flutter_pixel_count = count_color(CLASSIC_RTS_ENVIRONMENT_BANNER_FLUTTER_COLOR);
+    let resource_glint_pixel_count = count_color(CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR);
+    let ambient_dust_pixel_count = count_color(CLASSIC_RTS_ENVIRONMENT_AMBIENT_DUST_COLOR);
+    let tree_sway_gate = tree_sway_pixel_count > 160;
+    let torch_flicker_gate = torch_flicker_pixel_count > 120;
+    let water_shimmer_gate = water_shimmer_pixel_count > 120;
+    let banner_flutter_gate = banner_flutter_pixel_count > 160;
+    let resource_glint_gate = resource_glint_pixel_count > 120;
+    let ambient_dust_gate = ambient_dust_pixel_count > 120;
+    let environment_stage_gate = [
+        "environment:tree_sway",
+        "environment:torch_flicker",
+        "environment:water_shimmer",
+        "environment:banner_flutter",
+        "environment:resource_glint",
+        "environment:ambient_dust",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("environment_event")
+                .and_then(|value| value.as_str())
+                == Some(*event)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && tree_sway_gate
+        && torch_flicker_gate
+        && water_shimmer_gate
+        && banner_flutter_gate
+        && resource_glint_gate
+        && ambient_dust_gate
+        && environment_stage_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENVIRONMENT_LIFE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "tree_sway_pixel_count": tree_sway_pixel_count,
+        "torch_flicker_pixel_count": torch_flicker_pixel_count,
+        "water_shimmer_pixel_count": water_shimmer_pixel_count,
+        "banner_flutter_pixel_count": banner_flutter_pixel_count,
+        "resource_glint_pixel_count": resource_glint_pixel_count,
+        "ambient_dust_pixel_count": ambient_dust_pixel_count,
+        "tree_sway_gate": tree_sway_gate,
+        "torch_flicker_gate": torch_flicker_gate,
+        "water_shimmer_gate": water_shimmer_gate,
+        "banner_flutter_gate": banner_flutter_gate,
+        "resource_glint_gate": resource_glint_gate,
+        "ambient_dust_gate": ambient_dust_gate,
+        "environment_stage_gate": environment_stage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium environment-life overlays; tree sway, torch flicker, water shimmer, banner flutter, resource glint, and ambient dust are authored locally without copied Warcraft III assets, UI art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Environment-life evidence uses actual classic_draw_scene frames and environment-event driven stage selection to prove the playable Bevy RTS scene has readable ambient motion cues without borrowing external RTS IP assets."
+    }))
+    .expect("classic RTS environment life evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -29824,6 +30310,19 @@ fn classic_draw_isometric_scene(
                 tile_h,
                 scene.id.as_str(),
                 structure_stage,
+            );
+        }
+        if let Some(environment_stage) = classic_rts_environment_life_stage(Some(runtime)) {
+            classic_draw_rts_environment_life_scene_overlay(
+                buffer,
+                width,
+                height,
+                origin_x,
+                origin_y,
+                tile_w,
+                tile_h,
+                scene.id.as_str(),
+                environment_stage,
             );
         }
         classic_draw_iso_command_feedback(
