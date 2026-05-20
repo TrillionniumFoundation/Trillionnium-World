@@ -53,6 +53,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_behavior.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
@@ -106,6 +107,7 @@ jq -n \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
+  --slurpfile rts_npc_behavior "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-behavior.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
@@ -161,6 +163,7 @@ jq -n \
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
+      and ok($rts_npc_behavior)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -423,6 +426,7 @@ jq -n \
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
+      classic_rts_npc_behavior_green: ok($rts_npc_behavior),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -1052,6 +1056,13 @@ jq -n \
       rts_action_sequence_carry_up_pixel_count: $rts_action_sequence[0].carry_up_pixel_count,
       rts_action_sequence_carry_down_pixel_count: $rts_action_sequence[0].carry_down_pixel_count,
       rts_action_sequence_frame_ghost_pixel_count: $rts_action_sequence[0].frame_ghost_pixel_count,
+      rts_npc_behavior_patrol_pixel_count: $rts_npc_behavior[0].patrol_pixel_count,
+      rts_npc_behavior_engage_pixel_count: $rts_npc_behavior[0].engage_pixel_count,
+      rts_npc_behavior_work_pixel_count: $rts_npc_behavior[0].work_pixel_count,
+      rts_npc_behavior_carry_pixel_count: $rts_npc_behavior[0].carry_pixel_count,
+      rts_npc_behavior_stalk_pixel_count: $rts_npc_behavior[0].stalk_pixel_count,
+      rts_npc_behavior_retreat_pixel_count: $rts_npc_behavior[0].retreat_pixel_count,
+      rts_npc_behavior_route_pixel_count: $rts_npc_behavior[0].route_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd,
       launcher_main_pid: $launcher[0].live_runner.service.main_pid,
@@ -1339,6 +1350,16 @@ jq -n \
       rts_action_sequence_sequence_phase_gate: $rts_action_sequence[0].sequence_phase_gate,
       rts_action_sequence_scene_renderer_gate: $rts_action_sequence[0].scene_renderer_gate,
       rts_action_sequence_original_art_policy_gate: $rts_action_sequence[0].original_art_policy_gate,
+      rts_npc_behavior_patrol_gate: $rts_npc_behavior[0].patrol_gate,
+      rts_npc_behavior_engage_gate: $rts_npc_behavior[0].engage_gate,
+      rts_npc_behavior_work_gate: $rts_npc_behavior[0].work_gate,
+      rts_npc_behavior_carry_gate: $rts_npc_behavior[0].carry_gate,
+      rts_npc_behavior_stalk_gate: $rts_npc_behavior[0].stalk_gate,
+      rts_npc_behavior_retreat_gate: $rts_npc_behavior[0].retreat_gate,
+      rts_npc_behavior_route_gate: $rts_npc_behavior[0].route_gate,
+      rts_npc_behavior_behavior_stage_gate: $rts_npc_behavior[0].behavior_stage_gate,
+      rts_npc_behavior_scene_renderer_gate: $rts_npc_behavior[0].scene_renderer_gate,
+      rts_npc_behavior_original_art_policy_gate: $rts_npc_behavior[0].original_art_policy_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1444,6 +1465,8 @@ jq -n \
       classic_rts_unit_model_depth_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.ppm",
       classic_rts_action_sequence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json",
       classic_rts_action_sequence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.ppm",
+      classic_rts_npc_behavior: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-behavior.json",
+      classic_rts_npc_behavior_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-behavior.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -1501,6 +1524,7 @@ jq -e '
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
+  and .checks.classic_rts_npc_behavior_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
@@ -2129,6 +2153,16 @@ jq -e '
   and .gates.rts_action_sequence_sequence_phase_gate == true
   and .gates.rts_action_sequence_scene_renderer_gate == true
   and .gates.rts_action_sequence_original_art_policy_gate == true
+  and .gates.rts_npc_behavior_patrol_gate == true
+  and .gates.rts_npc_behavior_engage_gate == true
+  and .gates.rts_npc_behavior_work_gate == true
+  and .gates.rts_npc_behavior_carry_gate == true
+  and .gates.rts_npc_behavior_stalk_gate == true
+  and .gates.rts_npc_behavior_retreat_gate == true
+  and .gates.rts_npc_behavior_route_gate == true
+  and .gates.rts_npc_behavior_behavior_stage_gate == true
+  and .gates.rts_npc_behavior_scene_renderer_gate == true
+  and .gates.rts_npc_behavior_original_art_policy_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
