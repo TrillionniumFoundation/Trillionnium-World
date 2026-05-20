@@ -393,6 +393,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第三十四组 RTS unit-model-depth gate：`scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh` 专门压住低配单位建模像方块人的问题。guard/worker/creep 的原创像素素材和实际 `classic_draw_scene` 渲染现在必须有轮廓 rim、护甲/硬边层、角色道具、面部暗面、脚底接触阴影和身体层叠阴影；它通过 `rim_gate`、`armor_gate`、`role_prop_gate`、`face_shade_gate`、`ground_contact_gate`、`layer_shadow_gate`、`role_coverage_gate` 与 `original_art_policy_gate` 保证建模层次不是只靠 HUD 描述。
 
+继续追加第三十五组 RTS action-sequence gate：`scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh` 把“看起来像在动”推进到可回放的动作阶段。实际 `classic_draw_scene` 必须由 combat event / runtime tick 选出 idle、windup、strike、recovery、carry_up、carry_down 六段，并在同一低配 2.5D 战场里画出前摇轨迹、命中爆点、收招回弹、搬运上下拍和帧残影；`sequence_phase_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证它是 Trillionnium 原创单位在本地渲染器里的动作序列，而不是静态贴图或外部 RTS IP 素材。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

@@ -52,6 +52,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
@@ -104,6 +105,7 @@ jq -n \
   --slurpfile rts_command_affordance "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
+  --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
@@ -158,6 +160,7 @@ jq -n \
       and ok($rts_command_affordance)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
+      and ok($rts_action_sequence)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -419,6 +422,7 @@ jq -n \
       classic_rts_command_affordance_green: ok($rts_command_affordance),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
+      classic_rts_action_sequence_green: ok($rts_action_sequence),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -1041,6 +1045,13 @@ jq -n \
       rts_unit_model_depth_face_shade_pixel_count: $rts_unit_model_depth[0].face_shade_pixel_count,
       rts_unit_model_depth_ground_contact_pixel_count: $rts_unit_model_depth[0].ground_contact_pixel_count,
       rts_unit_model_depth_layer_shadow_pixel_count: $rts_unit_model_depth[0].layer_shadow_pixel_count,
+      rts_action_sequence_idle_pixel_count: $rts_action_sequence[0].idle_pixel_count,
+      rts_action_sequence_windup_pixel_count: $rts_action_sequence[0].windup_pixel_count,
+      rts_action_sequence_strike_pixel_count: $rts_action_sequence[0].strike_pixel_count,
+      rts_action_sequence_recovery_pixel_count: $rts_action_sequence[0].recovery_pixel_count,
+      rts_action_sequence_carry_up_pixel_count: $rts_action_sequence[0].carry_up_pixel_count,
+      rts_action_sequence_carry_down_pixel_count: $rts_action_sequence[0].carry_down_pixel_count,
+      rts_action_sequence_frame_ghost_pixel_count: $rts_action_sequence[0].frame_ghost_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd,
       launcher_main_pid: $launcher[0].live_runner.service.main_pid,
@@ -1318,6 +1329,16 @@ jq -n \
       rts_unit_model_depth_scene_renderer_gate: $rts_unit_model_depth[0].scene_renderer_gate,
       rts_unit_model_depth_role_coverage_gate: $rts_unit_model_depth[0].role_coverage_gate,
       rts_unit_model_depth_original_art_policy_gate: $rts_unit_model_depth[0].original_art_policy_gate,
+      rts_action_sequence_idle_gate: $rts_action_sequence[0].idle_gate,
+      rts_action_sequence_windup_gate: $rts_action_sequence[0].windup_gate,
+      rts_action_sequence_strike_gate: $rts_action_sequence[0].strike_gate,
+      rts_action_sequence_recovery_gate: $rts_action_sequence[0].recovery_gate,
+      rts_action_sequence_carry_up_gate: $rts_action_sequence[0].carry_up_gate,
+      rts_action_sequence_carry_down_gate: $rts_action_sequence[0].carry_down_gate,
+      rts_action_sequence_frame_ghost_gate: $rts_action_sequence[0].frame_ghost_gate,
+      rts_action_sequence_sequence_phase_gate: $rts_action_sequence[0].sequence_phase_gate,
+      rts_action_sequence_scene_renderer_gate: $rts_action_sequence[0].scene_renderer_gate,
+      rts_action_sequence_original_art_policy_gate: $rts_action_sequence[0].original_art_policy_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1421,6 +1442,8 @@ jq -n \
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
       classic_rts_unit_model_depth_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.ppm",
+      classic_rts_action_sequence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json",
+      classic_rts_action_sequence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -1477,6 +1500,7 @@ jq -e '
   and .checks.classic_rts_command_affordance_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
+  and .checks.classic_rts_action_sequence_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
@@ -2095,6 +2119,16 @@ jq -e '
   and .gates.rts_unit_model_depth_scene_renderer_gate == true
   and .gates.rts_unit_model_depth_role_coverage_gate == true
   and .gates.rts_unit_model_depth_original_art_policy_gate == true
+  and .gates.rts_action_sequence_idle_gate == true
+  and .gates.rts_action_sequence_windup_gate == true
+  and .gates.rts_action_sequence_strike_gate == true
+  and .gates.rts_action_sequence_recovery_gate == true
+  and .gates.rts_action_sequence_carry_up_gate == true
+  and .gates.rts_action_sequence_carry_down_gate == true
+  and .gates.rts_action_sequence_frame_ghost_gate == true
+  and .gates.rts_action_sequence_sequence_phase_gate == true
+  and .gates.rts_action_sequence_scene_renderer_gate == true
+  and .gates.rts_action_sequence_original_art_policy_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

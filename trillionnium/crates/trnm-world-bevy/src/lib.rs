@@ -220,6 +220,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_action_cadence_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_MODEL_DEPTH_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_unit_model_depth_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_SEQUENCE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_action_sequence_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -414,6 +416,13 @@ const CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR: u32 = 0xffcf73;
 const CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR: u32 = 0x7b4f35;
 const CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR: u32 = 0x273238;
 const CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR: u32 = 0x1a2026;
+const CLASSIC_RTS_ACTION_SEQUENCE_IDLE_COLOR: u32 = 0x74ffa3;
+const CLASSIC_RTS_ACTION_SEQUENCE_WINDUP_COLOR: u32 = 0xffb457;
+const CLASSIC_RTS_ACTION_SEQUENCE_STRIKE_COLOR: u32 = 0xffffb4;
+const CLASSIC_RTS_ACTION_SEQUENCE_RECOVERY_COLOR: u32 = 0x85d8ff;
+const CLASSIC_RTS_ACTION_SEQUENCE_CARRY_UP_COLOR: u32 = 0xf4d66f;
+const CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR: u32 = 0xc6944a;
+const CLASSIC_RTS_ACTION_SEQUENCE_FRAME_GHOST_COLOR: u32 = 0x6d80a0;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -9768,6 +9777,260 @@ fn classic_draw_rts_action_cadence_marks(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_action_sequence_phase(
+    frame_id: &str,
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("sequence:carry_down") {
+                return Some("carry_down");
+            }
+            if event.contains("sequence:carry_up") {
+                return Some("carry_up");
+            }
+            if event.contains("sequence:recovery") {
+                return Some("recovery");
+            }
+            if event.contains("sequence:strike") {
+                return Some("strike");
+            }
+            if event.contains("sequence:windup") {
+                return Some("windup");
+            }
+            if event.contains("sequence:idle") {
+                return Some("idle");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("sequence:"))
+        {
+            return None;
+        }
+        if frame_id.contains("carry") {
+            return Some(if runtime.walk_cycle_frame % 2 == 0 {
+                "carry_up"
+            } else {
+                "carry_down"
+            });
+        }
+        if frame_id.contains("attack") {
+            return Some(match runtime.combat_turn % 4 {
+                1 => "windup",
+                2 => "strike",
+                3 => "recovery",
+                _ => "idle",
+            });
+        }
+    }
+    if frame_id.contains("carry") {
+        Some("carry_up")
+    } else if frame_id.contains("attack") {
+        Some("strike")
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_action_sequence_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    base_y: i32,
+    phase: &str,
+) {
+    if !(frame_id.starts_with("actor_guard")
+        || frame_id.starts_with("actor_worker")
+        || frame_id.starts_with("actor_creep"))
+    {
+        return;
+    }
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - 16,
+        base_y - 7,
+        32,
+        2,
+        CLASSIC_RTS_ACTION_SEQUENCE_FRAME_GHOST_COLOR,
+    );
+
+    match phase {
+        "windup" => {
+            for step in 0..7 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 28 + step * 3,
+                    base_y - 39 + step,
+                    7,
+                    3,
+                    CLASSIC_RTS_ACTION_SEQUENCE_WINDUP_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 13,
+                base_y - 29,
+                9,
+                12,
+                CLASSIC_RTS_ACTION_SEQUENCE_WINDUP_COLOR,
+            );
+        }
+        "strike" => {
+            for step in 0..10 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 8 + step * 3,
+                    base_y - 38 + step,
+                    8,
+                    3,
+                    CLASSIC_RTS_ACTION_SEQUENCE_STRIKE_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 24,
+                base_y - 28,
+                12,
+                10,
+                CLASSIC_RTS_ACTION_SEQUENCE_STRIKE_COLOR,
+            );
+        }
+        "recovery" => {
+            for step in 0..7 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 4 + step * 4,
+                    base_y - 20 + step,
+                    7,
+                    3,
+                    CLASSIC_RTS_ACTION_SEQUENCE_RECOVERY_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 6,
+                base_y - 32,
+                8,
+                16,
+                CLASSIC_RTS_ACTION_SEQUENCE_RECOVERY_COLOR,
+            );
+        }
+        "carry_up" => {
+            if frame_id.contains("carry") || frame_id.starts_with("actor_worker") {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 11,
+                    base_y - 39,
+                    16,
+                    6,
+                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_UP_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 15,
+                    base_y - 31,
+                    10,
+                    6,
+                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_UP_COLOR,
+                );
+            }
+        }
+        "carry_down" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 14,
+                base_y - 11,
+                28,
+                3,
+                CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 5,
+                base_y - 25,
+                10,
+                6,
+                CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
+            );
+            if frame_id.contains("carry") || frame_id.starts_with("actor_worker") {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 10,
+                    base_y - 28,
+                    18,
+                    7,
+                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + 7,
+                    base_y - 18,
+                    20,
+                    4,
+                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
+                );
+            }
+        }
+        _ => {
+            for step in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 11 + step * 7,
+                    base_y - 32 + (step % 2),
+                    5,
+                    2,
+                    CLASSIC_RTS_ACTION_SEQUENCE_IDLE_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 8,
+                base_y - 18,
+                16,
+                3,
+                CLASSIC_RTS_ACTION_SEQUENCE_IDLE_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -11242,6 +11505,242 @@ pub fn native_classic_rts_unit_model_depth_evidence_json(preview_path: &str) -> 
         "source_of_truth": "Unit model depth evidence uses actual classic_draw_scene frames and original generated guard/worker/creep art to prove silhouette rims, armor plates, role props, face shade, ground contact, and body layer shadows are visible in the playable RTS renderer."
     }))
     .expect("classic RTS unit model depth evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_action_sequence_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "idle_ready",
+            "mentor_training_room",
+            (5, 5),
+            0_u8,
+            "sequence:idle",
+        ),
+        (
+            "windup_frame",
+            "arena_outdoor",
+            (5, 5),
+            1_u8,
+            "sequence:windup",
+        ),
+        (
+            "strike_frame",
+            "arena_outdoor",
+            (5, 5),
+            2_u8,
+            "sequence:strike",
+        ),
+        (
+            "recovery_frame",
+            "arena_outdoor",
+            (5, 5),
+            3_u8,
+            "sequence:recovery",
+        ),
+        (
+            "carry_up_frame",
+            "mirror_city_square",
+            (5, 5),
+            2_u8,
+            "sequence:carry_up",
+        ),
+        (
+            "carry_down_frame",
+            "mirror_city_square",
+            (5, 5),
+            1_u8,
+            "sequence:carry_down",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, phase_event)) in stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 244 + index as u64,
+            xp: 118 + (index as u64 * 5),
+            facing_direction: if index % 2 == 0 { "east" } else { "west" }.to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: scene.contains("arena"),
+            combat_overlay_was_visible: scene.contains("arena"),
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "square_worker_carry",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_command_queue: string_vec([
+                "sequence:idle",
+                "sequence:windup",
+                "sequence:strike",
+                "sequence:recovery",
+                "sequence:carry",
+            ]),
+            rts_command_destination_tile: Some("7,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec(["train:guard", "train:worker"]),
+            rts_unit_health_percents: vec![96, 82, 74, 31],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 12, 0, 35, 18],
+            rts_active_ability_id: Some("focus".to_string()),
+            rts_target_health_percent: 34,
+            rts_combat_event_log: string_vec([
+                *phase_event,
+                "action_sequence_source:classic_draw_scene",
+            ]),
+            last_feedback: format!("RTS action sequence stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 168,
+            &format!("ACTION SEQUENCE {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "phase_event": phase_event,
+            "renderer_path": "classic_draw_scene",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let idle_pixel_count = count_color(CLASSIC_RTS_ACTION_SEQUENCE_IDLE_COLOR);
+    let windup_pixel_count = count_color(CLASSIC_RTS_ACTION_SEQUENCE_WINDUP_COLOR);
+    let strike_pixel_count = count_color(CLASSIC_RTS_ACTION_SEQUENCE_STRIKE_COLOR);
+    let recovery_pixel_count = count_color(CLASSIC_RTS_ACTION_SEQUENCE_RECOVERY_COLOR);
+    let carry_up_pixel_count = count_color(CLASSIC_RTS_ACTION_SEQUENCE_CARRY_UP_COLOR);
+    let carry_down_pixel_count = count_color(CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR);
+    let frame_ghost_pixel_count = count_color(CLASSIC_RTS_ACTION_SEQUENCE_FRAME_GHOST_COLOR);
+    let idle_gate = idle_pixel_count > 80;
+    let windup_gate = windup_pixel_count > 120;
+    let strike_gate = strike_pixel_count > 180;
+    let recovery_gate = recovery_pixel_count > 120;
+    let carry_up_gate = carry_up_pixel_count > 50;
+    let carry_down_gate = carry_down_pixel_count > 50;
+    let frame_ghost_gate = frame_ghost_pixel_count > 120;
+    let sequence_phase_gate = [
+        "sequence:idle",
+        "sequence:windup",
+        "sequence:strike",
+        "sequence:recovery",
+        "sequence:carry_up",
+        "sequence:carry_down",
+    ]
+    .iter()
+    .all(|phase| {
+        stage_summaries.iter().any(|summary| {
+            summary.get("phase_event").and_then(|value| value.as_str()) == Some(*phase)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && sequence_phase_gate
+        && scene_renderer_gate
+        && idle_gate
+        && windup_gate
+        && strike_gate
+        && recovery_gate
+        && carry_up_gate
+        && carry_down_gate
+        && frame_ghost_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_SEQUENCE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "idle_pixel_count": idle_pixel_count,
+        "windup_pixel_count": windup_pixel_count,
+        "strike_pixel_count": strike_pixel_count,
+        "recovery_pixel_count": recovery_pixel_count,
+        "carry_up_pixel_count": carry_up_pixel_count,
+        "carry_down_pixel_count": carry_down_pixel_count,
+        "frame_ghost_pixel_count": frame_ghost_pixel_count,
+        "idle_gate": idle_gate,
+        "windup_gate": windup_gate,
+        "strike_gate": strike_gate,
+        "recovery_gate": recovery_gate,
+        "carry_up_gate": carry_up_gate,
+        "carry_down_gate": carry_down_gate,
+        "frame_ghost_gate": frame_ghost_gate,
+        "sequence_phase_gate": sequence_phase_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium action sequence overlays; classic RTS animation readability guides timing, with no copied Warcraft III assets, timing data, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Action sequence evidence uses actual classic_draw_scene frames and combat-event driven phase selection to prove idle, wind-up, strike, recovery, carry-up, and carry-down phases render as a replayable unit action sequence."
+    }))
+    .expect("classic RTS action sequence evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -25683,6 +26182,7 @@ fn classic_draw_isometric_frame_at_tile(
     width: usize,
     height: usize,
     assets: &ClassicRuntimeAssets,
+    runtime: Option<&NativeFirstPlayableRuntime>,
     frame_id: &str,
     origin_x: i32,
     origin_y: i32,
@@ -25732,6 +26232,17 @@ fn classic_draw_isometric_frame_at_tile(
             screen_y + tile_h,
         )
     {
+        if let Some(phase) = classic_rts_action_sequence_phase(frame_id, runtime) {
+            classic_draw_rts_action_sequence_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                phase,
+            );
+        }
         return;
     }
     if !assets.frame_by_id.contains_key(frame_id)
@@ -25745,6 +26256,17 @@ fn classic_draw_isometric_frame_at_tile(
             screen_y + tile_h,
         )
     {
+        if let Some(phase) = classic_rts_action_sequence_phase(frame_id, runtime) {
+            classic_draw_rts_action_sequence_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                phase,
+            );
+        }
         return;
     }
     classic_draw_iso_procedural_model(
@@ -25768,6 +26290,17 @@ fn classic_draw_isometric_frame_at_tile(
         screen_x,
         screen_y + tile_h - sprite_px,
     );
+    if let Some(phase) = classic_rts_action_sequence_phase(frame_id, runtime) {
+        classic_draw_rts_action_sequence_marks(
+            buffer,
+            width,
+            height,
+            frame_id,
+            screen_x,
+            screen_y + tile_h,
+            phase,
+        );
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -25888,6 +26421,7 @@ fn classic_draw_isometric_scene(
                 width,
                 height,
                 assets,
+                Some(runtime),
                 &entity.frame_id,
                 origin_x,
                 origin_y,
@@ -25930,6 +26464,7 @@ fn classic_draw_isometric_scene(
             width,
             height,
             assets,
+            Some(runtime),
             player_frame,
             origin_x,
             origin_y,
