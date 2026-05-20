@@ -55,6 +55,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_behavior.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_impact.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_locomotion_blend.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
@@ -110,6 +111,7 @@ jq -n \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
   --slurpfile rts_npc_behavior "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-behavior.json" \
   --slurpfile rts_combat_impact "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-impact.json" \
+  --slurpfile rts_locomotion_blend "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-locomotion-blend.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
@@ -167,6 +169,7 @@ jq -n \
       and ok($rts_action_sequence)
       and ok($rts_npc_behavior)
       and ok($rts_combat_impact)
+      and ok($rts_locomotion_blend)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -431,6 +434,7 @@ jq -n \
       classic_rts_action_sequence_green: ok($rts_action_sequence),
       classic_rts_npc_behavior_green: ok($rts_npc_behavior),
       classic_rts_combat_impact_green: ok($rts_combat_impact),
+      classic_rts_locomotion_blend_green: ok($rts_locomotion_blend),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -1074,6 +1078,12 @@ jq -n \
       rts_combat_impact_corpse_pixel_count: $rts_combat_impact[0].corpse_pixel_count,
       rts_combat_impact_dissolve_pixel_count: $rts_combat_impact[0].dissolve_pixel_count,
       rts_combat_impact_victory_pixel_count: $rts_combat_impact[0].victory_pixel_count,
+      rts_locomotion_blend_path_pixel_count: $rts_locomotion_blend[0].path_pixel_count,
+      rts_locomotion_blend_left_step_pixel_count: $rts_locomotion_blend[0].left_step_pixel_count,
+      rts_locomotion_blend_right_step_pixel_count: $rts_locomotion_blend[0].right_step_pixel_count,
+      rts_locomotion_blend_turn_pixel_count: $rts_locomotion_blend[0].turn_pixel_count,
+      rts_locomotion_blend_slide_pixel_count: $rts_locomotion_blend[0].slide_pixel_count,
+      rts_locomotion_blend_brake_pixel_count: $rts_locomotion_blend[0].brake_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd,
       launcher_main_pid: $launcher[0].live_runner.service.main_pid,
@@ -1381,6 +1391,15 @@ jq -n \
       rts_combat_impact_impact_stage_gate: $rts_combat_impact[0].impact_stage_gate,
       rts_combat_impact_scene_renderer_gate: $rts_combat_impact[0].scene_renderer_gate,
       rts_combat_impact_original_art_policy_gate: $rts_combat_impact[0].original_art_policy_gate,
+      rts_locomotion_blend_path_gate: $rts_locomotion_blend[0].path_gate,
+      rts_locomotion_blend_left_step_gate: $rts_locomotion_blend[0].left_step_gate,
+      rts_locomotion_blend_right_step_gate: $rts_locomotion_blend[0].right_step_gate,
+      rts_locomotion_blend_turn_gate: $rts_locomotion_blend[0].turn_gate,
+      rts_locomotion_blend_slide_gate: $rts_locomotion_blend[0].slide_gate,
+      rts_locomotion_blend_brake_gate: $rts_locomotion_blend[0].brake_gate,
+      rts_locomotion_blend_locomotion_stage_gate: $rts_locomotion_blend[0].locomotion_stage_gate,
+      rts_locomotion_blend_scene_renderer_gate: $rts_locomotion_blend[0].scene_renderer_gate,
+      rts_locomotion_blend_original_art_policy_gate: $rts_locomotion_blend[0].original_art_policy_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1490,6 +1509,8 @@ jq -n \
       classic_rts_npc_behavior_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-behavior.ppm",
       classic_rts_combat_impact: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-impact.json",
       classic_rts_combat_impact_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-impact.ppm",
+      classic_rts_locomotion_blend: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-locomotion-blend.json",
+      classic_rts_locomotion_blend_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-locomotion-blend.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -1549,6 +1570,7 @@ jq -e '
   and .checks.classic_rts_action_sequence_green == true
   and .checks.classic_rts_npc_behavior_green == true
   and .checks.classic_rts_combat_impact_green == true
+  and .checks.classic_rts_locomotion_blend_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
@@ -2197,6 +2219,15 @@ jq -e '
   and .gates.rts_combat_impact_impact_stage_gate == true
   and .gates.rts_combat_impact_scene_renderer_gate == true
   and .gates.rts_combat_impact_original_art_policy_gate == true
+  and .gates.rts_locomotion_blend_path_gate == true
+  and .gates.rts_locomotion_blend_left_step_gate == true
+  and .gates.rts_locomotion_blend_right_step_gate == true
+  and .gates.rts_locomotion_blend_turn_gate == true
+  and .gates.rts_locomotion_blend_slide_gate == true
+  and .gates.rts_locomotion_blend_brake_gate == true
+  and .gates.rts_locomotion_blend_locomotion_stage_gate == true
+  and .gates.rts_locomotion_blend_scene_renderer_gate == true
+  and .gates.rts_locomotion_blend_original_art_policy_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true

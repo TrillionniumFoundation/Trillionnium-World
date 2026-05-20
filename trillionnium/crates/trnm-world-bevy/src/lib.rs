@@ -226,6 +226,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NPC_BEHAVIOR_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_npc_behavior_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_IMPACT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_combat_impact_loop_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LOCOMOTION_BLEND_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_locomotion_blend_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -441,6 +443,12 @@ const CLASSIC_RTS_COMBAT_IMPACT_DEATH_COLOR: u32 = 0x7d3438;
 const CLASSIC_RTS_COMBAT_IMPACT_CORPSE_COLOR: u32 = 0x4f3f35;
 const CLASSIC_RTS_COMBAT_IMPACT_DISSOLVE_COLOR: u32 = 0xb6a78e;
 const CLASSIC_RTS_COMBAT_IMPACT_VICTORY_COLOR: u32 = 0xf2d76b;
+const CLASSIC_RTS_LOCOMOTION_PATH_COLOR: u32 = 0x7ee7b7;
+const CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR: u32 = 0xa7f3ff;
+const CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR: u32 = 0xf7d56b;
+const CLASSIC_RTS_LOCOMOTION_TURN_COLOR: u32 = 0xc0a6ff;
+const CLASSIC_RTS_LOCOMOTION_SLIDE_COLOR: u32 = 0x8fb8ff;
+const CLASSIC_RTS_LOCOMOTION_BRAKE_COLOR: u32 = 0xffb06a;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -10531,6 +10539,291 @@ fn classic_draw_rts_combat_impact_marks(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_locomotion_blend_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("locomotion:arrival_brake") {
+                return Some("arrival_brake");
+            }
+            if event.contains("locomotion:formation_slide") {
+                return Some("formation_slide");
+            }
+            if event.contains("locomotion:turn_arc") {
+                return Some("turn_arc");
+            }
+            if event.contains("locomotion:footstep_right") {
+                return Some("footstep_right");
+            }
+            if event.contains("locomotion:footstep_left") {
+                return Some("footstep_left");
+            }
+            if event.contains("locomotion:path_commit") {
+                return Some("path_commit");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("locomotion:"))
+        {
+            return None;
+        }
+        return Some(match runtime.walk_cycle_frame % 6 {
+            0 => "path_commit",
+            1 => "footstep_left",
+            2 => "footstep_right",
+            3 => "turn_arc",
+            4 => "formation_slide",
+            _ => "arrival_brake",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_locomotion_blend_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    base_y: i32,
+    stage: &str,
+) {
+    if !(frame_id.starts_with("actor_guard")
+        || frame_id.starts_with("actor_worker")
+        || frame_id.starts_with("actor_creep")
+        || frame_id.starts_with("actor_player"))
+    {
+        return;
+    }
+
+    match stage {
+        "path_commit" => {
+            for step in 0..8 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 34 + step * 9,
+                    base_y - 10 - step / 2,
+                    7,
+                    2,
+                    CLASSIC_RTS_LOCOMOTION_PATH_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 24,
+                base_y - 18,
+                16,
+                5,
+                CLASSIC_RTS_LOCOMOTION_PATH_COLOR,
+            );
+        }
+        "footstep_left" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 14,
+                base_y - 10,
+                12,
+                4,
+                CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 6,
+                base_y - 16,
+                10,
+                3,
+                CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                base_y - 22,
+                18,
+                3,
+                CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR,
+            );
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 28 + step * 7,
+                    base_y - 4 + (step % 2),
+                    4,
+                    2,
+                    CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR,
+                );
+            }
+            for step in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 34 + step * 11,
+                    base_y - 8 - (step % 2),
+                    6,
+                    3,
+                    CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR,
+                );
+            }
+        }
+        "footstep_right" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 4,
+                base_y - 10,
+                12,
+                4,
+                CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 17,
+                base_y - 17,
+                10,
+                3,
+                CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 1,
+                base_y - 23,
+                18,
+                3,
+                CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR,
+            );
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 20 + step * 7,
+                    base_y - 3 - (step % 2),
+                    4,
+                    2,
+                    CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR,
+                );
+            }
+            for step in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 24 + step * 11,
+                    base_y - 7 + (step % 2),
+                    6,
+                    3,
+                    CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR,
+                );
+            }
+        }
+        "turn_arc" => {
+            for step in 0..10 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 24 + step * 5,
+                    base_y - 39 + ((step - 5).abs() / 2),
+                    5,
+                    3,
+                    CLASSIC_RTS_LOCOMOTION_TURN_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 13,
+                base_y - 31,
+                13,
+                5,
+                CLASSIC_RTS_LOCOMOTION_TURN_COLOR,
+            );
+        }
+        "formation_slide" => {
+            for step in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 32 + step * 13,
+                    base_y - 27 + step,
+                    18,
+                    3,
+                    CLASSIC_RTS_LOCOMOTION_SLIDE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 28 + step * 12,
+                    base_y - 18 + step,
+                    12,
+                    2,
+                    CLASSIC_RTS_LOCOMOTION_SLIDE_COLOR,
+                );
+            }
+        }
+        "arrival_brake" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 22,
+                base_y - 12,
+                44,
+                3,
+                CLASSIC_RTS_LOCOMOTION_BRAKE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 14,
+                base_y - 19,
+                28,
+                3,
+                CLASSIC_RTS_LOCOMOTION_BRAKE_COLOR,
+            );
+            for step in 0..8 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 26 + step * 7,
+                    base_y - 4 + (step % 3),
+                    5,
+                    2,
+                    CLASSIC_RTS_LOCOMOTION_BRAKE_COLOR,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -12713,6 +13006,235 @@ pub fn native_classic_rts_combat_impact_evidence_json(preview_path: &str) -> Str
         "source_of_truth": "Combat impact evidence uses actual classic_draw_scene frames and combat-event driven impact selection to prove hit flash, stagger, damage tick, death fall, corpse dissolve, and victory settle stages render in the playable RTS renderer."
     }))
     .expect("classic RTS combat impact evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_locomotion_blend_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "path_commit",
+            "mirror_city_square",
+            (4, 4),
+            0_u8,
+            "locomotion:path_commit",
+        ),
+        (
+            "footstep_left",
+            "mirror_city_square",
+            (5, 4),
+            1_u8,
+            "locomotion:footstep_left",
+        ),
+        (
+            "footstep_right",
+            "mirror_city_square",
+            (6, 4),
+            2_u8,
+            "locomotion:footstep_right",
+        ),
+        (
+            "turn_arc",
+            "arena_outdoor",
+            (5, 5),
+            3_u8,
+            "locomotion:turn_arc",
+        ),
+        (
+            "formation_slide",
+            "arena_outdoor",
+            (6, 5),
+            4_u8,
+            "locomotion:formation_slide",
+        ),
+        (
+            "arrival_brake",
+            "arena_outdoor",
+            (7, 5),
+            5_u8,
+            "locomotion:arrival_brake",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, walk_cycle_frame, locomotion_event)) in
+        stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 336 + index as u64,
+            xp: 197 + (index as u64 * 8),
+            facing_direction: if index < 3 { "east" } else { "southwest" }.to_string(),
+            walk_cycle_frame: *walk_cycle_frame,
+            combat_overlay_visible: scene.contains("arena"),
+            combat_overlay_was_visible: scene.contains("arena"),
+            combat_turn: *walk_cycle_frame,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2", "3"]),
+            rts_command_queue: string_vec([*locomotion_event]),
+            rts_command_destination_tile: Some("8,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec(["train:guard", "train:worker"]),
+            rts_unit_health_percents: vec![96, 88, 72, 44],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 10, 0, 18, 6],
+            rts_active_ability_id: Some("move".to_string()),
+            rts_target_health_percent: 44,
+            rts_combat_event_log: string_vec([
+                *locomotion_event,
+                "locomotion_blend_source:classic_draw_scene",
+            ]),
+            last_feedback: format!("RTS locomotion blend stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 168,
+            &format!("LOCOMOTION BLEND {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "locomotion_event": locomotion_event,
+            "renderer_path": "classic_draw_scene",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let path_pixel_count = count_color(CLASSIC_RTS_LOCOMOTION_PATH_COLOR);
+    let left_step_pixel_count = count_color(CLASSIC_RTS_LOCOMOTION_LEFT_STEP_COLOR);
+    let right_step_pixel_count = count_color(CLASSIC_RTS_LOCOMOTION_RIGHT_STEP_COLOR);
+    let turn_pixel_count = count_color(CLASSIC_RTS_LOCOMOTION_TURN_COLOR);
+    let slide_pixel_count = count_color(CLASSIC_RTS_LOCOMOTION_SLIDE_COLOR);
+    let brake_pixel_count = count_color(CLASSIC_RTS_LOCOMOTION_BRAKE_COLOR);
+    let path_gate = path_pixel_count > 120;
+    let left_step_gate = left_step_pixel_count > 80;
+    let right_step_gate = right_step_pixel_count > 80;
+    let turn_gate = turn_pixel_count > 100;
+    let slide_gate = slide_pixel_count > 100;
+    let brake_gate = brake_pixel_count > 100;
+    let locomotion_stage_gate = [
+        "locomotion:path_commit",
+        "locomotion:footstep_left",
+        "locomotion:footstep_right",
+        "locomotion:turn_arc",
+        "locomotion:formation_slide",
+        "locomotion:arrival_brake",
+    ]
+    .iter()
+    .all(|stage| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("locomotion_event")
+                .and_then(|value| value.as_str())
+                == Some(*stage)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && locomotion_stage_gate
+        && scene_renderer_gate
+        && path_gate
+        && left_step_gate
+        && right_step_gate
+        && turn_gate
+        && slide_gate
+        && brake_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LOCOMOTION_BLEND_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "path_pixel_count": path_pixel_count,
+        "left_step_pixel_count": left_step_pixel_count,
+        "right_step_pixel_count": right_step_pixel_count,
+        "turn_pixel_count": turn_pixel_count,
+        "slide_pixel_count": slide_pixel_count,
+        "brake_pixel_count": brake_pixel_count,
+        "path_gate": path_gate,
+        "left_step_gate": left_step_gate,
+        "right_step_gate": right_step_gate,
+        "turn_gate": turn_gate,
+        "slide_gate": slide_gate,
+        "brake_gate": brake_gate,
+        "locomotion_stage_gate": locomotion_stage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium locomotion blend overlays; classic RTS movement readability guides path commit, footfall, turn, formation slide, and arrival braking without copied Warcraft III assets, animation data, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Locomotion blend evidence uses actual classic_draw_scene frames and movement-event driven stage selection to prove route commit, footstep alternation, turn arcs, formation slide, and arrival braking render in the playable RTS renderer."
+    }))
+    .expect("classic RTS locomotion blend evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -27237,6 +27759,17 @@ fn classic_draw_isometric_frame_at_tile(
                 impact,
             );
         }
+        if let Some(locomotion) = classic_rts_locomotion_blend_stage(runtime) {
+            classic_draw_rts_locomotion_blend_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                locomotion,
+            );
+        }
         return;
     }
     if !assets.frame_by_id.contains_key(frame_id)
@@ -27281,6 +27814,17 @@ fn classic_draw_isometric_frame_at_tile(
                 screen_x,
                 screen_y + tile_h,
                 impact,
+            );
+        }
+        if let Some(locomotion) = classic_rts_locomotion_blend_stage(runtime) {
+            classic_draw_rts_locomotion_blend_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                locomotion,
             );
         }
         return;
@@ -27337,6 +27881,17 @@ fn classic_draw_isometric_frame_at_tile(
             screen_x,
             screen_y + tile_h,
             impact,
+        );
+    }
+    if let Some(locomotion) = classic_rts_locomotion_blend_stage(runtime) {
+        classic_draw_rts_locomotion_blend_marks(
+            buffer,
+            width,
+            height,
+            frame_id,
+            screen_x,
+            screen_y + tile_h,
+            locomotion,
         );
     }
 }
