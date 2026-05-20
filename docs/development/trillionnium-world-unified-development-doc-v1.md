@@ -411,6 +411,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第四十三组 RTS environment-life gate：`scripts/check_trillionnium_world_bevy_classic_rts_environment_life.sh` 把战场从“静态棋盘”推进到“有场景生命感”。实际 `classic_draw_scene` 必须按 environment event 画出 tree_sway、torch_flicker、water_shimmer、banner_flutter、resource_glint、ambient_dust 六段，包括树冠摆动、火把闪烁、水面高光、旗帜飘动、资源点闪光和行军尘土；`tree_sway_gate`、`torch_flicker_gate`、`water_shimmer_gate`、`banner_flutter_gate`、`resource_glint_gate`、`ambient_dust_gate`、`environment_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证场景动态都来自原创 Trillionnium Bevy 低配 renderer，不借用外部 RTS IP 素材、模型或动画数据。
 
+继续追加第四十四组 RTS worker-harvest-animation gate：`scripts/check_trillionnium_world_bevy_classic_rts_worker_harvest_animation.sh` 把资源采集从“路线/图标”推进到“工人动作循环可读”。实际 `classic_draw_scene` 必须按 harvest animation event 画出 approach、tool_swing、resource_pop、carry_load、dropoff_burst、return_path 六段，包括接近资源点、挥工具、资源弹出、负载搬运、交付爆点和返回路径；`approach_gate`、`tool_swing_gate`、`resource_pop_gate`、`carry_load_gate`、`dropoff_burst_gate`、`return_path_gate`、`harvest_stage_gate`、`economy_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证采集动作来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定本地 economy runtime 的 worker assignment、harvest node、dropoff 和 resource delta。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

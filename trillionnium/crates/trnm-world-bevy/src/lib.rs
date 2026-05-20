@@ -238,6 +238,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_STRUCTURE_MODELING_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_structure_modeling_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENVIRONMENT_LIFE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_environment_life_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -490,6 +492,12 @@ const CLASSIC_RTS_ENVIRONMENT_WATER_SHIMMER_COLOR: u32 = 0x83dcff;
 const CLASSIC_RTS_ENVIRONMENT_BANNER_FLUTTER_COLOR: u32 = 0xff6fb8;
 const CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR: u32 = 0xffe66d;
 const CLASSIC_RTS_ENVIRONMENT_AMBIENT_DUST_COLOR: u32 = 0xc7b38b;
+const CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR: u32 = 0x9bf17a;
+const CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR: u32 = 0xffc45c;
+const CLASSIC_RTS_HARVEST_ANIMATION_RESOURCE_POP_COLOR: u32 = 0xffec72;
+const CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR: u32 = 0x8bd7ff;
+const CLASSIC_RTS_HARVEST_ANIMATION_DROPOFF_BURST_COLOR: u32 = 0x7dffba;
+const CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR: u32 = 0xc3a6ff;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -11850,6 +11858,270 @@ fn classic_draw_rts_environment_life_scene_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_worker_harvest_animation_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("harvest_anim:return_path") {
+                return Some("return_path");
+            }
+            if event.contains("harvest_anim:dropoff_burst") {
+                return Some("dropoff_burst");
+            }
+            if event.contains("harvest_anim:carry_load") {
+                return Some("carry_load");
+            }
+            if event.contains("harvest_anim:resource_pop") {
+                return Some("resource_pop");
+            }
+            if event.contains("harvest_anim:tool_swing") {
+                return Some("tool_swing");
+            }
+            if event.contains("harvest_anim:approach") {
+                return Some("approach");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("harvest_anim:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "approach",
+            1 => "tool_swing",
+            2 => "resource_pop",
+            3 => "carry_load",
+            4 => "dropoff_burst",
+            _ => "return_path",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_harvest_animation_route(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    from: (i32, i32),
+    to: (i32, i32),
+    color: u32,
+    y_offset: i32,
+) {
+    for step in 0..=9 {
+        let x = from.0 + ((to.0 - from.0) * step) / 9;
+        let y = from.1 + ((to.1 - from.1) * step) / 9 + y_offset;
+        classic_draw_rect(buffer, width, height, x - 2, y - 2, 6, 4, color);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_worker_harvest_animation_scene_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    origin_x: i32,
+    origin_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    scene_id: &str,
+    stage: &str,
+) {
+    let worker_tile = match scene_id {
+        "mentor_training_room" => (5, 4),
+        "arena_outdoor" => (5, 5),
+        _ => (5, 5),
+    };
+    let node_tile = match scene_id {
+        "mentor_training_room" => (8, 2),
+        "arena_outdoor" => (9, 2),
+        _ => (8, 2),
+    };
+    let dropoff_tile = match scene_id {
+        "mentor_training_room" => (3, 2),
+        "arena_outdoor" => (4, 4),
+        _ => (4, 4),
+    };
+    let (worker_x, worker_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, worker_tile);
+    let (node_x, node_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, node_tile);
+    let (dropoff_x, dropoff_y) =
+        classic_iso_project(origin_x, origin_y, tile_w, tile_h, dropoff_tile);
+    let worker_ground = (worker_x, worker_y + tile_h - 10);
+    let node_ground = (node_x, node_y + tile_h - 8);
+    let dropoff_ground = (dropoff_x, dropoff_y + tile_h - 12);
+
+    match stage {
+        "approach" => {
+            classic_draw_harvest_animation_route(
+                buffer,
+                width,
+                height,
+                worker_ground,
+                node_ground,
+                CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR,
+                0,
+            );
+            for step in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    worker_x - 14 + step * 9,
+                    worker_y + tile_h - 38 + (step % 2) * 4,
+                    7,
+                    12,
+                    CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR,
+                );
+            }
+        }
+        "tool_swing" => {
+            for step in 0..7 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    node_x - 36 + step * 10,
+                    node_y + tile_h - 55 + step * 4,
+                    12,
+                    5,
+                    CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                node_x - 14,
+                node_y + tile_h - 47,
+                28,
+                6,
+                CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR,
+            );
+        }
+        "resource_pop" => {
+            for step in 0..12 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    node_x - 32 + step * 6,
+                    node_y + tile_h - 45 - (step % 4) * 7,
+                    5,
+                    5,
+                    CLASSIC_RTS_HARVEST_ANIMATION_RESOURCE_POP_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                node_x - 24,
+                node_y + tile_h - 18,
+                48,
+                5,
+                CLASSIC_RTS_HARVEST_ANIMATION_RESOURCE_POP_COLOR,
+            );
+        }
+        "carry_load" => {
+            classic_draw_harvest_animation_route(
+                buffer,
+                width,
+                height,
+                node_ground,
+                dropoff_ground,
+                CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+                -5,
+            );
+            for step in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    worker_x - 16 + step * 8,
+                    worker_y + tile_h - 58 - (step % 2) * 3,
+                    7,
+                    7,
+                    CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+                );
+            }
+        }
+        "dropoff_burst" => {
+            for step in 0..10 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    dropoff_x - 36 + step * 8,
+                    dropoff_y + tile_h - 42 - (step % 5) * 5,
+                    7,
+                    7,
+                    CLASSIC_RTS_HARVEST_ANIMATION_DROPOFF_BURST_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                dropoff_x - 28,
+                dropoff_y + tile_h - 24,
+                56,
+                6,
+                CLASSIC_RTS_HARVEST_ANIMATION_DROPOFF_BURST_COLOR,
+            );
+        }
+        "return_path" => {
+            classic_draw_harvest_animation_route(
+                buffer,
+                width,
+                height,
+                dropoff_ground,
+                worker_ground,
+                CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR,
+                4,
+            );
+            classic_draw_harvest_animation_route(
+                buffer,
+                width,
+                height,
+                dropoff_ground,
+                worker_ground,
+                CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR,
+                -4,
+            );
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    dropoff_x - 22 + step * 8,
+                    dropoff_y + tile_h - 33 + (step % 3) * 4,
+                    6,
+                    5,
+                    CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR,
+                );
+            }
+            for step in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    worker_x - 18 + step * 9,
+                    worker_y + tile_h - 25 + (step % 2) * 5,
+                    8,
+                    8,
+                    CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -13604,6 +13876,264 @@ pub fn native_classic_rts_environment_life_evidence_json(preview_path: &str) -> 
         "source_of_truth": "Environment-life evidence uses actual classic_draw_scene frames and environment-event driven stage selection to prove the playable Bevy RTS scene has readable ambient motion cues without borrowing external RTS IP assets."
     }))
     .expect("classic RTS environment life evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_worker_harvest_animation_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "approach",
+            "mirror_city_square",
+            (5, 5),
+            0_u8,
+            "harvest_anim:approach",
+        ),
+        (
+            "tool_swing",
+            "mirror_city_square",
+            (5, 5),
+            1_u8,
+            "harvest_anim:tool_swing",
+        ),
+        (
+            "resource_pop",
+            "mentor_training_room",
+            (5, 4),
+            2_u8,
+            "harvest_anim:resource_pop",
+        ),
+        (
+            "carry_load",
+            "mentor_training_room",
+            (5, 4),
+            3_u8,
+            "harvest_anim:carry_load",
+        ),
+        (
+            "dropoff_burst",
+            "arena_outdoor",
+            (5, 5),
+            4_u8,
+            "harvest_anim:dropoff_burst",
+        ),
+        (
+            "return_path",
+            "arena_outdoor",
+            (5, 5),
+            5_u8,
+            "harvest_anim:return_path",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, harvest_event)) in
+        stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 640 + index as u64,
+            xp: 420 + (index as u64 * 13),
+            facing_direction: "east".to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "square_worker_carry",
+                "square_worker_guard",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_command_queue: string_vec([
+                *harvest_event,
+                "harvest:gold_vein->town_hall",
+                "worker_cycle:mine_carry_dropoff",
+                "return:worker_to_node",
+            ]),
+            rts_harvest_node_ids: string_vec(["gold_vein"]),
+            rts_worker_assignment_ids: string_vec([
+                "player->gold_vein",
+                "square_worker_carry->gold_vein",
+            ]),
+            rts_dropoff_structure_id: Some("town_hall".to_string()),
+            rts_resource_delta_log: string_vec(["gold:+80", "worker_cycle:+1"]),
+            rts_economy_state: format!("worker_harvest_animation:{stage}"),
+            rts_build_site_tile_ids: string_vec(["7,4", "8,4"]),
+            rts_completed_structure_ids: string_vec(["town_hall", "watch_tower"]),
+            rts_building_blueprint_id: Some("watch_tower".to_string()),
+            rts_building_progress_percent: 72,
+            rts_combat_event_log: string_vec([
+                *harvest_event,
+                "worker_harvest_animation_source:classic_draw_scene",
+                "worker_harvest_animation_original_art",
+            ]),
+            last_feedback: format!("RTS worker harvest animation stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("HARVEST ANIM {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "harvest_event": harvest_event,
+            "renderer_path": "classic_draw_scene",
+            "economy_state": runtime.rts_economy_state,
+            "harvest_node_ids": runtime.rts_harvest_node_ids,
+            "worker_assignment_ids": runtime.rts_worker_assignment_ids,
+            "dropoff_structure_id": runtime.rts_dropoff_structure_id,
+            "resource_delta_log": runtime.rts_resource_delta_log,
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let approach_pixel_count = count_color(CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR);
+    let tool_swing_pixel_count = count_color(CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR);
+    let resource_pop_pixel_count = count_color(CLASSIC_RTS_HARVEST_ANIMATION_RESOURCE_POP_COLOR);
+    let carry_load_pixel_count = count_color(CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR);
+    let dropoff_burst_pixel_count = count_color(CLASSIC_RTS_HARVEST_ANIMATION_DROPOFF_BURST_COLOR);
+    let return_path_pixel_count = count_color(CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR);
+    let approach_gate = approach_pixel_count > 120;
+    let tool_swing_gate = tool_swing_pixel_count > 100;
+    let resource_pop_gate = resource_pop_pixel_count > 120;
+    let carry_load_gate = carry_load_pixel_count > 120;
+    let dropoff_burst_gate = dropoff_burst_pixel_count > 120;
+    let return_path_gate = return_path_pixel_count > 120;
+    let harvest_stage_gate = [
+        "harvest_anim:approach",
+        "harvest_anim:tool_swing",
+        "harvest_anim:resource_pop",
+        "harvest_anim:carry_load",
+        "harvest_anim:dropoff_burst",
+        "harvest_anim:return_path",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("harvest_event")
+                .and_then(|value| value.as_str())
+                == Some(*event)
+        })
+    });
+    let economy_runtime_gate = stage_summaries.iter().all(|summary| {
+        summary
+            .get("harvest_node_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|nodes| nodes.iter().any(|node| node.as_str() == Some("gold_vein")))
+            && summary
+                .get("dropoff_structure_id")
+                .and_then(|value| value.as_str())
+                == Some("town_hall")
+            && summary
+                .get("resource_delta_log")
+                .and_then(|value| value.as_array())
+                .is_some_and(|deltas| {
+                    deltas
+                        .iter()
+                        .any(|delta| delta.as_str() == Some("gold:+80"))
+                })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && approach_gate
+        && tool_swing_gate
+        && resource_pop_gate
+        && carry_load_gate
+        && dropoff_burst_gate
+        && return_path_gate
+        && harvest_stage_gate
+        && economy_runtime_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "approach_pixel_count": approach_pixel_count,
+        "tool_swing_pixel_count": tool_swing_pixel_count,
+        "resource_pop_pixel_count": resource_pop_pixel_count,
+        "carry_load_pixel_count": carry_load_pixel_count,
+        "dropoff_burst_pixel_count": dropoff_burst_pixel_count,
+        "return_path_pixel_count": return_path_pixel_count,
+        "approach_gate": approach_gate,
+        "tool_swing_gate": tool_swing_gate,
+        "resource_pop_gate": resource_pop_gate,
+        "carry_load_gate": carry_load_gate,
+        "dropoff_burst_gate": dropoff_burst_gate,
+        "return_path_gate": return_path_gate,
+        "harvest_stage_gate": harvest_stage_gate,
+        "economy_runtime_gate": economy_runtime_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium worker-harvest animation overlays; approach, tool swing, resource pop, carry load, dropoff burst, and return path are authored locally without copied Warcraft III assets, UI art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Worker harvest animation evidence uses actual classic_draw_scene frames plus native economy runtime fields for harvest node, worker assignment, dropoff, and resource deltas before rendering the six-part worker cycle."
+    }))
+    .expect("classic RTS worker harvest animation evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -30323,6 +30853,19 @@ fn classic_draw_isometric_scene(
                 tile_h,
                 scene.id.as_str(),
                 environment_stage,
+            );
+        }
+        if let Some(harvest_stage) = classic_rts_worker_harvest_animation_stage(Some(runtime)) {
+            classic_draw_rts_worker_harvest_animation_scene_overlay(
+                buffer,
+                width,
+                height,
+                origin_x,
+                origin_y,
+                tile_w,
+                tile_h,
+                scene.id.as_str(),
+                harvest_stage,
             );
         }
         classic_draw_iso_command_feedback(

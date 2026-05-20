@@ -53,6 +53,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_surface.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_structure_modeling.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_environment_life.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_worker_harvest_animation.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -114,6 +115,7 @@ jq -n \
   --slurpfile rts_command_surface "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-surface.json" \
   --slurpfile rts_structure_modeling "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-structure-modeling.json" \
   --slurpfile rts_environment_life "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.json" \
+  --slurpfile rts_worker_harvest_animation "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -177,6 +179,7 @@ jq -n \
       and ok($rts_command_surface)
       and ok($rts_structure_modeling)
       and ok($rts_environment_life)
+      and ok($rts_worker_harvest_animation)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -447,6 +450,7 @@ jq -n \
       classic_rts_command_surface_green: ok($rts_command_surface),
       classic_rts_structure_modeling_green: ok($rts_structure_modeling),
       classic_rts_environment_life_green: ok($rts_environment_life),
+      classic_rts_worker_harvest_animation_green: ok($rts_worker_harvest_animation),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1084,6 +1088,12 @@ jq -n \
       rts_environment_life_banner_flutter_pixel_count: $rts_environment_life[0].banner_flutter_pixel_count,
       rts_environment_life_resource_glint_pixel_count: $rts_environment_life[0].resource_glint_pixel_count,
       rts_environment_life_ambient_dust_pixel_count: $rts_environment_life[0].ambient_dust_pixel_count,
+      rts_worker_harvest_animation_approach_pixel_count: $rts_worker_harvest_animation[0].approach_pixel_count,
+      rts_worker_harvest_animation_tool_swing_pixel_count: $rts_worker_harvest_animation[0].tool_swing_pixel_count,
+      rts_worker_harvest_animation_resource_pop_pixel_count: $rts_worker_harvest_animation[0].resource_pop_pixel_count,
+      rts_worker_harvest_animation_carry_load_pixel_count: $rts_worker_harvest_animation[0].carry_load_pixel_count,
+      rts_worker_harvest_animation_dropoff_burst_pixel_count: $rts_worker_harvest_animation[0].dropoff_burst_pixel_count,
+      rts_worker_harvest_animation_return_path_pixel_count: $rts_worker_harvest_animation[0].return_path_pixel_count,
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1419,6 +1429,16 @@ jq -n \
       rts_environment_life_environment_stage_gate: $rts_environment_life[0].environment_stage_gate,
       rts_environment_life_scene_renderer_gate: $rts_environment_life[0].scene_renderer_gate,
       rts_environment_life_original_art_policy_gate: $rts_environment_life[0].original_art_policy_gate,
+      rts_worker_harvest_animation_approach_gate: $rts_worker_harvest_animation[0].approach_gate,
+      rts_worker_harvest_animation_tool_swing_gate: $rts_worker_harvest_animation[0].tool_swing_gate,
+      rts_worker_harvest_animation_resource_pop_gate: $rts_worker_harvest_animation[0].resource_pop_gate,
+      rts_worker_harvest_animation_carry_load_gate: $rts_worker_harvest_animation[0].carry_load_gate,
+      rts_worker_harvest_animation_dropoff_burst_gate: $rts_worker_harvest_animation[0].dropoff_burst_gate,
+      rts_worker_harvest_animation_return_path_gate: $rts_worker_harvest_animation[0].return_path_gate,
+      rts_worker_harvest_animation_harvest_stage_gate: $rts_worker_harvest_animation[0].harvest_stage_gate,
+      rts_worker_harvest_animation_economy_runtime_gate: $rts_worker_harvest_animation[0].economy_runtime_gate,
+      rts_worker_harvest_animation_scene_renderer_gate: $rts_worker_harvest_animation[0].scene_renderer_gate,
+      rts_worker_harvest_animation_original_art_policy_gate: $rts_worker_harvest_animation[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1599,6 +1619,8 @@ jq -n \
       classic_rts_structure_modeling_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-structure-modeling.ppm",
       classic_rts_environment_life: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.json",
       classic_rts_environment_life_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.ppm",
+      classic_rts_worker_harvest_animation: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.json",
+      classic_rts_worker_harvest_animation_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1672,6 +1694,7 @@ jq -e '
   and .checks.classic_rts_command_surface_green == true
   and .checks.classic_rts_structure_modeling_green == true
   and .checks.classic_rts_environment_life_green == true
+  and .checks.classic_rts_worker_harvest_animation_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2305,6 +2328,16 @@ jq -e '
   and .gates.rts_environment_life_environment_stage_gate == true
   and .gates.rts_environment_life_scene_renderer_gate == true
   and .gates.rts_environment_life_original_art_policy_gate == true
+  and .gates.rts_worker_harvest_animation_approach_gate == true
+  and .gates.rts_worker_harvest_animation_tool_swing_gate == true
+  and .gates.rts_worker_harvest_animation_resource_pop_gate == true
+  and .gates.rts_worker_harvest_animation_carry_load_gate == true
+  and .gates.rts_worker_harvest_animation_dropoff_burst_gate == true
+  and .gates.rts_worker_harvest_animation_return_path_gate == true
+  and .gates.rts_worker_harvest_animation_harvest_stage_gate == true
+  and .gates.rts_worker_harvest_animation_economy_runtime_gate == true
+  and .gates.rts_worker_harvest_animation_scene_renderer_gate == true
+  and .gates.rts_worker_harvest_animation_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true
