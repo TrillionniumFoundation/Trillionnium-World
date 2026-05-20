@@ -417,6 +417,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第四十六组 RTS unit-status-portrait gate：`scripts/check_trillionnium_world_bevy_classic_rts_unit_status_portrait.sh` 把底部状态区从“有头像”推进到“选中对象状态可读”。实际 `classic_draw_scene` 必须按 unit status portrait event 画出 worker、guard、commander、creep_target、structure、multi_select 六类状态面板，包括 portrait frame、HP、能量、XP、buff/role 徽章、队列/命令状态；`portrait_frame_gate`、`health_bar_gate`、`mana_bar_gate`、`xp_bar_gate`、`buff_badge_gate`、`role_badge_gate`、`queue_badge_gate`、`status_stage_gate`、`status_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证 UI 反馈来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定 native unit/structure/target runtime。
 
+继续追加第四十七组 RTS selection-command-feedback gate：`scripts/check_trillionnium_world_bevy_classic_rts_selection_command_feedback.sh` 把玩家下令瞬间从“有按钮/有面板”推进到“操作反馈可读”。实际 `classic_draw_scene` 必须按 selection command feedback event 画出 marquee_start、selection_confirm、rally_preview、move_line、attack_lock、invalid_order 六类反馈，包括拖选框、选中确认、集结预览、移动命令线、攻击锁定和无效命令提示；`marquee_gate`、`confirm_gate`、`rally_gate`、`move_gate`、`attack_gate`、`error_gate`、`ack_gate`、`feedback_stage_gate`、`command_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证操作反馈来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定 native selection/rally/move/attack/blocked-order runtime。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

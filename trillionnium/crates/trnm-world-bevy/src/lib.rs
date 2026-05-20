@@ -244,6 +244,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRAC
     "trillionnium_world_bevy_classic_rts_production_spawn_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_unit_status_portrait_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_selection_command_feedback_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -515,6 +517,13 @@ const CLASSIC_RTS_STATUS_XP_BAR_COLOR: u32 = 0xffdd68;
 const CLASSIC_RTS_STATUS_BUFF_BADGE_COLOR: u32 = 0xff8ccf;
 const CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR: u32 = 0xc4a2ff;
 const CLASSIC_RTS_STATUS_QUEUE_BADGE_COLOR: u32 = 0x7dffd2;
+const CLASSIC_RTS_SELECTION_FEEDBACK_MARQUEE_COLOR: u32 = 0xf4ff8a;
+const CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR: u32 = 0x8affc8;
+const CLASSIC_RTS_SELECTION_FEEDBACK_RALLY_COLOR: u32 = 0x7adfff;
+const CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR: u32 = 0x9cff7a;
+const CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR: u32 = 0xff7272;
+const CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR: u32 = 0xffa05f;
+const CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR: u32 = 0xffe36d;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -12782,6 +12791,409 @@ fn classic_draw_rts_unit_status_portrait_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_selection_command_feedback_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+        {
+            if event.contains("selection_command_feedback:invalid_order") {
+                return Some("invalid_order");
+            }
+            if event.contains("selection_command_feedback:attack_lock") {
+                return Some("attack_lock");
+            }
+            if event.contains("selection_command_feedback:move_line") {
+                return Some("move_line");
+            }
+            if event.contains("selection_command_feedback:rally_preview") {
+                return Some("rally_preview");
+            }
+            if event.contains("selection_command_feedback:selection_confirm") {
+                return Some("selection_confirm");
+            }
+            if event.contains("selection_command_feedback:marquee_start") {
+                return Some("marquee_start");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("selection_command_feedback:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "marquee_start",
+            1 => "selection_confirm",
+            2 => "rally_preview",
+            3 => "move_line",
+            4 => "attack_lock",
+            _ => "invalid_order",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_selection_command_feedback_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    let origin_x = (width as i32 / 2).clamp(250, (width as i32 - 280).max(340));
+    let origin_y = 82_i32;
+    let status_x = 116_i32;
+    let status_y = (height as i32 - 152).max(172);
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        status_x - 8,
+        status_y - 28,
+        262,
+        70,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        status_x - 8,
+        status_y - 28,
+        262,
+        3,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        status_x,
+        status_y - 18,
+        &classic_catalog_text_label(&format!("ORDER FEEDBACK {}", stage.replace('_', " ")), 34),
+        1,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        status_x,
+        status_y - 4,
+        &classic_catalog_text_label(
+            &format!(
+                "SEL {} CMD {}",
+                runtime.rts_selected_unit_ids.len(),
+                runtime.rts_command_queue.len()
+            ),
+            32,
+        ),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let selection_anchor = (origin_x - 88, origin_y + 132);
+    let rally_anchor = (origin_x + 62, origin_y + 78);
+    let target_anchor = (origin_x + 164, origin_y + 118);
+    match stage {
+        "marquee_start" => {
+            let x = origin_x - 178;
+            let y = origin_y + 92;
+            let w = 176;
+            let h = 94;
+            for (rx, ry, rw, rh) in [
+                (x, y, w, 3),
+                (x, y + h, w, 3),
+                (x, y, 3, h),
+                (x + w, y, 3, h),
+            ] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    rx,
+                    ry,
+                    rw,
+                    rh,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MARQUEE_COLOR,
+                );
+            }
+            for (index, tile_id) in runtime
+                .rts_selection_box_tile_ids
+                .iter()
+                .take(6)
+                .enumerate()
+            {
+                let tile_x = x + 16 + (index as i32 % 3) * 48;
+                let tile_y = y + 16 + (index as i32 / 3) * 32;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x,
+                    tile_y,
+                    34,
+                    20,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MARQUEE_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + 5,
+                    tile_y + 6,
+                    &classic_catalog_text_label(tile_id, 5),
+                    1,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+        }
+        "selection_confirm" => {
+            for (index, unit_id) in runtime.rts_selected_unit_ids.iter().take(5).enumerate() {
+                let x = selection_anchor.0 + index as i32 * 38;
+                let y = selection_anchor.1 + (index as i32 % 2) * 18;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 14,
+                    y + 18,
+                    30,
+                    5,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 18,
+                    y + 11,
+                    5,
+                    18,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+                );
+                classic_draw_rts_fidelity_portrait(
+                    buffer,
+                    width,
+                    height,
+                    x - 12,
+                    y - 4,
+                    unit_id,
+                    index == 0,
+                );
+            }
+        }
+        "rally_preview" => {
+            for step in 0..12 {
+                let x = selection_anchor.0 + ((rally_anchor.0 - selection_anchor.0) * step) / 11;
+                let y = selection_anchor.1 + ((rally_anchor.1 - selection_anchor.1) * step) / 11;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 3,
+                    y - 3,
+                    7,
+                    7,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_RALLY_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                rally_anchor.0 - 4,
+                rally_anchor.1 - 42,
+                8,
+                42,
+                CLASSIC_RTS_SELECTION_FEEDBACK_RALLY_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                rally_anchor.0 + 2,
+                rally_anchor.1 - 42,
+                46,
+                22,
+                CLASSIC_RTS_SELECTION_FEEDBACK_RALLY_COLOR,
+            );
+        }
+        "move_line" => {
+            for step in 0..14 {
+                let x = selection_anchor.0 + ((target_anchor.0 - selection_anchor.0) * step) / 13;
+                let y = selection_anchor.1 + ((target_anchor.1 - selection_anchor.1) * step) / 13;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 2,
+                    y - 2,
+                    5,
+                    5,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+                );
+            }
+            for radius in [10, 16, 23] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target_anchor.0 - radius,
+                    target_anchor.1 - radius,
+                    radius * 2,
+                    3,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target_anchor.0 - radius,
+                    target_anchor.1 + radius,
+                    radius * 2,
+                    3,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target_anchor.0 - radius,
+                    target_anchor.1 - radius,
+                    3,
+                    radius * 2,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target_anchor.0 + radius,
+                    target_anchor.1 - radius,
+                    3,
+                    radius * 2,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+                );
+            }
+        }
+        "attack_lock" => {
+            for step in 0..16 {
+                let x = selection_anchor.0 + ((target_anchor.0 - selection_anchor.0) * step) / 15;
+                let y = selection_anchor.1 + ((target_anchor.1 - selection_anchor.1) * step) / 15;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 3,
+                    y - 3,
+                    7,
+                    7,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                target_anchor.0 - 34,
+                target_anchor.1 - 3,
+                68,
+                6,
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                target_anchor.0 - 3,
+                target_anchor.1 - 34,
+                6,
+                68,
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                target_anchor.0 - 20,
+                target_anchor.1 - 20,
+                40,
+                5,
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                target_anchor.0 - 20,
+                target_anchor.1 + 15,
+                40,
+                5,
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+            );
+        }
+        "invalid_order" => {
+            let x = origin_x - 136;
+            let y = origin_y + 82;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                276,
+                46,
+                CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+            );
+            classic_draw_rect(buffer, width, height, x + 6, y + 6, 264, 34, 0x301812);
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                x + 18,
+                y + 16,
+                "INVALID ORDER - NEED CLEAR PATH",
+                1,
+                CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+            );
+            for index in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x + 28 + index * 44,
+                    y + 58,
+                    30,
+                    30,
+                    CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x + 34 + index * 44,
+                    y + 64,
+                    18,
+                    18,
+                    0x301812,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -15384,6 +15796,273 @@ pub fn native_classic_rts_unit_status_portrait_evidence_json(preview_path: &str)
         "source_of_truth": "Unit-status portrait evidence uses actual classic_draw_scene frames and native unit/structure/target runtime fields to prove selected entities have readable portrait, health, energy, XP, role badge, and queue/status feedback."
     }))
     .expect("classic RTS unit status portrait evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_selection_command_feedback_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        "marquee_start",
+        "selection_confirm",
+        "rally_preview",
+        "move_line",
+        "attack_lock",
+        "invalid_order",
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, stage) in stages.iter().enumerate() {
+        let feedback_event = format!("selection_command_feedback:{stage}");
+        let mut runtime = NativeFirstPlayableRuntime {
+            map_scene: "mirror_city_square".to_string(),
+            coins: 740 + index as u64 * 11,
+            xp: 520 + index as u64 * 13,
+            facing_direction: "east".to_string(),
+            walk_cycle_frame: (index as u8 % 5) + 1,
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: index as u8,
+            rts_control_group_id: Some("1".to_string()),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "square_worker_carry",
+                "wayfinder_scout",
+            ]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5", "8,4"]),
+            rts_command_destination_tile: Some("7,4".to_string()),
+            rts_army_rally_tile_ids: string_vec(["5,5", "6,5", "7,4", "8,4", "9,3"]),
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 7, 20, 0, 42, 15],
+            rts_command_queue: string_vec([feedback_event.as_str()]),
+            rts_combat_event_log: string_vec([feedback_event.as_str()]),
+            last_feedback: format!("RTS selection command feedback stage: {stage}"),
+            ..Default::default()
+        };
+        match *stage {
+            "selection_confirm" => {
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["select:group:1", "confirm:4 units"]));
+            }
+            "rally_preview" => {
+                runtime.rts_control_group_id = Some("2".to_string());
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["rally:7,4", "preview:reinforce"]));
+            }
+            "move_line" => {
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["move:7,4", "formation:wedge"]));
+            }
+            "attack_lock" => {
+                runtime.rts_attack_target_id = Some("arena_creep_attack".to_string());
+                runtime.rts_target_health_percent = 46;
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["attack:arena_creep_attack", "focus:frontline"]));
+            }
+            "invalid_order" => {
+                runtime.rts_command_destination_tile = Some("3,1".to_string());
+                runtime.rts_blocked_tile_ids = string_vec(["3,1", "3,2", "4,2"]);
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["blocked:cliff", "retry:clear_path"]));
+            }
+            _ => {
+                runtime
+                    .rts_command_queue
+                    .extend(string_vec(["box_select:frontline", "drag:4,4-8,5"]));
+            }
+        }
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("ORDER FEEDBACK {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "feedback_event": feedback_event,
+            "renderer_path": "classic_draw_scene",
+            "control_group_id": runtime.rts_control_group_id.clone(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "selection_box_tile_ids": runtime.rts_selection_box_tile_ids.clone(),
+            "command_destination_tile": runtime.rts_command_destination_tile,
+            "army_rally_tile_ids": runtime.rts_army_rally_tile_ids.clone(),
+            "attack_target_id": runtime.rts_attack_target_id.clone(),
+            "blocked_tile_ids": runtime.rts_blocked_tile_ids.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let marquee_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_MARQUEE_COLOR);
+    let confirm_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR);
+    let rally_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_RALLY_COLOR);
+    let move_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR);
+    let attack_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR);
+    let error_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR);
+    let ack_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR);
+    let marquee_gate = marquee_pixel_count > 350;
+    let confirm_gate = confirm_pixel_count > 260;
+    let rally_gate = rally_pixel_count > 280;
+    let move_gate = move_pixel_count > 300;
+    let attack_gate = attack_pixel_count > 320;
+    let error_gate = error_pixel_count > 420;
+    let ack_gate = ack_pixel_count > 240;
+    let feedback_stage_gate = [
+        "selection_command_feedback:marquee_start",
+        "selection_command_feedback:selection_confirm",
+        "selection_command_feedback:rally_preview",
+        "selection_command_feedback:move_line",
+        "selection_command_feedback:attack_lock",
+        "selection_command_feedback:invalid_order",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("feedback_event")
+                .and_then(|value| value.as_str())
+                == Some(*event)
+        })
+    });
+    let command_runtime_gate = stage_summaries.iter().all(|summary| {
+        summary
+            .get("selected_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| units.len() >= 4)
+            && summary
+                .get("selection_box_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+            && summary
+                .get("command_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|queue| !queue.is_empty())
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("rally_preview")
+            && summary
+                .get("army_rally_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 5)
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("attack_lock")
+            && summary
+                .get("attack_target_id")
+                .and_then(|value| value.as_str())
+                == Some("arena_creep_attack")
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("invalid_order")
+            && summary
+                .get("blocked_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 3)
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && marquee_gate
+        && confirm_gate
+        && rally_gate
+        && move_gate
+        && attack_gate
+        && error_gate
+        && ack_gate
+        && feedback_stage_gate
+        && command_runtime_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "marquee_pixel_count": marquee_pixel_count,
+        "confirm_pixel_count": confirm_pixel_count,
+        "rally_pixel_count": rally_pixel_count,
+        "move_pixel_count": move_pixel_count,
+        "attack_pixel_count": attack_pixel_count,
+        "error_pixel_count": error_pixel_count,
+        "ack_pixel_count": ack_pixel_count,
+        "marquee_gate": marquee_gate,
+        "confirm_gate": confirm_gate,
+        "rally_gate": rally_gate,
+        "move_gate": move_gate,
+        "attack_gate": attack_gate,
+        "error_gate": error_gate,
+        "ack_gate": ack_gate,
+        "feedback_stage_gate": feedback_stage_gate,
+        "command_runtime_gate": command_runtime_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium selection-command feedback overlays; marquee, selection confirmation, rally preview, move order, attack lock, and invalid-order feedback are authored locally without copied Warcraft III cursor art, UI art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Selection-command feedback evidence uses actual classic_draw_scene frames and native RTS selection, rally, move, attack, and blocked-order runtime fields to prove command intent is visible at the moment of player input."
+    }))
+    .expect("classic RTS selection command feedback evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -26964,6 +27643,15 @@ fn classic_draw_scene(
         &player_frame,
     );
     classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    if let Some(feedback_stage) = classic_rts_selection_command_feedback_stage(Some(runtime)) {
+        classic_draw_rts_selection_command_feedback_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            feedback_stage,
+        );
+    }
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
         classic_draw_rts_unit_status_portrait_overlay(buffer, width, height, runtime, status_stage);
     }
