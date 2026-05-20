@@ -413,6 +413,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第四十四组 RTS worker-harvest-animation gate：`scripts/check_trillionnium_world_bevy_classic_rts_worker_harvest_animation.sh` 把资源采集从“路线/图标”推进到“工人动作循环可读”。实际 `classic_draw_scene` 必须按 harvest animation event 画出 approach、tool_swing、resource_pop、carry_load、dropoff_burst、return_path 六段，包括接近资源点、挥工具、资源弹出、负载搬运、交付爆点和返回路径；`approach_gate`、`tool_swing_gate`、`resource_pop_gate`、`carry_load_gate`、`dropoff_burst_gate`、`return_path_gate`、`harvest_stage_gate`、`economy_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证采集动作来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定本地 economy runtime 的 worker assignment、harvest node、dropoff 和 resource delta。
 
+继续追加第四十五组 RTS production-spawn-animation gate：`scripts/check_trillionnium_world_bevy_classic_rts_production_spawn_animation.sh` 把部队生产从“生产结果可见”推进到“出兵循环动作可读”。实际 `classic_draw_scene` 必须按 production spawn animation event 画出 queue_pulse、training_tick、spawn_door、rally_flag、formation_join、supply_flash 六段，包括队列脉冲、训练进度、出兵门、集结旗、编队归队和人口闪烁；`queue_pulse_gate`、`training_tick_gate`、`spawn_door_gate`、`rally_flag_gate`、`formation_join_gate`、`supply_flash_gate`、`production_stage_gate`、`production_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证出兵动作来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定本地 army production/rally runtime 的 supply、batch、spawned unit、rally tile、training progress 与 control-group 状态。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
