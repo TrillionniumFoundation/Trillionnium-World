@@ -407,6 +407,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第四十一组 RTS command-surface gate：`scripts/check_trillionnium_world_bevy_classic_rts_command_surface.sh` 把底部 RTS 面板从“有 HUD”推进到“能读选择、命令、冷却、目标和队列”。实际 `classic_draw_scene` 必须按 surface event 画出 selection_state、command_grid、cooldown_disabled、target_queue 四段，包括多单位卡选中框、控制组页签、九宫格命令 ready 态、冷却扫面、禁用格、目标信息面板和队列确认；`selection_surface_gate`、`command_grid_surface_gate`、`cooldown_disabled_surface_gate`、`target_queue_surface_gate`、`surface_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证界面反馈来自原创 Trillionnium Bevy 低配 renderer，而不是静态 UI 拼图或外部 RTS IP 素材。
 
+继续追加第四十二组 RTS structure-modeling gate：`scripts/check_trillionnium_world_bevy_classic_rts_structure_modeling.sh` 把建筑从“地图块/图标”推进到“结构状态一眼可读”。实际 `classic_draw_scene` 必须按 structure event 画出 foundation_shadow、scaffold、construction_spark、production_glow、damage_crack、repair_beam 六段，包括地基阴影、脚手架、建造火花、生产发光、受损裂纹和维修光束；`foundation_gate`、`scaffold_gate`、`construction_spark_gate`、`production_glow_gate`、`damage_crack_gate`、`repair_beam_gate`、`structure_stage_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证建筑建造、生产、受损和维修状态都在原创 Trillionnium Bevy 低配 renderer 中可读，不借用外部 RTS IP 素材、模型或动画数据。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

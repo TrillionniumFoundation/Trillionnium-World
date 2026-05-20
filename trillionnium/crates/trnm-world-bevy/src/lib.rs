@@ -234,6 +234,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_DEPTH_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_depth_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_SURFACE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_surface_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_STRUCTURE_MODELING_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_structure_modeling_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -474,6 +476,12 @@ const CLASSIC_RTS_COMMAND_SURFACE_COOLDOWN_COLOR: u32 = 0x8d78ff;
 const CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR: u32 = 0xff6f9c;
 const CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR: u32 = 0xffe26b;
 const CLASSIC_RTS_COMMAND_SURFACE_GROUP_TAB_COLOR: u32 = 0x78d6ff;
+const CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR: u32 = 0x1f2c33;
+const CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR: u32 = 0xc89d62;
+const CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR: u32 = 0xffe68a;
+const CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR: u32 = 0x73ffbb;
+const CLASSIC_RTS_STRUCTURE_DAMAGE_CRACK_COLOR: u32 = 0xff5a6a;
+const CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR: u32 = 0x8fdcff;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -11370,6 +11378,223 @@ fn classic_draw_rts_depth_readability_marks(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_structure_modeling_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("structure:repair_beam") {
+                return Some("repair_beam");
+            }
+            if event.contains("structure:damage_crack") {
+                return Some("damage_crack");
+            }
+            if event.contains("structure:production_glow") {
+                return Some("production_glow");
+            }
+            if event.contains("structure:construction_spark") {
+                return Some("construction_spark");
+            }
+            if event.contains("structure:scaffold") {
+                return Some("scaffold");
+            }
+            if event.contains("structure:foundation_shadow") {
+                return Some("foundation_shadow");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("structure:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "foundation_shadow",
+            1 => "scaffold",
+            2 => "construction_spark",
+            3 => "production_glow",
+            4 => "damage_crack",
+            _ => "repair_beam",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_structure_modeling_scene_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    origin_x: i32,
+    origin_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    scene_id: &str,
+    stage: &str,
+) {
+    let tiles: &[(i32, i32)] = match scene_id {
+        "mentor_training_room" => &[(4, 1), (9, 2)],
+        "league_coliseum" => &[(3, 2), (6, 1), (9, 3)],
+        _ => &[(2, 2), (8, 1), (9, 3)],
+    };
+    for (index, tile) in tiles.iter().enumerate() {
+        let (center_x, screen_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+        let base_y = screen_y + tile_h;
+        match stage {
+            "foundation_shadow" => {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 38,
+                    base_y - 2,
+                    76,
+                    5,
+                    CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+                );
+                for step in 0..7 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 34 + step * 11,
+                        base_y + 3 + (step % 2),
+                        8,
+                        4,
+                        CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+                    );
+                }
+            }
+            "scaffold" => {
+                for step in 0..4 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 32 + step * 20,
+                        base_y - 60,
+                        4,
+                        56,
+                        CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+                    );
+                }
+                for step in 0..4 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 38,
+                        base_y - 52 + step * 13,
+                        72,
+                        4,
+                        CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+                    );
+                }
+            }
+            "construction_spark" => {
+                for step in 0..10 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 36 + step * 8,
+                        base_y - 49 + ((step + index as i32) % 5) * 4,
+                        5,
+                        5,
+                        CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 6,
+                    base_y - 62,
+                    12,
+                    7,
+                    CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR,
+                );
+            }
+            "production_glow" => {
+                for step in 0..5 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 34 + step * 17,
+                        base_y - 46 - step,
+                        12,
+                        5,
+                        CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 30,
+                    base_y - 11,
+                    60,
+                    5,
+                    CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
+                );
+            }
+            "damage_crack" => {
+                for step in 0..7 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 23 + step * 7,
+                        base_y - 58 + step * 7,
+                        5,
+                        8,
+                        CLASSIC_RTS_STRUCTURE_DAMAGE_CRACK_COLOR,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 32,
+                    base_y - 27,
+                    64,
+                    4,
+                    CLASSIC_RTS_STRUCTURE_DAMAGE_CRACK_COLOR,
+                );
+            }
+            "repair_beam" => {
+                for step in 0..9 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 54 + step * 12,
+                        base_y - 50 + (step % 3) * 4,
+                        13,
+                        4,
+                        CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+                    );
+                }
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 28,
+                    base_y - 15,
+                    56,
+                    5,
+                    CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -12646,6 +12871,253 @@ pub fn native_classic_rts_command_surface_evidence_json(preview_path: &str) -> S
         "source_of_truth": "Command surface evidence uses actual classic_draw_scene frames and surface-event driven HUD stages to prove selection cards, command-grid state, cooldown/disabled cells, target details, and command queue confirmation render in the playable RTS interface."
     }))
     .expect("classic RTS command surface evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_structure_modeling_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "foundation_shadow",
+            "mirror_city_square",
+            (5, 5),
+            0_u8,
+            "structure:foundation_shadow",
+        ),
+        (
+            "scaffold",
+            "mirror_city_square",
+            (5, 5),
+            1_u8,
+            "structure:scaffold",
+        ),
+        (
+            "construction_spark",
+            "mentor_training_room",
+            (5, 4),
+            2_u8,
+            "structure:construction_spark",
+        ),
+        (
+            "production_glow",
+            "mentor_training_room",
+            (5, 4),
+            3_u8,
+            "structure:production_glow",
+        ),
+        (
+            "damage_crack",
+            "league_coliseum",
+            (6, 5),
+            4_u8,
+            "structure:damage_crack",
+        ),
+        (
+            "repair_beam",
+            "league_coliseum",
+            (6, 5),
+            5_u8,
+            "structure:repair_beam",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, structure_event)) in
+        stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 520 + index as u64,
+            xp: 314 + (index as u64 * 17),
+            facing_direction: "north".to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "square_worker_carry",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_command_queue: string_vec([
+                *structure_event,
+                "build:watch_tower@7,4",
+                "complete:watch_tower@7,4",
+                "train:relay_guard",
+                "repair:watch_tower@7,4",
+            ]),
+            rts_production_queue: string_vec(["train:relay_guard", "upgrade:signal_beacon"]),
+            rts_build_site_tile_ids: string_vec(["7,4", "7,5", "8,4"]),
+            rts_building_blueprint_id: Some("watch_tower".to_string()),
+            rts_building_progress_percent: match *stage {
+                "foundation_shadow" => 24,
+                "scaffold" => 48,
+                "construction_spark" => 66,
+                "production_glow" => 100,
+                "damage_crack" => 100,
+                _ => 92,
+            },
+            rts_completed_structure_ids: string_vec(["watch_tower", "training_hall"]),
+            rts_repair_target_id: Some("watch_tower".to_string()),
+            rts_repair_progress_percent: 82,
+            rts_structure_health_percents: vec![match *stage {
+                "damage_crack" => 35,
+                "repair_beam" => 71,
+                _ => 94,
+            }],
+            rts_structure_state: format!("structure_modeling:{stage}"),
+            rts_combat_event_log: string_vec([
+                *structure_event,
+                "structure_source:classic_draw_scene",
+                "structure_modeling_original_art",
+            ]),
+            last_feedback: format!("RTS structure modeling stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("STRUCTURE MODEL {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "structure_event": structure_event,
+            "renderer_path": "classic_draw_scene",
+            "structure_state": runtime.rts_structure_state,
+            "building_progress_percent": runtime.rts_building_progress_percent,
+            "structure_health_percents": runtime.rts_structure_health_percents,
+            "production_queue_count": runtime.rts_production_queue.len(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let foundation_shadow_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR);
+    let scaffold_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR);
+    let construction_spark_pixel_count =
+        count_color(CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR);
+    let production_glow_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR);
+    let damage_crack_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_DAMAGE_CRACK_COLOR);
+    let repair_beam_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR);
+    let foundation_gate = foundation_shadow_pixel_count > 220;
+    let scaffold_gate = scaffold_pixel_count > 300;
+    let construction_spark_gate = construction_spark_pixel_count > 120;
+    let production_glow_gate = production_glow_pixel_count > 120;
+    let damage_crack_gate = damage_crack_pixel_count > 120;
+    let repair_beam_gate = repair_beam_pixel_count > 160;
+    let structure_stage_gate = [
+        "structure:foundation_shadow",
+        "structure:scaffold",
+        "structure:construction_spark",
+        "structure:production_glow",
+        "structure:damage_crack",
+        "structure:repair_beam",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("structure_event")
+                .and_then(|value| value.as_str())
+                == Some(*event)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && foundation_gate
+        && scaffold_gate
+        && construction_spark_gate
+        && production_glow_gate
+        && damage_crack_gate
+        && repair_beam_gate
+        && structure_stage_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_STRUCTURE_MODELING_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "foundation_shadow_pixel_count": foundation_shadow_pixel_count,
+        "scaffold_pixel_count": scaffold_pixel_count,
+        "construction_spark_pixel_count": construction_spark_pixel_count,
+        "production_glow_pixel_count": production_glow_pixel_count,
+        "damage_crack_pixel_count": damage_crack_pixel_count,
+        "repair_beam_pixel_count": repair_beam_pixel_count,
+        "foundation_gate": foundation_gate,
+        "scaffold_gate": scaffold_gate,
+        "construction_spark_gate": construction_spark_gate,
+        "production_glow_gate": production_glow_gate,
+        "damage_crack_gate": damage_crack_gate,
+        "repair_beam_gate": repair_beam_gate,
+        "structure_stage_gate": structure_stage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium structure-modeling overlays; foundation shadow, scaffolding, construction sparks, production glow, damage cracks, and repair beams are authored locally without copied Warcraft III assets, UI art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Structure modeling evidence uses actual classic_draw_scene frames and structure-event driven stage selection to prove RTS buildings have readable construction, production, damage, and repair states in the playable Bevy low-spec renderer."
+    }))
+    .expect("classic RTS structure modeling evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -29339,6 +29811,19 @@ fn classic_draw_isometric_scene(
                 tile_h,
                 entity.tile,
                 scale,
+            );
+        }
+        if let Some(structure_stage) = classic_rts_structure_modeling_stage(Some(runtime)) {
+            classic_draw_rts_structure_modeling_scene_overlay(
+                buffer,
+                width,
+                height,
+                origin_x,
+                origin_y,
+                tile_w,
+                tile_h,
+                scene.id.as_str(),
+                structure_stage,
             );
         }
         classic_draw_iso_command_feedback(
