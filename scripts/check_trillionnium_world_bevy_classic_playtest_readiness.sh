@@ -50,6 +50,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_entry.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_visual_fidelity.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_surface.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -108,6 +109,7 @@ jq -n \
   --slurpfile rts_campaign_entry "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json" \
   --slurpfile rts_visual_fidelity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-visual-fidelity.json" \
   --slurpfile rts_command_affordance "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.json" \
+  --slurpfile rts_command_surface "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-surface.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -168,6 +170,7 @@ jq -n \
       and ok($rts_campaign_entry)
       and ok($rts_visual_fidelity)
       and ok($rts_command_affordance)
+      and ok($rts_command_surface)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -435,6 +438,7 @@ jq -n \
       classic_rts_campaign_entry_green: ok($rts_campaign_entry),
       classic_rts_visual_fidelity_green: ok($rts_visual_fidelity),
       classic_rts_command_affordance_green: ok($rts_command_affordance),
+      classic_rts_command_surface_green: ok($rts_command_surface),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1053,6 +1057,13 @@ jq -n \
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
       rts_command_affordance_hotkey_pixel_count: $rts_command_affordance[0].hotkey_pixel_count,
       rts_command_affordance_command_ack_pixel_count: $rts_command_affordance[0].command_ack_pixel_count,
+      rts_command_surface_selection_frame_pixel_count: $rts_command_surface[0].selection_frame_pixel_count,
+      rts_command_surface_ready_pixel_count: $rts_command_surface[0].ready_pixel_count,
+      rts_command_surface_disabled_pixel_count: $rts_command_surface[0].disabled_pixel_count,
+      rts_command_surface_cooldown_pixel_count: $rts_command_surface[0].cooldown_pixel_count,
+      rts_command_surface_target_panel_pixel_count: $rts_command_surface[0].target_panel_pixel_count,
+      rts_command_surface_queue_confirm_pixel_count: $rts_command_surface[0].queue_confirm_pixel_count,
+      rts_command_surface_group_tab_pixel_count: $rts_command_surface[0].group_tab_pixel_count,
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1363,6 +1374,13 @@ jq -n \
       rts_command_affordance_attack_cursor_gate: $rts_command_affordance[0].attack_cursor_gate,
       rts_command_affordance_hotkey_ack_gate: $rts_command_affordance[0].hotkey_ack_gate,
       rts_command_affordance_original_art_policy_gate: $rts_command_affordance[0].original_art_policy_gate,
+      rts_command_surface_selection_surface_gate: $rts_command_surface[0].selection_surface_gate,
+      rts_command_surface_command_grid_surface_gate: $rts_command_surface[0].command_grid_surface_gate,
+      rts_command_surface_cooldown_disabled_surface_gate: $rts_command_surface[0].cooldown_disabled_surface_gate,
+      rts_command_surface_target_queue_surface_gate: $rts_command_surface[0].target_queue_surface_gate,
+      rts_command_surface_surface_stage_gate: $rts_command_surface[0].surface_stage_gate,
+      rts_command_surface_scene_renderer_gate: $rts_command_surface[0].scene_renderer_gate,
+      rts_command_surface_original_art_policy_gate: $rts_command_surface[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1537,6 +1555,8 @@ jq -n \
       classic_rts_visual_fidelity_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-visual-fidelity.ppm",
       classic_rts_command_affordance: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.json",
       classic_rts_command_affordance_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.ppm",
+      classic_rts_command_surface: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-surface.json",
+      classic_rts_command_surface_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-surface.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1607,6 +1627,7 @@ jq -e '
   and .checks.classic_rts_campaign_entry_green == true
   and .checks.classic_rts_visual_fidelity_green == true
   and .checks.classic_rts_command_affordance_green == true
+  and .checks.classic_rts_command_surface_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2215,6 +2236,13 @@ jq -e '
   and .gates.rts_command_affordance_attack_cursor_gate == true
   and .gates.rts_command_affordance_hotkey_ack_gate == true
   and .gates.rts_command_affordance_original_art_policy_gate == true
+  and .gates.rts_command_surface_selection_surface_gate == true
+  and .gates.rts_command_surface_command_grid_surface_gate == true
+  and .gates.rts_command_surface_cooldown_disabled_surface_gate == true
+  and .gates.rts_command_surface_target_queue_surface_gate == true
+  and .gates.rts_command_surface_surface_stage_gate == true
+  and .gates.rts_command_surface_scene_renderer_gate == true
+  and .gates.rts_command_surface_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true

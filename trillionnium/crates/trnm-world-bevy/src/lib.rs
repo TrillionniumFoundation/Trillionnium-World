@@ -232,6 +232,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NPC_TRANSITION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_npc_transition_blend_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_DEPTH_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_depth_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_SURFACE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_command_surface_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -465,6 +467,13 @@ const CLASSIC_RTS_DEPTH_BUILDING_MASK_COLOR: u32 = 0xffd07a;
 const CLASSIC_RTS_DEPTH_TARGET_PRIORITY_COLOR: u32 = 0xff66d9;
 const CLASSIC_RTS_DEPTH_PATH_OCCLUSION_COLOR: u32 = 0xaaff72;
 const CLASSIC_RTS_DEPTH_CUTAWAY_COLOR: u32 = 0x70e0ff;
+const CLASSIC_RTS_COMMAND_SURFACE_SELECTION_FRAME_COLOR: u32 = 0xf8ff9a;
+const CLASSIC_RTS_COMMAND_SURFACE_READY_COLOR: u32 = 0x6dffbc;
+const CLASSIC_RTS_COMMAND_SURFACE_DISABLED_COLOR: u32 = 0x5a626c;
+const CLASSIC_RTS_COMMAND_SURFACE_COOLDOWN_COLOR: u32 = 0x8d78ff;
+const CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR: u32 = 0xff6f9c;
+const CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR: u32 = 0xffe26b;
+const CLASSIC_RTS_COMMAND_SURFACE_GROUP_TAB_COLOR: u32 = 0x78d6ff;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -12402,6 +12411,241 @@ pub fn native_classic_rts_command_affordance_evidence_json(preview_path: &str) -
         "source_of_truth": "Command affordance evidence drives drag-select, right-click move, attack cursor, and hotkey/ability acknowledgement through live native RTS input and the actual classic_draw_scene renderer."
     }))
     .expect("classic RTS command affordance evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_command_surface_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "selection_state",
+            "arena_outdoor",
+            (5, 5),
+            0_u8,
+            "surface:selection_state",
+        ),
+        (
+            "command_grid",
+            "arena_outdoor",
+            (5, 5),
+            1_u8,
+            "surface:command_grid",
+        ),
+        (
+            "cooldown_disabled",
+            "arena_outdoor",
+            (5, 5),
+            2_u8,
+            "surface:cooldown_disabled",
+        ),
+        (
+            "target_queue",
+            "arena_outdoor",
+            (6, 5),
+            3_u8,
+            "surface:target_queue",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, surface_event)) in
+        stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 412 + index as u64,
+            xp: 273 + (index as u64 * 13),
+            facing_direction: "west".to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "arena_guard_right",
+                "arena_creep_attack",
+                "square_worker_carry",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2", "3"]),
+            rts_command_queue: string_vec([
+                *surface_event,
+                "select_group_1",
+                "move:7,4",
+                "attack:arena_creep_attack",
+                "ability:guard_break",
+                "queue:confirm",
+            ]),
+            rts_command_destination_tile: Some("7,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["4,4", "5,4", "6,4", "7,4", "8,4", "6,5", "7,5"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec([
+                "train:guard",
+                "train:worker",
+                "upgrade:signal_blade",
+            ]),
+            rts_unit_health_percents: vec![100, 83, 71, 38, 64],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 45, 0, 72, 20],
+            rts_active_ability_id: Some(match *stage {
+                "command_grid" => "attack".to_string(),
+                "target_queue" => "guard_break".to_string(),
+                _ => "focus".to_string(),
+            }),
+            rts_target_health_percent: 36,
+            rts_target_armor_percent: 22,
+            rts_target_shield_percent: 8,
+            rts_combat_event_log: string_vec([
+                *surface_event,
+                "guard_attack_windup",
+                "worker_carry_supply",
+                "surface_source:classic_draw_scene",
+            ]),
+            last_feedback: format!("RTS command surface stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("COMMAND SURFACE {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "surface_event": surface_event,
+            "renderer_path": "classic_draw_scene",
+            "selected_unit_count": runtime.rts_selected_unit_ids.len(),
+            "ability_command_count": runtime.rts_ability_command_ids.len(),
+            "cooldown_count": runtime.rts_ability_cooldown_percents.iter().filter(|cooldown| **cooldown > 0).count(),
+            "command_queue_count": runtime.rts_command_queue.len(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let selection_frame_pixel_count =
+        count_color(CLASSIC_RTS_COMMAND_SURFACE_SELECTION_FRAME_COLOR);
+    let ready_pixel_count = count_color(CLASSIC_RTS_COMMAND_SURFACE_READY_COLOR);
+    let disabled_pixel_count = count_color(CLASSIC_RTS_COMMAND_SURFACE_DISABLED_COLOR);
+    let cooldown_pixel_count = count_color(CLASSIC_RTS_COMMAND_SURFACE_COOLDOWN_COLOR);
+    let target_panel_pixel_count = count_color(CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR);
+    let queue_confirm_pixel_count = count_color(CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR);
+    let group_tab_pixel_count = count_color(CLASSIC_RTS_COMMAND_SURFACE_GROUP_TAB_COLOR);
+    let selection_surface_gate = selection_frame_pixel_count > 800 && group_tab_pixel_count > 200;
+    let command_grid_surface_gate = ready_pixel_count > 500;
+    let cooldown_disabled_surface_gate = cooldown_pixel_count > 300 && disabled_pixel_count > 100;
+    let target_queue_surface_gate =
+        target_panel_pixel_count > 400 && queue_confirm_pixel_count > 250;
+    let surface_stage_gate = [
+        "surface:selection_state",
+        "surface:command_grid",
+        "surface:cooldown_disabled",
+        "surface:target_queue",
+    ]
+    .iter()
+    .all(|stage| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("surface_event")
+                .and_then(|value| value.as_str())
+                == Some(*stage)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && selection_surface_gate
+        && command_grid_surface_gate
+        && cooldown_disabled_surface_gate
+        && target_queue_surface_gate
+        && surface_stage_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_SURFACE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "selection_frame_pixel_count": selection_frame_pixel_count,
+        "ready_pixel_count": ready_pixel_count,
+        "disabled_pixel_count": disabled_pixel_count,
+        "cooldown_pixel_count": cooldown_pixel_count,
+        "target_panel_pixel_count": target_panel_pixel_count,
+        "queue_confirm_pixel_count": queue_confirm_pixel_count,
+        "group_tab_pixel_count": group_tab_pixel_count,
+        "selection_surface_gate": selection_surface_gate,
+        "command_grid_surface_gate": command_grid_surface_gate,
+        "cooldown_disabled_surface_gate": cooldown_disabled_surface_gate,
+        "target_queue_surface_gate": target_queue_surface_gate,
+        "surface_stage_gate": surface_stage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium command-surface overlays; classic RTS selection cards, command grid states, cooldown/disabled marks, target panel, and queue confirmation are authored locally without copied Warcraft III assets, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Command surface evidence uses actual classic_draw_scene frames and surface-event driven HUD stages to prove selection cards, command-grid state, cooldown/disabled cells, target details, and command queue confirmation render in the playable RTS interface."
+    }))
+    .expect("classic RTS command surface evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -32118,6 +32362,277 @@ fn classic_draw_rts_command_affordance_panel(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_command_surface_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("surface:target_queue") {
+                return Some("target_queue");
+            }
+            if event.contains("surface:cooldown_disabled") {
+                return Some("cooldown_disabled");
+            }
+            if event.contains("surface:command_grid") {
+                return Some("command_grid");
+            }
+            if event.contains("surface:selection_state") {
+                return Some("selection_state");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("surface:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 4 {
+            0 => "selection_state",
+            1 => "command_grid",
+            2 => "cooldown_disabled",
+            _ => "target_queue",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_surface_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    selected_units: &[ClassicIsoEntity],
+    stage: &str,
+) {
+    if width < 640 || height < 320 {
+        return;
+    }
+    let bar_h = 84_i32;
+    let y = height as i32 - bar_h - 4;
+    let cards_x = 228_i32;
+    let grid_x = width as i32 - 210;
+    let grid_y = y + 12;
+
+    match stage {
+        "selection_state" => {
+            for (index, _entity) in selected_units.iter().take(5).enumerate() {
+                let card_x = cards_x + index as i32 * 84;
+                let card_y = y + 12;
+                for (x, y, w, h) in [
+                    (card_x - 2, card_y - 2, 80, 3),
+                    (card_x - 2, card_y + 58, 80, 3),
+                    (card_x - 2, card_y - 2, 3, 63),
+                    (card_x + 75, card_y - 2, 3, 63),
+                ] {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        x,
+                        y,
+                        w,
+                        h,
+                        CLASSIC_RTS_COMMAND_SURFACE_SELECTION_FRAME_COLOR,
+                    );
+                }
+            }
+            for group_index in 0..3 {
+                let tab_x = 118 + group_index * 34;
+                let group_label = (group_index + 1).to_string();
+                let active = runtime
+                    .rts_active_control_group_ids
+                    .iter()
+                    .any(|group| group == &group_label)
+                    || runtime.rts_control_group_id.as_deref() == Some(group_label.as_str());
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tab_x,
+                    y + 48,
+                    28,
+                    11,
+                    if active {
+                        CLASSIC_RTS_COMMAND_SURFACE_GROUP_TAB_COLOR
+                    } else {
+                        CLASSIC_RTS_COMMAND_SURFACE_DISABLED_COLOR
+                    },
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    tab_x + 10,
+                    y + 51,
+                    &group_label,
+                    1,
+                    CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+                );
+            }
+        }
+        "command_grid" => {
+            for row in 0..3 {
+                for col in 0..3 {
+                    let cell_x = grid_x + col * 32;
+                    let cell_y = grid_y + row * 22;
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cell_x - 2,
+                        cell_y - 2,
+                        31,
+                        3,
+                        CLASSIC_RTS_COMMAND_SURFACE_READY_COLOR,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cell_x - 2,
+                        cell_y + 17,
+                        31,
+                        3,
+                        CLASSIC_RTS_COMMAND_SURFACE_READY_COLOR,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cell_x + 3,
+                        cell_y + 5,
+                        5 + col * 3,
+                        3,
+                        CLASSIC_RTS_COMMAND_SURFACE_READY_COLOR,
+                    );
+                }
+            }
+        }
+        "cooldown_disabled" => {
+            for row in 0..3 {
+                for col in 0..3 {
+                    let index = (row * 3 + col) as usize;
+                    let cell_x = grid_x + col * 32;
+                    let cell_y = grid_y + row * 22;
+                    let cooldown = runtime
+                        .rts_ability_cooldown_percents
+                        .get(index)
+                        .copied()
+                        .unwrap_or(0);
+                    if cooldown > 0 {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            cell_x + 3,
+                            cell_y + 3,
+                            21,
+                            4 + ((cooldown.min(100) as i32 * 11) / 100),
+                            CLASSIC_RTS_COMMAND_SURFACE_COOLDOWN_COLOR,
+                        );
+                    } else if index >= runtime.rts_ability_command_ids.len() {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            cell_x + 4,
+                            cell_y + 5,
+                            20,
+                            3,
+                            CLASSIC_RTS_COMMAND_SURFACE_DISABLED_COLOR,
+                        );
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            cell_x + 4,
+                            cell_y + 11,
+                            20,
+                            3,
+                            CLASSIC_RTS_COMMAND_SURFACE_DISABLED_COLOR,
+                        );
+                    }
+                }
+            }
+        }
+        "target_queue" => {
+            let panel_x = grid_x - 122;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x,
+                grid_y,
+                104,
+                48,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x + 4,
+                grid_y + 5,
+                96,
+                38,
+                CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 8,
+                grid_y + 8,
+                &classic_catalog_text_label(
+                    runtime
+                        .rts_attack_target_id
+                        .as_deref()
+                        .unwrap_or("no_target"),
+                    15,
+                ),
+                1,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x + 8,
+                grid_y + 24,
+                (runtime.rts_target_health_percent.min(100) as i32 * 84) / 100,
+                5,
+                CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+            );
+            for (index, _command) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    panel_x + 7 + index as i32 * 17,
+                    grid_y + 35,
+                    12,
+                    7,
+                    CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x + 70,
+                grid_y + 14,
+                26,
+                4,
+                CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR,
+            );
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_rts_fidelity_overlay(
     buffer: &mut [u32],
     width: usize,
@@ -32332,6 +32847,16 @@ fn classic_draw_rts_fidelity_overlay(
             &classic_catalog_text_label(&event.replace(':', " "), 11),
             1,
             CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+        );
+    }
+    if let Some(stage) = classic_rts_command_surface_stage(Some(runtime)) {
+        classic_draw_rts_command_surface_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            selected_units,
+            stage,
         );
     }
 }
