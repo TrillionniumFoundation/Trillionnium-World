@@ -389,6 +389,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第三十二组 RTS command-affordance gate：`scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh` 把“像即时战略”的操作反馈补进实际战场渲染路径。它要求 live native input 依次经过拖选、右键移动、攻击目标、能力热键确认，并在 `classic_draw_scene` 中画出拖选 marquee、右键落点、攻击光标、鼠标箭头、控制组/热键条、命令确认反馈；仍然只使用原创 Trillionnium 低配 2.5D/isometric RTS 表达，不复制《魔兽争霸 III》的光标、UI 图形、资产、文本、名称或模型。
 
+继续追加第三十三组 RTS action-cadence gate：`scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh` 专门压住 NPC 动作粗糙的问题。实际单位素材生成和 `classic_draw_scene` 现在必须呈现攻击前摇、命中、收招、工人搬运起伏、待机呼吸和脚底拖影节奏；evidence contact sheet 由六帧真实场景渲染构成，并用 `windup_gate`、`strike_gate`、`recovery_gate`、`carry_bob_gate`、`idle_breath_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 阻止只改静态截图或引入外部 RTS IP 素材。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

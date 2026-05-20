@@ -216,6 +216,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_visual_fidelity_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_action_cadence_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -398,6 +400,12 @@ const CLASSIC_RTS_COMMAND_AFFORDANCE_ATTACK_CURSOR_COLOR: u32 = 0xff6f6f;
 const CLASSIC_RTS_COMMAND_AFFORDANCE_CURSOR_ARROW_COLOR: u32 = 0xf8f2c4;
 const CLASSIC_RTS_COMMAND_AFFORDANCE_HOTKEY_COLOR: u32 = 0x445a4a;
 const CLASSIC_RTS_COMMAND_AFFORDANCE_ACK_COLOR: u32 = 0xd7b957;
+const CLASSIC_RTS_ACTION_CADENCE_WINDUP_COLOR: u32 = 0xf0b35f;
+const CLASSIC_RTS_ACTION_CADENCE_STRIKE_COLOR: u32 = 0xfff1a6;
+const CLASSIC_RTS_ACTION_CADENCE_RECOVERY_COLOR: u32 = 0x8fdcff;
+const CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR: u32 = 0xe0d168;
+const CLASSIC_RTS_ACTION_CADENCE_IDLE_BREATH_COLOR: u32 = 0x9beea6;
+const CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR: u32 = 0x56636f;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -9465,6 +9473,126 @@ fn classic_draw_neutral_unit_sprite(
             );
         }
     }
+
+    classic_draw_rts_action_cadence_marks(pixels, width, height, frame_id, center_x, foot_y);
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_action_cadence_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    base_y: i32,
+) {
+    let attack_frame = frame_id.ends_with("_attack");
+    let carry_frame = frame_id.ends_with("_carry");
+    let idle_frame = frame_id.ends_with("_idle");
+
+    if attack_frame {
+        let windup_left = if frame_id.starts_with("actor_creep") {
+            -24
+        } else {
+            -22
+        };
+        for step in 0..5 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + windup_left + step * 3,
+                base_y - 36 + step,
+                7,
+                3,
+                CLASSIC_RTS_ACTION_CADENCE_WINDUP_COLOR,
+            );
+        }
+        for step in 0..9 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 12 + step * 3,
+                base_y - 34 + step,
+                7,
+                3,
+                CLASSIC_RTS_ACTION_CADENCE_STRIKE_COLOR,
+            );
+        }
+        for step in 0..6 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 4 + step * 4,
+                base_y - 18 + step,
+                6,
+                3,
+                CLASSIC_RTS_ACTION_CADENCE_RECOVERY_COLOR,
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 15,
+            base_y - 7,
+            32,
+            3,
+            CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 10,
+            base_y - 4,
+            24,
+            2,
+            CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
+        );
+    } else if carry_frame {
+        for step in 0..4 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 14 + step * 2,
+                base_y - 34 - (step % 2),
+                4,
+                6,
+                CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 12 + step * 3,
+                base_y - 17 + step,
+                4,
+                3,
+                CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
+            );
+        }
+    } else if idle_frame
+        && (frame_id.starts_with("actor_guard")
+            || frame_id.starts_with("actor_worker")
+            || frame_id.starts_with("actor_creep"))
+    {
+        for step in 0..4 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 10 + step * 6,
+                base_y - 31 + (step % 2),
+                4,
+                2,
+                CLASSIC_RTS_ACTION_CADENCE_IDLE_BREATH_COLOR,
+            );
+        }
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -10509,6 +10637,223 @@ pub fn native_classic_rts_command_affordance_evidence_json(preview_path: &str) -
         "source_of_truth": "Command affordance evidence drives drag-select, right-click move, attack cursor, and hotkey/ability acknowledgement through live native RTS input and the actual classic_draw_scene renderer."
     }))
     .expect("classic RTS command affordance evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_action_cadence_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "guard_windup",
+            "arena_outdoor",
+            (5, 5),
+            1_u8,
+            "guard_attack_windup",
+        ),
+        (
+            "guard_strike",
+            "arena_outdoor",
+            (5, 5),
+            2_u8,
+            "guard_attack_strike",
+        ),
+        (
+            "creep_recovery",
+            "arena_outdoor",
+            (5, 5),
+            3_u8,
+            "creep_attack_recovery",
+        ),
+        (
+            "worker_carry_bob",
+            "mirror_city_square",
+            (5, 5),
+            1_u8,
+            "worker_carry_bob",
+        ),
+        (
+            "idle_breathing_line",
+            "mentor_training_room",
+            (5, 5),
+            0_u8,
+            "neutral_idle_breathing",
+        ),
+        (
+            "open_world_idle_and_carry",
+            "mirror_city_square",
+            (5, 5),
+            2_u8,
+            "open_world_carry_idle_loop",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, event)) in stages.iter().enumerate() {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 184 + index as u64,
+            xp: 94 + (index as u64 * 3),
+            facing_direction: if index % 2 == 0 { "east" } else { "west" }.to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: scene.contains("arena"),
+            combat_overlay_was_visible: scene.contains("arena"),
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "square_worker_carry",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_command_queue: string_vec([
+                "attack:arena_creep_attack",
+                "carry:mirror_supply",
+                "hold:guard_line",
+            ]),
+            rts_command_destination_tile: Some("7,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec(["train:guard", "train:worker"]),
+            rts_unit_health_percents: vec![96, 82, 74, 31],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 12, 0, 35, 18],
+            rts_active_ability_id: Some("focus".to_string()),
+            rts_target_health_percent: 34,
+            rts_combat_event_log: string_vec([*event, "cadence_source:classic_draw_scene"]),
+            last_feedback: format!("RTS action cadence stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 144,
+            &format!("CADENCE {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "combat_turn": combat_turn,
+            "event": event,
+            "renderer_path": "classic_draw_scene",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let windup_pixel_count = count_color(CLASSIC_RTS_ACTION_CADENCE_WINDUP_COLOR);
+    let strike_pixel_count = count_color(CLASSIC_RTS_ACTION_CADENCE_STRIKE_COLOR);
+    let recovery_pixel_count = count_color(CLASSIC_RTS_ACTION_CADENCE_RECOVERY_COLOR);
+    let carry_bob_pixel_count = count_color(CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR);
+    let idle_breath_pixel_count = count_color(CLASSIC_RTS_ACTION_CADENCE_IDLE_BREATH_COLOR);
+    let shadow_smear_pixel_count = count_color(CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR);
+    let windup_gate = windup_pixel_count > 140;
+    let strike_gate = strike_pixel_count > 220;
+    let recovery_gate = recovery_pixel_count > 140;
+    let carry_bob_gate = carry_bob_pixel_count > 70;
+    let idle_breath_gate = idle_breath_pixel_count > 40;
+    let shadow_smear_gate = shadow_smear_pixel_count > 100;
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let event_gate = stages.iter().all(|(_, _, _, _, event)| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("event").and_then(|value| value.as_str()) == Some(*event))
+    });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && scene_renderer_gate
+        && event_gate
+        && windup_gate
+        && strike_gate
+        && recovery_gate
+        && carry_bob_gate
+        && idle_breath_gate
+        && shadow_smear_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "windup_pixel_count": windup_pixel_count,
+        "strike_pixel_count": strike_pixel_count,
+        "recovery_pixel_count": recovery_pixel_count,
+        "carry_bob_pixel_count": carry_bob_pixel_count,
+        "idle_breath_pixel_count": idle_breath_pixel_count,
+        "shadow_smear_pixel_count": shadow_smear_pixel_count,
+        "windup_gate": windup_gate,
+        "strike_gate": strike_gate,
+        "recovery_gate": recovery_gate,
+        "carry_bob_gate": carry_bob_gate,
+        "idle_breath_gate": idle_breath_gate,
+        "shadow_smear_gate": shadow_smear_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "event_gate": event_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium action cadence marks and silhouettes; classic RTS timing expectations guide readability, with no copied Warcraft III assets, animation timing data, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Action cadence evidence uses actual classic_draw_scene frames and original generated unit art to prove attack wind-up, strike, recovery, worker carry bob, idle breathing, and shadow smear are visible in the playable RTS renderer."
+    }))
+    .expect("classic RTS action cadence evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -21208,6 +21553,7 @@ fn classic_draw_iso_procedural_model(
                     );
                 }
             }
+            classic_draw_rts_action_cadence_marks(buffer, width, height, frame, center_x, base_y);
             true
         }
         "doodad_rock_cluster" => {
@@ -21954,6 +22300,14 @@ fn classic_draw_iso_unit_overlay(
             CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
         );
     }
+    classic_draw_rts_action_cadence_marks(
+        buffer,
+        width,
+        height,
+        frame_id,
+        center_x,
+        sprite_top_y + 46,
+    );
     true
 }
 

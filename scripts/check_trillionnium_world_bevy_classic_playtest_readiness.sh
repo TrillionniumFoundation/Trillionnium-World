@@ -50,6 +50,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_entry.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_visual_fidelity.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
@@ -100,6 +101,7 @@ jq -n \
   --slurpfile rts_campaign_entry "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-entry.json" \
   --slurpfile rts_visual_fidelity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-visual-fidelity.json" \
   --slurpfile rts_command_affordance "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.json" \
+  --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
@@ -152,6 +154,7 @@ jq -n \
       and ok($rts_campaign_entry)
       and ok($rts_visual_fidelity)
       and ok($rts_command_affordance)
+      and ok($rts_action_cadence)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -411,6 +414,7 @@ jq -n \
       classic_rts_campaign_entry_green: ok($rts_campaign_entry),
       classic_rts_visual_fidelity_green: ok($rts_visual_fidelity),
       classic_rts_command_affordance_green: ok($rts_command_affordance),
+      classic_rts_action_cadence_green: ok($rts_action_cadence),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -1021,6 +1025,12 @@ jq -n \
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
       rts_command_affordance_hotkey_pixel_count: $rts_command_affordance[0].hotkey_pixel_count,
       rts_command_affordance_command_ack_pixel_count: $rts_command_affordance[0].command_ack_pixel_count,
+      rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
+      rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
+      rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
+      rts_action_cadence_carry_bob_pixel_count: $rts_action_cadence[0].carry_bob_pixel_count,
+      rts_action_cadence_idle_breath_pixel_count: $rts_action_cadence[0].idle_breath_pixel_count,
+      rts_action_cadence_shadow_smear_pixel_count: $rts_action_cadence[0].shadow_smear_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd,
       launcher_main_pid: $launcher[0].live_runner.service.main_pid,
@@ -1280,6 +1290,15 @@ jq -n \
       rts_command_affordance_attack_cursor_gate: $rts_command_affordance[0].attack_cursor_gate,
       rts_command_affordance_hotkey_ack_gate: $rts_command_affordance[0].hotkey_ack_gate,
       rts_command_affordance_original_art_policy_gate: $rts_command_affordance[0].original_art_policy_gate,
+      rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
+      rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
+      rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
+      rts_action_cadence_carry_bob_gate: $rts_action_cadence[0].carry_bob_gate,
+      rts_action_cadence_idle_breath_gate: $rts_action_cadence[0].idle_breath_gate,
+      rts_action_cadence_shadow_smear_gate: $rts_action_cadence[0].shadow_smear_gate,
+      rts_action_cadence_scene_renderer_gate: $rts_action_cadence[0].scene_renderer_gate,
+      rts_action_cadence_event_gate: $rts_action_cadence[0].event_gate,
+      rts_action_cadence_original_art_policy_gate: $rts_action_cadence[0].original_art_policy_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1379,6 +1398,8 @@ jq -n \
       classic_rts_visual_fidelity_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-visual-fidelity.ppm",
       classic_rts_command_affordance: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.json",
       classic_rts_command_affordance_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-affordance.ppm",
+      classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
+      classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -1433,6 +1454,7 @@ jq -e '
   and .checks.classic_rts_campaign_entry_green == true
   and .checks.classic_rts_visual_fidelity_green == true
   and .checks.classic_rts_command_affordance_green == true
+  and .checks.classic_rts_action_cadence_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
@@ -2033,6 +2055,15 @@ jq -e '
   and .gates.rts_command_affordance_attack_cursor_gate == true
   and .gates.rts_command_affordance_hotkey_ack_gate == true
   and .gates.rts_command_affordance_original_art_policy_gate == true
+  and .gates.rts_action_cadence_windup_gate == true
+  and .gates.rts_action_cadence_strike_gate == true
+  and .gates.rts_action_cadence_recovery_gate == true
+  and .gates.rts_action_cadence_carry_bob_gate == true
+  and .gates.rts_action_cadence_idle_breath_gate == true
+  and .gates.rts_action_cadence_shadow_smear_gate == true
+  and .gates.rts_action_cadence_scene_renderer_gate == true
+  and .gates.rts_action_cadence_event_gate == true
+  and .gates.rts_action_cadence_original_art_policy_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
