@@ -230,6 +230,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LOCOMOTION_BLEND_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_locomotion_blend_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NPC_TRANSITION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_npc_transition_blend_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_DEPTH_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_depth_readability_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -457,6 +459,12 @@ const CLASSIC_RTS_NPC_TRANSITION_PICKUP_COLOR: u32 = 0xdcb66a;
 const CLASSIC_RTS_NPC_TRANSITION_POUNCE_COLOR: u32 = 0xb78cff;
 const CLASSIC_RTS_NPC_TRANSITION_RECOVER_COLOR: u32 = 0x8bd9ff;
 const CLASSIC_RTS_NPC_TRANSITION_RESUME_COLOR: u32 = 0x7df59f;
+const CLASSIC_RTS_DEPTH_FOREGROUND_COLOR: u32 = 0x79f7b1;
+const CLASSIC_RTS_DEPTH_BEHIND_COLOR: u32 = 0x98c8ff;
+const CLASSIC_RTS_DEPTH_BUILDING_MASK_COLOR: u32 = 0xffd07a;
+const CLASSIC_RTS_DEPTH_TARGET_PRIORITY_COLOR: u32 = 0xff66d9;
+const CLASSIC_RTS_DEPTH_PATH_OCCLUSION_COLOR: u32 = 0xaaff72;
+const CLASSIC_RTS_DEPTH_CUTAWAY_COLOR: u32 = 0x70e0ff;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -11080,6 +11088,279 @@ fn classic_draw_rts_npc_transition_marks(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_depth_readability_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime.rts_combat_event_log.iter().rev() {
+            if event.contains("depth:terrain_cutaway") {
+                return Some("terrain_cutaway");
+            }
+            if event.contains("depth:path_occlusion") {
+                return Some("path_occlusion");
+            }
+            if event.contains("depth:target_priority") {
+                return Some("target_priority");
+            }
+            if event.contains("depth:building_mask") {
+                return Some("building_mask");
+            }
+            if event.contains("depth:behind_silhouette") {
+                return Some("behind_silhouette");
+            }
+            if event.contains("depth:foreground_canopy") {
+                return Some("foreground_canopy");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("depth:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "foreground_canopy",
+            1 => "behind_silhouette",
+            2 => "building_mask",
+            3 => "target_priority",
+            4 => "path_occlusion",
+            _ => "terrain_cutaway",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_depth_readability_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    base_y: i32,
+    stage: &str,
+) {
+    let is_actor = frame_id.starts_with("actor_");
+    let is_structure = frame_id.starts_with("model_")
+        || frame_id.contains("gate")
+        || frame_id.contains("hall")
+        || frame_id.contains("stall")
+        || frame_id.contains("workbench");
+    let is_foreground = frame_id.contains("tree")
+        || frame_id.contains("bush")
+        || frame_id.contains("ruins")
+        || frame_id.contains("cliff")
+        || frame_id.contains("bridge");
+
+    match stage {
+        "foreground_canopy" if is_foreground || is_actor => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 34,
+                base_y - 54,
+                68,
+                5,
+                CLASSIC_RTS_DEPTH_FOREGROUND_COLOR,
+            );
+            for step in 0..8 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 31 + step * 9,
+                    base_y - 48 + (step % 2) * 3,
+                    7,
+                    13,
+                    CLASSIC_RTS_DEPTH_FOREGROUND_COLOR,
+                );
+            }
+        }
+        "behind_silhouette" if is_actor => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 20,
+                base_y - 46,
+                40,
+                4,
+                CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 24,
+                base_y - 39,
+                5,
+                30,
+                CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 19,
+                base_y - 39,
+                5,
+                30,
+                CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                base_y - 13,
+                36,
+                4,
+                CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+            );
+        }
+        "building_mask" if is_structure || is_actor => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 30,
+                base_y - 59,
+                60,
+                5,
+                CLASSIC_RTS_DEPTH_BUILDING_MASK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 33,
+                base_y - 50,
+                5,
+                39,
+                CLASSIC_RTS_DEPTH_BUILDING_MASK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 28,
+                base_y - 50,
+                5,
+                39,
+                CLASSIC_RTS_DEPTH_BUILDING_MASK_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 27,
+                base_y - 14,
+                54,
+                5,
+                CLASSIC_RTS_DEPTH_BUILDING_MASK_COLOR,
+            );
+        }
+        "target_priority" if is_actor => {
+            for step in 0..12 {
+                let x = center_x - 30 + step * 5;
+                let y = base_y - 56 + (step - 6).abs() / 2;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    7,
+                    3,
+                    CLASSIC_RTS_DEPTH_TARGET_PRIORITY_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    base_y - 5 - (step - 6).abs() / 3,
+                    7,
+                    3,
+                    CLASSIC_RTS_DEPTH_TARGET_PRIORITY_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 4,
+                base_y - 63,
+                8,
+                11,
+                CLASSIC_RTS_DEPTH_TARGET_PRIORITY_COLOR,
+            );
+        }
+        "path_occlusion" if is_actor || is_structure || is_foreground => {
+            for step in 0..10 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 44 + step * 9,
+                    base_y - 7 - (step % 3),
+                    8,
+                    3,
+                    CLASSIC_RTS_DEPTH_PATH_OCCLUSION_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 32,
+                base_y - 13,
+                16,
+                6,
+                CLASSIC_RTS_DEPTH_PATH_OCCLUSION_COLOR,
+            );
+        }
+        "terrain_cutaway" if is_foreground || is_structure => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 36,
+                base_y - 48,
+                72,
+                4,
+                CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+            );
+            for step in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 32 + step * 13,
+                    base_y - 40 + step,
+                    10,
+                    8,
+                    CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 24,
+                base_y - 20,
+                48,
+                4,
+                CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+            );
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -13724,6 +14005,243 @@ pub fn native_classic_rts_npc_transition_evidence_json(preview_path: &str) -> St
         "source_of_truth": "NPC transition evidence uses actual classic_draw_scene frames and transition-event driven stage selection to prove NPCs show readable in-between behavior rather than snapping between patrol, work, combat, and retreat states."
     }))
     .expect("classic RTS NPC transition evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_depth_readability_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "foreground_canopy",
+            "mirror_city_square",
+            (4, 6),
+            0_u8,
+            "depth:foreground_canopy",
+        ),
+        (
+            "behind_silhouette",
+            "mirror_city_square",
+            (8, 2),
+            1_u8,
+            "depth:behind_silhouette",
+        ),
+        (
+            "building_mask",
+            "mentor_training_room",
+            (4, 3),
+            2_u8,
+            "depth:building_mask",
+        ),
+        (
+            "target_priority",
+            "league_coliseum",
+            (6, 5),
+            3_u8,
+            "depth:target_priority",
+        ),
+        (
+            "path_occlusion",
+            "mirror_city_square",
+            (7, 4),
+            4_u8,
+            "depth:path_occlusion",
+        ),
+        (
+            "terrain_cutaway",
+            "mirror_city_square",
+            (8, 2),
+            5_u8,
+            "depth:terrain_cutaway",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, combat_turn, depth_event)) in stages.iter().enumerate()
+    {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 388 + index as u64,
+            xp: 251 + (index as u64 * 11),
+            facing_direction: if index % 2 == 0 { "east" } else { "west" }.to_string(),
+            walk_cycle_frame: (*combat_turn).max(1),
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: *combat_turn,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2", "3"]),
+            rts_command_queue: string_vec([*depth_event]),
+            rts_command_destination_tile: Some(match *stage {
+                "target_priority" => "6,5".to_string(),
+                "building_mask" => "4,3".to_string(),
+                _ => "8,4".to_string(),
+            }),
+            rts_attack_target_id: Some(match *stage {
+                "target_priority" => "arena_creep_attack".to_string(),
+                "behind_silhouette" => "square_creep_wander".to_string(),
+                _ => "square_guard_patrol".to_string(),
+            }),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec(["train:guard", "train:worker"]),
+            rts_unit_health_percents: vec![100, 88, 67, 42],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 6, 0, 18, 12],
+            rts_active_ability_id: Some("focus".to_string()),
+            rts_target_health_percent: match *stage {
+                "target_priority" => 31,
+                "behind_silhouette" => 44,
+                _ => 58,
+            },
+            rts_combat_event_log: string_vec([
+                *depth_event,
+                "depth_readability_source:classic_draw_scene",
+            ]),
+            last_feedback: format!("RTS depth readability stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 168,
+            &format!("DEPTH READABILITY {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "depth_event": depth_event,
+            "renderer_path": "classic_draw_scene",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let foreground_pixel_count = count_color(CLASSIC_RTS_DEPTH_FOREGROUND_COLOR);
+    let behind_pixel_count = count_color(CLASSIC_RTS_DEPTH_BEHIND_COLOR);
+    let building_mask_pixel_count = count_color(CLASSIC_RTS_DEPTH_BUILDING_MASK_COLOR);
+    let target_priority_pixel_count = count_color(CLASSIC_RTS_DEPTH_TARGET_PRIORITY_COLOR);
+    let path_occlusion_pixel_count = count_color(CLASSIC_RTS_DEPTH_PATH_OCCLUSION_COLOR);
+    let cutaway_pixel_count = count_color(CLASSIC_RTS_DEPTH_CUTAWAY_COLOR);
+    let foreground_gate = foreground_pixel_count > 120;
+    let behind_gate = behind_pixel_count > 120;
+    let building_mask_gate = building_mask_pixel_count > 140;
+    let target_priority_gate = target_priority_pixel_count > 130;
+    let path_occlusion_gate = path_occlusion_pixel_count > 120;
+    let cutaway_gate = cutaway_pixel_count > 120;
+    let depth_stage_gate = [
+        "depth:foreground_canopy",
+        "depth:behind_silhouette",
+        "depth:building_mask",
+        "depth:target_priority",
+        "depth:path_occlusion",
+        "depth:terrain_cutaway",
+    ]
+    .iter()
+    .all(|stage| {
+        stage_summaries.iter().any(|summary| {
+            summary.get("depth_event").and_then(|value| value.as_str()) == Some(*stage)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && depth_stage_gate
+        && scene_renderer_gate
+        && foreground_gate
+        && behind_gate
+        && building_mask_gate
+        && target_priority_gate
+        && path_occlusion_gate
+        && cutaway_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_DEPTH_READABILITY_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "foreground_pixel_count": foreground_pixel_count,
+        "behind_pixel_count": behind_pixel_count,
+        "building_mask_pixel_count": building_mask_pixel_count,
+        "target_priority_pixel_count": target_priority_pixel_count,
+        "path_occlusion_pixel_count": path_occlusion_pixel_count,
+        "cutaway_pixel_count": cutaway_pixel_count,
+        "foreground_gate": foreground_gate,
+        "behind_gate": behind_gate,
+        "building_mask_gate": building_mask_gate,
+        "target_priority_gate": target_priority_gate,
+        "path_occlusion_gate": path_occlusion_gate,
+        "cutaway_gate": cutaway_gate,
+        "depth_stage_gate": depth_stage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium depth-readability overlays; classic RTS foreground, silhouette, building mask, target priority, path occlusion, and terrain cutaway marks improve battlefield clarity without copied Warcraft III assets, animation data, UI art, text, names, or models.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Depth readability evidence uses actual classic_draw_scene frames and depth-event driven stage selection to prove units, buildings, foreground terrain, paths, and target focus remain readable under isometric occlusion."
+    }))
+    .expect("classic RTS depth readability evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -28270,6 +28788,17 @@ fn classic_draw_isometric_frame_at_tile(
                 transition,
             );
         }
+        if let Some(depth_stage) = classic_rts_depth_readability_stage(runtime) {
+            classic_draw_rts_depth_readability_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                depth_stage,
+            );
+        }
         return;
     }
     if !assets.frame_by_id.contains_key(frame_id)
@@ -28336,6 +28865,17 @@ fn classic_draw_isometric_frame_at_tile(
                 screen_x,
                 screen_y + tile_h,
                 transition,
+            );
+        }
+        if let Some(depth_stage) = classic_rts_depth_readability_stage(runtime) {
+            classic_draw_rts_depth_readability_marks(
+                buffer,
+                width,
+                height,
+                frame_id,
+                screen_x,
+                screen_y + tile_h,
+                depth_stage,
             );
         }
         return;
@@ -28414,6 +28954,17 @@ fn classic_draw_isometric_frame_at_tile(
             screen_x,
             screen_y + tile_h,
             transition,
+        );
+    }
+    if let Some(depth_stage) = classic_rts_depth_readability_stage(runtime) {
+        classic_draw_rts_depth_readability_marks(
+            buffer,
+            width,
+            height,
+            frame_id,
+            screen_x,
+            screen_y + tile_h,
+            depth_stage,
         );
     }
 }

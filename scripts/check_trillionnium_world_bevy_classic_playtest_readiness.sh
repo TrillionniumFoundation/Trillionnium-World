@@ -57,6 +57,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_impact.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_locomotion_blend.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_transition.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
@@ -114,6 +115,7 @@ jq -n \
   --slurpfile rts_combat_impact "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-impact.json" \
   --slurpfile rts_locomotion_blend "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-locomotion-blend.json" \
   --slurpfile rts_npc_transition "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-transition.json" \
+  --slurpfile rts_depth_readability "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
@@ -173,6 +175,7 @@ jq -n \
       and ok($rts_combat_impact)
       and ok($rts_locomotion_blend)
       and ok($rts_npc_transition)
+      and ok($rts_depth_readability)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -439,6 +442,7 @@ jq -n \
       classic_rts_combat_impact_green: ok($rts_combat_impact),
       classic_rts_locomotion_blend_green: ok($rts_locomotion_blend),
       classic_rts_npc_transition_green: ok($rts_npc_transition),
+      classic_rts_depth_readability_green: ok($rts_depth_readability),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -1094,6 +1098,12 @@ jq -n \
       rts_npc_transition_pounce_pixel_count: $rts_npc_transition[0].pounce_pixel_count,
       rts_npc_transition_recover_pixel_count: $rts_npc_transition[0].recover_pixel_count,
       rts_npc_transition_resume_pixel_count: $rts_npc_transition[0].resume_pixel_count,
+      rts_depth_readability_foreground_pixel_count: $rts_depth_readability[0].foreground_pixel_count,
+      rts_depth_readability_behind_pixel_count: $rts_depth_readability[0].behind_pixel_count,
+      rts_depth_readability_building_mask_pixel_count: $rts_depth_readability[0].building_mask_pixel_count,
+      rts_depth_readability_target_priority_pixel_count: $rts_depth_readability[0].target_priority_pixel_count,
+      rts_depth_readability_path_occlusion_pixel_count: $rts_depth_readability[0].path_occlusion_pixel_count,
+      rts_depth_readability_cutaway_pixel_count: $rts_depth_readability[0].cutaway_pixel_count,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd,
       launcher_main_pid: $launcher[0].live_runner.service.main_pid,
@@ -1419,6 +1429,15 @@ jq -n \
       rts_npc_transition_transition_stage_gate: $rts_npc_transition[0].transition_stage_gate,
       rts_npc_transition_scene_renderer_gate: $rts_npc_transition[0].scene_renderer_gate,
       rts_npc_transition_original_art_policy_gate: $rts_npc_transition[0].original_art_policy_gate,
+      rts_depth_readability_foreground_gate: $rts_depth_readability[0].foreground_gate,
+      rts_depth_readability_behind_gate: $rts_depth_readability[0].behind_gate,
+      rts_depth_readability_building_mask_gate: $rts_depth_readability[0].building_mask_gate,
+      rts_depth_readability_target_priority_gate: $rts_depth_readability[0].target_priority_gate,
+      rts_depth_readability_path_occlusion_gate: $rts_depth_readability[0].path_occlusion_gate,
+      rts_depth_readability_cutaway_gate: $rts_depth_readability[0].cutaway_gate,
+      rts_depth_readability_depth_stage_gate: $rts_depth_readability[0].depth_stage_gate,
+      rts_depth_readability_scene_renderer_gate: $rts_depth_readability[0].scene_renderer_gate,
+      rts_depth_readability_original_art_policy_gate: $rts_depth_readability[0].original_art_policy_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -1532,6 +1551,8 @@ jq -n \
       classic_rts_locomotion_blend_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-locomotion-blend.ppm",
       classic_rts_npc_transition: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-transition.json",
       classic_rts_npc_transition_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-transition.ppm",
+      classic_rts_depth_readability: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.json",
+      classic_rts_depth_readability_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.ppm",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -1593,6 +1614,7 @@ jq -e '
   and .checks.classic_rts_combat_impact_green == true
   and .checks.classic_rts_locomotion_blend_green == true
   and .checks.classic_rts_npc_transition_green == true
+  and .checks.classic_rts_depth_readability_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
@@ -2259,6 +2281,15 @@ jq -e '
   and .gates.rts_npc_transition_transition_stage_gate == true
   and .gates.rts_npc_transition_scene_renderer_gate == true
   and .gates.rts_npc_transition_original_art_policy_gate == true
+  and .gates.rts_depth_readability_foreground_gate == true
+  and .gates.rts_depth_readability_behind_gate == true
+  and .gates.rts_depth_readability_building_mask_gate == true
+  and .gates.rts_depth_readability_target_priority_gate == true
+  and .gates.rts_depth_readability_path_occlusion_gate == true
+  and .gates.rts_depth_readability_cutaway_gate == true
+  and .gates.rts_depth_readability_depth_stage_gate == true
+  and .gates.rts_depth_readability_scene_renderer_gate == true
+  and .gates.rts_depth_readability_original_art_policy_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true
   and .gates.runner_classic_env_gate == true
