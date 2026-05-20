@@ -218,6 +218,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_action_cadence_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_MODEL_DEPTH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_unit_model_depth_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -406,6 +408,12 @@ const CLASSIC_RTS_ACTION_CADENCE_RECOVERY_COLOR: u32 = 0x8fdcff;
 const CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR: u32 = 0xe0d168;
 const CLASSIC_RTS_ACTION_CADENCE_IDLE_BREATH_COLOR: u32 = 0x9beea6;
 const CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR: u32 = 0x56636f;
+const CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR: u32 = 0xb8f7ff;
+const CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR: u32 = 0xcfd7e8;
+const CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR: u32 = 0xffcf73;
+const CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR: u32 = 0x7b4f35;
+const CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR: u32 = 0x273238;
+const CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR: u32 = 0x1a2026;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -9474,7 +9482,171 @@ fn classic_draw_neutral_unit_sprite(
         }
     }
 
+    classic_draw_rts_unit_model_depth_marks(pixels, width, height, frame_id, center_x, foot_y);
     classic_draw_rts_action_cadence_marks(pixels, width, height, frame_id, center_x, foot_y);
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_unit_model_depth_marks(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    frame_id: &str,
+    center_x: i32,
+    base_y: i32,
+) {
+    if !(frame_id.starts_with("actor_guard")
+        || frame_id.starts_with("actor_worker")
+        || frame_id.starts_with("actor_creep"))
+    {
+        return;
+    }
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - 14,
+        base_y - 3,
+        28,
+        2,
+        CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - 9,
+        base_y - 30,
+        2,
+        21,
+        CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x + 7,
+        base_y - 30,
+        2,
+        21,
+        CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - 5,
+        base_y - 23,
+        10,
+        3,
+        CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        center_x - 3,
+        base_y - 32,
+        6,
+        2,
+        CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR,
+    );
+
+    if frame_id.starts_with("actor_guard") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 11,
+            base_y - 27,
+            5,
+            4,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 6,
+            base_y - 27,
+            5,
+            4,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 4,
+            base_y - 38,
+            8,
+            3,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
+        );
+    } else if frame_id.starts_with("actor_worker") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 15,
+            base_y - 26,
+            5,
+            13,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 9,
+            base_y - 25,
+            5,
+            12,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 13,
+            base_y - 14,
+            22,
+            3,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR,
+        );
+    } else {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 10,
+            base_y - 40,
+            6,
+            5,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 4,
+            base_y - 40,
+            6,
+            5,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 11,
+            base_y - 21,
+            22,
+            3,
+            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
+        );
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -10854,6 +11026,222 @@ pub fn native_classic_rts_action_cadence_evidence_json(preview_path: &str) -> St
         "source_of_truth": "Action cadence evidence uses actual classic_draw_scene frames and original generated unit art to prove attack wind-up, strike, recovery, worker carry bob, idle breathing, and shadow smear are visible in the playable RTS renderer."
     }))
     .expect("classic RTS action cadence evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_unit_model_depth_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "guard_attack_depth",
+            "arena_outdoor",
+            (5, 5),
+            "guard_armor_rim",
+        ),
+        (
+            "guard_idle_depth",
+            "arena_outdoor",
+            (5, 5),
+            "guard_idle_silhouette",
+        ),
+        (
+            "creep_attack_depth",
+            "arena_outdoor",
+            (5, 5),
+            "creep_horned_silhouette",
+        ),
+        (
+            "worker_carry_depth",
+            "mirror_city_square",
+            (5, 5),
+            "worker_tool_pack",
+        ),
+        (
+            "training_worker_depth",
+            "mentor_training_room",
+            (5, 5),
+            "training_worker_profile",
+        ),
+        (
+            "open_world_roster_depth",
+            "mirror_city_square",
+            (5, 5),
+            "mixed_roster_depth",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, focus)) in stages.iter().enumerate() {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 216 + index as u64,
+            xp: 102 + (index as u64 * 4),
+            facing_direction: if index % 2 == 0 { "east" } else { "west" }.to_string(),
+            walk_cycle_frame: (index as u8 % 3) + 1,
+            combat_overlay_visible: scene.contains("arena"),
+            combat_overlay_was_visible: scene.contains("arena"),
+            combat_turn: (index as u8 % 3) + 1,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "arena_guard_left",
+                "square_worker_carry",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_command_queue: string_vec([
+                "inspect:model_depth",
+                "attack:arena_creep_attack",
+                "carry:mirror_supply",
+            ]),
+            rts_command_destination_tile: Some("7,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_production_queue: string_vec(["train:guard", "train:worker", "scout:creep"]),
+            rts_unit_health_percents: vec![96, 82, 74, 31],
+            rts_ability_command_ids: string_vec([
+                "move", "attack", "hold", "patrol", "focus", "build",
+            ]),
+            rts_ability_cooldown_percents: vec![0, 0, 12, 0, 35, 18],
+            rts_active_ability_id: Some("focus".to_string()),
+            rts_target_health_percent: 34,
+            rts_combat_event_log: string_vec([*focus, "model_depth_source:classic_draw_scene"]),
+            last_feedback: format!("RTS unit model depth stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 156,
+            &format!("MODEL DEPTH {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "focus": focus,
+            "renderer_path": "classic_draw_scene",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let rim_pixel_count = count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR);
+    let armor_pixel_count = count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR);
+    let role_prop_pixel_count = count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR);
+    let face_shade_pixel_count = count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR);
+    let ground_contact_pixel_count = count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR);
+    let layer_shadow_pixel_count = count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR);
+    let rim_gate = rim_pixel_count > 220;
+    let armor_gate = armor_pixel_count > 140;
+    let role_prop_gate = role_prop_pixel_count > 110;
+    let face_shade_gate = face_shade_pixel_count > 60;
+    let ground_contact_gate = ground_contact_pixel_count > 140;
+    let layer_shadow_gate = layer_shadow_pixel_count > 160;
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let role_coverage_gate = [
+        "guard_armor_rim",
+        "worker_tool_pack",
+        "creep_horned_silhouette",
+    ]
+    .iter()
+    .all(|focus| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("focus").and_then(|value| value.as_str()) == Some(*focus))
+    });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && scene_renderer_gate
+        && role_coverage_gate
+        && rim_gate
+        && armor_gate
+        && role_prop_gate
+        && face_shade_gate
+        && ground_contact_gate
+        && layer_shadow_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_MODEL_DEPTH_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "rim_pixel_count": rim_pixel_count,
+        "armor_pixel_count": armor_pixel_count,
+        "role_prop_pixel_count": role_prop_pixel_count,
+        "face_shade_pixel_count": face_shade_pixel_count,
+        "ground_contact_pixel_count": ground_contact_pixel_count,
+        "layer_shadow_pixel_count": layer_shadow_pixel_count,
+        "rim_gate": rim_gate,
+        "armor_gate": armor_gate,
+        "role_prop_gate": role_prop_gate,
+        "face_shade_gate": face_shade_gate,
+        "ground_contact_gate": ground_contact_gate,
+        "layer_shadow_gate": layer_shadow_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "role_coverage_gate": role_coverage_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium unit model depth marks and silhouettes; classic RTS readability guides layer separation, with no copied Warcraft III assets, model geometry, UI art, text, names, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Unit model depth evidence uses actual classic_draw_scene frames and original generated guard/worker/creep art to prove silhouette rims, armor plates, role props, face shade, ground contact, and body layer shadows are visible in the playable RTS renderer."
+    }))
+    .expect("classic RTS unit model depth evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -21553,6 +21941,7 @@ fn classic_draw_iso_procedural_model(
                     );
                 }
             }
+            classic_draw_rts_unit_model_depth_marks(buffer, width, height, frame, center_x, base_y);
             classic_draw_rts_action_cadence_marks(buffer, width, height, frame, center_x, base_y);
             true
         }
@@ -22300,6 +22689,14 @@ fn classic_draw_iso_unit_overlay(
             CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
         );
     }
+    classic_draw_rts_unit_model_depth_marks(
+        buffer,
+        width,
+        height,
+        frame_id,
+        center_x,
+        sprite_top_y + 46,
+    );
     classic_draw_rts_action_cadence_marks(
         buffer,
         width,
