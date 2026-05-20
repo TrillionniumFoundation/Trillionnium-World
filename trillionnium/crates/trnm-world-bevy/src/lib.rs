@@ -17595,6 +17595,38 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
             .active_task_ids
             .iter()
             .any(|task| task == "task-fixture-first-route");
+    let snapshot =
+        native_playable_save_snapshot(&world, &character, &gameplay_log, &runtime, "local-player");
+    let snapshot_json =
+        serde_json::to_string(&snapshot).expect("classic RTS campaign snapshot serializes");
+    let decoded_snapshot: NativePlayableSaveSnapshot =
+        serde_json::from_str(&snapshot_json).expect("classic RTS campaign snapshot parses");
+    let (restored_world, restored_character, restored_log, restored_runtime) =
+        native_restore_playable_save_snapshot(decoded_snapshot);
+    let restored_node_id = player_node_id(&restored_world, "local-player");
+    let snapshot_round_trip_gate = snapshot.contract_version
+        == TRILLIONNIUM_WORLD_BEVY_STATE_SNAPSHOT_CONTRACT
+        && snapshot_json.len() > 20_000
+        && restored_character.character_id == character.character_id
+        && restored_log.last_action == gameplay_log.last_action
+        && restored_node_id.as_deref() == Some("mirror-city-square")
+        && restored_runtime.current_room_id == "league-coliseum"
+        && restored_runtime.map_scene == "arena_outdoor"
+        && restored_runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+        && restored_runtime.route_director_task_id == "task-fixture-first-route"
+        && restored_runtime.route_director_next_room_id.is_none()
+        && restored_runtime
+            .contextual_action_labels
+            .iter()
+            .any(|label| label == "COMBAT:attack")
+        && restored_runtime
+            .active_task_ids
+            .iter()
+            .any(|task| task == "task-fixture-first-route")
+        && restored_runtime
+            .route_director_history
+            .iter()
+            .any(|entry| entry == "rts_open_world_after_action:league-coliseum:arrived");
     let render_milestone_gate = capture_frame_count == PREVIEW_COLUMNS * PREVIEW_ROWS
         && non_background_pixels > 500_000
         && victory_pixel_count > 20
@@ -17609,6 +17641,7 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         && mid_campaign_gate
         && end_campaign_gate
         && open_world_resume_gate
+        && snapshot_round_trip_gate
         && render_milestone_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -17642,6 +17675,17 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         "final_match_result_state": runtime.rts_match_result_state,
         "final_command_queue": runtime.rts_command_queue,
         "final_route_director_history": runtime.route_director_history,
+        "snapshot_json_byte_count": snapshot_json.len(),
+        "restored_node_id": restored_node_id,
+        "restored_character_id": restored_character.character_id,
+        "restored_last_action": restored_log.last_action,
+        "restored_current_room_id": restored_runtime.current_room_id,
+        "restored_map_scene": restored_runtime.map_scene,
+        "restored_open_world_handoff_state": restored_runtime.rts_open_world_handoff_state,
+        "restored_route_director_task_id": restored_runtime.route_director_task_id,
+        "restored_route_director_next_room_id": restored_runtime.route_director_next_room_id,
+        "restored_contextual_action_labels": restored_runtime.contextual_action_labels,
+        "restored_active_task_ids": restored_runtime.active_task_ids,
         "milestones": {
             "objective_victory_seen": objective_victory_seen,
             "creep_camp_seen": creep_camp_seen,
@@ -17672,6 +17716,7 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         "mid_campaign_gate": mid_campaign_gate,
         "end_campaign_gate": end_campaign_gate,
         "open_world_resume_gate": open_world_resume_gate,
+        "snapshot_round_trip_gate": snapshot_round_trip_gate,
         "render_milestone_gate": render_milestone_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,

@@ -979,6 +979,8 @@ jq -n \
       rts_campaign_handoff_room_id: $rts_campaign[0].final_current_room_id,
       rts_campaign_handoff_map_scene: $rts_campaign[0].final_map_scene,
       rts_campaign_handoff_route_director_task_id: $rts_campaign[0].final_route_director_task_id,
+      rts_campaign_handoff_snapshot_json_byte_count: $rts_campaign[0].snapshot_json_byte_count,
+      rts_campaign_handoff_restored_room_id: $rts_campaign[0].restored_current_room_id,
       rts_campaign_handoff_pixel_count: (
         $rts_campaign[0].victory_pixel_count
         + $rts_campaign[0].expansion_pixel_count
@@ -1221,6 +1223,7 @@ jq -n \
       rts_campaign_handoff_mid_campaign_gate: $rts_campaign[0].mid_campaign_gate,
       rts_campaign_handoff_end_campaign_gate: $rts_campaign[0].end_campaign_gate,
       rts_campaign_handoff_open_world_resume_gate: $rts_campaign[0].open_world_resume_gate,
+      rts_campaign_handoff_snapshot_round_trip_gate: $rts_campaign[0].snapshot_round_trip_gate,
       rts_campaign_handoff_render_milestone_gate: $rts_campaign[0].render_milestone_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
@@ -1937,6 +1940,7 @@ jq -e '
   and .gates.rts_campaign_handoff_mid_campaign_gate == true
   and .gates.rts_campaign_handoff_end_campaign_gate == true
   and .gates.rts_campaign_handoff_open_world_resume_gate == true
+  and .gates.rts_campaign_handoff_snapshot_round_trip_gate == true
   and .gates.rts_campaign_handoff_render_milestone_gate == true
   and .gates.runner_service_process_gate == true
   and .gates.runner_release_binary_gate == true

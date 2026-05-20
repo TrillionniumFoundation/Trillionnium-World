@@ -30,6 +30,7 @@ required_script_lines=(
   'mid_campaign_gate == true'
   'end_campaign_gate == true'
   'open_world_resume_gate == true'
+  'snapshot_round_trip_gate == true'
   'render_milestone_gate == true'
 )
 
@@ -61,6 +62,9 @@ required_source_lines=(
   'keep_victory_seen'
   'restoration_seen'
   'open_world_seen'
+  'snapshot_round_trip_gate'
+  'native_playable_save_snapshot'
+  'native_restore_playable_save_snapshot'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -79,6 +83,7 @@ required_readiness_lines=(
   'rts_campaign_handoff_mid_campaign_gate'
   'rts_campaign_handoff_end_campaign_gate'
   'rts_campaign_handoff_open_world_resume_gate'
+  'rts_campaign_handoff_snapshot_round_trip_gate'
   'rts_campaign_handoff_render_milestone_gate'
 )
 

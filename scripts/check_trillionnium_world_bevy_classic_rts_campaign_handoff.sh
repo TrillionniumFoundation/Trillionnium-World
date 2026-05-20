@@ -48,6 +48,15 @@ jq -e '
   and (.final_active_task_ids | index("task-fixture-first-route") != null)
   and .final_objective_status == "open_world_after_action_ready"
   and .final_match_result_state == "classic_rts_restored:mirror_city"
+  and .snapshot_json_byte_count > 20000
+  and .restored_node_id == "mirror-city-square"
+  and .restored_current_room_id == "league-coliseum"
+  and .restored_map_scene == "arena_outdoor"
+  and .restored_open_world_handoff_state == "resumed:league-coliseum"
+  and .restored_route_director_task_id == "task-fixture-first-route"
+  and .restored_route_director_next_room_id == null
+  and (.restored_contextual_action_labels | index("COMBAT:attack") != null)
+  and (.restored_active_task_ids | index("task-fixture-first-route") != null)
   and (.milestones | to_entries | all(.value == true))
   and .non_background_pixels > 500000
   and .victory_pixel_count > 20
@@ -61,6 +70,7 @@ jq -e '
   and .mid_campaign_gate == true
   and .end_campaign_gate == true
   and .open_world_resume_gate == true
+  and .snapshot_round_trip_gate == true
   and .render_milestone_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
