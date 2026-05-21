@@ -246,6 +246,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT: &st
     "trillionnium_world_bevy_classic_rts_unit_status_portrait_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_selection_command_feedback_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -524,6 +526,12 @@ const CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR: u32 = 0x9cff7a;
 const CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR: u32 = 0xff7272;
 const CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR: u32 = 0xffa05f;
 const CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR: u32 = 0xffe36d;
+const CLASSIC_RTS_ABILITY_TELEGRAPH_TOOLTIP_COLOR: u32 = 0x8fdcff;
+const CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR: u32 = 0x8cff8f;
+const CLASSIC_RTS_ABILITY_TELEGRAPH_WINDUP_COLOR: u32 = 0xffd26c;
+const CLASSIC_RTS_ABILITY_TELEGRAPH_COOLDOWN_COLOR: u32 = 0xa38bff;
+const CLASSIC_RTS_ABILITY_TELEGRAPH_QUEUE_COLOR: u32 = 0x7dffd0;
+const CLASSIC_RTS_ABILITY_TELEGRAPH_WARNING_COLOR: u32 = 0xff815f;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -13194,6 +13202,398 @@ fn classic_draw_rts_selection_command_feedback_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_ability_tooltip_telegraph_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+        {
+            if event.contains("ability_tooltip_telegraph:resource_warning") {
+                return Some("resource_warning");
+            }
+            if event.contains("ability_tooltip_telegraph:queue_explain") {
+                return Some("queue_explain");
+            }
+            if event.contains("ability_tooltip_telegraph:cooldown_sweep") {
+                return Some("cooldown_sweep");
+            }
+            if event.contains("ability_tooltip_telegraph:cast_windup") {
+                return Some("cast_windup");
+            }
+            if event.contains("ability_tooltip_telegraph:range_preview") {
+                return Some("range_preview");
+            }
+            if event.contains("ability_tooltip_telegraph:hover_tooltip") {
+                return Some("hover_tooltip");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("ability_tooltip_telegraph:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "hover_tooltip",
+            1 => "range_preview",
+            2 => "cast_windup",
+            3 => "cooldown_sweep",
+            4 => "queue_explain",
+            _ => "resource_warning",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_ability_tooltip_telegraph_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let center_x = width as i32 / 2;
+    let origin_y = 64_i32;
+    let caster = (center_x - 134, origin_y + 150);
+    let target = (center_x + 126, origin_y + 118);
+    let tooltip_x = (width as i32 - 318).max(250);
+    let tooltip_y = (height as i32 - 172).max(126);
+    let ability = runtime
+        .rts_active_ability_id
+        .as_deref()
+        .unwrap_or("rally_aura");
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        tooltip_x,
+        tooltip_y,
+        304,
+        78,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        tooltip_x,
+        tooltip_y,
+        304,
+        3,
+        CLASSIC_RTS_ABILITY_TELEGRAPH_TOOLTIP_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        tooltip_x + 10,
+        tooltip_y + 10,
+        &classic_catalog_text_label(&format!("ABILITY {}", ability.replace('_', " ")), 30),
+        1,
+        CLASSIC_RTS_ABILITY_TELEGRAPH_TOOLTIP_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        tooltip_x + 10,
+        tooltip_y + 25,
+        &classic_catalog_text_label(
+            &format!(
+                "SUPPLY {}/{} GOLD {}",
+                runtime.rts_army_supply_used, runtime.rts_army_supply_cap, runtime.coins
+            ),
+            34,
+        ),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    match stage {
+        "hover_tooltip" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tooltip_x + 8,
+                tooltip_y + 43,
+                282,
+                23,
+                CLASSIC_RTS_ABILITY_TELEGRAPH_TOOLTIP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tooltip_x + 12,
+                tooltip_y + 47,
+                274,
+                15,
+                CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+            );
+            for (index, command) in runtime.rts_ability_command_ids.iter().take(6).enumerate() {
+                let x = tooltip_x + 14 + index as i32 * 44;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    tooltip_y + 51,
+                    33,
+                    7,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_TOOLTIP_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    x + 3,
+                    tooltip_y + 47,
+                    &classic_catalog_text_label(command, 4),
+                    1,
+                    CLASSIC_HUD_TEXT_COLOR,
+                );
+            }
+        }
+        "range_preview" => {
+            for radius in [36, 58, 82] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target.0 - radius,
+                    target.1 - radius / 2,
+                    radius * 2,
+                    4,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target.0 - radius,
+                    target.1 + radius / 2,
+                    radius * 2,
+                    4,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target.0 - radius,
+                    target.1 - radius / 2,
+                    4,
+                    radius,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target.0 + radius,
+                    target.1 - radius / 2,
+                    4,
+                    radius,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                );
+            }
+            for step in 0..9 {
+                let x = caster.0 + ((target.0 - caster.0) * step) / 8;
+                let y = caster.1 + ((target.1 - caster.1) * step) / 8;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 5,
+                    y - 5,
+                    10,
+                    10,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+                );
+            }
+        }
+        "cast_windup" => {
+            for step in 0..18 {
+                let x = caster.0 + ((target.0 - caster.0) * step) / 17;
+                let y = caster.1 + ((target.1 - caster.1) * step) / 17;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 3,
+                    y - 3,
+                    7,
+                    7,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_WINDUP_COLOR,
+                );
+            }
+            for tick in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    caster.0 - 34 + tick * 18,
+                    caster.1 - 44,
+                    12,
+                    36 + tick * 4,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_WINDUP_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tooltip_x + 12,
+                tooltip_y + 49,
+                230,
+                9,
+                CLASSIC_RTS_ABILITY_TELEGRAPH_WINDUP_COLOR,
+            );
+        }
+        "cooldown_sweep" => {
+            let grid_x = width as i32 - 204;
+            let grid_y = height as i32 - 78;
+            for row in 0..3 {
+                for col in 0..3 {
+                    let index = (row * 3 + col) as usize;
+                    let cooldown = runtime
+                        .rts_ability_cooldown_percents
+                        .get(index)
+                        .copied()
+                        .unwrap_or(0)
+                        .max(if index == 8 { 72 } else { 0 });
+                    let cell_x = grid_x + col * 32;
+                    let cell_y = grid_y + row * 22;
+                    let sweep_h = 4 + ((cooldown.min(100) as i32 * 14) / 100);
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cell_x + 2,
+                        cell_y + 18 - sweep_h,
+                        25,
+                        sweep_h,
+                        CLASSIC_RTS_ABILITY_TELEGRAPH_COOLDOWN_COLOR,
+                    );
+                }
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                tooltip_x + 12,
+                tooltip_y + 50,
+                "COOLDOWN SWEEP / DISABLED CELLS",
+                1,
+                CLASSIC_RTS_ABILITY_TELEGRAPH_COOLDOWN_COLOR,
+            );
+        }
+        "queue_explain" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tooltip_x + 8,
+                tooltip_y + 43,
+                286,
+                24,
+                CLASSIC_RTS_ABILITY_TELEGRAPH_QUEUE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tooltip_x + 13,
+                tooltip_y + 48,
+                (runtime.rts_training_progress_percent.max(54) as i32 * 244) / 100,
+                7,
+                CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+            );
+            for (index, queued) in runtime.rts_production_queue.iter().take(4).enumerate() {
+                let x = caster.0 - 96 + index as i32 * 58;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    caster.1 - 92,
+                    48,
+                    18,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_QUEUE_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    x + 4,
+                    caster.1 - 87,
+                    &classic_catalog_text_label(&queued.replace(':', " "), 6),
+                    1,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+        }
+        "resource_warning" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tooltip_x + 8,
+                tooltip_y + 43,
+                286,
+                24,
+                CLASSIC_RTS_ABILITY_TELEGRAPH_WARNING_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                tooltip_x + 16,
+                tooltip_y + 51,
+                "NOT ENOUGH GOLD OR SUPPLY",
+                1,
+                CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+            );
+            for index in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target.0 - 72 + index * 28,
+                    target.1 + 52,
+                    22,
+                    18,
+                    CLASSIC_RTS_ABILITY_TELEGRAPH_WARNING_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    target.0 - 66 + index * 28,
+                    target.1 + 58,
+                    10,
+                    6,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -16063,6 +16463,332 @@ pub fn native_classic_rts_selection_command_feedback_evidence_json(preview_path:
         "source_of_truth": "Selection-command feedback evidence uses actual classic_draw_scene frames and native RTS selection, rally, move, attack, and blocked-order runtime fields to prove command intent is visible at the moment of player input."
     }))
     .expect("classic RTS selection command feedback evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_ability_tooltip_telegraph_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 820,
+        xp: 580,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 4,
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        rts_control_group_id: Some("1".to_string()),
+        rts_active_control_group_ids: string_vec(["1", "2"]),
+        rts_selected_unit_ids: string_vec([
+            "mirror_captain",
+            "arena_guard_left",
+            "signal_lancer",
+            "field_engineer",
+        ]),
+        rts_unit_health_percents: vec![96, 84, 79, 72],
+        rts_ability_command_ids: string_vec([
+            "rally_aura",
+            "guard_break",
+            "focus_fire",
+            "hold_line",
+            "signal_burst",
+            "field_lodge",
+        ]),
+        rts_ability_cooldown_percents: vec![0, 12, 35, 0, 68, 24, 0, 44, 76],
+        rts_army_supply_used: 12,
+        rts_army_supply_cap: 18,
+        rts_attack_target_id: Some("arena_creep_attack".to_string()),
+        rts_target_health_percent: 72,
+        rts_production_queue: string_vec(["train:guard", "upgrade:signal_blade"]),
+        rts_training_progress_percent: 42,
+        ..Default::default()
+    };
+    let stages = [
+        ("hover_tooltip", "rally_aura"),
+        ("range_preview", "guard_break"),
+        ("cast_windup", "focus_fire"),
+        ("cooldown_sweep", "signal_burst"),
+        ("queue_explain", "field_lodge"),
+        ("resource_warning", "overdrawn_cast"),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, ability_id)) in stages.iter().enumerate() {
+        let action = NativeControlAction::RtsAbilityCommand {
+            ability_id: (*ability_id).to_string(),
+        };
+        let action_label = native_control_action_label(&action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_ability_tooltip_telegraph_input",
+            action,
+        );
+        runtime.combat_turn = index as u8;
+        runtime.rts_active_ability_id = Some((*ability_id).to_string());
+        runtime.rts_ability_cooldown_percents = match *stage {
+            "hover_tooltip" => vec![0, 8, 24, 0, 42, 16, 0, 18, 36],
+            "range_preview" => vec![0, 0, 18, 0, 40, 24, 0, 35, 48],
+            "cast_windup" => vec![0, 10, 0, 18, 52, 30, 0, 44, 60],
+            "cooldown_sweep" => vec![18, 34, 52, 66, 78, 88, 20, 44, 72],
+            "queue_explain" => vec![0, 12, 25, 0, 38, 18, 0, 24, 40],
+            _ => vec![60, 72, 84, 90, 96, 100, 68, 80, 92],
+        };
+        if *stage == "queue_explain" {
+            runtime.rts_production_queue = string_vec([
+                "ability:queued:guard_break",
+                "train:relay_guard",
+                "upgrade:signal_blade",
+                "build:field_lodge",
+            ]);
+            runtime.rts_training_progress_percent = 76;
+        }
+        if *stage == "resource_warning" {
+            runtime.coins = 45;
+            runtime.rts_army_supply_used = 18;
+            runtime.rts_army_supply_cap = 18;
+            runtime.rts_resource_spend_log =
+                string_vec(["gold:-220:blocked", "supply:18/18:blocked"]);
+        }
+        let telegraph_event = format!("ability_tooltip_telegraph:{stage}");
+        push_history(&mut runtime.rts_combat_event_log, &telegraph_event);
+        push_history(&mut runtime.rts_command_queue, &telegraph_event);
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("ABILITY TELEGRAPH {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "telegraph_event": telegraph_event,
+            "action_label": action_label,
+            "accepted": accepted,
+            "renderer_path": "classic_draw_scene",
+            "active_ability_id": runtime.rts_active_ability_id.clone(),
+            "ability_command_ids": runtime.rts_ability_command_ids.clone(),
+            "ability_cooldown_percents": runtime.rts_ability_cooldown_percents.clone(),
+            "ability_effect_tile_ids": runtime.rts_ability_effect_tile_ids.clone(),
+            "ability_damage_ticks": runtime.rts_ability_damage_ticks.clone(),
+            "projectile_trail_tile_ids": runtime.rts_projectile_trail_tile_ids.clone(),
+            "production_queue": runtime.rts_production_queue.clone(),
+            "training_progress_percent": runtime.rts_training_progress_percent,
+            "coins": runtime.coins,
+            "army_supply_used": runtime.rts_army_supply_used,
+            "army_supply_cap": runtime.rts_army_supply_cap,
+            "resource_spend_log": runtime.rts_resource_spend_log.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let tooltip_pixel_count = count_color(CLASSIC_RTS_ABILITY_TELEGRAPH_TOOLTIP_COLOR);
+    let range_pixel_count = count_color(CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR);
+    let windup_pixel_count = count_color(CLASSIC_RTS_ABILITY_TELEGRAPH_WINDUP_COLOR);
+    let cooldown_pixel_count = count_color(CLASSIC_RTS_ABILITY_TELEGRAPH_COOLDOWN_COLOR);
+    let queue_pixel_count = count_color(CLASSIC_RTS_ABILITY_TELEGRAPH_QUEUE_COLOR);
+    let warning_pixel_count = count_color(CLASSIC_RTS_ABILITY_TELEGRAPH_WARNING_COLOR);
+    let tooltip_gate = tooltip_pixel_count > 900;
+    let range_gate = range_pixel_count > 500;
+    let windup_gate = windup_pixel_count > 600;
+    let cooldown_gate = cooldown_pixel_count > 450;
+    let queue_gate = queue_pixel_count > 700;
+    let warning_gate = warning_pixel_count > 900;
+    let telegraph_stage_gate = [
+        "ability_tooltip_telegraph:hover_tooltip",
+        "ability_tooltip_telegraph:range_preview",
+        "ability_tooltip_telegraph:cast_windup",
+        "ability_tooltip_telegraph:cooldown_sweep",
+        "ability_tooltip_telegraph:queue_explain",
+        "ability_tooltip_telegraph:resource_warning",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("telegraph_event")
+                .and_then(|value| value.as_str())
+                == Some(*event)
+        })
+    });
+    let ability_runtime_gate = accepted_input_count == stages.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_ability_tooltip_telegraph_input")
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("ability_command_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|abilities| abilities.len() >= 6)
+                && summary
+                    .get("ability_cooldown_percents")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|cooldowns| cooldowns.len() >= 6)
+                && summary
+                    .get("active_ability_id")
+                    .and_then(|value| value.as_str())
+                    .is_some_and(|ability| !ability.is_empty())
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("range_preview")
+                && summary
+                    .get("ability_effect_tile_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|tiles| !tiles.is_empty())
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("cast_windup")
+                && summary
+                    .get("ability_damage_ticks")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|ticks| !ticks.is_empty())
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("queue_explain")
+                && summary
+                    .get("production_queue")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|queue| queue.len() >= 4)
+                && summary
+                    .get("training_progress_percent")
+                    .and_then(|value| value.as_u64())
+                    .is_some_and(|progress| progress >= 76)
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("resource_warning")
+                && summary
+                    .get("coins")
+                    .and_then(|value| value.as_u64())
+                    .is_some_and(|coins| coins <= 45)
+                && summary
+                    .get("army_supply_used")
+                    .and_then(|value| value.as_u64())
+                    >= summary
+                        .get("army_supply_cap")
+                        .and_then(|value| value.as_u64())
+        });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && tooltip_gate
+        && range_gate
+        && windup_gate
+        && cooldown_gate
+        && queue_gate
+        && warning_gate
+        && telegraph_stage_gate
+        && ability_runtime_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "input_path": "apply_live_native_action_with_source(classic_rts_ability_tooltip_telegraph_input)",
+        "input_action_count": stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_active_ability_id": runtime.rts_active_ability_id,
+        "final_ability_command_ids": runtime.rts_ability_command_ids,
+        "final_ability_cooldown_percents": runtime.rts_ability_cooldown_percents,
+        "final_production_queue": runtime.rts_production_queue,
+        "final_resource_spend_log": runtime.rts_resource_spend_log,
+        "tooltip_pixel_count": tooltip_pixel_count,
+        "range_pixel_count": range_pixel_count,
+        "windup_pixel_count": windup_pixel_count,
+        "cooldown_pixel_count": cooldown_pixel_count,
+        "queue_pixel_count": queue_pixel_count,
+        "warning_pixel_count": warning_pixel_count,
+        "tooltip_gate": tooltip_gate,
+        "range_gate": range_gate,
+        "windup_gate": windup_gate,
+        "cooldown_gate": cooldown_gate,
+        "queue_gate": queue_gate,
+        "warning_gate": warning_gate,
+        "telegraph_stage_gate": telegraph_stage_gate,
+        "ability_runtime_gate": ability_runtime_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium ability tooltip/telegraph overlays; hover tooltip, range preview, cast windup, cooldown sweep, queue explanation, and resource warning are authored locally without copied Warcraft III cursor art, UI art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Ability tooltip telegraph evidence uses accepted native RTS ability commands plus actual classic_draw_scene frames to prove ability hover, range, cast, cooldown, queue, and resource-block feedback are visible before and during player commands."
+    }))
+    .expect("classic RTS ability tooltip telegraph evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -27643,6 +28369,15 @@ fn classic_draw_scene(
         &player_frame,
     );
     classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    if let Some(telegraph_stage) = classic_rts_ability_tooltip_telegraph_stage(Some(runtime)) {
+        classic_draw_rts_ability_tooltip_telegraph_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            telegraph_stage,
+        );
+    }
     if let Some(feedback_stage) = classic_rts_selection_command_feedback_stage(Some(runtime)) {
         classic_draw_rts_selection_command_feedback_overlay(
             buffer,

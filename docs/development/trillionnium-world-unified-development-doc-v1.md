@@ -419,6 +419,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第四十七组 RTS selection-command-feedback gate：`scripts/check_trillionnium_world_bevy_classic_rts_selection_command_feedback.sh` 把玩家下令瞬间从“有按钮/有面板”推进到“操作反馈可读”。实际 `classic_draw_scene` 必须按 selection command feedback event 画出 marquee_start、selection_confirm、rally_preview、move_line、attack_lock、invalid_order 六类反馈，包括拖选框、选中确认、集结预览、移动命令线、攻击锁定和无效命令提示；`marquee_gate`、`confirm_gate`、`rally_gate`、`move_gate`、`attack_gate`、`error_gate`、`ack_gate`、`feedback_stage_gate`、`command_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证操作反馈来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定 native selection/rally/move/attack/blocked-order runtime。
 
+继续追加第四十八组 RTS ability-tooltip-telegraph gate：`scripts/check_trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph.sh` 把技能按钮从“能触发”推进到“下令前后的预期反馈可读”。实际 `classic_draw_scene` 必须按 ability tooltip telegraph event 画出 hover_tooltip、range_preview、cast_windup、cooldown_sweep、queue_explain、resource_warning 六类反馈，包括技能说明、范围预览、施放蓄力、冷却扫面、队列说明和资源/人口不足警告；`tooltip_gate`、`range_gate`、`windup_gate`、`cooldown_gate`、`queue_gate`、`warning_gate`、`telegraph_stage_gate`、`ability_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证技能反馈来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定 native ability/cooldown/queue/resource runtime。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

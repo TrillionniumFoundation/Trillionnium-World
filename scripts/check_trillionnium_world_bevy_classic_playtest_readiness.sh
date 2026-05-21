@@ -57,6 +57,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_spawn_animation.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_status_portrait.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_command_feedback.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -122,6 +123,7 @@ jq -n \
   --slurpfile rts_production_spawn_animation "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-spawn-animation.json" \
   --slurpfile rts_unit_status_portrait "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-status-portrait.json" \
   --slurpfile rts_selection_command_feedback "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-command-feedback.json" \
+  --slurpfile rts_ability_tooltip_telegraph "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ability-tooltip-telegraph.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -189,6 +191,7 @@ jq -n \
       and ok($rts_production_spawn_animation)
       and ok($rts_unit_status_portrait)
       and ok($rts_selection_command_feedback)
+      and ok($rts_ability_tooltip_telegraph)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -463,6 +466,7 @@ jq -n \
       classic_rts_production_spawn_animation_green: ok($rts_production_spawn_animation),
       classic_rts_unit_status_portrait_green: ok($rts_unit_status_portrait),
       classic_rts_selection_command_feedback_green: ok($rts_selection_command_feedback),
+      classic_rts_ability_tooltip_telegraph_green: ok($rts_ability_tooltip_telegraph),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1132,6 +1136,16 @@ jq -n \
       rts_selection_command_feedback_attack_pixel_count: $rts_selection_command_feedback[0].attack_pixel_count,
       rts_selection_command_feedback_error_pixel_count: $rts_selection_command_feedback[0].error_pixel_count,
       rts_selection_command_feedback_ack_pixel_count: $rts_selection_command_feedback[0].ack_pixel_count,
+      rts_ability_tooltip_telegraph_tooltip_pixel_count: $rts_ability_tooltip_telegraph[0].tooltip_pixel_count,
+      rts_ability_tooltip_telegraph_range_pixel_count: $rts_ability_tooltip_telegraph[0].range_pixel_count,
+      rts_ability_tooltip_telegraph_windup_pixel_count: $rts_ability_tooltip_telegraph[0].windup_pixel_count,
+      rts_ability_tooltip_telegraph_cooldown_pixel_count: $rts_ability_tooltip_telegraph[0].cooldown_pixel_count,
+      rts_ability_tooltip_telegraph_queue_pixel_count: $rts_ability_tooltip_telegraph[0].queue_pixel_count,
+      rts_ability_tooltip_telegraph_warning_pixel_count: $rts_ability_tooltip_telegraph[0].warning_pixel_count,
+      rts_ability_tooltip_telegraph_accepted_input_count: $rts_ability_tooltip_telegraph[0].accepted_input_count,
+      rts_ability_tooltip_telegraph_ability_count: ($rts_ability_tooltip_telegraph[0].final_ability_command_ids | length),
+      rts_ability_tooltip_telegraph_cooldown_count: ($rts_ability_tooltip_telegraph[0].final_ability_cooldown_percents | length),
+      rts_ability_tooltip_telegraph_queue_count: ($rts_ability_tooltip_telegraph[0].final_production_queue | length),
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1509,6 +1523,16 @@ jq -n \
       rts_selection_command_feedback_command_runtime_gate: $rts_selection_command_feedback[0].command_runtime_gate,
       rts_selection_command_feedback_scene_renderer_gate: $rts_selection_command_feedback[0].scene_renderer_gate,
       rts_selection_command_feedback_original_art_policy_gate: $rts_selection_command_feedback[0].original_art_policy_gate,
+      rts_ability_tooltip_telegraph_tooltip_gate: $rts_ability_tooltip_telegraph[0].tooltip_gate,
+      rts_ability_tooltip_telegraph_range_gate: $rts_ability_tooltip_telegraph[0].range_gate,
+      rts_ability_tooltip_telegraph_windup_gate: $rts_ability_tooltip_telegraph[0].windup_gate,
+      rts_ability_tooltip_telegraph_cooldown_gate: $rts_ability_tooltip_telegraph[0].cooldown_gate,
+      rts_ability_tooltip_telegraph_queue_gate: $rts_ability_tooltip_telegraph[0].queue_gate,
+      rts_ability_tooltip_telegraph_warning_gate: $rts_ability_tooltip_telegraph[0].warning_gate,
+      rts_ability_tooltip_telegraph_telegraph_stage_gate: $rts_ability_tooltip_telegraph[0].telegraph_stage_gate,
+      rts_ability_tooltip_telegraph_ability_runtime_gate: $rts_ability_tooltip_telegraph[0].ability_runtime_gate,
+      rts_ability_tooltip_telegraph_scene_renderer_gate: $rts_ability_tooltip_telegraph[0].scene_renderer_gate,
+      rts_ability_tooltip_telegraph_original_art_policy_gate: $rts_ability_tooltip_telegraph[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1697,6 +1721,8 @@ jq -n \
       classic_rts_unit_status_portrait_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-status-portrait.ppm",
       classic_rts_selection_command_feedback: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-command-feedback.json",
       classic_rts_selection_command_feedback_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-command-feedback.ppm",
+      classic_rts_ability_tooltip_telegraph: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ability-tooltip-telegraph.json",
+      classic_rts_ability_tooltip_telegraph_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ability-tooltip-telegraph.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1774,6 +1800,7 @@ jq -e '
   and .checks.classic_rts_production_spawn_animation_green == true
   and .checks.classic_rts_unit_status_portrait_green == true
   and .checks.classic_rts_selection_command_feedback_green == true
+  and .checks.classic_rts_ability_tooltip_telegraph_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2116,6 +2143,16 @@ jq -e '
   and .headline.rts_selection_command_feedback_attack_pixel_count > 320
   and .headline.rts_selection_command_feedback_error_pixel_count > 420
   and .headline.rts_selection_command_feedback_ack_pixel_count > 240
+  and .headline.rts_ability_tooltip_telegraph_accepted_input_count == 6
+  and .headline.rts_ability_tooltip_telegraph_ability_count >= 6
+  and .headline.rts_ability_tooltip_telegraph_cooldown_count >= 6
+  and .headline.rts_ability_tooltip_telegraph_queue_count >= 4
+  and .headline.rts_ability_tooltip_telegraph_tooltip_pixel_count > 900
+  and .headline.rts_ability_tooltip_telegraph_range_pixel_count > 500
+  and .headline.rts_ability_tooltip_telegraph_windup_pixel_count > 600
+  and .headline.rts_ability_tooltip_telegraph_cooldown_pixel_count > 450
+  and .headline.rts_ability_tooltip_telegraph_queue_pixel_count > 700
+  and .headline.rts_ability_tooltip_telegraph_warning_pixel_count > 900
   and .headline.rts_base_assault_resolution_accepted_input_count == 9
   and .headline.rts_base_assault_resolution_army_spawned_unit_count >= 4
   and .headline.rts_base_assault_resolution_target_count >= 3
@@ -2476,6 +2513,16 @@ jq -e '
   and .gates.rts_selection_command_feedback_command_runtime_gate == true
   and .gates.rts_selection_command_feedback_scene_renderer_gate == true
   and .gates.rts_selection_command_feedback_original_art_policy_gate == true
+  and .gates.rts_ability_tooltip_telegraph_tooltip_gate == true
+  and .gates.rts_ability_tooltip_telegraph_range_gate == true
+  and .gates.rts_ability_tooltip_telegraph_windup_gate == true
+  and .gates.rts_ability_tooltip_telegraph_cooldown_gate == true
+  and .gates.rts_ability_tooltip_telegraph_queue_gate == true
+  and .gates.rts_ability_tooltip_telegraph_warning_gate == true
+  and .gates.rts_ability_tooltip_telegraph_telegraph_stage_gate == true
+  and .gates.rts_ability_tooltip_telegraph_ability_runtime_gate == true
+  and .gates.rts_ability_tooltip_telegraph_scene_renderer_gate == true
+  and .gates.rts_ability_tooltip_telegraph_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true
