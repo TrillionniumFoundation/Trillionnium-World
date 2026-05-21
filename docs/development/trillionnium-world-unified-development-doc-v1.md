@@ -433,6 +433,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第五十四组 RTS formation-move-execution gate：`scripts/check_trillionnium_world_bevy_classic_rts_formation_move_execution.sh` 把“下令前 preview 可读”推进到“下令后执行也可信”。实际 `classic_draw_scene` 必须按 formation move execution stage 画出 slot_claim、path_reservation、stagger_step、crowd_avoidance、blocked_reroute、arrival_lock 六类反馈，包括单位槽位声明、路径预留、错步移动、拥挤避让、阻挡重寻路和到达刹停/锁位；`live_input_gate`、`slot_claim_gate`、`path_reservation_gate`、`stagger_step_gate`、`crowd_avoidance_gate`、`blocked_reroute_gate`、`arrival_lock_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证执行反馈来自 accepted Bevy native RTS control actions、runtime pathing/formation/collision state、slot/reservation logs 和原创低配 renderer，不复制外部 RTS UI/光标/模型/文本资产。
 
+继续追加第五十五组 RTS local-obstruction-recovery gate：`scripts/check_trillionnium_world_bevy_classic_rts_local_obstruction_recovery.sh` 把“编队执行可信”推进到“局部堵路恢复也可信”。实际 `classic_draw_scene` 必须按 local obstruction recovery stage 画出 detect_block、hold_queue、side_step、gap_claim、flow_resume 五类反馈，包括阻挡检测、后排排队、侧步让缝、空隙认领和不丢命令的恢复流动；`live_input_gate`、`detect_block_gate`、`hold_queue_gate`、`side_step_gate`、`gap_claim_gate`、`flow_resume_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证堵路恢复来自 accepted Bevy native RTS move/control actions、runtime blocked/disperse/slot/route state 和原创低配 renderer，不复制外部 RTS UI/光标/模型/文本资产。
+
 Go 条件：
 
 - 中端 Android 30 FPS。

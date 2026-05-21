@@ -69,6 +69,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_queue_path_preview.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_formation_move_preview.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_formation_move_execution.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_local_obstruction_recovery.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -141,6 +142,7 @@ jq -n \
   --slurpfile rts_command_queue_path_preview "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-queue-path-preview.json" \
   --slurpfile rts_formation_move_preview "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-formation-move-preview.json" \
   --slurpfile rts_formation_move_execution "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-formation-move-execution.json" \
+  --slurpfile rts_local_obstruction_recovery "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-local-obstruction-recovery.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -219,6 +221,7 @@ jq -n \
       and ok($rts_command_queue_path_preview)
       and ok($rts_formation_move_preview)
       and ok($rts_formation_move_execution)
+      and ok($rts_local_obstruction_recovery)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -500,6 +503,7 @@ jq -n \
       classic_rts_command_queue_path_preview_green: ok($rts_command_queue_path_preview),
       classic_rts_formation_move_preview_green: ok($rts_formation_move_preview),
       classic_rts_formation_move_execution_green: ok($rts_formation_move_execution),
+      classic_rts_local_obstruction_recovery_green: ok($rts_local_obstruction_recovery),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1226,6 +1230,13 @@ jq -n \
       rts_formation_move_execution_arrival_pixel_count: $rts_formation_move_execution[0].arrival_pixel_count,
       rts_formation_move_execution_accepted_input_count: $rts_formation_move_execution[0].accepted_input_count,
       rts_formation_move_execution_final_slot_count: ($rts_formation_move_execution[0].final_formation_slot_tile_ids | length),
+      rts_local_obstruction_recovery_block_pixel_count: $rts_local_obstruction_recovery[0].block_pixel_count,
+      rts_local_obstruction_recovery_queue_pixel_count: $rts_local_obstruction_recovery[0].queue_pixel_count,
+      rts_local_obstruction_recovery_side_step_pixel_count: $rts_local_obstruction_recovery[0].side_step_pixel_count,
+      rts_local_obstruction_recovery_gap_pixel_count: $rts_local_obstruction_recovery[0].gap_pixel_count,
+      rts_local_obstruction_recovery_resume_pixel_count: $rts_local_obstruction_recovery[0].resume_pixel_count,
+      rts_local_obstruction_recovery_accepted_input_count: $rts_local_obstruction_recovery[0].accepted_input_count,
+      rts_local_obstruction_recovery_final_route_count: ($rts_local_obstruction_recovery[0].final_group_route_tile_ids | length),
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1669,6 +1680,14 @@ jq -n \
       rts_formation_move_execution_arrival_lock_gate: $rts_formation_move_execution[0].arrival_lock_gate,
       rts_formation_move_execution_scene_renderer_gate: $rts_formation_move_execution[0].scene_renderer_gate,
       rts_formation_move_execution_original_art_policy_gate: $rts_formation_move_execution[0].original_art_policy_gate,
+      rts_local_obstruction_recovery_live_input_gate: $rts_local_obstruction_recovery[0].live_input_gate,
+      rts_local_obstruction_recovery_detect_block_gate: $rts_local_obstruction_recovery[0].detect_block_gate,
+      rts_local_obstruction_recovery_hold_queue_gate: $rts_local_obstruction_recovery[0].hold_queue_gate,
+      rts_local_obstruction_recovery_side_step_gate: $rts_local_obstruction_recovery[0].side_step_gate,
+      rts_local_obstruction_recovery_gap_claim_gate: $rts_local_obstruction_recovery[0].gap_claim_gate,
+      rts_local_obstruction_recovery_flow_resume_gate: $rts_local_obstruction_recovery[0].flow_resume_gate,
+      rts_local_obstruction_recovery_scene_renderer_gate: $rts_local_obstruction_recovery[0].scene_renderer_gate,
+      rts_local_obstruction_recovery_original_art_policy_gate: $rts_local_obstruction_recovery[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1871,6 +1890,8 @@ jq -n \
       classic_rts_formation_move_preview_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-formation-move-preview.ppm",
       classic_rts_formation_move_execution: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-formation-move-execution.json",
       classic_rts_formation_move_execution_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-formation-move-execution.ppm",
+      classic_rts_local_obstruction_recovery: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-local-obstruction-recovery.json",
+      classic_rts_local_obstruction_recovery_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-local-obstruction-recovery.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1960,6 +1981,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_command_queue_path_preview_green == true
   and .checks.classic_rts_formation_move_preview_green == true
   and .checks.classic_rts_formation_move_execution_green == true
+  and .checks.classic_rts_local_obstruction_recovery_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2359,6 +2381,13 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_formation_move_execution_avoidance_pixel_count > 220
   and .headline.rts_formation_move_execution_reroute_pixel_count > 280
   and .headline.rts_formation_move_execution_arrival_pixel_count > 250
+  and .headline.rts_local_obstruction_recovery_accepted_input_count == 5
+  and .headline.rts_local_obstruction_recovery_final_route_count >= 5
+  and .headline.rts_local_obstruction_recovery_block_pixel_count > 180
+  and .headline.rts_local_obstruction_recovery_queue_pixel_count > 220
+  and .headline.rts_local_obstruction_recovery_side_step_pixel_count > 160
+  and .headline.rts_local_obstruction_recovery_gap_pixel_count > 180
+  and .headline.rts_local_obstruction_recovery_resume_pixel_count > 160
   and .headline.rts_base_assault_resolution_accepted_input_count == 9
   and .headline.rts_base_assault_resolution_army_spawned_unit_count >= 4
   and .headline.rts_base_assault_resolution_target_count >= 3
@@ -2785,6 +2814,14 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_formation_move_execution_arrival_lock_gate == true
   and .gates.rts_formation_move_execution_scene_renderer_gate == true
   and .gates.rts_formation_move_execution_original_art_policy_gate == true
+  and .gates.rts_local_obstruction_recovery_live_input_gate == true
+  and .gates.rts_local_obstruction_recovery_detect_block_gate == true
+  and .gates.rts_local_obstruction_recovery_hold_queue_gate == true
+  and .gates.rts_local_obstruction_recovery_side_step_gate == true
+  and .gates.rts_local_obstruction_recovery_gap_claim_gate == true
+  and .gates.rts_local_obstruction_recovery_flow_resume_gate == true
+  and .gates.rts_local_obstruction_recovery_scene_renderer_gate == true
+  and .gates.rts_local_obstruction_recovery_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true

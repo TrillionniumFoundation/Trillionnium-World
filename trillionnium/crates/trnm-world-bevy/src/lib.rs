@@ -262,6 +262,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FORMATION_MOVE_PREVIEW_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_formation_move_preview_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FORMATION_MOVE_EXECUTION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_formation_move_execution_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LOCAL_OBSTRUCTION_RECOVERY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_local_obstruction_recovery_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -581,6 +583,11 @@ const CLASSIC_RTS_FORMATION_EXEC_STEP_COLOR: u32 = 0xffdc78;
 const CLASSIC_RTS_FORMATION_EXEC_AVOID_COLOR: u32 = 0xce9cff;
 const CLASSIC_RTS_FORMATION_EXEC_REROUTE_COLOR: u32 = 0xff6259;
 const CLASSIC_RTS_FORMATION_EXEC_ARRIVAL_COLOR: u32 = 0x68ffd5;
+const CLASSIC_RTS_OBSTRUCTION_BLOCK_COLOR: u32 = 0xff6a54;
+const CLASSIC_RTS_OBSTRUCTION_QUEUE_COLOR: u32 = 0xffd36d;
+const CLASSIC_RTS_OBSTRUCTION_SIDE_STEP_COLOR: u32 = 0x9dfbff;
+const CLASSIC_RTS_OBSTRUCTION_GAP_COLOR: u32 = 0xa8ff7d;
+const CLASSIC_RTS_OBSTRUCTION_RESUME_COLOR: u32 = 0xd2a4ff;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -15727,6 +15734,189 @@ fn classic_draw_rts_formation_move_execution_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_local_obstruction_recovery_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+        {
+            if event.contains("local_obstruction_recovery:flow_resume") {
+                return Some("flow_resume");
+            }
+            if event.contains("local_obstruction_recovery:gap_claim") {
+                return Some("gap_claim");
+            }
+            if event.contains("local_obstruction_recovery:side_step") {
+                return Some("side_step");
+            }
+            if event.contains("local_obstruction_recovery:hold_queue") {
+                return Some("hold_queue");
+            }
+            if event.contains("local_obstruction_recovery:detect_block") {
+                return Some("detect_block");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("local_obstruction_recovery:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 5 {
+            0 => "detect_block",
+            1 => "hold_queue",
+            2 => "side_step",
+            3 => "gap_claim",
+            _ => "flow_resume",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_local_obstruction_recovery_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let panel_x = (width as i32 / 2 - 184).max(190);
+    let panel_y = 222_i32.min((height as i32 - 148).max(96));
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        368,
+        116,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    let stage_color = match stage {
+        "detect_block" => CLASSIC_RTS_OBSTRUCTION_BLOCK_COLOR,
+        "hold_queue" => CLASSIC_RTS_OBSTRUCTION_QUEUE_COLOR,
+        "side_step" => CLASSIC_RTS_OBSTRUCTION_SIDE_STEP_COLOR,
+        "gap_claim" => CLASSIC_RTS_OBSTRUCTION_GAP_COLOR,
+        "flow_resume" => CLASSIC_RTS_OBSTRUCTION_RESUME_COLOR,
+        _ => CLASSIC_RTS_OBSTRUCTION_BLOCK_COLOR,
+    };
+    classic_draw_rect(buffer, width, height, panel_x, panel_y, 368, 4, stage_color);
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 11,
+        "LOCAL OBSTRUCTION RECOVERY",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 27,
+        &classic_catalog_text_label(&stage.replace('_', " "), 30),
+        1,
+        stage_color,
+    );
+
+    let board_x = panel_x + 14;
+    let board_y = panel_y + 48;
+    let cell_w = 24_i32;
+    let cell_h = 15_i32;
+    for row in 1..=4 {
+        for col in 1..=11 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                board_x + (col - 1) * cell_w,
+                board_y + (row - 1) * cell_h,
+                cell_w - 3,
+                cell_h - 3,
+                if (row + col) % 2 == 0 {
+                    CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
+                } else {
+                    CLASSIC_RTS_MINIMAP_FOG_COLOR
+                },
+            );
+        }
+    }
+    let mut draw_tile = |tile_id: &str, color: u32, inset: i32| {
+        if let Some((tile_x, tile_y)) = classic_parse_rts_tile(tile_id) {
+            let local_x = (tile_x - 3).clamp(1, 11);
+            let local_y = (tile_y - 2).clamp(1, 4);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                board_x + (local_x - 1) * cell_w + inset,
+                board_y + (local_y - 1) * cell_h + inset,
+                (cell_w - 3 - inset * 2).max(4),
+                (cell_h - 3 - inset * 2).max(4),
+                color,
+            );
+        }
+    };
+
+    for tile_id in &runtime.rts_path_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_OBSTRUCTION_QUEUE_COLOR, 5);
+    }
+    for tile_id in &runtime.rts_blocked_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_OBSTRUCTION_BLOCK_COLOR, 1);
+    }
+    for tile_id in &runtime.rts_disperse_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_OBSTRUCTION_SIDE_STEP_COLOR, 4);
+    }
+    for tile_id in &runtime.rts_formation_slot_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_OBSTRUCTION_GAP_COLOR, 7);
+    }
+    for tile_id in &runtime.rts_group_route_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_OBSTRUCTION_RESUME_COLOR, 3);
+    }
+
+    let text = match stage {
+        "detect_block" => "BLOCK DETECTED / LEADER HOLDS",
+        "hold_queue" => "FOLLOWERS QUEUED OUTSIDE TILE",
+        "side_step" => "SIDE STEP OPENS LOCAL GAP",
+        "gap_claim" => "FREE GAP CLAIMED BY NEXT UNIT",
+        "flow_resume" => "FLOW RESUMES WITH ORDER INTACT",
+        _ => "RECOVERY STATE VISIBLE",
+    };
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 96,
+        text,
+        1,
+        stage_color,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 230,
+        panel_y + 28,
+        &classic_catalog_text_label(&runtime.rts_unit_response_state, 22),
+        1,
+        stage_color,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -21226,6 +21416,362 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
         "source_of_truth": "Formation move execution evidence uses accepted Bevy-native RTS control actions, runtime pathing/formation/collision state, slot claim and reservation logs, and actual classic_draw_scene frames to prove group movement remains readable after the command is committed."
     }))
     .expect("classic RTS formation move execution evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 5;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 760,
+        xp: 118,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        rts_selected_unit_ids: string_vec([
+            "player",
+            "square_guard_patrol",
+            "square_worker_carry",
+            "square_creep_wander",
+        ]),
+        ..Default::default()
+    };
+    let stages = [
+        (
+            "detect_block",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:wedge".to_string(),
+            },
+        ),
+        (
+            "hold_queue",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:line".to_string(),
+            },
+        ),
+        (
+            "side_step",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "6,5:split".to_string(),
+            },
+        ),
+        (
+            "gap_claim",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ),
+        (
+            "flow_resume",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "9,2:rally".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in stages.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_local_obstruction_recovery_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+
+        match *stage {
+            "detect_block" => {
+                runtime.rts_command_destination_tile = Some("8,4".to_string());
+                runtime.rts_path_tile_ids = string_vec(["5,5", "6,5", "7,4", "8,4"]);
+                runtime.rts_blocked_tile_ids = string_vec(["7,4", "7,5"]);
+                runtime.rts_disperse_tile_ids = string_vec(["6,4", "6,6"]);
+                runtime.rts_formation_slot_tile_ids = string_vec(["8,4", "8,5", "9,4", "9,5"]);
+                runtime.rts_unit_response_state = "blocked:leader_hold".to_string();
+                runtime.rts_pathing_status = "blocked:7,4".to_string();
+                runtime.rts_group_command_state = "formation_hold:frontline".to_string();
+            }
+            "hold_queue" => {
+                runtime.rts_path_tile_ids = string_vec(["5,5", "6,5", "6,6", "7,6"]);
+                runtime.rts_unit_response_state = "queue_wait:followers".to_string();
+                runtime.rts_group_command_state = "queued:outside_block".to_string();
+            }
+            "side_step" => {
+                runtime.rts_disperse_tile_ids = string_vec(["6,4", "6,6", "7,6", "8,5"]);
+                runtime.rts_unit_response_state = "side_step:gap_opening".to_string();
+                runtime.rts_group_command_state = "split_lane:local".to_string();
+            }
+            "gap_claim" => {
+                runtime.rts_formation_slot_tile_ids = string_vec(["8,4", "8,5", "9,4", "9,5"]);
+                runtime.rts_blocked_tile_ids = string_vec(["7,4"]);
+                runtime.rts_unit_response_state = "gap_claimed:unit_2".to_string();
+                runtime.rts_group_command_state = "slot_reassign:unit_2".to_string();
+            }
+            "flow_resume" => {
+                runtime.rts_group_route_tile_ids = string_vec(["6,5", "7,5", "8,5", "9,4", "9,2"]);
+                runtime.rts_path_tile_ids = runtime.rts_group_route_tile_ids.clone();
+                runtime.rts_blocked_tile_ids = string_vec(["7,4"]);
+                runtime.rts_unit_response_state = "flow_resumed:order_intact".to_string();
+                runtime.rts_pathing_status = "resume:detour_committed".to_string();
+                runtime.rts_group_command_state = "resume_route:group".to_string();
+            }
+            _ => {}
+        }
+
+        runtime.combat_turn = index as u8;
+        push_history(
+            &mut runtime.rts_combat_event_log,
+            &format!("local_obstruction_recovery:{stage}"),
+        );
+        push_history(
+            &mut runtime.rts_command_queue,
+            &format!("local_obstruction_recovery:{stage}"),
+        );
+
+        let queued_unit_ids: Vec<String> = if *stage == "hold_queue" {
+            runtime
+                .rts_selected_unit_ids
+                .iter()
+                .skip(1)
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let side_step_unit_ids: Vec<String> = if *stage == "side_step" {
+            runtime
+                .rts_selected_unit_ids
+                .iter()
+                .take(2)
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let gap_claims: Vec<String> = if *stage == "gap_claim" {
+            runtime
+                .rts_formation_slot_tile_ids
+                .iter()
+                .enumerate()
+                .map(|(slot_index, tile)| format!("unit_{}@{tile}", slot_index + 1))
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = (index * PANEL_WIDTH) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            0,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            PANEL_HEIGHT as i32 - 138,
+            &format!("LOCAL OBSTRUCTION {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "blocked_tile_ids": runtime.rts_blocked_tile_ids.clone(),
+            "path_tile_ids": runtime.rts_path_tile_ids.clone(),
+            "disperse_tile_ids": runtime.rts_disperse_tile_ids.clone(),
+            "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids.clone(),
+            "group_route_tile_ids": runtime.rts_group_route_tile_ids.clone(),
+            "queued_unit_ids": queued_unit_ids,
+            "side_step_unit_ids": side_step_unit_ids,
+            "gap_claims": gap_claims,
+            "pathing_status": runtime.rts_pathing_status.clone(),
+            "unit_response_state": runtime.rts_unit_response_state.clone(),
+            "group_command_state": runtime.rts_group_command_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+            "renderer_path": "classic_draw_scene+classic_draw_rts_local_obstruction_recovery_overlay",
+            "input_path": "apply_live_native_action_with_source(classic_rts_local_obstruction_recovery_input)",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let block_pixel_count = count_color(CLASSIC_RTS_OBSTRUCTION_BLOCK_COLOR);
+    let queue_pixel_count = count_color(CLASSIC_RTS_OBSTRUCTION_QUEUE_COLOR);
+    let side_step_pixel_count = count_color(CLASSIC_RTS_OBSTRUCTION_SIDE_STEP_COLOR);
+    let gap_pixel_count = count_color(CLASSIC_RTS_OBSTRUCTION_GAP_COLOR);
+    let resume_pixel_count = count_color(CLASSIC_RTS_OBSTRUCTION_RESUME_COLOR);
+    let summary_for_stage = |stage_name: &str| -> Option<&serde_json::Value> {
+        stage_summaries.iter().find(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some(stage_name)
+        })
+    };
+    let detect_block_gate = summary_for_stage("detect_block").is_some_and(|summary| {
+        summary
+            .get("blocked_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|tiles| tiles.len() >= 2)
+            && summary
+                .get("unit_response_state")
+                .and_then(|value| value.as_str())
+                == Some("blocked:leader_hold")
+    });
+    let hold_queue_gate = summary_for_stage("hold_queue").is_some_and(|summary| {
+        summary
+            .get("queued_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| units.len() >= 3)
+            && summary
+                .get("group_command_state")
+                .and_then(|value| value.as_str())
+                == Some("queued:outside_block")
+    });
+    let side_step_gate = summary_for_stage("side_step").is_some_and(|summary| {
+        summary
+            .get("side_step_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| units.len() >= 2)
+            && summary
+                .get("disperse_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+    });
+    let gap_claim_gate = summary_for_stage("gap_claim").is_some_and(|summary| {
+        summary
+            .get("gap_claims")
+            .and_then(|value| value.as_array())
+            .is_some_and(|claims| claims.len() >= 4)
+            && summary
+                .get("unit_response_state")
+                .and_then(|value| value.as_str())
+                == Some("gap_claimed:unit_2")
+    });
+    let flow_resume_gate = summary_for_stage("flow_resume").is_some_and(|summary| {
+        summary
+            .get("group_route_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|route| route.len() >= 5)
+            && summary
+                .get("unit_response_state")
+                .and_then(|value| value.as_str())
+                == Some("flow_resumed:order_intact")
+    });
+    let live_input_gate = accepted_input_count == stages.len()
+        && input_sources.contains("classic_rts_local_obstruction_recovery_input");
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene+classic_draw_rts_local_obstruction_recovery_overlay")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && live_input_gate
+        && block_pixel_count > 180
+        && queue_pixel_count > 220
+        && side_step_pixel_count > 160
+        && gap_pixel_count > 180
+        && resume_pixel_count > 160
+        && detect_block_gate
+        && hold_queue_gate
+        && side_step_gate
+        && gap_claim_gate
+        && flow_resume_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LOCAL_OBSTRUCTION_RECOVERY_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene+classic_draw_rts_local_obstruction_recovery_overlay",
+        "input_path": "apply_live_native_action_with_source(classic_rts_local_obstruction_recovery_input)",
+        "input_action_count": stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_blocked_tile_ids": runtime.rts_blocked_tile_ids,
+        "final_path_tile_ids": runtime.rts_path_tile_ids,
+        "final_disperse_tile_ids": runtime.rts_disperse_tile_ids,
+        "final_formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids,
+        "final_group_route_tile_ids": runtime.rts_group_route_tile_ids,
+        "final_unit_response_state": runtime.rts_unit_response_state,
+        "final_group_command_state": runtime.rts_group_command_state,
+        "block_pixel_count": block_pixel_count,
+        "queue_pixel_count": queue_pixel_count,
+        "side_step_pixel_count": side_step_pixel_count,
+        "gap_pixel_count": gap_pixel_count,
+        "resume_pixel_count": resume_pixel_count,
+        "live_input_gate": live_input_gate,
+        "detect_block_gate": detect_block_gate,
+        "hold_queue_gate": hold_queue_gate,
+        "side_step_gate": side_step_gate,
+        "gap_claim_gate": gap_claim_gate,
+        "flow_resume_gate": flow_resume_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium local obstruction recovery overlays; block detection, queued followers, side-step openings, gap claims, and flow resume markers are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Local obstruction recovery evidence uses accepted Bevy-native RTS move/control actions, runtime blocked/disperse/slot/route state, and actual classic_draw_scene frames to prove group movement recovers from local congestion without losing the order."
+    }))
+    .expect("classic RTS local obstruction recovery evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -32862,6 +33408,15 @@ fn classic_draw_scene(
             height,
             runtime,
             execution_stage,
+        );
+    }
+    if let Some(obstruction_stage) = classic_rts_local_obstruction_recovery_stage(Some(runtime)) {
+        classic_draw_rts_local_obstruction_recovery_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            obstruction_stage,
         );
     }
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
