@@ -25766,6 +25766,7 @@ pub fn native_classic_rts_central_keep_pressure_evidence_json(preview_path: &str
     .expect("classic RTS central keep pressure evidence serializes")
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_central_keep_breakthrough_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -26119,6 +26120,7 @@ pub fn native_classic_rts_central_keep_breakthrough_evidence_json(preview_path: 
     .expect("classic RTS central keep breakthrough evidence serializes")
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_mirror_city_restoration_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -26338,6 +26340,7 @@ pub fn native_classic_rts_mirror_city_restoration_evidence_json(preview_path: &s
     .expect("classic RTS mirror city restoration evidence serializes")
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -26849,6 +26852,7 @@ fn apply_classic_rts_campaign_handoff_sequence(
     accepted_input_count
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 480;
     const PANEL_HEIGHT: usize = 270;
@@ -30902,8 +30906,6 @@ fn classic_draw_iso_unit_overlay(
     true
 }
 
-#[cfg(not(target_os = "android"))]
-#[allow(clippy::too_many_arguments)]
 fn classic_parse_rts_tile(value: &str) -> Option<(i32, i32)> {
     let (x, y) = value.split_once(',')?;
     Some((x.trim().parse().ok()?, y.trim().parse().ok()?))

@@ -218,7 +218,7 @@ fi
 
 (
   cd "$ROOT/trillionnium"
-  cargo check -p trnm-world-bevy --target aarch64-linux-android >"$EVIDENCE_DIR/aarch64-check.log" 2>&1
+  cargo check -p trnm-world-bevy --lib --target aarch64-linux-android >"$EVIDENCE_DIR/aarch64-check.log" 2>&1
   cargo build -p trnm-world-bevy --lib --target aarch64-linux-android --release >"$EVIDENCE_DIR/aarch64-release-build.log" 2>&1
 )
 
