@@ -258,6 +258,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT: &str
     "trillionnium_world_bevy_classic_rts_camera_minimap_sync_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_QUEUE_PATH_PREVIEW_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_queue_path_preview_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FORMATION_MOVE_PREVIEW_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_formation_move_preview_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -565,6 +567,12 @@ const CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR: u32 = 0xffdd78;
 const CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR: u32 = 0xff6a72;
 const CLASSIC_RTS_QUEUE_PREVIEW_RESERVATION_COLOR: u32 = 0xc6a2ff;
 const CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR: u32 = 0xffa05f;
+const CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR: u32 = 0xb7f6ff;
+const CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR: u32 = 0x86ff93;
+const CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR: u32 = 0xffdf7a;
+const CLASSIC_RTS_FORMATION_PREVIEW_COLLISION_COLOR: u32 = 0xff6a5c;
+const CLASSIC_RTS_FORMATION_PREVIEW_DISPERSE_COLOR: u32 = 0xc9a6ff;
+const CLASSIC_RTS_FORMATION_PREVIEW_COMMIT_COLOR: u32 = 0x75ffd8;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -15066,6 +15074,309 @@ fn classic_draw_rts_command_queue_path_preview_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_formation_move_preview_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+        {
+            if event.contains("formation_move_preview:commit_spacing") {
+                return Some("commit_spacing");
+            }
+            if event.contains("formation_move_preview:split_avoidance") {
+                return Some("split_avoidance");
+            }
+            if event.contains("formation_move_preview:collision_avoidance") {
+                return Some("collision_avoidance");
+            }
+            if event.contains("formation_move_preview:line_reflow") {
+                return Some("line_reflow");
+            }
+            if event.contains("formation_move_preview:wedge_spacing") {
+                return Some("wedge_spacing");
+            }
+            if event.contains("formation_move_preview:destination_ghost") {
+                return Some("destination_ghost");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("formation_move_preview:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "destination_ghost",
+            1 => "wedge_spacing",
+            2 => "line_reflow",
+            3 => "collision_avoidance",
+            4 => "split_avoidance",
+            _ => "commit_spacing",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_formation_move_preview_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let panel_x = 18_i32;
+    let panel_y = (height as i32 - 166).max(112);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        336,
+        116,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        336,
+        4,
+        CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 11,
+        "FORMATION MOVE PREVIEW",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 27,
+        &classic_catalog_text_label(&stage.replace('_', " "), 28),
+        1,
+        CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR,
+    );
+
+    let selected_count = runtime.rts_selected_unit_ids.len().clamp(4, 8);
+    for index in 0..selected_count {
+        let marker_x = panel_x + 12 + index as i32 * 22;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            marker_x,
+            panel_y + 50,
+            16,
+            11,
+            CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            marker_x + 3,
+            panel_y + 53,
+            10,
+            5,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+    }
+
+    let board_x = (width as i32 / 2 - 164).max(188);
+    let board_y = 60_i32;
+    let cell_w = 25_i32;
+    let cell_h = 18_i32;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        board_x - 12,
+        board_y - 12,
+        358,
+        198,
+        CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+    );
+    for row in 1..=8 {
+        for col in 1..=13 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                board_x + (col - 1) * cell_w,
+                board_y + (row - 1) * cell_h,
+                cell_w - 4,
+                cell_h - 4,
+                if (row + col) % 2 == 0 {
+                    CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
+                } else {
+                    CLASSIC_RTS_MINIMAP_FOG_COLOR
+                },
+            );
+        }
+    }
+
+    let mut draw_tile = |tile_id: &str, color: u32, inset: i32| {
+        if let Some((tile_x, tile_y)) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                board_x + (tile_x - 1) * cell_w + inset,
+                board_y + (tile_y - 1) * cell_h + inset,
+                (cell_w - 4 - inset * 2).max(4),
+                (cell_h - 4 - inset * 2).max(4),
+                color,
+            );
+        }
+    };
+
+    for tile_id in &runtime.rts_path_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR, 4);
+    }
+    for tile_id in &runtime.rts_group_route_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR, 1);
+    }
+    for tile_id in &runtime.rts_formation_slot_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR, 6);
+    }
+    for tile_id in &runtime.rts_disperse_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_FORMATION_PREVIEW_DISPERSE_COLOR, 8);
+    }
+    for tile_id in &runtime.rts_blocked_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_FORMATION_PREVIEW_COLLISION_COLOR, 2);
+    }
+    if let Some(tile_id) = &runtime.rts_command_destination_tile {
+        let color = if stage == "commit_spacing" {
+            CLASSIC_RTS_FORMATION_PREVIEW_COMMIT_COLOR
+        } else {
+            CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR
+        };
+        draw_tile(tile_id, color, 0);
+    }
+
+    match stage {
+        "destination_ghost" => {
+            for stripe in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    board_x + 186 + stripe * 7,
+                    board_y + 52 + stripe * 4,
+                    34,
+                    3,
+                    CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 78,
+                "HOVER LANDING GHOST",
+                1,
+                CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR,
+            );
+        }
+        "collision_avoidance" => {
+            for stripe in 0..7 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    board_x + 139 + stripe * 9,
+                    board_y + 60 - stripe * 2,
+                    22,
+                    4,
+                    CLASSIC_RTS_FORMATION_PREVIEW_COLLISION_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 78,
+                &classic_catalog_text_label(&runtime.rts_pathing_status, 29),
+                1,
+                CLASSIC_RTS_FORMATION_PREVIEW_COLLISION_COLOR,
+            );
+        }
+        "split_avoidance" => {
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 78,
+                &classic_catalog_text_label(&runtime.rts_group_command_state, 29),
+                1,
+                CLASSIC_RTS_FORMATION_PREVIEW_DISPERSE_COLOR,
+            );
+        }
+        "commit_spacing" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 93,
+                212,
+                7,
+                CLASSIC_RTS_FORMATION_PREVIEW_COMMIT_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 78,
+                "COMMAND COMMITTED / SPACING LOCKED",
+                1,
+                CLASSIC_RTS_FORMATION_PREVIEW_COMMIT_COLOR,
+            );
+        }
+        _ => {
+            let text = format!(
+                "PATH {} SLOTS {}",
+                runtime.rts_path_tile_ids.len(),
+                runtime.rts_formation_slot_tile_ids.len()
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 78,
+                &text,
+                1,
+                CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -19783,6 +20094,354 @@ pub fn native_classic_rts_command_queue_path_preview_evidence_json(preview_path:
         "source_of_truth": "Command queue path preview evidence uses accepted Bevy-native RTS control actions, runtime command/path/build/cancel state, and actual classic_draw_scene frames to prove queued orders remain visible before the player commits or changes them."
     }))
     .expect("classic RTS command queue path preview evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 740,
+        xp: 102,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 3,
+        ..Default::default()
+    };
+    let stages = [
+        (
+            "destination_ghost",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ),
+        (
+            "wedge_spacing",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:wedge".to_string(),
+            },
+        ),
+        (
+            "line_reflow",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:line".to_string(),
+            },
+        ),
+        (
+            "collision_avoidance",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:wedge".to_string(),
+            },
+        ),
+        (
+            "split_avoidance",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "6,5:split".to_string(),
+            },
+        ),
+        (
+            "commit_spacing",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "9,2:rally".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in stages.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_formation_move_preview_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        if *stage == "destination_ghost" {
+            runtime.rts_command_destination_tile = Some("8,4".to_string());
+            runtime.rts_path_tile_ids = string_vec(["6,5", "7,5", "8,4"]);
+            runtime.rts_blocked_tile_ids = string_vec(["7,4"]);
+            runtime.rts_formation_slot_tile_ids = string_vec(["8,4", "7,4", "8,5", "9,4"]);
+            runtime.rts_disperse_tile_ids = string_vec(["6,5", "7,5", "8,4", "8,5"]);
+            runtime.rts_pathing_status = "hover_preview:8,4".to_string();
+            runtime.rts_unit_response_state = "ghost_before_commit".to_string();
+        }
+        if *stage == "collision_avoidance" {
+            runtime.rts_pathing_status =
+                format!("detour:{}", runtime.rts_blocked_tile_ids.join("|"));
+        }
+        if *stage == "split_avoidance" && runtime.rts_group_route_tile_ids.is_empty() {
+            runtime.rts_group_route_tile_ids = string_vec(["5,5", "6,4", "6,5", "7,5", "6,6"]);
+            runtime.rts_group_command_state = "split_route:group_2".to_string();
+        }
+        runtime.combat_turn = index as u8;
+        push_history(
+            &mut runtime.rts_command_queue,
+            &format!("formation_move_preview:{stage}"),
+        );
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!("FORMATION PREVIEW {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "command_destination_tile": runtime.rts_command_destination_tile.clone(),
+            "path_tile_ids": runtime.rts_path_tile_ids.clone(),
+            "blocked_tile_ids": runtime.rts_blocked_tile_ids.clone(),
+            "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids.clone(),
+            "disperse_tile_ids": runtime.rts_disperse_tile_ids.clone(),
+            "pathing_status": runtime.rts_pathing_status.clone(),
+            "unit_response_state": runtime.rts_unit_response_state.clone(),
+            "group_route_tile_ids": runtime.rts_group_route_tile_ids.clone(),
+            "group_command_state": runtime.rts_group_command_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "renderer_path": "classic_draw_scene+classic_draw_rts_formation_move_preview_overlay",
+            "input_path": "apply_live_native_action_with_source(classic_rts_formation_move_preview_input)",
+            "preview_surface": "destination_ghost+wedge_spacing+line_reflow+collision_avoidance+split_avoidance+commit_spacing",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let ghost_pixel_count = count_color(CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR);
+    let path_pixel_count = count_color(CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR);
+    let slot_pixel_count = count_color(CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR);
+    let collision_pixel_count = count_color(CLASSIC_RTS_FORMATION_PREVIEW_COLLISION_COLOR);
+    let disperse_pixel_count = count_color(CLASSIC_RTS_FORMATION_PREVIEW_DISPERSE_COLOR);
+    let commit_pixel_count = count_color(CLASSIC_RTS_FORMATION_PREVIEW_COMMIT_COLOR);
+    let ghost_visual_gate = ghost_pixel_count > 1_200;
+    let path_visual_gate = path_pixel_count > 500;
+    let slot_visual_gate = slot_pixel_count > 250;
+    let collision_visual_gate = collision_pixel_count > 250;
+    let disperse_visual_gate = disperse_pixel_count > 120;
+    let commit_visual_gate = commit_pixel_count > 160;
+    let stage_gate = [
+        "destination_ghost",
+        "wedge_spacing",
+        "line_reflow",
+        "collision_avoidance",
+        "split_avoidance",
+        "commit_spacing",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let summary_for_stage = |stage_name: &str| -> Option<&serde_json::Value> {
+        stage_summaries.iter().find(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some(stage_name)
+        })
+    };
+    let destination_ghost_gate = summary_for_stage("destination_ghost").is_some_and(|summary| {
+        summary
+            .get("command_destination_tile")
+            .and_then(|value| value.as_str())
+            == Some("8,4")
+            && summary
+                .get("formation_slot_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+    });
+    let wedge_spacing_gate = summary_for_stage("wedge_spacing").is_some_and(|summary| {
+        summary
+            .get("formation_slot_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|tiles| {
+                tiles.len() >= 4
+                    && tiles.iter().any(|tile| tile.as_str() == Some("8,4"))
+                    && tiles.iter().any(|tile| tile.as_str() == Some("7,5"))
+            })
+    });
+    let line_reflow_gate = summary_for_stage("line_reflow").is_some_and(|summary| {
+        summary
+            .get("formation_slot_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|tiles| {
+                tiles.iter().any(|tile| tile.as_str() == Some("7,4"))
+                    && tiles.iter().any(|tile| tile.as_str() == Some("10,4"))
+            })
+    });
+    let collision_avoidance_gate =
+        summary_for_stage("collision_avoidance").is_some_and(|summary| {
+            summary
+                .get("blocked_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.iter().any(|tile| tile.as_str() == Some("7,4")))
+                && summary
+                    .get("pathing_status")
+                    .and_then(|value| value.as_str())
+                    .is_some_and(|status| status.starts_with("detour:"))
+        });
+    let split_avoidance_gate = summary_for_stage("split_avoidance").is_some_and(|summary| {
+        summary
+            .get("group_command_state")
+            .and_then(|value| value.as_str())
+            == Some("split_route:group_2")
+            && summary
+                .get("group_route_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+            && summary
+                .get("disperse_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+    });
+    let commit_spacing_gate = summary_for_stage("commit_spacing").is_some_and(|summary| {
+        summary
+            .get("command_destination_tile")
+            .and_then(|value| value.as_str())
+            == Some("9,2")
+            && summary
+                .get("group_command_state")
+                .and_then(|value| value.as_str())
+                == Some("minimap_rally:9,2")
+    });
+    let live_input_gate = accepted_input_count == stages.len()
+        && input_sources.contains("classic_rts_formation_move_preview_input");
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene+classic_draw_rts_formation_move_preview_overlay")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && live_input_gate
+        && ghost_visual_gate
+        && path_visual_gate
+        && slot_visual_gate
+        && collision_visual_gate
+        && disperse_visual_gate
+        && commit_visual_gate
+        && stage_gate
+        && destination_ghost_gate
+        && wedge_spacing_gate
+        && line_reflow_gate
+        && collision_avoidance_gate
+        && split_avoidance_gate
+        && commit_spacing_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FORMATION_MOVE_PREVIEW_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene+classic_draw_rts_formation_move_preview_overlay",
+        "input_path": "apply_live_native_action_with_source(classic_rts_formation_move_preview_input)",
+        "input_action_count": stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_command_destination_tile": runtime.rts_command_destination_tile,
+        "final_path_tile_ids": runtime.rts_path_tile_ids,
+        "final_blocked_tile_ids": runtime.rts_blocked_tile_ids,
+        "final_formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids,
+        "final_disperse_tile_ids": runtime.rts_disperse_tile_ids,
+        "final_group_route_tile_ids": runtime.rts_group_route_tile_ids,
+        "final_group_command_state": runtime.rts_group_command_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "ghost_pixel_count": ghost_pixel_count,
+        "path_pixel_count": path_pixel_count,
+        "slot_pixel_count": slot_pixel_count,
+        "collision_pixel_count": collision_pixel_count,
+        "disperse_pixel_count": disperse_pixel_count,
+        "commit_pixel_count": commit_pixel_count,
+        "live_input_gate": live_input_gate,
+        "ghost_visual_gate": ghost_visual_gate,
+        "path_visual_gate": path_visual_gate,
+        "slot_visual_gate": slot_visual_gate,
+        "collision_visual_gate": collision_visual_gate,
+        "disperse_visual_gate": disperse_visual_gate,
+        "commit_visual_gate": commit_visual_gate,
+        "stage_gate": stage_gate,
+        "destination_ghost_gate": destination_ghost_gate,
+        "wedge_spacing_gate": wedge_spacing_gate,
+        "line_reflow_gate": line_reflow_gate,
+        "collision_avoidance_gate": collision_avoidance_gate,
+        "split_avoidance_gate": split_avoidance_gate,
+        "commit_spacing_gate": commit_spacing_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium formation move preview overlays; destination ghosts, formation slots, collision detours, split avoidance, blocked paths, and commit spacing are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Formation move preview evidence uses accepted Bevy-native RTS move/control actions, runtime pathing/formation/collision state, and actual classic_draw_scene frames to prove group movement, crowding avoidance, blocked paths, and landing ghosts are readable before the player commits the order."
+    }))
+    .expect("classic RTS formation move preview evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -31401,6 +32060,15 @@ fn classic_draw_scene(
             height,
             runtime,
             queue_stage,
+        );
+    }
+    if let Some(formation_stage) = classic_rts_formation_move_preview_stage(Some(runtime)) {
+        classic_draw_rts_formation_move_preview_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            formation_stage,
         );
     }
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {

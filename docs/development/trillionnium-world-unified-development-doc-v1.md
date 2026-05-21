@@ -429,6 +429,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第五十二组 RTS command-queue-path-preview gate：`scripts/check_trillionnium_world_bevy_classic_rts_command_queue_path_preview.sh` 把“下令后才知道结果”推进到“命令队列与路径预览可读”。实际 `classic_draw_scene` 必须按 command queue path preview stage 画出 queue_stack、shift_waypoints、rally_chain、attack_focus、build_reservation、cancel_repath 六类反馈，包括队列槽位、Shift 路点、集结链、攻击焦点、建造预留和取消/重寻路提示；`live_input_gate`、`queue_stack_gate`、`shift_waypoint_gate`、`rally_chain_gate`、`attack_focus_gate`、`build_reservation_gate`、`cancel_repath_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证这些反馈来自 accepted Bevy native RTS control actions 和原创低配 renderer，不复制外部 RTS UI/光标/模型/文本资产。
 
+继续追加第五十三组 RTS formation-move-preview gate：`scripts/check_trillionnium_world_bevy_classic_rts_formation_move_preview.sh` 把“命令队列与路径预览可读”推进到“编队移动、拥挤避让、阻挡路径和落点 ghost 在下令前就可读”。实际 `classic_draw_scene` 必须按 formation move preview stage 画出 destination_ghost、wedge_spacing、line_reflow、collision_avoidance、split_avoidance、commit_spacing 六类反馈，包括落点 ghost、编队槽位、路径线、阻挡/绕行、分散避让和最终 spacing commit；`live_input_gate`、`destination_ghost_gate`、`wedge_spacing_gate`、`line_reflow_gate`、`collision_avoidance_gate`、`split_avoidance_gate`、`commit_spacing_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证这些预览来自 accepted Bevy native RTS move/control actions、runtime pathing/formation/collision state 和原创低配 renderer，不复制外部 RTS UI/光标/模型/文本资产。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
