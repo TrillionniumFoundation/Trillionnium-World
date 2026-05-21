@@ -12,6 +12,8 @@ required_lines=(
   '--require-apk'
   '--help|-h'
   'adb devices -l'
+  'cargo check -p trnm-world-bevy --lib --target aarch64-linux-android'
+  'cargo build -p trnm-world-bevy --lib --target aarch64-linux-android --release'
   'install -r'
   'monkey -p'
   'screencap -p'
