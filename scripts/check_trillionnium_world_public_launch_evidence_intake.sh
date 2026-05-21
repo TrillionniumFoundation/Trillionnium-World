@@ -129,7 +129,7 @@ add_item \
   real_device_evidence_green \
   ANDROID_SERIAL \
   "$ROOT/acceptance/S5_native_bevy_device/latest/s5-device-evidence.template.json" \
-	  "Run scripts/check_trillionnium_world_s5_device_evidence.sh --require-device on a real Android device and attach launch, screenshot, gfxinfo/frame, input, lifecycle, and crash-free logcat evidence." \
+	  "Run scripts/check_trillionnium_world_s5_device_evidence.sh --require-device on a real Android device and attach launch, screenshot, gfxinfo/frame, CJK/input, lifecycle, weak-network, APK resource/signature, and crash-free logcat evidence." \
   "$S5_GREEN" \
   s5_real_device_matrix
 

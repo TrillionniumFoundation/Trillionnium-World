@@ -40,7 +40,7 @@ jq -n \
     if $id == "s5_real_device_matrix" then {
       id: $id,
       label: "S5 Android real-device matrix",
-      needed: "Connect an Android device and collect launch, screenshot, gfxinfo/frame, input, lifecycle, and crash-free logcat evidence."
+      needed: "Connect an Android device and collect launch, screenshot, gfxinfo/frame, CJK/input, lifecycle, weak-network, APK resource/signature, and crash-free logcat evidence."
     } elif $id == "production_map_pack_public_evidence" then {
       id: $id,
       label: "Production map-pack public evidence",

@@ -62,7 +62,7 @@ System-level tools expected by this environment:
 - S5 Native/Bevy evidence now separates host/Android artifact readiness from real-device proof:
   - `libtrnm_world_bevy.so` must build for `aarch64-linux-android` and export `ANativeActivity_onCreate` plus `android_main`.
   - A signed debug APK is produced when an Android platform jar is available.
-  - Real-device status remains blocked until ADB sees an online device and `ANDROID_SERIAL=<device-serial> scripts/check_trillionnium_world_s5_device_evidence.sh --require-device` collects launch, screenshot, gfxinfo/frame, input, lifecycle, and crash-free logcat evidence.
+  - Real-device status remains blocked until ADB sees an online device and `ANDROID_SERIAL=<device-serial> scripts/check_trillionnium_world_s5_device_evidence.sh --require-device` collects launch, screenshot, gfxinfo/frame, CJK/input, lifecycle, weak-network, APK resource/signature, and crash-free logcat evidence.
 - Godot is a scene-flow/reference candidate; not the authority runtime.
 - Leaflet/MapLibre live/shadow map posture remains inherited from the CEX evidence until map-pack gates move here.
 

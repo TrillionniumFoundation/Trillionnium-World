@@ -45,6 +45,13 @@ jq -n '{
     gfxinfo_evidence: null,
     logcat_evidence: null,
     lifecycle_evidence: null,
+    locale_evidence: null,
+    input_method_evidence: null,
+    weak_network_evidence: null,
+    resource_pack_evidence: null,
+    cjk_display_input_gate: "pending_cjk_locale_input_evidence",
+    weak_network_gate: "pending_real_device_weak_network_run",
+    resource_pack_gate: "pending_signed_apk_resource_pack_evidence",
     crash_free_gate: "pending_crash_free_logcat_window"
   },
   operator_signoff: {
@@ -107,6 +114,13 @@ SCREENSHOT_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.scree
 GFXINFO_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.gfxinfo_evidence')"
 LOGCAT_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.logcat_evidence')"
 LIFECYCLE_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.lifecycle_evidence')"
+LOCALE_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.locale_evidence')"
+INPUT_METHOD_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.input_method_evidence')"
+WEAK_NETWORK_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.weak_network_evidence')"
+RESOURCE_PACK_EVIDENCE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.resource_pack_evidence')"
+CJK_DISPLAY_INPUT_GATE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.cjk_display_input_gate')"
+WEAK_NETWORK_GATE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.weak_network_gate')"
+RESOURCE_PACK_GATE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.resource_pack_gate')"
 CRASH_FREE_GATE="$(read_json_field "$S5_EVIDENCE_PATH" '.device_matrix.crash_free_gate')"
 ANDROID_TARGET="$(read_json_field "$S5_EVIDENCE_PATH" '.android_target')"
 
@@ -133,6 +147,13 @@ fi
 [[ "$(file_nonempty "$GFXINFO_EVIDENCE")" == "true" ]] || BLOCKERS+=("real_device_gfxinfo_or_frame_stats")
 [[ "$(file_nonempty "$LOGCAT_EVIDENCE")" == "true" ]] || BLOCKERS+=("real_device_logcat")
 [[ "$(file_nonempty "$LIFECYCLE_EVIDENCE")" == "true" ]] || BLOCKERS+=("real_device_lifecycle")
+[[ "$(file_nonempty "$LOCALE_EVIDENCE")" == "true" ]] || BLOCKERS+=("real_device_cjk_locale")
+[[ "$(file_nonempty "$INPUT_METHOD_EVIDENCE")" == "true" ]] || BLOCKERS+=("real_device_input_method")
+[[ "$CJK_DISPLAY_INPUT_GATE" == "cjk_locale_input_snapshot_collected" || "$CJK_DISPLAY_INPUT_GATE" == "cjk_display_input_green" ]] || BLOCKERS+=("real_device_cjk_display_input")
+[[ "$(file_nonempty "$WEAK_NETWORK_EVIDENCE")" == "true" ]] || BLOCKERS+=("real_device_weak_network_evidence")
+[[ "$WEAK_NETWORK_GATE" == "real_device_weak_network_run" || "$WEAK_NETWORK_GATE" == "weak_network_green" ]] || BLOCKERS+=("real_device_weak_network")
+[[ "$(file_nonempty "$RESOURCE_PACK_EVIDENCE")" == "true" ]] || BLOCKERS+=("android_resource_pack_evidence")
+[[ "$RESOURCE_PACK_GATE" == "apk_signature_resource_pack_evidence_collected" || "$RESOURCE_PACK_GATE" == "resource_pack_green" ]] || BLOCKERS+=("android_resource_pack_gate")
 [[ "$CRASH_FREE_GATE" == "crash_free_logcat_window" || "$CRASH_FREE_GATE" == "crash_free_green" || "$CRASH_FREE_GATE" == "no_crashes_detected" ]] || BLOCKERS+=("crash_free_logcat_window")
 if [[ -s "$LOGCAT_EVIDENCE" ]] && grep -Eiq 'FATAL EXCEPTION|AndroidRuntime|ANR in|SIGSEGV|Fatal signal' "$LOGCAT_EVIDENCE"; then
   BLOCKERS+=("logcat_crash_or_anr_detected")
@@ -164,6 +185,13 @@ jq -n \
   --arg gfxinfo_evidence "$GFXINFO_EVIDENCE" \
   --arg logcat_evidence "$LOGCAT_EVIDENCE" \
   --arg lifecycle_evidence "$LIFECYCLE_EVIDENCE" \
+  --arg locale_evidence "$LOCALE_EVIDENCE" \
+  --arg input_method_evidence "$INPUT_METHOD_EVIDENCE" \
+  --arg weak_network_evidence "$WEAK_NETWORK_EVIDENCE" \
+  --arg resource_pack_evidence "$RESOURCE_PACK_EVIDENCE" \
+  --arg cjk_display_input_gate "$CJK_DISPLAY_INPUT_GATE" \
+  --arg weak_network_gate "$WEAK_NETWORK_GATE" \
+  --arg resource_pack_gate "$RESOURCE_PACK_GATE" \
   --arg crash_free_gate "$CRASH_FREE_GATE" \
   --arg template_path "$S5_TEMPLATE_FILE" \
   --arg template_sha256 "$(sha256sum "$S5_TEMPLATE_FILE" | awk '{print $1}')" \
@@ -205,7 +233,23 @@ jq -n \
       gfxinfo_evidence: $gfxinfo_evidence,
       logcat_evidence: $logcat_evidence,
       lifecycle_evidence: $lifecycle_evidence,
+      locale_evidence: $locale_evidence,
+      input_method_evidence: $input_method_evidence,
+      weak_network_evidence: $weak_network_evidence,
+      resource_pack_evidence: $resource_pack_evidence,
+      cjk_display_input_gate: $cjk_display_input_gate,
+      weak_network_gate: $weak_network_gate,
+      resource_pack_gate: $resource_pack_gate,
       crash_free_gate: $crash_free_gate
+    },
+    go_condition_matrix: {
+      cjk_display_input_gate: $cjk_display_input_gate,
+      weak_network_gate: $weak_network_gate,
+      resource_pack_gate: $resource_pack_gate,
+      crash_free_gate: $crash_free_gate,
+      accepted_cjk_display_input_gate: "cjk_locale_input_snapshot_collected",
+      accepted_weak_network_gate: "real_device_weak_network_run",
+      accepted_resource_pack_gate: "apk_signature_resource_pack_evidence_collected"
     },
     blockers: $blockers
   }' >"$SUMMARY_FILE"

@@ -19,6 +19,8 @@ required_lines=(
   'check_trillionnium_world_external_ops_evidence.sh'
   'check_trillionnium_world_public_launch_evidence_intake.sh'
   's5-device-evidence.template.json'
+  'TRILLIONNIUM_WORLD_S5_WEAK_NETWORK_EVIDENCE_PATH'
+  'APK resource/signature'
   'production-map-pack-public-evidence.template.json'
   'first-beta-cohort-evidence.template.json'
   'commercial-launch-drill-evidence.template.json'

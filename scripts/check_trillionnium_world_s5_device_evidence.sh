@@ -29,8 +29,14 @@ Outputs:
   acceptance/S5_native_bevy_device/latest/gfxinfo.txt
   acceptance/S5_native_bevy_device/latest/logcat.txt
   acceptance/S5_native_bevy_device/latest/lifecycle.txt
+  acceptance/S5_native_bevy_device/latest/locale.txt
+  acceptance/S5_native_bevy_device/latest/input-method.txt
+  acceptance/S5_native_bevy_device/latest/weak-network.txt
+  acceptance/S5_native_bevy_device/latest/apk-package-evidence.txt
 
 Use --require-device for public-launch S5 collection so a missing adb device fails.
+Set TRILLIONNIUM_WORLD_S5_WEAK_NETWORK_EVIDENCE_PATH to attach the operator's
+real weak-network run evidence; a connectivity snapshot alone is not launch credit.
 Validate the collected file with:
   scripts/check_trillionnium_world_s5_real_device_evidence.sh --require-ready
 EOF_USAGE
@@ -100,6 +106,13 @@ write_summary() {
     --arg gfxinfo_evidence "$GFXINFO_EVIDENCE" \
     --arg logcat_evidence "$LOGCAT_EVIDENCE" \
     --arg lifecycle_evidence "$LIFECYCLE_EVIDENCE" \
+    --arg locale_evidence "$LOCALE_EVIDENCE" \
+    --arg input_method_evidence "$INPUT_METHOD_EVIDENCE" \
+    --arg weak_network_evidence "$WEAK_NETWORK_EVIDENCE" \
+    --arg resource_pack_evidence "$RESOURCE_PACK_EVIDENCE" \
+    --arg cjk_display_input_gate "$CJK_DISPLAY_INPUT_GATE" \
+    --arg weak_network_gate "$WEAK_NETWORK_GATE" \
+    --arg resource_pack_gate "$RESOURCE_PACK_GATE" \
     --arg crash_status "$crash_status" \
     '{
       contract_version: $contract_version,
@@ -134,10 +147,17 @@ write_summary() {
         gfxinfo_evidence: (if $gfxinfo_evidence == "" then null else $gfxinfo_evidence end),
         logcat_evidence: (if $logcat_evidence == "" then null else $logcat_evidence end),
         lifecycle_evidence: (if $lifecycle_evidence == "" then null else $lifecycle_evidence end),
+        locale_evidence: (if $locale_evidence == "" then null else $locale_evidence end),
+        input_method_evidence: (if $input_method_evidence == "" then null else $input_method_evidence end),
+        weak_network_evidence: (if $weak_network_evidence == "" then null else $weak_network_evidence end),
+        resource_pack_evidence: (if $resource_pack_evidence == "" then null else $resource_pack_evidence end),
         fps_gate: "requires_real_device_gfxinfo_or_frame_stats",
         render_gate: "requires_real_device_screenshot",
         touch_input_gate: "requires_adb_input_tap_evidence",
         lifecycle_gate: "requires_background_foreground_evidence",
+        cjk_display_input_gate: $cjk_display_input_gate,
+        weak_network_gate: $weak_network_gate,
+        resource_pack_gate: $resource_pack_gate,
         crash_free_gate: $crash_status
       }
     }' >"$EVIDENCE_DIR/s5-device-evidence.json"
@@ -286,6 +306,20 @@ EOF_MANIFEST
   fi
   "$APKSIGNER" sign --ks "$KEYSTORE" --ks-pass pass:android --key-pass pass:android --out "$APK_SIGNED" "$APK_ALIGNED"
   "$APKSIGNER" verify --print-certs "$APK_SIGNED" >"$EVIDENCE_DIR/apksigner-verify.txt"
+  RESOURCE_PACK_EVIDENCE="$EVIDENCE_DIR/apk-package-evidence.txt"
+  {
+    printf 'apk_path=%s\n' "$APK_SIGNED"
+    printf 'apk_sha256=%s\n' "$(sha256sum "$APK_SIGNED" | awk '{print $1}')"
+    printf 'native_lib=%s\n' "lib/arm64-v8a/lib$LIB_NAME.so"
+    "$APKSIGNER" verify --print-certs "$APK_SIGNED"
+    if command -v aapt >/dev/null 2>&1; then
+      aapt dump badging "$APK_SIGNED"
+    fi
+    unzip -l "$APK_SIGNED"
+  } >"$RESOURCE_PACK_EVIDENCE" 2>&1 || true
+  if [[ -s "$RESOURCE_PACK_EVIDENCE" ]]; then
+    RESOURCE_PACK_GATE="apk_signature_resource_pack_evidence_collected"
+  fi
   APK_STATUS="signed_debug_apk_ready"
   APK_PATH="$APK_SIGNED"
   APK_SHA256="$(sha256sum "$APK_SIGNED" | awk '{print $1}')"
@@ -300,6 +334,13 @@ SCREENSHOT_EVIDENCE=""
 GFXINFO_EVIDENCE=""
 LOGCAT_EVIDENCE=""
 LIFECYCLE_EVIDENCE=""
+LOCALE_EVIDENCE=""
+INPUT_METHOD_EVIDENCE=""
+WEAK_NETWORK_EVIDENCE=""
+CJK_DISPLAY_INPUT_GATE="requires_real_device_cjk_locale_input_evidence"
+WEAK_NETWORK_GATE="requires_real_device_weak_network_run"
+RESOURCE_PACK_EVIDENCE="${RESOURCE_PACK_EVIDENCE:-}"
+RESOURCE_PACK_GATE="${RESOURCE_PACK_GATE:-requires_signed_apk_resource_package_evidence}"
 CRASH_STATUS="not_run_no_device"
 
 if [[ -n "$DEVICE_SERIAL" ]]; then
@@ -313,6 +354,9 @@ if [[ -n "$DEVICE_SERIAL" ]]; then
     GFXINFO_EVIDENCE="$EVIDENCE_DIR/gfxinfo.txt"
     LOGCAT_EVIDENCE="$EVIDENCE_DIR/logcat.txt"
     LIFECYCLE_EVIDENCE="$EVIDENCE_DIR/lifecycle.txt"
+    LOCALE_EVIDENCE="$EVIDENCE_DIR/locale.txt"
+    INPUT_METHOD_EVIDENCE="$EVIDENCE_DIR/input-method.txt"
+    WEAK_NETWORK_EVIDENCE="$EVIDENCE_DIR/weak-network.txt"
     adb -s "$DEVICE_SERIAL" install -r "$APK_PATH" >"$INSTALL_EVIDENCE" 2>&1
     adb -s "$DEVICE_SERIAL" logcat -c || true
     adb -s "$DEVICE_SERIAL" shell monkey -p "$PACKAGE_NAME" 1 >"$LAUNCH_EVIDENCE" 2>&1
@@ -325,6 +369,33 @@ if [[ -n "$DEVICE_SERIAL" ]]; then
     adb -s "$DEVICE_SERIAL" shell monkey -p "$PACKAGE_NAME" 1 >>"$LIFECYCLE_EVIDENCE" 2>&1 || true
     sleep 5
     adb -s "$DEVICE_SERIAL" shell dumpsys gfxinfo "$PACKAGE_NAME" >"$GFXINFO_EVIDENCE" 2>&1 || true
+    {
+      printf '[persist.sys.locale]\n'
+      adb -s "$DEVICE_SERIAL" shell getprop persist.sys.locale || true
+      printf '\n[ro.product.locale]\n'
+      adb -s "$DEVICE_SERIAL" shell getprop ro.product.locale || true
+      printf '\n[system_locales]\n'
+      adb -s "$DEVICE_SERIAL" shell settings get system system_locales || true
+    } >"$LOCALE_EVIDENCE" 2>&1 || true
+    {
+      printf '[default_input_method]\n'
+      adb -s "$DEVICE_SERIAL" shell settings get secure default_input_method || true
+      printf '\n[ime_list]\n'
+      adb -s "$DEVICE_SERIAL" shell ime list -s || true
+    } >"$INPUT_METHOD_EVIDENCE" 2>&1 || true
+    {
+      printf '[connectivity_snapshot]\n'
+      adb -s "$DEVICE_SERIAL" shell dumpsys connectivity || true
+    } >"$WEAK_NETWORK_EVIDENCE" 2>&1 || true
+    if [[ -v TRILLIONNIUM_WORLD_S5_WEAK_NETWORK_EVIDENCE_PATH && -s "$TRILLIONNIUM_WORLD_S5_WEAK_NETWORK_EVIDENCE_PATH" ]]; then
+      cp "$TRILLIONNIUM_WORLD_S5_WEAK_NETWORK_EVIDENCE_PATH" "$WEAK_NETWORK_EVIDENCE"
+      WEAK_NETWORK_GATE="real_device_weak_network_run"
+    else
+      WEAK_NETWORK_GATE="connectivity_snapshot_only_requires_operator_weak_network_run"
+    fi
+    if [[ -s "$LOCALE_EVIDENCE" && -s "$INPUT_METHOD_EVIDENCE" ]]; then
+      CJK_DISPLAY_INPUT_GATE="cjk_locale_input_snapshot_collected"
+    fi
     adb -s "$DEVICE_SERIAL" logcat -d -v time >"$LOGCAT_EVIDENCE" 2>&1 || true
     if grep -Eiq 'FATAL EXCEPTION|AndroidRuntime|ANR in|SIGSEGV|Fatal signal' "$LOGCAT_EVIDENCE"; then
       DEVICE_STATUS="failed_crash_or_anr_detected"
@@ -337,8 +408,13 @@ if [[ -n "$DEVICE_SERIAL" ]]; then
 fi
 
 OVERALL_STATUS="blocked"
-if [[ "$DEVICE_STATUS" == "real_device_evidence_collected" ]]; then
+if [[ "$DEVICE_STATUS" == "real_device_evidence_collected" \
+  && "$CJK_DISPLAY_INPUT_GATE" == "cjk_locale_input_snapshot_collected" \
+  && "$WEAK_NETWORK_GATE" == "real_device_weak_network_run" \
+  && "$RESOURCE_PACK_GATE" == "apk_signature_resource_pack_evidence_collected" ]]; then
   OVERALL_STATUS="ready"
+elif [[ "$DEVICE_STATUS" == "real_device_evidence_collected" ]]; then
+  OVERALL_STATUS="blocked_missing_s5_go_condition_evidence"
 elif [[ "$APK_STATUS" == "signed_debug_apk_ready" && "$DEVICE_STATUS" == "blocked_no_connected_android_device" ]]; then
   OVERALL_STATUS="blocked_no_connected_android_device"
 elif [[ "$APK_STATUS" != "signed_debug_apk_ready" ]]; then
@@ -357,6 +433,12 @@ case "$OVERALL_STATUS" in
       exit 1
     fi
     printf 'TRILLIONNIUM_WORLD_S5_DEVICE_EVIDENCE_BLOCKED %s\n' "$OVERALL_STATUS"
+    ;;
+  blocked_missing_s5_go_condition_evidence)
+    printf 'TRILLIONNIUM_WORLD_S5_DEVICE_EVIDENCE_BLOCKED %s\n' "$OVERALL_STATUS"
+    if [[ "$REQUIRE_DEVICE" -eq 1 ]]; then
+      exit 1
+    fi
     ;;
   *)
     printf 'TRILLIONNIUM_WORLD_S5_DEVICE_EVIDENCE_FAILED %s\n' "$OVERALL_STATUS" >&2

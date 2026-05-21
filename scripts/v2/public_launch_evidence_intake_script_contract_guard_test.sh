@@ -27,6 +27,8 @@ required_lines=(
   'TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH'
   'TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH'
   'ANDROID_SERIAL'
+  'weak-network'
+  'APK resource/signature'
   'public_launch_claimed: false'
   'android_s5_real_device_claimed: false'
   'live_map_ingestion_performed: false'

@@ -21,6 +21,10 @@ required_lines=(
   'real_device_gfxinfo_or_frame_stats'
   'real_device_logcat'
   'real_device_lifecycle'
+  'real_device_cjk_display_input'
+  'real_device_weak_network'
+  'android_resource_pack_gate'
+  'go_condition_matrix'
   'crash_free_logcat_window'
   'host_side_replay_credit: false'
   'template_requires_real_s5_device_evidence'
@@ -33,4 +37,4 @@ for line in "${required_lines[@]}"; do
   fi
 done
 
-echo "[PASS] S5 real-device evidence script requires real device screenshot/gfxinfo/logcat/lifecycle/crash-free evidence and rejects host-side replay credit"
+echo "[PASS] S5 real-device evidence script requires real device screenshot/gfxinfo/logcat/lifecycle/CJK/weak-network/resource/crash-free evidence and rejects host-side replay credit"
