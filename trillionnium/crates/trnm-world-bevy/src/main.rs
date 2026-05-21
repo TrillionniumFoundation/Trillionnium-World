@@ -353,6 +353,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-scrollable-map" | "--classic-rts-scrollable-map" | "scrollable-map")
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-scrollable-map.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_scrollable_map_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("scene-transition-playability" | "--scene-transition-playability")
     ) {
         println!(

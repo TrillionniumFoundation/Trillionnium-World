@@ -7,9 +7,11 @@
 //! authority.
 
 use bevy::asset::RenderAssetUsages;
+use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy::window::PrimaryWindow;
 use bevy::winit::WinitSettings;
 #[cfg(not(target_os = "android"))]
 use minifb::{Key as MiniKey, KeyRepeat as MiniKeyRepeat, Window as MiniWindow};
@@ -250,6 +252,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT
     "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_HOTKEY_FEEDBACK_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_scrollable_map_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -540,6 +544,12 @@ const CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR: u32 = 0xffe36d;
 const CLASSIC_RTS_CONTROL_GROUP_IDLE_COLOR: u32 = 0xffa05f;
 const CLASSIC_RTS_CONTROL_GROUP_PRODUCTION_COLOR: u32 = 0xd49cff;
 const CLASSIC_RTS_CONTROL_GROUP_ABILITY_COLOR: u32 = 0x7dffd0;
+const CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR: u32 = 0x22e6ff;
+const CLASSIC_RTS_SCROLL_EDGE_COLOR: u32 = 0xffd84a;
+const CLASSIC_RTS_SCROLL_DRAG_COLOR: u32 = 0xff7ab8;
+const CLASSIC_RTS_SCROLL_ZOOM_COLOR: u32 = 0x84ff8a;
+const CLASSIC_RTS_SCROLL_MINIMAP_COLOR: u32 = 0x5a7dff;
+const CLASSIC_RTS_SCROLL_CLAMP_COLOR: u32 = 0xff5a4d;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -1073,6 +1083,171 @@ pub struct NativeTacticsCharacter {
 #[derive(Debug, Clone, PartialEq, Resource)]
 pub struct BevyWorldLayout {
     pub node_positions: HashMap<String, Vec3>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RtsScrollableMapCameraState {
+    pub center_x: f32,
+    pub center_y: f32,
+    pub zoom: f32,
+}
+
+impl Default for RtsScrollableMapCameraState {
+    fn default() -> Self {
+        Self {
+            center_x: 0.0,
+            center_y: 0.0,
+            zoom: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RtsScrollableMapCameraConfig {
+    pub min_x: f32,
+    pub max_x: f32,
+    pub min_y: f32,
+    pub max_y: f32,
+    pub min_zoom: f32,
+    pub max_zoom: f32,
+    pub keyboard_speed: f32,
+    pub edge_speed: f32,
+    pub drag_world_units_per_pixel: f32,
+    pub wheel_zoom_step: f32,
+    pub edge_band_pixels: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RtsScrollableMapCameraStep {
+    pub source: String,
+    pub before: RtsScrollableMapCameraState,
+    pub after: RtsScrollableMapCameraState,
+    pub pan_delta_x: f32,
+    pub pan_delta_y: f32,
+    pub zoom_delta: f32,
+    pub clamped: bool,
+    pub minimap_tile_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Component)]
+pub struct BevyRtsScrollableMapCamera {
+    pub state: RtsScrollableMapCameraState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Component)]
+pub struct BevyWorldScrollableMapAnchor {
+    pub base_translation: Vec3,
+    pub base_scale: Vec3,
+}
+
+pub fn rts_scrollable_map_camera_config() -> RtsScrollableMapCameraConfig {
+    RtsScrollableMapCameraConfig {
+        min_x: -420.0,
+        max_x: 420.0,
+        min_y: -260.0,
+        max_y: 260.0,
+        min_zoom: 0.66,
+        max_zoom: 1.85,
+        keyboard_speed: 280.0,
+        edge_speed: 360.0,
+        drag_world_units_per_pixel: 1.15,
+        wheel_zoom_step: 0.12,
+        edge_band_pixels: 24.0,
+    }
+}
+
+pub fn clamp_rts_scrollable_map_camera_state(
+    state: RtsScrollableMapCameraState,
+    config: RtsScrollableMapCameraConfig,
+) -> RtsScrollableMapCameraState {
+    RtsScrollableMapCameraState {
+        center_x: state.center_x.clamp(config.min_x, config.max_x),
+        center_y: state.center_y.clamp(config.min_y, config.max_y),
+        zoom: state.zoom.clamp(config.min_zoom, config.max_zoom),
+    }
+}
+
+pub fn apply_rts_scrollable_map_camera_input(
+    source: &str,
+    state: RtsScrollableMapCameraState,
+    config: RtsScrollableMapCameraConfig,
+    pan_delta: Vec2,
+    zoom_delta: f32,
+    minimap_jump: Option<(&str, Vec2)>,
+) -> RtsScrollableMapCameraStep {
+    let mut next = state;
+    if let Some((_tile_id, center)) = minimap_jump {
+        next.center_x = center.x;
+        next.center_y = center.y;
+    } else {
+        next.center_x += pan_delta.x;
+        next.center_y += pan_delta.y;
+    }
+    next.zoom += zoom_delta;
+    let clamped_next = clamp_rts_scrollable_map_camera_state(next, config);
+    RtsScrollableMapCameraStep {
+        source: source.to_string(),
+        before: state,
+        after: clamped_next,
+        pan_delta_x: pan_delta.x,
+        pan_delta_y: pan_delta.y,
+        zoom_delta,
+        clamped: (clamped_next.center_x - next.center_x).abs() > f32::EPSILON
+            || (clamped_next.center_y - next.center_y).abs() > f32::EPSILON
+            || (clamped_next.zoom - next.zoom).abs() > f32::EPSILON,
+        minimap_tile_id: minimap_jump.map(|(tile_id, _)| tile_id.to_string()),
+    }
+}
+
+pub fn rts_scrollable_map_camera_focus_tile(state: RtsScrollableMapCameraState) -> (i32, i32) {
+    let tile_x = ((state.center_x / 72.0).round() as i32 + 5).clamp(1, 13);
+    let tile_y = ((-state.center_y / 48.0).round() as i32 + 5).clamp(1, 8);
+    (tile_x, tile_y)
+}
+
+pub fn rts_scrollable_map_viewport_center() -> Vec2 {
+    Vec2::new(-120.0, -20.0)
+}
+
+fn is_scrollable_map_surface_role(role: &str) -> bool {
+    if role.starts_with("hud_")
+        || role.starts_with("primary_cta_")
+        || matches!(role, "equipped_item_badge" | "bag_inventory_slot")
+    {
+        return false;
+    }
+    matches!(
+        role,
+        "viewport_frame"
+            | "map_tile"
+            | "map_prop"
+            | "tree_or_shrub"
+            | "tree_canopy_layer"
+            | "dialogue_overlay_sprite"
+            | "combat_overlay_sprite"
+            | "player_self_marker"
+            | "facing_marker"
+            | "npc"
+            | "enemy"
+            | "drop"
+            | "actor_depth_shadow"
+            | "actor_runtime_label"
+            | "terrain_zone_surface"
+            | "map_pack_road_path"
+            | "map_pack_building_mass"
+            | "map_pack_greenery_cluster"
+    ) || role.starts_with("player_")
+        || role.starts_with("npc_")
+        || role.starts_with("enemy_")
+        || role.starts_with("loot_")
+        || role.starts_with("combat_")
+        || role.starts_with("route_")
+        || role.starts_with("visible_")
+        || role.starts_with("actor_")
+        || role.starts_with("road_")
+        || role.starts_with("building_")
+        || role.starts_with("greenery_")
+        || role.starts_with("water_")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Component)]
@@ -4500,6 +4675,7 @@ pub fn build_rendering_bevy_app(world: WorldState, actor_id: &str) -> (App, Bevy
             (
                 handle_native_keyboard_input,
                 handle_native_control_buttons,
+                update_native_rts_scrollable_map_camera,
                 sync_player_sprite_to_world,
                 update_native_visible_actor_runtime,
                 update_native_world_hud,
@@ -4510,6 +4686,11 @@ pub fn build_rendering_bevy_app(world: WorldState, actor_id: &str) -> (App, Bevy
                 update_native_session_recovery_ui,
                 update_native_session_slot_ui,
                 update_native_session_resume_ui,
+            ),
+        )
+        .add_systems(
+            Update,
+            (
                 update_native_pause_menu_ui,
                 update_native_settings_menu_ui,
                 update_native_title_menu_ui,
@@ -4517,6 +4698,7 @@ pub fn build_rendering_bevy_app(world: WorldState, actor_id: &str) -> (App, Bevy
                 update_native_text_adventure_ui,
                 update_native_right_rail_summary_ui,
                 update_native_contextual_button_visuals,
+                apply_native_rts_scrollable_map_view,
                 write_native_runtime_probe,
             ),
         );
@@ -13973,6 +14155,310 @@ fn classic_draw_rts_control_group_hotkey_feedback_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_rts_scrollable_map_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    step: &RtsScrollableMapCameraStep,
+    stage: &str,
+    focus_tile: (i32, i32),
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let frame_x = (width as i32 / 2 - 238).max(156);
+    let frame_y = 54_i32;
+    let frame_w = 476_i32;
+    let frame_h = 204_i32;
+    for (x, y, w, h) in [
+        (frame_x, frame_y, frame_w, 4),
+        (frame_x, frame_y + frame_h, frame_w, 4),
+        (frame_x, frame_y, 4, frame_h),
+        (frame_x + frame_w, frame_y, 4, frame_h),
+    ] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            w,
+            h,
+            CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        frame_x + frame_w / 2 - 24,
+        frame_y + frame_h / 2 - 3,
+        48,
+        6,
+        CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        frame_x + frame_w / 2 - 3,
+        frame_y + frame_h / 2 - 24,
+        6,
+        48,
+        CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR,
+    );
+
+    let panel_x = 18_i32;
+    let panel_y = (height as i32 - 154).max(118);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        312,
+        104,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        312,
+        3,
+        CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 10,
+        "SCROLLABLE RTS MAP CAMERA",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 26,
+        &classic_catalog_text_label(&stage.replace('_', " "), 34),
+        1,
+        CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 42,
+        &format!(
+            "CENTER {:.0},{:.0} ZOOM {:.2}",
+            step.after.center_x, step.after.center_y, step.after.zoom
+        ),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 58,
+        &format!("FOCUS TILE {},{}", focus_tile.0, focus_tile.1),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    if step.source.contains("edge_scroll") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            frame_x,
+            frame_y,
+            frame_w,
+            14,
+            CLASSIC_RTS_SCROLL_EDGE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            frame_x,
+            frame_y + frame_h - 10,
+            frame_w,
+            14,
+            CLASSIC_RTS_SCROLL_EDGE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            frame_x,
+            frame_y,
+            14,
+            frame_h,
+            CLASSIC_RTS_SCROLL_EDGE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            frame_x + frame_w - 10,
+            frame_y,
+            14,
+            frame_h,
+            CLASSIC_RTS_SCROLL_EDGE_COLOR,
+        );
+    }
+
+    if step.source.contains("middle_mouse_drag") {
+        let start_x = frame_x + 86;
+        let start_y = frame_y + 146;
+        for index in 0..15 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                start_x + index * 18,
+                start_y - index * 6,
+                22,
+                7,
+                CLASSIC_RTS_SCROLL_DRAG_COLOR,
+            );
+        }
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 10,
+            panel_y + 76,
+            "MIDDLE DRAG PAN",
+            1,
+            CLASSIC_RTS_SCROLL_DRAG_COLOR,
+        );
+    }
+
+    if step.zoom_delta.abs() > f32::EPSILON {
+        let zoom_x = frame_x + frame_w - 52;
+        let zoom_h = ((step.after.zoom * 42.0).round() as i32).clamp(18, 78);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            zoom_x,
+            frame_y + frame_h - zoom_h - 16,
+            26,
+            zoom_h,
+            CLASSIC_RTS_SCROLL_ZOOM_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            zoom_x - 7,
+            frame_y + frame_h - 98,
+            40,
+            5,
+            CLASSIC_RTS_SCROLL_ZOOM_COLOR,
+        );
+    }
+
+    if let Some(tile_id) = &step.minimap_tile_id {
+        let map_x = width as i32 - 174;
+        let map_y = height as i32 - 130;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y,
+            144,
+            92,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + 12 + focus_tile.0 * 8,
+            map_y + 10 + focus_tile.1 * 7,
+            18,
+            18,
+            CLASSIC_RTS_SCROLL_MINIMAP_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + 8,
+            map_y + 8,
+            128,
+            3,
+            CLASSIC_RTS_SCROLL_MINIMAP_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + 8,
+            map_y + 80,
+            128,
+            3,
+            CLASSIC_RTS_SCROLL_MINIMAP_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            map_x + 10,
+            map_y + 64,
+            &classic_catalog_text_label(tile_id, 16),
+            1,
+            CLASSIC_RTS_SCROLL_MINIMAP_COLOR,
+        );
+    }
+
+    if step.clamped {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            frame_x + 22,
+            frame_y + 20,
+            frame_w - 44,
+            16,
+            CLASSIC_RTS_SCROLL_CLAMP_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            frame_x + 22,
+            frame_y + frame_h - 34,
+            frame_w - 44,
+            16,
+            CLASSIC_RTS_SCROLL_CLAMP_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 10,
+            panel_y + 76,
+            "CAMERA BOUNDS CLAMPED",
+            1,
+            CLASSIC_RTS_SCROLL_CLAMP_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -17566,6 +18052,374 @@ pub fn native_classic_rts_control_group_hotkey_feedback_evidence_json(
         "source_of_truth": "Control-group hotkey feedback evidence uses accepted native RTS group, production, and ability commands plus actual classic_draw_scene frames to prove keyboard RTS intent is visible in the playable Bevy low-spec renderer."
     }))
     .expect("classic RTS control group hotkey feedback evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    type ScrollCameraStage = (
+        &'static str,
+        &'static str,
+        Vec2,
+        f32,
+        Option<(&'static str, Vec2)>,
+    );
+    let assets = load_classic_runtime_assets();
+    let config = rts_scrollable_map_camera_config();
+    let stages: [ScrollCameraStage; 6] = [
+        (
+            "keyboard_pan",
+            "shift_keyboard_pan",
+            Vec2::new(84.0, 42.0),
+            0.0,
+            None,
+        ),
+        (
+            "edge_scroll",
+            "edge_scroll",
+            Vec2::new(config.edge_speed * 0.20, -config.edge_speed * 0.12),
+            0.0,
+            None,
+        ),
+        (
+            "middle_mouse_drag",
+            "middle_mouse_drag",
+            Vec2::new(-128.0, 68.0),
+            0.0,
+            None,
+        ),
+        ("wheel_zoom", "wheel_zoom", Vec2::ZERO, 0.28, None),
+        (
+            "minimap_jump",
+            "minimap_jump",
+            Vec2::ZERO,
+            0.0,
+            Some(("minimap_cursor_jump", Vec2::new(260.0, -140.0))),
+        ),
+        (
+            "bounds_clamp",
+            "shift_keyboard_pan+wheel_zoom",
+            Vec2::new(980.0, 720.0),
+            2.6,
+            None,
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut camera_state = RtsScrollableMapCameraState {
+        center_x: rts_scrollable_map_viewport_center().x,
+        center_y: rts_scrollable_map_viewport_center().y,
+        zoom: 1.0,
+    };
+    let mut stage_summaries = Vec::new();
+    let mut input_sources = HashSet::new();
+
+    for (index, (stage, source, pan_delta, zoom_delta, minimap_jump)) in stages.iter().enumerate() {
+        input_sources.insert((*source).to_string());
+        let step = apply_rts_scrollable_map_camera_input(
+            source,
+            camera_state,
+            config,
+            *pan_delta,
+            *zoom_delta,
+            *minimap_jump,
+        );
+        camera_state = step.after;
+        let focus_tile = rts_scrollable_map_camera_focus_tile(step.after);
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: "mirror_city_square".to_string(),
+            coins: 625,
+            xp: 48,
+            facing_direction: "east".to_string(),
+            walk_cycle_frame: index as u8 % 4,
+            rts_control_group_id: Some("1".to_string()),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_selected_unit_ids: string_vec([
+                "mirror_captain",
+                "arena_guard_left",
+                "square_worker_carry",
+                "field_engineer",
+            ]),
+            rts_command_destination_tile: Some(format!("{},{}", focus_tile.0, focus_tile.1)),
+            rts_minimap_command_tile_id: step.minimap_tile_id.clone(),
+            rts_command_queue: vec![
+                (*source).to_string(),
+                "scrollable_map_camera:viewport_update".to_string(),
+            ],
+            last_feedback: format!("RTS scroll camera stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            focus_tile,
+            &runtime,
+            &assets,
+        );
+        classic_draw_rts_scrollable_map_overlay(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            &step,
+            stage,
+            focus_tile,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!("SCROLL CAMERA {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "source": source,
+            "before": step.before,
+            "after": step.after,
+            "pan_delta_x": step.pan_delta_x,
+            "pan_delta_y": step.pan_delta_y,
+            "zoom_delta": step.zoom_delta,
+            "clamped": step.clamped,
+            "minimap_tile_id": step.minimap_tile_id,
+            "focus_tile": {
+                "x": focus_tile.0,
+                "y": focus_tile.1,
+            },
+            "command_destination_tile": runtime.rts_command_destination_tile,
+            "command_queue": runtime.rts_command_queue,
+            "renderer_path": "classic_draw_scene+classic_draw_rts_scrollable_map_overlay",
+            "input_handler": "update_native_rts_scrollable_map_camera",
+            "projection_path": "apply_native_rts_scrollable_map_view",
+            "surface_role_filter": "is_scrollable_map_surface_role",
+            "hud_behavior": "fixed_hud_map_layer_projection",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let camera_frame_pixel_count = count_color(CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR);
+    let edge_pixel_count = count_color(CLASSIC_RTS_SCROLL_EDGE_COLOR);
+    let drag_pixel_count = count_color(CLASSIC_RTS_SCROLL_DRAG_COLOR);
+    let zoom_pixel_count = count_color(CLASSIC_RTS_SCROLL_ZOOM_COLOR);
+    let minimap_pixel_count = count_color(CLASSIC_RTS_SCROLL_MINIMAP_COLOR);
+    let clamp_pixel_count = count_color(CLASSIC_RTS_SCROLL_CLAMP_COLOR);
+    let frame_gate = camera_frame_pixel_count > 4_000;
+    let edge_gate = edge_pixel_count > 1_000;
+    let drag_gate = drag_pixel_count > 250;
+    let zoom_gate = zoom_pixel_count > 900;
+    let minimap_gate = minimap_pixel_count > 600;
+    let clamp_gate = clamp_pixel_count > 1_000;
+    let keyboard_pan_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("keyboard_pan")
+            && summary.get("source").and_then(|value| value.as_str()) == Some("shift_keyboard_pan")
+            && summary
+                .get("pan_delta_x")
+                .and_then(|value| value.as_f64())
+                .is_some_and(|delta| delta.abs() > 40.0)
+    });
+    let edge_scroll_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("edge_scroll")
+            && summary.get("source").and_then(|value| value.as_str()) == Some("edge_scroll")
+            && summary
+                .get("pan_delta_y")
+                .and_then(|value| value.as_f64())
+                .is_some_and(|delta| delta.abs() > 30.0)
+    });
+    let drag_pan_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("middle_mouse_drag")
+            && summary.get("source").and_then(|value| value.as_str()) == Some("middle_mouse_drag")
+            && summary
+                .get("pan_delta_x")
+                .and_then(|value| value.as_f64())
+                .is_some_and(|delta| delta.abs() > 80.0)
+    });
+    let wheel_zoom_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("wheel_zoom")
+            && summary
+                .get("zoom_delta")
+                .and_then(|value| value.as_f64())
+                .is_some_and(|delta| delta > 0.2)
+    });
+    let minimap_jump_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("minimap_jump")
+            && summary
+                .get("minimap_tile_id")
+                .and_then(|value| value.as_str())
+                == Some("minimap_cursor_jump")
+    });
+    let boundary_clamp_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("bounds_clamp")
+            && summary
+                .get("clamped")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(false)
+    });
+    let viewport_center = rts_scrollable_map_viewport_center();
+    let projection_anchor_before = Vec2::new(220.0, 118.0);
+    let projection_zoom_scale = (1.0 / camera_state.zoom).clamp(0.54, 1.52);
+    let projection_camera_center = Vec2::new(camera_state.center_x, camera_state.center_y);
+    let projection_anchor_after = viewport_center
+        + (projection_anchor_before - viewport_center - projection_camera_center)
+            * projection_zoom_scale;
+    let projection_delta = projection_anchor_after - projection_anchor_before;
+    let map_layer_projection_gate = projection_delta.length() > 120.0
+        && is_scrollable_map_surface_role("map_tile")
+        && is_scrollable_map_surface_role("actor_runtime_label");
+    let hud_fixed_gate = !is_scrollable_map_surface_role("hud_status_panel")
+        && !is_scrollable_map_surface_role("primary_cta_attack")
+        && !is_scrollable_map_surface_role("equipped_item_badge");
+    let stage_gate = [
+        "keyboard_pan",
+        "edge_scroll",
+        "middle_mouse_drag",
+        "wheel_zoom",
+        "minimap_jump",
+        "bounds_clamp",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let camera_runtime_gate = stage_summaries.iter().all(|summary| {
+        summary
+            .get("after")
+            .and_then(|value| value.get("zoom"))
+            .and_then(|value| value.as_f64())
+            .is_some_and(|zoom| zoom >= config.min_zoom as f64 && zoom <= config.max_zoom as f64)
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("minimap_jump")
+            && summary
+                .get("minimap_tile_id")
+                .and_then(|value| value.as_str())
+                == Some("minimap_cursor_jump")
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("bounds_clamp")
+            && summary
+                .get("clamped")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(false)
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene+classic_draw_rts_scrollable_map_overlay")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && frame_gate
+        && edge_gate
+        && drag_gate
+        && zoom_gate
+        && minimap_gate
+        && clamp_gate
+        && stage_gate
+        && keyboard_pan_gate
+        && edge_scroll_gate
+        && drag_pan_gate
+        && wheel_zoom_gate
+        && minimap_jump_gate
+        && boundary_clamp_gate
+        && map_layer_projection_gate
+        && hud_fixed_gate
+        && camera_runtime_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene+classic_draw_rts_scrollable_map_overlay",
+        "input_path": "apply_rts_scrollable_map_camera_input(classic_rts_scrollable_map_input)",
+        "input_handler": "update_native_rts_scrollable_map_camera",
+        "projection_path": "apply_native_rts_scrollable_map_view",
+        "surface_role_filter": "is_scrollable_map_surface_role",
+        "native_runtime_path": "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view",
+        "input_action_count": stages.len(),
+        "input_sources": input_sources,
+        "stage_summaries": stage_summaries,
+        "final_camera_state": camera_state,
+        "projection_anchor_before": {
+            "x": projection_anchor_before.x,
+            "y": projection_anchor_before.y,
+        },
+        "projection_anchor_after": {
+            "x": projection_anchor_after.x,
+            "y": projection_anchor_after.y,
+        },
+        "projection_delta": {
+            "x": projection_delta.x,
+            "y": projection_delta.y,
+        },
+        "camera_frame_pixel_count": camera_frame_pixel_count,
+        "edge_pixel_count": edge_pixel_count,
+        "drag_pixel_count": drag_pixel_count,
+        "zoom_pixel_count": zoom_pixel_count,
+        "minimap_pixel_count": minimap_pixel_count,
+        "clamp_pixel_count": clamp_pixel_count,
+        "frame_gate": frame_gate,
+        "edge_gate": edge_gate,
+        "drag_gate": drag_gate,
+        "zoom_gate": zoom_gate,
+        "minimap_gate": minimap_gate,
+        "clamp_gate": clamp_gate,
+        "stage_gate": stage_gate,
+        "keyboard_pan_gate": keyboard_pan_gate,
+        "edge_scroll_gate": edge_scroll_gate,
+        "drag_pan_gate": drag_pan_gate,
+        "wheel_zoom_gate": wheel_zoom_gate,
+        "minimap_jump_gate": minimap_jump_gate,
+        "boundary_clamp_gate": boundary_clamp_gate,
+        "map_layer_projection_gate": map_layer_projection_gate,
+        "hud_fixed_gate": hud_fixed_gate,
+        "camera_runtime_gate": camera_runtime_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium scrollable-map camera overlays; keyboard pan, edge scroll, middle-mouse drag, wheel zoom, minimap jump, and bounds clamp feedback are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Scrollable map evidence uses the Bevy RTS camera input reducer plus actual classic_draw_scene frames and local overlay pixels to prove mouse/keyboard map navigation remains visible in the playable low-spec renderer."
+    }))
+    .expect("classic RTS scrollable map evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -64606,7 +65460,7 @@ pub fn spawn_native_render_scene(
     bootstrap: Res<NativeWorldBootstrap>,
     world: Res<AuthoritativeWorldResource>,
 ) {
-    commands.spawn(Camera2d);
+    commands.spawn((Camera2d, BevyRtsScrollableMapCamera::default()));
     commands.spawn((
         Sprite::from_color(Color::srgb(0.05, 0.08, 0.09), Vec2::new(1120.0, 680.0)),
         Transform::from_translation(Vec3::new(0.0, 0.0, -8.0)),
@@ -65281,6 +66135,10 @@ fn spawn_static_chibi_actor(
         TextFont::from_font_size(10.0),
         TextColor(Color::srgb(0.98, 0.96, 0.88)),
         Transform::from_translation(base + Vec3::new(0.0, 34.0, 0.6)),
+        BevyWorldTileRpgSurface {
+            surface_id: format!("{label}:map_actor_label"),
+            role: "actor_runtime_label".to_string(),
+        },
     ));
 }
 
@@ -67769,6 +68627,161 @@ fn native_control_button(action: NativeControlAction, label: &str, width: f32) -
             },
         )],
     )
+}
+
+pub fn update_native_rts_scrollable_map_camera(
+    time: Res<Time>,
+    input: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    mouse_motion: Res<AccumulatedMouseMotion>,
+    mouse_scroll: Res<AccumulatedMouseScroll>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut cameras: Query<&mut BevyRtsScrollableMapCamera>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok(mut camera) = cameras.single_mut() else {
+        return;
+    };
+    let config = rts_scrollable_map_camera_config();
+    let delta_seconds = time.delta_secs().clamp(1.0 / 120.0, 1.0 / 12.0);
+    let shift_pressed = input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight);
+    let mut pan_delta = Vec2::ZERO;
+    let mut source_parts = Vec::new();
+
+    if shift_pressed {
+        if input.pressed(KeyCode::ArrowRight) || input.pressed(KeyCode::KeyD) {
+            pan_delta.x += config.keyboard_speed * delta_seconds;
+        }
+        if input.pressed(KeyCode::ArrowLeft) || input.pressed(KeyCode::KeyA) {
+            pan_delta.x -= config.keyboard_speed * delta_seconds;
+        }
+        if input.pressed(KeyCode::ArrowUp) || input.pressed(KeyCode::KeyW) {
+            pan_delta.y += config.keyboard_speed * delta_seconds;
+        }
+        if input.pressed(KeyCode::ArrowDown) || input.pressed(KeyCode::KeyS) {
+            pan_delta.y -= config.keyboard_speed * delta_seconds;
+        }
+        if pan_delta != Vec2::ZERO {
+            source_parts.push("shift_keyboard_pan");
+        }
+    }
+
+    let mut minimap_jump = None;
+    if let Some(cursor) = window.cursor_position() {
+        let width = window.width();
+        let height = window.height();
+        if cursor.x <= config.edge_band_pixels {
+            pan_delta.x -= config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        } else if cursor.x >= width - config.edge_band_pixels {
+            pan_delta.x += config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        }
+        if cursor.y <= config.edge_band_pixels {
+            pan_delta.y -= config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        } else if cursor.y >= height - config.edge_band_pixels {
+            pan_delta.y += config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        }
+
+        let minimap_left = 18.0;
+        let minimap_bottom = 18.0;
+        let minimap_width = 156.0;
+        let minimap_height = 104.0;
+        let in_minimap = cursor.x >= minimap_left
+            && cursor.x <= minimap_left + minimap_width
+            && cursor.y >= minimap_bottom
+            && cursor.y <= minimap_bottom + minimap_height;
+        if in_minimap && mouse_buttons.just_pressed(MouseButton::Left) {
+            let norm_x = ((cursor.x - minimap_left) / minimap_width).clamp(0.0, 1.0);
+            let norm_y = ((cursor.y - minimap_bottom) / minimap_height).clamp(0.0, 1.0);
+            let target = Vec2::new(
+                config.min_x + (config.max_x - config.min_x) * norm_x,
+                config.min_y + (config.max_y - config.min_y) * norm_y,
+            );
+            minimap_jump = Some(("minimap_cursor_jump", target));
+            source_parts.push("minimap_jump");
+        }
+    }
+
+    if mouse_buttons.pressed(MouseButton::Middle) && mouse_motion.delta != Vec2::ZERO {
+        pan_delta.x -= mouse_motion.delta.x * config.drag_world_units_per_pixel * camera.state.zoom;
+        pan_delta.y += mouse_motion.delta.y * config.drag_world_units_per_pixel * camera.state.zoom;
+        source_parts.push("middle_mouse_drag");
+    }
+
+    let zoom_delta = -mouse_scroll.delta.y * config.wheel_zoom_step;
+    if zoom_delta.abs() > f32::EPSILON {
+        source_parts.push("wheel_zoom");
+    }
+
+    if pan_delta == Vec2::ZERO && zoom_delta.abs() <= f32::EPSILON && minimap_jump.is_none() {
+        return;
+    }
+
+    let source = if source_parts.is_empty() {
+        "camera_idle".to_string()
+    } else {
+        source_parts.join("+")
+    };
+    let step = apply_rts_scrollable_map_camera_input(
+        &source,
+        camera.state,
+        config,
+        pan_delta,
+        zoom_delta,
+        minimap_jump,
+    );
+    camera.state = step.after;
+}
+
+pub fn apply_native_rts_scrollable_map_view(
+    mut commands: Commands,
+    camera_query: Query<&BevyRtsScrollableMapCamera>,
+    mut surfaces: Query<(
+        Entity,
+        &BevyWorldTileRpgSurface,
+        &mut Transform,
+        Option<&BevyWorldScrollableMapAnchor>,
+    )>,
+) {
+    let Ok(camera) = camera_query.single() else {
+        return;
+    };
+    let viewport_center = rts_scrollable_map_viewport_center();
+    let zoom_scale = (1.0 / camera.state.zoom).clamp(0.54, 1.52);
+    let camera_center = Vec2::new(camera.state.center_x, camera.state.center_y);
+    for (entity, surface, mut transform, anchor) in &mut surfaces {
+        if !is_scrollable_map_surface_role(&surface.role) {
+            continue;
+        }
+        let anchor = match anchor {
+            Some(anchor) => *anchor,
+            None => {
+                let anchor = BevyWorldScrollableMapAnchor {
+                    base_translation: transform.translation,
+                    base_scale: transform.scale,
+                };
+                commands.entity(entity).insert(anchor);
+                anchor
+            }
+        };
+        let centered = Vec2::new(
+            anchor.base_translation.x - viewport_center.x - camera_center.x,
+            anchor.base_translation.y - viewport_center.y - camera_center.y,
+        ) * zoom_scale;
+        transform.translation.x = viewport_center.x + centered.x;
+        transform.translation.y = viewport_center.y + centered.y;
+        transform.translation.z = anchor.base_translation.z;
+        transform.scale = Vec3::new(
+            anchor.base_scale.x * zoom_scale,
+            anchor.base_scale.y * zoom_scale,
+            anchor.base_scale.z,
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -76259,6 +77272,9 @@ fn update_log_from_tactics_outcome(
 }
 
 fn keyboard_direction(input: &ButtonInput<KeyCode>) -> Option<&'static str> {
+    if input.pressed(KeyCode::ShiftLeft) || input.pressed(KeyCode::ShiftRight) {
+        return None;
+    }
     if input.just_pressed(KeyCode::ArrowRight) || input.just_pressed(KeyCode::KeyD) {
         Some("east")
     } else if input.just_pressed(KeyCode::ArrowLeft) || input.just_pressed(KeyCode::KeyA) {

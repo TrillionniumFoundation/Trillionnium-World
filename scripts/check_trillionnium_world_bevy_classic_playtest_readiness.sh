@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json"
 mkdir -p "$(dirname "$SUMMARY")"
+SUMMARY_FILTER="$(mktemp)"
+VALIDATION_FILTER="$(mktemp)"
+trap 'rm -f "$SUMMARY_FILTER" "$VALIDATION_FILTER"' EXIT
+sed -n '/^# BEGIN_PLAYTEST_READINESS_SUMMARY_FILTER$/,/^# END_PLAYTEST_READINESS_SUMMARY_FILTER$/p' "$0" | sed '1d;$d' >"$SUMMARY_FILTER"
+sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READINESS_VALIDATION_FILTER$/p' "$0" | sed '1d;$d' >"$VALIDATION_FILTER"
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh" >/dev/null
@@ -59,6 +64,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_command_feedback.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_scrollable_map.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -68,8 +74,8 @@ mkdir -p "$(dirname "$SUMMARY")"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_transition.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
-"$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 
 jq -n \
   --slurpfile manifest "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-manifest-lint.json" \
@@ -126,6 +132,7 @@ jq -n \
   --slurpfile rts_selection_command_feedback "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-command-feedback.json" \
   --slurpfile rts_ability_tooltip_telegraph "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ability-tooltip-telegraph.json" \
   --slurpfile rts_control_group_hotkey_feedback "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-group-hotkey-feedback.json" \
+  --slurpfile rts_scrollable_map "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-scrollable-map.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -136,7 +143,11 @@ jq -n \
   --slurpfile rts_depth_readability "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
-  --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" '
+  --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" \
+  -f "$SUMMARY_FILTER" >"$SUMMARY"
+
+: <<'PLAYTEST_READINESS_SUMMARY_FILTER_BLOCK'
+# BEGIN_PLAYTEST_READINESS_SUMMARY_FILTER
   def ok($x): ($x[0].green == true);
   {
     contract_version: "trillionnium_world_bevy_classic_playtest_readiness_v1",
@@ -195,6 +206,7 @@ jq -n \
       and ok($rts_selection_command_feedback)
       and ok($rts_ability_tooltip_telegraph)
       and ok($rts_control_group_hotkey_feedback)
+      and ok($rts_scrollable_map)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -471,6 +483,7 @@ jq -n \
       classic_rts_selection_command_feedback_green: ok($rts_selection_command_feedback),
       classic_rts_ability_tooltip_telegraph_green: ok($rts_ability_tooltip_telegraph),
       classic_rts_control_group_hotkey_feedback_green: ok($rts_control_group_hotkey_feedback),
+      classic_rts_scrollable_map_green: ok($rts_scrollable_map),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1159,6 +1172,13 @@ jq -n \
       rts_control_group_hotkey_feedback_accepted_input_count: $rts_control_group_hotkey_feedback[0].accepted_input_count,
       rts_control_group_hotkey_feedback_group_count: ($rts_control_group_hotkey_feedback[0].final_active_control_group_ids | length),
       rts_control_group_hotkey_feedback_queue_count: ($rts_control_group_hotkey_feedback[0].final_production_queue | length),
+      rts_scrollable_map_camera_frame_pixel_count: $rts_scrollable_map[0].camera_frame_pixel_count,
+      rts_scrollable_map_edge_pixel_count: $rts_scrollable_map[0].edge_pixel_count,
+      rts_scrollable_map_drag_pixel_count: $rts_scrollable_map[0].drag_pixel_count,
+      rts_scrollable_map_zoom_pixel_count: $rts_scrollable_map[0].zoom_pixel_count,
+      rts_scrollable_map_minimap_pixel_count: $rts_scrollable_map[0].minimap_pixel_count,
+      rts_scrollable_map_clamp_pixel_count: $rts_scrollable_map[0].clamp_pixel_count,
+      rts_scrollable_map_input_action_count: $rts_scrollable_map[0].input_action_count,
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1556,6 +1576,16 @@ jq -n \
       rts_control_group_hotkey_feedback_hotkey_runtime_gate: $rts_control_group_hotkey_feedback[0].hotkey_runtime_gate,
       rts_control_group_hotkey_feedback_scene_renderer_gate: $rts_control_group_hotkey_feedback[0].scene_renderer_gate,
       rts_control_group_hotkey_feedback_original_art_policy_gate: $rts_control_group_hotkey_feedback[0].original_art_policy_gate,
+      rts_scrollable_map_keyboard_pan_gate: $rts_scrollable_map[0].keyboard_pan_gate,
+      rts_scrollable_map_edge_scroll_gate: $rts_scrollable_map[0].edge_scroll_gate,
+      rts_scrollable_map_drag_pan_gate: $rts_scrollable_map[0].drag_pan_gate,
+      rts_scrollable_map_wheel_zoom_gate: $rts_scrollable_map[0].wheel_zoom_gate,
+      rts_scrollable_map_minimap_jump_gate: $rts_scrollable_map[0].minimap_jump_gate,
+      rts_scrollable_map_boundary_clamp_gate: $rts_scrollable_map[0].boundary_clamp_gate,
+      rts_scrollable_map_map_layer_projection_gate: $rts_scrollable_map[0].map_layer_projection_gate,
+      rts_scrollable_map_hud_fixed_gate: $rts_scrollable_map[0].hud_fixed_gate,
+      rts_scrollable_map_scene_renderer_gate: $rts_scrollable_map[0].scene_renderer_gate,
+      rts_scrollable_map_original_art_policy_gate: $rts_scrollable_map[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1748,6 +1778,8 @@ jq -n \
       classic_rts_ability_tooltip_telegraph_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ability-tooltip-telegraph.ppm",
       classic_rts_control_group_hotkey_feedback: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-group-hotkey-feedback.json",
       classic_rts_control_group_hotkey_feedback_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-group-hotkey-feedback.ppm",
+      classic_rts_scrollable_map: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-scrollable-map.json",
+      classic_rts_scrollable_map_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-scrollable-map.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1768,9 +1800,14 @@ jq -n \
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
     source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
-  }' >"$SUMMARY"
+  }
+# END_PLAYTEST_READINESS_SUMMARY_FILTER
+PLAYTEST_READINESS_SUMMARY_FILTER_BLOCK
 
-jq -e '
+jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
+
+: <<'PLAYTEST_READINESS_VALIDATION_FILTER_BLOCK'
+# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER
   .contract_version == "trillionnium_world_bevy_classic_playtest_readiness_v1"
   and .green == true
   and .checks.manifest_lint_green == true
@@ -1827,6 +1864,7 @@ jq -e '
   and .checks.classic_rts_selection_command_feedback_green == true
   and .checks.classic_rts_ability_tooltip_telegraph_green == true
   and .checks.classic_rts_control_group_hotkey_feedback_green == true
+  and .checks.classic_rts_scrollable_map_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2188,6 +2226,13 @@ jq -e '
   and .headline.rts_control_group_hotkey_feedback_idle_pixel_count > 900
   and .headline.rts_control_group_hotkey_feedback_production_pixel_count > 700
   and .headline.rts_control_group_hotkey_feedback_ability_pixel_count > 700
+  and .headline.rts_scrollable_map_input_action_count == 6
+  and .headline.rts_scrollable_map_camera_frame_pixel_count > 4000
+  and .headline.rts_scrollable_map_edge_pixel_count > 1000
+  and .headline.rts_scrollable_map_drag_pixel_count > 250
+  and .headline.rts_scrollable_map_zoom_pixel_count > 900
+  and .headline.rts_scrollable_map_minimap_pixel_count > 600
+  and .headline.rts_scrollable_map_clamp_pixel_count > 1000
   and .headline.rts_base_assault_resolution_accepted_input_count == 9
   and .headline.rts_base_assault_resolution_army_spawned_unit_count >= 4
   and .headline.rts_base_assault_resolution_target_count >= 3
@@ -2568,6 +2613,16 @@ jq -e '
   and .gates.rts_control_group_hotkey_feedback_hotkey_runtime_gate == true
   and .gates.rts_control_group_hotkey_feedback_scene_renderer_gate == true
   and .gates.rts_control_group_hotkey_feedback_original_art_policy_gate == true
+  and .gates.rts_scrollable_map_keyboard_pan_gate == true
+  and .gates.rts_scrollable_map_edge_scroll_gate == true
+  and .gates.rts_scrollable_map_drag_pan_gate == true
+  and .gates.rts_scrollable_map_wheel_zoom_gate == true
+  and .gates.rts_scrollable_map_minimap_jump_gate == true
+  and .gates.rts_scrollable_map_boundary_clamp_gate == true
+  and .gates.rts_scrollable_map_map_layer_projection_gate == true
+  and .gates.rts_scrollable_map_hud_fixed_gate == true
+  and .gates.rts_scrollable_map_scene_renderer_gate == true
+  and .gates.rts_scrollable_map_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true
@@ -2656,6 +2711,7 @@ jq -e '
   and .gates.launcher_service_process_gate == true
   and .gates.launcher_release_binary_gate == true
   and .gates.launcher_cex_path_gate == true
-' "$SUMMARY" >/dev/null
+# END_PLAYTEST_READINESS_VALIDATION_FILTER
+PLAYTEST_READINESS_VALIDATION_FILTER_BLOCK
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_PLAYTEST_READINESS_GREEN %s\n' "$SUMMARY"
