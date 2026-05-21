@@ -66,6 +66,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_scrollable_map.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_camera_minimap_sync.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_queue_path_preview.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_cadence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_model_depth.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_action_sequence.sh" >/dev/null
@@ -135,6 +136,7 @@ jq -n \
   --slurpfile rts_control_group_hotkey_feedback "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-group-hotkey-feedback.json" \
   --slurpfile rts_scrollable_map "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-scrollable-map.json" \
   --slurpfile rts_camera_minimap_sync "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-camera-minimap-sync.json" \
+  --slurpfile rts_command_queue_path_preview "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-queue-path-preview.json" \
   --slurpfile rts_action_cadence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json" \
   --slurpfile rts_unit_model_depth "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json" \
   --slurpfile rts_action_sequence "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-sequence.json" \
@@ -210,6 +212,7 @@ jq -n \
       and ok($rts_control_group_hotkey_feedback)
       and ok($rts_scrollable_map)
       and ok($rts_camera_minimap_sync)
+      and ok($rts_command_queue_path_preview)
       and ok($rts_action_cadence)
       and ok($rts_unit_model_depth)
       and ok($rts_action_sequence)
@@ -488,6 +491,7 @@ jq -n \
       classic_rts_control_group_hotkey_feedback_green: ok($rts_control_group_hotkey_feedback),
       classic_rts_scrollable_map_green: ok($rts_scrollable_map),
       classic_rts_camera_minimap_sync_green: ok($rts_camera_minimap_sync),
+      classic_rts_command_queue_path_preview_green: ok($rts_command_queue_path_preview),
       classic_rts_action_cadence_green: ok($rts_action_cadence),
       classic_rts_unit_model_depth_green: ok($rts_unit_model_depth),
       classic_rts_action_sequence_green: ok($rts_action_sequence),
@@ -1190,6 +1194,14 @@ jq -n \
       rts_camera_minimap_sync_route_pixel_count: $rts_camera_minimap_sync[0].route_pixel_count,
       rts_camera_minimap_sync_input_action_count: $rts_camera_minimap_sync[0].input_action_count,
       rts_camera_minimap_sync_revealed_tile_union_count: $rts_camera_minimap_sync[0].revealed_tile_union_count,
+      rts_command_queue_path_preview_queue_slot_pixel_count: $rts_command_queue_path_preview[0].queue_slot_pixel_count,
+      rts_command_queue_path_preview_path_pixel_count: $rts_command_queue_path_preview[0].path_pixel_count,
+      rts_command_queue_path_preview_waypoint_pixel_count: $rts_command_queue_path_preview[0].waypoint_pixel_count,
+      rts_command_queue_path_preview_target_pixel_count: $rts_command_queue_path_preview[0].target_pixel_count,
+      rts_command_queue_path_preview_reservation_pixel_count: $rts_command_queue_path_preview[0].reservation_pixel_count,
+      rts_command_queue_path_preview_cancel_pixel_count: $rts_command_queue_path_preview[0].cancel_pixel_count,
+      rts_command_queue_path_preview_accepted_input_count: $rts_command_queue_path_preview[0].accepted_input_count,
+      rts_command_queue_path_preview_final_queue_count: ($rts_command_queue_path_preview[0].final_command_queue | length),
       rts_action_cadence_windup_pixel_count: $rts_action_cadence[0].windup_pixel_count,
       rts_action_cadence_strike_pixel_count: $rts_action_cadence[0].strike_pixel_count,
       rts_action_cadence_recovery_pixel_count: $rts_action_cadence[0].recovery_pixel_count,
@@ -1606,6 +1618,15 @@ jq -n \
       rts_camera_minimap_sync_minimap_runtime_gate: $rts_camera_minimap_sync[0].minimap_runtime_gate,
       rts_camera_minimap_sync_scene_renderer_gate: $rts_camera_minimap_sync[0].scene_renderer_gate,
       rts_camera_minimap_sync_original_art_policy_gate: $rts_camera_minimap_sync[0].original_art_policy_gate,
+      rts_command_queue_path_preview_live_input_gate: $rts_command_queue_path_preview[0].live_input_gate,
+      rts_command_queue_path_preview_queue_stack_gate: $rts_command_queue_path_preview[0].queue_stack_gate,
+      rts_command_queue_path_preview_shift_waypoint_gate: $rts_command_queue_path_preview[0].shift_waypoint_gate,
+      rts_command_queue_path_preview_rally_chain_gate: $rts_command_queue_path_preview[0].rally_chain_gate,
+      rts_command_queue_path_preview_attack_focus_gate: $rts_command_queue_path_preview[0].attack_focus_gate,
+      rts_command_queue_path_preview_build_reservation_gate: $rts_command_queue_path_preview[0].build_reservation_gate,
+      rts_command_queue_path_preview_cancel_repath_gate: $rts_command_queue_path_preview[0].cancel_repath_gate,
+      rts_command_queue_path_preview_scene_renderer_gate: $rts_command_queue_path_preview[0].scene_renderer_gate,
+      rts_command_queue_path_preview_original_art_policy_gate: $rts_command_queue_path_preview[0].original_art_policy_gate,
       rts_action_cadence_windup_gate: $rts_action_cadence[0].windup_gate,
       rts_action_cadence_strike_gate: $rts_action_cadence[0].strike_gate,
       rts_action_cadence_recovery_gate: $rts_action_cadence[0].recovery_gate,
@@ -1802,6 +1823,8 @@ jq -n \
       classic_rts_scrollable_map_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-scrollable-map.ppm",
       classic_rts_camera_minimap_sync: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-camera-minimap-sync.json",
       classic_rts_camera_minimap_sync_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-camera-minimap-sync.ppm",
+      classic_rts_command_queue_path_preview: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-queue-path-preview.json",
+      classic_rts_command_queue_path_preview_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-queue-path-preview.ppm",
       classic_rts_action_cadence: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.json",
       classic_rts_action_cadence_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-action-cadence.ppm",
       classic_rts_unit_model_depth: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-model-depth.json",
@@ -1888,6 +1911,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_control_group_hotkey_feedback_green == true
   and .checks.classic_rts_scrollable_map_green == true
   and .checks.classic_rts_camera_minimap_sync_green == true
+  and .checks.classic_rts_command_queue_path_preview_green == true
   and .checks.classic_rts_action_cadence_green == true
   and .checks.classic_rts_unit_model_depth_green == true
   and .checks.classic_rts_action_sequence_green == true
@@ -2263,6 +2287,14 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_camera_minimap_sync_reveal_pixel_count > 800
   and .headline.rts_camera_minimap_sync_selection_pixel_count > 1000
   and .headline.rts_camera_minimap_sync_route_pixel_count > 900
+  and .headline.rts_command_queue_path_preview_accepted_input_count == 6
+  and .headline.rts_command_queue_path_preview_final_queue_count >= 12
+  and .headline.rts_command_queue_path_preview_queue_slot_pixel_count > 1200
+  and .headline.rts_command_queue_path_preview_path_pixel_count > 400
+  and .headline.rts_command_queue_path_preview_waypoint_pixel_count > 400
+  and .headline.rts_command_queue_path_preview_target_pixel_count > 300
+  and .headline.rts_command_queue_path_preview_reservation_pixel_count > 250
+  and .headline.rts_command_queue_path_preview_cancel_pixel_count > 250
   and .headline.rts_base_assault_resolution_accepted_input_count == 9
   and .headline.rts_base_assault_resolution_army_spawned_unit_count >= 4
   and .headline.rts_base_assault_resolution_target_count >= 3
@@ -2662,6 +2694,15 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_camera_minimap_sync_minimap_runtime_gate == true
   and .gates.rts_camera_minimap_sync_scene_renderer_gate == true
   and .gates.rts_camera_minimap_sync_original_art_policy_gate == true
+  and .gates.rts_command_queue_path_preview_live_input_gate == true
+  and .gates.rts_command_queue_path_preview_queue_stack_gate == true
+  and .gates.rts_command_queue_path_preview_shift_waypoint_gate == true
+  and .gates.rts_command_queue_path_preview_rally_chain_gate == true
+  and .gates.rts_command_queue_path_preview_attack_focus_gate == true
+  and .gates.rts_command_queue_path_preview_build_reservation_gate == true
+  and .gates.rts_command_queue_path_preview_cancel_repath_gate == true
+  and .gates.rts_command_queue_path_preview_scene_renderer_gate == true
+  and .gates.rts_command_queue_path_preview_original_art_policy_gate == true
   and .gates.rts_action_cadence_windup_gate == true
   and .gates.rts_action_cadence_strike_gate == true
   and .gates.rts_action_cadence_recovery_gate == true

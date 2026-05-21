@@ -383,6 +383,25 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-rts-command-queue-path-preview"
+                | "--classic-rts-command-queue-path-preview"
+                | "command-queue-path-preview"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-queue-path-preview.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_command_queue_path_preview_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("scene-transition-playability" | "--scene-transition-playability")
     ) {
         println!(

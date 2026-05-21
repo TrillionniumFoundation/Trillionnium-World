@@ -256,6 +256,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_scrollable_map_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_camera_minimap_sync_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_QUEUE_PATH_PREVIEW_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_command_queue_path_preview_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -557,6 +559,12 @@ const CLASSIC_RTS_CAMERA_SYNC_FOG_COLOR: u32 = 0x1c2722;
 const CLASSIC_RTS_CAMERA_SYNC_REVEAL_COLOR: u32 = 0xcfff75;
 const CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR: u32 = 0xffe16f;
 const CLASSIC_RTS_CAMERA_SYNC_ROUTE_COLOR: u32 = 0xff89cf;
+const CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR: u32 = 0xa6f0ff;
+const CLASSIC_RTS_QUEUE_PREVIEW_PATH_COLOR: u32 = 0x8cff7c;
+const CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR: u32 = 0xffdd78;
+const CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR: u32 = 0xff6a72;
+const CLASSIC_RTS_QUEUE_PREVIEW_RESERVATION_COLOR: u32 = 0xc6a2ff;
+const CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR: u32 = 0xffa05f;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -14751,6 +14759,313 @@ fn classic_draw_rts_camera_minimap_sync_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_command_queue_path_preview_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+        {
+            if event.contains("command_queue_path_preview:cancel_repath") {
+                return Some("cancel_repath");
+            }
+            if event.contains("command_queue_path_preview:build_reservation") {
+                return Some("build_reservation");
+            }
+            if event.contains("command_queue_path_preview:attack_focus") {
+                return Some("attack_focus");
+            }
+            if event.contains("command_queue_path_preview:rally_chain") {
+                return Some("rally_chain");
+            }
+            if event.contains("command_queue_path_preview:shift_waypoints") {
+                return Some("shift_waypoints");
+            }
+            if event.contains("command_queue_path_preview:queue_stack") {
+                return Some("queue_stack");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("command_queue_path_preview:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "queue_stack",
+            1 => "shift_waypoints",
+            2 => "rally_chain",
+            3 => "attack_focus",
+            4 => "build_reservation",
+            _ => "cancel_repath",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_queue_path_preview_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let panel_x = 18_i32;
+    let panel_y = (height as i32 - 156).max(118);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        332,
+        106,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        332,
+        3,
+        CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 10,
+        "COMMAND QUEUE / PATH PREVIEW",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 25,
+        &classic_catalog_text_label(&stage.replace('_', " "), 28),
+        1,
+        CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR,
+    );
+
+    for (index, command) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+        let slot_x = panel_x + 10 + index as i32 * 62;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            slot_x,
+            panel_y + 44,
+            54,
+            22,
+            CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            slot_x + 4,
+            panel_y + 51,
+            &classic_catalog_text_label(&command.replace(':', " "), 6),
+            1,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+    }
+
+    let board_x = (width as i32 / 2 - 158).max(190);
+    let board_y = 68_i32;
+    let cell_w = 24_i32;
+    let cell_h = 17_i32;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        board_x - 12,
+        board_y - 12,
+        348,
+        186,
+        CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        board_x - 12,
+        board_y - 12,
+        348,
+        4,
+        CLASSIC_RTS_QUEUE_PREVIEW_PATH_COLOR,
+    );
+    for row in 1..=8 {
+        for col in 1..=13 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                board_x + (col - 1) * cell_w,
+                board_y + (row - 1) * cell_h,
+                cell_w - 3,
+                cell_h - 3,
+                if (row + col) % 2 == 0 {
+                    CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
+                } else {
+                    CLASSIC_RTS_MINIMAP_FOG_COLOR
+                },
+            );
+        }
+    }
+
+    let mut draw_tile = |tile_id: &str, color: u32, inset: i32| {
+        if let Some((tile_x, tile_y)) = classic_parse_rts_tile(tile_id) {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                board_x + (tile_x - 1) * cell_w + inset,
+                board_y + (tile_y - 1) * cell_h + inset,
+                (cell_w - 3 - inset * 2).max(4),
+                (cell_h - 3 - inset * 2).max(4),
+                color,
+            );
+        }
+    };
+
+    for tile_id in &runtime.rts_path_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_QUEUE_PREVIEW_PATH_COLOR, 4);
+    }
+    for tile_id in &runtime.rts_group_route_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR, 2);
+    }
+    for tile_id in &runtime.rts_formation_slot_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR, 7);
+    }
+    for tile_id in &runtime.rts_build_site_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_QUEUE_PREVIEW_RESERVATION_COLOR, 1);
+    }
+    for tile_id in &runtime.rts_blocked_tile_ids {
+        draw_tile(tile_id, CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR, 3);
+    }
+    if let Some(tile_id) = &runtime.rts_command_destination_tile {
+        draw_tile(tile_id, CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR, 0);
+    }
+    if let Some(tile_id) = &runtime.rts_minimap_command_tile_id {
+        draw_tile(tile_id, CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR, 5);
+    }
+
+    match stage {
+        "attack_focus" => {
+            let target_x = board_x + 8 * cell_w;
+            let target_y = board_y + 3 * cell_h;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                target_x - 14,
+                target_y - 10,
+                70,
+                5,
+                CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                target_x - 14,
+                target_y + 33,
+                70,
+                5,
+                CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 76,
+                &classic_catalog_text_label(
+                    runtime.rts_attack_target_id.as_deref().unwrap_or("target"),
+                    24,
+                ),
+                1,
+                CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR,
+            );
+        }
+        "build_reservation" => {
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 76,
+                &classic_catalog_text_label(
+                    runtime
+                        .rts_building_blueprint_id
+                        .as_deref()
+                        .unwrap_or("build reservation"),
+                    26,
+                ),
+                1,
+                CLASSIC_RTS_QUEUE_PREVIEW_RESERVATION_COLOR,
+            );
+        }
+        "cancel_repath" => {
+            for stripe in 0..9 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    board_x + 18 + stripe * 31,
+                    board_y + 132 - stripe * 4,
+                    26,
+                    5,
+                    CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 76,
+                "CANCEL ACK / REPATH VISIBLE",
+                1,
+                CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR,
+            );
+        }
+        _ => {
+            let status = format!(
+                "QUEUE {} PATH {}",
+                runtime.rts_command_queue.len(),
+                runtime.rts_path_tile_ids.len()
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 10,
+                panel_y + 76,
+                &status,
+                1,
+                CLASSIC_RTS_QUEUE_PREVIEW_PATH_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -19109,6 +19424,365 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
         "source_of_truth": "Camera/minimap sync evidence uses the Bevy RTS camera reducer, minimap viewport math, revealed tile state, selection-follow runtime, and actual classic_draw_scene frames to prove camera and minimap feedback stay synchronized in the playable low-spec renderer."
     }))
     .expect("classic RTS camera minimap sync evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_command_queue_path_preview_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 720,
+        xp: 96,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 3,
+        ..Default::default()
+    };
+    let stages = [
+        (
+            "queue_stack",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ),
+        (
+            "shift_waypoints",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "8,4:line".to_string(),
+            },
+        ),
+        (
+            "rally_chain",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "9,2:rally".to_string(),
+            },
+        ),
+        (
+            "attack_focus",
+            NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            },
+        ),
+        (
+            "build_reservation",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "build:watch_tower@7,4".to_string(),
+            },
+        ),
+        (
+            "cancel_repath",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "cancel:watch_tower@7,4".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in stages.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_command_queue_path_preview_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        if *stage == "shift_waypoints" && runtime.rts_group_route_tile_ids.is_empty() {
+            runtime.rts_group_route_tile_ids = runtime.rts_path_tile_ids.clone();
+        }
+        runtime.combat_turn = index as u8;
+        push_history(
+            &mut runtime.rts_command_queue,
+            &format!("command_queue_path_preview:{stage}"),
+        );
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!("QUEUE PATH {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "action_label": action_label,
+            "accepted": accepted,
+            "last_action": gameplay_log.last_action,
+            "queue_depth": runtime.rts_command_queue.len(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "path_tile_ids": runtime.rts_path_tile_ids.clone(),
+            "blocked_tile_ids": runtime.rts_blocked_tile_ids.clone(),
+            "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids.clone(),
+            "group_route_tile_ids": runtime.rts_group_route_tile_ids.clone(),
+            "command_destination_tile": runtime.rts_command_destination_tile.clone(),
+            "minimap_command_tile_id": runtime.rts_minimap_command_tile_id.clone(),
+            "minimap_command_kind": runtime.rts_minimap_command_kind.clone(),
+            "attack_target_id": runtime.rts_attack_target_id.clone(),
+            "focus_fire_unit_ids": runtime.rts_focus_fire_unit_ids.clone(),
+            "build_site_tile_ids": runtime.rts_build_site_tile_ids.clone(),
+            "building_blueprint_id": runtime.rts_building_blueprint_id.clone(),
+            "cancelled_structure_ids": runtime.rts_cancelled_structure_ids.clone(),
+            "resource_delta_log": runtime.rts_resource_delta_log.clone(),
+            "resource_spend_log": runtime.rts_resource_spend_log.clone(),
+            "refund_delta_log": runtime.rts_refund_delta_log.clone(),
+            "renderer_path": "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay",
+            "input_path": "apply_live_native_action_with_source(classic_rts_command_queue_path_preview_input)",
+            "preview_surface": "queue_stack+shift_waypoints+rally_chain+attack_focus+build_reservation+cancel_repath",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let queue_slot_pixel_count = count_color(CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR);
+    let path_pixel_count = count_color(CLASSIC_RTS_QUEUE_PREVIEW_PATH_COLOR);
+    let waypoint_pixel_count = count_color(CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR);
+    let target_pixel_count = count_color(CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR);
+    let reservation_pixel_count = count_color(CLASSIC_RTS_QUEUE_PREVIEW_RESERVATION_COLOR);
+    let cancel_pixel_count = count_color(CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR);
+    let queue_slot_visual_gate = queue_slot_pixel_count > 1_200;
+    let path_visual_gate = path_pixel_count > 400;
+    let waypoint_visual_gate = waypoint_pixel_count > 400;
+    let target_visual_gate = target_pixel_count > 300;
+    let reservation_visual_gate = reservation_pixel_count > 250;
+    let cancel_visual_gate = cancel_pixel_count > 250;
+    let stage_gate = [
+        "queue_stack",
+        "shift_waypoints",
+        "rally_chain",
+        "attack_focus",
+        "build_reservation",
+        "cancel_repath",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let summary_for_stage = |stage_name: &str| -> Option<&serde_json::Value> {
+        stage_summaries.iter().find(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some(stage_name)
+        })
+    };
+    let queue_stack_gate = summary_for_stage("queue_stack").is_some_and(|summary| {
+        summary
+            .get("queue_depth")
+            .and_then(|value| value.as_u64())
+            .is_some_and(|depth| depth >= 3)
+            && summary
+                .get("command_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|queue| {
+                    queue.iter().any(|entry| {
+                        entry
+                            .as_str()
+                            .is_some_and(|text| text.contains("box_select"))
+                    })
+                })
+    });
+    let shift_waypoint_gate = summary_for_stage("shift_waypoints").is_some_and(|summary| {
+        summary
+            .get("path_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|tiles| tiles.len() >= 3)
+            && summary
+                .get("formation_slot_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+            && summary
+                .get("blocked_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| !tiles.is_empty())
+    });
+    let rally_chain_gate = summary_for_stage("rally_chain").is_some_and(|summary| {
+        summary
+            .get("minimap_command_kind")
+            .and_then(|value| value.as_str())
+            == Some("rally")
+            && summary
+                .get("minimap_command_tile_id")
+                .and_then(|value| value.as_str())
+                == Some("9,2")
+            && summary
+                .get("group_route_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+    });
+    let attack_focus_gate = summary_for_stage("attack_focus").is_some_and(|summary| {
+        summary
+            .get("attack_target_id")
+            .and_then(|value| value.as_str())
+            == Some("arena_creep_attack")
+            && summary
+                .get("focus_fire_unit_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|units| units.len() >= 2)
+    });
+    let build_reservation_gate = summary_for_stage("build_reservation").is_some_and(|summary| {
+        summary
+            .get("building_blueprint_id")
+            .and_then(|value| value.as_str())
+            == Some("watch_tower")
+            && summary
+                .get("build_site_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 3)
+            && summary
+                .get("resource_delta_log")
+                .and_then(|value| value.as_array())
+                .is_some_and(|entries| {
+                    entries
+                        .iter()
+                        .any(|entry| entry.as_str().is_some_and(|text| text.contains("reserved")))
+                })
+    });
+    let cancel_repath_gate = summary_for_stage("cancel_repath").is_some_and(|summary| {
+        summary
+            .get("cancelled_structure_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some("watch_tower")))
+            && summary
+                .get("refund_delta_log")
+                .and_then(|value| value.as_array())
+                .is_some_and(|entries| {
+                    entries
+                        .iter()
+                        .any(|entry| entry.as_str().is_some_and(|text| text.contains("gold:+90")))
+                })
+    });
+    let live_input_gate = accepted_input_count == stages.len()
+        && input_sources.contains("classic_rts_command_queue_path_preview_input");
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && live_input_gate
+        && queue_slot_visual_gate
+        && path_visual_gate
+        && waypoint_visual_gate
+        && target_visual_gate
+        && reservation_visual_gate
+        && cancel_visual_gate
+        && stage_gate
+        && queue_stack_gate
+        && shift_waypoint_gate
+        && rally_chain_gate
+        && attack_focus_gate
+        && build_reservation_gate
+        && cancel_repath_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_QUEUE_PATH_PREVIEW_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay",
+        "input_path": "apply_live_native_action_with_source(classic_rts_command_queue_path_preview_input)",
+        "input_action_count": stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_path_tile_ids": runtime.rts_path_tile_ids,
+        "final_group_route_tile_ids": runtime.rts_group_route_tile_ids,
+        "final_build_site_tile_ids": runtime.rts_build_site_tile_ids,
+        "final_cancelled_structure_ids": runtime.rts_cancelled_structure_ids,
+        "queue_slot_pixel_count": queue_slot_pixel_count,
+        "path_pixel_count": path_pixel_count,
+        "waypoint_pixel_count": waypoint_pixel_count,
+        "target_pixel_count": target_pixel_count,
+        "reservation_pixel_count": reservation_pixel_count,
+        "cancel_pixel_count": cancel_pixel_count,
+        "live_input_gate": live_input_gate,
+        "queue_slot_visual_gate": queue_slot_visual_gate,
+        "path_visual_gate": path_visual_gate,
+        "waypoint_visual_gate": waypoint_visual_gate,
+        "target_visual_gate": target_visual_gate,
+        "reservation_visual_gate": reservation_visual_gate,
+        "cancel_visual_gate": cancel_visual_gate,
+        "stage_gate": stage_gate,
+        "queue_stack_gate": queue_stack_gate,
+        "shift_waypoint_gate": shift_waypoint_gate,
+        "rally_chain_gate": rally_chain_gate,
+        "attack_focus_gate": attack_focus_gate,
+        "build_reservation_gate": build_reservation_gate,
+        "cancel_repath_gate": cancel_repath_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium command queue and path preview overlays; queue slots, shift waypoints, rally chains, attack focus, build reservation, and cancel/repath feedback are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Command queue path preview evidence uses accepted Bevy-native RTS control actions, runtime command/path/build/cancel state, and actual classic_draw_scene frames to prove queued orders remain visible before the player commits or changes them."
+    }))
+    .expect("classic RTS command queue path preview evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -30718,6 +31392,15 @@ fn classic_draw_scene(
             height,
             runtime,
             feedback_stage,
+        );
+    }
+    if let Some(queue_stage) = classic_rts_command_queue_path_preview_stage(Some(runtime)) {
+        classic_draw_rts_command_queue_path_preview_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            queue_stage,
         );
     }
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {

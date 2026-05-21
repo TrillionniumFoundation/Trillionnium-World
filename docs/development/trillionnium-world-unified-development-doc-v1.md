@@ -427,6 +427,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第五十一组 RTS camera-minimap-sync gate：`scripts/check_trillionnium_world_bevy_classic_rts_camera_minimap_sync.sh` 把可滚动镜头继续推进到“小地图与镜头状态同步可读”。实际 `classic_draw_scene` 必须按 camera/minimap sync stage 画出 viewport_rect、fog_reveal、selection_follow、control_group_recall、route_projection、zoom_sync 六类反馈，包括小地图视口框、战争迷雾揭示、选中单位跟随、编队召回、小地图路线投影和缩放后的视口框变化；`viewport_sync_gate`、`fog_reveal_gate`、`selection_follow_gate`、`control_group_sync_gate`、`route_projection_gate`、`zoom_rect_sync_gate`、`minimap_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证小地图反馈来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定 native camera reducer、viewport rect、reveal tiles 和 selection-follow runtime。
 
+继续追加第五十二组 RTS command-queue-path-preview gate：`scripts/check_trillionnium_world_bevy_classic_rts_command_queue_path_preview.sh` 把“下令后才知道结果”推进到“命令队列与路径预览可读”。实际 `classic_draw_scene` 必须按 command queue path preview stage 画出 queue_stack、shift_waypoints、rally_chain、attack_focus、build_reservation、cancel_repath 六类反馈，包括队列槽位、Shift 路点、集结链、攻击焦点、建造预留和取消/重寻路提示；`live_input_gate`、`queue_stack_gate`、`shift_waypoint_gate`、`rally_chain_gate`、`attack_focus_gate`、`build_reservation_gate`、`cancel_repath_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证这些反馈来自 accepted Bevy native RTS control actions 和原创低配 renderer，不复制外部 RTS UI/光标/模型/文本资产。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
