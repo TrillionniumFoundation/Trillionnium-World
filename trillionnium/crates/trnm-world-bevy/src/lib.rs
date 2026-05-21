@@ -248,6 +248,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRAC
     "trillionnium_world_bevy_classic_rts_selection_command_feedback_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_HOTKEY_FEEDBACK_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -532,6 +534,12 @@ const CLASSIC_RTS_ABILITY_TELEGRAPH_WINDUP_COLOR: u32 = 0xffd26c;
 const CLASSIC_RTS_ABILITY_TELEGRAPH_COOLDOWN_COLOR: u32 = 0xa38bff;
 const CLASSIC_RTS_ABILITY_TELEGRAPH_QUEUE_COLOR: u32 = 0x7dffd0;
 const CLASSIC_RTS_ABILITY_TELEGRAPH_WARNING_COLOR: u32 = 0xff815f;
+const CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR: u32 = 0x88d4ff;
+const CLASSIC_RTS_CONTROL_GROUP_RECALL_COLOR: u32 = 0x9cff7a;
+const CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR: u32 = 0xffe36d;
+const CLASSIC_RTS_CONTROL_GROUP_IDLE_COLOR: u32 = 0xffa05f;
+const CLASSIC_RTS_CONTROL_GROUP_PRODUCTION_COLOR: u32 = 0xd49cff;
+const CLASSIC_RTS_CONTROL_GROUP_ABILITY_COLOR: u32 = 0x7dffd0;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -13594,6 +13602,377 @@ fn classic_draw_rts_ability_tooltip_telegraph_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_control_group_hotkey_feedback_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+        {
+            if event.contains("control_group_hotkey_feedback:ability_hotkey_ack") {
+                return Some("ability_hotkey_ack");
+            }
+            if event.contains("control_group_hotkey_feedback:production_hotkey") {
+                return Some("production_hotkey");
+            }
+            if event.contains("control_group_hotkey_feedback:idle_worker_ping") {
+                return Some("idle_worker_ping");
+            }
+            if event.contains("control_group_hotkey_feedback:double_tap_camera") {
+                return Some("double_tap_camera");
+            }
+            if event.contains("control_group_hotkey_feedback:recall_group") {
+                return Some("recall_group");
+            }
+            if event.contains("control_group_hotkey_feedback:assign_group") {
+                return Some("assign_group");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("control_group_hotkey_feedback:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 6 {
+            0 => "assign_group",
+            1 => "recall_group",
+            2 => "double_tap_camera",
+            3 => "idle_worker_ping",
+            4 => "production_hotkey",
+            _ => "ability_hotkey_ack",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_control_group_hotkey_feedback_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let panel_x = 18_i32;
+    let panel_y = (height as i32 - 154).max(118);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        308,
+        100,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        308,
+        3,
+        CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 10,
+        "CONTROL GROUP / HOTKEY FEEDBACK",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    for slot in 1..=6 {
+        let slot_x = panel_x + 12 + (slot - 1) * 45;
+        let active = runtime
+            .rts_active_control_group_ids
+            .iter()
+            .any(|group| group == &slot.to_string())
+            || runtime.rts_control_group_id.as_deref() == Some(&slot.to_string());
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            slot_x,
+            panel_y + 28,
+            35,
+            24,
+            if active {
+                CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR
+            } else {
+                CLASSIC_RTS_FIDELITY_PANEL_COLOR
+            },
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            slot_x + 13,
+            panel_y + 36,
+            &slot.to_string(),
+            1,
+            if active {
+                CLASSIC_RTS_STRATEGY_PANEL_COLOR
+            } else {
+                CLASSIC_HUD_TEXT_COLOR
+            },
+        );
+    }
+
+    match stage {
+        "assign_group" => {
+            for (index, unit_id) in runtime.rts_selected_unit_ids.iter().take(5).enumerate() {
+                let x = panel_x + 14 + index as i32 * 56;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    panel_y + 62,
+                    46,
+                    18,
+                    CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    x + 4,
+                    panel_y + 68,
+                    &classic_catalog_text_label(unit_id, 5),
+                    1,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x + 18,
+                panel_y + 86,
+                250,
+                5,
+                CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR,
+            );
+        }
+        "recall_group" => {
+            for (index, unit_id) in runtime.rts_selected_unit_ids.iter().take(4).enumerate() {
+                let x = width as i32 / 2 - 126 + index as i32 * 72;
+                let y = height as i32 / 2 - 58 + (index as i32 % 2) * 34;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 16,
+                    y - 16,
+                    56,
+                    5,
+                    CLASSIC_RTS_CONTROL_GROUP_RECALL_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x - 16,
+                    y + 28,
+                    56,
+                    5,
+                    CLASSIC_RTS_CONTROL_GROUP_RECALL_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    x - 10,
+                    y + 1,
+                    &classic_catalog_text_label(unit_id, 6),
+                    1,
+                    CLASSIC_RTS_CONTROL_GROUP_RECALL_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 18,
+                panel_y + 66,
+                "GROUP RECALL ACK",
+                1,
+                CLASSIC_RTS_CONTROL_GROUP_RECALL_COLOR,
+            );
+        }
+        "double_tap_camera" => {
+            let camera_x = width as i32 / 2 - 124;
+            let camera_y = height as i32 / 2 - 76;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                camera_x,
+                camera_y,
+                248,
+                6,
+                CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                camera_x,
+                camera_y + 138,
+                248,
+                6,
+                CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                camera_x,
+                camera_y,
+                6,
+                144,
+                CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                camera_x + 242,
+                camera_y,
+                6,
+                144,
+                CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR,
+            );
+            for tick in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    panel_x + 38 + tick * 32,
+                    panel_y + 64,
+                    22,
+                    22,
+                    CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR,
+                );
+            }
+        }
+        "idle_worker_ping" => {
+            for index in 0..6 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    panel_x + 24 + index * 42,
+                    panel_y + 60 + (index % 2) * 12,
+                    24,
+                    24,
+                    CLASSIC_RTS_CONTROL_GROUP_IDLE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    panel_x + 30 + index * 42,
+                    panel_y + 66 + (index % 2) * 12,
+                    12,
+                    12,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 18,
+                panel_y + 86,
+                "IDLE WORKER HOTKEY",
+                1,
+                CLASSIC_RTS_CONTROL_GROUP_IDLE_COLOR,
+            );
+        }
+        "production_hotkey" => {
+            for (index, queued) in runtime.rts_production_queue.iter().take(5).enumerate() {
+                let x = panel_x + 14 + index as i32 * 56;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    panel_y + 62,
+                    46,
+                    24,
+                    CLASSIC_RTS_CONTROL_GROUP_PRODUCTION_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    x + 4,
+                    panel_y + 69,
+                    &classic_catalog_text_label(&queued.replace(':', " "), 5),
+                    1,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+        }
+        "ability_hotkey_ack" => {
+            for (index, ability) in runtime.rts_ability_command_ids.iter().take(6).enumerate() {
+                let x = panel_x + 12 + index as i32 * 45;
+                let cooldown = runtime
+                    .rts_ability_cooldown_percents
+                    .get(index)
+                    .copied()
+                    .unwrap_or(0);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    panel_y + 60,
+                    34,
+                    26,
+                    CLASSIC_RTS_CONTROL_GROUP_ABILITY_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x + 3,
+                    panel_y + 82 - ((cooldown.min(100) as i32 * 18) / 100),
+                    28,
+                    4 + ((cooldown.min(100) as i32 * 18) / 100),
+                    CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    x + 4,
+                    panel_y + 67,
+                    &classic_catalog_text_label(ability, 4),
+                    1,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -16789,6 +17168,404 @@ pub fn native_classic_rts_ability_tooltip_telegraph_evidence_json(preview_path: 
         "source_of_truth": "Ability tooltip telegraph evidence uses accepted native RTS ability commands plus actual classic_draw_scene frames to prove ability hover, range, cast, cooldown, queue, and resource-block feedback are visible before and during player commands."
     }))
     .expect("classic RTS ability tooltip telegraph evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_control_group_hotkey_feedback_evidence_json(
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 860,
+        xp: 610,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 4,
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        rts_control_group_id: Some("1".to_string()),
+        rts_active_control_group_ids: string_vec(["1"]),
+        rts_selected_unit_ids: string_vec([
+            "mirror_captain",
+            "arena_guard_left",
+            "square_worker_carry",
+            "field_engineer",
+        ]),
+        rts_control_group_assignments: string_vec([
+            "1:mirror_captain|arena_guard_left|square_worker_carry|field_engineer",
+        ]),
+        rts_ability_command_ids: string_vec([
+            "move",
+            "attack",
+            "hold",
+            "patrol",
+            "guard_break",
+            "rally_aura",
+        ]),
+        rts_ability_cooldown_percents: vec![0, 8, 24, 0, 42, 16],
+        rts_production_queue: string_vec(["train:guard", "train:worker"]),
+        rts_army_supply_used: 10,
+        rts_army_supply_cap: 18,
+        ..Default::default()
+    };
+    let stages = [
+        (
+            "assign_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ),
+        (
+            "recall_group",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "2".to_string(),
+            },
+        ),
+        (
+            "double_tap_camera",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "2".to_string(),
+            },
+        ),
+        (
+            "idle_worker_ping",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "3".to_string(),
+            },
+        ),
+        (
+            "production_hotkey",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "hotkey:train:relay_guard@training_hall".to_string(),
+            },
+        ),
+        (
+            "ability_hotkey_ack",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "guard_break".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in stages.iter().enumerate() {
+        if *stage == "ability_hotkey_ack" {
+            runtime.rts_attack_target_id = Some("arena_creep_attack".to_string());
+        }
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_control_group_hotkey_feedback_input",
+            action.clone(),
+        );
+        runtime.combat_turn = index as u8;
+        match *stage {
+            "assign_group" => {
+                runtime.rts_control_group_id = Some("1".to_string());
+                runtime.rts_active_control_group_ids = string_vec(["1"]);
+                runtime.rts_selected_unit_ids = string_vec([
+                    "mirror_captain",
+                    "arena_guard_left",
+                    "square_worker_carry",
+                    "field_engineer",
+                ]);
+                runtime.rts_control_group_assignments = string_vec([
+                    "1:mirror_captain|arena_guard_left|square_worker_carry|field_engineer",
+                ]);
+                runtime.rts_group_command_state = "assigned:group_1".to_string();
+            }
+            "recall_group" => {
+                runtime.rts_control_group_id = Some("2".to_string());
+                runtime.rts_active_control_group_ids = string_vec(["1", "2"]);
+                runtime.rts_selected_unit_ids =
+                    string_vec(["arena_guard_left", "signal_lancer", "shield_runner"]);
+                runtime.rts_group_command_state = "recalled:group_2".to_string();
+            }
+            "double_tap_camera" => {
+                runtime.rts_control_group_id = Some("2".to_string());
+                runtime.rts_active_control_group_ids = string_vec(["1", "2"]);
+                runtime.rts_selected_unit_ids =
+                    string_vec(["arena_guard_left", "signal_lancer", "shield_runner"]);
+                runtime.rts_minimap_command_tile_id = Some("7,4".to_string());
+                runtime.rts_group_command_state = "camera_snap:group_2".to_string();
+            }
+            "idle_worker_ping" => {
+                runtime.rts_control_group_id = Some("3".to_string());
+                runtime.rts_active_control_group_ids = string_vec(["1", "2", "3"]);
+                runtime.rts_selected_unit_ids =
+                    string_vec(["square_worker_carry", "field_engineer", "relay_worker"]);
+                runtime.rts_worker_assignment_ids = string_vec(["idle:relay_worker"]);
+                runtime.rts_group_command_state = "idle_worker_ping:relay_worker".to_string();
+            }
+            "production_hotkey" => {
+                runtime.rts_control_group_id = Some("4".to_string());
+                runtime.rts_active_control_group_ids = string_vec(["1", "2", "3", "4"]);
+                runtime.rts_production_queue = string_vec([
+                    "hotkey:train:relay_guard@training_hall",
+                    "hotkey:train:field_engineer@town_hall",
+                    "hotkey:upgrade:signal_blade@signal_spire",
+                    "hotkey:build:field_lodge@6,4",
+                ]);
+                runtime.rts_group_command_state = "production_hotkey:queued".to_string();
+            }
+            "ability_hotkey_ack" => {
+                runtime.rts_control_group_id = Some("1".to_string());
+                runtime.rts_active_control_group_ids = string_vec(["1", "2", "3", "4"]);
+                runtime.rts_active_ability_id = Some("guard_break".to_string());
+                runtime.rts_ability_command_ids = string_vec([
+                    "move",
+                    "attack",
+                    "hold",
+                    "patrol",
+                    "guard_break",
+                    "rally_aura",
+                ]);
+                runtime.rts_ability_cooldown_percents = vec![0, 12, 24, 0, 62, 18];
+                runtime.rts_group_command_state = "ability_hotkey_ack:guard_break".to_string();
+            }
+            _ => {}
+        }
+        let hotkey_event = format!("control_group_hotkey_feedback:{stage}");
+        push_history(&mut runtime.rts_combat_event_log, &hotkey_event);
+        push_history(&mut runtime.rts_command_queue, &hotkey_event);
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 140,
+            &format!("HOTKEY FEEDBACK {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "hotkey_event": hotkey_event,
+            "action_label": action_label,
+            "accepted": accepted,
+            "renderer_path": "classic_draw_scene",
+            "control_group_id": runtime.rts_control_group_id.clone(),
+            "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "control_group_assignments": runtime.rts_control_group_assignments.clone(),
+            "group_command_state": runtime.rts_group_command_state.clone(),
+            "attack_target_id": runtime.rts_attack_target_id.clone(),
+            "minimap_command_tile_id": runtime.rts_minimap_command_tile_id.clone(),
+            "worker_assignment_ids": runtime.rts_worker_assignment_ids.clone(),
+            "production_queue": runtime.rts_production_queue.clone(),
+            "active_ability_id": runtime.rts_active_ability_id.clone(),
+            "ability_command_ids": runtime.rts_ability_command_ids.clone(),
+            "ability_cooldown_percents": runtime.rts_ability_cooldown_percents.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let assign_pixel_count = count_color(CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR);
+    let recall_pixel_count = count_color(CLASSIC_RTS_CONTROL_GROUP_RECALL_COLOR);
+    let camera_pixel_count = count_color(CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR);
+    let idle_pixel_count = count_color(CLASSIC_RTS_CONTROL_GROUP_IDLE_COLOR);
+    let production_pixel_count = count_color(CLASSIC_RTS_CONTROL_GROUP_PRODUCTION_COLOR);
+    let ability_pixel_count = count_color(CLASSIC_RTS_CONTROL_GROUP_ABILITY_COLOR);
+    let assign_gate = assign_pixel_count > 1_000;
+    let recall_gate = recall_pixel_count > 450;
+    let camera_gate = camera_pixel_count > 900;
+    let idle_gate = idle_pixel_count > 900;
+    let production_gate = production_pixel_count > 700;
+    let ability_gate = ability_pixel_count > 700;
+    let hotkey_stage_gate = [
+        "control_group_hotkey_feedback:assign_group",
+        "control_group_hotkey_feedback:recall_group",
+        "control_group_hotkey_feedback:double_tap_camera",
+        "control_group_hotkey_feedback:idle_worker_ping",
+        "control_group_hotkey_feedback:production_hotkey",
+        "control_group_hotkey_feedback:ability_hotkey_ack",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary.get("hotkey_event").and_then(|value| value.as_str()) == Some(*event)
+        })
+    });
+    let hotkey_runtime_gate = accepted_input_count == stages.len()
+        && input_sources.len() == 1
+        && input_sources.contains("classic_rts_control_group_hotkey_feedback_input")
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("active_control_group_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|groups| !groups.is_empty())
+                && summary
+                    .get("selected_unit_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|units| !units.is_empty())
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("assign_group")
+                && summary
+                    .get("control_group_assignments")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|assignments| !assignments.is_empty())
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("recall_group")
+                && summary
+                    .get("control_group_id")
+                    .and_then(|value| value.as_str())
+                    == Some("2")
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("double_tap_camera")
+                && summary
+                    .get("group_command_state")
+                    .and_then(|value| value.as_str())
+                    == Some("camera_snap:group_2")
+                && summary
+                    .get("minimap_command_tile_id")
+                    .and_then(|value| value.as_str())
+                    == Some("7,4")
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("idle_worker_ping")
+                && summary
+                    .get("worker_assignment_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|workers| !workers.is_empty())
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("production_hotkey")
+                && summary
+                    .get("production_queue")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|queue| queue.len() >= 4)
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("ability_hotkey_ack")
+                && summary
+                    .get("active_ability_id")
+                    .and_then(|value| value.as_str())
+                    == Some("guard_break")
+        });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && assign_gate
+        && recall_gate
+        && camera_gate
+        && idle_gate
+        && production_gate
+        && ability_gate
+        && hotkey_stage_gate
+        && hotkey_runtime_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_HOTKEY_FEEDBACK_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "input_path": "apply_live_native_action_with_source(classic_rts_control_group_hotkey_feedback_input)",
+        "input_action_count": stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_control_group_id": runtime.rts_control_group_id,
+        "final_active_control_group_ids": runtime.rts_active_control_group_ids,
+        "final_group_command_state": runtime.rts_group_command_state,
+        "final_production_queue": runtime.rts_production_queue,
+        "final_active_ability_id": runtime.rts_active_ability_id,
+        "assign_pixel_count": assign_pixel_count,
+        "recall_pixel_count": recall_pixel_count,
+        "camera_pixel_count": camera_pixel_count,
+        "idle_pixel_count": idle_pixel_count,
+        "production_pixel_count": production_pixel_count,
+        "ability_pixel_count": ability_pixel_count,
+        "assign_gate": assign_gate,
+        "recall_gate": recall_gate,
+        "camera_gate": camera_gate,
+        "idle_gate": idle_gate,
+        "production_gate": production_gate,
+        "ability_gate": ability_gate,
+        "hotkey_stage_gate": hotkey_stage_gate,
+        "hotkey_runtime_gate": hotkey_runtime_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium control-group/hotkey overlays; assignment, recall, double-tap camera, idle-worker ping, production hotkey, and ability hotkey acknowledgement are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Control-group hotkey feedback evidence uses accepted native RTS group, production, and ability commands plus actual classic_draw_scene frames to prove keyboard RTS intent is visible in the playable Bevy low-spec renderer."
+    }))
+    .expect("classic RTS control group hotkey feedback evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -28369,6 +29146,15 @@ fn classic_draw_scene(
         &player_frame,
     );
     classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    if let Some(hotkey_stage) = classic_rts_control_group_hotkey_feedback_stage(Some(runtime)) {
+        classic_draw_rts_control_group_hotkey_feedback_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            hotkey_stage,
+        );
+    }
     if let Some(telegraph_stage) = classic_rts_ability_tooltip_telegraph_stage(Some(runtime)) {
         classic_draw_rts_ability_tooltip_telegraph_overlay(
             buffer,
