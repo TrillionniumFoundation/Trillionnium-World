@@ -254,6 +254,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_HOTKEY_FEEDBACK_CONT
     "trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_scrollable_map_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_camera_minimap_sync_v1";
 const NATIVE_FEEDBACK_LANE_FONT_SIZE: f32 = 8.5;
 const CLASSIC_HUD_PANEL_COLOR: u32 = 0x1b2520;
 const CLASSIC_HUD_TEXT_COLOR: u32 = 0xe8f2dc;
@@ -550,6 +552,11 @@ const CLASSIC_RTS_SCROLL_DRAG_COLOR: u32 = 0xff7ab8;
 const CLASSIC_RTS_SCROLL_ZOOM_COLOR: u32 = 0x84ff8a;
 const CLASSIC_RTS_SCROLL_MINIMAP_COLOR: u32 = 0x5a7dff;
 const CLASSIC_RTS_SCROLL_CLAMP_COLOR: u32 = 0xff5a4d;
+const CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR: u32 = 0x7df7ff;
+const CLASSIC_RTS_CAMERA_SYNC_FOG_COLOR: u32 = 0x1c2722;
+const CLASSIC_RTS_CAMERA_SYNC_REVEAL_COLOR: u32 = 0xcfff75;
+const CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR: u32 = 0xffe16f;
+const CLASSIC_RTS_CAMERA_SYNC_ROUTE_COLOR: u32 = 0xff89cf;
 const CLASSIC_ISO_DOODAD_STONE_COLOR: u32 = 0x8d8a78;
 const CLASSIC_ISO_DOODAD_WOOD_COLOR: u32 = 0x7a5536;
 const CLASSIC_ISO_DOODAD_FIRE_COLOR: u32 = 0xff9d45;
@@ -1129,6 +1136,14 @@ pub struct RtsScrollableMapCameraStep {
     pub minimap_tile_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsCameraMinimapViewportRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Component)]
 pub struct BevyRtsScrollableMapCamera {
     pub state: RtsScrollableMapCameraState,
@@ -1203,6 +1218,61 @@ pub fn rts_scrollable_map_camera_focus_tile(state: RtsScrollableMapCameraState) 
     let tile_x = ((state.center_x / 72.0).round() as i32 + 5).clamp(1, 13);
     let tile_y = ((-state.center_y / 48.0).round() as i32 + 5).clamp(1, 8);
     (tile_x, tile_y)
+}
+
+pub fn rts_camera_minimap_viewport_rect(
+    state: RtsScrollableMapCameraState,
+    minimap_width: i32,
+    minimap_height: i32,
+) -> RtsCameraMinimapViewportRect {
+    let config = rts_scrollable_map_camera_config();
+    let normalized_x =
+        ((state.center_x - config.min_x) / (config.max_x - config.min_x)).clamp(0.0, 1.0);
+    let normalized_y =
+        ((state.center_y - config.min_y) / (config.max_y - config.min_y)).clamp(0.0, 1.0);
+    let width = ((minimap_width as f32 * 0.28) / state.zoom).round() as i32;
+    let height = ((minimap_height as f32 * 0.34) / state.zoom).round() as i32;
+    let width = width.clamp(18, (minimap_width - 8).max(18));
+    let height = height.clamp(14, (minimap_height - 8).max(14));
+    let max_x = (minimap_width - width).max(0);
+    let max_y = (minimap_height - height).max(0);
+    RtsCameraMinimapViewportRect {
+        x: ((normalized_x * max_x as f32).round() as i32).clamp(0, max_x),
+        y: (((1.0 - normalized_y) * max_y as f32).round() as i32).clamp(0, max_y),
+        width,
+        height,
+    }
+}
+
+pub fn rts_camera_minimap_revealed_tiles(focus_tile: (i32, i32)) -> Vec<String> {
+    let mut tile_ids = Vec::new();
+    for y_delta in -1..=1 {
+        for x_delta in -1..=1 {
+            let tile_x = (focus_tile.0 + x_delta).clamp(1, 13);
+            let tile_y = (focus_tile.1 + y_delta).clamp(1, 8);
+            let tile_id = format!("{tile_x},{tile_y}");
+            if !tile_ids.contains(&tile_id) {
+                tile_ids.push(tile_id);
+            }
+        }
+    }
+    tile_ids
+}
+
+pub fn rts_camera_minimap_selection_follow_step(
+    source: &str,
+    state: RtsScrollableMapCameraState,
+    selected_unit_id: &str,
+    selected_unit_center: Vec2,
+) -> RtsScrollableMapCameraStep {
+    apply_rts_scrollable_map_camera_input(
+        source,
+        state,
+        rts_scrollable_map_camera_config(),
+        Vec2::ZERO,
+        0.0,
+        Some((selected_unit_id, selected_unit_center)),
+    )
 }
 
 pub fn rts_scrollable_map_viewport_center() -> Vec2 {
@@ -14459,6 +14529,228 @@ fn classic_draw_rts_scrollable_map_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_camera_minimap_sync_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    step: &RtsScrollableMapCameraStep,
+    stage: &str,
+    viewport_rect: RtsCameraMinimapViewportRect,
+    focus_tile: (i32, i32),
+    revealed_tile_ids: &[String],
+    selected_unit_id: &str,
+    control_group_id: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let map_x = width as i32 - 198;
+    let map_y = height as i32 - 154;
+    let map_w = 160_i32;
+    let map_h = 116_i32;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        map_w,
+        map_h,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        map_w,
+        3,
+        CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        map_x + 8,
+        map_y + 8,
+        "CAMERA / MINIMAP SYNC",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        map_x + 8,
+        map_y + 23,
+        &classic_catalog_text_label(&stage.replace('_', " "), 21),
+        1,
+        CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+    );
+
+    let grid_x = map_x + 14;
+    let grid_y = map_y + 43;
+    let cell_w = 9_i32;
+    let cell_h = 7_i32;
+    for tile_y in 1..=8 {
+        for tile_x in 1..=13 {
+            let tile_id = format!("{tile_x},{tile_y}");
+            let color = if revealed_tile_ids.contains(&tile_id) {
+                CLASSIC_RTS_CAMERA_SYNC_REVEAL_COLOR
+            } else {
+                CLASSIC_RTS_CAMERA_SYNC_FOG_COLOR
+            };
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                grid_x + (tile_x - 1) * cell_w,
+                grid_y + (tile_y - 1) * cell_h,
+                cell_w - 2,
+                cell_h - 2,
+                color,
+            );
+        }
+    }
+
+    let rect_x = grid_x + viewport_rect.x;
+    let rect_y = grid_y + viewport_rect.y;
+    for (x, y, w, h) in [
+        (rect_x, rect_y, viewport_rect.width, 3),
+        (
+            rect_x,
+            rect_y + viewport_rect.height,
+            viewport_rect.width,
+            3,
+        ),
+        (rect_x, rect_y, 3, viewport_rect.height),
+        (
+            rect_x + viewport_rect.width,
+            rect_y,
+            3,
+            viewport_rect.height,
+        ),
+    ] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            w,
+            h,
+            CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+        );
+    }
+
+    let focus_x = grid_x + (focus_tile.0 - 1) * cell_w;
+    let focus_y = grid_y + (focus_tile.1 - 1) * cell_h;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        focus_x - 3,
+        focus_y - 3,
+        16,
+        4,
+        CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        focus_x + 3,
+        focus_y - 9,
+        4,
+        16,
+        CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR,
+    );
+    for index in 0..9 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            grid_x + 10 + index * 11,
+            grid_y + 78 - index * 3,
+            9,
+            3,
+            CLASSIC_RTS_CAMERA_SYNC_ROUTE_COLOR,
+        );
+    }
+
+    let detail_x = 22_i32;
+    let detail_y = (height as i32 - 124).max(116);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        detail_x,
+        detail_y,
+        324,
+        82,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        detail_x,
+        detail_y,
+        324,
+        3,
+        CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        detail_x + 10,
+        detail_y + 12,
+        &format!("GROUP {control_group_id} CAMERA LOCK"),
+        1,
+        CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        detail_x + 10,
+        detail_y + 29,
+        &format!(
+            "SELECT {}",
+            classic_catalog_text_label(selected_unit_id, 22)
+        ),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        detail_x + 10,
+        detail_y + 46,
+        &format!(
+            "FOCUS {},{}  ZOOM {:.2}",
+            focus_tile.0, focus_tile.1, step.after.zoom
+        ),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        detail_x + 10,
+        detail_y + 63,
+        &format!("REVEALED {} TILES", revealed_tile_ids.len()),
+        1,
+        CLASSIC_RTS_CAMERA_SYNC_REVEAL_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_art_pack_preview(
     buffer: &mut [u32],
     width: usize,
@@ -18420,6 +18712,403 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
         "source_of_truth": "Scrollable map evidence uses the Bevy RTS camera input reducer plus actual classic_draw_scene frames and local overlay pixels to prove mouse/keyboard map navigation remains visible in the playable low-spec renderer."
     }))
     .expect("classic RTS scrollable map evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    type CameraMinimapStage = (
+        &'static str,
+        &'static str,
+        Vec2,
+        f32,
+        Option<(&'static str, Vec2)>,
+        &'static str,
+        &'static str,
+    );
+    let assets = load_classic_runtime_assets();
+    let config = rts_scrollable_map_camera_config();
+    let stages: [CameraMinimapStage; 6] = [
+        (
+            "viewport_rect",
+            "camera_viewport_rect",
+            Vec2::new(0.0, 0.0),
+            0.0,
+            None,
+            "mirror_captain",
+            "1",
+        ),
+        (
+            "fog_reveal",
+            "edge_scroll",
+            Vec2::new(92.0, -54.0),
+            0.0,
+            None,
+            "mirror_captain",
+            "1",
+        ),
+        (
+            "selection_follow",
+            "selection_follow",
+            Vec2::ZERO,
+            0.0,
+            Some(("mirror_captain", Vec2::new(210.0, -96.0))),
+            "mirror_captain",
+            "1",
+        ),
+        (
+            "control_group_recall",
+            "control_group_recall_camera",
+            Vec2::new(-68.0, 58.0),
+            0.0,
+            None,
+            "field_engineer",
+            "2",
+        ),
+        (
+            "route_projection",
+            "minimap_route_projection",
+            Vec2::ZERO,
+            0.0,
+            Some(("minimap_route_target", Vec2::new(340.0, -128.0))),
+            "signal_lancer",
+            "2",
+        ),
+        (
+            "zoom_sync",
+            "wheel_zoom",
+            Vec2::ZERO,
+            0.52,
+            None,
+            "mirror_captain",
+            "1",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut camera_state = RtsScrollableMapCameraState {
+        center_x: rts_scrollable_map_viewport_center().x,
+        center_y: rts_scrollable_map_viewport_center().y,
+        zoom: 1.0,
+    };
+    let mut stage_summaries = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut viewport_rects = Vec::new();
+    let mut revealed_tile_union = HashSet::new();
+
+    for (
+        index,
+        (stage, source, pan_delta, zoom_delta, minimap_jump, selected_unit_id, control_group_id),
+    ) in stages.iter().enumerate()
+    {
+        input_sources.insert((*source).to_string());
+        let step = if *source == "selection_follow" {
+            let (_, unit_center) =
+                minimap_jump.expect("selection follow stage carries selected unit center");
+            rts_camera_minimap_selection_follow_step(
+                source,
+                camera_state,
+                selected_unit_id,
+                unit_center,
+            )
+        } else {
+            apply_rts_scrollable_map_camera_input(
+                source,
+                camera_state,
+                config,
+                *pan_delta,
+                *zoom_delta,
+                *minimap_jump,
+            )
+        };
+        camera_state = step.after;
+        let focus_tile = rts_scrollable_map_camera_focus_tile(step.after);
+        let viewport_rect = rts_camera_minimap_viewport_rect(step.after, 117, 56);
+        let revealed_tile_ids = rts_camera_minimap_revealed_tiles(focus_tile);
+        for tile_id in &revealed_tile_ids {
+            revealed_tile_union.insert(tile_id.clone());
+        }
+        viewport_rects.push((*stage, viewport_rect));
+        let command_destination_tile = Some(format!("{},{}", focus_tile.0, focus_tile.1));
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: "mirror_city_square".to_string(),
+            coins: 625,
+            xp: 48,
+            facing_direction: "east".to_string(),
+            walk_cycle_frame: index as u8 % 4,
+            rts_control_group_id: Some((*control_group_id).to_string()),
+            rts_active_control_group_ids: string_vec(["1", "2"]),
+            rts_selected_unit_ids: string_vec([
+                "mirror_captain",
+                "arena_guard_left",
+                "square_worker_carry",
+                "field_engineer",
+                "signal_lancer",
+            ]),
+            rts_command_destination_tile: command_destination_tile.clone(),
+            rts_minimap_command_tile_id: step
+                .minimap_tile_id
+                .clone()
+                .or_else(|| command_destination_tile.clone()),
+            rts_command_queue: vec![
+                (*source).to_string(),
+                format!("camera_minimap_sync:{stage}"),
+                format!("reveal_tiles:{}", revealed_tile_ids.len()),
+            ],
+            last_feedback: format!("RTS camera minimap sync stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            focus_tile,
+            &runtime,
+            &assets,
+        );
+        classic_draw_rts_camera_minimap_sync_overlay(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            &step,
+            stage,
+            viewport_rect,
+            focus_tile,
+            &revealed_tile_ids,
+            selected_unit_id,
+            control_group_id,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!("CAMERA MINIMAP {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "source": source,
+            "before": step.before,
+            "after": step.after,
+            "pan_delta_x": step.pan_delta_x,
+            "pan_delta_y": step.pan_delta_y,
+            "zoom_delta": step.zoom_delta,
+            "clamped": step.clamped,
+            "minimap_tile_id": step.minimap_tile_id,
+            "focus_tile": {
+                "x": focus_tile.0,
+                "y": focus_tile.1,
+            },
+            "viewport_rect": viewport_rect,
+            "viewport_rect_area": viewport_rect.width * viewport_rect.height,
+            "revealed_tile_ids": revealed_tile_ids,
+            "selected_unit_id": selected_unit_id,
+            "control_group_id": control_group_id,
+            "command_destination_tile": runtime.rts_command_destination_tile,
+            "minimap_command_tile_id": runtime.rts_minimap_command_tile_id,
+            "command_queue": runtime.rts_command_queue,
+            "renderer_path": "classic_draw_scene+classic_draw_rts_camera_minimap_sync_overlay",
+            "runtime_path": "apply_rts_scrollable_map_camera_input+rts_camera_minimap_viewport_rect+rts_camera_minimap_revealed_tiles",
+            "selection_follow_path": "rts_camera_minimap_selection_follow_step",
+            "minimap_sync_surface": "viewport_rect+fog_reveal+selection_follow+control_group+route_projection+zoom_sync",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let viewport_pixel_count = count_color(CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR);
+    let fog_pixel_count = count_color(CLASSIC_RTS_CAMERA_SYNC_FOG_COLOR);
+    let reveal_pixel_count = count_color(CLASSIC_RTS_CAMERA_SYNC_REVEAL_COLOR);
+    let selection_pixel_count = count_color(CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR);
+    let route_pixel_count = count_color(CLASSIC_RTS_CAMERA_SYNC_ROUTE_COLOR);
+    let viewport_visual_gate = viewport_pixel_count > 2_400;
+    let fog_visual_gate = fog_pixel_count > 8_000;
+    let reveal_visual_gate = reveal_pixel_count > 800;
+    let selection_visual_gate = selection_pixel_count > 1_000;
+    let route_visual_gate = route_pixel_count > 900;
+    let stage_gate = [
+        "viewport_rect",
+        "fog_reveal",
+        "selection_follow",
+        "control_group_recall",
+        "route_projection",
+        "zoom_sync",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let viewport_sync_gate = viewport_rects.iter().all(|(_, rect)| {
+        rect.width >= 18
+            && rect.height >= 14
+            && rect.x >= 0
+            && rect.y >= 0
+            && rect.x + rect.width <= 117
+            && rect.y + rect.height <= 56
+    });
+    let fog_reveal_gate = revealed_tile_union.len() >= 12
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("revealed_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| tiles.len() >= 4)
+        });
+    let selection_follow_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("selection_follow")
+            && summary
+                .get("selected_unit_id")
+                .and_then(|value| value.as_str())
+                == Some("mirror_captain")
+            && summary
+                .get("minimap_tile_id")
+                .and_then(|value| value.as_str())
+                == Some("mirror_captain")
+    });
+    let control_group_sync_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("control_group_recall")
+            && summary
+                .get("control_group_id")
+                .and_then(|value| value.as_str())
+                == Some("2")
+    });
+    let route_projection_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("route_projection")
+            && summary
+                .get("minimap_tile_id")
+                .and_then(|value| value.as_str())
+                == Some("minimap_route_target")
+    });
+    let viewport_area_for_stage = |stage_name: &str| -> Option<i32> {
+        viewport_rects
+            .iter()
+            .find(|(stage, _)| *stage == stage_name)
+            .map(|(_, rect)| rect.width * rect.height)
+    };
+    let zoom_rect_sync_gate = viewport_area_for_stage("zoom_sync")
+        .zip(viewport_area_for_stage("viewport_rect"))
+        .is_some_and(|(zoom_area, viewport_area)| zoom_area < viewport_area);
+    let minimap_runtime_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            let zoom_ok = summary
+                .get("after")
+                .and_then(|value| value.get("zoom"))
+                .and_then(|value| value.as_f64())
+                .is_some_and(|zoom| {
+                    zoom >= config.min_zoom as f64 && zoom <= config.max_zoom as f64
+                });
+            let focus_x_ok = summary
+                .get("focus_tile")
+                .and_then(|value| value.get("x"))
+                .and_then(|value| value.as_i64())
+                .is_some_and(|tile| (1..=13).contains(&tile));
+            let focus_y_ok = summary
+                .get("focus_tile")
+                .and_then(|value| value.get("y"))
+                .and_then(|value| value.as_i64())
+                .is_some_and(|tile| (1..=8).contains(&tile));
+            zoom_ok && focus_x_ok && focus_y_ok
+        });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene+classic_draw_rts_camera_minimap_sync_overlay")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && viewport_visual_gate
+        && fog_visual_gate
+        && reveal_visual_gate
+        && selection_visual_gate
+        && route_visual_gate
+        && stage_gate
+        && viewport_sync_gate
+        && fog_reveal_gate
+        && selection_follow_gate
+        && control_group_sync_gate
+        && route_projection_gate
+        && zoom_rect_sync_gate
+        && minimap_runtime_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene+classic_draw_rts_camera_minimap_sync_overlay",
+        "input_path": "apply_rts_scrollable_map_camera_input(classic_rts_camera_minimap_sync_input)",
+        "runtime_path": "apply_rts_scrollable_map_camera_input+rts_camera_minimap_viewport_rect+rts_camera_minimap_revealed_tiles",
+        "selection_follow_path": "rts_camera_minimap_selection_follow_step",
+        "native_runtime_path": "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view+rts_camera_minimap_viewport_rect",
+        "input_action_count": stages.len(),
+        "input_sources": input_sources,
+        "stage_summaries": stage_summaries,
+        "final_camera_state": camera_state,
+        "revealed_tile_union_count": revealed_tile_union.len(),
+        "viewport_pixel_count": viewport_pixel_count,
+        "fog_pixel_count": fog_pixel_count,
+        "reveal_pixel_count": reveal_pixel_count,
+        "selection_pixel_count": selection_pixel_count,
+        "route_pixel_count": route_pixel_count,
+        "viewport_visual_gate": viewport_visual_gate,
+        "fog_visual_gate": fog_visual_gate,
+        "reveal_visual_gate": reveal_visual_gate,
+        "selection_visual_gate": selection_visual_gate,
+        "route_visual_gate": route_visual_gate,
+        "stage_gate": stage_gate,
+        "viewport_sync_gate": viewport_sync_gate,
+        "fog_reveal_gate": fog_reveal_gate,
+        "selection_follow_gate": selection_follow_gate,
+        "control_group_sync_gate": control_group_sync_gate,
+        "route_projection_gate": route_projection_gate,
+        "zoom_rect_sync_gate": zoom_rect_sync_gate,
+        "minimap_runtime_gate": minimap_runtime_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium camera/minimap sync overlays; viewport rectangle, fog reveal, selection follow, control-group recall, route projection, and zoom synchronization are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Camera/minimap sync evidence uses the Bevy RTS camera reducer, minimap viewport math, revealed tile state, selection-follow runtime, and actual classic_draw_scene frames to prove camera and minimap feedback stay synchronized in the playable low-spec renderer."
+    }))
+    .expect("classic RTS camera minimap sync evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

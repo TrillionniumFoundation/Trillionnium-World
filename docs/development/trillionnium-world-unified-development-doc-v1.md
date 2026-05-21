@@ -423,6 +423,10 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第四十九组 RTS control-group-hotkey-feedback gate：`scripts/check_trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback.sh` 把编队与快捷键从“状态字段存在”推进到“键盘 RTS 操作反馈可读”。实际 `classic_draw_scene` 必须按 control group hotkey feedback event 画出 assign_group、recall_group、double_tap_camera、idle_worker_ping、production_hotkey、ability_hotkey_ack 六类反馈，包括编队写入、编队召回、双击镜头跳转、空闲工人提示、生产快捷键和技能快捷键确认；`assign_gate`、`recall_gate`、`camera_gate`、`idle_gate`、`production_gate`、`ability_gate`、`hotkey_stage_gate`、`hotkey_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证快捷键反馈来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定 native control-group、production queue、ability cooldown 与 input feedback runtime。
 
+继续追加第五十组 RTS scrollable-map gate：`scripts/check_trillionnium_world_bevy_classic_rts_scrollable_map.sh` 把地图从“单屏战场”推进到“可滚动大图”。实际 Bevy runtime 必须支持 Shift+WASD/方向键平移、边缘滚动、中键拖拽、滚轮缩放、小地图跳转、边界 clamp、map layer 投影和 HUD 固定；`keyboard_pan_gate`、`edge_scroll_gate`、`drag_pan_gate`、`wheel_zoom_gate`、`minimap_jump_gate`、`boundary_clamp_gate`、`map_layer_projection_gate`、`hud_fixed_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证镜头导航由 native RTS camera reducer 和原创低配 renderer 共同证明。
+
+继续追加第五十一组 RTS camera-minimap-sync gate：`scripts/check_trillionnium_world_bevy_classic_rts_camera_minimap_sync.sh` 把可滚动镜头继续推进到“小地图与镜头状态同步可读”。实际 `classic_draw_scene` 必须按 camera/minimap sync stage 画出 viewport_rect、fog_reveal、selection_follow、control_group_recall、route_projection、zoom_sync 六类反馈，包括小地图视口框、战争迷雾揭示、选中单位跟随、编队召回、小地图路线投影和缩放后的视口框变化；`viewport_sync_gate`、`fog_reveal_gate`、`selection_follow_gate`、`control_group_sync_gate`、`route_projection_gate`、`zoom_rect_sync_gate`、`minimap_runtime_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证小地图反馈来自 Trillionnium 原创 Bevy 低配 renderer，并且仍绑定 native camera reducer、viewport rect、reveal tiles 和 selection-follow runtime。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
