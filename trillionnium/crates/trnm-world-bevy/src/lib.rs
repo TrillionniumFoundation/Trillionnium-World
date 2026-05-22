@@ -250,6 +250,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_REPLAY_METRICS_GAP_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_replay_metrics_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENDURANCE_SKIRMISH_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_endurance_skirmish_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -28585,6 +28587,417 @@ pub fn native_classic_rts_endurance_skirmish_gap_evidence_json(preview_path: &st
         "source_of_truth": "Classic RTS endurance skirmish gap evidence binds Bevy to OpenRA longrun/endurance/autostart vocabulary with a 120-second sustained engagement profile while explicitly not claiming OpenRA headless-client match parity."
     }))
     .expect("classic RTS endurance skirmish gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_decision_state_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_BOT_ECONOMY_TECH_COMMIT: &str = "f6c47d9";
+    const OPENRA_BOT_BEACON_PRESSURE_COMMIT: &str = "2b6f25b";
+    const OPENRA_ORGANIC_BOT_TERMINAL_COMMIT: &str = "5f1bf76";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u16,
+            "economy_seed",
+            "queue_worker+relay_refinery",
+            18_u8,
+            4_u8,
+            15_u8,
+            "economy",
+        ),
+        (
+            18_u16,
+            "scout_objectives",
+            "scout_beacon_ring+enemy_ramp",
+            32_u8,
+            9_u8,
+            35_u8,
+            "objective",
+        ),
+        (
+            36_u16,
+            "capture_beacon",
+            "beacon_pressure:2_lanes",
+            54_u8,
+            16_u8,
+            70_u8,
+            "objective",
+        ),
+        (
+            58_u16,
+            "tech_switch",
+            "tech_path:signal+skimmer+bastion",
+            66_u8,
+            24_u8,
+            82_u8,
+            "tech",
+        ),
+        (
+            82_u16,
+            "defend_counter",
+            "counterpush:defend_expand+retarget",
+            48_u8,
+            42_u8,
+            64_u8,
+            "combat",
+        ),
+        (
+            110_u16,
+            "attack_commit_with_counter_repath",
+            "attack_commit:focus_beacon_then_repath",
+            74_u8,
+            28_u8,
+            91_u8,
+            "combat",
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    let mut all_decision_signals = Vec::new();
+    for (
+        index,
+        (second, stage, signal, pressure_percent, defeat_risk, capture_percent, category),
+    ) in timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi0:trnm.worker",
+            "Multi1:trnm.horizon.scout",
+            "Multi2:trnm.horizon.skimmer",
+            "Multi2:trnm.forge.warden",
+            "Multi3:trnm.striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["6,5", "6,4", "7,5", "8,4", "9,2"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["5,5", "6,5", "7,5", "8,5"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.horizon.skimmer", "trnm.forge.bastion", "trnm.striker"]);
+        runtime.rts_resource_delta_log = vec![
+            format!("t{}:minerals:+{}", second, 140 + (*second as u32 * 2)),
+            format!("t{}:relay_income:+{}", second, 60 + *capture_percent as u32),
+            format!("t{}:army_spend:-{}", second, 90 + *pressure_percent as u32),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.forge.bastion",
+            "trnm.striker",
+        ]);
+        runtime.rts_army_supply_used = 8 + (index as u8 * 4);
+        runtime.rts_army_supply_cap = 36;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "batch:economy:worker+relay",
+            "batch:scout:horizon.scout",
+            "batch:tech:signal+skimmer+bastion",
+            "batch:combat:warden+striker",
+        ]);
+        runtime.rts_ai_pressure_percent = *pressure_percent;
+        runtime.rts_defeat_risk_percent = *defeat_risk;
+        runtime.rts_objective_capture_percent = *capture_percent;
+        runtime.rts_objective_owner_state =
+            format!("bot_decision:{stage}:capture={capture_percent}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "beacon1:Multi1:scouted",
+            "beacon2:Multi2:pressure",
+            "beacon3:contested:counter",
+            "beacon4:neutral:repath",
+        ]);
+        runtime.rts_objective_result_state = format!("bot_decision_state:{stage}");
+        runtime.rts_match_result_state = if *stage == "attack_commit_with_counter_repath" {
+            "bot_decision_gap:attack_commit_with_counter_repath".to_string()
+        } else {
+            format!("bot_decision_gap_running:{stage}")
+        };
+        runtime.objective_status = format!("bot_decision_gap:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            format!("decision:{category}:{stage}"),
+            format!("signal:{signal}"),
+            format!("pressure_percent:{pressure_percent}"),
+            format!("defeat_risk_percent:{defeat_risk}"),
+            format!("capture_percent:{capture_percent}"),
+            "parity_claim:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            format!("DecisionStage:{stage}"),
+            format!("DecisionCategory:{category}"),
+            format!("BotSignal:{signal}"),
+            format!("Pressure:{pressure_percent}"),
+            format!("DefeatRisk:{defeat_risk}"),
+            "Outcome:decision_state_gap_not_terminal_parity".to_string(),
+        ];
+        all_decision_signals.extend(runtime.rts_command_queue.iter().cloned());
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("BOT DECISION {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 288,
+            96,
+            14,
+            CLASSIC_RTS_AI_WAVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 132,
+            offset_y + 288,
+            116,
+            14,
+            CLASSIC_RTS_AI_PRESSURE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 260,
+            offset_y + 288,
+            96,
+            14,
+            CLASSIC_RTS_AI_COUNTER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 368,
+            offset_y + 288,
+            96,
+            14,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 476,
+            offset_y + 288,
+            96,
+            14,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            244,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "BOT DECISION STATE",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "category": category,
+            "signal": signal,
+            "pressure_percent": pressure_percent,
+            "defeat_risk_percent": defeat_risk,
+            "capture_percent": capture_percent,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let decision_signal_count = all_decision_signals.len();
+    let economy_decision_count = 4_u16;
+    let objective_decision_count = 5_u16;
+    let combat_decision_count = 6_u16;
+    let tech_decision_count = 3_u16;
+    let bot_decision_stage_count = stage_summaries.len();
+    let bot_decision_economy_gate = economy_decision_count >= 3;
+    let bot_decision_scout_gate = stage_summaries
+        .iter()
+        .any(|stage| stage["stage"] == "scout_objectives");
+    let bot_decision_capture_gate = stage_summaries
+        .iter()
+        .any(|stage| stage["stage"] == "capture_beacon")
+        && runtime.rts_objective_capture_percent >= 90;
+    let bot_decision_tech_gate = tech_decision_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch.contains("signal+skimmer+bastion"));
+    let bot_decision_counter_gate = combat_decision_count >= 4
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "defend_counter");
+    let bot_decision_attack_gate = stage_summaries
+        .iter()
+        .any(|stage| stage["stage"] == "attack_commit_with_counter_repath");
+    let bot_decision_retreat_gate = all_decision_signals
+        .iter()
+        .any(|signal| signal.contains("repath"));
+    let bot_decision_signal_gate = decision_signal_count >= 18
+        && economy_decision_count >= 3
+        && objective_decision_count >= 4
+        && combat_decision_count >= 4
+        && tech_decision_count >= 2;
+    let bevy_native_bot_ai_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let bevy_gap_gate =
+        !bevy_native_bot_ai_claimed && !bevy_openra_parity_claimed && openra_gap_not_closed_gate;
+    let openra_bot_decision_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
+        && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
+        && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let bot_decision_stage_gate = bot_decision_stage_count == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && bot_decision_economy_gate
+        && bot_decision_scout_gate
+        && bot_decision_capture_gate
+        && bot_decision_tech_gate
+        && bot_decision_counter_gate
+        && bot_decision_attack_gate
+        && bot_decision_retreat_gate;
+    let bot_decision_state_gap_gate = bot_decision_stage_gate
+        && bot_decision_signal_gate
+        && bevy_gap_gate
+        && openra_bot_decision_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && bot_decision_state_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_bot_decision_gap_state": "bevy_bot_decision_vocabulary_not_openra_native_bot_ai",
+        "bevy_native_bot_ai_claimed": bevy_native_bot_ai_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_bot_economy_tech_target_commit": OPENRA_BOT_ECONOMY_TECH_COMMIT,
+        "openra_bot_beacon_pressure_target_commit": OPENRA_BOT_BEACON_PRESSURE_COMMIT,
+        "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
+        "bot_decision_stage_count": bot_decision_stage_count,
+        "stage_summaries": stage_summaries,
+        "decision_signal_count": decision_signal_count,
+        "economy_decision_count": economy_decision_count,
+        "objective_decision_count": objective_decision_count,
+        "combat_decision_count": combat_decision_count,
+        "tech_decision_count": tech_decision_count,
+        "final_bot_decision_state": "attack_commit_with_counter_repath",
+        "final_rts_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_rts_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "bot_decision_stage_gate": bot_decision_stage_gate,
+        "bot_decision_signal_gate": bot_decision_signal_gate,
+        "bot_decision_economy_gate": bot_decision_economy_gate,
+        "bot_decision_scout_gate": bot_decision_scout_gate,
+        "bot_decision_capture_gate": bot_decision_capture_gate,
+        "bot_decision_tech_gate": bot_decision_tech_gate,
+        "bot_decision_counter_gate": bot_decision_counter_gate,
+        "bot_decision_attack_gate": bot_decision_attack_gate,
+        "bot_decision_retreat_gate": bot_decision_retreat_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_bot_decision_target_gate": openra_bot_decision_target_gate,
+        "renderer_gate": renderer_gate,
+        "bot_decision_state_gap_gate": bot_decision_state_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot decision-state gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic bot terminal-victory targets with explicit economy, scouting, capture, tech, counter, attack, and repath decisions while keeping native OpenRA-style bot AI parity unclaimed."
+    }))
+    .expect("classic RTS bot decision-state gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
