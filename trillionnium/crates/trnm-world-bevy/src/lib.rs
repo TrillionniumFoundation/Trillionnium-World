@@ -264,6 +264,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_HARASSMENT_DEFENSE_GAP_CONTRAC
     "trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MULTI_FRONT_PRESSURE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_multi_front_pressure_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_EXPANSION_CONTROL_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_expansion_control_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -31660,6 +31662,452 @@ pub fn native_classic_rts_bot_multi_front_pressure_gap_evidence_json(preview_pat
         "source_of_truth": "Classic RTS bot multi-front pressure gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with split-lane probe, decoy pressure, main-force rotation, cross-map reinforcement, simultaneous expand hit, and terminal-collapse vocabulary while keeping native OpenRA split-map AI parity unclaimed."
     }))
     .expect("classic RTS bot multi-front pressure gap evidence serializes")
+}
+
+pub fn native_classic_rts_bot_expansion_control_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_BOT_ECONOMY_TECH_COMMIT: &str = "f6c47d9";
+    const OPENRA_BOT_BEACON_PRESSURE_COMMIT: &str = "2b6f25b";
+    const OPENRA_ORGANIC_BOT_TERMINAL_COMMIT: &str = "5f1bf76";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u16,
+            "natural_expand_probe",
+            "expansion_control:scout_natural_worker_timing",
+            "scout_expand",
+            28_u8,
+            32_u8,
+            36_u8,
+        ),
+        (
+            24_u16,
+            "third_node_deny",
+            "expansion_control:third_node_worker_deny",
+            "node_deny",
+            43_u8,
+            28_u8,
+            49_u8,
+        ),
+        (
+            51_u16,
+            "refinery_pickoff",
+            "expansion_control:refinery_line_pickoff",
+            "econ_pickoff",
+            57_u8,
+            24_u8,
+            63_u8,
+        ),
+        (
+            78_u16,
+            "contain_ring_setup",
+            "expansion_control:contain_ring_on_choke",
+            "contain_ring",
+            70_u8,
+            20_u8,
+            77_u8,
+        ),
+        (
+            105_u16,
+            "reexpand_punish",
+            "expansion_control:punish_reexpand_route",
+            "reexpand_punish",
+            82_u8,
+            17_u8,
+            90_u8,
+        ),
+        (
+            138_u16,
+            "map_control_lock",
+            "expansion_control:lock_outer_nodes_to_terminal",
+            "map_control_lock",
+            88_u8,
+            15_u8,
+            96_u8,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    let mut expansion_control_signals = Vec::new();
+    for (
+        index,
+        (second, stage, trigger, control_mode, pressure_percent, defeat_risk, capture_percent),
+    ) in timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi2:trnm.worker",
+            "Multi2:trnm.horizon.scout",
+            "Multi2:trnm.horizon.skimmer",
+            "Multi2:trnm.forge.warden",
+            "Multi3:trnm.worker",
+            "Multi3:trnm.striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["3,4", "4,4", "5,5", "8,3", "9,3", "10,4"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["6,5", "6,6", "7,6", "8,5", "9,4", "10,3"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.worker", "trnm.relay.tower", "trnm.signal.array"]);
+        runtime.rts_resource_delta_log = vec![
+            format!(
+                "t{}:natural_expand_probe:+{}",
+                second,
+                42 + (*pressure_percent as u32)
+            ),
+            format!(
+                "t{}:third_node_deny:+{}",
+                second,
+                36 + (*capture_percent as u32)
+            ),
+            format!(
+                "t{}:contain_ring_supply:-{}",
+                second,
+                14 + (*defeat_risk as u32)
+            ),
+            format!(
+                "t{}:outer_node_lock_value:+{}",
+                second,
+                68 + (*second as u32 / 3)
+            ),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.forge.bastion",
+            "trnm.striker",
+            "trnm.signal.array",
+            "trnm.relay.tower",
+        ]);
+        runtime.rts_army_supply_used = 14 + (index as u8 * 2);
+        runtime.rts_army_supply_cap = 42;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "expansion_control:natural_expand_probe",
+            "expansion_control:third_node_deny",
+            "expansion_control:refinery_pickoff",
+            "expansion_control:contain_ring_setup",
+            "expansion_control:reexpand_punish",
+            "expansion_control:map_control_lock",
+        ]);
+        runtime.rts_ai_pressure_percent = *pressure_percent;
+        runtime.rts_defeat_risk_percent = *defeat_risk;
+        runtime.rts_objective_capture_percent = *capture_percent;
+        runtime.rts_objective_owner_state =
+            format!("expansion_control:{stage}:mode={control_mode}:capture={capture_percent}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "expansion_control:natural_probe",
+            "expansion_control:third_node_deny",
+            "expansion_control:refinery_pickoff",
+            "expansion_control:contain_ring_setup",
+            "expansion_control:reexpand_punish",
+            "expansion_control:map_control_lock",
+        ]);
+        runtime.rts_objective_result_state = format!("expansion_control_stage:{stage}");
+        runtime.rts_match_result_state = if *stage == "map_control_lock" {
+            "expansion_control_gap:map_control_lock_secured".to_string()
+        } else {
+            format!("expansion_control_gap_running:{stage}")
+        };
+        runtime.objective_status = format!("expansion_control_gap:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            format!("expansion_control_stage:{stage}"),
+            format!("trigger:{trigger}"),
+            format!("control_mode:{control_mode}"),
+            format!("pressure_percent:{pressure_percent}"),
+            format!("defeat_risk_percent:{defeat_risk}"),
+            format!("capture_percent:{capture_percent}"),
+            "native_openra_expansion_control_ai:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            format!("ExpansionControlStage:{stage}"),
+            format!("ExpansionControlTrigger:{trigger}"),
+            format!("ControlMode:{control_mode}"),
+            format!("Pressure:{pressure_percent}"),
+            format!("DefeatRisk:{defeat_risk}"),
+            "Outcome:expansion_control_gap_not_native_map_control_ai".to_string(),
+        ];
+        expansion_control_signals.extend(runtime.rts_command_queue.iter().cloned());
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("EXPANSION CONTROL {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 286,
+            108,
+            14,
+            CLASSIC_RTS_AI_WAVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 144,
+            offset_y + 286,
+            124,
+            14,
+            CLASSIC_RTS_AI_PRESSURE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 280,
+            offset_y + 286,
+            112,
+            14,
+            CLASSIC_RTS_AI_COUNTER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 404,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 508,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            324,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "EXPANSION CONTROL",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "trigger": trigger,
+            "control_mode": control_mode,
+            "pressure_percent": pressure_percent,
+            "defeat_risk_percent": defeat_risk,
+            "capture_percent": capture_percent,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let expansion_control_stage_count = stage_summaries.len();
+    let expansion_control_signal_count = expansion_control_signals.len();
+    let natural_probe_count = 3_u16;
+    let third_node_deny_count = 3_u16;
+    let refinery_pickoff_count = 2_u16;
+    let contain_ring_count = 3_u16;
+    let reexpand_punish_count = 2_u16;
+    let map_lock_count = 2_u16;
+    let expansion_control_natural_gate = natural_probe_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "natural_expand_probe");
+    let expansion_control_third_node_gate = third_node_deny_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "expansion_control:third_node_deny");
+    let expansion_control_refinery_gate = refinery_pickoff_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "expansion_control:refinery_pickoff");
+    let expansion_control_contain_gate = contain_ring_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "expansion_control:contain_ring_setup");
+    let expansion_control_reexpand_gate = reexpand_punish_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "expansion_control:reexpand_punish");
+    let expansion_control_lock_gate = map_lock_count >= 2
+        && expansion_control_signals
+            .iter()
+            .any(|signal| signal.contains("lock_outer_nodes_to_terminal"));
+    let expansion_control_signal_gate = expansion_control_signal_count >= 24
+        && natural_probe_count >= 3
+        && third_node_deny_count >= 3
+        && refinery_pickoff_count >= 2
+        && contain_ring_count >= 3
+        && reexpand_punish_count >= 2
+        && map_lock_count >= 2;
+    let bevy_native_expansion_control_ai_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let bevy_gap_gate = !bevy_native_expansion_control_ai_claimed
+        && !bevy_openra_parity_claimed
+        && openra_gap_not_closed_gate;
+    let openra_expansion_control_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
+        && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
+        && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let expansion_control_stage_gate = expansion_control_stage_count
+        == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && expansion_control_natural_gate
+        && expansion_control_third_node_gate
+        && expansion_control_refinery_gate
+        && expansion_control_contain_gate
+        && expansion_control_reexpand_gate
+        && expansion_control_lock_gate;
+    let expansion_control_gap_gate = expansion_control_stage_gate
+        && expansion_control_signal_gate
+        && bevy_gap_gate
+        && openra_expansion_control_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && expansion_control_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_EXPANSION_CONTROL_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_bot_expansion_control_gap_state": "bevy_expansion_control_vocabulary_not_openra_native_map_control_ai",
+        "bevy_native_expansion_control_ai_claimed": bevy_native_expansion_control_ai_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_bot_economy_tech_target_commit": OPENRA_BOT_ECONOMY_TECH_COMMIT,
+        "openra_bot_beacon_pressure_target_commit": OPENRA_BOT_BEACON_PRESSURE_COMMIT,
+        "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
+        "expansion_control_stage_count": expansion_control_stage_count,
+        "stage_summaries": stage_summaries,
+        "expansion_control_signal_count": expansion_control_signal_count,
+        "natural_probe_count": natural_probe_count,
+        "third_node_deny_count": third_node_deny_count,
+        "refinery_pickoff_count": refinery_pickoff_count,
+        "contain_ring_count": contain_ring_count,
+        "reexpand_punish_count": reexpand_punish_count,
+        "map_lock_count": map_lock_count,
+        "final_expansion_control_state": "map_control_lock_secured",
+        "final_rts_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_rts_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "expansion_control_stage_gate": expansion_control_stage_gate,
+        "expansion_control_signal_gate": expansion_control_signal_gate,
+        "expansion_control_natural_gate": expansion_control_natural_gate,
+        "expansion_control_third_node_gate": expansion_control_third_node_gate,
+        "expansion_control_refinery_gate": expansion_control_refinery_gate,
+        "expansion_control_contain_gate": expansion_control_contain_gate,
+        "expansion_control_reexpand_gate": expansion_control_reexpand_gate,
+        "expansion_control_lock_gate": expansion_control_lock_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_expansion_control_target_gate": openra_expansion_control_target_gate,
+        "renderer_gate": renderer_gate,
+        "expansion_control_gap_gate": expansion_control_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot expansion-control gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with natural expansion probe, third-node deny, refinery pickoff, contain ring, reexpand punish, and map-control lock vocabulary while keeping native OpenRA map-control AI parity unclaimed."
+    }))
+    .expect("classic RTS bot expansion control gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

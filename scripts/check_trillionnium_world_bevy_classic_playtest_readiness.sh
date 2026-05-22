@@ -48,6 +48,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_macro_economy_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_multi_front_pressure_gap.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_expansion_control_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh" >/dev/null
@@ -134,6 +135,7 @@ jq -n \
   --slurpfile rts_bot_macro_economy_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-macro-economy-gap.json" \
   --slurpfile rts_bot_harassment_defense_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-harassment-defense-gap.json" \
   --slurpfile rts_bot_multi_front_pressure_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-multi-front-pressure-gap.json" \
+  --slurpfile rts_bot_expansion_control_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-expansion-control-gap.json" \
   --slurpfile rts_creep_camp "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json" \
   --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
   --slurpfile rts_enemy_base "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.json" \
@@ -226,6 +228,7 @@ jq -n \
       and ok($rts_bot_macro_economy_gap)
       and ok($rts_bot_harassment_defense_gap)
       and ok($rts_bot_multi_front_pressure_gap)
+      and ok($rts_bot_expansion_control_gap)
       and ok($rts_creep_camp)
       and ok($rts_fog)
       and ok($rts_enemy_base)
@@ -530,6 +533,7 @@ jq -n \
       classic_rts_bot_macro_economy_gap_green: ok($rts_bot_macro_economy_gap),
       classic_rts_bot_harassment_defense_gap_green: ok($rts_bot_harassment_defense_gap),
       classic_rts_bot_multi_front_pressure_gap_green: ok($rts_bot_multi_front_pressure_gap),
+      classic_rts_bot_expansion_control_gap_green: ok($rts_bot_expansion_control_gap),
       classic_rts_creep_camp_terrain_route_green: ok($rts_creep_camp),
       classic_rts_fog_scouting_intel_green: ok($rts_fog),
       classic_rts_enemy_base_tech_pressure_green: ok($rts_enemy_base),
@@ -1217,6 +1221,37 @@ jq -n \
       rts_bot_multi_front_pressure_gap_objective_pixel_count: $rts_bot_multi_front_pressure_gap[0].objective_pixel_count,
       rts_bot_multi_front_pressure_gap_capture_bar_pixel_count: $rts_bot_multi_front_pressure_gap[0].capture_bar_pixel_count,
       rts_bot_multi_front_pressure_gap_match_result_pixel_count: $rts_bot_multi_front_pressure_gap[0].match_result_pixel_count,
+      rts_bot_expansion_control_gap_stage_count: $rts_bot_expansion_control_gap[0].expansion_control_stage_count,
+      rts_bot_expansion_control_gap_state: $rts_bot_expansion_control_gap[0].bevy_bot_expansion_control_gap_state,
+      rts_bot_expansion_control_gap_openra_economy_tech_commit: $rts_bot_expansion_control_gap[0].openra_bot_economy_tech_target_commit,
+      rts_bot_expansion_control_gap_openra_beacon_pressure_commit: $rts_bot_expansion_control_gap[0].openra_bot_beacon_pressure_target_commit,
+      rts_bot_expansion_control_gap_openra_organic_terminal_commit: $rts_bot_expansion_control_gap[0].openra_organic_bot_terminal_target_commit,
+      rts_bot_expansion_control_gap_expansion_control_signals: $rts_bot_expansion_control_gap[0].expansion_control_signal_count,
+      rts_bot_expansion_control_gap_natural_probes: $rts_bot_expansion_control_gap[0].natural_probe_count,
+      rts_bot_expansion_control_gap_third_node_denies: $rts_bot_expansion_control_gap[0].third_node_deny_count,
+      rts_bot_expansion_control_gap_refinery_pickoffs: $rts_bot_expansion_control_gap[0].refinery_pickoff_count,
+      rts_bot_expansion_control_gap_contain_rings: $rts_bot_expansion_control_gap[0].contain_ring_count,
+      rts_bot_expansion_control_gap_reexpand_punishes: $rts_bot_expansion_control_gap[0].reexpand_punish_count,
+      rts_bot_expansion_control_gap_map_locks: $rts_bot_expansion_control_gap[0].map_lock_count,
+      rts_bot_expansion_control_gap_final_state: $rts_bot_expansion_control_gap[0].final_expansion_control_state,
+      rts_bot_expansion_control_gap_final_pressure_percent: $rts_bot_expansion_control_gap[0].final_rts_ai_pressure_percent,
+      rts_bot_expansion_control_gap_final_defeat_risk_percent: $rts_bot_expansion_control_gap[0].final_rts_defeat_risk_percent,
+      rts_bot_expansion_control_gap_final_capture_percent: $rts_bot_expansion_control_gap[0].final_objective_capture_percent,
+      rts_bot_expansion_control_gap_match_result: $rts_bot_expansion_control_gap[0].final_match_result_state,
+      rts_bot_expansion_control_gap_pixel_count: (
+        $rts_bot_expansion_control_gap[0].ai_wave_pixel_count
+        + $rts_bot_expansion_control_gap[0].ai_pressure_pixel_count
+        + $rts_bot_expansion_control_gap[0].ai_counter_pixel_count
+        + $rts_bot_expansion_control_gap[0].objective_pixel_count
+        + $rts_bot_expansion_control_gap[0].capture_bar_pixel_count
+        + $rts_bot_expansion_control_gap[0].match_result_pixel_count
+      ),
+      rts_bot_expansion_control_gap_ai_wave_pixel_count: $rts_bot_expansion_control_gap[0].ai_wave_pixel_count,
+      rts_bot_expansion_control_gap_ai_pressure_pixel_count: $rts_bot_expansion_control_gap[0].ai_pressure_pixel_count,
+      rts_bot_expansion_control_gap_ai_counter_pixel_count: $rts_bot_expansion_control_gap[0].ai_counter_pixel_count,
+      rts_bot_expansion_control_gap_objective_pixel_count: $rts_bot_expansion_control_gap[0].objective_pixel_count,
+      rts_bot_expansion_control_gap_capture_bar_pixel_count: $rts_bot_expansion_control_gap[0].capture_bar_pixel_count,
+      rts_bot_expansion_control_gap_match_result_pixel_count: $rts_bot_expansion_control_gap[0].match_result_pixel_count,
       rts_creep_camp_terrain_route_accepted_input_count: $rts_creep_camp[0].accepted_input_count,
       rts_creep_camp_terrain_route_camp_tile_count: ($rts_creep_camp[0].final_creep_camp_tile_ids | length),
       rts_creep_camp_terrain_route_unit_count: ($rts_creep_camp[0].final_creep_camp_unit_ids | length),
@@ -1986,6 +2021,19 @@ jq -n \
       rts_bot_multi_front_pressure_gap_renderer_gate: $rts_bot_multi_front_pressure_gap[0].renderer_gate,
       rts_bot_multi_front_pressure_gap_openra_gap_not_closed_gate: $rts_bot_multi_front_pressure_gap[0].openra_gap_not_closed_gate,
       rts_bot_multi_front_pressure_gap_gate: $rts_bot_multi_front_pressure_gap[0].multi_front_pressure_gap_gate,
+      rts_bot_expansion_control_gap_stage_gate: $rts_bot_expansion_control_gap[0].expansion_control_stage_gate,
+      rts_bot_expansion_control_gap_signal_gate: $rts_bot_expansion_control_gap[0].expansion_control_signal_gate,
+      rts_bot_expansion_control_gap_natural_gate: $rts_bot_expansion_control_gap[0].expansion_control_natural_gate,
+      rts_bot_expansion_control_gap_third_node_gate: $rts_bot_expansion_control_gap[0].expansion_control_third_node_gate,
+      rts_bot_expansion_control_gap_refinery_gate: $rts_bot_expansion_control_gap[0].expansion_control_refinery_gate,
+      rts_bot_expansion_control_gap_contain_gate: $rts_bot_expansion_control_gap[0].expansion_control_contain_gate,
+      rts_bot_expansion_control_gap_reexpand_gate: $rts_bot_expansion_control_gap[0].expansion_control_reexpand_gate,
+      rts_bot_expansion_control_gap_lock_gate: $rts_bot_expansion_control_gap[0].expansion_control_lock_gate,
+      rts_bot_expansion_control_gap_bevy_gap_gate: $rts_bot_expansion_control_gap[0].bevy_gap_gate,
+      rts_bot_expansion_control_gap_openra_target_gate: $rts_bot_expansion_control_gap[0].openra_expansion_control_target_gate,
+      rts_bot_expansion_control_gap_renderer_gate: $rts_bot_expansion_control_gap[0].renderer_gate,
+      rts_bot_expansion_control_gap_openra_gap_not_closed_gate: $rts_bot_expansion_control_gap[0].openra_gap_not_closed_gate,
+      rts_bot_expansion_control_gap_gate: $rts_bot_expansion_control_gap[0].expansion_control_gap_gate,
       rts_creep_camp_terrain_route_live_input_gate: $rts_creep_camp[0].live_creep_camp_input_gate,
       rts_creep_camp_terrain_route_terrain_gate: $rts_creep_camp[0].terrain_route_gate,
       rts_creep_camp_terrain_route_choke_gate: $rts_creep_camp[0].choke_gate,
@@ -2426,6 +2474,8 @@ jq -n \
       classic_rts_bot_harassment_defense_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-harassment-defense-gap.ppm",
       classic_rts_bot_multi_front_pressure_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-multi-front-pressure-gap.json",
       classic_rts_bot_multi_front_pressure_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-multi-front-pressure-gap.ppm",
+      classic_rts_bot_expansion_control_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-expansion-control-gap.json",
+      classic_rts_bot_expansion_control_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-expansion-control-gap.ppm",
       classic_rts_creep_camp_terrain_route: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json",
       classic_rts_creep_camp_terrain_route_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.ppm",
       classic_rts_fog_scouting_intel: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json",
@@ -2563,6 +2613,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_bot_macro_economy_gap_green == true
   and .checks.classic_rts_bot_harassment_defense_gap_green == true
   and .checks.classic_rts_bot_multi_front_pressure_gap_green == true
+  and .checks.classic_rts_bot_expansion_control_gap_green == true
   and .checks.classic_rts_creep_camp_terrain_route_green == true
   and .checks.classic_rts_fog_scouting_intel_green == true
   and .checks.classic_rts_enemy_base_tech_pressure_green == true
@@ -3142,6 +3193,30 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_bot_multi_front_pressure_gap_objective_pixel_count > 80
   and .headline.rts_bot_multi_front_pressure_gap_capture_bar_pixel_count > 20
   and .headline.rts_bot_multi_front_pressure_gap_match_result_pixel_count > 20
+  and .headline.rts_bot_expansion_control_gap_stage_count == 6
+  and .headline.rts_bot_expansion_control_gap_state == "bevy_expansion_control_vocabulary_not_openra_native_map_control_ai"
+  and .headline.rts_bot_expansion_control_gap_openra_economy_tech_commit == "f6c47d9"
+  and .headline.rts_bot_expansion_control_gap_openra_beacon_pressure_commit == "2b6f25b"
+  and .headline.rts_bot_expansion_control_gap_openra_organic_terminal_commit == "5f1bf76"
+  and .headline.rts_bot_expansion_control_gap_expansion_control_signals >= 24
+  and .headline.rts_bot_expansion_control_gap_natural_probes >= 3
+  and .headline.rts_bot_expansion_control_gap_third_node_denies >= 3
+  and .headline.rts_bot_expansion_control_gap_refinery_pickoffs >= 2
+  and .headline.rts_bot_expansion_control_gap_contain_rings >= 3
+  and .headline.rts_bot_expansion_control_gap_reexpand_punishes >= 2
+  and .headline.rts_bot_expansion_control_gap_map_locks >= 2
+  and .headline.rts_bot_expansion_control_gap_final_state == "map_control_lock_secured"
+  and .headline.rts_bot_expansion_control_gap_final_pressure_percent >= 85
+  and .headline.rts_bot_expansion_control_gap_final_defeat_risk_percent <= 20
+  and .headline.rts_bot_expansion_control_gap_final_capture_percent >= 90
+  and .headline.rts_bot_expansion_control_gap_match_result == "expansion_control_gap:map_control_lock_secured"
+  and .headline.rts_bot_expansion_control_gap_pixel_count > 500
+  and .headline.rts_bot_expansion_control_gap_ai_wave_pixel_count > 80
+  and .headline.rts_bot_expansion_control_gap_ai_pressure_pixel_count > 120
+  and .headline.rts_bot_expansion_control_gap_ai_counter_pixel_count > 80
+  and .headline.rts_bot_expansion_control_gap_objective_pixel_count > 80
+  and .headline.rts_bot_expansion_control_gap_capture_bar_pixel_count > 20
+  and .headline.rts_bot_expansion_control_gap_match_result_pixel_count > 20
   and .headline.rts_creep_camp_terrain_route_accepted_input_count == 6
   and .headline.rts_creep_camp_terrain_route_camp_tile_count >= 4
   and .headline.rts_creep_camp_terrain_route_unit_count >= 3
@@ -3594,6 +3669,19 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_multi_front_pressure_gap_renderer_gate == true
   and .gates.rts_bot_multi_front_pressure_gap_openra_gap_not_closed_gate == true
   and .gates.rts_bot_multi_front_pressure_gap_gate == true
+  and .gates.rts_bot_expansion_control_gap_stage_gate == true
+  and .gates.rts_bot_expansion_control_gap_signal_gate == true
+  and .gates.rts_bot_expansion_control_gap_natural_gate == true
+  and .gates.rts_bot_expansion_control_gap_third_node_gate == true
+  and .gates.rts_bot_expansion_control_gap_refinery_gate == true
+  and .gates.rts_bot_expansion_control_gap_contain_gate == true
+  and .gates.rts_bot_expansion_control_gap_reexpand_gate == true
+  and .gates.rts_bot_expansion_control_gap_lock_gate == true
+  and .gates.rts_bot_expansion_control_gap_bevy_gap_gate == true
+  and .gates.rts_bot_expansion_control_gap_openra_target_gate == true
+  and .gates.rts_bot_expansion_control_gap_renderer_gate == true
+  and .gates.rts_bot_expansion_control_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_bot_expansion_control_gap_gate == true
   and .gates.rts_creep_camp_terrain_route_live_input_gate == true
   and .gates.rts_creep_camp_terrain_route_terrain_gate == true
   and .gates.rts_creep_camp_terrain_route_choke_gate == true
