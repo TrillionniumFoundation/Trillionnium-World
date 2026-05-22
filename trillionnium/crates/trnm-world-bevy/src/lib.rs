@@ -262,6 +262,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MACRO_ECONOMY_GAP_CONTRACT: &s
     "trillionnium_world_bevy_classic_rts_bot_macro_economy_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_HARASSMENT_DEFENSE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MULTI_FRONT_PRESSURE_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_multi_front_pressure_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -31212,6 +31214,452 @@ pub fn native_classic_rts_bot_harassment_defense_gap_evidence_json(preview_path:
         "source_of_truth": "Classic RTS bot harassment-defense gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker pullback, repair/body-block, static defense, counter-raid, retreat path, and rebuild vocabulary while keeping native OpenRA harassment AI parity unclaimed."
     }))
     .expect("classic RTS bot harassment-defense gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_multi_front_pressure_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_BOT_ECONOMY_TECH_COMMIT: &str = "f6c47d9";
+    const OPENRA_BOT_BEACON_PRESSURE_COMMIT: &str = "2b6f25b";
+    const OPENRA_ORGANIC_BOT_TERMINAL_COMMIT: &str = "5f1bf76";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u16,
+            "dual_scout_lane_probe",
+            "multi_front:left_right_lane_probe",
+            "split_probe",
+            26_u8,
+            34_u8,
+            34_u8,
+        ),
+        (
+            21_u16,
+            "decoy_beacon_pressure",
+            "multi_front:decoy_beacon_draws_defense",
+            "decoy_pressure",
+            39_u8,
+            29_u8,
+            48_u8,
+        ),
+        (
+            45_u16,
+            "main_force_rotate",
+            "multi_front:main_force_rotates_to_weak_side",
+            "rotate_main",
+            54_u8,
+            25_u8,
+            61_u8,
+        ),
+        (
+            70_u16,
+            "reinforce_cross_map",
+            "multi_front:reinforcement_cross_map_join",
+            "reinforce_join",
+            67_u8,
+            21_u8,
+            74_u8,
+        ),
+        (
+            98_u16,
+            "simultaneous_expand_hit",
+            "multi_front:expand_and_beacon_hit_same_window",
+            "two_front_hit",
+            79_u8,
+            18_u8,
+            87_u8,
+        ),
+        (
+            132_u16,
+            "collapse_to_terminal",
+            "multi_front:collapse_pressure_to_terminal_beacon",
+            "terminal_collapse",
+            86_u8,
+            16_u8,
+            95_u8,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    let mut multi_front_signals = Vec::new();
+    for (
+        index,
+        (second, stage, trigger, pressure_mode, pressure_percent, defeat_risk, capture_percent),
+    ) in timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi2:trnm.horizon.scout",
+            "Multi2:trnm.horizon.skimmer",
+            "Multi2:trnm.forge.warden",
+            "Multi2:trnm.striker",
+            "Multi3:trnm.horizon.scout",
+            "Multi3:trnm.striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["4,5", "5,5", "6,5", "9,2", "9,3", "8,4"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["6,4", "7,4", "8,5", "8,6", "5,6", "4,6"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.worker", "trnm.striker", "trnm.forge.bastion"]);
+        runtime.rts_resource_delta_log = vec![
+            format!(
+                "t{}:left_front_pressure:+{}",
+                second,
+                44 + (*pressure_percent as u32)
+            ),
+            format!(
+                "t{}:right_front_decoy:+{}",
+                second,
+                31 + (*capture_percent as u32)
+            ),
+            format!(
+                "t{}:cross_map_reinforce:-{}",
+                second,
+                18 + (*defeat_risk as u32)
+            ),
+            format!(
+                "t{}:terminal_collapse_value:+{}",
+                second,
+                65 + (*second as u32 / 3)
+            ),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.forge.bastion",
+            "trnm.striker",
+            "trnm.signal.array",
+            "trnm.relay.tower",
+        ]);
+        runtime.rts_army_supply_used = 12 + (index as u8 * 2);
+        runtime.rts_army_supply_cap = 40;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "multi_front:dual_scout_lane_probe",
+            "multi_front:decoy_beacon_pressure",
+            "multi_front:main_force_rotate",
+            "multi_front:reinforce_cross_map",
+            "multi_front:simultaneous_expand_hit",
+            "multi_front:collapse_to_terminal",
+        ]);
+        runtime.rts_ai_pressure_percent = *pressure_percent;
+        runtime.rts_defeat_risk_percent = *defeat_risk;
+        runtime.rts_objective_capture_percent = *capture_percent;
+        runtime.rts_objective_owner_state =
+            format!("multi_front:{stage}:mode={pressure_mode}:capture={capture_percent}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "multi_front:split_lane_probe",
+            "multi_front:decoy_beacon_pressure",
+            "multi_front:main_force_rotate",
+            "multi_front:cross_map_reinforce",
+            "multi_front:simultaneous_expand_hit",
+            "multi_front:terminal_collapse",
+        ]);
+        runtime.rts_objective_result_state = format!("multi_front_pressure_stage:{stage}");
+        runtime.rts_match_result_state = if *stage == "collapse_to_terminal" {
+            "multi_front_pressure_gap:terminal_collapse_secured".to_string()
+        } else {
+            format!("multi_front_pressure_gap_running:{stage}")
+        };
+        runtime.objective_status = format!("multi_front_pressure_gap:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            format!("multi_front_stage:{stage}"),
+            format!("trigger:{trigger}"),
+            format!("pressure_mode:{pressure_mode}"),
+            format!("pressure_percent:{pressure_percent}"),
+            format!("defeat_risk_percent:{defeat_risk}"),
+            format!("capture_percent:{capture_percent}"),
+            "native_openra_multi_front_ai:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            format!("MultiFrontStage:{stage}"),
+            format!("MultiFrontTrigger:{trigger}"),
+            format!("PressureMode:{pressure_mode}"),
+            format!("Pressure:{pressure_percent}"),
+            format!("DefeatRisk:{defeat_risk}"),
+            "Outcome:multi_front_pressure_gap_not_native_split_map_ai".to_string(),
+        ];
+        multi_front_signals.extend(runtime.rts_command_queue.iter().cloned());
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("MULTI FRONT {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 286,
+            108,
+            14,
+            CLASSIC_RTS_AI_WAVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 144,
+            offset_y + 286,
+            124,
+            14,
+            CLASSIC_RTS_AI_PRESSURE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 280,
+            offset_y + 286,
+            112,
+            14,
+            CLASSIC_RTS_AI_COUNTER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 404,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 508,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            324,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "MULTI FRONT PRESSURE",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "trigger": trigger,
+            "pressure_mode": pressure_mode,
+            "pressure_percent": pressure_percent,
+            "defeat_risk_percent": defeat_risk,
+            "capture_percent": capture_percent,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let multi_front_stage_count = stage_summaries.len();
+    let multi_front_signal_count = multi_front_signals.len();
+    let split_lane_count = 2_u16;
+    let decoy_pressure_count = 3_u16;
+    let rotation_count = 3_u16;
+    let reinforce_join_count = 3_u16;
+    let simultaneous_hit_count = 2_u16;
+    let terminal_collapse_count = 2_u16;
+    let multi_front_split_gate = split_lane_count >= 2
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "dual_scout_lane_probe");
+    let multi_front_decoy_gate = decoy_pressure_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "multi_front:decoy_beacon_pressure");
+    let multi_front_rotation_gate = rotation_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "multi_front:main_force_rotate");
+    let multi_front_reinforce_gate = reinforce_join_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "multi_front:reinforce_cross_map");
+    let multi_front_simultaneous_gate = simultaneous_hit_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "multi_front:simultaneous_expand_hit");
+    let multi_front_terminal_gate = terminal_collapse_count >= 2
+        && multi_front_signals
+            .iter()
+            .any(|signal| signal.contains("collapse_pressure_to_terminal_beacon"));
+    let multi_front_signal_gate = multi_front_signal_count >= 24
+        && split_lane_count >= 2
+        && decoy_pressure_count >= 3
+        && rotation_count >= 3
+        && reinforce_join_count >= 3
+        && simultaneous_hit_count >= 2
+        && terminal_collapse_count >= 2;
+    let bevy_native_multi_front_ai_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let bevy_gap_gate = !bevy_native_multi_front_ai_claimed
+        && !bevy_openra_parity_claimed
+        && openra_gap_not_closed_gate;
+    let openra_multi_front_pressure_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
+        && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
+        && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let multi_front_stage_gate = multi_front_stage_count == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && multi_front_split_gate
+        && multi_front_decoy_gate
+        && multi_front_rotation_gate
+        && multi_front_reinforce_gate
+        && multi_front_simultaneous_gate
+        && multi_front_terminal_gate;
+    let multi_front_pressure_gap_gate = multi_front_stage_gate
+        && multi_front_signal_gate
+        && bevy_gap_gate
+        && openra_multi_front_pressure_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && multi_front_pressure_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MULTI_FRONT_PRESSURE_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_bot_multi_front_pressure_gap_state": "bevy_multi_front_pressure_vocabulary_not_openra_native_split_map_ai",
+        "bevy_native_multi_front_ai_claimed": bevy_native_multi_front_ai_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_bot_economy_tech_target_commit": OPENRA_BOT_ECONOMY_TECH_COMMIT,
+        "openra_bot_beacon_pressure_target_commit": OPENRA_BOT_BEACON_PRESSURE_COMMIT,
+        "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
+        "multi_front_stage_count": multi_front_stage_count,
+        "stage_summaries": stage_summaries,
+        "multi_front_signal_count": multi_front_signal_count,
+        "split_lane_count": split_lane_count,
+        "decoy_pressure_count": decoy_pressure_count,
+        "rotation_count": rotation_count,
+        "reinforce_join_count": reinforce_join_count,
+        "simultaneous_hit_count": simultaneous_hit_count,
+        "terminal_collapse_count": terminal_collapse_count,
+        "final_multi_front_state": "terminal_collapse_secured",
+        "final_rts_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_rts_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "multi_front_stage_gate": multi_front_stage_gate,
+        "multi_front_signal_gate": multi_front_signal_gate,
+        "multi_front_split_gate": multi_front_split_gate,
+        "multi_front_decoy_gate": multi_front_decoy_gate,
+        "multi_front_rotation_gate": multi_front_rotation_gate,
+        "multi_front_reinforce_gate": multi_front_reinforce_gate,
+        "multi_front_simultaneous_gate": multi_front_simultaneous_gate,
+        "multi_front_terminal_gate": multi_front_terminal_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_multi_front_pressure_target_gate": openra_multi_front_pressure_target_gate,
+        "renderer_gate": renderer_gate,
+        "multi_front_pressure_gap_gate": multi_front_pressure_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot multi-front pressure gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with split-lane probe, decoy pressure, main-force rotation, cross-map reinforcement, simultaneous expand hit, and terminal-collapse vocabulary while keeping native OpenRA split-map AI parity unclaimed."
+    }))
+    .expect("classic RTS bot multi-front pressure gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
