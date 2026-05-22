@@ -1141,6 +1141,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-bot-tactical-micro-gap" | "--classic-rts-bot-tactical-micro-gap")
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-tactical-micro-gap.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_bot_tactical_micro_gap_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-rts-creep-camp-terrain-route" | "--classic-rts-creep-camp-terrain-route")
     ) {
         let preview_path = args.get(1).map(String::as_str).unwrap_or(

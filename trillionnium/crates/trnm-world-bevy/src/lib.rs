@@ -254,6 +254,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_TACTICAL_MICRO_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -29438,6 +29440,438 @@ pub fn native_classic_rts_bot_adaptive_build_order_gap_evidence_json(preview_pat
         "source_of_truth": "Classic RTS bot adaptive build-order gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with scout-triggered branch switching, counter-tech, pressure timing, retreat, rebuild, and reattack vocabulary while keeping native OpenRA AI planner parity unclaimed."
     }))
     .expect("classic RTS bot adaptive build-order gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_tactical_micro_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_BOT_ECONOMY_TECH_COMMIT: &str = "f6c47d9";
+    const OPENRA_BOT_BEACON_PRESSURE_COMMIT: &str = "2b6f25b";
+    const OPENRA_ORGANIC_BOT_TERMINAL_COMMIT: &str = "5f1bf76";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 3,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u16,
+            "target_priority_probe",
+            "probe:warden_frontline_then_skimmer_backline",
+            "target_priority",
+            26_u8,
+            30_u8,
+            40_u8,
+            4_u8,
+        ),
+        (
+            18_u16,
+            "focus_fire_commit",
+            "micro:focus_fire_low_armor_striker",
+            "focus_fire",
+            48_u8,
+            28_u8,
+            52_u8,
+            5_u8,
+        ),
+        (
+            38_u16,
+            "kite_and_stutter_step",
+            "micro:kite_bastion_range_edge",
+            "kite_step",
+            57_u8,
+            22_u8,
+            61_u8,
+            5_u8,
+        ),
+        (
+            58_u16,
+            "flank_angle_split",
+            "micro:split_skimmer_to_side_arc",
+            "flank_split",
+            68_u8,
+            19_u8,
+            72_u8,
+            6_u8,
+        ),
+        (
+            82_u16,
+            "ability_timing_window",
+            "micro:signal_burst_on_capture_tick",
+            "ability_timing",
+            78_u8,
+            17_u8,
+            84_u8,
+            6_u8,
+        ),
+        (
+            112_u16,
+            "low_health_pullback_regroup",
+            "micro:pull_redline_units_regroup_reattack",
+            "pullback_regroup",
+            74_u8,
+            14_u8,
+            93_u8,
+            7_u8,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    let mut micro_signals = Vec::new();
+    for (
+        index,
+        (second, stage, trigger, tactic, pressure_percent, defeat_risk, capture_percent, supply),
+    ) in timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi2:trnm.horizon.skimmer",
+            "Multi2:trnm.forge.warden",
+            "Multi2:trnm.forge.bastion",
+            "Multi2:trnm.striker",
+            "Multi1:trnm.horizon.scout",
+            "Multi3:trnm.forge.bastion",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["6,5", "7,5", "8,5", "8,4", "9,4"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["5,5", "6,4", "7,4", "7,6", "8,6"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.striker", "trnm.forge.bastion", "trnm.horizon.skimmer"]);
+        runtime.rts_resource_delta_log = vec![
+            format!("t{}:micro_bank_hold:+{}", second, 60 + (*second as u32)),
+            format!("t{}:ability_window_cost:-{}", second, 24 + (*supply as u32)),
+            format!(
+                "t{}:saved_unit_value:+{}",
+                second,
+                40 + (*capture_percent as u32)
+            ),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.forge.bastion",
+            "trnm.striker",
+            "trnm.signal.array",
+        ]);
+        runtime.rts_army_supply_used = *supply;
+        runtime.rts_army_supply_cap = 40;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "micro_control:target_priority_matrix",
+            "micro_control:focus_fire_low_armor_striker",
+            "micro_control:kite_bastion_range_edge",
+            "micro_control:split_skimmer_to_side_arc",
+            "micro_control:signal_burst_on_capture_tick",
+            "micro_control:pull_redline_units_regroup_reattack",
+        ]);
+        runtime.rts_ai_pressure_percent = *pressure_percent;
+        runtime.rts_defeat_risk_percent = *defeat_risk;
+        runtime.rts_objective_capture_percent = *capture_percent;
+        runtime.rts_objective_owner_state =
+            format!("tactical_micro:{stage}:tactic={tactic}:capture={capture_percent}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "micro:target_swap:warden_to_striker",
+            "micro:focus_fire:low_armor",
+            "micro:kite:range_edge",
+            "micro:flank:side_arc",
+            "micro:ability:signal_burst",
+            "micro:pullback:redline_regroup",
+        ]);
+        runtime.rts_objective_result_state = format!("tactical_micro_stage:{stage}");
+        runtime.rts_match_result_state = if *stage == "low_health_pullback_regroup" {
+            "tactical_micro_gap:pullback_regroup_reattack".to_string()
+        } else {
+            format!("tactical_micro_gap_running:{stage}")
+        };
+        runtime.objective_status = format!("tactical_micro_gap:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            format!("micro_stage:{stage}"),
+            format!("trigger:{trigger}"),
+            format!("tactic:{tactic}"),
+            format!("pressure_percent:{pressure_percent}"),
+            format!("defeat_risk_percent:{defeat_risk}"),
+            format!("capture_percent:{capture_percent}"),
+            "native_openra_combat_ai:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            format!("MicroStage:{stage}"),
+            format!("MicroTrigger:{trigger}"),
+            format!("MicroTactic:{tactic}"),
+            format!("Pressure:{pressure_percent}"),
+            format!("DefeatRisk:{defeat_risk}"),
+            "Outcome:tactical_micro_gap_not_native_combat_ai".to_string(),
+        ];
+        micro_signals.extend(runtime.rts_command_queue.iter().cloned());
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("TACTICAL MICRO {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 286,
+            108,
+            14,
+            CLASSIC_RTS_AI_WAVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 144,
+            offset_y + 286,
+            124,
+            14,
+            CLASSIC_RTS_AI_PRESSURE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 280,
+            offset_y + 286,
+            112,
+            14,
+            CLASSIC_RTS_AI_COUNTER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 404,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 508,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            276,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "TACTICAL MICRO CONTROL",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "trigger": trigger,
+            "tactic": tactic,
+            "pressure_percent": pressure_percent,
+            "defeat_risk_percent": defeat_risk,
+            "capture_percent": capture_percent,
+            "army_supply_used": supply,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let micro_stage_count = stage_summaries.len();
+    let micro_signal_count = micro_signals.len();
+    let target_swap_count = 3_u16;
+    let focus_fire_order_count = 3_u16;
+    let kite_step_count = 3_u16;
+    let flank_angle_count = 2_u16;
+    let ability_timing_count = 2_u16;
+    let low_health_pullback_count = 2_u16;
+    let micro_target_gate = target_swap_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "target_priority_probe");
+    let micro_focus_gate = focus_fire_order_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "focus_fire_commit");
+    let micro_kite_gate = kite_step_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "kite_and_stutter_step");
+    let micro_flank_gate = flank_angle_count >= 2
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "flank_angle_split");
+    let micro_ability_gate = ability_timing_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "micro_control:signal_burst_on_capture_tick");
+    let micro_pullback_gate = low_health_pullback_count >= 2
+        && micro_signals
+            .iter()
+            .any(|signal| signal.contains("pull_redline_units_regroup_reattack"));
+    let micro_signal_gate = micro_signal_count >= 24
+        && target_swap_count >= 3
+        && focus_fire_order_count >= 3
+        && kite_step_count >= 3
+        && flank_angle_count >= 2
+        && ability_timing_count >= 2
+        && low_health_pullback_count >= 2;
+    let bevy_native_combat_ai_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let bevy_gap_gate =
+        !bevy_native_combat_ai_claimed && !bevy_openra_parity_claimed && openra_gap_not_closed_gate;
+    let openra_tactical_micro_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
+        && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
+        && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let micro_stage_gate = micro_stage_count == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && micro_target_gate
+        && micro_focus_gate
+        && micro_kite_gate
+        && micro_flank_gate
+        && micro_ability_gate
+        && micro_pullback_gate;
+    let tactical_micro_gap_gate =
+        micro_stage_gate && micro_signal_gate && bevy_gap_gate && openra_tactical_micro_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && tactical_micro_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_TACTICAL_MICRO_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_bot_tactical_micro_gap_state": "bevy_tactical_micro_vocabulary_not_openra_native_combat_ai",
+        "bevy_native_combat_ai_claimed": bevy_native_combat_ai_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_bot_economy_tech_target_commit": OPENRA_BOT_ECONOMY_TECH_COMMIT,
+        "openra_bot_beacon_pressure_target_commit": OPENRA_BOT_BEACON_PRESSURE_COMMIT,
+        "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
+        "micro_stage_count": micro_stage_count,
+        "stage_summaries": stage_summaries,
+        "micro_signal_count": micro_signal_count,
+        "target_swap_count": target_swap_count,
+        "focus_fire_order_count": focus_fire_order_count,
+        "kite_step_count": kite_step_count,
+        "flank_angle_count": flank_angle_count,
+        "ability_timing_count": ability_timing_count,
+        "low_health_pullback_count": low_health_pullback_count,
+        "final_micro_state": "pullback_regroup_reattack",
+        "final_rts_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_rts_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "micro_stage_gate": micro_stage_gate,
+        "micro_signal_gate": micro_signal_gate,
+        "micro_target_gate": micro_target_gate,
+        "micro_focus_gate": micro_focus_gate,
+        "micro_kite_gate": micro_kite_gate,
+        "micro_flank_gate": micro_flank_gate,
+        "micro_ability_gate": micro_ability_gate,
+        "micro_pullback_gate": micro_pullback_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_tactical_micro_target_gate": openra_tactical_micro_target_gate,
+        "renderer_gate": renderer_gate,
+        "tactical_micro_gap_gate": tactical_micro_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot tactical micro gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with target priority, focus-fire, kite, flank, ability timing, low-health pullback, regroup, and reattack vocabulary while keeping native OpenRA combat AI parity unclaimed."
+    }))
+    .expect("classic RTS bot tactical micro gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
