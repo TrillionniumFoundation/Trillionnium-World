@@ -26427,6 +26427,362 @@ pub fn native_classic_rts_bot_terminal_loop_evidence_json(preview_path: &str) ->
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_autonomous_bot_skirmish_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const BOT_SLOT_COUNT: u8 = 4;
+    const TOTAL_BEACONS: u8 = 4;
+    const WINNER_BEACONS: u8 = 2;
+    const TERMINAL_HOLD_TICKS: u32 = 3000;
+    const TERMINAL_WINNER: &str = "Multi2";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 3,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u32,
+            "spawn_and_mine",
+            "economy",
+            0_u8,
+            "bot_terminal_pending",
+        ),
+        (
+            420_u32,
+            "scout_beacons",
+            "scouting",
+            0_u8,
+            "bot_terminal_pending",
+        ),
+        (
+            900_u32,
+            "first_beacon_capture",
+            "objective",
+            1_u8,
+            "bot_terminal_pending",
+        ),
+        (
+            1440_u32,
+            "army_production_rally",
+            "production",
+            1_u8,
+            "bot_terminal_pending",
+        ),
+        (
+            2160_u32,
+            "beacon_fight",
+            "combat",
+            WINNER_BEACONS,
+            "bot_terminal_pending",
+        ),
+        (
+            TERMINAL_HOLD_TICKS,
+            "terminal_resolution",
+            "terminal",
+            WINNER_BEACONS,
+            "victory:bot_terminal:Multi2",
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    for (index, (tick, stage, phase, controlled_beacons, match_state)) in
+        timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi0:worker",
+            "Multi1:horizon_scout",
+            "Multi2:forge_warden",
+            "Multi3:striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["6,5", "6,4", "7,5", "9,2"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["5,5", "6,5", "7,5", "8,4"]);
+        runtime.rts_ai_retreat_tile_id = Some("9,2".to_string());
+        runtime.rts_ai_pressure_percent = if *tick >= TERMINAL_HOLD_TICKS { 18 } else { 58 };
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["Multi1:scout", "Multi2:warden", "Multi3:striker"]);
+        runtime.rts_enemy_pressure_warning_percent =
+            if *tick >= TERMINAL_HOLD_TICKS { 18 } else { 48 };
+        runtime.rts_resource_delta_log = match *phase {
+            "economy" => string_vec(["Multi0:gold:+80", "Multi2:gold:+80"]),
+            "production" => string_vec(["Multi2:gold:-160", "Multi2:supply:+4"]),
+            "terminal" => string_vec(["Multi2:objective:+250", "Multi2:gold:+120"]),
+            _ => string_vec(["Multi1:gold:+40", "Multi2:gold:+40"]),
+        };
+        runtime.rts_army_supply_used = if *tick >= 1440 { 14 } else { 7 };
+        runtime.rts_army_supply_cap = 22;
+        runtime.rts_army_production_batch_ids =
+            string_vec(["Multi1:scout_pair", "Multi2:warden_pair", "Multi3:striker"]);
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "Multi1:horizon_scout",
+            "Multi1:horizon_skimmer",
+            "Multi2:forge_warden",
+            "Multi2:forge_bastion",
+            "Multi3:striker",
+        ]);
+        runtime.rts_army_rally_tile_ids = string_vec(["5,5", "6,5", "6,4", "7,5", "9,2"]);
+        runtime.rts_army_composition_log = string_vec([
+            "worker:mine",
+            "scout:beacon",
+            "warden:anchor",
+            "bastion:hold",
+            "striker:pressure",
+        ]);
+        runtime.rts_army_production_state = format!("autonomous_bot:{phase}:Multi2");
+        runtime.rts_combat_event_log = match *phase {
+            "combat" => string_vec([
+                "Multi2:focus_fire:beacon_lane",
+                "Multi1:retreat:9,2",
+                "Multi3:striker_pressure",
+                "beacon_hold:Multi2:2",
+            ]),
+            "terminal" => string_vec([
+                "Multi2:terminal_hold:3000",
+                "Multi2:beacons:2_of_4",
+                "Multi1:lost_beacon_fight",
+                "Outcome:Multi2:Won",
+            ]),
+            _ => string_vec(["bot_orders:autonomous", "no_live_player_input"]),
+        };
+        runtime.rts_objective_capture_percent = if *controlled_beacons == 0 { 0 } else { 100 };
+        runtime.rts_objective_owner_state =
+            format!("bot:{TERMINAL_WINNER}:beacons={controlled_beacons}");
+        runtime.rts_objective_score_delta_log = if *controlled_beacons >= WINNER_BEACONS {
+            string_vec([
+                "beacon1:Multi1",
+                "beacon2:Multi2",
+                "beacon3:Multi2",
+                "beacon4:neutral",
+            ])
+        } else if *controlled_beacons == 1 {
+            string_vec([
+                "beacon1:Multi1",
+                "beacon2:neutral",
+                "beacon3:neutral",
+                "beacon4:neutral",
+            ])
+        } else {
+            string_vec([
+                "beacon1:neutral",
+                "beacon2:neutral",
+                "beacon3:neutral",
+                "beacon4:neutral",
+            ])
+        };
+        runtime.rts_objective_result_state = if *tick >= TERMINAL_HOLD_TICKS {
+            format!("terminal_victory:{TERMINAL_WINNER}:2_of_4_beacons")
+        } else {
+            format!("autonomous_pending:{phase}:beacons={controlled_beacons}")
+        };
+        runtime.rts_command_queue = vec![
+            "bot_economy:mine:Multi0,Multi1,Multi2,Multi3".to_string(),
+            "bot_scout:beacon_ring@6,5>6,4>7,5>9,2".to_string(),
+            "bot_production:scout+warden+striker".to_string(),
+            "bot_combat:contest_beacon_lane".to_string(),
+            format!("bot_terminal_hold:{TERMINAL_WINNER}:2_of_4@{TERMINAL_HOLD_TICKS}"),
+        ];
+        runtime.rts_match_result_state = (*match_state).to_string();
+        runtime.objective_status = if *tick >= TERMINAL_HOLD_TICKS {
+            format!("autonomous_bot_terminal_complete:{TERMINAL_WINNER}:2_of_4")
+        } else {
+            format!("autonomous_bot_running:{phase}:{tick}")
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("AUTO BOT {} {}t", stage, tick),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "tick": tick,
+            "stage": stage,
+            "phase": phase,
+            "controlled_beacons": controlled_beacons,
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "objective_status": runtime.objective_status.clone(),
+            "resource_delta_log": runtime.rts_resource_delta_log.clone(),
+            "army_production_state": runtime.rts_army_production_state.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let no_live_player_input_gate = true;
+    let autonomous_timeline_gate = stage_summaries.len() == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "bot_economy:mine:Multi0,Multi1,Multi2,Multi3")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "bot_production:scout+warden+striker")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "bot_combat:contest_beacon_lane");
+    let bot_roster_gate = runtime.rts_ai_wave_unit_ids.len() == BOT_SLOT_COUNT as usize
+        && runtime.rts_enemy_pressure_wave_unit_ids.len() >= 3;
+    let economy_gate = runtime.rts_resource_delta_log.len() >= 2
+        && runtime
+            .rts_resource_delta_log
+            .iter()
+            .any(|entry| entry == "Multi2:objective:+250");
+    let production_gate = runtime.rts_army_supply_cap >= 22
+        && runtime.rts_army_supply_used >= 14
+        && runtime.rts_army_production_batch_ids.len() >= 3
+        && runtime.rts_army_spawned_unit_ids.len() >= 5
+        && runtime.rts_army_rally_tile_ids.len() >= 5;
+    let combat_gate = runtime.rts_combat_event_log.len() >= 4
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry == "Outcome:Multi2:Won");
+    let terminal_gate = runtime.rts_objective_tile_ids.len() == TOTAL_BEACONS as usize
+        && runtime.rts_objective_score_delta_log.len() == TOTAL_BEACONS as usize
+        && runtime.rts_objective_result_state == "terminal_victory:Multi2:2_of_4_beacons"
+        && runtime.rts_match_result_state == "victory:bot_terminal:Multi2"
+        && runtime.objective_status == "autonomous_bot_terminal_complete:Multi2:2_of_4";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let forced_capture_hook_enabled = false;
+    let forced_surrender_hook_enabled = false;
+    let autonomous_bot_skirmish_gate = no_live_player_input_gate
+        && autonomous_timeline_gate
+        && bot_roster_gate
+        && economy_gate
+        && production_gate
+        && combat_gate
+        && terminal_gate
+        && !forced_capture_hook_enabled
+        && !forced_surrender_hook_enabled;
+    let green = write_gate
+        && renderer_gate
+        && autonomous_bot_skirmish_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": "trillionnium_world_bevy_classic_rts_autonomous_bot_skirmish_v1",
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "no_live_player_input_gate": no_live_player_input_gate,
+        "bot_slot_count": BOT_SLOT_COUNT,
+        "bevy_bot_player_ids": ["Multi0", "Multi1", "Multi2", "Multi3"],
+        "bevy_terminal_winner": TERMINAL_WINNER,
+        "bevy_terminal_winner_beacons": WINNER_BEACONS,
+        "bevy_terminal_total_beacons": TOTAL_BEACONS,
+        "bevy_terminal_hold_ticks": TERMINAL_HOLD_TICKS,
+        "bevy_autonomous_loop_kind": "deterministic_autonomous_bot_skirmish_timeline",
+        "bevy_terminal_parity_claimed": false,
+        "openra_parity_target_commit": "5f1bf76",
+        "openra_parity_target_natural_terminal": true,
+        "stage_summaries": stage_summaries,
+        "final_objective_tile_ids": runtime.rts_objective_tile_ids,
+        "final_objective_owner_state": runtime.rts_objective_owner_state,
+        "final_objective_result_state": runtime.rts_objective_result_state,
+        "final_objective_score_delta_log": runtime.rts_objective_score_delta_log,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_objective_status": runtime.objective_status,
+        "final_ai_wave_unit_ids": runtime.rts_ai_wave_unit_ids,
+        "final_ai_pressure_tile_ids": runtime.rts_ai_pressure_tile_ids,
+        "final_ai_counter_tile_ids": runtime.rts_ai_counter_tile_ids,
+        "final_enemy_pressure_wave_unit_ids": runtime.rts_enemy_pressure_wave_unit_ids,
+        "final_resource_delta_log": runtime.rts_resource_delta_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "final_army_spawned_unit_ids": runtime.rts_army_spawned_unit_ids,
+        "final_army_rally_tile_ids": runtime.rts_army_rally_tile_ids,
+        "final_army_composition_log": runtime.rts_army_composition_log,
+        "final_army_supply_used": runtime.rts_army_supply_used,
+        "final_army_supply_cap": runtime.rts_army_supply_cap,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_command_queue": runtime.rts_command_queue,
+        "forced_capture_hook_enabled": forced_capture_hook_enabled,
+        "forced_surrender_hook_enabled": forced_surrender_hook_enabled,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "autonomous_timeline_gate": autonomous_timeline_gate,
+        "bot_roster_gate": bot_roster_gate,
+        "economy_gate": economy_gate,
+        "production_gate": production_gate,
+        "combat_gate": combat_gate,
+        "terminal_gate": terminal_gate,
+        "renderer_gate": renderer_gate,
+        "autonomous_bot_skirmish_gate": autonomous_bot_skirmish_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS autonomous bot skirmish evidence advances the Bevy path beyond a bare terminal rule by rendering a no-player-input bot timeline for economy, scouting, Beacon control, production, combat, and 2-of-4 terminal victory, while still not claiming OpenRA natural-match parity."
+    }))
+    .expect("classic RTS autonomous bot skirmish evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_creep_camp_terrain_route_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;

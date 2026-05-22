@@ -36,6 +36,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_projectile_ability.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_ai_skirmish_pressure.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_objective_victory_loop.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_autonomous_bot_skirmish.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh" >/dev/null
@@ -109,6 +110,7 @@ jq -n \
   --slurpfile rts_projectile "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json" \
   --slurpfile rts_ai "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.json" \
   --slurpfile rts_objective "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.json" \
+  --slurpfile rts_auto_bot "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.json" \
   --slurpfile rts_creep_camp "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json" \
   --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
   --slurpfile rts_enemy_base "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.json" \
@@ -188,6 +190,7 @@ jq -n \
       and ok($rts_projectile)
       and ok($rts_ai)
       and ok($rts_objective)
+      and ok($rts_auto_bot)
       and ok($rts_creep_camp)
       and ok($rts_fog)
       and ok($rts_enemy_base)
@@ -355,6 +358,15 @@ jq -n \
       and $rts_objective[0].defeat_pressure_gate == true
       and $rts_objective[0].extraction_gate == true
       and $rts_objective[0].accepted_input_count == 6
+      and $rts_auto_bot[0].no_live_player_input_gate == true
+      and $rts_auto_bot[0].autonomous_timeline_gate == true
+      and $rts_auto_bot[0].bot_roster_gate == true
+      and $rts_auto_bot[0].economy_gate == true
+      and $rts_auto_bot[0].production_gate == true
+      and $rts_auto_bot[0].combat_gate == true
+      and $rts_auto_bot[0].terminal_gate == true
+      and $rts_auto_bot[0].autonomous_bot_skirmish_gate == true
+      and $rts_auto_bot[0].input_action_count == 0
       and $rts_creep_camp[0].live_creep_camp_input_gate == true
       and $rts_creep_camp[0].terrain_route_gate == true
       and $rts_creep_camp[0].choke_gate == true
@@ -470,6 +482,7 @@ jq -n \
       classic_rts_projectile_ability_green: ok($rts_projectile),
       classic_rts_ai_skirmish_pressure_green: ok($rts_ai),
       classic_rts_objective_victory_loop_green: ok($rts_objective),
+      classic_rts_autonomous_bot_skirmish_green: ok($rts_auto_bot),
       classic_rts_creep_camp_terrain_route_green: ok($rts_creep_camp),
       classic_rts_fog_scouting_intel_green: ok($rts_fog),
       classic_rts_enemy_base_tech_pressure_green: ok($rts_enemy_base),
@@ -810,6 +823,31 @@ jq -n \
       rts_objective_victory_loop_victory_pixel_count: $rts_objective[0].victory_pixel_count,
       rts_objective_victory_loop_defeat_risk_pixel_count: $rts_objective[0].defeat_risk_pixel_count,
       rts_objective_victory_loop_extraction_pixel_count: $rts_objective[0].extraction_pixel_count,
+      rts_autonomous_bot_skirmish_input_action_count: $rts_auto_bot[0].input_action_count,
+      rts_autonomous_bot_skirmish_stage_count: ($rts_auto_bot[0].stage_summaries | length),
+      rts_autonomous_bot_skirmish_winner: $rts_auto_bot[0].bevy_terminal_winner,
+      rts_autonomous_bot_skirmish_winner_beacons: $rts_auto_bot[0].bevy_terminal_winner_beacons,
+      rts_autonomous_bot_skirmish_total_beacons: $rts_auto_bot[0].bevy_terminal_total_beacons,
+      rts_autonomous_bot_skirmish_hold_ticks: $rts_auto_bot[0].bevy_terminal_hold_ticks,
+      rts_autonomous_bot_skirmish_parity_claimed: $rts_auto_bot[0].bevy_terminal_parity_claimed,
+      rts_autonomous_bot_skirmish_match_result: $rts_auto_bot[0].final_match_result_state,
+      rts_autonomous_bot_skirmish_spawned_unit_count: ($rts_auto_bot[0].final_army_spawned_unit_ids | length),
+      rts_autonomous_bot_skirmish_supply_used: $rts_auto_bot[0].final_army_supply_used,
+      rts_autonomous_bot_skirmish_supply_cap: $rts_auto_bot[0].final_army_supply_cap,
+      rts_autonomous_bot_skirmish_pixel_count: (
+        $rts_auto_bot[0].ai_wave_pixel_count
+        + $rts_auto_bot[0].ai_pressure_pixel_count
+        + $rts_auto_bot[0].ai_counter_pixel_count
+        + $rts_auto_bot[0].objective_pixel_count
+        + $rts_auto_bot[0].capture_bar_pixel_count
+        + $rts_auto_bot[0].match_result_pixel_count
+      ),
+      rts_autonomous_bot_skirmish_ai_wave_pixel_count: $rts_auto_bot[0].ai_wave_pixel_count,
+      rts_autonomous_bot_skirmish_ai_pressure_pixel_count: $rts_auto_bot[0].ai_pressure_pixel_count,
+      rts_autonomous_bot_skirmish_ai_counter_pixel_count: $rts_auto_bot[0].ai_counter_pixel_count,
+      rts_autonomous_bot_skirmish_objective_pixel_count: $rts_auto_bot[0].objective_pixel_count,
+      rts_autonomous_bot_skirmish_capture_bar_pixel_count: $rts_auto_bot[0].capture_bar_pixel_count,
+      rts_autonomous_bot_skirmish_match_result_pixel_count: $rts_auto_bot[0].match_result_pixel_count,
       rts_creep_camp_terrain_route_accepted_input_count: $rts_creep_camp[0].accepted_input_count,
       rts_creep_camp_terrain_route_camp_tile_count: ($rts_creep_camp[0].final_creep_camp_tile_ids | length),
       rts_creep_camp_terrain_route_unit_count: ($rts_creep_camp[0].final_creep_camp_unit_ids | length),
@@ -1433,6 +1471,15 @@ jq -n \
       rts_objective_victory_loop_defeat_pressure_gate: $rts_objective[0].defeat_pressure_gate,
       rts_objective_victory_loop_extraction_gate: $rts_objective[0].extraction_gate,
       rts_objective_victory_loop_openra_parity_bridge_gate: $rts_objective[0].openra_parity_bridge_gate,
+      rts_autonomous_bot_skirmish_no_live_player_input_gate: $rts_auto_bot[0].no_live_player_input_gate,
+      rts_autonomous_bot_skirmish_timeline_gate: $rts_auto_bot[0].autonomous_timeline_gate,
+      rts_autonomous_bot_skirmish_bot_roster_gate: $rts_auto_bot[0].bot_roster_gate,
+      rts_autonomous_bot_skirmish_economy_gate: $rts_auto_bot[0].economy_gate,
+      rts_autonomous_bot_skirmish_production_gate: $rts_auto_bot[0].production_gate,
+      rts_autonomous_bot_skirmish_combat_gate: $rts_auto_bot[0].combat_gate,
+      rts_autonomous_bot_skirmish_terminal_gate: $rts_auto_bot[0].terminal_gate,
+      rts_autonomous_bot_skirmish_renderer_gate: $rts_auto_bot[0].renderer_gate,
+      rts_autonomous_bot_skirmish_gate: $rts_auto_bot[0].autonomous_bot_skirmish_gate,
       rts_creep_camp_terrain_route_live_input_gate: $rts_creep_camp[0].live_creep_camp_input_gate,
       rts_creep_camp_terrain_route_terrain_gate: $rts_creep_camp[0].terrain_route_gate,
       rts_creep_camp_terrain_route_choke_gate: $rts_creep_camp[0].choke_gate,
@@ -1836,6 +1883,8 @@ jq -n \
       classic_rts_ai_skirmish_pressure_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.ppm",
       classic_rts_objective_victory_loop: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.json",
       classic_rts_objective_victory_loop_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.ppm",
+      classic_rts_autonomous_bot_skirmish: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.json",
+      classic_rts_autonomous_bot_skirmish_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.ppm",
       classic_rts_creep_camp_terrain_route: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json",
       classic_rts_creep_camp_terrain_route_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.ppm",
       classic_rts_fog_scouting_intel: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json",
@@ -1959,6 +2008,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_projectile_ability_green == true
   and .checks.classic_rts_ai_skirmish_pressure_green == true
   and .checks.classic_rts_objective_victory_loop_green == true
+  and .checks.classic_rts_autonomous_bot_skirmish_green == true
   and .checks.classic_rts_creep_camp_terrain_route_green == true
   and .checks.classic_rts_fog_scouting_intel_green == true
   and .checks.classic_rts_enemy_base_tech_pressure_green == true
@@ -2261,6 +2311,24 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_objective_victory_loop_victory_pixel_count > 20
   and .headline.rts_objective_victory_loop_defeat_risk_pixel_count > 5
   and .headline.rts_objective_victory_loop_extraction_pixel_count > 40
+  and .headline.rts_autonomous_bot_skirmish_input_action_count == 0
+  and .headline.rts_autonomous_bot_skirmish_stage_count == 6
+  and .headline.rts_autonomous_bot_skirmish_winner == "Multi2"
+  and .headline.rts_autonomous_bot_skirmish_winner_beacons == 2
+  and .headline.rts_autonomous_bot_skirmish_total_beacons == 4
+  and .headline.rts_autonomous_bot_skirmish_hold_ticks == 3000
+  and .headline.rts_autonomous_bot_skirmish_parity_claimed == false
+  and .headline.rts_autonomous_bot_skirmish_match_result == "victory:bot_terminal:Multi2"
+  and .headline.rts_autonomous_bot_skirmish_spawned_unit_count >= 5
+  and .headline.rts_autonomous_bot_skirmish_supply_used >= 14
+  and .headline.rts_autonomous_bot_skirmish_supply_cap >= 22
+  and .headline.rts_autonomous_bot_skirmish_pixel_count > 500
+  and .headline.rts_autonomous_bot_skirmish_ai_wave_pixel_count > 80
+  and .headline.rts_autonomous_bot_skirmish_ai_pressure_pixel_count > 120
+  and .headline.rts_autonomous_bot_skirmish_ai_counter_pixel_count > 80
+  and .headline.rts_autonomous_bot_skirmish_objective_pixel_count > 80
+  and .headline.rts_autonomous_bot_skirmish_capture_bar_pixel_count > 20
+  and .headline.rts_autonomous_bot_skirmish_match_result_pixel_count > 20
   and .headline.rts_creep_camp_terrain_route_accepted_input_count == 6
   and .headline.rts_creep_camp_terrain_route_camp_tile_count >= 4
   and .headline.rts_creep_camp_terrain_route_unit_count >= 3
@@ -2578,6 +2646,15 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_objective_victory_loop_defeat_pressure_gate == true
   and .gates.rts_objective_victory_loop_extraction_gate == true
   and .gates.rts_objective_victory_loop_openra_parity_bridge_gate == true
+  and .gates.rts_autonomous_bot_skirmish_no_live_player_input_gate == true
+  and .gates.rts_autonomous_bot_skirmish_timeline_gate == true
+  and .gates.rts_autonomous_bot_skirmish_bot_roster_gate == true
+  and .gates.rts_autonomous_bot_skirmish_economy_gate == true
+  and .gates.rts_autonomous_bot_skirmish_production_gate == true
+  and .gates.rts_autonomous_bot_skirmish_combat_gate == true
+  and .gates.rts_autonomous_bot_skirmish_terminal_gate == true
+  and .gates.rts_autonomous_bot_skirmish_renderer_gate == true
+  and .gates.rts_autonomous_bot_skirmish_gate == true
   and .gates.rts_creep_camp_terrain_route_live_input_gate == true
   and .gates.rts_creep_camp_terrain_route_terrain_gate == true
   and .gates.rts_creep_camp_terrain_route_choke_gate == true
