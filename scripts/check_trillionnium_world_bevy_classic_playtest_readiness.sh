@@ -40,6 +40,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_organic_terminal_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_terminal_observation_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_replay_metrics_gap.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_endurance_skirmish_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh" >/dev/null
@@ -118,6 +119,7 @@ jq -n \
   --slurpfile rts_organic_terminal_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.json" \
   --slurpfile rts_terminal_observation_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-terminal-observation-gap.json" \
   --slurpfile rts_replay_metrics_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-replay-metrics-gap.json" \
+  --slurpfile rts_endurance_skirmish_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-endurance-skirmish-gap.json" \
   --slurpfile rts_creep_camp "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json" \
   --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
   --slurpfile rts_enemy_base "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.json" \
@@ -202,6 +204,7 @@ jq -n \
       and ok($rts_organic_terminal_gap)
       and ok($rts_terminal_observation_gap)
       and ok($rts_replay_metrics_gap)
+      and ok($rts_endurance_skirmish_gap)
       and ok($rts_creep_camp)
       and ok($rts_fog)
       and ok($rts_enemy_base)
@@ -498,6 +501,7 @@ jq -n \
       classic_rts_organic_terminal_gap_green: ok($rts_organic_terminal_gap),
       classic_rts_terminal_observation_gap_green: ok($rts_terminal_observation_gap),
       classic_rts_replay_metrics_gap_green: ok($rts_replay_metrics_gap),
+      classic_rts_endurance_skirmish_gap_green: ok($rts_endurance_skirmish_gap),
       classic_rts_creep_camp_terrain_route_green: ok($rts_creep_camp),
       classic_rts_fog_scouting_intel_green: ok($rts_fog),
       classic_rts_enemy_base_tech_pressure_green: ok($rts_enemy_base),
@@ -941,6 +945,35 @@ jq -n \
       rts_replay_metrics_gap_ai_counter_pixel_count: $rts_replay_metrics_gap[0].ai_counter_pixel_count,
       rts_replay_metrics_gap_objective_pixel_count: $rts_replay_metrics_gap[0].objective_pixel_count,
       rts_replay_metrics_gap_match_result_pixel_count: $rts_replay_metrics_gap[0].match_result_pixel_count,
+      rts_endurance_skirmish_gap_stage_count: ($rts_endurance_skirmish_gap[0].stage_summaries | length),
+      rts_endurance_skirmish_gap_state: $rts_endurance_skirmish_gap[0].bevy_endurance_skirmish_gap_state,
+      rts_endurance_skirmish_gap_openra_endurance_commit: $rts_endurance_skirmish_gap[0].openra_endurance_skirmish_target_commit,
+      rts_endurance_skirmish_gap_openra_longrun_commit: $rts_endurance_skirmish_gap[0].openra_longrun_skirmish_target_commit,
+      rts_endurance_skirmish_gap_openra_autostart_commit: $rts_endurance_skirmish_gap[0].openra_multibot_autostart_target_commit,
+      rts_endurance_skirmish_gap_startgame_order: $rts_endurance_skirmish_gap[0].endurance_startgame_order,
+      rts_endurance_skirmish_gap_autostart_order: $rts_endurance_skirmish_gap[0].endurance_autostart_order,
+      rts_endurance_skirmish_gap_client_slot_count: ($rts_endurance_skirmish_gap[0].endurance_client_slots | length),
+      rts_endurance_skirmish_gap_configured_seconds: $rts_endurance_skirmish_gap[0].configured_seconds,
+      rts_endurance_skirmish_gap_elapsed_seconds: $rts_endurance_skirmish_gap[0].elapsed_seconds,
+      rts_endurance_skirmish_gap_peak_active_units: $rts_endurance_skirmish_gap[0].peak_active_units,
+      rts_endurance_skirmish_gap_contested_beacon_peak: $rts_endurance_skirmish_gap[0].contested_beacon_peak,
+      rts_endurance_skirmish_gap_economy_events: $rts_endurance_skirmish_gap[0].economy_event_count,
+      rts_endurance_skirmish_gap_combat_events: $rts_endurance_skirmish_gap[0].combat_event_count,
+      rts_endurance_skirmish_gap_tech_events: $rts_endurance_skirmish_gap[0].tech_event_count,
+      rts_endurance_skirmish_gap_outcome_signal: $rts_endurance_skirmish_gap[0].outcome_signal,
+      rts_endurance_skirmish_gap_winner_claimed: $rts_endurance_skirmish_gap[0].winner_claimed,
+      rts_endurance_skirmish_gap_pixel_count: (
+        $rts_endurance_skirmish_gap[0].ai_wave_pixel_count
+        + $rts_endurance_skirmish_gap[0].ai_pressure_pixel_count
+        + $rts_endurance_skirmish_gap[0].ai_counter_pixel_count
+        + $rts_endurance_skirmish_gap[0].objective_pixel_count
+        + $rts_endurance_skirmish_gap[0].match_result_pixel_count
+      ),
+      rts_endurance_skirmish_gap_ai_wave_pixel_count: $rts_endurance_skirmish_gap[0].ai_wave_pixel_count,
+      rts_endurance_skirmish_gap_ai_pressure_pixel_count: $rts_endurance_skirmish_gap[0].ai_pressure_pixel_count,
+      rts_endurance_skirmish_gap_ai_counter_pixel_count: $rts_endurance_skirmish_gap[0].ai_counter_pixel_count,
+      rts_endurance_skirmish_gap_objective_pixel_count: $rts_endurance_skirmish_gap[0].objective_pixel_count,
+      rts_endurance_skirmish_gap_match_result_pixel_count: $rts_endurance_skirmish_gap[0].match_result_pixel_count,
       rts_creep_camp_terrain_route_accepted_input_count: $rts_creep_camp[0].accepted_input_count,
       rts_creep_camp_terrain_route_camp_tile_count: ($rts_creep_camp[0].final_creep_camp_tile_ids | length),
       rts_creep_camp_terrain_route_unit_count: ($rts_creep_camp[0].final_creep_camp_unit_ids | length),
@@ -1608,6 +1641,16 @@ jq -n \
       rts_replay_metrics_gap_renderer_gate: $rts_replay_metrics_gap[0].renderer_gate,
       rts_replay_metrics_gap_openra_gap_not_closed_gate: $rts_replay_metrics_gap[0].openra_gap_not_closed_gate,
       rts_replay_metrics_gap_gate: $rts_replay_metrics_gap[0].replay_metrics_gap_gate,
+      rts_endurance_skirmish_gap_stage_gate: $rts_endurance_skirmish_gap[0].endurance_stage_gate,
+      rts_endurance_skirmish_gap_roster_gate: $rts_endurance_skirmish_gap[0].endurance_roster_gate,
+      rts_endurance_skirmish_gap_duration_gate: $rts_endurance_skirmish_gap[0].endurance_duration_gate,
+      rts_endurance_skirmish_gap_pressure_gate: $rts_endurance_skirmish_gap[0].endurance_pressure_gate,
+      rts_endurance_skirmish_gap_battle_outcome_gate: $rts_endurance_skirmish_gap[0].battle_outcome_gate,
+      rts_endurance_skirmish_gap_bevy_gap_gate: $rts_endurance_skirmish_gap[0].bevy_gap_gate,
+      rts_endurance_skirmish_gap_openra_target_gate: $rts_endurance_skirmish_gap[0].openra_endurance_target_gate,
+      rts_endurance_skirmish_gap_renderer_gate: $rts_endurance_skirmish_gap[0].renderer_gate,
+      rts_endurance_skirmish_gap_openra_gap_not_closed_gate: $rts_endurance_skirmish_gap[0].openra_gap_not_closed_gate,
+      rts_endurance_skirmish_gap_gate: $rts_endurance_skirmish_gap[0].endurance_skirmish_gap_gate,
       rts_creep_camp_terrain_route_live_input_gate: $rts_creep_camp[0].live_creep_camp_input_gate,
       rts_creep_camp_terrain_route_terrain_gate: $rts_creep_camp[0].terrain_route_gate,
       rts_creep_camp_terrain_route_choke_gate: $rts_creep_camp[0].choke_gate,
@@ -2032,6 +2075,8 @@ jq -n \
       classic_rts_terminal_observation_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-terminal-observation-gap.ppm",
       classic_rts_replay_metrics_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-replay-metrics-gap.json",
       classic_rts_replay_metrics_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-replay-metrics-gap.ppm",
+      classic_rts_endurance_skirmish_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-endurance-skirmish-gap.json",
+      classic_rts_endurance_skirmish_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-endurance-skirmish-gap.ppm",
       classic_rts_creep_camp_terrain_route: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json",
       classic_rts_creep_camp_terrain_route_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.ppm",
       classic_rts_fog_scouting_intel: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json",
@@ -2161,6 +2206,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_organic_terminal_gap_green == true
   and .checks.classic_rts_terminal_observation_gap_green == true
   and .checks.classic_rts_replay_metrics_gap_green == true
+  and .checks.classic_rts_endurance_skirmish_gap_green == true
   and .checks.classic_rts_creep_camp_terrain_route_green == true
   and .checks.classic_rts_fog_scouting_intel_green == true
   and .checks.classic_rts_enemy_base_tech_pressure_green == true
@@ -2551,6 +2597,29 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_replay_metrics_gap_ai_counter_pixel_count > 80
   and .headline.rts_replay_metrics_gap_objective_pixel_count > 80
   and .headline.rts_replay_metrics_gap_match_result_pixel_count > 20
+  and .headline.rts_endurance_skirmish_gap_stage_count == 6
+  and .headline.rts_endurance_skirmish_gap_state == "bevy_endurance_vocabulary_not_openra_headless_client_match"
+  and .headline.rts_endurance_skirmish_gap_openra_endurance_commit == "2cb80a0"
+  and .headline.rts_endurance_skirmish_gap_openra_longrun_commit == "5227d99"
+  and .headline.rts_endurance_skirmish_gap_openra_autostart_commit == "4b966c1"
+  and .headline.rts_endurance_skirmish_gap_startgame_order == true
+  and .headline.rts_endurance_skirmish_gap_autostart_order == true
+  and .headline.rts_endurance_skirmish_gap_client_slot_count == 4
+  and .headline.rts_endurance_skirmish_gap_configured_seconds >= 120
+  and .headline.rts_endurance_skirmish_gap_elapsed_seconds >= 120
+  and .headline.rts_endurance_skirmish_gap_peak_active_units >= 24
+  and .headline.rts_endurance_skirmish_gap_contested_beacon_peak >= 2
+  and .headline.rts_endurance_skirmish_gap_economy_events >= 12
+  and .headline.rts_endurance_skirmish_gap_combat_events >= 20
+  and .headline.rts_endurance_skirmish_gap_tech_events >= 6
+  and .headline.rts_endurance_skirmish_gap_outcome_signal == "sustained_engagement_no_terminal_victory"
+  and .headline.rts_endurance_skirmish_gap_winner_claimed == false
+  and .headline.rts_endurance_skirmish_gap_pixel_count > 500
+  and .headline.rts_endurance_skirmish_gap_ai_wave_pixel_count > 80
+  and .headline.rts_endurance_skirmish_gap_ai_pressure_pixel_count > 120
+  and .headline.rts_endurance_skirmish_gap_ai_counter_pixel_count > 80
+  and .headline.rts_endurance_skirmish_gap_objective_pixel_count > 80
+  and .headline.rts_endurance_skirmish_gap_match_result_pixel_count > 20
   and .headline.rts_creep_camp_terrain_route_accepted_input_count == 6
   and .headline.rts_creep_camp_terrain_route_camp_tile_count >= 4
   and .headline.rts_creep_camp_terrain_route_unit_count >= 3
@@ -2901,6 +2970,16 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_replay_metrics_gap_renderer_gate == true
   and .gates.rts_replay_metrics_gap_openra_gap_not_closed_gate == true
   and .gates.rts_replay_metrics_gap_gate == true
+  and .gates.rts_endurance_skirmish_gap_stage_gate == true
+  and .gates.rts_endurance_skirmish_gap_roster_gate == true
+  and .gates.rts_endurance_skirmish_gap_duration_gate == true
+  and .gates.rts_endurance_skirmish_gap_pressure_gate == true
+  and .gates.rts_endurance_skirmish_gap_battle_outcome_gate == true
+  and .gates.rts_endurance_skirmish_gap_bevy_gap_gate == true
+  and .gates.rts_endurance_skirmish_gap_openra_target_gate == true
+  and .gates.rts_endurance_skirmish_gap_renderer_gate == true
+  and .gates.rts_endurance_skirmish_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_endurance_skirmish_gap_gate == true
   and .gates.rts_creep_camp_terrain_route_live_input_gate == true
   and .gates.rts_creep_camp_terrain_route_terrain_gate == true
   and .gates.rts_creep_camp_terrain_route_choke_gate == true

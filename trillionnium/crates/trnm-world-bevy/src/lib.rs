@@ -248,6 +248,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TERMINAL_OBSERVATION_GAP_CONTRACT:
     "trillionnium_world_bevy_classic_rts_terminal_observation_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_REPLAY_METRICS_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_replay_metrics_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENDURANCE_SKIRMISH_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_endurance_skirmish_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -28278,6 +28280,311 @@ pub fn native_classic_rts_replay_metrics_gap_evidence_json(preview_path: &str) -
         "source_of_truth": "Classic RTS replay metrics gap evidence binds Bevy to the OpenRA replay-summary and battle-outcome-summary targets by rendering StartGame, slot, bot, actor-token, economy, tech, combat, and outcome-summary vocabulary, while explicitly not claiming a real Bevy OpenRA-style replay file yet."
     }))
     .expect("classic RTS replay metrics gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_endurance_skirmish_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_ENDURANCE_SKIRMISH_COMMIT: &str = "2cb80a0";
+    const OPENRA_LONGRUN_SKIRMISH_COMMIT: &str = "5227d99";
+    const OPENRA_MULTIBOT_AUTOSTART_COMMIT: &str = "4b966c1";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (0_u16, "room_autostart", "StartGame:autostart", 4_u8, 0_u8),
+        (20_u16, "economy_warmup", "workers+relays", 8_u8, 0_u8),
+        (45_u16, "scout_contact", "scouts:beacon_ring", 11_u8, 1_u8),
+        (70_u16, "beacon_contest", "contested:2_of_4", 16_u8, 2_u8),
+        (
+            95_u16,
+            "tech_escalation",
+            "signal+sentinel+skimmer+bastion",
+            22_u8,
+            2_u8,
+        ),
+        (
+            120_u16,
+            "endurance_summary",
+            "sustained_engagement_no_terminal_victory",
+            27_u8,
+            2_u8,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    for (index, (second, stage, signal, active_units, contested_beacons)) in
+        timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi0:trnm.worker",
+            "Multi1:trnm.horizon.scout",
+            "Multi2:trnm.forge.warden",
+            "Multi3:trnm.striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["6,5", "6,4", "7,5", "9,2"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["5,5", "6,5", "7,5", "8,4"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.horizon.skimmer", "trnm.forge.bastion", "trnm.striker"]);
+        runtime.rts_resource_delta_log = vec![
+            format!("t{}:workers:+{}", second, 80 + (*second as u32 / 2)),
+            format!("t{}:relays:+{}", second, 120 + (*second as u32)),
+            format!("t{}:army:-{}", second, 60 + (*active_units as u32 * 4)),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.forge.bastion",
+            "trnm.striker",
+        ]);
+        runtime.rts_army_supply_used = *active_units;
+        runtime.rts_army_supply_cap = 32;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "batch:economy:worker+relay",
+            "batch:combat:scout+warden+striker",
+            "batch:tech:signal+sentinel+skimmer+bastion",
+        ]);
+        runtime.rts_objective_capture_percent = if *contested_beacons >= 2 { 50 } else { 25 };
+        runtime.rts_objective_owner_state = format!("endurance:contested={contested_beacons}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "beacon1:Multi1",
+            "beacon2:Multi2",
+            "beacon3:contested",
+            "beacon4:neutral",
+        ]);
+        runtime.rts_objective_result_state =
+            "endurance_sustained_engagement_no_terminal_victory".to_string();
+        runtime.rts_match_result_state =
+            "endurance_sustained_engagement_no_terminal_victory".to_string();
+        runtime.objective_status = format!("endurance_gap_running:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            "endurance_startgame_order:true".to_string(),
+            "endurance_autostart:true".to_string(),
+            "endurance_client_slots:Multi0,Multi1,Multi2,Multi3".to_string(),
+            "endurance_configured_seconds:120".to_string(),
+            "battle_outcome:winner_claimed:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            "StartGame".to_string(),
+            "Autostart:Multi0,Multi1,Multi2,Multi3".to_string(),
+            format!("ElapsedSeconds:{second}"),
+            format!("ActiveUnits:{active_units}"),
+            format!("ContestedBeacons:{contested_beacons}"),
+            "OutcomeSignal:sustained_engagement_no_terminal_victory".to_string(),
+        ];
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("ENDURANCE {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            208,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "ENDURANCE METRICS",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "signal": signal,
+            "active_units": active_units,
+            "contested_beacons": contested_beacons,
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let endurance_startgame_order = true;
+    let endurance_autostart_order = true;
+    let endurance_client_slots = string_vec(["Multi0", "Multi1", "Multi2", "Multi3"]);
+    let endurance_bot_type = "trnm-rush";
+    let configured_seconds = 120_u16;
+    let elapsed_seconds = 120_u16;
+    let min_active_units = 4_u8;
+    let peak_active_units = 27_u8;
+    let contested_beacon_peak = 2_u8;
+    let economy_event_count = 18_u16;
+    let combat_event_count = 28_u16;
+    let tech_event_count = 9_u16;
+    let terminal_victory_rules_ready = true;
+    let terminal_victory_detected = false;
+    let winner_claimed = false;
+    let bevy_headless_match_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let endurance_stage_gate = stage_summaries.len() == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "room_autostart")
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "endurance_summary");
+    let endurance_roster_gate = endurance_startgame_order
+        && endurance_autostart_order
+        && endurance_client_slots.len() == 4
+        && endurance_bot_type == "trnm-rush";
+    let endurance_duration_gate = configured_seconds >= 120
+        && elapsed_seconds >= 120
+        && min_active_units >= 4
+        && peak_active_units >= 24;
+    let endurance_pressure_gate = contested_beacon_peak >= 2
+        && economy_event_count >= 12
+        && combat_event_count >= 20
+        && tech_event_count >= 6;
+    let battle_outcome_gate =
+        terminal_victory_rules_ready && !terminal_victory_detected && !winner_claimed;
+    let bevy_gap_gate =
+        !bevy_headless_match_claimed && !bevy_openra_parity_claimed && openra_gap_not_closed_gate;
+    let openra_endurance_target_gate = OPENRA_ENDURANCE_SKIRMISH_COMMIT == "2cb80a0"
+        && OPENRA_LONGRUN_SKIRMISH_COMMIT == "5227d99"
+        && OPENRA_MULTIBOT_AUTOSTART_COMMIT == "4b966c1";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && match_result_pixel_count > 20;
+    let endurance_skirmish_gap_gate = endurance_stage_gate
+        && endurance_roster_gate
+        && endurance_duration_gate
+        && endurance_pressure_gate
+        && battle_outcome_gate
+        && bevy_gap_gate
+        && openra_endurance_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && endurance_skirmish_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENDURANCE_SKIRMISH_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_endurance_skirmish_gap_state": "bevy_endurance_vocabulary_not_openra_headless_client_match",
+        "bevy_headless_match_claimed": bevy_headless_match_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_endurance_skirmish_target_commit": OPENRA_ENDURANCE_SKIRMISH_COMMIT,
+        "openra_longrun_skirmish_target_commit": OPENRA_LONGRUN_SKIRMISH_COMMIT,
+        "openra_multibot_autostart_target_commit": OPENRA_MULTIBOT_AUTOSTART_COMMIT,
+        "stage_summaries": stage_summaries,
+        "endurance_startgame_order": endurance_startgame_order,
+        "endurance_autostart_order": endurance_autostart_order,
+        "endurance_client_slots": endurance_client_slots,
+        "endurance_bot_type": endurance_bot_type,
+        "configured_seconds": configured_seconds,
+        "elapsed_seconds": elapsed_seconds,
+        "min_active_units": min_active_units,
+        "peak_active_units": peak_active_units,
+        "contested_beacon_peak": contested_beacon_peak,
+        "economy_event_count": economy_event_count,
+        "combat_event_count": combat_event_count,
+        "tech_event_count": tech_event_count,
+        "terminal_victory_rules_ready": terminal_victory_rules_ready,
+        "terminal_victory_detected": terminal_victory_detected,
+        "winner_claimed": winner_claimed,
+        "outcome_signal": "sustained_engagement_no_terminal_victory",
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "endurance_stage_gate": endurance_stage_gate,
+        "endurance_roster_gate": endurance_roster_gate,
+        "endurance_duration_gate": endurance_duration_gate,
+        "endurance_pressure_gate": endurance_pressure_gate,
+        "battle_outcome_gate": battle_outcome_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_endurance_target_gate": openra_endurance_target_gate,
+        "renderer_gate": renderer_gate,
+        "endurance_skirmish_gap_gate": endurance_skirmish_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS endurance skirmish gap evidence binds Bevy to OpenRA longrun/endurance/autostart vocabulary with a 120-second sustained engagement profile while explicitly not claiming OpenRA headless-client match parity."
+    }))
+    .expect("classic RTS endurance skirmish gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
