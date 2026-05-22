@@ -46,6 +46,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_macro_economy_gap.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh" >/dev/null
@@ -130,6 +131,7 @@ jq -n \
   --slurpfile rts_bot_tactical_micro_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-tactical-micro-gap.json" \
   --slurpfile rts_bot_map_intel_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-map-intel-gap.json" \
   --slurpfile rts_bot_macro_economy_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-macro-economy-gap.json" \
+  --slurpfile rts_bot_harassment_defense_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-harassment-defense-gap.json" \
   --slurpfile rts_creep_camp "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json" \
   --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
   --slurpfile rts_enemy_base "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.json" \
@@ -220,6 +222,7 @@ jq -n \
       and ok($rts_bot_tactical_micro_gap)
       and ok($rts_bot_map_intel_gap)
       and ok($rts_bot_macro_economy_gap)
+      and ok($rts_bot_harassment_defense_gap)
       and ok($rts_creep_camp)
       and ok($rts_fog)
       and ok($rts_enemy_base)
@@ -522,6 +525,7 @@ jq -n \
       classic_rts_bot_tactical_micro_gap_green: ok($rts_bot_tactical_micro_gap),
       classic_rts_bot_map_intel_gap_green: ok($rts_bot_map_intel_gap),
       classic_rts_bot_macro_economy_gap_green: ok($rts_bot_macro_economy_gap),
+      classic_rts_bot_harassment_defense_gap_green: ok($rts_bot_harassment_defense_gap),
       classic_rts_creep_camp_terrain_route_green: ok($rts_creep_camp),
       classic_rts_fog_scouting_intel_green: ok($rts_fog),
       classic_rts_enemy_base_tech_pressure_green: ok($rts_enemy_base),
@@ -1147,6 +1151,37 @@ jq -n \
       rts_bot_macro_economy_gap_objective_pixel_count: $rts_bot_macro_economy_gap[0].objective_pixel_count,
       rts_bot_macro_economy_gap_capture_bar_pixel_count: $rts_bot_macro_economy_gap[0].capture_bar_pixel_count,
       rts_bot_macro_economy_gap_match_result_pixel_count: $rts_bot_macro_economy_gap[0].match_result_pixel_count,
+      rts_bot_harassment_defense_gap_stage_count: $rts_bot_harassment_defense_gap[0].harassment_stage_count,
+      rts_bot_harassment_defense_gap_state: $rts_bot_harassment_defense_gap[0].bevy_bot_harassment_defense_gap_state,
+      rts_bot_harassment_defense_gap_openra_economy_tech_commit: $rts_bot_harassment_defense_gap[0].openra_bot_economy_tech_target_commit,
+      rts_bot_harassment_defense_gap_openra_beacon_pressure_commit: $rts_bot_harassment_defense_gap[0].openra_bot_beacon_pressure_target_commit,
+      rts_bot_harassment_defense_gap_openra_organic_terminal_commit: $rts_bot_harassment_defense_gap[0].openra_organic_bot_terminal_target_commit,
+      rts_bot_harassment_defense_gap_harassment_signals: $rts_bot_harassment_defense_gap[0].harassment_signal_count,
+      rts_bot_harassment_defense_gap_worker_pullbacks: $rts_bot_harassment_defense_gap[0].worker_pullback_count,
+      rts_bot_harassment_defense_gap_repair_cycles: $rts_bot_harassment_defense_gap[0].repair_cycle_count,
+      rts_bot_harassment_defense_gap_static_defense_responses: $rts_bot_harassment_defense_gap[0].static_defense_response_count,
+      rts_bot_harassment_defense_gap_counter_raids: $rts_bot_harassment_defense_gap[0].counter_raid_count,
+      rts_bot_harassment_defense_gap_retreat_paths: $rts_bot_harassment_defense_gap[0].retreat_path_count,
+      rts_bot_harassment_defense_gap_rebuild_secures: $rts_bot_harassment_defense_gap[0].rebuild_secure_count,
+      rts_bot_harassment_defense_gap_final_state: $rts_bot_harassment_defense_gap[0].final_harassment_state,
+      rts_bot_harassment_defense_gap_final_pressure_percent: $rts_bot_harassment_defense_gap[0].final_rts_ai_pressure_percent,
+      rts_bot_harassment_defense_gap_final_defeat_risk_percent: $rts_bot_harassment_defense_gap[0].final_rts_defeat_risk_percent,
+      rts_bot_harassment_defense_gap_final_capture_percent: $rts_bot_harassment_defense_gap[0].final_objective_capture_percent,
+      rts_bot_harassment_defense_gap_match_result: $rts_bot_harassment_defense_gap[0].final_match_result_state,
+      rts_bot_harassment_defense_gap_pixel_count: (
+        $rts_bot_harassment_defense_gap[0].ai_wave_pixel_count
+        + $rts_bot_harassment_defense_gap[0].ai_pressure_pixel_count
+        + $rts_bot_harassment_defense_gap[0].ai_counter_pixel_count
+        + $rts_bot_harassment_defense_gap[0].objective_pixel_count
+        + $rts_bot_harassment_defense_gap[0].capture_bar_pixel_count
+        + $rts_bot_harassment_defense_gap[0].match_result_pixel_count
+      ),
+      rts_bot_harassment_defense_gap_ai_wave_pixel_count: $rts_bot_harassment_defense_gap[0].ai_wave_pixel_count,
+      rts_bot_harassment_defense_gap_ai_pressure_pixel_count: $rts_bot_harassment_defense_gap[0].ai_pressure_pixel_count,
+      rts_bot_harassment_defense_gap_ai_counter_pixel_count: $rts_bot_harassment_defense_gap[0].ai_counter_pixel_count,
+      rts_bot_harassment_defense_gap_objective_pixel_count: $rts_bot_harassment_defense_gap[0].objective_pixel_count,
+      rts_bot_harassment_defense_gap_capture_bar_pixel_count: $rts_bot_harassment_defense_gap[0].capture_bar_pixel_count,
+      rts_bot_harassment_defense_gap_match_result_pixel_count: $rts_bot_harassment_defense_gap[0].match_result_pixel_count,
       rts_creep_camp_terrain_route_accepted_input_count: $rts_creep_camp[0].accepted_input_count,
       rts_creep_camp_terrain_route_camp_tile_count: ($rts_creep_camp[0].final_creep_camp_tile_ids | length),
       rts_creep_camp_terrain_route_unit_count: ($rts_creep_camp[0].final_creep_camp_unit_ids | length),
@@ -1890,6 +1925,19 @@ jq -n \
       rts_bot_macro_economy_gap_renderer_gate: $rts_bot_macro_economy_gap[0].renderer_gate,
       rts_bot_macro_economy_gap_openra_gap_not_closed_gate: $rts_bot_macro_economy_gap[0].openra_gap_not_closed_gate,
       rts_bot_macro_economy_gap_gate: $rts_bot_macro_economy_gap[0].macro_economy_gap_gate,
+      rts_bot_harassment_defense_gap_stage_gate: $rts_bot_harassment_defense_gap[0].harassment_stage_gate,
+      rts_bot_harassment_defense_gap_signal_gate: $rts_bot_harassment_defense_gap[0].harassment_signal_gate,
+      rts_bot_harassment_defense_gap_worker_gate: $rts_bot_harassment_defense_gap[0].harassment_worker_gate,
+      rts_bot_harassment_defense_gap_repair_gate: $rts_bot_harassment_defense_gap[0].harassment_repair_gate,
+      rts_bot_harassment_defense_gap_static_defense_gate: $rts_bot_harassment_defense_gap[0].harassment_static_defense_gate,
+      rts_bot_harassment_defense_gap_counter_raid_gate: $rts_bot_harassment_defense_gap[0].harassment_counter_raid_gate,
+      rts_bot_harassment_defense_gap_retreat_gate: $rts_bot_harassment_defense_gap[0].harassment_retreat_gate,
+      rts_bot_harassment_defense_gap_rebuild_gate: $rts_bot_harassment_defense_gap[0].harassment_rebuild_gate,
+      rts_bot_harassment_defense_gap_bevy_gap_gate: $rts_bot_harassment_defense_gap[0].bevy_gap_gate,
+      rts_bot_harassment_defense_gap_openra_target_gate: $rts_bot_harassment_defense_gap[0].openra_harassment_defense_target_gate,
+      rts_bot_harassment_defense_gap_renderer_gate: $rts_bot_harassment_defense_gap[0].renderer_gate,
+      rts_bot_harassment_defense_gap_openra_gap_not_closed_gate: $rts_bot_harassment_defense_gap[0].openra_gap_not_closed_gate,
+      rts_bot_harassment_defense_gap_gate: $rts_bot_harassment_defense_gap[0].harassment_defense_gap_gate,
       rts_creep_camp_terrain_route_live_input_gate: $rts_creep_camp[0].live_creep_camp_input_gate,
       rts_creep_camp_terrain_route_terrain_gate: $rts_creep_camp[0].terrain_route_gate,
       rts_creep_camp_terrain_route_choke_gate: $rts_creep_camp[0].choke_gate,
@@ -2326,6 +2374,8 @@ jq -n \
       classic_rts_bot_map_intel_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-map-intel-gap.ppm",
       classic_rts_bot_macro_economy_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-macro-economy-gap.json",
       classic_rts_bot_macro_economy_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-macro-economy-gap.ppm",
+      classic_rts_bot_harassment_defense_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-harassment-defense-gap.json",
+      classic_rts_bot_harassment_defense_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-harassment-defense-gap.ppm",
       classic_rts_creep_camp_terrain_route: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json",
       classic_rts_creep_camp_terrain_route_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.ppm",
       classic_rts_fog_scouting_intel: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json",
@@ -2461,6 +2511,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_bot_tactical_micro_gap_green == true
   and .checks.classic_rts_bot_map_intel_gap_green == true
   and .checks.classic_rts_bot_macro_economy_gap_green == true
+  and .checks.classic_rts_bot_harassment_defense_gap_green == true
   and .checks.classic_rts_creep_camp_terrain_route_green == true
   and .checks.classic_rts_fog_scouting_intel_green == true
   and .checks.classic_rts_enemy_base_tech_pressure_green == true
@@ -2992,6 +3043,30 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_bot_macro_economy_gap_objective_pixel_count > 80
   and .headline.rts_bot_macro_economy_gap_capture_bar_pixel_count > 20
   and .headline.rts_bot_macro_economy_gap_match_result_pixel_count > 20
+  and .headline.rts_bot_harassment_defense_gap_stage_count == 6
+  and .headline.rts_bot_harassment_defense_gap_state == "bevy_harassment_defense_vocabulary_not_openra_native_harassment_ai"
+  and .headline.rts_bot_harassment_defense_gap_openra_economy_tech_commit == "f6c47d9"
+  and .headline.rts_bot_harassment_defense_gap_openra_beacon_pressure_commit == "2b6f25b"
+  and .headline.rts_bot_harassment_defense_gap_openra_organic_terminal_commit == "5f1bf76"
+  and .headline.rts_bot_harassment_defense_gap_harassment_signals >= 24
+  and .headline.rts_bot_harassment_defense_gap_worker_pullbacks >= 4
+  and .headline.rts_bot_harassment_defense_gap_repair_cycles >= 3
+  and .headline.rts_bot_harassment_defense_gap_static_defense_responses >= 3
+  and .headline.rts_bot_harassment_defense_gap_counter_raids >= 3
+  and .headline.rts_bot_harassment_defense_gap_retreat_paths >= 2
+  and .headline.rts_bot_harassment_defense_gap_rebuild_secures >= 2
+  and .headline.rts_bot_harassment_defense_gap_final_state == "counter_raid_rebuild_secured"
+  and .headline.rts_bot_harassment_defense_gap_final_pressure_percent >= 80
+  and .headline.rts_bot_harassment_defense_gap_final_defeat_risk_percent <= 20
+  and .headline.rts_bot_harassment_defense_gap_final_capture_percent >= 90
+  and .headline.rts_bot_harassment_defense_gap_match_result == "harassment_defense_gap:counter_raid_rebuild_secured"
+  and .headline.rts_bot_harassment_defense_gap_pixel_count > 500
+  and .headline.rts_bot_harassment_defense_gap_ai_wave_pixel_count > 80
+  and .headline.rts_bot_harassment_defense_gap_ai_pressure_pixel_count > 120
+  and .headline.rts_bot_harassment_defense_gap_ai_counter_pixel_count > 80
+  and .headline.rts_bot_harassment_defense_gap_objective_pixel_count > 80
+  and .headline.rts_bot_harassment_defense_gap_capture_bar_pixel_count > 20
+  and .headline.rts_bot_harassment_defense_gap_match_result_pixel_count > 20
   and .headline.rts_creep_camp_terrain_route_accepted_input_count == 6
   and .headline.rts_creep_camp_terrain_route_camp_tile_count >= 4
   and .headline.rts_creep_camp_terrain_route_unit_count >= 3
@@ -3418,6 +3493,19 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_macro_economy_gap_renderer_gate == true
   and .gates.rts_bot_macro_economy_gap_openra_gap_not_closed_gate == true
   and .gates.rts_bot_macro_economy_gap_gate == true
+  and .gates.rts_bot_harassment_defense_gap_stage_gate == true
+  and .gates.rts_bot_harassment_defense_gap_signal_gate == true
+  and .gates.rts_bot_harassment_defense_gap_worker_gate == true
+  and .gates.rts_bot_harassment_defense_gap_repair_gate == true
+  and .gates.rts_bot_harassment_defense_gap_static_defense_gate == true
+  and .gates.rts_bot_harassment_defense_gap_counter_raid_gate == true
+  and .gates.rts_bot_harassment_defense_gap_retreat_gate == true
+  and .gates.rts_bot_harassment_defense_gap_rebuild_gate == true
+  and .gates.rts_bot_harassment_defense_gap_bevy_gap_gate == true
+  and .gates.rts_bot_harassment_defense_gap_openra_target_gate == true
+  and .gates.rts_bot_harassment_defense_gap_renderer_gate == true
+  and .gates.rts_bot_harassment_defense_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_bot_harassment_defense_gap_gate == true
   and .gates.rts_creep_camp_terrain_route_live_input_gate == true
   and .gates.rts_creep_camp_terrain_route_terrain_gate == true
   and .gates.rts_creep_camp_terrain_route_choke_gate == true

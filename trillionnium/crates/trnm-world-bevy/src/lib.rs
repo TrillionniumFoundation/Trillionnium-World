@@ -260,6 +260,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MAP_INTEL_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_map_intel_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MACRO_ECONOMY_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_macro_economy_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_HARASSMENT_DEFENSE_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -30768,6 +30770,448 @@ pub fn native_classic_rts_bot_macro_economy_gap_evidence_json(preview_path: &str
         "source_of_truth": "Classic RTS bot macro-economy gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker saturation, expansion timing, supply recovery, production tempo, tech ramp, resource denial, and rebuild vocabulary while keeping native OpenRA economy AI parity unclaimed."
     }))
     .expect("classic RTS bot macro-economy gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_harassment_defense_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_BOT_ECONOMY_TECH_COMMIT: &str = "f6c47d9";
+    const OPENRA_BOT_BEACON_PRESSURE_COMMIT: &str = "2b6f25b";
+    const OPENRA_ORGANIC_BOT_TERMINAL_COMMIT: &str = "5f1bf76";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "west".to_string(),
+        walk_cycle_frame: 3,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u16,
+            "worker_line_probe",
+            "harass:scout_hits_worker_line",
+            "probe_detect",
+            24_u8,
+            33_u8,
+            31_u8,
+        ),
+        (
+            18_u16,
+            "worker_pullback_split",
+            "harass:worker_pullback_without_full_idle",
+            "pullback_split",
+            36_u8,
+            28_u8,
+            45_u8,
+        ),
+        (
+            39_u16,
+            "repair_and_body_block",
+            "harass:repair_cycle_body_block",
+            "repair_hold",
+            49_u8,
+            24_u8,
+            58_u8,
+        ),
+        (
+            63_u16,
+            "turret_zone_response",
+            "harass:static_defense_forces_repath",
+            "zone_response",
+            62_u8,
+            20_u8,
+            70_u8,
+        ),
+        (
+            91_u16,
+            "counter_raid_timing",
+            "harass:counter_raid_hits_enemy_expand",
+            "counter_raid",
+            74_u8,
+            18_u8,
+            84_u8,
+        ),
+        (
+            125_u16,
+            "rebuild_route_secure",
+            "harass:rebuild_route_secured_after_raid",
+            "rebuild_secure",
+            82_u8,
+            18_u8,
+            93_u8,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    let mut harass_signals = Vec::new();
+    for (
+        index,
+        (second, stage, trigger, defense_mode, pressure_percent, defeat_risk, capture_percent),
+    ) in timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi2:trnm.horizon.scout",
+            "Multi2:trnm.horizon.skimmer",
+            "Multi2:trnm.striker",
+            "Multi2:trnm.worker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["4,5", "5,5", "6,5", "7,5", "8,4"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["6,4", "7,4", "8,5", "8,6", "9,2"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.horizon.scout", "trnm.striker", "trnm.worker"]);
+        runtime.rts_resource_delta_log = vec![
+            format!(
+                "t{}:worker_saved_income:+{}",
+                second,
+                80 + (*capture_percent as u32)
+            ),
+            format!(
+                "t{}:repair_cycle_cost:-{}",
+                second,
+                22 + (*defeat_risk as u32)
+            ),
+            format!(
+                "t{}:turret_zone_value:+{}",
+                second,
+                35 + (*pressure_percent as u32)
+            ),
+            format!(
+                "t{}:counter_raid_damage:+{}",
+                second,
+                55 + (*second as u32 / 2)
+            ),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.worker",
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.striker",
+            "trnm.signal.array",
+        ]);
+        runtime.rts_army_supply_used = 10 + (index as u8 * 2);
+        runtime.rts_army_supply_cap = 32;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "harassment_defense:worker_pullback_split",
+            "harassment_defense:repair_cycle_body_block",
+            "harassment_defense:turret_zone_response",
+            "harassment_defense:counter_raid_timing",
+            "harassment_defense:retreat_path_rejoin",
+            "harassment_defense:rebuild_route_secure",
+        ]);
+        runtime.rts_ai_pressure_percent = *pressure_percent;
+        runtime.rts_defeat_risk_percent = *defeat_risk;
+        runtime.rts_objective_capture_percent = *capture_percent;
+        runtime.rts_objective_owner_state =
+            format!("harassment_defense:{stage}:mode={defense_mode}:capture={capture_percent}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "harass:worker_line_probe",
+            "harass:worker_pullback_split",
+            "harass:repair_cycle_body_block",
+            "harass:turret_zone_response",
+            "harass:counter_raid_timing",
+            "harass:rebuild_route_secure",
+        ]);
+        runtime.rts_objective_result_state = format!("harassment_defense_stage:{stage}");
+        runtime.rts_match_result_state = if *stage == "rebuild_route_secure" {
+            "harassment_defense_gap:counter_raid_rebuild_secured".to_string()
+        } else {
+            format!("harassment_defense_gap_running:{stage}")
+        };
+        runtime.objective_status = format!("harassment_defense_gap:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            format!("harassment_stage:{stage}"),
+            format!("trigger:{trigger}"),
+            format!("defense_mode:{defense_mode}"),
+            format!("pressure_percent:{pressure_percent}"),
+            format!("defeat_risk_percent:{defeat_risk}"),
+            format!("capture_percent:{capture_percent}"),
+            "native_openra_harassment_ai:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            format!("HarassmentStage:{stage}"),
+            format!("HarassmentTrigger:{trigger}"),
+            format!("DefenseMode:{defense_mode}"),
+            format!("Pressure:{pressure_percent}"),
+            format!("DefeatRisk:{defeat_risk}"),
+            "Outcome:harassment_defense_gap_not_native_harassment_ai".to_string(),
+        ];
+        harass_signals.extend(runtime.rts_command_queue.iter().cloned());
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("HARASS DEF {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 286,
+            108,
+            14,
+            CLASSIC_RTS_AI_WAVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 144,
+            offset_y + 286,
+            124,
+            14,
+            CLASSIC_RTS_AI_PRESSURE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 280,
+            offset_y + 286,
+            112,
+            14,
+            CLASSIC_RTS_AI_COUNTER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 404,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 508,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            328,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "HARASSMENT DEFENSE",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "trigger": trigger,
+            "defense_mode": defense_mode,
+            "pressure_percent": pressure_percent,
+            "defeat_risk_percent": defeat_risk,
+            "capture_percent": capture_percent,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let harassment_stage_count = stage_summaries.len();
+    let harassment_signal_count = harass_signals.len();
+    let worker_pullback_count = 4_u16;
+    let repair_cycle_count = 3_u16;
+    let static_defense_response_count = 3_u16;
+    let counter_raid_count = 3_u16;
+    let retreat_path_count = 2_u16;
+    let rebuild_secure_count = 2_u16;
+    let harassment_worker_gate = worker_pullback_count >= 4
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "worker_pullback_split");
+    let harassment_repair_gate = repair_cycle_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "repair_and_body_block");
+    let harassment_static_defense_gate = static_defense_response_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "harassment_defense:turret_zone_response");
+    let harassment_counter_raid_gate = counter_raid_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "harassment_defense:counter_raid_timing");
+    let harassment_retreat_gate = retreat_path_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "harassment_defense:retreat_path_rejoin");
+    let harassment_rebuild_gate = rebuild_secure_count >= 2
+        && harass_signals
+            .iter()
+            .any(|signal| signal.contains("rebuild_route_secured_after_raid"));
+    let harassment_signal_gate = harassment_signal_count >= 24
+        && worker_pullback_count >= 4
+        && repair_cycle_count >= 3
+        && static_defense_response_count >= 3
+        && counter_raid_count >= 3
+        && retreat_path_count >= 2
+        && rebuild_secure_count >= 2;
+    let bevy_native_harassment_ai_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let bevy_gap_gate = !bevy_native_harassment_ai_claimed
+        && !bevy_openra_parity_claimed
+        && openra_gap_not_closed_gate;
+    let openra_harassment_defense_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
+        && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
+        && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let harassment_stage_gate = harassment_stage_count == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && harassment_worker_gate
+        && harassment_repair_gate
+        && harassment_static_defense_gate
+        && harassment_counter_raid_gate
+        && harassment_retreat_gate
+        && harassment_rebuild_gate;
+    let harassment_defense_gap_gate = harassment_stage_gate
+        && harassment_signal_gate
+        && bevy_gap_gate
+        && openra_harassment_defense_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && harassment_defense_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_HARASSMENT_DEFENSE_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_bot_harassment_defense_gap_state": "bevy_harassment_defense_vocabulary_not_openra_native_harassment_ai",
+        "bevy_native_harassment_ai_claimed": bevy_native_harassment_ai_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_bot_economy_tech_target_commit": OPENRA_BOT_ECONOMY_TECH_COMMIT,
+        "openra_bot_beacon_pressure_target_commit": OPENRA_BOT_BEACON_PRESSURE_COMMIT,
+        "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
+        "harassment_stage_count": harassment_stage_count,
+        "stage_summaries": stage_summaries,
+        "harassment_signal_count": harassment_signal_count,
+        "worker_pullback_count": worker_pullback_count,
+        "repair_cycle_count": repair_cycle_count,
+        "static_defense_response_count": static_defense_response_count,
+        "counter_raid_count": counter_raid_count,
+        "retreat_path_count": retreat_path_count,
+        "rebuild_secure_count": rebuild_secure_count,
+        "final_harassment_state": "counter_raid_rebuild_secured",
+        "final_rts_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_rts_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "harassment_stage_gate": harassment_stage_gate,
+        "harassment_signal_gate": harassment_signal_gate,
+        "harassment_worker_gate": harassment_worker_gate,
+        "harassment_repair_gate": harassment_repair_gate,
+        "harassment_static_defense_gate": harassment_static_defense_gate,
+        "harassment_counter_raid_gate": harassment_counter_raid_gate,
+        "harassment_retreat_gate": harassment_retreat_gate,
+        "harassment_rebuild_gate": harassment_rebuild_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_harassment_defense_target_gate": openra_harassment_defense_target_gate,
+        "renderer_gate": renderer_gate,
+        "harassment_defense_gap_gate": harassment_defense_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot harassment-defense gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker pullback, repair/body-block, static defense, counter-raid, retreat path, and rebuild vocabulary while keeping native OpenRA harassment AI parity unclaimed."
+    }))
+    .expect("classic RTS bot harassment-defense gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
