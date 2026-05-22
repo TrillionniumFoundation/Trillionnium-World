@@ -37,6 +37,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_ai_skirmish_pressure.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_objective_victory_loop.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_autonomous_bot_skirmish.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_organic_terminal_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure.sh" >/dev/null
@@ -112,6 +113,7 @@ jq -n \
   --slurpfile rts_ai "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-ai-skirmish-pressure.json" \
   --slurpfile rts_objective "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.json" \
   --slurpfile rts_auto_bot "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.json" \
+  --slurpfile rts_organic_terminal_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.json" \
   --slurpfile rts_creep_camp "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json" \
   --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
   --slurpfile rts_enemy_base "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.json" \
@@ -193,6 +195,7 @@ jq -n \
       and ok($rts_ai)
       and ok($rts_objective)
       and ok($rts_auto_bot)
+      and ok($rts_organic_terminal_gap)
       and ok($rts_creep_camp)
       and ok($rts_fog)
       and ok($rts_enemy_base)
@@ -486,6 +489,7 @@ jq -n \
       classic_rts_ai_skirmish_pressure_green: ok($rts_ai),
       classic_rts_objective_victory_loop_green: ok($rts_objective),
       classic_rts_autonomous_bot_skirmish_green: ok($rts_auto_bot),
+      classic_rts_organic_terminal_gap_green: ok($rts_organic_terminal_gap),
       classic_rts_creep_camp_terrain_route_green: ok($rts_creep_camp),
       classic_rts_fog_scouting_intel_green: ok($rts_fog),
       classic_rts_enemy_base_tech_pressure_green: ok($rts_enemy_base),
@@ -852,6 +856,28 @@ jq -n \
       rts_autonomous_bot_skirmish_objective_pixel_count: $rts_auto_bot[0].objective_pixel_count,
       rts_autonomous_bot_skirmish_capture_bar_pixel_count: $rts_auto_bot[0].capture_bar_pixel_count,
       rts_autonomous_bot_skirmish_match_result_pixel_count: $rts_auto_bot[0].match_result_pixel_count,
+      rts_organic_terminal_gap_stage_count: ($rts_organic_terminal_gap[0].stage_summaries | length),
+      rts_organic_terminal_gap_winner: $rts_organic_terminal_gap[0].bevy_terminal_winner,
+      rts_organic_terminal_gap_winner_beacons: $rts_organic_terminal_gap[0].bevy_terminal_winner_beacons,
+      rts_organic_terminal_gap_total_beacons: $rts_organic_terminal_gap[0].bevy_terminal_total_beacons,
+      rts_organic_terminal_gap_hold_ticks: $rts_organic_terminal_gap[0].bevy_terminal_hold_ticks,
+      rts_organic_terminal_gap_state: $rts_organic_terminal_gap[0].bevy_terminal_observation_gap_state,
+      rts_organic_terminal_gap_openra_parity_target_commit: $rts_organic_terminal_gap[0].openra_parity_target_commit,
+      rts_organic_terminal_gap_winner_count: $rts_organic_terminal_gap[0].winner_count,
+      rts_organic_terminal_gap_loser_count: $rts_organic_terminal_gap[0].loser_count,
+      rts_organic_terminal_gap_match_result: $rts_organic_terminal_gap[0].final_match_result_state,
+      rts_organic_terminal_gap_pixel_count: (
+        $rts_organic_terminal_gap[0].ai_wave_pixel_count
+        + $rts_organic_terminal_gap[0].ai_pressure_pixel_count
+        + $rts_organic_terminal_gap[0].objective_pixel_count
+        + $rts_organic_terminal_gap[0].capture_bar_pixel_count
+        + $rts_organic_terminal_gap[0].match_result_pixel_count
+      ),
+      rts_organic_terminal_gap_ai_wave_pixel_count: $rts_organic_terminal_gap[0].ai_wave_pixel_count,
+      rts_organic_terminal_gap_ai_pressure_pixel_count: $rts_organic_terminal_gap[0].ai_pressure_pixel_count,
+      rts_organic_terminal_gap_objective_pixel_count: $rts_organic_terminal_gap[0].objective_pixel_count,
+      rts_organic_terminal_gap_capture_bar_pixel_count: $rts_organic_terminal_gap[0].capture_bar_pixel_count,
+      rts_organic_terminal_gap_match_result_pixel_count: $rts_organic_terminal_gap[0].match_result_pixel_count,
       rts_creep_camp_terrain_route_accepted_input_count: $rts_creep_camp[0].accepted_input_count,
       rts_creep_camp_terrain_route_camp_tile_count: ($rts_creep_camp[0].final_creep_camp_tile_ids | length),
       rts_creep_camp_terrain_route_unit_count: ($rts_creep_camp[0].final_creep_camp_unit_ids | length),
@@ -1495,6 +1521,13 @@ jq -n \
       rts_autonomous_bot_skirmish_terminal_gate: $rts_auto_bot[0].terminal_gate,
       rts_autonomous_bot_skirmish_renderer_gate: $rts_auto_bot[0].renderer_gate,
       rts_autonomous_bot_skirmish_gate: $rts_auto_bot[0].autonomous_bot_skirmish_gate,
+      rts_organic_terminal_gap_stage_gate: $rts_organic_terminal_gap[0].stage_gate,
+      rts_organic_terminal_gap_observation_report_gate: $rts_organic_terminal_gap[0].observation_report_gate,
+      rts_organic_terminal_gap_openra_target_gate: $rts_organic_terminal_gap[0].openra_target_gate,
+      rts_organic_terminal_gap_bevy_gap_gate: $rts_organic_terminal_gap[0].bevy_gap_gate,
+      rts_organic_terminal_gap_renderer_gate: $rts_organic_terminal_gap[0].renderer_gate,
+      rts_organic_terminal_gap_openra_gap_not_closed_gate: $rts_organic_terminal_gap[0].openra_gap_not_closed_gate,
+      rts_organic_terminal_gap_gate: $rts_organic_terminal_gap[0].organic_terminal_gap_gate,
       rts_creep_camp_terrain_route_live_input_gate: $rts_creep_camp[0].live_creep_camp_input_gate,
       rts_creep_camp_terrain_route_terrain_gate: $rts_creep_camp[0].terrain_route_gate,
       rts_creep_camp_terrain_route_choke_gate: $rts_creep_camp[0].choke_gate,
@@ -1913,6 +1946,8 @@ jq -n \
       classic_rts_objective_victory_loop_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.ppm",
       classic_rts_autonomous_bot_skirmish: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.json",
       classic_rts_autonomous_bot_skirmish_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.ppm",
+      classic_rts_organic_terminal_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.json",
+      classic_rts_organic_terminal_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.ppm",
       classic_rts_creep_camp_terrain_route: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json",
       classic_rts_creep_camp_terrain_route_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.ppm",
       classic_rts_fog_scouting_intel: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json",
@@ -2039,6 +2074,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_ai_skirmish_pressure_green == true
   and .checks.classic_rts_objective_victory_loop_green == true
   and .checks.classic_rts_autonomous_bot_skirmish_green == true
+  and .checks.classic_rts_organic_terminal_gap_green == true
   and .checks.classic_rts_creep_camp_terrain_route_green == true
   and .checks.classic_rts_fog_scouting_intel_green == true
   and .checks.classic_rts_enemy_base_tech_pressure_green == true
@@ -2371,6 +2407,22 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_autonomous_bot_skirmish_objective_pixel_count > 80
   and .headline.rts_autonomous_bot_skirmish_capture_bar_pixel_count > 20
   and .headline.rts_autonomous_bot_skirmish_match_result_pixel_count > 20
+  and .headline.rts_organic_terminal_gap_stage_count == 6
+  and .headline.rts_organic_terminal_gap_winner == "Multi2"
+  and .headline.rts_organic_terminal_gap_winner_beacons == 2
+  and .headline.rts_organic_terminal_gap_total_beacons == 4
+  and .headline.rts_organic_terminal_gap_hold_ticks == 3000
+  and .headline.rts_organic_terminal_gap_state == "bevy_deterministic_observation_not_openra_natural_gameover"
+  and .headline.rts_organic_terminal_gap_openra_parity_target_commit == "5f1bf76"
+  and .headline.rts_organic_terminal_gap_winner_count >= 1
+  and .headline.rts_organic_terminal_gap_loser_count >= 1
+  and .headline.rts_organic_terminal_gap_match_result == "victory:organic_terminal_observed:Multi2"
+  and .headline.rts_organic_terminal_gap_pixel_count > 500
+  and .headline.rts_organic_terminal_gap_ai_wave_pixel_count > 80
+  and .headline.rts_organic_terminal_gap_ai_pressure_pixel_count > 120
+  and .headline.rts_organic_terminal_gap_objective_pixel_count > 80
+  and .headline.rts_organic_terminal_gap_capture_bar_pixel_count > 20
+  and .headline.rts_organic_terminal_gap_match_result_pixel_count > 20
   and .headline.rts_creep_camp_terrain_route_accepted_input_count == 6
   and .headline.rts_creep_camp_terrain_route_camp_tile_count >= 4
   and .headline.rts_creep_camp_terrain_route_unit_count >= 3
@@ -2697,6 +2749,13 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_autonomous_bot_skirmish_terminal_gate == true
   and .gates.rts_autonomous_bot_skirmish_renderer_gate == true
   and .gates.rts_autonomous_bot_skirmish_gate == true
+  and .gates.rts_organic_terminal_gap_stage_gate == true
+  and .gates.rts_organic_terminal_gap_observation_report_gate == true
+  and .gates.rts_organic_terminal_gap_openra_target_gate == true
+  and .gates.rts_organic_terminal_gap_bevy_gap_gate == true
+  and .gates.rts_organic_terminal_gap_renderer_gate == true
+  and .gates.rts_organic_terminal_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_organic_terminal_gap_gate == true
   and .gates.rts_creep_camp_terrain_route_live_input_gate == true
   and .gates.rts_creep_camp_terrain_route_terrain_gate == true
   and .gates.rts_creep_camp_terrain_route_choke_gate == true
