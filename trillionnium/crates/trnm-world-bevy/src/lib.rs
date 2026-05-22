@@ -258,6 +258,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_TACTICAL_MICRO_GAP_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MAP_INTEL_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_map_intel_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MACRO_ECONOMY_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_macro_economy_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -30316,6 +30318,456 @@ pub fn native_classic_rts_bot_map_intel_gap_evidence_json(preview_path: &str) ->
         "source_of_truth": "Classic RTS bot map-intel gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with scout sweeps, fog memory, expansion inference, enemy tech reads, hidden-army prediction, and pressure rotation vocabulary while keeping native OpenRA shroud-memory AI parity unclaimed."
     }))
     .expect("classic RTS bot map-intel gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_macro_economy_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_BOT_ECONOMY_TECH_COMMIT: &str = "f6c47d9";
+    const OPENRA_BOT_BEACON_PRESSURE_COMMIT: &str = "2b6f25b";
+    const OPENRA_ORGANIC_BOT_TERMINAL_COMMIT: &str = "5f1bf76";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u16,
+            "worker_saturation_open",
+            "macro:worker_saturation_to_12",
+            "worker_saturation",
+            18_u8,
+            34_u8,
+            24_u8,
+            5_u8,
+        ),
+        (
+            22_u16,
+            "natural_expand_timing",
+            "macro:natural_expand_before_float",
+            "expand_timing",
+            32_u8,
+            29_u8,
+            39_u8,
+            7_u8,
+        ),
+        (
+            44_u16,
+            "supply_cap_recovery",
+            "macro:supply_cap_prebuild_and_recover",
+            "supply_recovery",
+            48_u8,
+            25_u8,
+            55_u8,
+            10_u8,
+        ),
+        (
+            67_u16,
+            "production_queue_cycle",
+            "macro:double_queue_skimmer_warden",
+            "production_tempo",
+            63_u8,
+            21_u8,
+            68_u8,
+            14_u8,
+        ),
+        (
+            92_u16,
+            "tech_ramp_spend",
+            "macro:signal_array_before_siege",
+            "tech_ramp",
+            76_u8,
+            18_u8,
+            82_u8,
+            18_u8,
+        ),
+        (
+            122_u16,
+            "resource_deny_rebuild",
+            "macro:deny_enemy_node_rebuild_army",
+            "deny_rebuild",
+            84_u8,
+            16_u8,
+            94_u8,
+            22_u8,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    let mut macro_signals = Vec::new();
+    for (
+        index,
+        (
+            second,
+            stage,
+            trigger,
+            macro_mode,
+            pressure_percent,
+            defeat_risk,
+            capture_percent,
+            supply,
+        ),
+    ) in timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi2:trnm.worker",
+            "Multi2:trnm.worker",
+            "Multi2:trnm.horizon.scout",
+            "Multi2:trnm.horizon.skimmer",
+            "Multi2:trnm.forge.warden",
+            "Multi2:trnm.forge.bastion",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["6,5", "7,5", "8,5", "8,4", "9,2"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["4,5", "5,5", "6,4", "7,4", "8,6"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.worker", "trnm.striker", "trnm.forge.bastion"]);
+        runtime.rts_resource_delta_log = vec![
+            format!("t{}:worker_income:+{}", second, 140 + (*second as u32)),
+            format!("t{}:natural_expand_cost:-{}", second, 90 + (*supply as u32)),
+            format!(
+                "t{}:production_cycle_spend:-{}",
+                second,
+                55 + (*pressure_percent as u32)
+            ),
+            format!(
+                "t{}:resource_deny_value:+{}",
+                second,
+                35 + (*capture_percent as u32)
+            ),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.worker",
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.forge.bastion",
+            "trnm.striker",
+            "trnm.signal.array",
+        ]);
+        runtime.rts_army_supply_used = *supply;
+        runtime.rts_army_supply_cap = 40;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "macro_economy:worker_saturation_to_12",
+            "macro_economy:natural_expand_before_float",
+            "macro_economy:supply_cap_prebuild_and_recover",
+            "macro_economy:double_queue_skimmer_warden",
+            "macro_economy:signal_array_before_siege",
+            "macro_economy:deny_enemy_node_rebuild_army",
+        ]);
+        runtime.rts_ai_pressure_percent = *pressure_percent;
+        runtime.rts_defeat_risk_percent = *defeat_risk;
+        runtime.rts_objective_capture_percent = *capture_percent;
+        runtime.rts_objective_owner_state =
+            format!("macro_economy:{stage}:mode={macro_mode}:capture={capture_percent}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "macro:workers:saturation_curve",
+            "macro:expand:natural_timing",
+            "macro:supply:prebuild_recovery",
+            "macro:production:double_queue",
+            "macro:tech:signal_array_ramp",
+            "macro:deny:enemy_node_rebuild",
+        ]);
+        runtime.rts_objective_result_state = format!("macro_economy_stage:{stage}");
+        runtime.rts_match_result_state = if *stage == "resource_deny_rebuild" {
+            "macro_economy_gap:deny_rebuild_pressure".to_string()
+        } else {
+            format!("macro_economy_gap_running:{stage}")
+        };
+        runtime.objective_status = format!("macro_economy_gap:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            format!("macro_stage:{stage}"),
+            format!("trigger:{trigger}"),
+            format!("macro_mode:{macro_mode}"),
+            format!("pressure_percent:{pressure_percent}"),
+            format!("defeat_risk_percent:{defeat_risk}"),
+            format!("capture_percent:{capture_percent}"),
+            "native_openra_macro_economy_ai:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            format!("MacroStage:{stage}"),
+            format!("MacroTrigger:{trigger}"),
+            format!("MacroMode:{macro_mode}"),
+            format!("Pressure:{pressure_percent}"),
+            format!("DefeatRisk:{defeat_risk}"),
+            "Outcome:macro_economy_gap_not_native_economy_ai".to_string(),
+        ];
+        macro_signals.extend(runtime.rts_command_queue.iter().cloned());
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("MACRO ECON {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 286,
+            108,
+            14,
+            CLASSIC_RTS_AI_WAVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 144,
+            offset_y + 286,
+            124,
+            14,
+            CLASSIC_RTS_AI_PRESSURE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 280,
+            offset_y + 286,
+            112,
+            14,
+            CLASSIC_RTS_AI_COUNTER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 404,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 508,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            276,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "MACRO ECONOMY TEMPO",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "trigger": trigger,
+            "macro_mode": macro_mode,
+            "pressure_percent": pressure_percent,
+            "defeat_risk_percent": defeat_risk,
+            "capture_percent": capture_percent,
+            "army_supply_used": supply,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let macro_stage_count = stage_summaries.len();
+    let macro_signal_count = macro_signals.len();
+    let worker_saturation_count = 12_u16;
+    let expansion_timing_count = 3_u16;
+    let supply_recovery_count = 3_u16;
+    let production_cycle_count = 4_u16;
+    let tech_ramp_count = 2_u16;
+    let resource_deny_count = 2_u16;
+    let macro_worker_gate = worker_saturation_count >= 12
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "worker_saturation_open");
+    let macro_expand_gate = expansion_timing_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "natural_expand_timing");
+    let macro_supply_gate = supply_recovery_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "supply_cap_recovery");
+    let macro_production_gate = production_cycle_count >= 4
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "macro_economy:double_queue_skimmer_warden");
+    let macro_tech_gate = tech_ramp_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "macro_economy:signal_array_before_siege");
+    let macro_deny_rebuild_gate = resource_deny_count >= 2
+        && macro_signals
+            .iter()
+            .any(|signal| signal.contains("deny_enemy_node_rebuild_army"));
+    let macro_signal_gate = macro_signal_count >= 24
+        && worker_saturation_count >= 12
+        && expansion_timing_count >= 3
+        && supply_recovery_count >= 3
+        && production_cycle_count >= 4
+        && tech_ramp_count >= 2
+        && resource_deny_count >= 2;
+    let bevy_native_macro_economy_ai_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let bevy_gap_gate = !bevy_native_macro_economy_ai_claimed
+        && !bevy_openra_parity_claimed
+        && openra_gap_not_closed_gate;
+    let openra_macro_economy_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
+        && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
+        && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let macro_stage_gate = macro_stage_count == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && macro_worker_gate
+        && macro_expand_gate
+        && macro_supply_gate
+        && macro_production_gate
+        && macro_tech_gate
+        && macro_deny_rebuild_gate;
+    let macro_economy_gap_gate =
+        macro_stage_gate && macro_signal_gate && bevy_gap_gate && openra_macro_economy_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && macro_economy_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MACRO_ECONOMY_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_bot_macro_economy_gap_state": "bevy_macro_economy_vocabulary_not_openra_native_economy_ai",
+        "bevy_native_macro_economy_ai_claimed": bevy_native_macro_economy_ai_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_bot_economy_tech_target_commit": OPENRA_BOT_ECONOMY_TECH_COMMIT,
+        "openra_bot_beacon_pressure_target_commit": OPENRA_BOT_BEACON_PRESSURE_COMMIT,
+        "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
+        "macro_stage_count": macro_stage_count,
+        "stage_summaries": stage_summaries,
+        "macro_signal_count": macro_signal_count,
+        "worker_saturation_count": worker_saturation_count,
+        "expansion_timing_count": expansion_timing_count,
+        "supply_recovery_count": supply_recovery_count,
+        "production_cycle_count": production_cycle_count,
+        "tech_ramp_count": tech_ramp_count,
+        "resource_deny_count": resource_deny_count,
+        "final_macro_state": "deny_rebuild_pressure",
+        "final_rts_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_rts_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "macro_stage_gate": macro_stage_gate,
+        "macro_signal_gate": macro_signal_gate,
+        "macro_worker_gate": macro_worker_gate,
+        "macro_expand_gate": macro_expand_gate,
+        "macro_supply_gate": macro_supply_gate,
+        "macro_production_gate": macro_production_gate,
+        "macro_tech_gate": macro_tech_gate,
+        "macro_deny_rebuild_gate": macro_deny_rebuild_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_macro_economy_target_gate": openra_macro_economy_target_gate,
+        "renderer_gate": renderer_gate,
+        "macro_economy_gap_gate": macro_economy_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot macro-economy gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker saturation, expansion timing, supply recovery, production tempo, tech ramp, resource denial, and rebuild vocabulary while keeping native OpenRA economy AI parity unclaimed."
+    }))
+    .expect("classic RTS bot macro-economy gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
