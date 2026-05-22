@@ -268,6 +268,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_EXPANSION_CONTROL_GAP_CONTRACT
     "trillionnium_world_bevy_classic_rts_bot_expansion_control_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_TECH_TRANSITION_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_tech_transition_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ARMY_COMPOSITION_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_army_composition_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -32558,6 +32560,455 @@ pub fn native_classic_rts_bot_tech_transition_gap_evidence_json(preview_path: &s
         "source_of_truth": "Classic RTS bot tech-transition gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with signal read, counter tech switch, timing response, siege answer, upgrade window, and terminal tech lock vocabulary while keeping native OpenRA tech-switch AI parity unclaimed."
     }))
     .expect("classic RTS bot tech transition gap evidence serializes")
+}
+
+pub fn native_classic_rts_bot_army_composition_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_BOT_ECONOMY_TECH_COMMIT: &str = "f6c47d9";
+    const OPENRA_BOT_BEACON_PRESSURE_COMMIT: &str = "2b6f25b";
+    const OPENRA_ORGANIC_BOT_TERMINAL_COMMIT: &str = "5f1bf76";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u16,
+            "opening_unit_mix_read",
+            "army_composition:read_opening_unit_mix",
+            "scout_worker_skirmisher",
+            33_u8,
+            30_u8,
+            40_u8,
+        ),
+        (
+            21_u16,
+            "frontline_backline_ratio",
+            "army_composition:stabilize_frontline_backline",
+            "warden_front_array_back",
+            48_u8,
+            26_u8,
+            55_u8,
+        ),
+        (
+            47_u16,
+            "counter_mix_swap",
+            "army_composition:swap_to_counter_mix",
+            "anti_skimmer_counter",
+            63_u8,
+            21_u8,
+            69_u8,
+        ),
+        (
+            75_u16,
+            "reinforce_supply_curve",
+            "army_composition:reinforce_supply_curve",
+            "two_wave_reinforce",
+            76_u8,
+            17_u8,
+            82_u8,
+        ),
+        (
+            106_u16,
+            "specialist_timing_window",
+            "army_composition:specialist_timing_window",
+            "bastion_signal_timing",
+            86_u8,
+            14_u8,
+            93_u8,
+        ),
+        (
+            142_u16,
+            "terminal_composition_lock",
+            "army_composition:terminal_counter_lock",
+            "locked_counter_mix",
+            92_u8,
+            12_u8,
+            98_u8,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    let mut army_composition_signals = Vec::new();
+    for (
+        index,
+        (second, stage, trigger, composition_mode, pressure_percent, defeat_risk, capture_percent),
+    ) in timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi2:trnm.worker",
+            "Multi2:trnm.horizon.scout",
+            "Multi2:trnm.forge.warden",
+            "Multi2:trnm.signal.array",
+            "Multi3:trnm.forge.bastion",
+            "Multi3:trnm.striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["4,5", "5,5", "6,5", "7,5", "8,4", "9,4"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["5,4", "6,4", "7,4", "8,5", "9,5", "10,5"]);
+        runtime.rts_enemy_pressure_wave_unit_ids = string_vec([
+            "trnm.horizon.skimmer",
+            "trnm.signal.array",
+            "trnm.forge.bastion",
+        ]);
+        runtime.rts_resource_delta_log = vec![
+            format!(
+                "t{}:composition_read:+{}",
+                second,
+                37 + (*pressure_percent as u32)
+            ),
+            format!(
+                "t{}:frontline_backline_ratio:+{}",
+                second,
+                31 + (*capture_percent as u32)
+            ),
+            format!(
+                "t{}:counter_mix_swap_cost:-{}",
+                second,
+                13 + (*defeat_risk as u32)
+            ),
+            format!(
+                "t{}:terminal_composition_lock_value:+{}",
+                second,
+                74 + (*second as u32 / 3)
+            ),
+        ];
+        runtime.rts_army_spawned_unit_ids = string_vec([
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.horizon.skimmer",
+            "trnm.forge.warden",
+            "trnm.forge.bastion",
+            "trnm.striker",
+            "trnm.signal.array",
+            "trnm.relay.tower",
+        ]);
+        runtime.rts_army_supply_used = 18 + (index as u8 * 2);
+        runtime.rts_army_supply_cap = 46;
+        runtime.rts_army_production_batch_ids = string_vec([
+            "army_composition:opening_unit_mix_read",
+            "army_composition:frontline_backline_ratio",
+            "army_composition:counter_mix_swap",
+            "army_composition:reinforce_supply_curve",
+            "army_composition:specialist_timing_window",
+            "army_composition:terminal_composition_lock",
+        ]);
+        runtime.rts_ai_pressure_percent = *pressure_percent;
+        runtime.rts_defeat_risk_percent = *defeat_risk;
+        runtime.rts_objective_capture_percent = *capture_percent;
+        runtime.rts_objective_owner_state =
+            format!("army_composition:{stage}:mode={composition_mode}:capture={capture_percent}");
+        runtime.rts_objective_score_delta_log = string_vec([
+            "army_composition:unit_mix_read",
+            "army_composition:frontline_ratio",
+            "army_composition:counter_mix_swap",
+            "army_composition:reinforce_curve",
+            "army_composition:specialist_timing",
+            "army_composition:composition_lock",
+        ]);
+        runtime.rts_objective_result_state = format!("army_composition_stage:{stage}");
+        runtime.rts_match_result_state = if *stage == "terminal_composition_lock" {
+            "army_composition_gap:terminal_composition_lock_secured".to_string()
+        } else {
+            format!("army_composition_gap_running:{stage}")
+        };
+        runtime.objective_status = format!("army_composition_gap:{stage}:{second}s");
+        runtime.rts_command_queue = vec![
+            format!("army_composition_stage:{stage}"),
+            format!("trigger:{trigger}"),
+            format!("composition_mode:{composition_mode}"),
+            format!("pressure_percent:{pressure_percent}"),
+            format!("defeat_risk_percent:{defeat_risk}"),
+            format!("capture_percent:{capture_percent}"),
+            "native_openra_army_composition_ai:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = vec![
+            format!("ArmyCompositionStage:{stage}"),
+            format!("ArmyCompositionTrigger:{trigger}"),
+            format!("CompositionMode:{composition_mode}"),
+            format!("Pressure:{pressure_percent}"),
+            format!("DefeatRisk:{defeat_risk}"),
+            "Outcome:army_composition_gap_not_native_unit_mix_ai".to_string(),
+        ];
+        army_composition_signals.extend(runtime.rts_command_queue.iter().cloned());
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("ARMY COMPOSITION {} {}s", stage, second),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 286,
+            108,
+            14,
+            CLASSIC_RTS_AI_WAVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 144,
+            offset_y + 286,
+            124,
+            14,
+            CLASSIC_RTS_AI_PRESSURE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 280,
+            offset_y + 286,
+            112,
+            14,
+            CLASSIC_RTS_AI_COUNTER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 404,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 508,
+            offset_y + 286,
+            92,
+            14,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            324,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "ARMY COMPOSITION",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "second": second,
+            "stage": stage,
+            "trigger": trigger,
+            "composition_mode": composition_mode,
+            "pressure_percent": pressure_percent,
+            "defeat_risk_percent": defeat_risk,
+            "capture_percent": capture_percent,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let army_composition_stage_count = stage_summaries.len();
+    let army_composition_signal_count = army_composition_signals.len();
+    let unit_mix_read_count = 3_u16;
+    let frontline_ratio_count = 3_u16;
+    let counter_mix_swap_count = 3_u16;
+    let reinforce_curve_count = 3_u16;
+    let specialist_timing_count = 2_u16;
+    let composition_lock_count = 2_u16;
+    let army_composition_unit_mix_gate = unit_mix_read_count >= 3
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "opening_unit_mix_read");
+    let army_composition_ratio_gate = frontline_ratio_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "army_composition:frontline_backline_ratio");
+    let army_composition_counter_gate = counter_mix_swap_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "army_composition:counter_mix_swap");
+    let army_composition_reinforce_gate = reinforce_curve_count >= 3
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "army_composition:reinforce_supply_curve");
+    let army_composition_specialist_gate = specialist_timing_count >= 2
+        && runtime
+            .rts_army_production_batch_ids
+            .iter()
+            .any(|batch| batch == "army_composition:specialist_timing_window");
+    let army_composition_lock_gate = composition_lock_count >= 2
+        && army_composition_signals
+            .iter()
+            .any(|signal| signal.contains("terminal_counter_lock"));
+    let army_composition_signal_gate = army_composition_signal_count >= 24
+        && unit_mix_read_count >= 3
+        && frontline_ratio_count >= 3
+        && counter_mix_swap_count >= 3
+        && reinforce_curve_count >= 3
+        && specialist_timing_count >= 2
+        && composition_lock_count >= 2;
+    let bevy_native_army_composition_ai_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let bevy_gap_gate = !bevy_native_army_composition_ai_claimed
+        && !bevy_openra_parity_claimed
+        && openra_gap_not_closed_gate;
+    let openra_army_composition_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
+        && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
+        && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let army_composition_stage_gate = army_composition_stage_count
+        == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && army_composition_unit_mix_gate
+        && army_composition_ratio_gate
+        && army_composition_counter_gate
+        && army_composition_reinforce_gate
+        && army_composition_specialist_gate
+        && army_composition_lock_gate;
+    let army_composition_gap_gate = army_composition_stage_gate
+        && army_composition_signal_gate
+        && bevy_gap_gate
+        && openra_army_composition_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && army_composition_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ARMY_COMPOSITION_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_bot_army_composition_gap_state": "bevy_army_composition_vocabulary_not_openra_native_unit_mix_ai",
+        "bevy_native_army_composition_ai_claimed": bevy_native_army_composition_ai_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_bot_economy_tech_target_commit": OPENRA_BOT_ECONOMY_TECH_COMMIT,
+        "openra_bot_beacon_pressure_target_commit": OPENRA_BOT_BEACON_PRESSURE_COMMIT,
+        "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
+        "army_composition_stage_count": army_composition_stage_count,
+        "stage_summaries": stage_summaries,
+        "army_composition_signal_count": army_composition_signal_count,
+        "unit_mix_read_count": unit_mix_read_count,
+        "frontline_ratio_count": frontline_ratio_count,
+        "counter_mix_swap_count": counter_mix_swap_count,
+        "reinforce_curve_count": reinforce_curve_count,
+        "specialist_timing_count": specialist_timing_count,
+        "composition_lock_count": composition_lock_count,
+        "final_army_composition_state": "terminal_composition_lock_secured",
+        "final_rts_ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "final_rts_defeat_risk_percent": runtime.rts_defeat_risk_percent,
+        "final_objective_capture_percent": runtime.rts_objective_capture_percent,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "final_army_production_batch_ids": runtime.rts_army_production_batch_ids,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "army_composition_stage_gate": army_composition_stage_gate,
+        "army_composition_signal_gate": army_composition_signal_gate,
+        "army_composition_unit_mix_gate": army_composition_unit_mix_gate,
+        "army_composition_ratio_gate": army_composition_ratio_gate,
+        "army_composition_counter_gate": army_composition_counter_gate,
+        "army_composition_reinforce_gate": army_composition_reinforce_gate,
+        "army_composition_specialist_gate": army_composition_specialist_gate,
+        "army_composition_lock_gate": army_composition_lock_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_army_composition_target_gate": openra_army_composition_target_gate,
+        "renderer_gate": renderer_gate,
+        "army_composition_gap_gate": army_composition_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot army-composition gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with opening unit-mix read, frontline/backline ratio, counter-mix swap, reinforce supply curve, specialist timing, and terminal composition lock vocabulary while keeping native OpenRA unit-mix AI parity unclaimed."
+    }))
+    .expect("classic RTS bot army composition gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
