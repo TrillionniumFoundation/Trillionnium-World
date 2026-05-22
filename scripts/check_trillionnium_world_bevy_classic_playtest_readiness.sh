@@ -59,6 +59,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_surface.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_structure_modeling.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_environment_life.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_model_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_worker_harvest_animation.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_spawn_animation.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_unit_status_portrait.sh" >/dev/null
@@ -133,6 +134,7 @@ jq -n \
   --slurpfile rts_command_surface "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-command-surface.json" \
   --slurpfile rts_structure_modeling "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-structure-modeling.json" \
   --slurpfile rts_environment_life "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.json" \
+  --slurpfile rts_map_model_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-model-gap.json" \
   --slurpfile rts_worker_harvest_animation "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.json" \
   --slurpfile rts_production_spawn_animation "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-spawn-animation.json" \
   --slurpfile rts_unit_status_portrait "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-unit-status-portrait.json" \
@@ -213,6 +215,7 @@ jq -n \
       and ok($rts_command_surface)
       and ok($rts_structure_modeling)
       and ok($rts_environment_life)
+      and ok($rts_map_model_gap)
       and ok($rts_worker_harvest_animation)
       and ok($rts_production_spawn_animation)
       and ok($rts_unit_status_portrait)
@@ -505,6 +508,7 @@ jq -n \
       classic_rts_command_surface_green: ok($rts_command_surface),
       classic_rts_structure_modeling_green: ok($rts_structure_modeling),
       classic_rts_environment_life_green: ok($rts_environment_life),
+      classic_rts_map_model_gap_green: ok($rts_map_model_gap),
       classic_rts_worker_harvest_animation_green: ok($rts_worker_harvest_animation),
       classic_rts_production_spawn_animation_green: ok($rts_production_spawn_animation),
       classic_rts_unit_status_portrait_green: ok($rts_unit_status_portrait),
@@ -1189,6 +1193,17 @@ jq -n \
       rts_environment_life_banner_flutter_pixel_count: $rts_environment_life[0].banner_flutter_pixel_count,
       rts_environment_life_resource_glint_pixel_count: $rts_environment_life[0].resource_glint_pixel_count,
       rts_environment_life_ambient_dust_pixel_count: $rts_environment_life[0].ambient_dust_pixel_count,
+      rts_map_model_gap_stage_count: ($rts_map_model_gap[0].stage_summaries | length),
+      rts_map_model_gap_lane_pixel_count: $rts_map_model_gap[0].lane_pixel_count,
+      rts_map_model_gap_resource_pixel_count: $rts_map_model_gap[0].resource_pixel_count,
+      rts_map_model_gap_height_pixel_count: $rts_map_model_gap[0].height_pixel_count,
+      rts_map_model_gap_choke_pixel_count: $rts_map_model_gap[0].choke_pixel_count,
+      rts_map_model_gap_structure_pixel_count: $rts_map_model_gap[0].structure_pixel_count,
+      rts_map_model_gap_unit_role_pixel_count: $rts_map_model_gap[0].unit_role_pixel_count,
+      rts_map_model_gap_occlusion_pixel_count: $rts_map_model_gap[0].occlusion_pixel_count,
+      rts_map_model_gap_openra_parity_target_commit: $rts_map_model_gap[0].openra_parity_target_commit,
+      rts_map_model_gap_bevy_openra_parity_state: $rts_map_model_gap[0].bevy_openra_parity_state,
+      rts_map_model_gap_bevy_openra_parity_claimed: $rts_map_model_gap[0].bevy_openra_parity_claimed,
       rts_worker_harvest_animation_approach_pixel_count: $rts_worker_harvest_animation[0].approach_pixel_count,
       rts_worker_harvest_animation_tool_swing_pixel_count: $rts_worker_harvest_animation[0].tool_swing_pixel_count,
       rts_worker_harvest_animation_resource_pop_pixel_count: $rts_worker_harvest_animation[0].resource_pop_pixel_count,
@@ -1630,6 +1645,19 @@ jq -n \
       rts_environment_life_environment_stage_gate: $rts_environment_life[0].environment_stage_gate,
       rts_environment_life_scene_renderer_gate: $rts_environment_life[0].scene_renderer_gate,
       rts_environment_life_original_art_policy_gate: $rts_environment_life[0].original_art_policy_gate,
+      rts_map_model_gap_lane_gate: $rts_map_model_gap[0].lane_gate,
+      rts_map_model_gap_resource_gate: $rts_map_model_gap[0].resource_gate,
+      rts_map_model_gap_height_gate: $rts_map_model_gap[0].height_gate,
+      rts_map_model_gap_choke_gate: $rts_map_model_gap[0].choke_gate,
+      rts_map_model_gap_structure_silhouette_gate: $rts_map_model_gap[0].structure_silhouette_gate,
+      rts_map_model_gap_unit_role_gate: $rts_map_model_gap[0].unit_role_gate,
+      rts_map_model_gap_occlusion_gate: $rts_map_model_gap[0].occlusion_gate,
+      rts_map_model_gap_stage_gate: $rts_map_model_gap[0].map_model_stage_gate,
+      rts_map_model_gap_map_topology_gate: $rts_map_model_gap[0].map_topology_gate,
+      rts_map_model_gap_model_readability_gate: $rts_map_model_gap[0].model_readability_gate,
+      rts_map_model_gap_scene_renderer_gate: $rts_map_model_gap[0].scene_renderer_gate,
+      rts_map_model_gap_openra_gap_not_closed_gate: $rts_map_model_gap[0].openra_gap_not_closed_gate,
+      rts_map_model_gap_original_art_policy_gate: $rts_map_model_gap[0].original_art_policy_gate,
       rts_worker_harvest_animation_approach_gate: $rts_worker_harvest_animation[0].approach_gate,
       rts_worker_harvest_animation_tool_swing_gate: $rts_worker_harvest_animation[0].tool_swing_gate,
       rts_worker_harvest_animation_resource_pop_gate: $rts_worker_harvest_animation[0].resource_pop_gate,
@@ -1928,6 +1956,8 @@ jq -n \
       classic_rts_structure_modeling_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-structure-modeling.ppm",
       classic_rts_environment_life: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.json",
       classic_rts_environment_life_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-environment-life.ppm",
+      classic_rts_map_model_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-model-gap.json",
+      classic_rts_map_model_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-model-gap.ppm",
       classic_rts_worker_harvest_animation: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.json",
       classic_rts_worker_harvest_animation_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-worker-harvest-animation.ppm",
       classic_rts_production_spawn_animation: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-spawn-animation.json",
@@ -2031,6 +2061,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_command_surface_green == true
   and .checks.classic_rts_structure_modeling_green == true
   and .checks.classic_rts_environment_life_green == true
+  and .checks.classic_rts_map_model_gap_green == true
   and .checks.classic_rts_worker_harvest_animation_green == true
   and .checks.classic_rts_production_spawn_animation_green == true
   and .checks.classic_rts_unit_status_portrait_green == true
@@ -2054,6 +2085,17 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
+  and .headline.rts_map_model_gap_stage_count == 6
+  and .headline.rts_map_model_gap_lane_pixel_count > 4000
+  and .headline.rts_map_model_gap_resource_pixel_count > 1000
+  and .headline.rts_map_model_gap_height_pixel_count > 3000
+  and .headline.rts_map_model_gap_choke_pixel_count > 1000
+  and .headline.rts_map_model_gap_structure_pixel_count > 3000
+  and .headline.rts_map_model_gap_unit_role_pixel_count > 1000
+  and .headline.rts_map_model_gap_occlusion_pixel_count > 2000
+  and .headline.rts_map_model_gap_openra_parity_target_commit == "5f1bf76"
+  and .headline.rts_map_model_gap_bevy_openra_parity_state == "map_model_catching_up_not_claimed"
+  and .headline.rts_map_model_gap_bevy_openra_parity_claimed == false
   and .headline.frame_count >= 43
   and .headline.animation_clip_count >= 4
   and .headline.motion_sample_count == 8
@@ -2805,6 +2847,19 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_environment_life_environment_stage_gate == true
   and .gates.rts_environment_life_scene_renderer_gate == true
   and .gates.rts_environment_life_original_art_policy_gate == true
+  and .gates.rts_map_model_gap_lane_gate == true
+  and .gates.rts_map_model_gap_resource_gate == true
+  and .gates.rts_map_model_gap_height_gate == true
+  and .gates.rts_map_model_gap_choke_gate == true
+  and .gates.rts_map_model_gap_structure_silhouette_gate == true
+  and .gates.rts_map_model_gap_unit_role_gate == true
+  and .gates.rts_map_model_gap_occlusion_gate == true
+  and .gates.rts_map_model_gap_stage_gate == true
+  and .gates.rts_map_model_gap_map_topology_gate == true
+  and .gates.rts_map_model_gap_model_readability_gate == true
+  and .gates.rts_map_model_gap_scene_renderer_gate == true
+  and .gates.rts_map_model_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_map_model_gap_original_art_policy_gate == true
   and .gates.rts_worker_harvest_animation_approach_gate == true
   and .gates.rts_worker_harvest_animation_tool_swing_gate == true
   and .gates.rts_worker_harvest_animation_resource_pop_gate == true

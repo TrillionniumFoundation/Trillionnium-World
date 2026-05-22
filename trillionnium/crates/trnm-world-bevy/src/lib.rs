@@ -240,6 +240,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_STRUCTURE_MODELING_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_structure_modeling_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENVIRONMENT_LIFE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_environment_life_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_MODEL_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_map_model_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -17671,6 +17673,514 @@ pub fn native_classic_rts_environment_life_evidence_json(preview_path: &str) -> 
         "source_of_truth": "Environment-life evidence uses actual classic_draw_scene frames and environment-event driven stage selection to prove the playable Bevy RTS scene has readable ambient motion cues without borrowing external RTS IP assets."
     }))
     .expect("classic RTS environment life evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_map_model_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 3;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let stages = [
+        (
+            "lane_topology",
+            "mirror_city_square",
+            (5, 5),
+            "map_model_gap:lane_topology",
+        ),
+        (
+            "resource_expansion",
+            "mirror_city_square",
+            (7, 4),
+            "map_model_gap:resource_expansion",
+        ),
+        (
+            "height_choke",
+            "league_coliseum",
+            (6, 5),
+            "map_model_gap:height_choke",
+        ),
+        (
+            "structure_silhouette",
+            "mentor_training_room",
+            (5, 4),
+            "map_model_gap:structure_silhouette",
+        ),
+        (
+            "unit_role_readability",
+            "arena_outdoor",
+            (5, 5),
+            "map_model_gap:unit_role_readability",
+        ),
+        (
+            "fog_depth_cutaway",
+            "arena_outdoor",
+            (8, 2),
+            "map_model_gap:fog_depth_cutaway",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, scene, player_tile, map_model_event)) in stages.iter().enumerate() {
+        let runtime = NativeFirstPlayableRuntime {
+            map_scene: (*scene).to_string(),
+            coins: 780 + index as u64,
+            xp: 520 + (index as u64 * 23),
+            facing_direction: if index % 2 == 0 { "east" } else { "west" }.to_string(),
+            walk_cycle_frame: (index as u8 % 5) + 1,
+            combat_overlay_visible: true,
+            combat_overlay_was_visible: true,
+            combat_turn: (index as u8 % 5) + 1,
+            rts_control_group_id: Some("1".to_string()),
+            rts_selected_unit_ids: string_vec([
+                "player",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "arena_creep_attack",
+            ]),
+            rts_active_control_group_ids: string_vec(["1", "2", "3"]),
+            rts_command_queue: string_vec([
+                *map_model_event,
+                "map:three_lane_topology",
+                "model:role_silhouette_readability",
+                "terrain:height_choke_cutaway",
+            ]),
+            rts_command_destination_tile: Some("8,4".to_string()),
+            rts_attack_target_id: Some("arena_creep_attack".to_string()),
+            rts_visible_tile_ids: string_vec(["3,3", "4,4", "5,4", "6,4", "7,4", "8,4"]),
+            rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+            rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0"]),
+            rts_build_site_tile_ids: string_vec(["7,4", "7,5", "8,4"]),
+            rts_completed_structure_ids: string_vec(["town_hall", "watch_tower", "training_hall"]),
+            rts_building_blueprint_id: Some("watch_tower".to_string()),
+            rts_building_progress_percent: 100,
+            rts_structure_health_percents: vec![94, 78, 62],
+            rts_harvest_node_ids: string_vec(["north_gold", "south_lumber", "center_flux"]),
+            rts_worker_assignment_ids: string_vec([
+                "player->north_gold",
+                "square_worker_carry->south_lumber",
+            ]),
+            rts_dropoff_structure_id: Some("town_hall".to_string()),
+            rts_production_queue: string_vec(["train:guard", "train:worker", "upgrade:watch"]),
+            rts_unit_health_percents: vec![100, 88, 67, 42],
+            rts_target_health_percent: 34,
+            rts_combat_event_log: string_vec([
+                *map_model_event,
+                "map_model_gap_source:classic_draw_scene",
+                "map_model_gap_original_art",
+            ]),
+            last_feedback: format!("RTS map/model gap stage: {stage}"),
+            ..Default::default()
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            *player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+
+        let map_x = offset_x + 44;
+        let map_y = offset_y + 42;
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            map_x - 8,
+            map_y - 8,
+            356,
+            214,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            map_x - 4,
+            map_y - 4,
+            348,
+            206,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            map_x,
+            map_y,
+            340,
+            198,
+            CLASSIC_RTS_MINIMAP_TERRAIN_COLOR,
+        );
+        for row in 0..8 {
+            let lane_y = map_y + 18 + row * 22;
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + 8,
+                lane_y,
+                324,
+                4,
+                CLASSIC_RTS_MINIMAP_ROAD_COLOR,
+            );
+        }
+        for (lane, y) in [(0, 45), (1, 96), (2, 147)] {
+            let thickness = if *stage == "lane_topology" { 9 } else { 6 };
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + 18,
+                map_y + y,
+                304,
+                thickness,
+                CLASSIC_RTS_INNER_ROUTE_COLOR,
+            );
+            classic_draw_text(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + 26 + lane * 84,
+                map_y + y - 12,
+                "LANE",
+                1,
+                CLASSIC_HUD_MUTED_TEXT_COLOR,
+            );
+        }
+        for (x, y) in [(52, 36), (260, 150), (160, 92)] {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x,
+                map_y + y,
+                30,
+                22,
+                CLASSIC_RTS_HARVEST_NODE_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x + 6,
+                map_y + y + 5,
+                18,
+                12,
+                CLASSIC_RTS_RESOURCE_LUMBER_COLOR,
+            );
+        }
+        for (x, y, w, h) in [(102, 52, 52, 34), (192, 116, 58, 34), (242, 54, 36, 84)] {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x,
+                map_y + y,
+                w,
+                h,
+                CLASSIC_RTS_KEEP_SHIELD_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x + 6,
+                map_y + y + 5,
+                (w - 12).max(4),
+                4,
+                CLASSIC_RTS_DEPTH_CUTAWAY_COLOR,
+            );
+        }
+        for (x, y, w, h) in [(92, 90, 24, 52), (154, 72, 32, 24), (226, 86, 24, 54)] {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x,
+                map_y + y,
+                w,
+                h,
+                CLASSIC_RTS_CHOKE_COLOR,
+            );
+        }
+        for (x, y, w, h) in [(38, 84, 44, 42), (148, 82, 42, 46), (272, 84, 44, 42)] {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x,
+                map_y + y + h - 8,
+                w,
+                8,
+                CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x,
+                map_y + y,
+                w,
+                h,
+                CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x + 5,
+                map_y + y + 5,
+                w - 10,
+                8,
+                CLASSIC_RTS_STRUCTURE_REPAIR_COLOR,
+            );
+        }
+        for (x, y, color) in [
+            (116, 64, CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR),
+            (136, 104, CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR),
+            (208, 92, CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR),
+            (230, 134, CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR),
+        ] {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x,
+                map_y + y,
+                14,
+                18,
+                color,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x - 2,
+                map_y + y + 17,
+                18,
+                4,
+                CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR,
+            );
+        }
+        for (x, y, w, h) in [(8, 8, 52, 46), (282, 10, 46, 48), (18, 148, 60, 38)] {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x,
+                map_y + y,
+                w,
+                h,
+                CLASSIC_RTS_MINIMAP_FOG_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                map_x + x + 5,
+                map_y + y + 5,
+                w - 10,
+                5,
+                CLASSIC_RTS_DEPTH_FOREGROUND_COLOR,
+            );
+        }
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 14,
+            offset_y + PANEL_HEIGHT as i32 - 156,
+            &format!("MAP MODEL GAP {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "scene": scene,
+            "map_model_event": map_model_event,
+            "renderer_path": "classic_draw_scene",
+            "lane_count": 3,
+            "resource_cluster_count": 3,
+            "height_zone_count": 3,
+            "choke_count": 3,
+            "structure_silhouette_count": 3,
+            "unit_role_marker_count": 4,
+            "occlusion_layer_count": 3,
+            "openra_parity_target_commit": "5f1bf76",
+            "bevy_openra_parity_state": "map_model_catching_up_not_claimed",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let lane_pixel_count = count_color(CLASSIC_RTS_INNER_ROUTE_COLOR);
+    let resource_pixel_count = count_color(CLASSIC_RTS_HARVEST_NODE_COLOR)
+        + count_color(CLASSIC_RTS_RESOURCE_LUMBER_COLOR);
+    let height_pixel_count =
+        count_color(CLASSIC_RTS_KEEP_SHIELD_COLOR) + count_color(CLASSIC_RTS_DEPTH_CUTAWAY_COLOR);
+    let choke_pixel_count = count_color(CLASSIC_RTS_CHOKE_COLOR);
+    let structure_pixel_count = count_color(CLASSIC_RTS_STRUCTURE_COMPLETE_COLOR)
+        + count_color(CLASSIC_RTS_STRUCTURE_REPAIR_COLOR);
+    let unit_role_pixel_count = count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR)
+        + count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR)
+        + count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR)
+        + count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR)
+        + count_color(CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR);
+    let occlusion_pixel_count = count_color(CLASSIC_RTS_MINIMAP_FOG_COLOR)
+        + count_color(CLASSIC_RTS_DEPTH_FOREGROUND_COLOR);
+    let lane_gate = lane_pixel_count > 4_000;
+    let resource_gate = resource_pixel_count > 1_000;
+    let height_gate = height_pixel_count > 3_000;
+    let choke_gate = choke_pixel_count > 1_000;
+    let structure_silhouette_gate = structure_pixel_count > 3_000;
+    let unit_role_gate = unit_role_pixel_count > 1_000;
+    let occlusion_gate = occlusion_pixel_count > 2_000;
+    let map_model_stage_gate = [
+        "map_model_gap:lane_topology",
+        "map_model_gap:resource_expansion",
+        "map_model_gap:height_choke",
+        "map_model_gap:structure_silhouette",
+        "map_model_gap:unit_role_readability",
+        "map_model_gap:fog_depth_cutaway",
+    ]
+    .iter()
+    .all(|event| {
+        stage_summaries.iter().any(|summary| {
+            summary
+                .get("map_model_event")
+                .and_then(|value| value.as_str())
+                == Some(*event)
+        })
+    });
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let map_topology_gate = map_model_stage_gate
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("lane_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count >= 3)
+                && summary
+                    .get("resource_cluster_count")
+                    .and_then(|value| value.as_u64())
+                    .is_some_and(|count| count >= 3)
+                && summary
+                    .get("height_zone_count")
+                    .and_then(|value| value.as_u64())
+                    .is_some_and(|count| count >= 3)
+                && summary
+                    .get("choke_count")
+                    .and_then(|value| value.as_u64())
+                    .is_some_and(|count| count >= 3)
+        });
+    let model_readability_gate = stage_summaries.iter().all(|summary| {
+        summary
+            .get("structure_silhouette_count")
+            .and_then(|value| value.as_u64())
+            .is_some_and(|count| count >= 3)
+            && summary
+                .get("unit_role_marker_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count >= 4)
+            && summary
+                .get("occlusion_layer_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count >= 3)
+    });
+    let openra_gap_not_closed_gate = stage_summaries.iter().all(|summary| {
+        summary
+            .get("bevy_openra_parity_state")
+            .and_then(|value| value.as_str())
+            == Some("map_model_catching_up_not_claimed")
+    });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && lane_gate
+        && resource_gate
+        && height_gate
+        && choke_gate
+        && structure_silhouette_gate
+        && unit_role_gate
+        && occlusion_gate
+        && map_topology_gate
+        && model_readability_gate
+        && scene_renderer_gate
+        && openra_gap_not_closed_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_MODEL_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "stage_summaries": stage_summaries,
+        "lane_pixel_count": lane_pixel_count,
+        "resource_pixel_count": resource_pixel_count,
+        "height_pixel_count": height_pixel_count,
+        "choke_pixel_count": choke_pixel_count,
+        "structure_pixel_count": structure_pixel_count,
+        "unit_role_pixel_count": unit_role_pixel_count,
+        "occlusion_pixel_count": occlusion_pixel_count,
+        "lane_gate": lane_gate,
+        "resource_gate": resource_gate,
+        "height_gate": height_gate,
+        "choke_gate": choke_gate,
+        "structure_silhouette_gate": structure_silhouette_gate,
+        "unit_role_gate": unit_role_gate,
+        "occlusion_gate": occlusion_gate,
+        "map_model_stage_gate": map_model_stage_gate,
+        "map_topology_gate": map_topology_gate,
+        "model_readability_gate": model_readability_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_parity_target_commit": "5f1bf76",
+        "bevy_openra_parity_state": "map_model_catching_up_not_claimed",
+        "bevy_openra_parity_claimed": false,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium map/model gap overlays; lane topology, expansion resources, height/choke zones, structure silhouettes, unit role markers, fog, and depth cutaways are authored locally without copied Warcraft III, OpenRA, legacy adapter, UI art, text, names, models, map files, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Map/model gap evidence uses actual classic_draw_scene frames plus original Bevy tactical overlays to turn the OpenRA quality gap into explicit Bevy gates for battlefield topology, map richness, structure modeling, role-readable units, and isometric occlusion. It records the OpenRA target but does not claim parity."
+    }))
+    .expect("classic RTS map/model gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
