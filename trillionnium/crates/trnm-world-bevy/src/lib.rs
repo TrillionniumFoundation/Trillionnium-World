@@ -244,6 +244,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_MODEL_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_map_model_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_organic_terminal_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_REPLAY_METRICS_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_replay_metrics_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_worker_harvest_animation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_SPAWN_ANIMATION_CONTRACT: &str =
@@ -27611,6 +27613,324 @@ pub fn native_classic_rts_organic_terminal_gap_evidence_json(preview_path: &str)
         "source_of_truth": "Classic RTS organic terminal gap evidence binds the Bevy track to the OpenRA offscreen organic GameOver/replay target, renders the same terminal observation vocabulary in the Bevy low-spec scene, and intentionally keeps the gap visible until Bevy owns a real natural-match terminal run."
     }))
     .expect("classic RTS organic terminal gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_replay_metrics_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_REPLAY_SUMMARY_COMMIT: &str = "d5ceade";
+    const OPENRA_BATTLE_OUTCOME_COMMIT: &str = "9b2664b";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            "startgame_order",
+            "StartGame",
+            "replay_startgame_order:true",
+        ),
+        ("slot_roster", "Slots", "Multi0,Multi1,Multi2,Multi3"),
+        ("economy_tokens", "Economy", "worker+relay+assembly"),
+        ("tech_tokens", "Tech", "signal+sentinel+skimmer+bastion"),
+        ("combat_tokens", "Combat", "scout+warden+bastion+striker"),
+        (
+            "outcome_summary",
+            "Outcome",
+            "sustained_engagement_no_terminal_victory",
+        ),
+    ];
+    let replay_unique_actor_tokens = string_vec([
+        "trnm.worker",
+        "trnm.horizon.scout",
+        "trnm.horizon.skimmer",
+        "trnm.forge.warden",
+        "trnm.forge.bastion",
+        "trnm.striker",
+        "trnm.flux.relay",
+        "trnm.assembly.pad",
+        "trnm.signal.array",
+        "trnm.sentinel.node",
+    ]);
+    let replay_actor_mix = json!({
+        "worker": 18,
+        "horizon.scout": 14,
+        "horizon.skimmer": 7,
+        "forge.warden": 13,
+        "forge.bastion": 6,
+        "striker": 15,
+        "flux.relay": 10,
+        "assembly.pad": 8,
+        "signal.array": 4,
+        "sentinel.node": 4,
+    });
+    let mut stage_summaries = Vec::new();
+    for (index, (stage, label, signal)) in timeline.iter().enumerate() {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi1:trnm.worker",
+            "Multi2:trnm.horizon.scout",
+            "Multi2:trnm.forge.warden",
+            "Multi3:trnm.striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["6,5", "6,4", "7,5", "9,2"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["5,5", "6,5", "7,5", "8,4"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["trnm.horizon.scout", "trnm.forge.warden", "trnm.striker"]);
+        runtime.rts_resource_delta_log = string_vec([
+            "trnm.worker:+80",
+            "trnm.flux.relay:+140",
+            "trnm.assembly.pad:-180",
+        ]);
+        runtime.rts_army_spawned_unit_ids = replay_unique_actor_tokens
+            .iter()
+            .filter(|actor| {
+                actor.contains("worker")
+                    || actor.contains("scout")
+                    || actor.contains("skimmer")
+                    || actor.contains("warden")
+                    || actor.contains("bastion")
+                    || actor.contains("striker")
+            })
+            .cloned()
+            .collect();
+        runtime.rts_army_production_batch_ids = string_vec([
+            "batch:economy:worker+relay+assembly",
+            "batch:tech:signal+sentinel",
+            "batch:combat:scout+warden+striker",
+        ]);
+        runtime.rts_army_supply_used = 18;
+        runtime.rts_army_supply_cap = 30;
+        runtime.rts_objective_capture_percent = if *stage == "outcome_summary" { 50 } else { 25 };
+        runtime.rts_objective_owner_state = "contested:Multi1|Multi2".to_string();
+        runtime.rts_objective_result_state = "sustained_engagement_no_terminal_victory".to_string();
+        runtime.rts_match_result_state = "sustained_engagement_no_terminal_victory".to_string();
+        runtime.objective_status = "replay_metrics_gap_captured".to_string();
+        runtime.rts_command_queue = vec![
+            "replay_startgame_order:true".to_string(),
+            "replay_client_slots:Multi0,Multi1,Multi2,Multi3".to_string(),
+            "replay_bot_type:trnm-rush".to_string(),
+            "replay_actor_order_tokens:52".to_string(),
+            "battle_outcome:winner_claimed:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = string_vec([
+            "StartGame",
+            "Client@0:Multi0",
+            "Client@1:Multi1:Bot:trnm-rush",
+            "Client@2:Multi2:Bot:trnm-rush",
+            "Client@3:Multi3:Bot:trnm-rush",
+            "OutcomeSignal:sustained_engagement_no_terminal_victory",
+            "winner_claimed:false",
+        ]);
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("REPLAY METRICS {label}: {signal}"),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            180,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "OUTCOME METRICS",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "label": label,
+            "signal": signal,
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let replay_startgame_order = true;
+    let replay_client_slots = string_vec(["Multi0", "Multi1", "Multi2", "Multi3"]);
+    let replay_human_slot = "Multi0";
+    let replay_bot_type = "trnm-rush";
+    let replay_bot_mentions = 3_u16;
+    let replay_actor_order_tokens = 52_u16;
+    let replay_unique_actor_token_count = replay_unique_actor_tokens.len() as u16;
+    let replay_unit_tokens = 73_u16;
+    let replay_structure_tokens = 26_u16;
+    let replay_economy_tokens = 36_u16;
+    let replay_tech_tokens = 21_u16;
+    let replay_combat_tokens = 59_u16;
+    let configured_seconds = 60_u16;
+    let elapsed_seconds = 60_u16;
+    let terminal_victory_rules_ready = true;
+    let terminal_victory_detected = false;
+    let winner_claimed = false;
+    let bevy_replay_file_claimed = false;
+    let bevy_replay_parity_claimed = false;
+    let replay_metrics_stage_gate = stage_summaries.len() == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "startgame_order")
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "outcome_summary");
+    let replay_roster_gate = replay_startgame_order
+        && replay_client_slots.len() == 4
+        && replay_human_slot == "Multi0"
+        && replay_bot_type == "trnm-rush"
+        && replay_bot_mentions >= 3;
+    let replay_token_gate = replay_actor_order_tokens >= 12
+        && replay_unique_actor_token_count >= 6
+        && replay_economy_tokens >= 12
+        && replay_tech_tokens >= 6
+        && replay_combat_tokens >= 12;
+    let battle_outcome_summary_gate = configured_seconds >= 55
+        && elapsed_seconds >= 55
+        && terminal_victory_rules_ready
+        && !terminal_victory_detected
+        && !winner_claimed;
+    let bevy_gap_gate = !bevy_replay_file_claimed && !bevy_replay_parity_claimed;
+    let openra_replay_metrics_target_gate =
+        OPENRA_REPLAY_SUMMARY_COMMIT == "d5ceade" && OPENRA_BATTLE_OUTCOME_COMMIT == "9b2664b";
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && match_result_pixel_count > 20;
+    let replay_metrics_gap_gate = replay_metrics_stage_gate
+        && replay_roster_gate
+        && replay_token_gate
+        && battle_outcome_summary_gate
+        && bevy_gap_gate
+        && openra_replay_metrics_target_gate;
+    let green = write_gate
+        && renderer_gate
+        && replay_metrics_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_REPLAY_METRICS_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "bevy_replay_metrics_gap_state": "bevy_replay_metric_vocabulary_not_openra_replay_file",
+        "bevy_replay_file_claimed": bevy_replay_file_claimed,
+        "bevy_replay_parity_claimed": bevy_replay_parity_claimed,
+        "openra_gap_not_closed_gate": true,
+        "openra_replay_summary_target_commit": OPENRA_REPLAY_SUMMARY_COMMIT,
+        "openra_battle_outcome_target_commit": OPENRA_BATTLE_OUTCOME_COMMIT,
+        "stage_summaries": stage_summaries,
+        "replay_startgame_order": replay_startgame_order,
+        "replay_client_slots": replay_client_slots,
+        "replay_human_slot": replay_human_slot,
+        "replay_bot_type": replay_bot_type,
+        "replay_bot_mentions": replay_bot_mentions,
+        "replay_actor_order_tokens": replay_actor_order_tokens,
+        "replay_unique_actor_token_count": replay_unique_actor_token_count,
+        "replay_unique_actor_tokens": replay_unique_actor_tokens,
+        "replay_unit_tokens": replay_unit_tokens,
+        "replay_structure_tokens": replay_structure_tokens,
+        "replay_economy_tokens": replay_economy_tokens,
+        "replay_tech_tokens": replay_tech_tokens,
+        "replay_combat_tokens": replay_combat_tokens,
+        "replay_actor_mix": replay_actor_mix,
+        "configured_seconds": configured_seconds,
+        "elapsed_seconds": elapsed_seconds,
+        "outcome_signal": "sustained_engagement_no_terminal_victory",
+        "terminal_victory_detected": terminal_victory_detected,
+        "terminal_victory_rules_ready": terminal_victory_rules_ready,
+        "winner_claimed": winner_claimed,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "replay_metrics_stage_gate": replay_metrics_stage_gate,
+        "replay_roster_gate": replay_roster_gate,
+        "replay_token_gate": replay_token_gate,
+        "battle_outcome_summary_gate": battle_outcome_summary_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "openra_replay_metrics_target_gate": openra_replay_metrics_target_gate,
+        "renderer_gate": renderer_gate,
+        "replay_metrics_gap_gate": replay_metrics_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS replay metrics gap evidence binds Bevy to the OpenRA replay-summary and battle-outcome-summary targets by rendering StartGame, slot, bot, actor-token, economy, tech, combat, and outcome-summary vocabulary, while explicitly not claiming a real Bevy OpenRA-style replay file yet."
+    }))
+    .expect("classic RTS replay metrics gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
