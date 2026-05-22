@@ -1069,6 +1069,21 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-terminal-observation-gap" | "--classic-rts-terminal-observation-gap")
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-terminal-observation-gap.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_terminal_observation_gap_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-rts-replay-metrics-gap" | "--classic-rts-replay-metrics-gap")
     ) {
         let preview_path = args.get(1).map(String::as_str).unwrap_or(

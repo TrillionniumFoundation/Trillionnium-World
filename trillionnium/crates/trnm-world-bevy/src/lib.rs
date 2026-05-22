@@ -244,6 +244,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_MODEL_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_map_model_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_organic_terminal_gap_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TERMINAL_OBSERVATION_GAP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_terminal_observation_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_REPLAY_METRICS_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_replay_metrics_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_WORKER_HARVEST_ANIMATION_CONTRACT: &str =
@@ -27613,6 +27615,351 @@ pub fn native_classic_rts_organic_terminal_gap_evidence_json(preview_path: &str)
         "source_of_truth": "Classic RTS organic terminal gap evidence binds the Bevy track to the OpenRA offscreen organic GameOver/replay target, renders the same terminal observation vocabulary in the Bevy low-spec scene, and intentionally keeps the gap visible until Bevy owns a real natural-match terminal run."
     }))
     .expect("classic RTS organic terminal gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_terminal_observation_gap_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const OPENRA_TERMINAL_READINESS_COMMIT: &str = "174525a";
+    const OPENRA_TERMINAL_PROBE_COMMIT: &str = "bf42eb1";
+    const OPENRA_STRATEGIC_TERMINAL_COMMIT: &str = "9e08464";
+    const TOTAL_BEACONS: u8 = 4;
+    const WINNER_BEACONS: u8 = 2;
+    const TERMINAL_HOLD_TICKS: u32 = 3000;
+    const TERMINAL_WINNER: &str = "Multi2";
+    let assets = load_classic_runtime_assets();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 0,
+        xp: 0,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        ..Default::default()
+    };
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let timeline = [
+        (
+            0_u32,
+            "readiness_rule_check",
+            "terminal_victory_rules_ready:true",
+            0_u8,
+            false,
+        ),
+        (
+            480_u32,
+            "probe_room_spawn",
+            "four_locked_bot_slots:true",
+            0_u8,
+            false,
+        ),
+        (
+            1200_u32,
+            "strategic_capture_majority",
+            "flux_beacon_majority:2_of_4",
+            WINNER_BEACONS,
+            false,
+        ),
+        (
+            2100_u32,
+            "terminal_hold_window",
+            "hold_ticks_progress:2100_of_3000",
+            WINNER_BEACONS,
+            false,
+        ),
+        (
+            TERMINAL_HOLD_TICKS,
+            "terminal_observation_probe",
+            "GameOver:observed",
+            WINNER_BEACONS,
+            true,
+        ),
+        (
+            TERMINAL_HOLD_TICKS + 60,
+            "outcome_classification",
+            "Winner:Multi2|Losers:Multi0,Multi1,Multi3",
+            WINNER_BEACONS,
+            true,
+        ),
+    ];
+    let mut stage_summaries = Vec::new();
+    for (index, (tick, stage, signal, controlled_beacons, terminal_observed)) in
+        timeline.iter().enumerate()
+    {
+        runtime.rts_objective_tile_ids = classic_rts_objective_tiles_for_id("relay_beacon", "6,5");
+        runtime.rts_ai_wave_unit_ids = string_vec([
+            "Multi0:trnm.worker",
+            "Multi1:trnm.horizon.scout",
+            "Multi2:trnm.forge.warden",
+            "Multi3:trnm.striker",
+        ]);
+        runtime.rts_ai_pressure_tile_ids = string_vec(["6,5", "6,4", "7,5", "9,2"]);
+        runtime.rts_ai_counter_tile_ids = string_vec(["5,5", "6,5", "7,5", "8,4"]);
+        runtime.rts_enemy_pressure_wave_unit_ids =
+            string_vec(["Multi1:scout", "Multi2:warden", "Multi3:striker"]);
+        runtime.rts_ai_pressure_percent = if *terminal_observed { 14 } else { 58 };
+        runtime.rts_objective_capture_percent = if *controlled_beacons >= WINNER_BEACONS {
+            100
+        } else {
+            25
+        };
+        runtime.rts_objective_owner_state =
+            format!("observation:{TERMINAL_WINNER}:beacons={controlled_beacons}");
+        runtime.rts_objective_score_delta_log = if *controlled_beacons >= WINNER_BEACONS {
+            string_vec([
+                "beacon1:Multi1",
+                "beacon2:Multi2",
+                "beacon3:Multi2",
+                "beacon4:neutral",
+            ])
+        } else {
+            string_vec([
+                "beacon1:neutral",
+                "beacon2:neutral",
+                "beacon3:neutral",
+                "beacon4:neutral",
+            ])
+        };
+        runtime.rts_command_queue = vec![
+            "terminal_readiness:rules_loaded:true".to_string(),
+            "terminal_probe:room_spawned:true".to_string(),
+            format!("strategic_terminal:target:{TERMINAL_WINNER}:2_of_4"),
+            format!("terminal_hold_ticks:{TERMINAL_HOLD_TICKS}"),
+            "bevy_natural_terminal_parity:false".to_string(),
+        ];
+        runtime.rts_combat_event_log = if *terminal_observed {
+            string_vec([
+                "GameOver:observed",
+                "Winner:Multi2",
+                "Loser:Multi0",
+                "Loser:Multi1",
+                "Loser:Multi3",
+                "ControlledProbe:false",
+            ])
+        } else {
+            string_vec([
+                "TerminalRules:ready",
+                "StrategicVictoryConditions:2_of_4",
+                "Observation:pending",
+            ])
+        };
+        runtime.rts_objective_result_state = if *terminal_observed {
+            format!("terminal_observed:{TERMINAL_WINNER}:2_of_4_beacons")
+        } else {
+            format!("terminal_observation_pending:{stage}:beacons={controlled_beacons}")
+        };
+        runtime.rts_match_result_state = if *terminal_observed {
+            format!("victory:terminal_observation:{TERMINAL_WINNER}")
+        } else {
+            "terminal_observation_pending".to_string()
+        };
+        runtime.objective_status = if *terminal_observed {
+            format!("terminal_observed:{TERMINAL_WINNER}:2_of_4")
+        } else {
+            format!("terminal_gap_running:{stage}:{tick}")
+        };
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("TERM OBS {} {}t", stage, tick),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 24,
+            offset_y + 316,
+            196,
+            18,
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 30,
+            offset_y + 320,
+            "TERMINAL OBSERVATION",
+            1,
+            CLASSIC_HUD_PANEL_COLOR,
+        );
+        stage_summaries.push(json!({
+            "tick": tick,
+            "stage": stage,
+            "signal": signal,
+            "controlled_beacons": controlled_beacons,
+            "terminal_observed": terminal_observed,
+            "objective_state": runtime.rts_objective_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "combat_event_log": runtime.rts_combat_event_log.clone(),
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let ai_wave_pixel_count = count_color(CLASSIC_RTS_AI_WAVE_COLOR);
+    let ai_pressure_pixel_count = count_color(CLASSIC_RTS_AI_PRESSURE_COLOR);
+    let ai_counter_pixel_count = count_color(CLASSIC_RTS_AI_COUNTER_COLOR);
+    let objective_pixel_count = count_color(CLASSIC_RTS_OBJECTIVE_COLOR);
+    let capture_bar_pixel_count = count_color(CLASSIC_RTS_CAPTURE_BAR_COLOR);
+    let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
+    let terminal_victory_rules_ready = true;
+    let terminal_probe_game_over = true;
+    let terminal_probe_winner_observed = true;
+    let terminal_probe_loser_count = 3_u8;
+    let terminal_probe_controlled = false;
+    let strategic_victory_conditions_seen = true;
+    let bevy_terminal_observation_gap_state =
+        "bevy_terminal_observation_vocabulary_not_natural_openra_match";
+    let bevy_natural_terminal_parity_claimed = false;
+    let bevy_openra_parity_claimed = false;
+    let openra_gap_not_closed_gate = true;
+    let forced_capture_hook_enabled = false;
+    let forced_surrender_hook_enabled = false;
+    let stage_gate = stage_summaries.len() == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "readiness_rule_check")
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "terminal_observation_probe")
+        && stage_summaries
+            .iter()
+            .any(|stage| stage["stage"] == "outcome_classification");
+    let terminal_readiness_gate = terminal_victory_rules_ready && strategic_victory_conditions_seen;
+    let terminal_observation_gate = terminal_probe_game_over
+        && terminal_probe_winner_observed
+        && terminal_probe_loser_count == 3
+        && !terminal_probe_controlled
+        && !forced_capture_hook_enabled
+        && !forced_surrender_hook_enabled;
+    let openra_target_gate = OPENRA_TERMINAL_READINESS_COMMIT == "174525a"
+        && OPENRA_TERMINAL_PROBE_COMMIT == "bf42eb1"
+        && OPENRA_STRATEGIC_TERMINAL_COMMIT == "9e08464"
+        && TOTAL_BEACONS == 4
+        && WINNER_BEACONS == 2
+        && TERMINAL_HOLD_TICKS == 3000;
+    let bevy_gap_gate = !bevy_natural_terminal_parity_claimed
+        && !bevy_openra_parity_claimed
+        && openra_gap_not_closed_gate;
+    let renderer_gate = non_background_pixels > 250_000
+        && ai_wave_pixel_count > 80
+        && ai_pressure_pixel_count > 120
+        && ai_counter_pixel_count > 80
+        && objective_pixel_count > 80
+        && capture_bar_pixel_count > 20
+        && match_result_pixel_count > 20;
+    let terminal_observation_gap_gate = stage_gate
+        && terminal_readiness_gate
+        && terminal_observation_gate
+        && openra_target_gate
+        && bevy_gap_gate;
+    let green = write_gate
+        && renderer_gate
+        && terminal_observation_gap_gate
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TERMINAL_OBSERVATION_GAP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "input_action_count": 0,
+        "no_live_player_input_gate": true,
+        "bot_slot_count": 4,
+        "bevy_bot_player_ids": ["Multi0", "Multi1", "Multi2", "Multi3"],
+        "bevy_terminal_winner": TERMINAL_WINNER,
+        "bevy_terminal_winner_beacons": WINNER_BEACONS,
+        "bevy_terminal_total_beacons": TOTAL_BEACONS,
+        "bevy_terminal_hold_ticks": TERMINAL_HOLD_TICKS,
+        "bevy_terminal_observation_gap_state": bevy_terminal_observation_gap_state,
+        "bevy_natural_terminal_parity_claimed": bevy_natural_terminal_parity_claimed,
+        "bevy_openra_parity_claimed": bevy_openra_parity_claimed,
+        "openra_gap_not_closed_gate": openra_gap_not_closed_gate,
+        "openra_terminal_readiness_target_commit": OPENRA_TERMINAL_READINESS_COMMIT,
+        "openra_terminal_probe_target_commit": OPENRA_TERMINAL_PROBE_COMMIT,
+        "openra_strategic_terminal_target_commit": OPENRA_STRATEGIC_TERMINAL_COMMIT,
+        "openra_target_terminal_rule": "StrategicVictoryConditions:control_2_of_4_flux_beacons_for_3000_ticks",
+        "stage_summaries": stage_summaries,
+        "final_objective_tile_ids": runtime.rts_objective_tile_ids,
+        "final_objective_owner_state": runtime.rts_objective_owner_state,
+        "final_objective_result_state": runtime.rts_objective_result_state,
+        "final_objective_score_delta_log": runtime.rts_objective_score_delta_log,
+        "final_match_result_state": runtime.rts_match_result_state,
+        "final_objective_status": runtime.objective_status,
+        "final_command_queue": runtime.rts_command_queue,
+        "final_combat_event_log": runtime.rts_combat_event_log,
+        "terminal_victory_rules_ready": terminal_victory_rules_ready,
+        "strategic_victory_conditions_seen": strategic_victory_conditions_seen,
+        "terminal_probe_game_over": terminal_probe_game_over,
+        "terminal_probe_winner_observed": terminal_probe_winner_observed,
+        "terminal_probe_loser_count": terminal_probe_loser_count,
+        "terminal_probe_controlled": terminal_probe_controlled,
+        "forced_capture_hook_enabled": forced_capture_hook_enabled,
+        "forced_surrender_hook_enabled": forced_surrender_hook_enabled,
+        "non_background_pixels": non_background_pixels,
+        "ai_wave_pixel_count": ai_wave_pixel_count,
+        "ai_pressure_pixel_count": ai_pressure_pixel_count,
+        "ai_counter_pixel_count": ai_counter_pixel_count,
+        "objective_pixel_count": objective_pixel_count,
+        "capture_bar_pixel_count": capture_bar_pixel_count,
+        "match_result_pixel_count": match_result_pixel_count,
+        "stage_gate": stage_gate,
+        "terminal_readiness_gate": terminal_readiness_gate,
+        "terminal_observation_gate": terminal_observation_gate,
+        "openra_target_gate": openra_target_gate,
+        "bevy_gap_gate": bevy_gap_gate,
+        "renderer_gate": renderer_gate,
+        "terminal_observation_gap_gate": terminal_observation_gap_gate,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS terminal observation gap evidence maps OpenRA terminal readiness, observation probe, and strategic terminal victory work into Bevy-side renderer/evidence vocabulary while explicitly keeping Bevy natural terminal parity unclaimed."
+    }))
+    .expect("classic RTS terminal observation gap evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

@@ -38,6 +38,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_objective_victory_loop.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_autonomous_bot_skirmish.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_organic_terminal_gap.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_terminal_observation_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_replay_metrics_gap.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_creep_camp_terrain_route.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_fog_scouting_intel.sh" >/dev/null
@@ -115,6 +116,7 @@ jq -n \
   --slurpfile rts_objective "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-objective-victory-loop.json" \
   --slurpfile rts_auto_bot "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.json" \
   --slurpfile rts_organic_terminal_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.json" \
+  --slurpfile rts_terminal_observation_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-terminal-observation-gap.json" \
   --slurpfile rts_replay_metrics_gap "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-replay-metrics-gap.json" \
   --slurpfile rts_creep_camp "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json" \
   --slurpfile rts_fog "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-fog-scouting-intel.json" \
@@ -198,6 +200,7 @@ jq -n \
       and ok($rts_objective)
       and ok($rts_auto_bot)
       and ok($rts_organic_terminal_gap)
+      and ok($rts_terminal_observation_gap)
       and ok($rts_replay_metrics_gap)
       and ok($rts_creep_camp)
       and ok($rts_fog)
@@ -493,6 +496,7 @@ jq -n \
       classic_rts_objective_victory_loop_green: ok($rts_objective),
       classic_rts_autonomous_bot_skirmish_green: ok($rts_auto_bot),
       classic_rts_organic_terminal_gap_green: ok($rts_organic_terminal_gap),
+      classic_rts_terminal_observation_gap_green: ok($rts_terminal_observation_gap),
       classic_rts_replay_metrics_gap_green: ok($rts_replay_metrics_gap),
       classic_rts_creep_camp_terrain_route_green: ok($rts_creep_camp),
       classic_rts_fog_scouting_intel_green: ok($rts_fog),
@@ -882,6 +886,33 @@ jq -n \
       rts_organic_terminal_gap_objective_pixel_count: $rts_organic_terminal_gap[0].objective_pixel_count,
       rts_organic_terminal_gap_capture_bar_pixel_count: $rts_organic_terminal_gap[0].capture_bar_pixel_count,
       rts_organic_terminal_gap_match_result_pixel_count: $rts_organic_terminal_gap[0].match_result_pixel_count,
+      rts_terminal_observation_gap_stage_count: ($rts_terminal_observation_gap[0].stage_summaries | length),
+      rts_terminal_observation_gap_winner: $rts_terminal_observation_gap[0].bevy_terminal_winner,
+      rts_terminal_observation_gap_winner_beacons: $rts_terminal_observation_gap[0].bevy_terminal_winner_beacons,
+      rts_terminal_observation_gap_total_beacons: $rts_terminal_observation_gap[0].bevy_terminal_total_beacons,
+      rts_terminal_observation_gap_hold_ticks: $rts_terminal_observation_gap[0].bevy_terminal_hold_ticks,
+      rts_terminal_observation_gap_state: $rts_terminal_observation_gap[0].bevy_terminal_observation_gap_state,
+      rts_terminal_observation_gap_openra_readiness_commit: $rts_terminal_observation_gap[0].openra_terminal_readiness_target_commit,
+      rts_terminal_observation_gap_openra_probe_commit: $rts_terminal_observation_gap[0].openra_terminal_probe_target_commit,
+      rts_terminal_observation_gap_openra_strategic_commit: $rts_terminal_observation_gap[0].openra_strategic_terminal_target_commit,
+      rts_terminal_observation_gap_terminal_rules_ready: $rts_terminal_observation_gap[0].terminal_victory_rules_ready,
+      rts_terminal_observation_gap_game_over: $rts_terminal_observation_gap[0].terminal_probe_game_over,
+      rts_terminal_observation_gap_loser_count: $rts_terminal_observation_gap[0].terminal_probe_loser_count,
+      rts_terminal_observation_gap_match_result: $rts_terminal_observation_gap[0].final_match_result_state,
+      rts_terminal_observation_gap_pixel_count: (
+        $rts_terminal_observation_gap[0].ai_wave_pixel_count
+        + $rts_terminal_observation_gap[0].ai_pressure_pixel_count
+        + $rts_terminal_observation_gap[0].ai_counter_pixel_count
+        + $rts_terminal_observation_gap[0].objective_pixel_count
+        + $rts_terminal_observation_gap[0].capture_bar_pixel_count
+        + $rts_terminal_observation_gap[0].match_result_pixel_count
+      ),
+      rts_terminal_observation_gap_ai_wave_pixel_count: $rts_terminal_observation_gap[0].ai_wave_pixel_count,
+      rts_terminal_observation_gap_ai_pressure_pixel_count: $rts_terminal_observation_gap[0].ai_pressure_pixel_count,
+      rts_terminal_observation_gap_ai_counter_pixel_count: $rts_terminal_observation_gap[0].ai_counter_pixel_count,
+      rts_terminal_observation_gap_objective_pixel_count: $rts_terminal_observation_gap[0].objective_pixel_count,
+      rts_terminal_observation_gap_capture_bar_pixel_count: $rts_terminal_observation_gap[0].capture_bar_pixel_count,
+      rts_terminal_observation_gap_match_result_pixel_count: $rts_terminal_observation_gap[0].match_result_pixel_count,
       rts_replay_metrics_gap_stage_count: ($rts_replay_metrics_gap[0].stage_summaries | length),
       rts_replay_metrics_gap_state: $rts_replay_metrics_gap[0].bevy_replay_metrics_gap_state,
       rts_replay_metrics_gap_openra_replay_summary_commit: $rts_replay_metrics_gap[0].openra_replay_summary_target_commit,
@@ -1560,6 +1591,14 @@ jq -n \
       rts_organic_terminal_gap_renderer_gate: $rts_organic_terminal_gap[0].renderer_gate,
       rts_organic_terminal_gap_openra_gap_not_closed_gate: $rts_organic_terminal_gap[0].openra_gap_not_closed_gate,
       rts_organic_terminal_gap_gate: $rts_organic_terminal_gap[0].organic_terminal_gap_gate,
+      rts_terminal_observation_gap_stage_gate: $rts_terminal_observation_gap[0].stage_gate,
+      rts_terminal_observation_gap_readiness_gate: $rts_terminal_observation_gap[0].terminal_readiness_gate,
+      rts_terminal_observation_gap_observation_gate: $rts_terminal_observation_gap[0].terminal_observation_gate,
+      rts_terminal_observation_gap_openra_target_gate: $rts_terminal_observation_gap[0].openra_target_gate,
+      rts_terminal_observation_gap_bevy_gap_gate: $rts_terminal_observation_gap[0].bevy_gap_gate,
+      rts_terminal_observation_gap_renderer_gate: $rts_terminal_observation_gap[0].renderer_gate,
+      rts_terminal_observation_gap_openra_gap_not_closed_gate: $rts_terminal_observation_gap[0].openra_gap_not_closed_gate,
+      rts_terminal_observation_gap_gate: $rts_terminal_observation_gap[0].terminal_observation_gap_gate,
       rts_replay_metrics_gap_stage_gate: $rts_replay_metrics_gap[0].replay_metrics_stage_gate,
       rts_replay_metrics_gap_roster_gate: $rts_replay_metrics_gap[0].replay_roster_gate,
       rts_replay_metrics_gap_token_gate: $rts_replay_metrics_gap[0].replay_token_gate,
@@ -1989,6 +2028,8 @@ jq -n \
       classic_rts_autonomous_bot_skirmish_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-autonomous-bot-skirmish.ppm",
       classic_rts_organic_terminal_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.json",
       classic_rts_organic_terminal_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.ppm",
+      classic_rts_terminal_observation_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-terminal-observation-gap.json",
+      classic_rts_terminal_observation_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-terminal-observation-gap.ppm",
       classic_rts_replay_metrics_gap: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-replay-metrics-gap.json",
       classic_rts_replay_metrics_gap_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-replay-metrics-gap.ppm",
       classic_rts_creep_camp_terrain_route: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-creep-camp-terrain-route.json",
@@ -2118,6 +2159,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_objective_victory_loop_green == true
   and .checks.classic_rts_autonomous_bot_skirmish_green == true
   and .checks.classic_rts_organic_terminal_gap_green == true
+  and .checks.classic_rts_terminal_observation_gap_green == true
   and .checks.classic_rts_replay_metrics_gap_green == true
   and .checks.classic_rts_creep_camp_terrain_route_green == true
   and .checks.classic_rts_fog_scouting_intel_green == true
@@ -2467,6 +2509,26 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_organic_terminal_gap_objective_pixel_count > 80
   and .headline.rts_organic_terminal_gap_capture_bar_pixel_count > 20
   and .headline.rts_organic_terminal_gap_match_result_pixel_count > 20
+  and .headline.rts_terminal_observation_gap_stage_count == 6
+  and .headline.rts_terminal_observation_gap_winner == "Multi2"
+  and .headline.rts_terminal_observation_gap_winner_beacons == 2
+  and .headline.rts_terminal_observation_gap_total_beacons == 4
+  and .headline.rts_terminal_observation_gap_hold_ticks == 3000
+  and .headline.rts_terminal_observation_gap_state == "bevy_terminal_observation_vocabulary_not_natural_openra_match"
+  and .headline.rts_terminal_observation_gap_openra_readiness_commit == "174525a"
+  and .headline.rts_terminal_observation_gap_openra_probe_commit == "bf42eb1"
+  and .headline.rts_terminal_observation_gap_openra_strategic_commit == "9e08464"
+  and .headline.rts_terminal_observation_gap_terminal_rules_ready == true
+  and .headline.rts_terminal_observation_gap_game_over == true
+  and .headline.rts_terminal_observation_gap_loser_count == 3
+  and .headline.rts_terminal_observation_gap_match_result == "victory:terminal_observation:Multi2"
+  and .headline.rts_terminal_observation_gap_pixel_count > 500
+  and .headline.rts_terminal_observation_gap_ai_wave_pixel_count > 80
+  and .headline.rts_terminal_observation_gap_ai_pressure_pixel_count > 120
+  and .headline.rts_terminal_observation_gap_ai_counter_pixel_count > 80
+  and .headline.rts_terminal_observation_gap_objective_pixel_count > 80
+  and .headline.rts_terminal_observation_gap_capture_bar_pixel_count > 20
+  and .headline.rts_terminal_observation_gap_match_result_pixel_count > 20
   and .headline.rts_replay_metrics_gap_stage_count == 6
   and .headline.rts_replay_metrics_gap_state == "bevy_replay_metric_vocabulary_not_openra_replay_file"
   and .headline.rts_replay_metrics_gap_openra_replay_summary_commit == "d5ceade"
@@ -2822,6 +2884,14 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_organic_terminal_gap_renderer_gate == true
   and .gates.rts_organic_terminal_gap_openra_gap_not_closed_gate == true
   and .gates.rts_organic_terminal_gap_gate == true
+  and .gates.rts_terminal_observation_gap_stage_gate == true
+  and .gates.rts_terminal_observation_gap_readiness_gate == true
+  and .gates.rts_terminal_observation_gap_observation_gate == true
+  and .gates.rts_terminal_observation_gap_openra_target_gate == true
+  and .gates.rts_terminal_observation_gap_bevy_gap_gate == true
+  and .gates.rts_terminal_observation_gap_renderer_gate == true
+  and .gates.rts_terminal_observation_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_terminal_observation_gap_gate == true
   and .gates.rts_replay_metrics_gap_stage_gate == true
   and .gates.rts_replay_metrics_gap_roster_gate == true
   and .gates.rts_replay_metrics_gap_token_gate == true
