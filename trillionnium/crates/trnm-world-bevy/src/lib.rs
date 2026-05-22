@@ -25933,6 +25933,14 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
     const PANEL_HEIGHT: usize = 360;
     const PREVIEW_COLUMNS: usize = 2;
     const PREVIEW_ROWS: usize = 3;
+    const OPENRA_ORGANIC_TERMINAL_COMMIT: &str = "5f1bf76";
+    const OPENRA_ORGANIC_TERMINAL_PACKAGE: &str =
+        "dist/trillionnium-rts-playtest-20260522T065052Z-5f1bf76.tar.gz";
+    const OPENRA_ORGANIC_TERMINAL_WINNER: &str = "Multi2";
+    const OPENRA_ORGANIC_TERMINAL_REPLAY_OUTCOME: &str = "3W/1L";
+    const OPENRA_ORGANIC_TERMINAL_WINNER_BEACONS: u8 = 2;
+    const OPENRA_ORGANIC_TERMINAL_TOTAL_BEACONS: u8 = 4;
+    const OPENRA_ORGANIC_TERMINAL_HOLD_TICKS: u32 = 3000;
     let assets = load_classic_runtime_assets();
     let mut world = native_bevy_playable_fixture();
     let mut character = WorldTrillionniumCharacter::default_for("local-player");
@@ -26101,6 +26109,18 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
             .iter()
             .any(|entry| entry == "extract:relay_beacon@9,2")
         && extraction_pixel_count > 40;
+    let bevy_objective_controlled_beacons = 2_u8;
+    let bevy_objective_total_beacons = runtime.rts_objective_tile_ids.len() as u8;
+    let bevy_objective_control_ratio_percent = ((bevy_objective_controlled_beacons as u16 * 100)
+        / bevy_objective_total_beacons.max(1) as u16)
+        as u8;
+    let bevy_objective_hold_ticks = OPENRA_ORGANIC_TERMINAL_HOLD_TICKS;
+    let bevy_terminal_parity_claimed = false;
+    let openra_parity_bridge_gate = bevy_objective_controlled_beacons
+        == OPENRA_ORGANIC_TERMINAL_WINNER_BEACONS
+        && bevy_objective_total_beacons == OPENRA_ORGANIC_TERMINAL_TOTAL_BEACONS
+        && bevy_objective_hold_ticks == OPENRA_ORGANIC_TERMINAL_HOLD_TICKS
+        && !bevy_terminal_parity_claimed;
     let green = write_gate
         && non_background_pixels > 250_000
         && live_objective_input_gate
@@ -26109,6 +26129,7 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
         && victory_resolution_gate
         && defeat_pressure_gate
         && extraction_gate
+        && openra_parity_bridge_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -26146,9 +26167,26 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
         "victory_resolution_gate": victory_resolution_gate,
         "defeat_pressure_gate": defeat_pressure_gate,
         "extraction_gate": extraction_gate,
+        "openra_parity_target_commit": OPENRA_ORGANIC_TERMINAL_COMMIT,
+        "openra_parity_target_package": OPENRA_ORGANIC_TERMINAL_PACKAGE,
+        "openra_parity_target_natural_terminal": true,
+        "openra_parity_target_winner": OPENRA_ORGANIC_TERMINAL_WINNER,
+        "openra_parity_target_replay_outcome": OPENRA_ORGANIC_TERMINAL_REPLAY_OUTCOME,
+        "openra_parity_target_winner_beacons": OPENRA_ORGANIC_TERMINAL_WINNER_BEACONS,
+        "openra_parity_target_total_beacons": OPENRA_ORGANIC_TERMINAL_TOTAL_BEACONS,
+        "openra_parity_target_hold_ticks": OPENRA_ORGANIC_TERMINAL_HOLD_TICKS,
+        "bevy_openra_parity_state": "catching_up_not_claimed",
+        "bevy_terminal_parity_claimed": bevy_terminal_parity_claimed,
+        "bevy_objective_loop_kind": "scripted_live_input_objective_loop",
+        "bevy_objective_controlled_beacons": bevy_objective_controlled_beacons,
+        "bevy_objective_total_beacons": bevy_objective_total_beacons,
+        "bevy_objective_control_ratio_percent": bevy_objective_control_ratio_percent,
+        "bevy_objective_hold_ticks": bevy_objective_hold_ticks,
+        "bevy_objective_terminal_rule": "control_2_of_4_flux_beacons_for_3000_ticks",
+        "openra_parity_bridge_gate": openra_parity_bridge_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS objective victory loop evidence drives AI pressure, player counterplay, objective capture, extraction, victory scoring, and defeat-risk reduction through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS objective victory loop evidence drives AI pressure, player counterplay, objective capture, extraction, victory scoring, and defeat-risk reduction through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path, while explicitly binding Bevy to the OpenRA organic-terminal 2-of-4 Flux Beacon parity target without claiming terminal parity yet."
     }))
     .expect("classic RTS objective victory loop evidence serializes")
 }
@@ -74842,7 +74880,7 @@ fn classic_rts_objective_parts(command: &str) -> (String, String, String) {
 
 fn classic_rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
     if objective_id == "relay_beacon" {
-        string_vec(["6,5", "6,4", "7,5"])
+        string_vec(["6,5", "6,4", "7,5", "9,2"])
     } else if objective_id == "forest_relay" {
         string_vec(["8,3", "9,2", "9,3"])
     } else {

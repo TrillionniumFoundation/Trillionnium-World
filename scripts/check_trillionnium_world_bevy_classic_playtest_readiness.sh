@@ -788,6 +788,16 @@ jq -n \
       rts_objective_victory_loop_extraction_tile_id: $rts_objective[0].final_objective_extraction_tile_id,
       rts_objective_victory_loop_defeat_risk_percent: $rts_objective[0].final_defeat_risk_percent,
       rts_objective_victory_loop_ai_pressure_percent: $rts_objective[0].final_ai_pressure_percent,
+      rts_objective_victory_loop_openra_target_commit: $rts_objective[0].openra_parity_target_commit,
+      rts_objective_victory_loop_openra_target_natural_terminal: $rts_objective[0].openra_parity_target_natural_terminal,
+      rts_objective_victory_loop_openra_target_winner_beacons: $rts_objective[0].openra_parity_target_winner_beacons,
+      rts_objective_victory_loop_openra_target_total_beacons: $rts_objective[0].openra_parity_target_total_beacons,
+      rts_objective_victory_loop_openra_target_hold_ticks: $rts_objective[0].openra_parity_target_hold_ticks,
+      rts_objective_victory_loop_bevy_terminal_parity_claimed: $rts_objective[0].bevy_terminal_parity_claimed,
+      rts_objective_victory_loop_bevy_controlled_beacons: $rts_objective[0].bevy_objective_controlled_beacons,
+      rts_objective_victory_loop_bevy_total_beacons: $rts_objective[0].bevy_objective_total_beacons,
+      rts_objective_victory_loop_bevy_control_ratio_percent: $rts_objective[0].bevy_objective_control_ratio_percent,
+      rts_objective_victory_loop_bevy_hold_ticks: $rts_objective[0].bevy_objective_hold_ticks,
       rts_objective_victory_loop_pixel_count: (
         $rts_objective[0].objective_pixel_count
         + $rts_objective[0].capture_bar_pixel_count
@@ -1422,6 +1432,7 @@ jq -n \
       rts_objective_victory_loop_victory_gate: $rts_objective[0].victory_resolution_gate,
       rts_objective_victory_loop_defeat_pressure_gate: $rts_objective[0].defeat_pressure_gate,
       rts_objective_victory_loop_extraction_gate: $rts_objective[0].extraction_gate,
+      rts_objective_victory_loop_openra_parity_bridge_gate: $rts_objective[0].openra_parity_bridge_gate,
       rts_creep_camp_terrain_route_live_input_gate: $rts_creep_camp[0].live_creep_camp_input_gate,
       rts_creep_camp_terrain_route_terrain_gate: $rts_creep_camp[0].terrain_route_gate,
       rts_creep_camp_terrain_route_choke_gate: $rts_creep_camp[0].choke_gate,
@@ -2227,13 +2238,23 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_ai_skirmish_retreat_pixel_count > 40
   and .headline.rts_ai_skirmish_pressure_bar_pixel_count > 20
   and .headline.rts_objective_victory_loop_accepted_input_count == 6
-  and .headline.rts_objective_victory_loop_tile_count >= 3
+  and .headline.rts_objective_victory_loop_tile_count == 4
   and .headline.rts_objective_victory_loop_capture_percent == 100
   and .headline.rts_objective_victory_loop_owner_state == "player:relay_beacon"
   and .headline.rts_objective_victory_loop_result_state == "victory:relay_beacon_extracted"
   and .headline.rts_objective_victory_loop_extraction_tile_id == "9,2"
   and .headline.rts_objective_victory_loop_defeat_risk_percent <= 8
   and .headline.rts_objective_victory_loop_ai_pressure_percent <= 34
+  and .headline.rts_objective_victory_loop_openra_target_commit == "5f1bf76"
+  and .headline.rts_objective_victory_loop_openra_target_natural_terminal == true
+  and .headline.rts_objective_victory_loop_openra_target_winner_beacons == 2
+  and .headline.rts_objective_victory_loop_openra_target_total_beacons == 4
+  and .headline.rts_objective_victory_loop_openra_target_hold_ticks == 3000
+  and .headline.rts_objective_victory_loop_bevy_terminal_parity_claimed == false
+  and .headline.rts_objective_victory_loop_bevy_controlled_beacons == 2
+  and .headline.rts_objective_victory_loop_bevy_total_beacons == 4
+  and .headline.rts_objective_victory_loop_bevy_control_ratio_percent == 50
+  and .headline.rts_objective_victory_loop_bevy_hold_ticks == 3000
   and .headline.rts_objective_victory_loop_pixel_count > 180
   and .headline.rts_objective_victory_loop_objective_pixel_count > 80
   and .headline.rts_objective_victory_loop_capture_bar_pixel_count > 20
@@ -2556,6 +2577,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_objective_victory_loop_victory_gate == true
   and .gates.rts_objective_victory_loop_defeat_pressure_gate == true
   and .gates.rts_objective_victory_loop_extraction_gate == true
+  and .gates.rts_objective_victory_loop_openra_parity_bridge_gate == true
   and .gates.rts_creep_camp_terrain_route_live_input_gate == true
   and .gates.rts_creep_camp_terrain_route_terrain_gate == true
   and .gates.rts_creep_camp_terrain_route_choke_gate == true

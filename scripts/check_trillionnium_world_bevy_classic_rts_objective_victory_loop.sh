@@ -26,7 +26,7 @@ jq -e '
   and (.action_labels | index("RTS:ABILITY:guard_break") != null)
   and (.action_labels | index("RTS:QUEUE:objective:claim:relay_beacon@6,5") != null)
   and (.action_labels | index("RTS:QUEUE:objective:extract:relay_beacon@9,2") != null)
-  and (.final_objective_tile_ids | length) >= 3
+  and (.final_objective_tile_ids | length) == 4
   and .final_objective_capture_percent == 100
   and .final_objective_owner_state == "player:relay_beacon"
   and .final_objective_result_state == "victory:relay_beacon_extracted"
@@ -49,6 +49,23 @@ jq -e '
   and .victory_resolution_gate == true
   and .defeat_pressure_gate == true
   and .extraction_gate == true
+  and .openra_parity_target_commit == "5f1bf76"
+  and .openra_parity_target_package == "dist/trillionnium-rts-playtest-20260522T065052Z-5f1bf76.tar.gz"
+  and .openra_parity_target_natural_terminal == true
+  and .openra_parity_target_winner == "Multi2"
+  and .openra_parity_target_replay_outcome == "3W/1L"
+  and .openra_parity_target_winner_beacons == 2
+  and .openra_parity_target_total_beacons == 4
+  and .openra_parity_target_hold_ticks == 3000
+  and .bevy_openra_parity_state == "catching_up_not_claimed"
+  and .bevy_terminal_parity_claimed == false
+  and .bevy_objective_loop_kind == "scripted_live_input_objective_loop"
+  and .bevy_objective_controlled_beacons == 2
+  and .bevy_objective_total_beacons == 4
+  and .bevy_objective_control_ratio_percent == 50
+  and .bevy_objective_hold_ticks == 3000
+  and .bevy_objective_terminal_rule == "control_2_of_4_flux_beacons_for_3000_ticks"
+  and .openra_parity_bridge_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

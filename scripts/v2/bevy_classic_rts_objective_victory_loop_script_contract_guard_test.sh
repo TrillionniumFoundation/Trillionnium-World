@@ -20,6 +20,17 @@ required_script_lines=(
   'victory_resolution_gate == true'
   'defeat_pressure_gate == true'
   'extraction_gate == true'
+  'openra_parity_target_commit == "5f1bf76"'
+  'openra_parity_target_natural_terminal == true'
+  'openra_parity_target_winner_beacons == 2'
+  'openra_parity_target_total_beacons == 4'
+  'openra_parity_target_hold_ticks == 3000'
+  'bevy_terminal_parity_claimed == false'
+  'bevy_objective_controlled_beacons == 2'
+  'bevy_objective_total_beacons == 4'
+  'bevy_objective_control_ratio_percent == 50'
+  'bevy_objective_hold_ticks == 3000'
+  'openra_parity_bridge_gate == true'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -46,6 +57,14 @@ required_source_lines=(
   'CLASSIC_RTS_VICTORY_COLOR'
   'CLASSIC_RTS_DEFEAT_RISK_COLOR'
   'CLASSIC_RTS_EXTRACTION_COLOR'
+  'OPENRA_ORGANIC_TERMINAL_COMMIT'
+  'OPENRA_ORGANIC_TERMINAL_PACKAGE'
+  'OPENRA_ORGANIC_TERMINAL_WINNER_BEACONS'
+  'OPENRA_ORGANIC_TERMINAL_TOTAL_BEACONS'
+  'OPENRA_ORGANIC_TERMINAL_HOLD_TICKS'
+  'bevy_terminal_parity_claimed'
+  'openra_parity_bridge_gate'
+  'control_2_of_4_flux_beacons_for_3000_ticks'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -64,6 +83,11 @@ required_readiness_lines=(
   'rts_objective_victory_loop_victory_gate'
   'rts_objective_victory_loop_defeat_pressure_gate'
   'rts_objective_victory_loop_extraction_gate'
+  'rts_objective_victory_loop_openra_parity_bridge_gate'
+  'rts_objective_victory_loop_bevy_terminal_parity_claimed'
+  'rts_objective_victory_loop_bevy_controlled_beacons'
+  'rts_objective_victory_loop_bevy_total_beacons'
+  'rts_objective_victory_loop_bevy_hold_ticks'
   'rts_objective_victory_loop_pixel_count'
 )
 
@@ -74,4 +98,4 @@ for line in "${required_readiness_lines[@]}"; do
   fi
 done
 
-echo "[PASS] classic RTS objective victory loop evidence remains connected to capture, extraction, victory scoring, defeat pressure, renderer overlays, and readiness"
+echo "[PASS] classic RTS objective victory loop evidence remains connected to capture, extraction, victory scoring, defeat pressure, OpenRA parity target binding, renderer overlays, and readiness"
