@@ -77,6 +77,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_like_core.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_loop.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_minimap.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_build_lifecycle.sh" \
@@ -327,6 +328,7 @@ run_check bevy_classic_model_catalog_gate "$ROOT/scripts/check_trillionnium_worl
 run_check bevy_classic_renderer_probe_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh"
 run_check bevy_classic_isometric_modeling_contract_guard "$ROOT/scripts/v2/bevy_classic_isometric_modeling_script_contract_guard_test.sh"
 run_check bevy_classic_isometric_modeling_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh"
+run_check bevy_classic_rts_openra_like_core_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_like_core.sh"
 run_check bevy_classic_rts_control_loop_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_control_loop_script_contract_guard_test.sh"
 run_check bevy_classic_rts_control_loop_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_loop.sh"
 run_check bevy_classic_rts_selection_minimap_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_selection_minimap_script_contract_guard_test.sh"

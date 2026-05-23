@@ -17181,6 +17181,26 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     ]
     .iter()
     .all(|needle| world.event_log.iter().any(|event| event.contains(needle)));
+    let visible_tile_count = multi0.visible_tile_ids.len();
+    let explored_tile_count = multi0.explored_tile_ids.len();
+    let shroud_memory_count = multi0.shroud_memory_actor_ids.len();
+    let shroud_memory_core_gate = multi0
+        .shroud_memory_actor_ids
+        .iter()
+        .any(|memory| memory.starts_with("multi1.command.core@"));
+    let shroud_event_gate = world
+        .event_log
+        .iter()
+        .any(|event| event.starts_with("vision_reveal:Multi0:"))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("shroud_memory:Multi0:"));
+    let shroud_gate = visible_tile_count >= 120
+        && explored_tile_count > visible_tile_count
+        && shroud_memory_count > 0
+        && shroud_memory_core_gate
+        && shroud_event_gate;
     let map_gate = world.map_width == 34
         && world.map_height == 34
         && world.bounds == (1, 1, 32, 32)
@@ -17193,7 +17213,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && beacon_capture_progress > 0
         && combat_damage > 0
         && worker_moved
-        && event_log_gate;
+        && event_log_gate
+        && shroud_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.rust_bevy_owned_runtime
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.warcraft_iii_asset_copied == false;
@@ -17238,7 +17259,20 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "multi0_flux": multi0.flux,
             "multi0_supply_used": multi0.supply_used,
             "multi0_beacon_control_ticks": multi0.beacon_control_ticks,
+            "multi0_visible_tile_count": visible_tile_count,
+            "multi0_explored_tile_count": explored_tile_count,
+            "multi0_shroud_memory_actor_ids": multi0.shroud_memory_actor_ids.clone(),
             "event_log": world.event_log.clone(),
+        },
+        "shroud": {
+            "visible_tile_count": visible_tile_count,
+            "explored_tile_count": explored_tile_count,
+            "shroud_memory_count": shroud_memory_count,
+            "shroud_memory_core_gate": shroud_memory_core_gate,
+            "shroud_event_gate": shroud_event_gate,
+            "multi0_visible_tile_ids_sample": multi0.visible_tile_ids.iter().take(20).collect::<Vec<_>>(),
+            "multi0_explored_tile_ids_sample": multi0.explored_tile_ids.iter().take(24).collect::<Vec<_>>(),
+            "multi0_shroud_memory_actor_ids": multi0.shroud_memory_actor_ids.clone(),
         },
         "gates": {
             "map_gate": map_gate,
@@ -17246,10 +17280,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "order_gate": order_gate,
             "simulation_gate": simulation_gate,
             "event_log_gate": event_log_gate,
+            "shroud_gate": shroud_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This is the first Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin: map templates, rules/traits, actor state, orders, production, resources, objective capture, combat damage, and deterministic ticks are represented and simulated in Rust. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, orders, production, resources, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -42589,6 +42624,7 @@ struct TrnmOpenRaLikeRuleSpec {
     cost: u32,
     hp: u32,
     speed: Option<u32>,
+    vision_radius: u8,
     build_duration: Option<u32>,
     queue: &'static str,
     traits: &'static [TrnmOpenRaLikeTrait],
@@ -42654,6 +42690,9 @@ struct TrnmOpenRaLikePlayerState {
     flux: u32,
     supply_used: u32,
     beacon_control_ticks: u32,
+    visible_tile_ids: Vec<String>,
+    explored_tile_ids: Vec<String>,
+    shroud_memory_actor_ids: Vec<String>,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -42780,6 +42819,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 200,
         hp: 8000,
         speed: Some(64),
+        vision_radius: 5,
         build_duration: Some(100),
         queue: "Unit",
         traits: TRNM_OPENRA_LIKE_WORKER_TRAITS,
@@ -42792,6 +42832,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 250,
         hp: 9000,
         speed: Some(92),
+        vision_radius: 7,
         build_duration: Some(125),
         queue: "Unit",
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
@@ -42804,6 +42845,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 300,
         hp: 18000,
         speed: Some(56),
+        vision_radius: 5,
         build_duration: Some(150),
         queue: "Unit",
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
@@ -42816,6 +42858,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 400,
         hp: 13000,
         speed: Some(64),
+        vision_radius: 5,
         build_duration: Some(175),
         queue: "Unit",
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
@@ -42828,6 +42871,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 1600,
         hp: 70000,
         speed: None,
+        vision_radius: 6,
         build_duration: None,
         queue: "Building/Unit",
         traits: TRNM_OPENRA_LIKE_CORE_TRAITS,
@@ -42840,6 +42884,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 500,
         hp: 70000,
         speed: None,
+        vision_radius: 5,
         build_duration: Some(180),
         queue: "Building",
         traits: TRNM_OPENRA_LIKE_RELAY_TRAITS,
@@ -42852,6 +42897,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 700,
         hp: 70000,
         speed: None,
+        vision_radius: 5,
         build_duration: Some(220),
         queue: "Building",
         traits: TRNM_OPENRA_LIKE_PRODUCTION_TRAITS,
@@ -42864,6 +42910,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 850,
         hp: 70000,
         speed: None,
+        vision_radius: 8,
         build_duration: Some(260),
         queue: "Building",
         traits: TRNM_OPENRA_LIKE_PRODUCTION_TRAITS,
@@ -42876,6 +42923,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 650,
         hp: 46000,
         speed: None,
+        vision_radius: 4,
         build_duration: None,
         queue: "Objective",
         traits: TRNM_OPENRA_LIKE_OBJECTIVE_TRAITS,
@@ -42888,6 +42936,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 0,
         hp: 1,
         speed: None,
+        vision_radius: 0,
         build_duration: None,
         queue: "Resource",
         traits: TRNM_OPENRA_LIKE_RESOURCE_TRAITS,
@@ -42900,6 +42949,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         cost: 0,
         hp: 1,
         speed: None,
+        vision_radius: 0,
         build_duration: None,
         queue: "MapDetail",
         traits: TRNM_OPENRA_LIKE_MARKER_TRAITS,
@@ -43222,6 +43272,7 @@ fn classic_openra_like_rule_json(rule: &TrnmOpenRaLikeRuleSpec) -> Value {
         "cost": rule.cost,
         "hp": rule.hp,
         "speed": rule.speed,
+        "vision_radius": rule.vision_radius,
         "build_duration": rule.build_duration,
         "queue": rule.queue,
         "traits": rule.traits.iter().map(|trait_kind| trait_kind.as_str()).collect::<Vec<_>>(),
@@ -43400,7 +43451,19 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             rule_id: Some("trnm.flux.beacon"),
         }),
     ));
-    TrnmOpenRaLikeWorld {
+    actors.push(classic_openra_like_actor(
+        "multi0.scout.intel",
+        "trnm.horizon.scout",
+        "Multi0",
+        (23, 23),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((16, 16)),
+            target_id: Some("map.actor14"),
+            rule_id: None,
+        }),
+    ));
+    let mut world = TrnmOpenRaLikeWorld {
         tick: 0,
         map_width: 34,
         map_height: 34,
@@ -43413,6 +43476,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 340,
                 supply_used: 5,
                 beacon_control_ticks: 0,
+                visible_tile_ids: Vec::new(),
+                explored_tile_ids: Vec::new(),
+                shroud_memory_actor_ids: Vec::new(),
             },
             TrnmOpenRaLikePlayerState {
                 id: "Multi1",
@@ -43420,6 +43486,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 340,
                 supply_used: 4,
                 beacon_control_ticks: 0,
+                visible_tile_ids: Vec::new(),
+                explored_tile_ids: Vec::new(),
+                shroud_memory_actor_ids: Vec::new(),
             },
             TrnmOpenRaLikePlayerState {
                 id: "Multi2",
@@ -43427,6 +43496,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 340,
                 supply_used: 4,
                 beacon_control_ticks: 0,
+                visible_tile_ids: Vec::new(),
+                explored_tile_ids: Vec::new(),
+                shroud_memory_actor_ids: Vec::new(),
             },
             TrnmOpenRaLikePlayerState {
                 id: "Multi3",
@@ -43434,6 +43506,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 340,
                 supply_used: 4,
                 beacon_control_ticks: 0,
+                visible_tile_ids: Vec::new(),
+                explored_tile_ids: Vec::new(),
+                shroud_memory_actor_ids: Vec::new(),
             },
         ],
         production: vec![
@@ -43453,7 +43528,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             },
         ],
         event_log: vec!["init:first_contact_basin".to_string()],
-    }
+    };
+    classic_first_contact_openra_like_core_update_visibility(&mut world);
+    world
 }
 
 #[cfg(not(target_os = "android"))]
@@ -43472,12 +43549,114 @@ fn classic_openra_like_player_mut<'a>(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_openra_like_tile_id(tile: (i32, i32)) -> String {
+    format!("{},{}", tile.0, tile.1)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_sorted_tile_ids(tiles: HashSet<String>) -> Vec<String> {
+    let mut ids = tiles.into_iter().collect::<Vec<_>>();
+    ids.sort();
+    ids
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_openra_like_core_update_visibility(world: &mut TrnmOpenRaLikeWorld) {
+    let player_ids = world
+        .players
+        .iter()
+        .map(|player| player.id)
+        .collect::<Vec<_>>();
+    let (bound_x, bound_y, bound_w, bound_h) = world.bounds;
+    let min_x = bound_x as i32;
+    let min_y = bound_y as i32;
+    let max_x = min_x + bound_w as i32 - 1;
+    let max_y = min_y + bound_h as i32 - 1;
+    let mut visibility_events = Vec::new();
+
+    for (player_index, player_id) in player_ids.iter().enumerate() {
+        let mut visible_tiles = HashSet::new();
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| actor.owner == *player_id)
+        {
+            let vision_radius = classic_openra_like_rule_for(actor.rule_id)
+                .map(|rule| i32::from(rule.vision_radius))
+                .unwrap_or(0);
+            if vision_radius <= 0 {
+                continue;
+            }
+            for dy in -vision_radius..=vision_radius {
+                for dx in -vision_radius..=vision_radius {
+                    if dx.abs() + dy.abs() > vision_radius {
+                        continue;
+                    }
+                    let tile = (actor.tile.0 + dx, actor.tile.1 + dy);
+                    if tile.0 < min_x || tile.0 > max_x || tile.1 < min_y || tile.1 > max_y {
+                        continue;
+                    }
+                    visible_tiles.insert(classic_openra_like_tile_id(tile));
+                }
+            }
+        }
+
+        let mut explored_tiles = world.players[player_index]
+            .explored_tile_ids
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>();
+        explored_tiles.extend(visible_tiles.iter().cloned());
+
+        let shroud_memory_actor_ids = world
+            .actors
+            .iter()
+            .filter(|actor| actor.owner != *player_id && actor.owner != "Neutral")
+            .filter_map(|actor| {
+                let tile_id = classic_openra_like_tile_id(actor.tile);
+                if explored_tiles.contains(&tile_id) && !visible_tiles.contains(&tile_id) {
+                    Some(format!("{}@{}", actor.id, tile_id))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let visible_tile_ids = classic_openra_like_sorted_tile_ids(visible_tiles);
+        let explored_tile_ids = classic_openra_like_sorted_tile_ids(explored_tiles);
+        let player = &mut world.players[player_index];
+        player.visible_tile_ids = visible_tile_ids;
+        player.explored_tile_ids = explored_tile_ids;
+        player.shroud_memory_actor_ids = shroud_memory_actor_ids;
+
+        if world.tick % 8 == 0 {
+            visibility_events.push(format!(
+                "vision_reveal:{}:{}visible:{}explored",
+                player.id,
+                player.visible_tile_ids.len(),
+                player.explored_tile_ids.len()
+            ));
+            if !player.shroud_memory_actor_ids.is_empty() {
+                visibility_events.push(format!(
+                    "shroud_memory:{}:{}",
+                    player.id,
+                    player.shroud_memory_actor_ids.join("|")
+                ));
+            }
+        }
+    }
+
+    world.event_log.extend(visibility_events);
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_openra_like_core_tick_for(
     world: &mut TrnmOpenRaLikeWorld,
     tick_count: u32,
 ) {
     for _ in 0..tick_count {
         world.tick += 1;
+        classic_first_contact_openra_like_core_update_visibility(world);
         for item in &mut world.production {
             if item.remaining_ticks > 0 {
                 item.remaining_ticks -= 1;
@@ -43612,6 +43791,7 @@ fn classic_first_contact_openra_like_core_tick_for(
                 | TrnmOpenRaLikeOrderKind::Hold => {}
             }
         }
+        classic_first_contact_openra_like_core_update_visibility(world);
     }
 }
 
@@ -43633,6 +43813,9 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "flux": player.flux,
                 "supply_used": player.supply_used,
                 "beacon_control_ticks": player.beacon_control_ticks,
+                "visible_tile_count": player.visible_tile_ids.len(),
+                "explored_tile_count": player.explored_tile_ids.len(),
+                "shroud_memory_actor_ids": player.shroud_memory_actor_ids.clone(),
             })
         }).collect::<Vec<_>>(),
         "actors": world.actors.iter().filter(|actor| {

@@ -24,7 +24,9 @@ jq -e '
   and .map.runtime_actor_count >= 48
   and .map.player_count == 4
   and (.rules[] | select(.id == "trnm.worker" and ((.traits | index("harvester")) != null)))
-  and (.rules[] | select(.id == "trnm.flux.relay" and ((.traits | index("refinery")) != null)))
+  and (.rules[] | select(.id == "trnm.worker" and .vision_radius >= 5))
+  and (.rules[] | select(.id == "trnm.horizon.scout" and .vision_radius >= 7))
+  and (.rules[] | select(.id == "trnm.flux.relay" and ((.traits | index("refinery")) != null) and .vision_radius >= 5))
   and (.rules[] | select(.id == "trnm.command.core" and ((.traits | index("producer")) != null) and ((.traits | index("provides_build_radius")) != null)))
   and (.rules[] | select(.id == "trnm.flux.beacon" and ((.traits | index("capturable")) != null)))
   and (.rules[] | select(.id == "trnm.striker" and ((.traits | index("attack")) != null)))
@@ -41,16 +43,27 @@ jq -e '
   and .simulation.beacon_capture_progress > 0
   and .simulation.combat_damage > 0
   and .simulation.worker_moved == true
+  and .simulation.multi0_visible_tile_count >= 120
+  and .simulation.multi0_explored_tile_count > .simulation.multi0_visible_tile_count
+  and ((.simulation.multi0_shroud_memory_actor_ids | index("multi1.command.core@25,25")) != null)
+  and .shroud.visible_tile_count >= 120
+  and .shroud.explored_tile_count > .shroud.visible_tile_count
+  and .shroud.shroud_memory_count > 0
+  and .shroud.shroud_memory_core_gate == true
+  and .shroud.shroud_event_gate == true
   and any(.simulation.event_log[]; contains("move_step"))
   and any(.simulation.event_log[]; contains("harvest_deposit"))
   and any(.simulation.event_log[]; contains("build_tick"))
   and any(.simulation.event_log[]; contains("train_tick"))
   and any(.simulation.event_log[]; contains("capture_tick"))
   and any(.simulation.event_log[]; contains("attack_hit"))
+  and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
+  and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
   and .gates.rule_trait_gate == true
   and .gates.order_gate == true
   and .gates.simulation_gate == true
+  and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
   and .source_policy.rust_bevy_owned_runtime == true
