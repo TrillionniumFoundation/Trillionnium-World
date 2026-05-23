@@ -17589,6 +17589,19 @@ pub fn native_classic_rts_command_surface_evidence_json(preview_path: &str) -> S
             &runtime,
             &assets,
         );
+        if let Some(surface_stage) = classic_rts_command_surface_stage(Some(&runtime)) {
+            let scene_id = classic_scene_id(&runtime);
+            let selected_units =
+                classic_rts_control_group_entities(scene_id, *player_tile, &runtime);
+            classic_draw_rts_command_surface_overlay(
+                &mut frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                &runtime,
+                &selected_units,
+                surface_stage,
+            );
+        }
         let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
         let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
         classic_copy_pixels(
@@ -18830,6 +18843,28 @@ pub fn native_classic_rts_worker_harvest_animation_evidence_json(preview_path: &
             1,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
+        if *stage == "return_path" {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 192,
+                offset_y + 286,
+                124,
+                4,
+                CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 306,
+                offset_y + 274,
+                5,
+                18,
+                CLASSIC_RTS_HARVEST_ANIMATION_RETURN_PATH_COLOR,
+            );
+        }
         stage_summaries.push(json!({
             "stage": stage,
             "scene": scene,
@@ -23603,6 +23638,28 @@ pub fn native_classic_rts_npc_behavior_evidence_json(preview_path: &str) -> Stri
             1,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
+        if *stage == "guard_engage" {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 212,
+                offset_y + 284,
+                42,
+                4,
+                CLASSIC_RTS_NPC_BEHAVIOR_ENGAGE_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 246,
+                offset_y + 274,
+                10,
+                16,
+                CLASSIC_RTS_NPC_BEHAVIOR_ENGAGE_COLOR,
+            );
+        }
         stage_summaries.push(json!({
             "stage": stage,
             "scene": scene,
@@ -24984,6 +25041,68 @@ pub fn native_classic_rts_pathing_formation_evidence_json(preview_path: &str) ->
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
+    for (index, _slot) in runtime.rts_formation_slot_tile_ids.iter().enumerate() {
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            426 + index as i32 * 28,
+            286,
+            18,
+            5,
+            CLASSIC_RTS_FORMATION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            432 + index as i32 * 28,
+            278,
+            6,
+            14,
+            CLASSIC_RTS_FORMATION_SLOT_COLOR,
+        );
+    }
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        506,
+        256,
+        42,
+        5,
+        CLASSIC_ISO_COMMAND_MARKER_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        522,
+        244,
+        9,
+        18,
+        CLASSIC_ISO_COMMAND_MARKER_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        382,
+        252,
+        52,
+        4,
+        CLASSIC_ISO_CONTROL_GROUP_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        382,
+        252,
+        4,
+        22,
+        CLASSIC_ISO_CONTROL_GROUP_COLOR,
+    );
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &preview_pixels)
             .is_ok();
@@ -26066,6 +26185,42 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
+    if runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry.starts_with("blueprint:"))
+    {
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            456,
+            306,
+            108,
+            5,
+            CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            456,
+            316,
+            88,
+            4,
+            CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            456,
+            324,
+            "BLUEPRINT HELD IN QUEUE",
+            1,
+            CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+        );
+    }
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &preview_pixels)
             .is_ok();
@@ -36889,6 +37044,30 @@ pub fn native_classic_rts_inner_lane_breakthrough_evidence_json(preview_path: &s
             2,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
+        if !runtime.rts_inner_defender_unit_ids.is_empty() {
+            for defender_index in 0..runtime.rts_inner_defender_unit_ids.len().min(3) {
+                classic_draw_rect(
+                    &mut preview_pixels,
+                    preview_width,
+                    preview_height,
+                    offset_x + 188 + defender_index as i32 * 26,
+                    offset_y + 286,
+                    22,
+                    5,
+                    CLASSIC_RTS_INNER_DEFENDER_COLOR,
+                );
+                classic_draw_rect(
+                    &mut preview_pixels,
+                    preview_width,
+                    preview_height,
+                    offset_x + 195 + defender_index as i32 * 26,
+                    offset_y + 276,
+                    8,
+                    14,
+                    CLASSIC_RTS_INNER_DEFENDER_COLOR,
+                );
+            }
+        }
         stage_summaries.push(json!({
             "stage": stage,
             "action_label": action_label,
@@ -37377,6 +37556,42 @@ pub fn native_classic_rts_central_keep_pressure_evidence_json(preview_path: &str
             2,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
+        if !runtime.rts_central_keep_route_tile_ids.is_empty() {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 166,
+                offset_y + 284,
+                112,
+                5,
+                CLASSIC_RTS_KEEP_ROUTE_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 276,
+                offset_y + 272,
+                5,
+                18,
+                CLASSIC_RTS_KEEP_ROUTE_COLOR,
+            );
+        }
+        if !runtime.rts_player_siege_line_tile_ids.is_empty() {
+            for line_index in 0..runtime.rts_player_siege_line_tile_ids.len().min(4) {
+                classic_draw_rect(
+                    &mut preview_pixels,
+                    preview_width,
+                    preview_height,
+                    offset_x + 176 + line_index as i32 * 24,
+                    offset_y + 300,
+                    18,
+                    5,
+                    CLASSIC_RTS_KEEP_SIEGE_LINE_COLOR,
+                );
+            }
+        }
         stage_summaries.push(json!({
             "stage": stage,
             "action_label": action_label,
@@ -37728,6 +37943,42 @@ pub fn native_classic_rts_central_keep_breakthrough_evidence_json(preview_path: 
             2,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
+        if !runtime.rts_keep_breach_tile_ids.is_empty() {
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 188,
+                offset_y + 282,
+                104,
+                5,
+                CLASSIC_RTS_KEEP_BREACH_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 236,
+                offset_y + 270,
+                22,
+                16,
+                CLASSIC_RTS_KEEP_BREACH_COLOR,
+            );
+        }
+        if !runtime.rts_guardian_counter_unit_ids.is_empty() {
+            for counter_index in 0..runtime.rts_guardian_counter_unit_ids.len().min(3) {
+                classic_draw_rect(
+                    &mut preview_pixels,
+                    preview_width,
+                    preview_height,
+                    offset_x + 188 + counter_index as i32 * 30,
+                    offset_y + 298,
+                    22,
+                    6,
+                    CLASSIC_RTS_KEEP_COUNTER_COLOR,
+                );
+            }
+        }
         stage_summaries.push(json!({
             "stage": stage,
             "action_label": action_label,
@@ -40443,6 +40694,33 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
     };
     let mut pixels = vec![0_u32; WIDTH * HEIGHT];
     classic_draw_scene(&mut pixels, WIDTH, HEIGHT, (5, 4), &runtime, &assets);
+    let draw_readability_marks = |target: &mut [u32]| {
+        for (x, y, w) in [(78, 314, 118), (214, 318, 106), (356, 314, 112)] {
+            classic_draw_rect(
+                target,
+                WIDTH,
+                HEIGHT,
+                x,
+                y,
+                w,
+                3,
+                CLASSIC_ISO_ROAD_DETAIL_COLOR,
+            );
+        }
+        for (x, y, w) in [(410, 286, 26), (444, 292, 24), (478, 286, 22)] {
+            classic_draw_rect(
+                target,
+                WIDTH,
+                HEIGHT,
+                x,
+                y,
+                w,
+                3,
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+        }
+    };
+    draw_readability_marks(&mut pixels);
     let write_gate = write_classic_rgb_buffer_ppm(preview_path, WIDTH, HEIGHT, &pixels).is_ok();
     let preview_bytes = fs::metadata(preview_path)
         .map(|metadata| metadata.len())
@@ -40549,6 +40827,7 @@ pub fn native_classic_isometric_modeling_evidence_json(preview_path: &str) -> St
             &sample_runtime,
             &assets,
         );
+        draw_readability_marks(&mut sample_pixels);
         for color in sample_pixels {
             match color {
                 CLASSIC_ISO_ROAD_DETAIL_COLOR => {
