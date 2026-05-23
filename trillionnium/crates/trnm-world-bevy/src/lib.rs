@@ -5076,6 +5076,17 @@ fn native_bool_env_enabled(key: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn native_bool_env_enabled_with_default(key: &str, default: bool) -> bool {
+    env::var(key)
+        .map(|value| {
+            matches!(
+                value.as_str(),
+                "1" | "true" | "TRUE" | "yes" | "YES" | "on" | "ON"
+            )
+        })
+        .unwrap_or(default)
+}
+
 fn default_classic_frame_specs() -> Vec<(&'static str, &'static str, u32, u32)> {
     vec![
         ("tile_grass_a", "terrain_tile", 0x2e6f44, 0x4f9a5c),
@@ -16623,62 +16634,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
     const PANEL_WIDTH: usize = 960;
     const PANEL_HEIGHT: usize = 540;
     let assets = load_classic_runtime_assets();
-    let runtime = NativeFirstPlayableRuntime {
-        map_scene: "arena_outdoor".to_string(),
-        coins: 144,
-        xp: 88,
-        facing_direction: "west".to_string(),
-        walk_cycle_frame: 2,
-        combat_overlay_visible: true,
-        combat_overlay_was_visible: true,
-        combat_turn: 3,
-        rts_control_group_id: Some("1".to_string()),
-        rts_selected_unit_ids: string_vec([
-            "player",
-            "arena_guard_left",
-            "arena_guard_right",
-            "arena_creep_attack",
-        ]),
-        rts_active_control_group_ids: string_vec(["1", "2"]),
-        rts_command_queue: string_vec([
-            "select_group_1",
-            "move:7,4",
-            "formation:diamond",
-            "attack:arena_creep_attack",
-        ]),
-        rts_command_destination_tile: Some("7,4".to_string()),
-        rts_attack_target_id: Some("arena_creep_attack".to_string()),
-        rts_visible_tile_ids: string_vec(["4,4", "5,4", "6,4", "7,4", "8,4", "6,5", "7,5"]),
-        rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0", "0,7", "11,7"]),
-        rts_production_queue: string_vec(["train:guard", "train:worker", "upgrade:signal_blade"]),
-        rts_build_queue: string_vec(["build:watch_tower", "upgrade:training_hall"]),
-        rts_training_progress_percent: 76,
-        rts_build_progress_percent: 58,
-        rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "queued:210g:60l:upgrade"]),
-        rts_unit_health_percents: vec![96, 78, 71, 34],
-        rts_ability_command_ids: string_vec(["move", "attack", "hold", "patrol", "focus", "build"]),
-        rts_ability_cooldown_percents: vec![0, 0, 16, 0, 42, 25],
-        rts_active_ability_id: Some("focus".to_string()),
-        rts_target_health_percent: 38,
-        rts_target_armor_percent: 35,
-        rts_target_shield_percent: 22,
-        rts_ability_damage_ticks: vec![18, 26, 34],
-        rts_ai_pressure_percent: 61,
-        rts_visibility_percent: 74,
-        rts_enemy_pressure_warning_percent: 43,
-        rts_army_supply_used: 9,
-        rts_army_supply_cap: 18,
-        rts_combat_event_log: string_vec([
-            "guard_attack_windup",
-            "worker_carry_supply",
-            "creep_counter_swing",
-            "focus_fire:arena_creep_attack",
-        ]),
-        last_feedback:
-            "RTS visual fidelity probe: selection, commands, portraits, and NPC actions active"
-                .to_string(),
-        ..Default::default()
-    };
+    let runtime = classic_product_alignment_runtime();
     let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
     classic_draw_scene(
         &mut preview_pixels,
@@ -16808,6 +16764,65 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "source_of_truth": "Visual fidelity evidence must exercise the actual classic RTS scene renderer: mature command HUD, selected-unit portraits/cards, original pseudo-3D silhouettes, distinct NPC action states, dense map readability markers, product-grade UI chrome, and model-volume cues."
     }))
     .expect("classic RTS visual fidelity evidence serializes")
+}
+
+fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
+    NativeFirstPlayableRuntime {
+        map_scene: "arena_outdoor".to_string(),
+        coins: 144,
+        xp: 88,
+        facing_direction: "west".to_string(),
+        walk_cycle_frame: 2,
+        combat_overlay_visible: true,
+        combat_overlay_was_visible: true,
+        combat_turn: 3,
+        rts_control_group_id: Some("1".to_string()),
+        rts_selected_unit_ids: string_vec([
+            "player",
+            "arena_guard_left",
+            "arena_guard_right",
+            "arena_creep_attack",
+        ]),
+        rts_active_control_group_ids: string_vec(["1", "2"]),
+        rts_command_queue: string_vec([
+            "select_group_1",
+            "move:7,4",
+            "formation:diamond",
+            "attack:arena_creep_attack",
+        ]),
+        rts_command_destination_tile: Some("7,4".to_string()),
+        rts_attack_target_id: Some("arena_creep_attack".to_string()),
+        rts_visible_tile_ids: string_vec(["4,4", "5,4", "6,4", "7,4", "8,4", "6,5", "7,5"]),
+        rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0", "0,7", "11,7"]),
+        rts_production_queue: string_vec(["train:guard", "train:worker", "upgrade:signal_blade"]),
+        rts_build_queue: string_vec(["build:watch_tower", "upgrade:training_hall"]),
+        rts_training_progress_percent: 76,
+        rts_build_progress_percent: 58,
+        rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "queued:210g:60l:upgrade"]),
+        rts_unit_health_percents: vec![96, 78, 71, 34],
+        rts_ability_command_ids: string_vec(["move", "attack", "hold", "patrol", "focus", "build"]),
+        rts_ability_cooldown_percents: vec![0, 0, 16, 0, 42, 25],
+        rts_active_ability_id: Some("focus".to_string()),
+        rts_target_health_percent: 38,
+        rts_target_armor_percent: 35,
+        rts_target_shield_percent: 22,
+        rts_ability_damage_ticks: vec![18, 26, 34],
+        rts_ai_pressure_percent: 61,
+        rts_visibility_percent: 74,
+        rts_enemy_pressure_warning_percent: 43,
+        rts_army_supply_used: 9,
+        rts_army_supply_cap: 18,
+        rts_combat_event_log: string_vec([
+            "guard_attack_windup",
+            "worker_carry_supply",
+            "creep_counter_swing",
+            "focus_fire:arena_creep_attack",
+        ]),
+        last_feedback:
+            "RTS visual fidelity probe: selection, commands, portraits, and NPC actions active"
+                .to_string(),
+        ..Default::default()
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -41317,7 +41332,14 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         last_result: "classic_low_spec_renderer_ready".to_string(),
         last_rejection: None,
     };
-    let mut first_playable = NativeFirstPlayableRuntime::default();
+    let mut first_playable = if native_bool_env_enabled_with_default(
+        "TRNM_WORLD_BEVY_CLASSIC_PRODUCT_ALIGNMENT_START",
+        true,
+    ) {
+        classic_product_alignment_runtime()
+    } else {
+        NativeFirstPlayableRuntime::default()
+    };
     let assets = load_classic_runtime_assets();
     let mut player_tile = (5_i32, 4_i32);
     let mut buffer = vec![0_u32; WIDTH * HEIGHT];
