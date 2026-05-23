@@ -57112,15 +57112,19 @@ fn classic_draw_rect(
     h: i32,
     color: u32,
 ) {
+    if w <= 0 || h <= 0 || width == 0 || height == 0 {
+        return;
+    }
     let left = x.max(0) as usize;
     let top = y.max(0) as usize;
     let right = (x + w).clamp(0, width as i32) as usize;
     let bottom = (y + h).clamp(0, height as i32) as usize;
+    if left >= right || top >= bottom {
+        return;
+    }
     for py in top..bottom {
         let row_start = py * width;
-        for px in left..right {
-            buffer[row_start + px] = color;
-        }
+        buffer[row_start + left..row_start + right].fill(color);
     }
 }
 
