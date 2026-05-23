@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-ui-continuity.json"
+PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-ui-continuity.ppm"
+mkdir -p "$(dirname "$SUMMARY")"
+
+(
+  cd "$ROOT/trillionnium"
+  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-campaign-ui-continuity "$PREVIEW" >"$SUMMARY"
+)
+
+jq -e '
+  .contract_version == "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1"
+  and .green == true
+  and .campaign_handoff_contract == "trillionnium_world_bevy_classic_rts_campaign_handoff_v1"
+  and .campaign_handoff_green == true
+  and .preview_width == 1920
+  and .preview_height == 1080
+  and .capture_frame_count == 16
+  and .final_current_room_id == "league-coliseum"
+  and .final_map_scene == "arena_outdoor"
+  and .final_route_director_task_id == "task-fixture-first-route"
+  and .final_route_director_next_room_id == null
+  and .final_open_world_handoff_state == "resumed:league-coliseum"
+  and .final_contextual_primary_action_label == "COMBAT:attack"
+  and (.final_contextual_action_labels | index("COMBAT:attack") != null)
+  and (.final_active_task_ids | index("task-fixture-first-route") != null)
+  and .final_objective_status == "open_world_after_action_ready"
+  and .restored_current_room_id == "league-coliseum"
+  and .restored_map_scene == "arena_outdoor"
+  and .restored_open_world_handoff_state == "resumed:league-coliseum"
+  and .restored_route_director_task_id == "task-fixture-first-route"
+  and .restored_route_director_next_room_id == null
+  and (.restored_contextual_action_labels | index("COMBAT:attack") != null)
+  and (.restored_active_task_ids | index("task-fixture-first-route") != null)
+  and (.milestones | to_entries | all(.value == true))
+  and .non_background_pixels > 500000
+  and .victory_pixel_count > 20
+  and .expansion_pixel_count > 60
+  and .breach_pixel_count > 40
+  and .keep_pixel_count > 40
+  and .restoration_pixel_count > 20
+  and .open_world_pixel_count > 60
+  and .handoff_green_gate == true
+  and .preview_resolution_gate == true
+  and .live_input_gate == true
+  and .milestone_gate == true
+  and .map_ui_state_gate == true
+  and .restored_ui_state_gate == true
+  and .persistence_gate == true
+  and .render_readability_gate == true
+  and .native_client_boundary_gate == true
+' "$SUMMARY" >/dev/null
+
+test -s "$PREVIEW"
+printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_GREEN %s %s\n' "$SUMMARY" "$PREVIEW"

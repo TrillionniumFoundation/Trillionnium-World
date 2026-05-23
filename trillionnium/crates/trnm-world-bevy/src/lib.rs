@@ -212,6 +212,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT: 
     "trillionnium_world_bevy_classic_rts_open_world_after_action_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_handoff_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
@@ -38475,6 +38477,142 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         "source_of_truth": "Classic RTS campaign handoff evidence runs one live native Bevy input chain from first RTS selection through objective, creep, recon, enemy tech, army production, assault, aftermath, commander, expansion, tier-two siege, central-keep victory, Mirror City restoration, and open-world resume."
     }))
     .expect("classic RTS campaign handoff evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &str) -> String {
+    let handoff_json = native_classic_rts_campaign_handoff_evidence_json(preview_path);
+    let handoff: Value =
+        serde_json::from_str(&handoff_json).expect("classic RTS handoff evidence parses");
+    let bool_at = |key: &str| handoff.get(key).and_then(Value::as_bool) == Some(true);
+    let string_at =
+        |key: &str, expected: &str| handoff.get(key).and_then(Value::as_str) == Some(expected);
+    let u64_at = |key: &str| handoff.get(key).and_then(Value::as_u64).unwrap_or_default();
+    let array_contains = |pointer: &str, expected: &str| {
+        handoff
+            .pointer(pointer)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+    let milestone_gate = handoff
+        .get("milestones")
+        .and_then(Value::as_object)
+        .is_some_and(|milestones| {
+            milestones
+                .values()
+                .all(|milestone| milestone.as_bool() == Some(true))
+        });
+    let handoff_green_gate = bool_at("green")
+        && handoff.get("contract_version").and_then(Value::as_str)
+            == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT);
+    let preview_resolution_gate = bool_at("write_gate")
+        && u64_at("preview_width") == 1920
+        && u64_at("preview_height") == 1080
+        && u64_at("capture_frame_count") == 16;
+    let map_ui_state_gate = string_at("final_current_room_id", "league-coliseum")
+        && string_at("final_map_scene", "arena_outdoor")
+        && string_at("final_route_director_task_id", "task-fixture-first-route")
+        && handoff
+            .get("final_route_director_next_room_id")
+            .is_some_and(Value::is_null)
+        && string_at("final_open_world_handoff_state", "resumed:league-coliseum")
+        && string_at("final_contextual_primary_action_label", "COMBAT:attack")
+        && string_at("final_objective_status", "open_world_after_action_ready")
+        && array_contains("/final_contextual_action_labels", "COMBAT:attack")
+        && array_contains("/final_active_task_ids", "task-fixture-first-route")
+        && array_contains(
+            "/final_route_director_history",
+            "rts_open_world_after_action:league-coliseum:arrived",
+        );
+    let restored_ui_state_gate = string_at("restored_current_room_id", "league-coliseum")
+        && string_at("restored_map_scene", "arena_outdoor")
+        && string_at(
+            "restored_open_world_handoff_state",
+            "resumed:league-coliseum",
+        )
+        && string_at(
+            "restored_route_director_task_id",
+            "task-fixture-first-route",
+        )
+        && handoff
+            .get("restored_route_director_next_room_id")
+            .is_some_and(Value::is_null)
+        && array_contains("/restored_contextual_action_labels", "COMBAT:attack")
+        && array_contains("/restored_active_task_ids", "task-fixture-first-route");
+    let render_readability_gate = u64_at("non_background_pixels") > 500_000
+        && u64_at("victory_pixel_count") > 20
+        && u64_at("expansion_pixel_count") > 60
+        && u64_at("breach_pixel_count") > 40
+        && u64_at("keep_pixel_count") > 40
+        && u64_at("restoration_pixel_count") > 20
+        && u64_at("open_world_pixel_count") > 60;
+    let live_input_gate = bool_at("live_campaign_input_gate")
+        && bool_at("early_campaign_gate")
+        && bool_at("mid_campaign_gate")
+        && bool_at("end_campaign_gate")
+        && bool_at("open_world_resume_gate");
+    let persistence_gate = bool_at("snapshot_round_trip_gate");
+    let native_client_boundary_gate = handoff
+        .get("cex_runtime_player_client_allowed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && handoff.get("wgpu_required").and_then(Value::as_bool) == Some(false);
+    let green = handoff_green_gate
+        && preview_resolution_gate
+        && live_input_gate
+        && milestone_gate
+        && map_ui_state_gate
+        && restored_ui_state_gate
+        && persistence_gate
+        && render_readability_gate
+        && native_client_boundary_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": handoff.get("preview_format").cloned().unwrap_or(Value::Null),
+        "preview_width": handoff.get("preview_width").cloned().unwrap_or(Value::Null),
+        "preview_height": handoff.get("preview_height").cloned().unwrap_or(Value::Null),
+        "campaign_handoff_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
+        "campaign_handoff_green": handoff.get("green").cloned().unwrap_or(Value::Bool(false)),
+        "capture_frame_count": handoff.get("capture_frame_count").cloned().unwrap_or(Value::Null),
+        "final_current_room_id": handoff.get("final_current_room_id").cloned().unwrap_or(Value::Null),
+        "final_map_scene": handoff.get("final_map_scene").cloned().unwrap_or(Value::Null),
+        "final_route_director_task_id": handoff.get("final_route_director_task_id").cloned().unwrap_or(Value::Null),
+        "final_route_director_next_room_id": handoff.get("final_route_director_next_room_id").cloned().unwrap_or(Value::Null),
+        "final_open_world_handoff_state": handoff.get("final_open_world_handoff_state").cloned().unwrap_or(Value::Null),
+        "final_contextual_primary_action_label": handoff.get("final_contextual_primary_action_label").cloned().unwrap_or(Value::Null),
+        "final_contextual_action_labels": handoff.get("final_contextual_action_labels").cloned().unwrap_or(Value::Null),
+        "final_active_task_ids": handoff.get("final_active_task_ids").cloned().unwrap_or(Value::Null),
+        "final_objective_status": handoff.get("final_objective_status").cloned().unwrap_or(Value::Null),
+        "restored_current_room_id": handoff.get("restored_current_room_id").cloned().unwrap_or(Value::Null),
+        "restored_map_scene": handoff.get("restored_map_scene").cloned().unwrap_or(Value::Null),
+        "restored_open_world_handoff_state": handoff.get("restored_open_world_handoff_state").cloned().unwrap_or(Value::Null),
+        "restored_route_director_task_id": handoff.get("restored_route_director_task_id").cloned().unwrap_or(Value::Null),
+        "restored_route_director_next_room_id": handoff.get("restored_route_director_next_room_id").cloned().unwrap_or(Value::Null),
+        "restored_contextual_action_labels": handoff.get("restored_contextual_action_labels").cloned().unwrap_or(Value::Null),
+        "restored_active_task_ids": handoff.get("restored_active_task_ids").cloned().unwrap_or(Value::Null),
+        "milestones": handoff.get("milestones").cloned().unwrap_or(Value::Null),
+        "non_background_pixels": handoff.get("non_background_pixels").cloned().unwrap_or(Value::Null),
+        "victory_pixel_count": handoff.get("victory_pixel_count").cloned().unwrap_or(Value::Null),
+        "expansion_pixel_count": handoff.get("expansion_pixel_count").cloned().unwrap_or(Value::Null),
+        "breach_pixel_count": handoff.get("breach_pixel_count").cloned().unwrap_or(Value::Null),
+        "keep_pixel_count": handoff.get("keep_pixel_count").cloned().unwrap_or(Value::Null),
+        "restoration_pixel_count": handoff.get("restoration_pixel_count").cloned().unwrap_or(Value::Null),
+        "open_world_pixel_count": handoff.get("open_world_pixel_count").cloned().unwrap_or(Value::Null),
+        "handoff_green_gate": handoff_green_gate,
+        "preview_resolution_gate": preview_resolution_gate,
+        "live_input_gate": live_input_gate,
+        "milestone_gate": milestone_gate,
+        "map_ui_state_gate": map_ui_state_gate,
+        "restored_ui_state_gate": restored_ui_state_gate,
+        "persistence_gate": persistence_gate,
+        "render_readability_gate": render_readability_gate,
+        "native_client_boundary_gate": native_client_boundary_gate,
+        "source_of_truth": "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently."
+    }))
+    .expect("classic RTS campaign UI continuity evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
