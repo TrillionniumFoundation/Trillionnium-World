@@ -17098,6 +17098,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .find(|player| player.id == "Multi0")
         .map(|player| player.flux)
         .unwrap_or_default();
+    let initial_supply_used = world
+        .players
+        .iter()
+        .find(|player| player.id == "Multi0")
+        .map(|player| player.supply_used)
+        .unwrap_or_default();
     let initial_enemy_hp = world
         .actors
         .iter()
@@ -17109,7 +17115,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "multi0.command.core",
             TrnmOpenRaLikeOrder {
                 kind: TrnmOpenRaLikeOrderKind::Train,
-                target_tile: None,
+                target_tile: Some((13, 11)),
                 target_id: None,
                 rule_id: Some("trnm.worker"),
             },
@@ -17172,7 +17178,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     for (actor_id, order) in command_inputs {
         classic_first_contact_openra_like_core_issue_order(&mut world, "Multi0", actor_id, order);
     }
-    classic_first_contact_openra_like_core_tick_for(&mut world, 32);
+    classic_first_contact_openra_like_core_tick_for(&mut world, 140);
     let multi0 = world
         .players
         .iter()
@@ -17270,6 +17276,43 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .map(|item| item.progress_percent)
         .max()
         .unwrap_or_default();
+    let completed_production_count = world
+        .production
+        .iter()
+        .filter(|item| item.owner == "Multi0" && item.completed)
+        .count();
+    let production_spawn_count = world
+        .actors
+        .iter()
+        .filter(|actor| actor.owner == "Multi0" && actor.id.contains(".trained."))
+        .count();
+    let production_rally_count = world
+        .actors
+        .iter()
+        .filter(|actor| {
+            actor.owner == "Multi0"
+                && actor.id.contains(".trained.")
+                && actor
+                    .order
+                    .is_some_and(|order| order.kind == TrnmOpenRaLikeOrderKind::Move)
+        })
+        .count();
+    let production_completion_gate = completed_production_count >= 2
+        && production_spawn_count >= 2
+        && production_rally_count >= 2
+        && multi0.supply_used > initial_supply_used
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("train_complete:multi0.command.core"))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("production_spawn:multi0.trained."))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("rally_order:multi0.trained."));
     let relay_build_progress = active_relay
         .map(|actor| actor.build_progress)
         .unwrap_or_default();
@@ -17285,6 +17328,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "harvest_deposit",
         "build_tick",
         "train_tick",
+        "train_complete",
+        "production_spawn",
+        "rally_order",
         "capture_tick",
         "attack_hit",
     ]
@@ -17353,7 +17399,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && event_log_gate
         && shroud_gate
         && command_resolution_gate
-        && pathfinding_gate;
+        && pathfinding_gate
+        && production_completion_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.rust_bevy_owned_runtime
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.warcraft_iii_asset_copied == false;
@@ -17403,12 +17450,16 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
                 })
             }).collect::<Vec<_>>(),
             "production_progress_percent": production_progress,
+            "completed_production_count": completed_production_count,
+            "production_spawn_count": production_spawn_count,
+            "production_rally_count": production_rally_count,
             "relay_build_progress": relay_build_progress,
             "beacon_capture_progress": beacon_capture_progress,
             "combat_damage": combat_damage,
             "worker_moved": worker_moved,
             "multi0_flux": multi0.flux,
             "multi0_supply_used": multi0.supply_used,
+            "multi0_initial_supply_used": initial_supply_used,
             "multi0_beacon_control_ticks": multi0.beacon_control_ticks,
             "multi0_visible_tile_count": visible_tile_count,
             "multi0_explored_tile_count": explored_tile_count,
@@ -17449,10 +17500,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "move_path_plan_gate": move_path_plan_gate,
             "harvest_path_plan_gate": harvest_path_plan_gate,
             "reached_path_plan_gate": reached_path_plan_gate,
+            "production_completion_gate": production_completion_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -42876,10 +42928,14 @@ struct TrnmOpenRaLikePlayerState {
 #[derive(Debug, Clone)]
 struct TrnmOpenRaLikeProductionItem {
     owner: &'static str,
+    producer_id: String,
     queue: &'static str,
     rule_id: &'static str,
     remaining_ticks: u32,
     progress_percent: u8,
+    rally_tile: Option<(i32, i32)>,
+    spawned_actor_id: Option<String>,
+    completed: bool,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -43706,17 +43762,25 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         production: vec![
             TrnmOpenRaLikeProductionItem {
                 owner: "Multi0",
+                producer_id: "multi0.command.core".to_string(),
                 queue: "Unit",
                 rule_id: "trnm.worker",
                 remaining_ticks: 100,
                 progress_percent: 0,
+                rally_tile: Some((12, 11)),
+                spawned_actor_id: None,
+                completed: false,
             },
             TrnmOpenRaLikeProductionItem {
                 owner: "Multi0",
+                producer_id: "multi0.command.core".to_string(),
                 queue: "Unit",
                 rule_id: "trnm.horizon.scout",
                 remaining_ticks: 125,
                 progress_percent: 0,
+                rally_tile: Some((14, 11)),
+                spawned_actor_id: None,
+                completed: false,
             },
         ],
         event_log: vec!["init:first_contact_basin".to_string()],
@@ -44197,12 +44261,16 @@ fn classic_first_contact_openra_like_core_issue_order(
             let rule_id = order.rule_id.expect("train order rule validated");
             world.production.push(TrnmOpenRaLikeProductionItem {
                 owner,
+                producer_id: actor_id.to_string(),
                 queue: "Unit",
                 rule_id,
                 remaining_ticks: classic_openra_like_rule_for(rule_id)
                     .and_then(|rule| rule.build_duration)
                     .unwrap_or(1),
                 progress_percent: 0,
+                rally_tile: order.target_tile,
+                spawned_actor_id: None,
+                completed: false,
             });
         }
         _ => {
@@ -44314,6 +44382,63 @@ fn classic_first_contact_openra_like_core_update_visibility(world: &mut TrnmOpen
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_openra_like_tile_blocked_for_spawn(
+    world: &TrnmOpenRaLikeWorld,
+    tile: (i32, i32),
+) -> bool {
+    classic_openra_like_static_blocked_tiles().contains(&tile)
+        || world.actors.iter().any(|actor| {
+            actor.tile == tile
+                && classic_openra_like_rule_for(actor.rule_id).is_some_and(|rule| {
+                    matches!(
+                        rule.kind,
+                        TrnmOpenRaLikeEntityKind::Structure
+                            | TrnmOpenRaLikeEntityKind::Resource
+                            | TrnmOpenRaLikeEntityKind::Objective
+                            | TrnmOpenRaLikeEntityKind::Unit
+                    ) || actor.build_progress < 100
+                })
+        })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_spawn_exit_tile(
+    world: &TrnmOpenRaLikeWorld,
+    producer_id: &str,
+    rally_tile: Option<(i32, i32)>,
+) -> Option<(i32, i32)> {
+    let producer_tile = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == producer_id)
+        .map(|actor| actor.tile)?;
+    let mut candidates = [
+        (1, 0),
+        (0, 1),
+        (-1, 0),
+        (0, -1),
+        (1, 1),
+        (-1, 1),
+        (1, -1),
+        (-1, -1),
+        (2, 0),
+        (0, 2),
+        (-2, 0),
+        (0, -2),
+    ]
+    .into_iter()
+    .map(|(dx, dy)| (producer_tile.0 + dx, producer_tile.1 + dy))
+    .filter(|tile| classic_openra_like_tile_in_bounds(world, *tile))
+    .filter(|tile| !classic_openra_like_tile_blocked_for_spawn(world, *tile))
+    .collect::<Vec<_>>();
+    if let Some(rally_tile) = rally_tile {
+        candidates
+            .sort_by_key(|tile| (tile.0 - rally_tile.0).abs() + (tile.1 - rally_tile.1).abs());
+    }
+    candidates.into_iter().next()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_openra_like_core_tick_for(
     world: &mut TrnmOpenRaLikeWorld,
     tick_count: u32,
@@ -44321,21 +44446,87 @@ fn classic_first_contact_openra_like_core_tick_for(
     for _ in 0..tick_count {
         world.tick += 1;
         classic_first_contact_openra_like_core_update_visibility(world);
-        for item in &mut world.production {
-            if item.remaining_ticks > 0 {
-                item.remaining_ticks -= 1;
+        let mut completed_items = Vec::new();
+        for item_index in 0..world.production.len() {
+            let item = &mut world.production[item_index];
+            if !item.completed {
+                if item.remaining_ticks > 0 {
+                    item.remaining_ticks -= 1;
+                }
+                let duration = classic_openra_like_rule_for(item.rule_id)
+                    .and_then(|rule| rule.build_duration)
+                    .unwrap_or(1)
+                    .max(1);
+                item.progress_percent = (((duration.saturating_sub(item.remaining_ticks)) * 100)
+                    / duration)
+                    .min(100) as u8;
+                if world.tick % 8 == 0 {
+                    world.event_log.push(format!(
+                        "train_tick:{}:{}:{}%",
+                        item.queue, item.rule_id, item.progress_percent
+                    ));
+                }
+                if item.remaining_ticks == 0 && item.spawned_actor_id.is_none() {
+                    completed_items.push((
+                        item_index,
+                        item.owner,
+                        item.producer_id.clone(),
+                        item.rule_id,
+                        item.rally_tile,
+                    ));
+                }
             }
-            let duration = classic_openra_like_rule_for(item.rule_id)
-                .and_then(|rule| rule.build_duration)
-                .unwrap_or(1)
-                .max(1);
-            item.progress_percent =
-                (((duration.saturating_sub(item.remaining_ticks)) * 100) / duration).min(100) as u8;
-            if world.tick % 8 == 0 {
-                world.event_log.push(format!(
-                    "train_tick:{}:{}:{}%",
-                    item.queue, item.rule_id, item.progress_percent
+        }
+        for (item_index, owner, producer_id, rule_id, rally_tile) in completed_items {
+            let actor_id = format!(
+                "{}.trained.{}.{}",
+                owner.to_ascii_lowercase(),
+                rule_id
+                    .strip_prefix("trnm.")
+                    .unwrap_or(rule_id)
+                    .replace('.', "_"),
+                item_index
+            );
+            if world.actors.iter().any(|actor| actor.id == actor_id) {
+                continue;
+            }
+            if let Some(spawn_tile) =
+                classic_openra_like_spawn_exit_tile(world, &producer_id, rally_tile)
+            {
+                let order = rally_tile.map(|tile| TrnmOpenRaLikeOrder {
+                    kind: TrnmOpenRaLikeOrderKind::Move,
+                    target_tile: Some(tile),
+                    target_id: None,
+                    rule_id: None,
+                });
+                world.actors.push(classic_openra_like_actor(
+                    actor_id.clone(),
+                    rule_id,
+                    owner,
+                    spawn_tile,
+                    order,
                 ));
+                if let Some(player) = classic_openra_like_player_mut(world, owner) {
+                    player.supply_used += 1;
+                }
+                if let Some(item) = world.production.get_mut(item_index) {
+                    item.completed = true;
+                    item.progress_percent = 100;
+                    item.spawned_actor_id = Some(actor_id.clone());
+                }
+                world.event_log.push(format!(
+                    "train_complete:{producer_id}:{rule_id}:{actor_id}:spawn@{},{}",
+                    spawn_tile.0, spawn_tile.1
+                ));
+                world.event_log.push(format!(
+                    "production_spawn:{actor_id}:{rule_id}:owner:{owner}"
+                ));
+                if let Some(rally_tile) = rally_tile {
+                    world.event_log.push(format!(
+                        "rally_order:{actor_id}:{},{}",
+                        rally_tile.0, rally_tile.1
+                    ));
+                }
             }
         }
 
@@ -44543,10 +44734,14 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
         "production": world.production.iter().map(|item| {
             json!({
                 "owner": item.owner,
+                "producer_id": item.producer_id.clone(),
                 "queue": item.queue,
                 "rule_id": item.rule_id,
                 "remaining_ticks": item.remaining_ticks,
                 "progress_percent": item.progress_percent,
+                "rally_tile": item.rally_tile.map(|tile| json!({"x": tile.0, "y": tile.1})),
+                "spawned_actor_id": item.spawned_actor_id.clone(),
+                "completed": item.completed,
             })
         }).collect::<Vec<_>>(),
     })

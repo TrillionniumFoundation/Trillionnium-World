@@ -39,6 +39,10 @@ jq -e '
   and .simulation.tick_count >= 32
   and .simulation.resource_delta > 0
   and .simulation.production_progress_percent > 0
+  and .simulation.completed_production_count >= 2
+  and .simulation.production_spawn_count >= 2
+  and .simulation.production_rally_count >= 2
+  and .simulation.multi0_supply_used > .simulation.multi0_initial_supply_used
   and .simulation.relay_build_progress > 0
   and .simulation.beacon_capture_progress > 0
   and .simulation.combat_damage > 0
@@ -73,6 +77,9 @@ jq -e '
   and any(.simulation.event_log[]; contains("harvest_deposit"))
   and any(.simulation.event_log[]; contains("build_tick"))
   and any(.simulation.event_log[]; contains("train_tick"))
+  and any(.simulation.event_log[]; contains("train_complete:multi0.command.core"))
+  and any(.simulation.event_log[]; contains("production_spawn:multi0.trained."))
+  and any(.simulation.event_log[]; contains("rally_order:multi0.trained."))
   and any(.simulation.event_log[]; contains("capture_tick"))
   and any(.simulation.event_log[]; contains("attack_hit"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
@@ -86,6 +93,7 @@ jq -e '
   and .gates.move_path_plan_gate == true
   and .gates.harvest_path_plan_gate == true
   and .gates.reached_path_plan_gate == true
+  and .gates.production_completion_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
