@@ -36,7 +36,7 @@ jq -e '
   and ((.orders | index("train")) != null)
   and ((.orders | index("capture")) != null)
   and ((.orders | index("attack")) != null)
-  and .simulation.tick_count >= 32
+  and .simulation.tick_count >= 320
   and .simulation.resource_delta > 0
   and .simulation.production_progress_percent > 0
   and .simulation.completed_production_count >= 2
@@ -47,9 +47,12 @@ jq -e '
   and .simulation.beacon_capture_progress > 0
   and .simulation.combat_damage > 0
   and .simulation.worker_moved == true
-  and .simulation.command_accepted_count >= 5
-  and .simulation.command_rejected_count >= 2
+  and .simulation.command_accepted_count >= 6
+  and .simulation.command_rejected_count >= 4
   and .simulation.command_flux_spent >= 900
+  and .simulation.producer_queue_gate == true
+  and .simulation.producer_incomplete_gate == true
+  and .simulation.tech_train_accept_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -63,6 +66,9 @@ jq -e '
   and any(.simulation.command_log[]; contains("accepted:move:multi0.line.0"))
   and any(.simulation.command_log[]; contains("rejected:build:multi0.scout.intel:trait_missing:buildable"))
   and any(.simulation.command_log[]; contains("rejected:move:multi1.worker.0:owner_mismatch"))
+  and any(.simulation.command_log[]; contains("rejected:train:multi0.assembly.pad:producer_incomplete"))
+  and any(.simulation.command_log[]; contains("rejected:train:multi0.command.core:producer_queue_mismatch"))
+  and any(.simulation.command_log[]; contains("accepted:train:multi0.assembly.pad"))
   and .simulation.multi0_visible_tile_count >= 120
   and .simulation.multi0_explored_tile_count > .simulation.multi0_visible_tile_count
   and ((.simulation.multi0_shroud_memory_actor_ids | index("multi1.command.core@25,25")) != null)
@@ -94,6 +100,10 @@ jq -e '
   and .gates.harvest_path_plan_gate == true
   and .gates.reached_path_plan_gate == true
   and .gates.production_completion_gate == true
+  and .gates.producer_queue_gate == true
+  and .gates.producer_incomplete_gate == true
+  and .gates.tech_train_accept_gate == true
+  and .gates.tech_prerequisite_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true

@@ -17157,6 +17157,24 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             },
         ),
         (
+            "multi0.assembly.pad",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Train,
+                target_tile: Some((15, 11)),
+                target_id: None,
+                rule_id: Some("trnm.striker"),
+            },
+        ),
+        (
+            "multi0.command.core",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Train,
+                target_tile: Some((15, 12)),
+                target_id: None,
+                rule_id: Some("trnm.striker"),
+            },
+        ),
+        (
             "multi0.scout.intel",
             TrnmOpenRaLikeOrder {
                 kind: TrnmOpenRaLikeOrderKind::Build,
@@ -17179,6 +17197,18 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         classic_first_contact_openra_like_core_issue_order(&mut world, "Multi0", actor_id, order);
     }
     classic_first_contact_openra_like_core_tick_for(&mut world, 140);
+    classic_first_contact_openra_like_core_issue_order(
+        &mut world,
+        "Multi0",
+        "multi0.assembly.pad",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Train,
+            target_tile: Some((15, 11)),
+            target_id: None,
+            rule_id: Some("trnm.striker"),
+        },
+    );
+    classic_first_contact_openra_like_core_tick_for(&mut world, 180);
     let multi0 = world
         .players
         .iter()
@@ -17269,6 +17299,25 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
                 && result.order == TrnmOpenRaLikeOrderKind::Move
                 && result.reason == "owner_mismatch"
         });
+    let producer_queue_gate = world.command_results.iter().any(|result| {
+        !result.accepted
+            && result.actor_id == "multi0.command.core"
+            && result.order == TrnmOpenRaLikeOrderKind::Train
+            && result.reason == "producer_queue_mismatch"
+    });
+    let producer_incomplete_gate = world.command_results.iter().any(|result| {
+        !result.accepted
+            && result.actor_id == "multi0.assembly.pad"
+            && result.order == TrnmOpenRaLikeOrderKind::Train
+            && result.reason == "producer_incomplete"
+    });
+    let tech_train_accept_gate = world.command_results.iter().any(|result| {
+        result.accepted
+            && result.actor_id == "multi0.assembly.pad"
+            && result.order == TrnmOpenRaLikeOrderKind::Train
+    });
+    let tech_prerequisite_gate =
+        producer_queue_gate && producer_incomplete_gate && tech_train_accept_gate;
     let production_progress = world
         .production
         .iter()
@@ -17287,15 +17336,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .filter(|actor| actor.owner == "Multi0" && actor.id.contains(".trained."))
         .count();
     let production_rally_count = world
-        .actors
+        .event_log
         .iter()
-        .filter(|actor| {
-            actor.owner == "Multi0"
-                && actor.id.contains(".trained.")
-                && actor
-                    .order
-                    .is_some_and(|order| order.kind == TrnmOpenRaLikeOrderKind::Move)
-        })
+        .filter(|event| event.starts_with("rally_order:multi0.trained."))
         .count();
     let production_completion_gate = completed_production_count >= 2
         && production_spawn_count >= 2
@@ -17400,7 +17443,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && shroud_gate
         && command_resolution_gate
         && pathfinding_gate
-        && production_completion_gate;
+        && production_completion_gate
+        && tech_prerequisite_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.rust_bevy_owned_runtime
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.warcraft_iii_asset_copied == false;
@@ -17440,6 +17484,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "command_flux_spent": command_flux_spent,
             "command_accepted_count": command_accepted_count,
             "command_rejected_count": command_rejected_count,
+            "producer_queue_gate": producer_queue_gate,
+            "producer_incomplete_gate": producer_incomplete_gate,
+            "tech_train_accept_gate": tech_train_accept_gate,
             "command_log": world.command_log.clone(),
             "command_results": world.command_results.iter().map(|result| {
                 json!({
@@ -17501,10 +17548,14 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "harvest_path_plan_gate": harvest_path_plan_gate,
             "reached_path_plan_gate": reached_path_plan_gate,
             "production_completion_gate": production_completion_gate,
+            "producer_queue_gate": producer_queue_gate,
+            "producer_incomplete_gate": producer_incomplete_gate,
+            "tech_train_accept_gate": tech_train_accept_gate,
+            "tech_prerequisite_gate": tech_prerequisite_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43983,6 +44034,44 @@ fn classic_openra_like_build_radius_gate(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_openra_like_can_produce(producer_rule_id: &str, target_rule_id: &str) -> bool {
+    matches!(
+        (producer_rule_id, target_rule_id),
+        ("trnm.command.core", "trnm.worker")
+            | ("trnm.command.core", "trnm.horizon.scout")
+            | ("trnm.assembly.pad", "trnm.striker")
+            | ("trnm.assembly.pad", "trnm.forge.warden")
+            | ("trnm.signal.array", "trnm.horizon.scout")
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_prerequisites_for(rule_id: &str) -> &'static [&'static str] {
+    match rule_id {
+        "trnm.striker" | "trnm.forge.warden" => &["trnm.assembly.pad"],
+        _ => &[],
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_missing_prerequisite(
+    world: &TrnmOpenRaLikeWorld,
+    owner: &str,
+    rule_id: &str,
+) -> Option<&'static str> {
+    classic_openra_like_prerequisites_for(rule_id)
+        .iter()
+        .copied()
+        .find(|required_rule_id| {
+            !world.actors.iter().any(|actor| {
+                actor.owner == owner
+                    && actor.rule_id == *required_rule_id
+                    && actor.build_progress >= 100
+            })
+        })
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_push_resolution(
     world: &mut TrnmOpenRaLikeWorld,
     actor_id: &str,
@@ -44140,11 +44229,19 @@ fn classic_first_contact_openra_like_core_issue_order(
             };
             if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Producer) {
                 Some("trait_missing:producer".to_string())
+            } else if world.actors[actor_index].build_progress < 100 {
+                Some("producer_incomplete".to_string())
             } else if !classic_openra_like_rule_has_trait_ref(
                 target_rule,
                 TrnmOpenRaLikeTrait::Trainable,
             ) {
                 Some("target_rule_not_trainable".to_string())
+            } else if !classic_openra_like_can_produce(world.actors[actor_index].rule_id, rule_id) {
+                Some("producer_queue_mismatch".to_string())
+            } else if let Some(missing) =
+                classic_openra_like_missing_prerequisite(world, owner, rule_id)
+            {
+                Some(format!("prerequisite_missing:{missing}"))
             } else if world
                 .players
                 .iter()
@@ -44246,6 +44343,7 @@ fn classic_first_contact_openra_like_core_issue_order(
             let rule_id = order.rule_id.expect("build order rule validated");
             let target_tile = order.target_tile.expect("build target tile validated");
             let target_id = order.target_id.unwrap_or("multi0.assembly.pad.queued");
+            world.actors[actor_index].order = Some(order);
             world.actors.push(classic_openra_like_actor(
                 target_id,
                 rule_id,
@@ -44529,6 +44627,31 @@ fn classic_first_contact_openra_like_core_tick_for(
                 }
             }
         }
+        for structure_index in 0..world.actors.len() {
+            let rule_id = world.actors[structure_index].rule_id;
+            if world.actors[structure_index].build_progress >= 100 {
+                continue;
+            }
+            if !classic_openra_like_rule_for(rule_id)
+                .is_some_and(|rule| rule.kind == TrnmOpenRaLikeEntityKind::Structure)
+            {
+                continue;
+            }
+            let actor_id = world.actors[structure_index].id.clone();
+            let progress = world.actors[structure_index]
+                .build_progress
+                .saturating_add(2)
+                .min(100);
+            world.actors[structure_index].build_progress = progress;
+            world.actors[structure_index].hp = classic_openra_like_rule_for(rule_id)
+                .map(|rule| (rule.hp * u32::from(progress).max(1) / 100).max(1))
+                .unwrap_or(world.actors[structure_index].hp);
+            if world.tick % 10 == 0 || progress >= 100 {
+                world
+                    .event_log
+                    .push(format!("build_auto_tick:{actor_id}:{rule_id}:{progress}%"));
+            }
+        }
 
         let orders = world
             .actors
@@ -44568,6 +44691,14 @@ fn classic_first_contact_openra_like_core_tick_for(
                                 blocked_tile_ids,
                                 reached,
                             );
+                            if reached {
+                                world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                                    kind: TrnmOpenRaLikeOrderKind::Hold,
+                                    target_tile: Some(target),
+                                    target_id: order.target_id,
+                                    rule_id: order.rule_id,
+                                });
+                            }
                         } else {
                             world.blocked_move_count += 1;
                             world.event_log.push(format!(
