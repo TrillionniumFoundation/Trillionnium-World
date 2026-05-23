@@ -5087,6 +5087,14 @@ fn native_bool_env_enabled_with_default(key: &str, default: bool) -> bool {
         .unwrap_or(default)
 }
 
+fn native_usize_env_or(key: &str, default: usize) -> usize {
+    env::var(key)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value >= 320)
+        .unwrap_or(default)
+}
+
 fn default_classic_frame_specs() -> Vec<(&'static str, &'static str, u32, u32)> {
     vec![
         ("tile_grass_a", "terrain_tile", 0x2e6f44, 0x4f9a5c),
@@ -41320,8 +41328,6 @@ fn generated_classic_atlas_pixels(manifest: &ClassicAssetPackManifest) -> Vec<u3
 
 #[cfg(not(target_os = "android"))]
 fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
-    const WIDTH: usize = 640;
-    const HEIGHT: usize = 360;
     const GRID_COLS: i32 = 12;
     const GRID_ROWS: i32 = 8;
 
@@ -41332,21 +41338,29 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         last_result: "classic_low_spec_renderer_ready".to_string(),
         last_rejection: None,
     };
-    let mut first_playable = if native_bool_env_enabled_with_default(
+    let product_alignment_start = native_bool_env_enabled_with_default(
         "TRNM_WORLD_BEVY_CLASSIC_PRODUCT_ALIGNMENT_START",
         true,
-    ) {
+    );
+    let (default_width, default_height) = if product_alignment_start {
+        (960, 540)
+    } else {
+        (640, 360)
+    };
+    let width = native_usize_env_or("TRNM_WORLD_BEVY_CLASSIC_WIDTH", default_width);
+    let height = native_usize_env_or("TRNM_WORLD_BEVY_CLASSIC_HEIGHT", default_height);
+    let mut first_playable = if product_alignment_start {
         classic_product_alignment_runtime()
     } else {
         NativeFirstPlayableRuntime::default()
     };
     let assets = load_classic_runtime_assets();
     let mut player_tile = (5_i32, 4_i32);
-    let mut buffer = vec![0_u32; WIDTH * HEIGHT];
+    let mut buffer = vec![0_u32; width * height];
     let mut window = MiniWindow::new(
         "Trillionnium classic low spec renderer",
-        WIDTH,
-        HEIGHT,
+        width,
+        height,
         minifb::WindowOptions::default(),
     )
     .expect("classic low spec renderer window opens");
@@ -41359,14 +41373,14 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
 
     classic_draw_scene(
         &mut buffer,
-        WIDTH,
-        HEIGHT,
+        width,
+        height,
         player_tile,
         &first_playable,
         &assets,
     );
     window
-        .update_with_buffer(&buffer, WIDTH, HEIGHT)
+        .update_with_buffer(&buffer, width, height)
         .expect("classic low spec renderer presents first frame");
 
     while window.is_open() && !window.is_key_down(MiniKey::Escape) {
@@ -41392,8 +41406,8 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         }
         classic_draw_scene(
             &mut buffer,
-            WIDTH,
-            HEIGHT,
+            width,
+            height,
             player_tile,
             &first_playable,
             &assets,
@@ -41405,7 +41419,7 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
             &assets,
         ));
         window
-            .update_with_buffer(&buffer, WIDTH, HEIGHT)
+            .update_with_buffer(&buffer, width, height)
             .expect("classic low spec renderer presents frame");
     }
 }
