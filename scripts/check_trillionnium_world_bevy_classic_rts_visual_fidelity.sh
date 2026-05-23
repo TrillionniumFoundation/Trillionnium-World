@@ -40,6 +40,7 @@ jq -e '
   and .basin_unit_state_pixel_count > 350
   and .basin_combat_phase_pixel_count > 320
   and .basin_command_feedback_pixel_count > 420
+  and .basin_model_identity_pixel_count > 700
   and .selected_units_gate == true
   and .command_surface_gate == true
   and .model_fidelity_gate == true

@@ -17,6 +17,7 @@ required_script_lines=(
   'npc_animation_gate == true'
   'desktop_product_visual_alignment_gate == true'
   'basin_command_feedback_pixel_count > 420'
+  'basin_model_identity_pixel_count > 700'
   'warcraft_iii_asset_copied == false'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_GREEN'
 )
@@ -40,6 +41,9 @@ required_source_lines=(
   'CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR'
   'CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK'
   'basin_command_feedback_pixel_count'
+  'classic_draw_first_contact_model_identity_layers'
+  'CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR'
+  'basin_model_identity_pixel_count'
   'warcraft_iii_asset_copied'
   'Original Trillionnium low-spec 2.5D/isometric RTS presentation'
 )

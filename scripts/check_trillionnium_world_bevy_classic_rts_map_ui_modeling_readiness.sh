@@ -34,6 +34,7 @@ jq -e '
   and .visual_fidelity_pixels.fidelity_panel > 16000
   and .visual_fidelity_pixels.model_edge > 1200
   and .visual_fidelity_pixels.basin_command_feedback > 420
+  and .visual_fidelity_pixels.basin_model_identity > 700
   and .command_affordance_pixels.drag_marquee > 80
   and .command_affordance_pixels.hotkey > 200
   and .map_camera_pixels.scroll_minimap > 600
