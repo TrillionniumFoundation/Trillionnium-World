@@ -17136,6 +17136,15 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             },
         ),
         (
+            "multi0.worker.1",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Build,
+                target_tile: Some((10, 10)),
+                target_id: Some("multi0.blocked.relay"),
+                rule_id: Some("trnm.flux.relay"),
+            },
+        ),
+        (
             "multi0.striker.0",
             TrnmOpenRaLikeOrder {
                 kind: TrnmOpenRaLikeOrderKind::Attack,
@@ -17362,6 +17371,23 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
                 && result.order == TrnmOpenRaLikeOrderKind::Move
                 && result.reason == "owner_mismatch"
         });
+    let build_placement_gate = world.command_results.iter().any(|result| {
+        result.accepted
+            && result.actor_id == "multi0.worker.1"
+            && result.order == TrnmOpenRaLikeOrderKind::Build
+    }) && world.command_results.iter().any(|result| {
+        !result.accepted
+            && result.actor_id == "multi0.worker.1"
+            && result.order == TrnmOpenRaLikeOrderKind::Build
+            && result.reason == "build_tile_blocked"
+    }) && world
+        .actors
+        .iter()
+        .any(|actor| actor.id == "multi0.assembly.pad" && actor.tile == (10, 9))
+        && world
+            .actors
+            .iter()
+            .all(|actor| actor.id != "multi0.blocked.relay");
     let producer_queue_gate = world.command_results.iter().any(|result| {
         !result.accepted
             && result.actor_id == "multi0.command.core"
@@ -17628,6 +17654,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && event_log_gate
         && shroud_gate
         && command_resolution_gate
+        && build_placement_gate
         && pathfinding_gate
         && production_completion_gate
         && tech_prerequisite_gate
@@ -17682,6 +17709,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "tech_train_accept_gate": tech_train_accept_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
+            "build_placement_gate": build_placement_gate,
             "repair_command_gate": repair_command_gate,
             "command_log": world.command_log.clone(),
             "command_results": world.command_results.iter().map(|result| {
@@ -17765,6 +17793,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "producer_incomplete_gate": producer_incomplete_gate,
             "tech_train_accept_gate": tech_train_accept_gate,
             "tech_prerequisite_gate": tech_prerequisite_gate,
+            "build_placement_gate": build_placement_gate,
             "attack_weapon_gate": attack_weapon_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
@@ -17776,7 +17805,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -44672,6 +44701,11 @@ fn classic_first_contact_openra_like_core_issue_order(
                 .is_some_and(|tile| classic_openra_like_build_radius_gate(world, owner, tile))
             {
                 Some("outside_build_radius".to_string())
+            } else if order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_tile_blocked_for_spawn(world, tile))
+            {
+                Some("build_tile_blocked".to_string())
             } else if world
                 .players
                 .iter()

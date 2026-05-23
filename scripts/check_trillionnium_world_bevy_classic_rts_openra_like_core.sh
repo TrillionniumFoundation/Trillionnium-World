@@ -55,6 +55,7 @@ jq -e '
   and .simulation.producer_queue_gate == true
   and .simulation.producer_incomplete_gate == true
   and .simulation.tech_train_accept_gate == true
+  and .simulation.build_placement_gate == true
   and .simulation.attack_range_gate == true
   and .simulation.attack_visibility_gate == true
   and .simulation.attack_hit_count > 0
@@ -82,6 +83,7 @@ jq -e '
   and any(.simulation.path_plans[]; .reached == true)
   and any(.simulation.command_log[]; contains("accepted:train:multi0.command.core"))
   and any(.simulation.command_log[]; contains("accepted:build:multi0.worker.1"))
+  and any(.simulation.command_log[]; contains("rejected:build:multi0.worker.1:build_tile_blocked"))
   and any(.simulation.command_log[]; contains("accepted:attack:multi0.striker.0"))
   and any(.simulation.command_log[]; contains("accepted:capture:multi0.warden.capture"))
   and any(.simulation.command_log[]; contains("accepted:move:multi0.line.0"))
@@ -141,6 +143,7 @@ jq -e '
   and .gates.producer_incomplete_gate == true
   and .gates.tech_train_accept_gate == true
   and .gates.tech_prerequisite_gate == true
+  and .gates.build_placement_gate == true
   and .gates.attack_weapon_gate == true
   and .gates.attack_range_gate == true
   and .gates.attack_visibility_gate == true
