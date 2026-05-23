@@ -220,6 +220,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_first_minute_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT: &str =
@@ -16844,6 +16846,101 @@ fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
                 .to_string(),
         ..Default::default()
     }
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
+    let actor_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len();
+    let spawn_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+        .iter()
+        .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
+        .count();
+    let flux_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+        .iter()
+        .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
+        .count();
+    let beacon_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+        .iter()
+        .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
+        .count();
+    let expansion_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+        .iter()
+        .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
+        .count();
+    let unit_count = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Unit)
+        .count();
+    let building_count = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Building)
+        .count();
+    let rule_summaries = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .map(|rule| {
+            json!({
+                "id": rule.id,
+                "label": rule.label,
+                "kind": match rule.kind {
+                    ClassicFirstContactRuleKind::Unit => "unit",
+                    ClassicFirstContactRuleKind::Building => "building",
+                },
+                "faction": rule.faction,
+                "cost": rule.cost,
+                "hp": rule.hp,
+                "speed": rule.speed,
+                "build_duration": rule.build_duration,
+                "queue": rule.queue,
+            })
+        })
+        .collect::<Vec<_>>();
+    let map_actor_gate = actor_count == 39;
+    let map_topology_gate =
+        spawn_count == 4 && flux_count == 11 && beacon_count == 4 && expansion_count == 4;
+    let rules_gate = unit_count >= 4
+        && building_count >= 2
+        && CLASSIC_FIRST_CONTACT_RULES
+            .iter()
+            .any(|rule| rule.id == "trnm.worker" && rule.cost == 200 && rule.hp == 8000)
+        && CLASSIC_FIRST_CONTACT_RULES
+            .iter()
+            .any(|rule| rule.id == "trnm.horizon.scout" && rule.speed == Some(92))
+        && CLASSIC_FIRST_CONTACT_RULES
+            .iter()
+            .any(|rule| rule.id == "trnm.forge.warden" && rule.hp == 18000)
+        && CLASSIC_FIRST_CONTACT_RULES
+            .iter()
+            .any(|rule| rule.id == "trnm.command.core" && rule.cost == 1600)
+        && CLASSIC_FIRST_CONTACT_RULES
+            .iter()
+            .any(|rule| rule.id == "trnm.flux.relay" && rule.cost == 500);
+    let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
+    let green = map_actor_gate && map_topology_gate && rules_gate && ui_runtime_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
+        "green": green,
+        "map_id": "first_contact_basin",
+        "map_title": "First Contact Basin",
+        "map_size": {"width": 34, "height": 34},
+        "bounds": {"x": 1, "y": 1, "width": 32, "height": 32},
+        "actor_count": actor_count,
+        "spawn_count": spawn_count,
+        "flux_bloom_count": flux_count,
+        "beacon_count": beacon_count,
+        "expansion_count": expansion_count,
+        "unit_rule_count": unit_count,
+        "building_rule_count": building_count,
+        "rules": rule_summaries,
+        "map_actor_gate": map_actor_gate,
+        "map_topology_gate": map_topology_gate,
+        "rules_gate": rules_gate,
+        "ui_runtime_gate": ui_runtime_gate,
+        "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
+        "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
+        "source_policy": "Trillionnium-owned mod data is represented as original Rust/Bevy structures; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
+        "source_of_truth": "This spec evidence locks the Rust-side First Contact Basin map/rule vocabulary that the Bevy desktop RTS UI renders: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, and the initial unit/building rules surfaced in the command and rules panels."
+    }))
+    .expect("first contact basin spec evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

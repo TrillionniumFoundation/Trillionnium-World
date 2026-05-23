@@ -67,6 +67,20 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-first-contact-basin-spec"
+                | "--classic-rts-first-contact-basin-spec"
+                | "first-contact-basin-spec"
+        )
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_first_contact_basin_spec_evidence_json()
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-command-affordance"
                 | "--classic-rts-command-affordance"
                 | "command-affordance"
