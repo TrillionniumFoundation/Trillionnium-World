@@ -16776,7 +16776,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
     NativeFirstPlayableRuntime {
-        map_scene: "arena_outdoor".to_string(),
+        map_scene: "first_contact_basin".to_string(),
         coins: 144,
         xp: 88,
         facing_direction: "west".to_string(),
@@ -41568,21 +41568,25 @@ fn classic_draw_scene(
     );
 
     let scene_id = classic_scene_id(runtime);
-    let scene = assets
-        .scene_by_id
-        .get(scene_id)
-        .or_else(|| assets.scene_by_id.get("mirror_city_square"));
     let player_frame = classic_player_frame_id(assets, runtime);
-    classic_draw_isometric_scene(
-        buffer,
-        width,
-        height,
-        scene,
-        assets,
-        runtime,
-        player_tile,
-        &player_frame,
-    );
+    if scene_id == "first_contact_basin" {
+        classic_draw_first_contact_basin_scene(buffer, width, height, runtime);
+    } else {
+        let scene = assets
+            .scene_by_id
+            .get(scene_id)
+            .or_else(|| assets.scene_by_id.get("mirror_city_square"));
+        classic_draw_isometric_scene(
+            buffer,
+            width,
+            height,
+            scene,
+            assets,
+            runtime,
+            player_tile,
+            &player_frame,
+        );
+    }
 
     let xp_width = (runtime.xp.min(100) as i32 * 180) / 100;
     classic_draw_rect(buffer, width, height, 96, 302, 184, 10, 0x29312b);
@@ -41599,16 +41603,29 @@ fn classic_draw_scene(
         10,
         if danger { 0x8a342e } else { 0x2f5d75 },
     );
-    classic_draw_model_overlay(
-        buffer,
-        width,
-        height,
-        runtime,
-        assets,
-        scene_id,
-        &player_frame,
-    );
-    classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    if scene_id == "first_contact_basin" {
+        classic_draw_first_contact_top_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            assets,
+            &player_frame,
+        );
+    } else {
+        classic_draw_model_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            assets,
+            scene_id,
+            &player_frame,
+        );
+    }
+    if scene_id != "first_contact_basin" {
+        classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    }
     classic_draw_rts_product_alignment_hud(buffer, width, height, runtime);
     if let Some(hotkey_stage) = classic_rts_control_group_hotkey_feedback_stage(Some(runtime)) {
         classic_draw_rts_control_group_hotkey_feedback_overlay(
@@ -41680,7 +41697,9 @@ fn classic_draw_scene(
 
 #[cfg(not(target_os = "android"))]
 fn classic_scene_id(runtime: &NativeFirstPlayableRuntime) -> &'static str {
-    if runtime.indoor_tilemap_visible || runtime.map_scene.contains("training") {
+    if runtime.map_scene.contains("first_contact_basin") {
+        "first_contact_basin"
+    } else if runtime.indoor_tilemap_visible || runtime.map_scene.contains("training") {
         "mentor_training_room"
     } else if runtime.map_scene.contains("arena")
         || runtime
@@ -41735,6 +41754,997 @@ struct ClassicIsoEntity {
     frame_id: String,
     tile: (i32, i32),
     depth_key: i32,
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClassicFirstContactActorKind {
+    Spawn,
+    FluxBloom,
+    Beacon,
+    Ridge,
+    Vent,
+    LaneMarker,
+    BeaconRing,
+    ExpansionMarker,
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, Copy)]
+struct ClassicFirstContactActor {
+    kind: ClassicFirstContactActorKind,
+    owner: &'static str,
+    tile: (i32, i32),
+}
+
+#[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_BASIN_ACTORS: &[ClassicFirstContactActor] = &[
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Spawn,
+        owner: "Multi0",
+        tile: (8, 8),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Spawn,
+        owner: "Multi1",
+        tile: (25, 25),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (12, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (21, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (16, 12),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Spawn,
+        owner: "Multi2",
+        tile: (25, 8),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Spawn,
+        owner: "Multi3",
+        tile: (8, 25),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (16, 21),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (8, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (25, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (10, 10),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (23, 23),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (23, 10),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (10, 23),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::FluxBloom,
+        owner: "Neutral",
+        tile: (16, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Beacon,
+        owner: "Neutral",
+        tile: (16, 9),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Beacon,
+        owner: "Neutral",
+        tile: (24, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Beacon,
+        owner: "Neutral",
+        tile: (16, 24),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Beacon,
+        owner: "Neutral",
+        tile: (9, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Ridge,
+        owner: "Neutral",
+        tile: (6, 13),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Ridge,
+        owner: "Neutral",
+        tile: (27, 20),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Ridge,
+        owner: "Neutral",
+        tile: (20, 6),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Ridge,
+        owner: "Neutral",
+        tile: (13, 27),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Vent,
+        owner: "Neutral",
+        tile: (14, 14),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Vent,
+        owner: "Neutral",
+        tile: (19, 19),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Vent,
+        owner: "Neutral",
+        tile: (19, 14),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::Vent,
+        owner: "Neutral",
+        tile: (14, 19),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::LaneMarker,
+        owner: "Neutral",
+        tile: (8, 12),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::LaneMarker,
+        owner: "Neutral",
+        tile: (25, 21),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::LaneMarker,
+        owner: "Neutral",
+        tile: (21, 8),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::LaneMarker,
+        owner: "Neutral",
+        tile: (12, 25),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::BeaconRing,
+        owner: "Neutral",
+        tile: (16, 10),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::BeaconRing,
+        owner: "Neutral",
+        tile: (23, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::BeaconRing,
+        owner: "Neutral",
+        tile: (16, 23),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::BeaconRing,
+        owner: "Neutral",
+        tile: (10, 16),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::ExpansionMarker,
+        owner: "Neutral",
+        tile: (11, 8),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::ExpansionMarker,
+        owner: "Neutral",
+        tile: (22, 25),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::ExpansionMarker,
+        owner: "Neutral",
+        tile: (22, 8),
+    },
+    ClassicFirstContactActor {
+        kind: ClassicFirstContactActorKind::ExpansionMarker,
+        owner: "Neutral",
+        tile: (11, 25),
+    },
+];
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tile_screen(
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+) -> (i32, i32) {
+    (map_x + tile.0 * cell_w, map_y + tile.1 * cell_h)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
+    let (x, y) = tile;
+    let dx = (x - 16).abs();
+    let dy = (y - 16).abs();
+    if !(1..=32).contains(&x) || !(1..=32).contains(&y) {
+        0x111812
+    } else if x == 16 || y == 16 || (x - y).abs() <= 1 || (x + y - 33).abs() <= 1 {
+        classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4)
+    } else if dx <= 4 && dy <= 4 {
+        0x203f39
+    } else if (6..=11).contains(&x) && (6..=11).contains(&y)
+        || (22..=27).contains(&x) && (22..=27).contains(&y)
+        || (22..=27).contains(&x) && (6..=11).contains(&y)
+        || (6..=11).contains(&x) && (22..=27).contains(&y)
+    {
+        0x243326
+    } else if (x + y) % 2 == 0 {
+        0x18251d
+    } else {
+        0x1d2d22
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_actor(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    actor: ClassicFirstContactActor,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let (tile_x, tile_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    match actor.kind {
+        ClassicFirstContactActorKind::Spawn => {
+            let owner_color = match actor.owner {
+                "Multi0" | "Multi2" => 0x67c980,
+                "Multi1" | "Multi3" => 0xd47967,
+                _ => CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+            };
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - cell_w,
+                tile_y - cell_h,
+                cell_w * 3,
+                cell_h * 3,
+                0x16251c,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - cell_w + 2,
+                tile_y - cell_h + 2,
+                cell_w * 3 - 4,
+                3,
+                owner_color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - cell_h / 2,
+                cell_w,
+                cell_h,
+                CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 3,
+                cy - cell_h - 2,
+                (cell_w * 2) / 3,
+                4,
+                owner_color,
+            );
+        }
+        ClassicFirstContactActorKind::FluxBloom => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - 2,
+                cell_w,
+                4,
+                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy - cell_h / 2,
+                4,
+                cell_h,
+                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+        }
+        ClassicFirstContactActorKind::Beacon => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - cell_h / 2,
+                cell_w * 2,
+                cell_h,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 3,
+                cy - cell_h,
+                6,
+                cell_h * 2,
+                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+        }
+        ClassicFirstContactActorKind::Ridge => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x,
+                tile_y + cell_h / 2,
+                cell_w * 2,
+                4,
+                CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 2,
+                tile_y + cell_h / 2 - 6,
+                cell_w,
+                4,
+                0x72805d,
+            );
+        }
+        ClassicFirstContactActorKind::Vent => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - cell_h / 2,
+                cell_w,
+                cell_h,
+                0x16454a,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 3,
+                cy - 2,
+                (cell_w * 2) / 3,
+                4,
+                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+        }
+        ClassicFirstContactActorKind::LaneMarker => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - cell_w,
+                cy - 2,
+                cell_w * 3,
+                4,
+                CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                tile_y - cell_h,
+                4,
+                cell_h * 3,
+                CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            );
+        }
+        ClassicFirstContactActorKind::BeaconRing => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - cell_w / 2,
+                tile_y - cell_h / 2,
+                cell_w * 2,
+                3,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - cell_w / 2,
+                tile_y + cell_h + cell_h / 2,
+                cell_w * 2,
+                3,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - cell_w / 2,
+                tile_y - cell_h / 2,
+                3,
+                cell_h * 2,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w + cell_w / 2,
+                tile_y - cell_h / 2,
+                3,
+                cell_h * 2,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+            );
+        }
+        ClassicFirstContactActorKind::ExpansionMarker => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - 2,
+                cell_w,
+                4,
+                CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy - cell_h / 2,
+                4,
+                cell_h,
+                CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_starting_army(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let armies = [
+        ((8, 8), "H0", 0x67c980),
+        ((25, 8), "H2", 0x67c980),
+        ((25, 25), "F1", 0xd47967),
+        ((8, 25), "F3", 0xd47967),
+    ];
+    for (tile, label, owner_color) in armies {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        let cx = tile_x + cell_w / 2;
+        let cy = tile_y + cell_h / 2;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w,
+            cy - cell_h,
+            cell_w * 2,
+            cell_h * 2,
+            classic_darken(CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR, 2, 5),
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w + 2,
+            cy - cell_h + 2,
+            cell_w * 2 - 4,
+            cell_h * 2 - 4,
+            CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w,
+            cy + cell_h + 2,
+            cell_w * 2,
+            4,
+            owner_color,
+        );
+        classic_draw_text(buffer, width, height, cx - 7, cy - 4, label, 1, 0x111812);
+        for offset in [
+            (-cell_w, cell_h + 8),
+            (0, cell_h + 10),
+            (cell_w, cell_h + 8),
+        ] {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + offset.0 - 3,
+                cy + offset.1 - 3,
+                6,
+                6,
+                owner_color,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_basin_scene(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    let map_x = 24_i32;
+    let map_y = 110_i32;
+    let available_w = (width as i32 - 266).max(374);
+    let available_h = (height as i32 - 158 - map_y).max(238);
+    let cell_w = (available_w / 34).clamp(10, 22);
+    let cell_h = (available_h / 34).clamp(7, 14);
+    let map_w = cell_w * 34;
+    let map_h = cell_h * 34;
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        map_x - 8,
+        map_y - 8,
+        map_w + 16,
+        map_h + 16,
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        map_x - 4,
+        map_y - 4,
+        map_w + 8,
+        map_h + 8,
+        0x0d1511,
+    );
+
+    for y in 0..34 {
+        for x in 0..34 {
+            let color = classic_first_contact_tile_color((x, y));
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                map_x + x * cell_w,
+                map_y + y * cell_h,
+                cell_w - 1,
+                cell_h - 1,
+                color,
+            );
+        }
+    }
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        map_x + 8 * cell_w,
+        map_y + 16 * cell_h - 2,
+        18 * cell_w,
+        4,
+        CLASSIC_RTS_PRODUCT_LANE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        map_x + 16 * cell_w - 2,
+        map_y + 8 * cell_h,
+        4,
+        18 * cell_h,
+        CLASSIC_RTS_PRODUCT_LANE_COLOR,
+    );
+    for step in 0..18 {
+        let x = 8 + step;
+        let y = 8 + step;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + x * cell_w,
+            map_y + y * cell_h,
+            cell_w,
+            3,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            map_x + (25 - step) * cell_w,
+            map_y + y * cell_h,
+            cell_w,
+            3,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+    }
+
+    for actor in CLASSIC_FIRST_CONTACT_BASIN_ACTORS {
+        classic_draw_first_contact_actor(
+            buffer, width, height, *actor, map_x, map_y, cell_w, cell_h,
+        );
+    }
+    classic_draw_first_contact_starting_army(buffer, width, height, map_x, map_y, cell_w, cell_h);
+
+    let tactical_tracks: [((i32, i32), (i32, i32), u32); 6] = [
+        ((8, 8), (12, 16), CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR),
+        ((25, 25), (21, 16), CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR),
+        ((25, 8), (16, 12), CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR),
+        ((8, 25), (16, 21), CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR),
+        ((11, 8), (16, 9), CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR),
+        ((22, 25), (16, 24), CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR),
+    ];
+    for (from, to, color) in tactical_tracks {
+        let steps = ((to.0 - from.0).abs().max((to.1 - from.1).abs())).max(1);
+        for step in 0..=steps {
+            let x = from.0 + (to.0 - from.0) * step / steps;
+            let y = from.1 + (to.1 - from.1) * step / steps;
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (x, y));
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 4,
+                tile_y + cell_h / 2,
+                (cell_w / 2).max(5),
+                3,
+                color,
+            );
+        }
+    }
+
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y - 18,
+        "FIRST CONTACT BASIN  34x34  BOUNDS 1,1,32,32  SOURCE mods/trnm/maps/first-contact-basin/map.yaml",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+
+    let panel_x = (map_x + map_w + 18).min((width as i32 - 236).max(404));
+    let panel_y = 110_i32;
+    let panel_w = (width as i32 - panel_x - 18).max(210);
+    classic_draw_panel_frame(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        (height as i32 - 190).max(188),
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 10,
+        "MAP-FIRST ALIGNMENT",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 30,
+        "FIRST CONTACT BASIN",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let rows = [
+        ("ACTORS", CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len()),
+        (
+            "SPAWNS",
+            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
+                .count(),
+        ),
+        (
+            "FLUX",
+            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
+                .count(),
+        ),
+        (
+            "BEACONS",
+            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
+                .count(),
+        ),
+        (
+            "EXPANSIONS",
+            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
+                .count(),
+        ),
+    ];
+    for (index, (label, value)) in rows.iter().enumerate() {
+        let y = panel_y + 58 + index as i32 * 24;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 12,
+            y - 3,
+            panel_w - 24,
+            18,
+            0x17251d,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 18,
+            y,
+            label,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + panel_w - 52,
+            y,
+            &value.to_string(),
+            1,
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        );
+    }
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 190,
+        "VISIBLE PLAN:",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 208,
+        "LANES / RESOURCES /",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 224,
+        "BEACONS / EXPANSIONS",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let pressure_w = ((runtime.rts_ai_pressure_percent.min(100) as i32) * (panel_w - 28)) / 100;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 252,
+        panel_w - 24,
+        6,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 252,
+        pressure_w,
+        6,
+        CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
+    );
+
+    let selection_x = 18_i32;
+    let selection_y = (height as i32 - 90).max(map_y + 170);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        selection_x,
+        selection_y,
+        380,
+        72,
+        CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        selection_x,
+        selection_y,
+        380,
+        3,
+        CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        selection_x,
+        selection_y + 69,
+        380,
+        3,
+        CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        selection_x + 86,
+        selection_y + 12,
+        "SELECTED GROUP 1 / 4",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        selection_x + 86,
+        selection_y + 30,
+        "ATTACK ARENA CREEP ATTACK",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for (index, x) in [selection_x + 14, selection_x + 308].iter().enumerate() {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            *x,
+            selection_y + 10,
+            58,
+            54,
+            CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            *x + 4,
+            selection_y + 14,
+            50,
+            46,
+            CLASSIC_RTS_FIDELITY_PORTRAIT_BG_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            *x + 18,
+            selection_y + 20,
+            22,
+            30,
+            CLASSIC_RTS_FIDELITY_PORTRAIT_LIGHT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            *x + 15,
+            selection_y + 36,
+            28,
+            4,
+            CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            *x + 21,
+            selection_y + 23,
+            16,
+            4,
+            CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            *x + 12,
+            selection_y + 44,
+            34,
+            4,
+            CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            *x + 12,
+            selection_y + 52,
+            34,
+            4,
+            if index == 0 {
+                CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR
+            } else {
+                CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR
+            },
+        );
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -47859,6 +48869,49 @@ pub fn native_classic_render_budget_evidence_json() -> String {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_top_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
+    player_frame: &str,
+) {
+    let _direction = classic_cardinal_actor_direction(&runtime.facing_direction).to_uppercase();
+    let _frame_label = classic_compact_player_frame_label(player_frame);
+    let asset_tag = if assets.loaded_from_manifest {
+        "MANIFEST"
+    } else {
+        "GENERATED"
+    };
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        12,
+        8,
+        &format!("TRNM CLASSIC  {asset_tag}  SCENE BASIN"),
+        2,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        width as i32 - 166,
+        12,
+        &classic_status_pill_label(runtime),
+        2,
+        if runtime.combat_overlay_visible || runtime.combat_overlay_was_visible {
+            CLASSIC_HUD_WARN_TEXT_COLOR
+        } else {
+            CLASSIC_HUD_ACCENT_TEXT_COLOR
+        },
+    );
+    let _ = player_frame;
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_model_overlay(
     buffer: &mut [u32],
@@ -51440,6 +52493,7 @@ fn classic_scene_overlay_label(scene_id: &str) -> &'static str {
         "mirror_city_square" => "SQUARE",
         "mentor_training_room" => "TRAINING",
         "league_coliseum" => "ARENA",
+        "first_contact_basin" => "BASIN",
         _ => "UNKNOWN",
     }
 }
