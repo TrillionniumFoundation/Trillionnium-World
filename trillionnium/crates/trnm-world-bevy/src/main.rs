@@ -81,6 +81,20 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-first-contact-opening-loop"
+                | "--classic-rts-first-contact-opening-loop"
+                | "first-contact-opening-loop"
+        )
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_first_contact_opening_loop_evidence_json()
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-command-affordance"
                 | "--classic-rts-command-affordance"
                 | "command-affordance"

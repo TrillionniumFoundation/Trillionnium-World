@@ -222,6 +222,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT
     "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT: &str =
@@ -16941,6 +16943,83 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_of_truth": "This spec evidence locks the Rust-side First Contact Basin map/rule vocabulary that the Bevy desktop RTS UI renders: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, and the initial unit/building rules surfaced in the command and rules panels."
     }))
     .expect("first contact basin spec evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_first_contact_opening_loop_evidence_json() -> String {
+    let opening = CLASSIC_FIRST_CONTACT_OPENING_LOOP;
+    let worker_rule = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .find(|rule| rule.id == "trnm.worker");
+    let scout_rule = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .find(|rule| rule.id == "trnm.horizon.scout");
+    let relay_rule = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .find(|rule| rule.id == "trnm.flux.relay");
+    let economy_gate = opening.flux_bank >= 300
+        && opening.worker_cargo > 0
+        && opening.worker_cargo <= opening.worker_capacity
+        && worker_rule.is_some_and(|rule| {
+            rule.cost == 200 && opening.flux_bank >= rule.cost && rule.build_duration == Some(100)
+        });
+    let production_gate = opening.worker_train_progress >= 70
+        && opening.scout_train_progress >= 30
+        && scout_rule.is_some_and(|rule| rule.cost == 250 && rule.speed == Some(92));
+    let build_gate = opening.relay_build_progress >= 50
+        && relay_rule
+            .is_some_and(|rule| rule.cost == 500 && rule.queue == "Building" && rule.hp == 70000);
+    let objective_gate = opening.beacon_capture_progress >= 40
+        && CLASSIC_FIRST_CONTACT_BASIN_ACTORS.iter().any(|actor| {
+            actor.kind == ClassicFirstContactActorKind::Beacon
+                && actor.tile == opening.active_beacon_tile
+        })
+        && CLASSIC_FIRST_CONTACT_BASIN_ACTORS.iter().any(|actor| {
+            actor.kind == ClassicFirstContactActorKind::ExpansionMarker
+                && actor.tile == opening.active_relay_tile
+        });
+    let runtime_gate = classic_product_alignment_runtime()
+        .rts_command_queue
+        .iter()
+        .any(|command| command == "build:trnm.flux.relay")
+        && classic_product_alignment_runtime()
+            .rts_command_queue
+            .iter()
+            .any(|command| command == "train:trnm.worker")
+        && classic_product_alignment_runtime()
+            .rts_command_queue
+            .iter()
+            .any(|command| command == "attack:trnm.flux.beacon");
+    let green = economy_gate && production_gate && build_gate && objective_gate && runtime_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT,
+        "green": green,
+        "map_id": "first_contact_basin",
+        "flux_bank": opening.flux_bank,
+        "worker_cargo": opening.worker_cargo,
+        "worker_capacity": opening.worker_capacity,
+        "relay_build_progress": opening.relay_build_progress,
+        "beacon_capture_progress": opening.beacon_capture_progress,
+        "worker_train_progress": opening.worker_train_progress,
+        "scout_train_progress": opening.scout_train_progress,
+        "active_beacon_tile": {"x": opening.active_beacon_tile.0, "y": opening.active_beacon_tile.1},
+        "active_relay_tile": {"x": opening.active_relay_tile.0, "y": opening.active_relay_tile.1},
+        "opening_actions": [
+            "worker_harvest_flux",
+            "build_flux_relay",
+            "train_worker",
+            "train_horizon_scout",
+            "secure_flux_beacon"
+        ],
+        "economy_gate": economy_gate,
+        "production_gate": production_gate,
+        "build_gate": build_gate,
+        "objective_gate": objective_gate,
+        "runtime_gate": runtime_gate,
+        "source_policy": "Trillionnium-owned RTS opening-loop vocabulary is represented as original Rust/Bevy state and UI; no OpenRA engine code or third-party/proprietary RTS assets are copied.",
+        "source_of_truth": "This evidence locks the First Contact Basin opening loop that the desktop Bevy RTS UI displays: worker Flux cargo, Relay construction, Worker/Scout training progress, and the first Beacon secure objective."
+    }))
+    .expect("first contact opening loop evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -41909,6 +41988,34 @@ struct ClassicFirstContactRule {
 }
 
 #[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, Copy)]
+struct ClassicFirstContactOpeningLoop {
+    flux_bank: u32,
+    worker_cargo: u32,
+    worker_capacity: u32,
+    relay_build_progress: u8,
+    beacon_capture_progress: u8,
+    worker_train_progress: u8,
+    scout_train_progress: u8,
+    active_beacon_tile: (i32, i32),
+    active_relay_tile: (i32, i32),
+}
+
+#[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_OPENING_LOOP: ClassicFirstContactOpeningLoop =
+    ClassicFirstContactOpeningLoop {
+        flux_bank: 340,
+        worker_cargo: 8,
+        worker_capacity: 12,
+        relay_build_progress: 58,
+        beacon_capture_progress: 42,
+        worker_train_progress: 76,
+        scout_train_progress: 34,
+        active_beacon_tile: (16, 9),
+        active_relay_tile: (11, 8),
+    };
+
+#[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_RULES: &[ClassicFirstContactRule] = &[
     ClassicFirstContactRule {
         id: "trnm.worker",
@@ -42533,7 +42640,103 @@ fn classic_draw_first_contact_rule_panel(
     panel_y: i32,
     panel_w: i32,
 ) {
-    let rule_y = panel_y + 188;
+    let opening = CLASSIC_FIRST_CONTACT_OPENING_LOOP;
+    let opening_y = panel_y + 170;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        opening_y,
+        "OPENING LOOP:",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + panel_w - 100,
+        opening_y,
+        &format!("FLUX {}", opening.flux_bank),
+        1,
+        CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+    );
+
+    let rows = [
+        (
+            "CARGO",
+            opening.worker_cargo * 100 / opening.worker_capacity.max(1),
+            format!("{}/{}", opening.worker_cargo, opening.worker_capacity),
+            CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+        ),
+        (
+            "RELAY",
+            opening.relay_build_progress as u32,
+            format!("{}%", opening.relay_build_progress),
+            CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR,
+        ),
+        (
+            "BEACON",
+            opening.beacon_capture_progress as u32,
+            format!("{}%", opening.beacon_capture_progress),
+            CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
+        ),
+        (
+            "TRAIN",
+            opening.worker_train_progress as u32,
+            format!(
+                "W{} S{}",
+                opening.worker_train_progress, opening.scout_train_progress
+            ),
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        ),
+    ];
+    for (index, (label, progress, value, color)) in rows.iter().enumerate() {
+        let y = opening_y + 18 + index as i32 * 14;
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 16,
+            y,
+            label,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 68,
+            y + 2,
+            74,
+            7,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 70,
+            y + 4,
+            ((*progress).min(100) as i32 * 70) / 100,
+            3,
+            *color,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + panel_w - 72,
+            y,
+            value,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    let rule_y = panel_y + 250;
     let unit_count = CLASSIC_FIRST_CONTACT_RULES
         .iter()
         .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Unit)
@@ -42562,7 +42765,7 @@ fn classic_draw_first_contact_rule_panel(
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
-    for (index, rule) in CLASSIC_FIRST_CONTACT_RULES.iter().take(5).enumerate() {
+    for (index, rule) in CLASSIC_FIRST_CONTACT_RULES.iter().take(2).enumerate() {
         debug_assert!(!rule.id.is_empty());
         let y = rule_y + 20 + index as i32 * 18;
         let row_color = if rule.kind == ClassicFirstContactRuleKind::Building {
@@ -42832,7 +43035,7 @@ fn classic_draw_first_contact_basin_scene(
         ),
     ];
     for (index, (label, value)) in rows.iter().enumerate() {
-        let y = panel_y + 58 + index as i32 * 24;
+        let y = panel_y + 54 + index as i32 * 20;
         classic_draw_rect(
             buffer,
             width,
@@ -42872,7 +43075,7 @@ fn classic_draw_first_contact_basin_scene(
         width,
         height,
         panel_x + 12,
-        panel_y + 252,
+        panel_y + 152,
         panel_w - 24,
         6,
         CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
@@ -42882,7 +43085,7 @@ fn classic_draw_first_contact_basin_scene(
         width,
         height,
         panel_x + 12,
-        panel_y + 252,
+        panel_y + 152,
         pressure_w,
         6,
         CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
