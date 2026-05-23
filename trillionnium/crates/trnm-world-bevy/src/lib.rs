@@ -17187,6 +17187,24 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             },
         ),
         (
+            "multi0.attackmove.warden",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::AttackMove,
+                target_tile: Some((18, 20)),
+                target_id: None,
+                rule_id: None,
+            },
+        ),
+        (
+            "multi0.command.core",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::AttackMove,
+                target_tile: Some((18, 20)),
+                target_id: None,
+                rule_id: None,
+            },
+        ),
+        (
             "multi0.worker.repair",
             TrnmOpenRaLikeOrder {
                 kind: TrnmOpenRaLikeOrderKind::Repair,
@@ -17341,6 +17359,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             );
     let order_gate = TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Move)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Harvest)
+        && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::AttackMove)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::ReturnCargo)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Build)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Train)
@@ -17386,6 +17405,16 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
                 && result.order == TrnmOpenRaLikeOrderKind::Move
                 && result.reason == "owner_mismatch"
         });
+    let attack_move_command_gate = world.command_results.iter().any(|result| {
+        result.accepted
+            && result.actor_id == "multi0.attackmove.warden"
+            && result.order == TrnmOpenRaLikeOrderKind::AttackMove
+    }) && world.command_results.iter().any(|result| {
+        !result.accepted
+            && result.actor_id == "multi0.command.core"
+            && result.order == TrnmOpenRaLikeOrderKind::AttackMove
+            && result.reason == "trait_missing:mobile"
+    });
     let build_placement_gate = world.command_results.iter().any(|result| {
         result.accepted
             && result.actor_id == "multi0.worker.1"
@@ -17611,6 +17640,37 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event == "attack_remove:multi1.auto.raider");
+    let attack_move_gate = attack_move_command_gate
+        && world.attack_move_step_count > 0
+        && world.attack_move_engage_count > 0
+        && world.attack_move_hit_count > 0
+        && world.attack_move_kill_count > 0
+        && world
+            .actors
+            .iter()
+            .all(|actor| actor.id != "multi1.attackmove.raider")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("attack_move_step:multi0.attackmove.warden:"))
+        && world.event_log.iter().any(|event| {
+            event
+                .starts_with("attack_move_engage:multi0.attackmove.warden:multi1.attackmove.raider")
+        })
+        && world.event_log.iter().any(|event| {
+            event.starts_with("attack_move_hit:multi0.attackmove.warden:multi1.attackmove.raider")
+        })
+        && world.event_log.iter().any(|event| {
+            event == "attack_move_kill:multi0.attackmove.warden:multi1.attackmove.raider"
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "attack_remove:multi1.attackmove.raider")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("attack_move_reached:multi0.attackmove.warden:"));
     let repair_gate = repair_command_gate
         && world.repair_tick_count > 0
         && world.repair_flux_spent > 0
@@ -17665,6 +17725,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "attack_cooldown",
         "attack_kill",
         "attack_remove",
+        "attack_move_step",
+        "attack_move_engage",
+        "attack_move_hit",
+        "attack_move_kill",
+        "attack_move_reached",
         "auto_target_acquire",
         "auto_attack_hit",
         "auto_attack_kill",
@@ -17760,6 +17825,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && attack_weapon_gate
         && attack_range_gate
         && attack_visibility_gate
+        && attack_move_gate
         && auto_target_acquisition_gate
         && repair_gate
         && control_group_gate
@@ -17815,6 +17881,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "power_low_production_gate": power_low_production_gate,
             "resource_depletion_gate": resource_depletion_gate,
             "harvest_return_cargo_gate": harvest_return_cargo_gate,
+            "attack_move_command_gate": attack_move_command_gate,
+            "attack_move_gate": attack_move_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "build_placement_gate": build_placement_gate,
@@ -17838,6 +17906,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_hit_count": world.attack_hit_count,
             "attack_kill_count": world.attack_kill_count,
             "attack_cooldown_wait_count": world.attack_cooldown_wait_count,
+            "attack_move_step_count": world.attack_move_step_count,
+            "attack_move_engage_count": world.attack_move_engage_count,
+            "attack_move_hit_count": world.attack_move_hit_count,
+            "attack_move_kill_count": world.attack_move_kill_count,
             "auto_target_acquire_count": world.auto_target_acquire_count,
             "auto_attack_hit_count": world.auto_attack_hit_count,
             "auto_attack_kill_count": world.auto_attack_kill_count,
@@ -17920,6 +17992,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_weapon_gate": attack_weapon_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
+            "attack_move_command_gate": attack_move_command_gate,
+            "attack_move_gate": attack_move_gate,
             "auto_target_acquisition_gate": auto_target_acquisition_gate,
             "repair_command_gate": repair_command_gate,
             "repair_gate": repair_gate,
@@ -17928,7 +18002,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43284,6 +43358,7 @@ struct TrnmOpenRaLikeRuleSpec {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TrnmOpenRaLikeOrderKind {
     Move,
+    AttackMove,
     Harvest,
     ReturnCargo,
     Build,
@@ -43299,6 +43374,7 @@ impl TrnmOpenRaLikeOrderKind {
     fn as_str(self) -> &'static str {
         match self {
             TrnmOpenRaLikeOrderKind::Move => "move",
+            TrnmOpenRaLikeOrderKind::AttackMove => "attack_move",
             TrnmOpenRaLikeOrderKind::Harvest => "harvest",
             TrnmOpenRaLikeOrderKind::ReturnCargo => "return_cargo",
             TrnmOpenRaLikeOrderKind::Build => "build",
@@ -43438,6 +43514,10 @@ struct TrnmOpenRaLikeWorld {
     auto_target_acquire_count: u32,
     auto_attack_hit_count: u32,
     auto_attack_kill_count: u32,
+    attack_move_step_count: u32,
+    attack_move_engage_count: u32,
+    attack_move_hit_count: u32,
+    attack_move_kill_count: u32,
     repair_tick_count: u32,
     repair_flux_spent: u32,
     repair_complete_count: u32,
@@ -43743,6 +43823,7 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
 #[cfg(not(target_os = "android"))]
 const TRNM_OPENRA_LIKE_ORDER_DECK: &[TrnmOpenRaLikeOrderKind] = &[
     TrnmOpenRaLikeOrderKind::Move,
+    TrnmOpenRaLikeOrderKind::AttackMove,
     TrnmOpenRaLikeOrderKind::Harvest,
     TrnmOpenRaLikeOrderKind::ReturnCargo,
     TrnmOpenRaLikeOrderKind::Build,
@@ -44296,6 +44377,36 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.attackmove.warden",
+        "trnm.forge.warden",
+        "Multi0",
+        (11, 20),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((11, 20)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi1.attackmove.raider",
+        "trnm.horizon.scout",
+        "Multi1",
+        (18, 20),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((18, 20)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    if let Some(raider) = actors
+        .iter_mut()
+        .find(|actor| actor.id == "multi1.attackmove.raider")
+    {
+        raider.hp = 2_460;
+    }
+    actors.push(classic_openra_like_actor(
         "multi0.worker.repair",
         "trnm.worker",
         "Multi0",
@@ -44452,6 +44563,10 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         auto_target_acquire_count: 0,
         auto_attack_hit_count: 0,
         auto_attack_kill_count: 0,
+        attack_move_step_count: 0,
+        attack_move_engage_count: 0,
+        attack_move_hit_count: 0,
+        attack_move_kill_count: 0,
         repair_tick_count: 0,
         repair_flux_spent: 0,
         repair_complete_count: 0,
@@ -45009,6 +45124,35 @@ fn classic_first_contact_openra_like_core_issue_order(
         TrnmOpenRaLikeOrderKind::Move => {
             if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Mobile) {
                 Some("trait_missing:mobile".to_string())
+            } else if !order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
+            {
+                Some("target_tile_out_of_bounds".to_string())
+            } else if !order.target_tile.is_some_and(|tile| {
+                classic_openra_like_pathfind_tiles(
+                    world,
+                    actor_id,
+                    world.actors[actor_index].tile,
+                    tile,
+                )
+                .is_some()
+            }) {
+                Some("path_unreachable".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::AttackMove => {
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Mobile) {
+                Some("trait_missing:mobile".to_string())
+            } else if !classic_openra_like_rule_has_trait_ref(
+                actor_rule,
+                TrnmOpenRaLikeTrait::Attack,
+            ) {
+                Some("trait_missing:attack".to_string())
+            } else if classic_openra_like_weapon_for(world.actors[actor_index].rule_id).is_none() {
+                Some("weapon_missing".to_string())
             } else if !order
                 .target_tile
                 .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
@@ -45872,6 +46016,128 @@ fn classic_first_contact_openra_like_core_tick_for(
                                 actor_id, target.0, target.1
                             ));
                         }
+                    }
+                }
+                TrnmOpenRaLikeOrderKind::AttackMove => {
+                    let Some(target) = order.target_tile else {
+                        continue;
+                    };
+                    let actor_id = world.actors[index].id.clone();
+                    let owner = world.actors[index].owner;
+                    let current = world.actors[index].tile;
+                    let Some(weapon) = classic_openra_like_weapon_for(world.actors[index].rule_id)
+                    else {
+                        continue;
+                    };
+                    let attack_target = world
+                        .actors
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, actor)| {
+                            actor.owner != owner
+                                && actor.owner != "Neutral"
+                                && actor.hp > 0
+                                && classic_openra_like_rule_for(actor.rule_id).is_some_and(|rule| {
+                                    !matches!(
+                                        rule.kind,
+                                        TrnmOpenRaLikeEntityKind::Resource
+                                            | TrnmOpenRaLikeEntityKind::Marker
+                                    )
+                                })
+                                && classic_openra_like_visible_to_player(world, owner, actor.tile)
+                        })
+                        .filter_map(|(target_index, actor)| {
+                            let distance = classic_openra_like_tile_distance(current, actor.tile);
+                            (distance <= weapon.range).then_some((distance, target_index))
+                        })
+                        .min_by_key(|(distance, target_index)| (*distance, *target_index))
+                        .map(|(_, target_index)| target_index);
+                    if let Some(target_index) = attack_target {
+                        let target_id = world.actors[target_index].id.clone();
+                        world.attack_move_engage_count += 1;
+                        world.event_log.push(format!(
+                            "attack_move_engage:{actor_id}:{target_id}:{}->{}",
+                            classic_openra_like_tile_id(current),
+                            classic_openra_like_tile_id(target)
+                        ));
+                        if world.actors[index].weapon_cooldown_ticks > 0 {
+                            world.attack_cooldown_wait_count += 1;
+                            world.event_log.push(format!(
+                                "attack_move_cooldown:{actor_id}:{}ticks",
+                                world.actors[index].weapon_cooldown_ticks
+                            ));
+                            continue;
+                        }
+                        let target_hp = world.actors[target_index].hp.saturating_sub(weapon.damage);
+                        world.actors[target_index].hp = target_hp;
+                        world.actors[index].weapon_cooldown_ticks = weapon.cooldown_ticks;
+                        world.attack_hit_count += 1;
+                        world.attack_move_hit_count += 1;
+                        world.event_log.push(format!(
+                            "attack_move_hit:{actor_id}:{target_id}:{}damage:{}hp",
+                            weapon.damage, target_hp
+                        ));
+                        if target_hp == 0 {
+                            let defeated_id = world.actors[target_index].id.clone();
+                            let defeated_tile = world.actors[target_index].tile;
+                            world.actors[target_index].order = None;
+                            defeated_actor_ids.push(defeated_id.clone());
+                            let destroyed_memory = format!(
+                                "{defeated_id}@{}",
+                                classic_openra_like_tile_id(defeated_tile)
+                            );
+                            if !world.destroyed_actor_memory_ids.contains(&destroyed_memory) {
+                                world.destroyed_actor_memory_ids.push(destroyed_memory);
+                            }
+                            world.attack_kill_count += 1;
+                            world.attack_move_kill_count += 1;
+                            world
+                                .event_log
+                                .push(format!("attack_move_kill:{actor_id}:{defeated_id}"));
+                        }
+                    } else if let Some((path, blocked_tile_ids)) =
+                        classic_openra_like_pathfind_tiles(world, &actor_id, current, target)
+                    {
+                        let reached = path.is_empty();
+                        if let Some(next_tile) = path.first().copied() {
+                            world.actors[index].tile = next_tile;
+                            world.move_path_step_count += 1;
+                            world.attack_move_step_count += 1;
+                            world.event_log.push(format!(
+                                "path_step:{}:{},{}",
+                                actor_id, next_tile.0, next_tile.1
+                            ));
+                            world.event_log.push(format!(
+                                "attack_move_step:{}:{},{}",
+                                actor_id, next_tile.0, next_tile.1
+                            ));
+                        }
+                        classic_openra_like_record_path_plan(
+                            world,
+                            &actor_id,
+                            target,
+                            &path,
+                            blocked_tile_ids,
+                            reached,
+                        );
+                        if reached {
+                            world.event_log.push(format!(
+                                "attack_move_reached:{actor_id}:{}",
+                                classic_openra_like_tile_id(target)
+                            ));
+                            world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                                kind: TrnmOpenRaLikeOrderKind::Hold,
+                                target_tile: Some(target),
+                                target_id: order.target_id,
+                                rule_id: order.rule_id,
+                            });
+                        }
+                    } else {
+                        world.blocked_move_count += 1;
+                        world.event_log.push(format!(
+                            "path_blocked:{}:{},{}",
+                            actor_id, target.0, target.1
+                        ));
                     }
                 }
                 TrnmOpenRaLikeOrderKind::Harvest => {

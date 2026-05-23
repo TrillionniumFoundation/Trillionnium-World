@@ -38,6 +38,7 @@ jq -e '
   and (.rules[] | select(.id == "trnm.striker" and ((.traits | index("attack")) != null)))
   and (.rules[] | select(.id == "trnm.worker" and ((.traits | index("repair")) != null)))
   and ((.orders | index("move")) != null)
+  and ((.orders | index("attack_move")) != null)
   and ((.orders | index("harvest")) != null)
   and ((.orders | index("return_cargo")) != null)
   and ((.orders | index("build")) != null)
@@ -81,11 +82,17 @@ jq -e '
   and .simulation.supply_cap_gate == true
   and .simulation.power_low_production_gate == true
   and .simulation.build_placement_gate == true
+  and .simulation.attack_move_command_gate == true
+  and .simulation.attack_move_gate == true
   and .simulation.attack_range_gate == true
   and .simulation.attack_visibility_gate == true
   and .simulation.attack_hit_count > 0
   and .simulation.attack_kill_count > 0
   and .simulation.attack_cooldown_wait_count > 0
+  and .simulation.attack_move_step_count > 0
+  and .simulation.attack_move_engage_count > 0
+  and .simulation.attack_move_hit_count > 0
+  and .simulation.attack_move_kill_count > 0
   and .simulation.multi1_command_core_removed == true
   and .simulation.auto_target_acquire_count > 0
   and .simulation.auto_attack_hit_count > 0
@@ -108,6 +115,8 @@ jq -e '
   and any(.simulation.path_plans[]; .reached == true)
   and any(.simulation.command_log[]; contains("accepted:train:multi0.command.core"))
   and any(.simulation.command_log[]; contains("accepted:build:multi0.worker.1"))
+  and any(.simulation.command_log[]; contains("accepted:attack_move:multi0.attackmove.warden"))
+  and any(.simulation.command_log[]; contains("rejected:attack_move:multi0.command.core:trait_missing:mobile"))
   and any(.simulation.command_log[]; contains("rejected:build:multi0.worker.1:build_tile_blocked"))
   and any(.simulation.command_log[]; contains("accepted:attack:multi0.striker.0"))
   and any(.simulation.command_log[]; contains("accepted:capture:multi0.warden.capture"))
@@ -155,6 +164,12 @@ jq -e '
   and any(.simulation.event_log[]; contains("attack_cooldown:multi0.striker.0"))
   and any(.simulation.event_log[]; contains("attack_kill:multi0.striker.0:multi1.command.core"))
   and any(.simulation.event_log[]; contains("attack_remove:multi1.command.core"))
+  and any(.simulation.event_log[]; contains("attack_move_step:multi0.attackmove.warden"))
+  and any(.simulation.event_log[]; contains("attack_move_engage:multi0.attackmove.warden:multi1.attackmove.raider"))
+  and any(.simulation.event_log[]; contains("attack_move_hit:multi0.attackmove.warden:multi1.attackmove.raider"))
+  and any(.simulation.event_log[]; contains("attack_move_kill:multi0.attackmove.warden:multi1.attackmove.raider"))
+  and any(.simulation.event_log[]; contains("attack_remove:multi1.attackmove.raider"))
+  and any(.simulation.event_log[]; contains("attack_move_reached:multi0.attackmove.warden"))
   and any(.simulation.event_log[]; contains("auto_target_acquire:multi0.guard.sentinel:multi1.auto.raider"))
   and any(.simulation.event_log[]; contains("auto_attack_hit:multi0.guard.sentinel:multi1.auto.raider"))
   and any(.simulation.event_log[]; contains("auto_attack_kill:") and endswith(":multi1.auto.raider"))
@@ -188,6 +203,8 @@ jq -e '
   and .gates.attack_weapon_gate == true
   and .gates.attack_range_gate == true
   and .gates.attack_visibility_gate == true
+  and .gates.attack_move_command_gate == true
+  and .gates.attack_move_gate == true
   and .gates.auto_target_acquisition_gate == true
   and .gates.repair_command_gate == true
   and .gates.repair_gate == true
