@@ -6,6 +6,19 @@ OUT_DIR="$ROOT/acceptance/S6_public_launch/latest"
 SUMMARY="$OUT_DIR/trnm-world-ui-map-modeling-full-alignment.json"
 MARKDOWN="$OUT_DIR/trnm-world-ui-map-modeling-full-alignment.md"
 REFRESH="${TRNM_WORLD_FULL_ALIGNMENT_REFRESH:-1}"
+REQUIRE_READY=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --require-ready|--require-full-alignment)
+      REQUIRE_READY=1
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$arg" >&2
+      exit 2
+      ;;
+  esac
+done
 
 S5_DIR="$ROOT/acceptance/S5_native_bevy_device/latest"
 S4_DIR="$ROOT/acceptance/S4_map_pack_gate/latest"
@@ -295,5 +308,10 @@ grep -q 'TRNM World UI / Map / Modeling Full Alignment' "$MARKDOWN"
 grep -q 'full_alignment_green: `false`' "$MARKDOWN"
 grep -q 'production_map_pack_public_evidence' "$MARKDOWN"
 grep -q 's5_real_device_evidence' "$MARKDOWN"
+
+if [[ "$REQUIRE_READY" -eq 1 && "$(jq -r '.full_alignment_green' "$SUMMARY")" != "true" ]]; then
+  printf 'TRILLIONNIUM_WORLD_UI_MAP_MODELING_FULL_ALIGNMENT_BLOCKED %s %s\n' "$SUMMARY" "$MARKDOWN" >&2
+  exit 1
+fi
 
 printf 'TRILLIONNIUM_WORLD_UI_MAP_MODELING_FULL_ALIGNMENT_READY_WITH_BLOCKERS %s %s\n' "$SUMMARY" "$MARKDOWN"

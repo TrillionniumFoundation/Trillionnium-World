@@ -230,6 +230,9 @@ ANDROID_SERIAL=<device-serial> ./scripts/check_trillionnium_world_s5_device_evid
 # Emit the UI / map engine / modeling full-alignment matrix.
 ./scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh
 
+# Strict mode: fail unless full UI/map/modeling alignment has real external evidence.
+./scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh --require-ready
+
 # Validate CEX incubator production adapter evidence consumed by release review.
 ./scripts/check_trillionnium_world_cex_adapter_readiness.sh
 

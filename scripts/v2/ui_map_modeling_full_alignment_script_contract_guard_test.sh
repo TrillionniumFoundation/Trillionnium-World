@@ -7,6 +7,8 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh
 test -x "$SCRIPT"
 grep -q 'trillionnium_world_ui_map_modeling_full_alignment_v1' "$SCRIPT"
 grep -q 'host_side_ui_map_modeling_aligned_public_evidence_blocked' "$SCRIPT"
+grep -q -- '--require-ready' "$SCRIPT"
+grep -q 'TRILLIONNIUM_WORLD_UI_MAP_MODELING_FULL_ALIGNMENT_BLOCKED' "$SCRIPT"
 grep -q 'production_map_pack_public_evidence' "$SCRIPT"
 grep -q 's5_real_device_evidence' "$SCRIPT"
 grep -q 'TRNM_WORLD_FULL_ALIGNMENT_REFRESH=0' "$SCRIPT"
