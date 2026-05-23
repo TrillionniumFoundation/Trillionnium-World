@@ -220,6 +220,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_first_minute_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
@@ -39137,6 +39139,219 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
         "source_of_truth": "The map/UI/modeling readiness gate renders and verifies six Bevy-owned classic RTS surfaces together: mature HUD/readability, command affordance input feedback, scrollable map projection, camera-minimap sync, structure construction/damage/repair modeling, and ambient environment life. It keeps the playable trnm_world map/UI/modeling baseline original and independent from CEX/web/WGPU paths."
     }))
     .expect("classic RTS map UI modeling readiness evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let first_minute_path = preview_path("first-minute-readiness.ppm");
+    let victory_path = preview_path("objective-victory-loop.ppm");
+    let base_assault_path = preview_path("base-assault-resolution.ppm");
+    let aftermath_path = preview_path("battle-aftermath.ppm");
+    let open_world_path = preview_path("open-world-after-action.ppm");
+
+    let first_minute: Value = serde_json::from_str(
+        &native_classic_rts_first_minute_readiness_evidence_json(&first_minute_path),
+    )
+    .expect("first-minute readiness evidence parses");
+    let victory: Value = serde_json::from_str(
+        &native_classic_rts_objective_victory_loop_evidence_json(&victory_path),
+    )
+    .expect("objective victory loop evidence parses");
+    let base_assault: Value = serde_json::from_str(
+        &native_classic_rts_base_assault_resolution_evidence_json(&base_assault_path),
+    )
+    .expect("base assault resolution evidence parses");
+    let aftermath: Value = serde_json::from_str(
+        &native_classic_rts_battle_aftermath_evidence_json(&aftermath_path),
+    )
+    .expect("battle aftermath evidence parses");
+    let open_world: Value = serde_json::from_str(
+        &native_classic_rts_open_world_after_action_evidence_json(&open_world_path),
+    )
+    .expect("open-world after-action evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let array_contains = |value: &Value, key: &str, expected: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+
+    let first_minute_gate = contract_is(
+        &first_minute,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT,
+    ) && bool_at(&first_minute, "green")
+        && bool_at(&first_minute, "campaign_entry_gate")
+        && bool_at(&first_minute, "breadcrumb_gate")
+        && str_at(&first_minute, "final_current_room_id") == "league-coliseum"
+        && str_at(&first_minute, "final_objective_status") == "open_world_after_action_ready";
+    let objective_victory_gate = contract_is(
+        &victory,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_VICTORY_LOOP_CONTRACT,
+    ) && bool_at(&victory, "green")
+        && bool_at(&victory, "live_objective_input_gate")
+        && bool_at(&victory, "victory_resolution_gate")
+        && bool_at(&victory, "defeat_pressure_gate")
+        && bool_at(&victory, "extraction_gate")
+        && u64_at(&victory, "accepted_input_count") == 6
+        && u64_at(&victory, "final_objective_capture_percent") == 100
+        && u64_at(&victory, "final_defeat_risk_percent") <= 8
+        && str_at(&victory, "final_objective_result_state") == "victory:relay_beacon_extracted"
+        && str_at(&victory, "final_objective_owner_state") == "player:relay_beacon";
+    let base_assault_gate = contract_is(
+        &base_assault,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BASE_ASSAULT_RESOLUTION_CONTRACT,
+    ) && bool_at(&base_assault, "green")
+        && bool_at(&base_assault, "army_dependency_gate")
+        && bool_at(&base_assault, "assault_path_gate")
+        && bool_at(&base_assault, "breach_resolution_gate")
+        && bool_at(&base_assault, "reward_gate")
+        && u64_at(&base_assault, "accepted_input_count") == 9
+        && u64_at(&base_assault, "final_base_breach_percent") == 100
+        && str_at(&base_assault, "final_base_assault_result_state") == "breached:enemy_barracks";
+    let battle_aftermath_gate = contract_is(
+        &aftermath,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BATTLE_AFTERMATH_CONTRACT,
+    ) && bool_at(&aftermath, "green")
+        && bool_at(&aftermath, "destruction_gate")
+        && bool_at(&aftermath, "veteran_gate")
+        && bool_at(&aftermath, "match_result_gate")
+        && bool_at(&aftermath, "next_action_gate")
+        && bool_at(&aftermath, "reward_gate")
+        && u64_at(&aftermath, "accepted_input_count") == 12
+        && str_at(&aftermath, "final_base_assault_result_state") == "destroyed:enemy_barracks"
+        && str_at(&aftermath, "final_match_result_state") == "victory_ready:secure_expansion"
+        && array_contains(&aftermath, "final_next_action_ids", "secure_expansion");
+    let open_world_return_gate = contract_is(
+        &open_world,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT,
+    ) && bool_at(&open_world, "green")
+        && bool_at(&open_world, "restoration_dependency_gate")
+        && bool_at(&open_world, "open_world_route_gate")
+        && bool_at(&open_world, "open_world_panel_gate")
+        && bool_at(&open_world, "open_world_resume_gate")
+        && bool_at(&open_world, "command_gate")
+        && u64_at(&open_world, "accepted_input_count") == 3
+        && str_at(&open_world, "final_current_room_id") == "league-coliseum"
+        && str_at(&open_world, "final_map_scene") == "arena_outdoor"
+        && str_at(&open_world, "final_open_world_handoff_state") == "resumed:league-coliseum"
+        && str_at(&open_world, "final_objective_status") == "open_world_after_action_ready";
+    let native_boundary_gate = [&victory, &base_assault, &aftermath, &open_world]
+        .iter()
+        .all(|value| {
+            value
+                .get("cex_runtime_player_client_allowed")
+                .and_then(Value::as_bool)
+                == Some(false)
+                && value.get("wgpu_required").and_then(Value::as_bool) == Some(false)
+        });
+    let preview_gate = [
+        &first_minute_path,
+        &victory_path,
+        &base_assault_path,
+        &aftermath_path,
+        &open_world_path,
+    ]
+    .iter()
+    .all(|path| file_ready(path));
+    let green = first_minute_gate
+        && objective_victory_gate
+        && base_assault_gate
+        && battle_aftermath_gate
+        && open_world_return_gate
+        && native_boundary_gate
+        && preview_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_count": 5,
+        "preview_paths": {
+            "first_minute_readiness": first_minute_path,
+            "objective_victory_loop": victory_path,
+            "base_assault_resolution": base_assault_path,
+            "battle_aftermath": aftermath_path,
+            "open_world_after_action": open_world_path
+        },
+        "source_contracts": {
+            "first_minute_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT,
+            "objective_victory_loop": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_VICTORY_LOOP_CONTRACT,
+            "base_assault_resolution": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BASE_ASSAULT_RESOLUTION_CONTRACT,
+            "battle_aftermath": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BATTLE_AFTERMATH_CONTRACT,
+            "open_world_after_action": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT
+        },
+        "first_minute_gate": first_minute_gate,
+        "objective_victory_gate": objective_victory_gate,
+        "base_assault_gate": base_assault_gate,
+        "battle_aftermath_gate": battle_aftermath_gate,
+        "open_world_return_gate": open_world_return_gate,
+        "native_boundary_gate": native_boundary_gate,
+        "preview_gate": preview_gate,
+        "campaign_flow": [
+            "TITLE campaign entry",
+            "objective claim/extract victory",
+            "base breach resolution",
+            "battle aftermath rewards",
+            "open-world route resume"
+        ],
+        "first_minute_summary": {
+            "input_action_count": first_minute.get("input_action_count").cloned().unwrap_or(Value::Null),
+            "final_room": first_minute.get("final_current_room_id").cloned().unwrap_or(Value::Null),
+            "final_objective_status": first_minute.get("final_objective_status").cloned().unwrap_or(Value::Null)
+        },
+        "victory_summary": {
+            "accepted_input_count": victory.get("accepted_input_count").cloned().unwrap_or(Value::Null),
+            "final_objective_capture_percent": victory.get("final_objective_capture_percent").cloned().unwrap_or(Value::Null),
+            "final_objective_result_state": victory.get("final_objective_result_state").cloned().unwrap_or(Value::Null),
+            "final_defeat_risk_percent": victory.get("final_defeat_risk_percent").cloned().unwrap_or(Value::Null)
+        },
+        "base_assault_summary": {
+            "accepted_input_count": base_assault.get("accepted_input_count").cloned().unwrap_or(Value::Null),
+            "final_base_breach_percent": base_assault.get("final_base_breach_percent").cloned().unwrap_or(Value::Null),
+            "final_base_assault_result_state": base_assault.get("final_base_assault_result_state").cloned().unwrap_or(Value::Null)
+        },
+        "aftermath_summary": {
+            "accepted_input_count": aftermath.get("accepted_input_count").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": aftermath.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "final_growth_level": aftermath.get("final_growth_level").cloned().unwrap_or(Value::Null),
+            "final_next_action_ids": aftermath.get("final_next_action_ids").cloned().unwrap_or(Value::Null)
+        },
+        "open_world_summary": {
+            "accepted_input_count": open_world.get("accepted_input_count").cloned().unwrap_or(Value::Null),
+            "final_current_room_id": open_world.get("final_current_room_id").cloned().unwrap_or(Value::Null),
+            "final_map_scene": open_world.get("final_map_scene").cloned().unwrap_or(Value::Null),
+            "final_open_world_handoff_state": open_world.get("final_open_world_handoff_state").cloned().unwrap_or(Value::Null)
+        },
+        "source_of_truth": "The campaign outcome/UI readiness gate verifies the playable first-match loop as one Bevy-native chain: first-minute campaign entry, objective victory and defeat-risk reduction, base assault breach, battle aftermath rewards/next-action UI, and open-world route resume. It intentionally remains local native evidence and does not claim public-launch readiness or external OpenRA parity."
+    }))
+    .expect("classic RTS campaign outcome UI readiness evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
