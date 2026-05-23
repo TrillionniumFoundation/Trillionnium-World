@@ -43337,6 +43337,13 @@ fn classic_first_contact_openra_like_core_tick_for(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_openra_like_core_preview_world() -> TrnmOpenRaLikeWorld {
+    let mut world = classic_first_contact_openra_like_core_initial_world();
+    classic_first_contact_openra_like_core_tick_for(&mut world, 32);
+    world
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value {
     json!({
         "tick": world.tick,
@@ -43374,6 +43381,216 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
             })
         }).collect::<Vec<_>>(),
     })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_color(actor: &TrnmOpenRaLikeActorState) -> u32 {
+    match actor.rule_id {
+        "trnm.worker" => CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+        "trnm.horizon.scout" => CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+        "trnm.forge.warden" => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+        "trnm.striker" => CLASSIC_RTS_DAMAGE_TICK_COLOR,
+        "trnm.command.core" => CLASSIC_RTS_TECH_BASE_COLOR,
+        "trnm.flux.relay" => CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+        "trnm.flux.beacon" => CLASSIC_RTS_OBJECTIVE_COLOR,
+        _ => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_label(actor: &TrnmOpenRaLikeActorState) -> &'static str {
+    match actor.rule_id {
+        "trnm.worker" => "WRK",
+        "trnm.horizon.scout" => "SCT",
+        "trnm.forge.warden" => "WRD",
+        "trnm.striker" => "STK",
+        "trnm.command.core" => "CORE",
+        "trnm.flux.relay" => "RLY",
+        "trnm.flux.beacon" => "BCN",
+        _ => "RTS",
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_runtime_core_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    world: &TrnmOpenRaLikeWorld,
+) {
+    for actor in world.actors.iter().filter(|actor| {
+        actor.owner == "Multi0"
+            || actor.id == "multi1.command.core"
+            || actor.id == "map.actor15"
+            || actor.id == "multi0.flux.relay"
+    }) {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+        let color = classic_first_contact_runtime_actor_color(actor);
+        let size_w = if actor.rule_id == "trnm.command.core" {
+            cell_w * 2
+        } else {
+            cell_w
+        }
+        .max(8);
+        let size_h = if actor.rule_id == "trnm.command.core" {
+            cell_h * 2
+        } else {
+            cell_h
+        }
+        .max(6);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x - size_w / 4,
+            tile_y - size_h / 2,
+            size_w,
+            size_h,
+            CLASSIC_ISO_OUTLINE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x - size_w / 4 + 2,
+            tile_y - size_h / 2 + 2,
+            size_w - 4,
+            size_h - 4,
+            color,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            tile_x - size_w / 4 + 3,
+            tile_y - size_h / 2 + 3,
+            classic_first_contact_runtime_actor_label(actor),
+            1,
+            CLASSIC_ISO_OUTLINE_COLOR,
+        );
+        if actor.build_progress < 100 || actor.capture_progress > 0 {
+            let progress = if actor.build_progress < 100 {
+                actor.build_progress
+            } else {
+                actor.capture_progress
+            };
+            let bar_w = ((size_w - 2) * i32::from(progress)) / 100;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - size_w / 4,
+                tile_y + size_h / 2 + 2,
+                size_w,
+                3,
+                CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - size_w / 4,
+                tile_y + size_h / 2 + 2,
+                bar_w,
+                3,
+                color,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_runtime_core_panel(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    panel_x: i32,
+    panel_y: i32,
+    panel_w: i32,
+    world: &TrnmOpenRaLikeWorld,
+) {
+    let multi0_flux = world
+        .players
+        .iter()
+        .find(|player| player.id == "Multi0")
+        .map(|player| player.flux)
+        .unwrap_or_default();
+    let relay_progress = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi0.flux.relay")
+        .map(|actor| actor.build_progress)
+        .unwrap_or_default();
+    let beacon_progress = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "map.actor15")
+        .map(|actor| actor.capture_progress)
+        .unwrap_or_default();
+    let production_progress = world
+        .production
+        .iter()
+        .filter(|item| item.owner == "Multi0")
+        .map(|item| item.progress_percent)
+        .max()
+        .unwrap_or_default();
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y,
+        panel_w - 24,
+        84,
+        0x101a15,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 18,
+        panel_y + 8,
+        "RUST RTS CORE TICK",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    let rows = [
+        ("TICK", world.tick),
+        ("FLUX", multi0_flux),
+        ("RELAY", u32::from(relay_progress)),
+        ("BEACON", u32::from(beacon_progress)),
+        ("QUEUE", u32::from(production_progress)),
+    ];
+    for (index, (label, value)) in rows.iter().enumerate() {
+        let y = panel_y + 26 + index as i32 * 11;
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 18,
+            y,
+            label,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + panel_w - 58,
+            y,
+            &value.to_string(),
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -45335,6 +45552,7 @@ fn classic_draw_first_contact_basin_scene(
     let cell_h = (available_h / 34).clamp(7, 14);
     let map_w = cell_w * 34;
     let map_h = cell_h * 34;
+    let core_world = classic_first_contact_openra_like_core_preview_world();
 
     classic_draw_rect(
         buffer,
@@ -45436,6 +45654,16 @@ fn classic_draw_first_contact_basin_scene(
     );
     classic_draw_first_contact_command_feedback_layers(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_runtime_core_layer(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        &core_world,
     );
 
     let tactical_tracks: [((i32, i32), (i32, i32), u32); 6] = [
@@ -45585,6 +45813,15 @@ fn classic_draw_first_contact_basin_scene(
         );
     }
     classic_draw_first_contact_rule_panel(buffer, width, height, panel_x, panel_y, panel_w);
+    classic_draw_first_contact_runtime_core_panel(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y + 254,
+        panel_w,
+        &core_world,
+    );
 
     let pressure_w = ((runtime.rts_ai_pressure_percent.min(100) as i32) * (panel_w - 28)) / 100;
     classic_draw_rect(
