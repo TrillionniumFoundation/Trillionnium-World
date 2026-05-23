@@ -94,6 +94,10 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_locomotion_blend.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_transition.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_minute_readiness.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
@@ -183,6 +187,10 @@ jq -n \
   --slurpfile rts_locomotion_blend "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-locomotion-blend.json" \
   --slurpfile rts_npc_transition "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-transition.json" \
   --slurpfile rts_depth_readability "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.json" \
+  --slurpfile rts_first_minute_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-minute-readiness.json" \
+  --slurpfile rts_map_ui_modeling_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness.json" \
+  --slurpfile rts_campaign_outcome_ui_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json" \
+  --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" \
@@ -278,6 +286,10 @@ jq -n \
       and ok($rts_locomotion_blend)
       and ok($rts_npc_transition)
       and ok($rts_depth_readability)
+      and ok($rts_first_minute_readiness)
+      and ok($rts_map_ui_modeling_readiness)
+      and ok($rts_campaign_outcome_ui_readiness)
+      and ok($rts_combat_readability_pressure_readiness)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -585,6 +597,10 @@ jq -n \
       classic_rts_locomotion_blend_green: ok($rts_locomotion_blend),
       classic_rts_npc_transition_green: ok($rts_npc_transition),
       classic_rts_depth_readability_green: ok($rts_depth_readability),
+      classic_rts_first_minute_readiness_green: ok($rts_first_minute_readiness),
+      classic_rts_map_ui_modeling_readiness_green: ok($rts_map_ui_modeling_readiness),
+      classic_rts_campaign_outcome_ui_readiness_green: ok($rts_campaign_outcome_ui_readiness),
+      classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -2661,6 +2677,14 @@ jq -n \
       classic_rts_npc_transition_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-npc-transition.ppm",
       classic_rts_depth_readability: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.json",
       classic_rts_depth_readability_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.ppm",
+      classic_rts_first_minute_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-minute-readiness.json",
+      classic_rts_first_minute_readiness_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-minute-readiness.ppm",
+      classic_rts_map_ui_modeling_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness.json",
+      classic_rts_map_ui_modeling_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness/",
+      classic_rts_campaign_outcome_ui_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json",
+      classic_rts_campaign_outcome_ui_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness/",
+      classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
+      classic_rts_combat_readability_pressure_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -2759,6 +2783,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_locomotion_blend_green == true
   and .checks.classic_rts_npc_transition_green == true
   and .checks.classic_rts_depth_readability_green == true
+  and .checks.classic_rts_first_minute_readiness_green == true
+  and .checks.classic_rts_map_ui_modeling_readiness_green == true
+  and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
+  and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true

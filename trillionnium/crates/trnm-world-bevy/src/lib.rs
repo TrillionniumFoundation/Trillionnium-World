@@ -39138,7 +39138,7 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
             "water_shimmer": environment.get("water_shimmer_pixel_count").cloned().unwrap_or(Value::Null),
             "ambient_dust": environment.get("ambient_dust_pixel_count").cloned().unwrap_or(Value::Null)
         },
-        "source_of_truth": "The map/UI/modeling readiness gate renders and verifies six Bevy-owned classic RTS surfaces together: mature HUD/readability, command affordance input feedback, scrollable map projection, camera-minimap sync, structure construction/damage/repair modeling, and ambient environment life. It keeps the playable trnm_world map/UI/modeling baseline original and independent from CEX/web/WGPU paths."
+        "source_of_truth": "The map/UI/modeling readiness gate renders and verifies six Bevy-owned classic RTS surfaces together: mature HUD/readability, command affordance input feedback, scrollable map projection, camera-minimap sync, structure construction/damage/repair modeling, and ambient environment life. It keeps the playable trnm_world map/UI/modeling baseline original and independent from legacy web renderer paths."
     }))
     .expect("classic RTS map UI modeling readiness evidence serializes")
 }
