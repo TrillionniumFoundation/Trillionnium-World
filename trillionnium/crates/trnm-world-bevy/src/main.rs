@@ -95,6 +95,18 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-openra-like-core" | "--classic-rts-openra-like-core" | "openra-like-core"
+        )
+    ) {
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_openra_like_core_evidence_json()
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-command-affordance"
                 | "--classic-rts-command-affordance"
                 | "command-affordance"
