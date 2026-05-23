@@ -560,6 +560,12 @@ const CLASSIC_RTS_ENVIRONMENT_WATER_SHIMMER_COLOR: u32 = 0x83dcff;
 const CLASSIC_RTS_ENVIRONMENT_BANNER_FLUTTER_COLOR: u32 = 0xff6fb8;
 const CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR: u32 = 0xffe66d;
 const CLASSIC_RTS_ENVIRONMENT_AMBIENT_DUST_COLOR: u32 = 0xc7b38b;
+const CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR: u32 = 0x4aa36f;
+const CLASSIC_RTS_PRODUCT_LANE_COLOR: u32 = 0xd3b66a;
+const CLASSIC_RTS_PRODUCT_RESOURCE_COLOR: u32 = 0x8be8ff;
+const CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR: u32 = 0x27362d;
+const CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR: u32 = 0xe6d36b;
+const CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR: u32 = 0x6e89a8;
 const CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR: u32 = 0x9bf17a;
 const CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR: u32 = 0xffc45c;
 const CLASSIC_RTS_HARVEST_ANIMATION_RESOURCE_POP_COLOR: u32 = 0xffec72;
@@ -16702,6 +16708,12 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
     let animation_ghost_pixel_count = count_color(CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR);
     let action_trail_pixel_count = count_color(CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR);
     let npc_action_pixel_count = count_color(CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR);
+    let product_map_density_pixel_count = count_color(CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR);
+    let product_lane_pixel_count = count_color(CLASSIC_RTS_PRODUCT_LANE_COLOR);
+    let product_resource_pixel_count = count_color(CLASSIC_RTS_PRODUCT_RESOURCE_COLOR);
+    let product_ui_chrome_pixel_count = count_color(CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR);
+    let product_ui_accent_pixel_count = count_color(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR);
+    let product_model_volume_pixel_count = count_color(CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR);
     let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
         && runtime
             .rts_selected_unit_ids
@@ -16743,11 +16755,20 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         && command_surface_gate
         && model_fidelity_gate
         && npc_animation_gate;
+    let desktop_product_visual_alignment_gate = product_map_density_pixel_count > 400
+        && product_lane_pixel_count > 500
+        && product_resource_pixel_count > 120
+        && product_ui_chrome_pixel_count > 500
+        && product_ui_accent_pixel_count > 250
+        && product_model_volume_pixel_count > 80;
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
-    let green =
-        write_gate && selected_units_gate && mature_rts_hud_gate && original_art_policy_gate;
+    let green = write_gate
+        && selected_units_gate
+        && mature_rts_hud_gate
+        && desktop_product_visual_alignment_gate
+        && original_art_policy_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT,
         "green": green,
@@ -16767,17 +16788,24 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "animation_ghost_pixel_count": animation_ghost_pixel_count,
         "action_trail_pixel_count": action_trail_pixel_count,
         "npc_action_pixel_count": npc_action_pixel_count,
+        "product_map_density_pixel_count": product_map_density_pixel_count,
+        "product_lane_pixel_count": product_lane_pixel_count,
+        "product_resource_pixel_count": product_resource_pixel_count,
+        "product_ui_chrome_pixel_count": product_ui_chrome_pixel_count,
+        "product_ui_accent_pixel_count": product_ui_accent_pixel_count,
+        "product_model_volume_pixel_count": product_model_volume_pixel_count,
         "selected_units_gate": selected_units_gate,
         "command_surface_gate": command_surface_gate,
         "model_fidelity_gate": model_fidelity_gate,
         "npc_animation_gate": npc_animation_gate,
         "mature_rts_hud_gate": mature_rts_hud_gate,
+        "desktop_product_visual_alignment_gate": desktop_product_visual_alignment_gate,
         "original_art_policy_gate": original_art_policy_gate,
         "warcraft_iii_asset_copied": false,
         "source_art_policy": "Original Trillionnium low-spec 2.5D/isometric RTS presentation; genre expectations are used as quality direction, not copied Warcraft III assets, text, UI art, names, or models.",
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Visual fidelity evidence must exercise the actual classic RTS scene renderer: mature command HUD, selected-unit portraits/cards, original pseudo-3D silhouettes, and distinct NPC action states."
+        "source_of_truth": "Visual fidelity evidence must exercise the actual classic RTS scene renderer: mature command HUD, selected-unit portraits/cards, original pseudo-3D silhouettes, distinct NPC action states, dense map readability markers, product-grade UI chrome, and model-volume cues."
     }))
     .expect("classic RTS visual fidelity evidence serializes")
 }
@@ -39203,6 +39231,7 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
         && bool_at(&visual, "model_fidelity_gate")
         && bool_at(&visual, "npc_animation_gate")
         && bool_at(&visual, "mature_rts_hud_gate")
+        && bool_at(&visual, "desktop_product_visual_alignment_gate")
         && u64_at(&visual, "fidelity_panel_pixel_count") > 16_000
         && u64_at(&visual, "model_edge_pixel_count") > 1_200;
     let command_gate = contract_is(
@@ -39326,6 +39355,7 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
         "camera_gate": camera_gate,
         "structure_gate": structure_gate,
         "environment_gate": environment_gate,
+        "desktop_product_visual_alignment_gate": bool_at(&visual, "desktop_product_visual_alignment_gate"),
         "source_policy_gate": source_policy_gate,
         "preview_gate": preview_gate,
         "visual_fidelity_pixels": {
@@ -39333,6 +39363,14 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
             "portrait": visual.get("portrait_pixel_count").cloned().unwrap_or(Value::Null),
             "model_edge": visual.get("model_edge_pixel_count").cloned().unwrap_or(Value::Null),
             "command_grid": visual.get("command_grid_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "desktop_product_visual_alignment_pixels": {
+            "map_density": visual.get("product_map_density_pixel_count").cloned().unwrap_or(Value::Null),
+            "lane": visual.get("product_lane_pixel_count").cloned().unwrap_or(Value::Null),
+            "resource": visual.get("product_resource_pixel_count").cloned().unwrap_or(Value::Null),
+            "ui_chrome": visual.get("product_ui_chrome_pixel_count").cloned().unwrap_or(Value::Null),
+            "ui_accent": visual.get("product_ui_accent_pixel_count").cloned().unwrap_or(Value::Null),
+            "model_volume": visual.get("product_model_volume_pixel_count").cloned().unwrap_or(Value::Null)
         },
         "command_affordance_pixels": {
             "drag_marquee": command.get("drag_marquee_pixel_count").cloned().unwrap_or(Value::Null),
@@ -39354,7 +39392,7 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
             "water_shimmer": environment.get("water_shimmer_pixel_count").cloned().unwrap_or(Value::Null),
             "ambient_dust": environment.get("ambient_dust_pixel_count").cloned().unwrap_or(Value::Null)
         },
-        "source_of_truth": "The map/UI/modeling readiness gate renders and verifies six Bevy-owned classic RTS surfaces together: mature HUD/readability, command affordance input feedback, scrollable map projection, camera-minimap sync, structure construction/damage/repair modeling, and ambient environment life. It keeps the playable trnm_world map/UI/modeling baseline original and independent from legacy web renderer paths."
+        "source_of_truth": "The map/UI/modeling readiness gate renders and verifies six Bevy-owned classic RTS surfaces together: mature HUD/readability, command affordance input feedback, scrollable map projection, camera-minimap sync, structure construction/damage/repair modeling, ambient environment life, and desktop product visual alignment pixels for map density, UI chrome, and model volume. It keeps the playable trnm_world map/UI/modeling baseline original and independent from legacy web renderer paths."
     }))
     .expect("classic RTS map UI modeling readiness evidence serializes")
 }
@@ -41535,6 +41573,7 @@ fn classic_draw_scene(
         &player_frame,
     );
     classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    classic_draw_rts_product_alignment_hud(buffer, width, height, runtime);
     if let Some(hotkey_stage) = classic_rts_control_group_hotkey_feedback_stage(Some(runtime)) {
         classic_draw_rts_control_group_hotkey_feedback_overlay(
             buffer,
@@ -46588,6 +46627,216 @@ fn classic_draw_isometric_frame_at_tile(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_product_map_density_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    origin_x: i32,
+    origin_y: i32,
+    tile_w: i32,
+    tile_h: i32,
+    scene_id: &str,
+) {
+    let (lane_tiles, expansion_tiles, resource_tiles, base_tiles): (
+        &[(i32, i32)],
+        &[(i32, i32)],
+        &[(i32, i32)],
+        &[(i32, i32)],
+    ) = match scene_id {
+        "mentor_training_room" => (
+            &[(3, 3), (4, 3), (5, 3), (6, 4), (7, 4), (8, 4)],
+            &[(3, 5), (8, 5)],
+            &[(2, 2), (9, 2), (9, 5)],
+            &[(4, 1), (7, 1)],
+        ),
+        "league_coliseum" => (
+            &[(3, 4), (4, 4), (5, 4), (6, 4), (7, 4), (8, 4), (9, 4)],
+            &[(2, 5), (9, 5)],
+            &[(5, 5), (6, 5), (9, 5)],
+            &[(3, 2), (8, 5)],
+        ),
+        _ => (
+            &[
+                (2, 4),
+                (3, 4),
+                (4, 4),
+                (5, 4),
+                (6, 4),
+                (7, 4),
+                (8, 4),
+                (9, 4),
+            ],
+            &[(2, 6), (9, 2), (10, 5)],
+            &[(4, 6), (8, 5), (10, 4)],
+            &[(2, 2), (4, 5), (9, 3)],
+        ),
+    };
+
+    for (index, tile) in lane_tiles.iter().enumerate() {
+        let (center_x, screen_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            center_x,
+            screen_y + tile_h - 11,
+            tile_w / 2,
+            tile_h / 2,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        if index % 2 == 0 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 15,
+                screen_y + tile_h - 7,
+                30,
+                3,
+                classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4),
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 20,
+            screen_y + tile_h - 3,
+            40,
+            3,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 3,
+            screen_y + tile_h - 13,
+            6,
+            20,
+            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        );
+    }
+
+    for tile in expansion_tiles {
+        let (center_x, screen_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            center_x,
+            screen_y + tile_h + 1,
+            26,
+            9,
+            CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+        );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            center_x,
+            screen_y + tile_h - 2,
+            15,
+            5,
+            CLASSIC_ISO_FOUNDATION_COLOR,
+        );
+    }
+
+    for tile in resource_tiles {
+        let (center_x, screen_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+        for (dx, dy, w) in [(-20, -7, 13), (-7, -13, 18), (10, -8, 12)] {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + dx,
+                screen_y + tile_h + dy,
+                w,
+                4,
+                CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 24,
+            screen_y + tile_h - 14,
+            48,
+            5,
+            CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 10,
+            screen_y + tile_h - 20,
+            20,
+            6,
+            CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 18,
+            screen_y + tile_h - 2,
+            36,
+            3,
+            classic_darken(CLASSIC_RTS_PRODUCT_RESOURCE_COLOR, 1, 3),
+        );
+    }
+
+    for tile in base_tiles {
+        let (center_x, screen_y) = classic_iso_project(origin_x, origin_y, tile_w, tile_h, *tile);
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            center_x,
+            screen_y + tile_h - 9,
+            tile_w,
+            tile_h,
+            CLASSIC_ISO_FOUNDATION_COLOR,
+        );
+        for step in 0..4 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 28 + step * 18,
+                screen_y + tile_h - 2 + (step % 2),
+                12,
+                3,
+                CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 32,
+            screen_y + tile_h - 16,
+            64,
+            5,
+            CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 22,
+            screen_y + tile_h - 25,
+            44,
+            5,
+            CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_isometric_scene(
     buffer: &mut [u32],
     width: usize,
@@ -46599,9 +46848,9 @@ fn classic_draw_isometric_scene(
     player_frame: &str,
 ) {
     let origin_x = (width as i32 / 2).clamp(260, (width as i32 - 280).max(340));
-    let origin_y = 48;
-    let tile_w = 48;
-    let tile_h = 24;
+    let origin_y = if width >= 900 { 54 } else { 48 };
+    let tile_w = if width >= 900 { 56 } else { 50 };
+    let tile_h = if width >= 900 { 28 } else { 25 };
     let scale = (assets.manifest.render_tile_size_px / assets.manifest.source_tile_size_px).max(1);
 
     if let Some(scene) = scene {
@@ -46658,6 +46907,16 @@ fn classic_draw_isometric_scene(
                 buffer, width, height, frame_id, screen_x, screen_y, tile_w, tile_h,
             );
         }
+        classic_draw_rts_product_map_density_layer(
+            buffer,
+            width,
+            height,
+            origin_x,
+            origin_y,
+            tile_w,
+            tile_h,
+            scene.id.as_str(),
+        );
 
         entities.extend(scene.landmarks.iter().map(|landmark| ClassicIsoEntity {
             id: landmark.id.clone(),
@@ -46768,6 +47027,16 @@ fn classic_draw_isometric_scene(
                 runtime,
             );
         }
+        classic_draw_rts_product_map_density_layer(
+            buffer,
+            width,
+            height,
+            origin_x,
+            origin_y,
+            tile_w,
+            tile_h,
+            scene.id.as_str(),
+        );
         classic_draw_iso_command_feedback(
             buffer,
             width,
@@ -46824,15 +47093,20 @@ fn classic_scene_rts_model_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
                 (9, 2),
                 3,
             ),
+            ("training_waygate_side", "model_waygate", (8, 4), 2),
         ],
         "league_coliseum" => &[
             ("coliseum_left_stands", "model_coliseum_stands", (3, 2), 2),
             ("coliseum_right_stands", "model_coliseum_stands", (9, 3), 2),
+            ("coliseum_rear_stands", "model_coliseum_stands", (6, 2), 1),
             ("coliseum_waygate", "model_waygate", (6, 1), 2),
+            ("coliseum_training_hall", "model_training_hall", (8, 5), 2),
         ],
         _ => &[
             ("town_hall", "model_town_hall", (2, 2), 1),
+            ("south_training_hall", "model_training_hall", (4, 5), 2),
             ("north_tree_cluster", "model_tree_cluster_large", (8, 1), 3),
+            ("west_tree_cluster", "model_tree_cluster_large", (1, 4), 3),
             ("east_waygate", "model_waygate", (9, 3), 2),
         ],
     };
@@ -46852,9 +47126,11 @@ fn classic_scene_rts_doodad_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
     let specs: &[(&str, &str, (i32, i32), i32)] = match scene_id {
         "mentor_training_room" => &[
             ("training_barrels", "doodad_barrel_stack", (2, 4), 3),
+            ("training_supply_barrels", "doodad_barrel_stack", (8, 6), 3),
             ("training_torch_left", "doodad_torch", (1, 2), 4),
             ("training_torch_right", "doodad_torch", (10, 2), 4),
             ("training_rocks", "doodad_rock_cluster", (8, 5), 3),
+            ("training_crystal_lane", "doodad_crystal_cluster", (6, 5), 4),
         ],
         "league_coliseum" => &[
             ("arena_rocks_left", "doodad_rock_cluster", (1, 5), 3),
@@ -46862,12 +47138,17 @@ fn classic_scene_rts_doodad_entities(scene_id: &str) -> Vec<ClassicIsoEntity> {
             ("arena_torch_left", "doodad_torch", (3, 1), 4),
             ("arena_torch_right", "doodad_torch", (8, 1), 4),
             ("arena_crystal", "doodad_crystal_cluster", (6, 4), 4),
+            ("arena_center_gold", "doodad_gold_vein", (5, 5), 4),
+            ("arena_bush_cover", "doodad_bush_cluster", (7, 6), 4),
         ],
         _ => &[
             ("square_barrels", "doodad_barrel_stack", (3, 6), 3),
             ("square_rocks", "doodad_rock_cluster", (6, 6), 3),
             ("square_torch", "doodad_torch", (5, 2), 4),
             ("square_crystal", "doodad_crystal_cluster", (10, 5), 4),
+            ("square_market_gold", "doodad_gold_vein", (2, 6), 4),
+            ("square_outer_bush", "doodad_bush_cluster", (11, 3), 4),
+            ("square_ruins_column", "doodad_ruins_column", (6, 2), 4),
         ],
     };
     specs
@@ -46889,18 +47170,23 @@ fn classic_scene_rts_environment_entities(scene_id: &str) -> Vec<ClassicIsoEntit
             ("training_cliff_edge", "tile_cliff_edge", (9, 5), 1),
             ("training_signpost", "doodad_signpost", (3, 3), 4),
             ("training_ruins_column", "doodad_ruins_column", (7, 4), 4),
+            ("training_shadow_edge", "tile_shadow_edge", (5, 6), 1),
         ],
         "league_coliseum" => &[
             ("arena_shadow_edge", "tile_shadow_edge", (5, 4), 1),
+            ("arena_shadow_edge_right", "tile_shadow_edge", (7, 4), 1),
             ("arena_ruins_column", "doodad_ruins_column", (2, 3), 4),
             ("arena_gold_vein", "doodad_gold_vein", (9, 5), 4),
             ("arena_signpost", "doodad_signpost", (6, 2), 4),
+            ("arena_bridge_marker", "tile_bridge", (6, 5), 1),
         ],
         _ => &[
             ("square_bridge", "tile_bridge", (7, 4), 1),
             ("square_forest_floor", "tile_forest_floor", (8, 2), 1),
+            ("square_forest_floor_south", "tile_forest_floor", (9, 6), 1),
             ("square_bush_cluster", "doodad_bush_cluster", (4, 6), 4),
             ("square_gold_vein", "doodad_gold_vein", (10, 4), 4),
+            ("square_cliff_edge", "tile_cliff_edge", (1, 2), 1),
         ],
     };
     specs
@@ -46920,16 +47206,23 @@ fn classic_scene_rts_neutral_unit_entities(scene_id: &str) -> Vec<ClassicIsoEnti
         "mentor_training_room" => &[
             ("training_guard", "actor_guard_idle", (5, 3), 6),
             ("training_worker", "actor_worker_idle", (3, 5), 6),
+            ("training_worker_carry", "actor_worker_carry", (8, 4), 6),
+            ("training_creep_dummy", "actor_creep_idle", (6, 3), 6),
         ],
         "league_coliseum" => &[
             ("arena_guard_left", "actor_guard_attack", (4, 4), 6),
             ("arena_guard_right", "actor_guard_idle", (8, 4), 6),
+            ("arena_worker_relay", "actor_worker_carry", (5, 5), 6),
             ("arena_creep_attack", "actor_creep_attack", (6, 5), 6),
+            ("arena_creep_flank", "actor_creep_idle", (9, 4), 6),
         ],
         _ => &[
+            ("square_guard_front", "actor_guard_attack", (5, 4), 6),
             ("square_guard_patrol", "actor_guard_idle", (7, 5), 6),
             ("square_worker_carry", "actor_worker_carry", (4, 5), 6),
+            ("square_worker_harvest", "actor_worker_idle", (8, 5), 6),
             ("square_creep_wander", "actor_creep_idle", (9, 4), 6),
+            ("square_creep_pressure", "actor_creep_attack", (10, 3), 6),
         ],
     };
     specs
@@ -47628,6 +47921,287 @@ fn classic_draw_model_overlay(
             CLASSIC_HUD_ACCENT_TEXT_COLOR
         },
     );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_panel_frame(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    edge: u32,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        w,
+        h,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(buffer, width, height, x, y, w, 3, edge);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y + h - 3,
+        w,
+        3,
+        classic_darken(edge, 1, 3),
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        3,
+        h,
+        classic_darken(edge, 1, 3),
+    );
+    classic_draw_rect(buffer, width, height, x + w - 3, y, 3, h, edge);
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_product_alignment_hud(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) -> bool {
+    let rts_surface_active = runtime.rts_control_group_id.is_some()
+        || !runtime.rts_selected_unit_ids.is_empty()
+        || !runtime.rts_command_queue.is_empty();
+    if !rts_surface_active || width < 640 || height < 340 {
+        return false;
+    }
+
+    let top_x = 132_i32;
+    let top_y = 46_i32;
+    let top_w = (width as i32 - 318).max(260);
+    classic_draw_panel_frame(
+        buffer,
+        width,
+        height,
+        top_x,
+        top_y,
+        top_w,
+        58,
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        top_x + 10,
+        top_y + 8,
+        "DESKTOP PRODUCT ALIGNMENT",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        top_x + 10,
+        top_y + 24,
+        &format!(
+            "MAP DENSITY  UI READABILITY  MODEL VOLUME  SUPPLY {}/{}",
+            runtime.rts_army_supply_used, runtime.rts_army_supply_cap
+        ),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let pressure_w = ((runtime.rts_ai_pressure_percent.min(100) as i32) * (top_w - 26)) / 100;
+    let visibility_w = ((runtime.rts_visibility_percent.min(100) as i32) * (top_w - 26)) / 100;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        top_x + 10,
+        top_y + 40,
+        top_w - 20,
+        5,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        top_x + 10,
+        top_y + 40,
+        pressure_w,
+        5,
+        CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        top_x + 10,
+        top_y + 49,
+        top_w - 20,
+        4,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        top_x + 10,
+        top_y + 49,
+        visibility_w,
+        4,
+        CLASSIC_RTS_VISIBILITY_BAR_COLOR,
+    );
+
+    let cmd_y = height as i32 - 126;
+    let cmd_x = 424_i32.min((width as i32 - 500).max(160));
+    let cmd_w = (width as i32 - cmd_x - 18).max(300);
+    classic_draw_panel_frame(
+        buffer,
+        width,
+        height,
+        cmd_x,
+        cmd_y,
+        cmd_w,
+        108,
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        cmd_x + 12,
+        cmd_y + 8,
+        "COMMAND SURFACE",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    let ability_ids = if runtime.rts_ability_command_ids.is_empty() {
+        string_vec(["MOVE", "ATTK", "HOLD", "PATL", "FOCS", "BLD"])
+    } else {
+        let mut ids = runtime
+            .rts_ability_command_ids
+            .iter()
+            .map(|id| classic_catalog_text_label(id, 4))
+            .collect::<Vec<_>>();
+        while ids.len() < 6 {
+            ids.push("----".to_string());
+        }
+        ids
+    };
+    for index in 0..6 {
+        let x = cmd_x + 12 + index as i32 * 46;
+        let y = cmd_y + 30;
+        let ability_label = ability_ids
+            .get(index)
+            .cloned()
+            .unwrap_or_else(|| "----".to_string());
+        let active = runtime
+            .rts_active_ability_id
+            .as_deref()
+            .is_some_and(|active| {
+                ability_label.eq_ignore_ascii_case(&classic_catalog_text_label(active, 4))
+            });
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x - 2,
+            y - 2,
+            42,
+            38,
+            CLASSIC_RTS_FIDELITY_COMMAND_GRID_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            38,
+            34,
+            if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else {
+                CLASSIC_RTS_ABILITY_SLOT_COLOR
+            },
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 3,
+            y + 3,
+            32,
+            4,
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 4,
+            y + 25,
+            30,
+            5,
+            CLASSIC_RTS_COMMAND_AFFORDANCE_HOTKEY_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 5,
+            y + 15,
+            &ability_label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+    let queue_label = runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .take(3)
+        .map(|entry| classic_catalog_text_label(entry, 14))
+        .collect::<Vec<_>>()
+        .join(" > ");
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        cmd_x + 12,
+        cmd_y + 74,
+        &format!("QUEUE {}", classic_catalog_text_label(&queue_label, 54)),
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        cmd_x + 12,
+        cmd_y + 90,
+        &classic_catalog_text_label(&runtime.last_feedback, 58),
+        1,
+        if runtime
+            .last_feedback
+            .to_ascii_lowercase()
+            .contains("blocked")
+        {
+            CLASSIC_HUD_WARN_TEXT_COLOR
+        } else {
+            CLASSIC_HUD_ACCENT_TEXT_COLOR
+        },
+    );
+    true
 }
 
 #[cfg(not(target_os = "android"))]

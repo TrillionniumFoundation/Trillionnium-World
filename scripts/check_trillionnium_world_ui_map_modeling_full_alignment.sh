@@ -105,6 +105,7 @@ jq -n \
     and $mapui.command_gate == true
     and $mapui.scroll_gate == true
     and $mapui.camera_gate == true
+    and $mapui.desktop_product_visual_alignment_gate == true
     and $mapui.preview_gate == true
   ) as $local_ui_aligned |
   (
@@ -146,6 +147,16 @@ jq -n \
       (if $public_launch_ready then empty else "public_launch_external_evidence" end)
     ] + ($launch.blockers // [])
   ) | unique as $blockers |
+  (
+    [
+      (if $local_ui_aligned then empty else "local_ui_design_alignment" end),
+      (if $fixture_map_modeling_aligned then empty else "fixture_map_engine_modeling_alignment" end),
+      (if $local_modeling_aligned then empty else "local_modeling_design_alignment" end),
+      (if $production_map_pack_ready then empty else "production_map_pack_public_evidence" end),
+      (if $public_launch_ready then empty else "public_launch_external_evidence" end),
+      (if ($local_ui_aligned and $fixture_map_modeling_aligned and $local_modeling_aligned and $production_map_pack_ready and $public_launch_ready and ($s5_real_device_ready | not)) then "s5_real_device_evidence" else empty end)
+    ]
+  ) | unique as $active_priority_blockers |
   {
     contract_version: "trillionnium_world_ui_map_modeling_full_alignment_v1",
     generated_at: (now | todate),
@@ -159,10 +170,12 @@ jq -n \
     host_side_alignment_green: $host_side_alignment_green,
     full_alignment_green: $full_alignment_green,
     blockers: $blockers,
+    active_priority_blockers: $active_priority_blockers,
+    mobile_evidence_priority: "last_after_desktop_ui_map_modeling_product_alignment_and_public_map_pack_evidence",
     alignment_domains: {
       ui_design: {
         local_status: (if $local_ui_aligned then "host_side_human_playtest_handoff_aligned" else "blocked_local_ui_design_alignment" end),
-        production_status: (if ($s5_real_device_ready and $public_launch_ready) then "production_ui_alignment_evidence_green" else "blocked_until_s5_real_device_and_external_review_evidence" end),
+        production_status: (if ($s5_real_device_ready and $public_launch_ready) then "production_ui_alignment_evidence_green" elif $local_ui_aligned then "desktop_product_ui_alignment_green_external_review_pending_mobile_last" else "blocked_local_ui_design_alignment" end),
         source_contracts: {
           handoff_packet: $handoff.contract_version,
           desktop_real_machine_readiness: $desktop.contract_version,
@@ -178,6 +191,7 @@ jq -n \
           command_gate: ($mapui.command_gate == true),
           scroll_gate: ($mapui.scroll_gate == true),
           camera_gate: ($mapui.camera_gate == true),
+          desktop_product_visual_alignment_gate: ($mapui.desktop_product_visual_alignment_gate == true),
           preview_gate: ($mapui.preview_gate == true)
         },
         metrics: {
@@ -190,6 +204,7 @@ jq -n \
           runner_service: $handoff.handoff_summary.runner_service,
           runner_main_pid: $handoff.handoff_summary.runner_main_pid,
           visual_fidelity_pixels: $mapui.visual_fidelity_pixels,
+          desktop_product_visual_alignment_pixels: $mapui.desktop_product_visual_alignment_pixels,
           command_affordance_pixels: $mapui.command_affordance_pixels,
           map_camera_pixels: $mapui.map_camera_pixels
         }
@@ -217,8 +232,8 @@ jq -n \
         }
       },
       modeling_design: {
-        local_status: (if $local_modeling_aligned then "original_low_spec_classic_rts_modeling_aligned" else "blocked_local_modeling_design_alignment" end),
-        production_status: (if ($s5_real_device_ready and $public_launch_ready) then "production_modeling_review_evidence_green" else "blocked_until_s5_render_and_external_review_evidence" end),
+        local_status: (if $local_modeling_aligned then "desktop_product_classic_rts_modeling_aligned" else "blocked_local_modeling_design_alignment" end),
+        production_status: (if ($s5_real_device_ready and $public_launch_ready) then "production_modeling_review_evidence_green" elif $local_modeling_aligned then "desktop_product_modeling_alignment_green_external_review_pending_mobile_last" else "blocked_local_modeling_design_alignment" end),
         source_contracts: {
           isometric_modeling: $iso.contract_version,
           model_catalog: $catalog.contract_version,
@@ -290,9 +305,12 @@ jq -e '
   and .alignment_domains.ui_design.gates.desktop_real_machine_green == true
   and .alignment_domains.ui_design.gates.desktop_before_mobile_gate == true
   and .alignment_domains.ui_design.gates.android_s5_real_device_not_required_gate == true
+  and .alignment_domains.ui_design.gates.desktop_product_visual_alignment_gate == true
   and .alignment_domains.map_engine.local_status == "fixture_map_pack_modeling_aligned"
   and .alignment_domains.map_engine.production_status == "blocked_missing_production_map_pack_public_evidence"
-  and .alignment_domains.modeling_design.local_status == "original_low_spec_classic_rts_modeling_aligned"
+  and .alignment_domains.modeling_design.local_status == "desktop_product_classic_rts_modeling_aligned"
+  and .mobile_evidence_priority == "last_after_desktop_ui_map_modeling_product_alignment_and_public_map_pack_evidence"
+  and (.active_priority_blockers | index("s5_real_device_evidence") == null)
   and .alignment_domains.ui_design.gates.handoff_packet_green == true
   and .alignment_domains.ui_design.gates.map_ui_modeling_green == true
   and .alignment_domains.modeling_design.gates.original_art_policy_gate == true
@@ -310,6 +328,9 @@ jq -e '
     "$(jq -r '.alignment_domains.map_engine.local_status' "$SUMMARY")" \
     "$(jq -r '.alignment_domains.map_engine.production_status' "$SUMMARY")"
   printf -- '- modeling_design: `%s`\n\n' "$(jq -r '.alignment_domains.modeling_design.local_status' "$SUMMARY")"
+  printf '## Active Priority Blockers\n\n'
+  jq -r '.active_priority_blockers[] | "- [ ] `" + . + "`"' "$SUMMARY"
+  printf '\n- mobile_evidence_priority: `%s`\n\n' "$(jq -r '.mobile_evidence_priority' "$SUMMARY")"
   printf '## Blockers\n\n'
   jq -r '.blockers[] | "- [ ] `" + . + "`"' "$SUMMARY"
   printf '\n## Next Commands\n\n'
