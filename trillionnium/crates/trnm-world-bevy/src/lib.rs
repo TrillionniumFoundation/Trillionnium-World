@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 //! Native Bevy client path for Trillionnium World.
 //!
@@ -17341,17 +17341,17 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             );
     let order_gate = TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Move)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Harvest)
+        && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::ReturnCargo)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Build)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Train)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Capture)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Attack)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Repair)
         && world
-            .actors
+            .event_log
             .iter()
-            .filter_map(|actor| actor.order)
-            .any(|order| order.kind == TrnmOpenRaLikeOrderKind::Harvest);
-    let resource_delta = world.harvested_resource_amount;
+            .any(|event| event.starts_with("resource_harvested:"));
+    let resource_delta = world.harvest_deposited_amount;
     let command_flux_spent = initial_flux
         .saturating_add(resource_delta)
         .saturating_sub(multi0.flux);
@@ -17473,6 +17473,25 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event == "resource_depleted:map.actor10:trnm.flux.bloom");
+    let harvest_return_cargo_gate = world.harvest_return_trip_count > 0
+        && world.harvest_dropoff_count > 0
+        && world.harvest_deposited_amount == world.harvested_resource_amount
+        && world
+            .actors
+            .iter()
+            .any(|actor| actor.id == "multi0.worker.0" && actor.cargo == 0)
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("harvest_return_start:multi0.worker.0:"))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("harvest_deposit_at:multi0.worker.0:"))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "harvest_cycle_complete:multi0.worker.0:map.actor10");
     let attack_range_gate = world.command_results.iter().any(|result| {
         !result.accepted
             && result.actor_id == "multi0.worker.0"
@@ -17657,6 +17676,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "power_recovered",
         "resource_harvested",
         "resource_depleted",
+        "harvest_return_start",
+        "harvest_deposit_at",
+        "harvest_resume",
+        "harvest_cycle_complete",
         "control_group_recall",
         "queued_group_order",
         "queued_order_execute",
@@ -17726,6 +17749,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && event_log_gate
         && shroud_gate
         && resource_depletion_gate
+        && harvest_return_cargo_gate
         && command_resolution_gate
         && build_placement_gate
         && pathfinding_gate
@@ -17778,6 +17802,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "resource_delta": resource_delta,
             "harvested_resource_amount": world.harvested_resource_amount,
             "resource_depleted_count": world.resource_depleted_count,
+            "harvest_return_trip_count": world.harvest_return_trip_count,
+            "harvest_dropoff_count": world.harvest_dropoff_count,
+            "harvest_deposited_amount": world.harvest_deposited_amount,
             "command_flux_spent": command_flux_spent,
             "command_accepted_count": command_accepted_count,
             "command_rejected_count": command_rejected_count,
@@ -17787,6 +17814,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "supply_cap_gate": supply_cap_gate,
             "power_low_production_gate": power_low_production_gate,
             "resource_depletion_gate": resource_depletion_gate,
+            "harvest_return_cargo_gate": harvest_return_cargo_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "build_placement_gate": build_placement_gate,
@@ -17875,6 +17903,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "event_log_gate": event_log_gate,
             "shroud_gate": shroud_gate,
             "resource_depletion_gate": resource_depletion_gate,
+            "harvest_return_cargo_gate": harvest_return_cargo_gate,
             "command_resolution_gate": command_resolution_gate,
             "pathfinding_gate": pathfinding_gate,
             "move_path_plan_gate": move_path_plan_gate,
@@ -17899,7 +17928,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43419,6 +43448,9 @@ struct TrnmOpenRaLikeWorld {
     power_recovery_count: u32,
     harvested_resource_amount: u32,
     resource_depleted_count: u32,
+    harvest_return_trip_count: u32,
+    harvest_dropoff_count: u32,
+    harvest_deposited_amount: u32,
     destroyed_actor_memory_ids: Vec<String>,
     control_groups: Vec<TrnmOpenRaLikeControlGroup>,
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
@@ -44430,6 +44462,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         power_recovery_count: 0,
         harvested_resource_amount: 0,
         resource_depleted_count: 0,
+        harvest_return_trip_count: 0,
+        harvest_dropoff_count: 0,
+        harvest_deposited_amount: 0,
         destroyed_actor_memory_ids: Vec::new(),
         control_groups: vec![
             TrnmOpenRaLikeControlGroup {
@@ -45460,6 +45495,46 @@ fn classic_openra_like_spawn_exit_tile(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_openra_like_harvest_dropoff(
+    world: &TrnmOpenRaLikeWorld,
+    owner: &str,
+    actor_tile: (i32, i32),
+) -> Option<(String, (i32, i32))> {
+    let mut candidates = world
+        .actors
+        .iter()
+        .filter(|actor| actor.owner == owner && actor.build_progress >= 100)
+        .filter_map(|actor| {
+            let rule = classic_openra_like_rule_for(actor.rule_id)?;
+            if rule.kind != TrnmOpenRaLikeEntityKind::Structure {
+                return None;
+            }
+            let is_refinery =
+                classic_openra_like_rule_has_trait_ref(rule, TrnmOpenRaLikeTrait::Refinery);
+            let is_command_core = actor.rule_id == "trnm.command.core";
+            if !is_refinery && !is_command_core {
+                return None;
+            }
+            let priority = if is_refinery { 0 } else { 1 };
+            Some((
+                priority,
+                classic_openra_like_tile_distance(actor.tile, actor_tile),
+                actor.id.clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(priority, distance, id)| (*priority, *distance, id.clone()));
+    for (_, _, dropoff_id) in candidates {
+        if let Some(tile) =
+            classic_openra_like_spawn_exit_tile(world, &dropoff_id, Some(actor_tile))
+        {
+            return Some((dropoff_id, tile));
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> Vec<String> {
     let mut attacks = Vec::new();
     for attacker_index in 0..world.actors.len() {
@@ -45878,19 +45953,127 @@ fn classic_first_contact_openra_like_core_tick_for(
                                     rule_id
                                 ));
                             }
+                            if world.actors[index].cargo >= 12 || remaining == 0 {
+                                if let Some((dropoff_id, dropoff_tile)) =
+                                    classic_openra_like_harvest_dropoff(
+                                        world,
+                                        owner,
+                                        world.actors[index].tile,
+                                    )
+                                {
+                                    world.harvest_return_trip_count += 1;
+                                    world.event_log.push(format!(
+                                        "harvest_return_start:{actor_id}:{dropoff_id}:{},{}:{}cargo",
+                                        dropoff_tile.0,
+                                        dropoff_tile.1,
+                                        world.actors[index].cargo
+                                    ));
+                                    world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                                        kind: TrnmOpenRaLikeOrderKind::ReturnCargo,
+                                        target_tile: Some(dropoff_tile),
+                                        target_id: order.target_id,
+                                        rule_id: order.rule_id,
+                                    });
+                                }
+                            }
                         }
                     }
-                    if world.actors[index].cargo >= 12 || world.tick % 6 == 0 {
+                }
+                TrnmOpenRaLikeOrderKind::ReturnCargo => {
+                    let owner = world.actors[index].owner;
+                    let actor_id = world.actors[index].id.clone();
+                    let mut return_reached = false;
+                    if let Some(target) = order.target_tile {
+                        let current = world.actors[index].tile;
+                        if let Some((path, blocked_tile_ids)) =
+                            classic_openra_like_pathfind_tiles(world, &actor_id, current, target)
+                        {
+                            if let Some(next_tile) = path.first().copied() {
+                                world.actors[index].tile = next_tile;
+                                world.move_path_step_count += 1;
+                                world.event_log.push(format!(
+                                    "path_step:{}:{},{}",
+                                    actor_id, next_tile.0, next_tile.1
+                                ));
+                                world.event_log.push(format!(
+                                    "move_step:{}:{},{}",
+                                    actor_id, next_tile.0, next_tile.1
+                                ));
+                            }
+                            classic_openra_like_record_path_plan(
+                                world,
+                                &actor_id,
+                                target,
+                                &path,
+                                blocked_tile_ids,
+                                path.is_empty(),
+                            );
+                            return_reached = path.is_empty();
+                        } else {
+                            world.blocked_move_count += 1;
+                            world.event_log.push(format!(
+                                "path_blocked:{}:{},{}",
+                                actor_id, target.0, target.1
+                            ));
+                        }
+                    }
+                    if return_reached {
                         let cargo = world.actors[index].cargo;
                         if cargo > 0 {
+                            let dropoff_id = classic_openra_like_harvest_dropoff(
+                                world,
+                                owner,
+                                world.actors[index].tile,
+                            )
+                            .map(|(dropoff_id, _)| dropoff_id)
+                            .unwrap_or_else(|| "unknown_dropoff".to_string());
                             if let Some(player) = classic_openra_like_player_mut(world, owner) {
                                 player.flux += cargo;
                             }
                             world.actors[index].cargo = 0;
+                            world.harvest_dropoff_count += 1;
+                            world.harvest_deposited_amount += cargo;
                             world.event_log.push(format!(
                                 "harvest_deposit:{actor_id}:{}:{cargo}",
                                 order.rule_id.unwrap_or("resource")
                             ));
+                            world.event_log.push(format!(
+                                "harvest_deposit_at:{actor_id}:{dropoff_id}:{cargo}"
+                            ));
+                            let next_harvest = order.target_id.and_then(|target_id| {
+                                world
+                                    .actors
+                                    .iter()
+                                    .find(|actor| actor.id == target_id)
+                                    .map(|actor| (actor.tile, actor.resource_remaining))
+                            });
+                            if let Some((resource_tile, resource_remaining)) = next_harvest {
+                                if resource_remaining > 0 {
+                                    world.event_log.push(format!(
+                                        "harvest_resume:{actor_id}:{}:{},{}",
+                                        order.target_id.unwrap_or("resource"),
+                                        resource_tile.0,
+                                        resource_tile.1
+                                    ));
+                                    world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                                        kind: TrnmOpenRaLikeOrderKind::Harvest,
+                                        target_tile: Some(resource_tile),
+                                        target_id: order.target_id,
+                                        rule_id: order.rule_id,
+                                    });
+                                } else {
+                                    world.event_log.push(format!(
+                                        "harvest_cycle_complete:{actor_id}:{}",
+                                        order.target_id.unwrap_or("resource")
+                                    ));
+                                    world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                                        kind: TrnmOpenRaLikeOrderKind::Hold,
+                                        target_tile: order.target_tile,
+                                        target_id: order.target_id,
+                                        rule_id: order.rule_id,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -46096,9 +46279,7 @@ fn classic_first_contact_openra_like_core_tick_for(
                         ));
                     }
                 }
-                TrnmOpenRaLikeOrderKind::ReturnCargo
-                | TrnmOpenRaLikeOrderKind::Train
-                | TrnmOpenRaLikeOrderKind::Hold => {}
+                TrnmOpenRaLikeOrderKind::Train | TrnmOpenRaLikeOrderKind::Hold => {}
             }
         }
         if !defeated_actor_ids.is_empty() {

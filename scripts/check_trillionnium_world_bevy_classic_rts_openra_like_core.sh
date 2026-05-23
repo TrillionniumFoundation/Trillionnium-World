@@ -39,6 +39,7 @@ jq -e '
   and (.rules[] | select(.id == "trnm.worker" and ((.traits | index("repair")) != null)))
   and ((.orders | index("move")) != null)
   and ((.orders | index("harvest")) != null)
+  and ((.orders | index("return_cargo")) != null)
   and ((.orders | index("build")) != null)
   and ((.orders | index("train")) != null)
   and ((.orders | index("capture")) != null)
@@ -48,7 +49,11 @@ jq -e '
   and .simulation.resource_delta > 0
   and .simulation.harvested_resource_amount > 0
   and .simulation.resource_depleted_count > 0
+  and .simulation.harvest_return_trip_count > 0
+  and .simulation.harvest_dropoff_count > 0
+  and .simulation.harvest_deposited_amount == .simulation.harvested_resource_amount
   and .simulation.resource_depletion_gate == true
+  and .simulation.harvest_return_cargo_gate == true
   and .simulation.production_progress_percent > 0
   and .simulation.completed_production_count >= 2
   and .simulation.production_spawn_count >= 2
@@ -130,6 +135,10 @@ jq -e '
   and any(.simulation.event_log[]; contains("path_plan"))
   and any(.simulation.event_log[]; contains("resource_harvested:multi0.worker.0:map.actor10"))
   and any(.simulation.event_log[]; contains("resource_depleted:map.actor10:trnm.flux.bloom"))
+  and any(.simulation.event_log[]; contains("harvest_return_start:multi0.worker.0:"))
+  and any(.simulation.event_log[]; contains("harvest_deposit_at:multi0.worker.0:"))
+  and any(.simulation.event_log[]; contains("harvest_resume:multi0.worker.0:map.actor10"))
+  and any(.simulation.event_log[]; contains("harvest_cycle_complete:multi0.worker.0:map.actor10"))
   and any(.simulation.event_log[]; contains("harvest_deposit"))
   and any(.simulation.event_log[]; contains("build_tick"))
   and any(.simulation.event_log[]; contains("train_tick"))
@@ -174,6 +183,7 @@ jq -e '
   and .gates.supply_cap_gate == true
   and .gates.power_low_production_gate == true
   and .gates.resource_depletion_gate == true
+  and .gates.harvest_return_cargo_gate == true
   and .gates.build_placement_gate == true
   and .gates.attack_weapon_gate == true
   and .gates.attack_range_gate == true
