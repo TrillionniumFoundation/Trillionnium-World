@@ -17293,6 +17293,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .iter()
         .find(|player| player.id == "Multi0")
         .expect("Multi0 player exists");
+    let multi2 = world
+        .players
+        .iter()
+        .find(|player| player.id == "Multi2")
+        .expect("Multi2 player exists");
     let post_enemy_hp = world
         .actors
         .iter()
@@ -17434,6 +17439,31 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && world.event_log.iter().any(|event| {
             event.starts_with("supply_cap_increase:Multi0:multi0.flux.relay:trnm.flux.relay:+4")
         });
+    let power_low_production_gate = multi2.low_power_ticks > 0
+        && world.low_power_production_pause_count > 0
+        && world.power_recovery_count > 0
+        && multi2.power_provided >= multi2.power_used
+        && world
+            .production
+            .iter()
+            .any(|item| item.owner == "Multi2" && item.completed)
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("production_spawn:multi2.trained.horizon_scout"))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("low_power_tick:Multi2:"))
+        && world.event_log.iter().any(|event| {
+            event.starts_with(
+                "production_paused_low_power:Multi2:multi2.signal.array:trnm.horizon.scout",
+            )
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("power_recovered:Multi2:"));
     let attack_range_gate = world.command_results.iter().any(|result| {
         !result.accepted
             && result.actor_id == "multi0.worker.0"
@@ -17613,6 +17643,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "repair_tick",
         "repair_complete",
         "supply_cap_increase",
+        "low_power_tick",
+        "production_paused_low_power",
+        "power_recovered",
         "control_group_recall",
         "queued_group_order",
         "queued_order_execute",
@@ -17687,6 +17720,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && production_completion_gate
         && tech_prerequisite_gate
         && supply_cap_gate
+        && power_low_production_gate
         && attack_weapon_gate
         && attack_range_gate
         && attack_visibility_gate
@@ -17737,6 +17771,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "producer_incomplete_gate": producer_incomplete_gate,
             "tech_train_accept_gate": tech_train_accept_gate,
             "supply_cap_gate": supply_cap_gate,
+            "power_low_production_gate": power_low_production_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "build_placement_gate": build_placement_gate,
@@ -17782,6 +17817,13 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "multi0_initial_supply_cap": initial_supply_cap,
             "supply_blocked_train_count": world.supply_blocked_train_count,
             "supply_cap_increase_count": world.supply_cap_increase_count,
+            "multi0_power_used": multi0.power_used,
+            "multi0_power_provided": multi0.power_provided,
+            "multi2_power_used": multi2.power_used,
+            "multi2_power_provided": multi2.power_provided,
+            "multi2_low_power_ticks": multi2.low_power_ticks,
+            "low_power_production_pause_count": world.low_power_production_pause_count,
+            "power_recovery_count": world.power_recovery_count,
             "multi0_beacon_control_ticks": multi0.beacon_control_ticks,
             "multi0_visible_tile_count": visible_tile_count,
             "multi0_explored_tile_count": explored_tile_count,
@@ -17828,6 +17870,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "tech_train_accept_gate": tech_train_accept_gate,
             "tech_prerequisite_gate": tech_prerequisite_gate,
             "supply_cap_gate": supply_cap_gate,
+            "power_low_production_gate": power_low_production_gate,
             "build_placement_gate": build_placement_gate,
             "attack_weapon_gate": attack_weapon_gate,
             "attack_range_gate": attack_range_gate,
@@ -17840,7 +17883,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43187,6 +43230,8 @@ struct TrnmOpenRaLikeRuleSpec {
     queue: &'static str,
     supply_cost: u32,
     supply_provided: u32,
+    power_draw: i32,
+    power_provided: i32,
     traits: &'static [TrnmOpenRaLikeTrait],
 }
 
@@ -43262,6 +43307,9 @@ struct TrnmOpenRaLikePlayerState {
     flux: u32,
     supply_used: u32,
     supply_cap: u32,
+    power_used: i32,
+    power_provided: i32,
+    low_power_ticks: u32,
     beacon_control_ticks: u32,
     visible_tile_ids: Vec<String>,
     explored_tile_ids: Vec<String>,
@@ -43350,6 +43398,8 @@ struct TrnmOpenRaLikeWorld {
     supply_cap_increase_count: u32,
     supply_blocked_train_count: u32,
     counted_supply_provider_ids: Vec<String>,
+    low_power_production_pause_count: u32,
+    power_recovery_count: u32,
     destroyed_actor_memory_ids: Vec<String>,
     control_groups: Vec<TrnmOpenRaLikeControlGroup>,
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
@@ -43463,6 +43513,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Unit",
         supply_cost: 1,
         supply_provided: 0,
+        power_draw: 0,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_WORKER_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43478,6 +43530,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Unit",
         supply_cost: 1,
         supply_provided: 0,
+        power_draw: 0,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43493,6 +43547,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Unit",
         supply_cost: 1,
         supply_provided: 0,
+        power_draw: 0,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43508,6 +43564,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Unit",
         supply_cost: 1,
         supply_provided: 0,
+        power_draw: 0,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43523,6 +43581,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Building/Unit",
         supply_cost: 0,
         supply_provided: 8,
+        power_draw: 0,
+        power_provided: 10,
         traits: TRNM_OPENRA_LIKE_CORE_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43538,6 +43598,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Building",
         supply_cost: 0,
         supply_provided: 4,
+        power_draw: 0,
+        power_provided: 6,
         traits: TRNM_OPENRA_LIKE_RELAY_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43553,6 +43615,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Building",
         supply_cost: 0,
         supply_provided: 0,
+        power_draw: 4,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_PRODUCTION_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43568,6 +43632,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Building",
         supply_cost: 0,
         supply_provided: 0,
+        power_draw: 12,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_PRODUCTION_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43583,6 +43649,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Objective",
         supply_cost: 0,
         supply_provided: 0,
+        power_draw: 0,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_OBJECTIVE_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43598,6 +43666,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "Resource",
         supply_cost: 0,
         supply_provided: 0,
+        power_draw: 0,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_RESOURCE_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43613,6 +43683,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         queue: "MapDetail",
         supply_cost: 0,
         supply_provided: 0,
+        power_draw: 0,
+        power_provided: 0,
         traits: TRNM_OPENRA_LIKE_MARKER_TRAITS,
     },
 ];
@@ -43939,6 +44011,8 @@ fn classic_openra_like_rule_json(rule: &TrnmOpenRaLikeRuleSpec) -> Value {
         "queue": rule.queue,
         "supply_cost": rule.supply_cost,
         "supply_provided": rule.supply_provided,
+        "power_draw": rule.power_draw,
+        "power_provided": rule.power_provided,
         "traits": rule.traits.iter().map(|trait_kind| trait_kind.as_str()).collect::<Vec<_>>(),
     })
 }
@@ -44189,6 +44263,27 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
     {
         relay.hp = 28_000;
     }
+    actors.push(classic_openra_like_actor(
+        "multi2.signal.array",
+        "trnm.signal.array",
+        "Multi2",
+        (24, 7),
+        None,
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi2.power.relay",
+        "trnm.flux.relay",
+        "Multi2",
+        (23, 7),
+        None,
+    ));
+    if let Some(relay) = actors
+        .iter_mut()
+        .find(|actor| actor.id == "multi2.power.relay")
+    {
+        relay.build_progress = 0;
+        relay.hp = 1;
+    }
     let mut world = TrnmOpenRaLikeWorld {
         tick: 0,
         map_width: 34,
@@ -44202,6 +44297,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 1800,
                 supply_used: 5,
                 supply_cap: 8,
+                power_used: 0,
+                power_provided: 0,
+                low_power_ticks: 0,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44213,6 +44311,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 340,
                 supply_used: 4,
                 supply_cap: 8,
+                power_used: 0,
+                power_provided: 0,
+                low_power_ticks: 0,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44224,6 +44325,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 340,
                 supply_used: 4,
                 supply_cap: 8,
+                power_used: 0,
+                power_provided: 0,
+                low_power_ticks: 0,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44235,6 +44339,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 flux: 340,
                 supply_used: 4,
                 supply_cap: 8,
+                power_used: 0,
+                power_provided: 0,
+                low_power_ticks: 0,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44264,6 +44371,17 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 spawned_actor_id: None,
                 completed: false,
             },
+            TrnmOpenRaLikeProductionItem {
+                owner: "Multi2",
+                producer_id: "multi2.signal.array".to_string(),
+                queue: "Unit",
+                rule_id: "trnm.horizon.scout",
+                remaining_ticks: 40,
+                progress_percent: 0,
+                rally_tile: Some((22, 8)),
+                spawned_actor_id: None,
+                completed: false,
+            },
         ],
         event_log: vec!["init:first_contact_basin".to_string()],
         command_log: Vec::new(),
@@ -44283,6 +44401,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         supply_cap_increase_count: 0,
         supply_blocked_train_count: 0,
         counted_supply_provider_ids: Vec::new(),
+        low_power_production_pause_count: 0,
+        power_recovery_count: 0,
         destroyed_actor_memory_ids: Vec::new(),
         control_groups: vec![
             TrnmOpenRaLikeControlGroup {
@@ -44310,6 +44430,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         queued_orders: Vec::new(),
         queued_order_execute_count: 0,
     };
+    classic_openra_like_recompute_power(&mut world);
     classic_first_contact_openra_like_core_update_visibility(&mut world);
     world
 }
@@ -44618,6 +44739,73 @@ fn classic_openra_like_mark_supply_provider_complete(
             "supply_cap_increase:{owner}:{actor_id}:{rule_id}:+{supply_provided}:{new_supply_cap}cap"
         ));
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_recompute_power(world: &mut TrnmOpenRaLikeWorld) {
+    let player_ids = world
+        .players
+        .iter()
+        .map(|player| player.id)
+        .collect::<Vec<_>>();
+    for player_id in player_ids {
+        let was_low_power = world
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .is_some_and(|player| player.power_used > player.power_provided);
+        let mut power_used = 0_i32;
+        let mut power_provided = 0_i32;
+        for actor in world
+            .actors
+            .iter()
+            .filter(|actor| actor.owner == player_id && actor.build_progress >= 100)
+        {
+            if let Some(rule) = classic_openra_like_rule_for(actor.rule_id) {
+                power_used += rule.power_draw;
+                power_provided += rule.power_provided;
+            }
+        }
+        let mut low_power_event = None;
+        let mut recovered_event = None;
+        if let Some(player) = world
+            .players
+            .iter_mut()
+            .find(|player| player.id == player_id)
+        {
+            player.power_used = power_used;
+            player.power_provided = power_provided;
+            let is_low_power = power_used > power_provided;
+            if is_low_power {
+                player.low_power_ticks += 1;
+                if world.tick % 8 == 0 {
+                    low_power_event = Some(format!(
+                        "low_power_tick:{player_id}:{power_used}/{power_provided}"
+                    ));
+                }
+            } else if was_low_power {
+                recovered_event = Some(format!(
+                    "power_recovered:{player_id}:{power_used}/{power_provided}"
+                ));
+            }
+        }
+        if let Some(event) = low_power_event {
+            world.event_log.push(event);
+        }
+        if let Some(event) = recovered_event {
+            world.power_recovery_count += 1;
+            world.event_log.push(event);
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_player_low_power(world: &TrnmOpenRaLikeWorld, owner: &str) -> bool {
+    world
+        .players
+        .iter()
+        .find(|player| player.id == owner)
+        .is_some_and(|player| player.power_used > player.power_provided)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -45362,13 +45550,26 @@ fn classic_first_contact_openra_like_core_tick_for(
     for _ in 0..tick_count {
         world.tick += 1;
         classic_first_contact_openra_like_core_update_visibility(world);
+        classic_openra_like_recompute_power(world);
         for actor in &mut world.actors {
             actor.weapon_cooldown_ticks = actor.weapon_cooldown_ticks.saturating_sub(1);
         }
         let mut completed_items = Vec::new();
         for item_index in 0..world.production.len() {
-            let item = &mut world.production[item_index];
-            if !item.completed {
+            if !world.production[item_index].completed {
+                let owner = world.production[item_index].owner;
+                let rule_id = world.production[item_index].rule_id;
+                let producer_id = world.production[item_index].producer_id.clone();
+                if classic_openra_like_player_low_power(world, owner) {
+                    world.low_power_production_pause_count += 1;
+                    if world.tick % 8 == 0 {
+                        world.event_log.push(format!(
+                            "production_paused_low_power:{owner}:{producer_id}:{rule_id}"
+                        ));
+                    }
+                    continue;
+                }
+                let item = &mut world.production[item_index];
                 if item.remaining_ticks > 0 {
                     item.remaining_ticks -= 1;
                 }
@@ -45857,6 +46058,9 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "flux": player.flux,
                 "supply_used": player.supply_used,
                 "supply_cap": player.supply_cap,
+                "power_used": player.power_used,
+                "power_provided": player.power_provided,
+                "low_power_ticks": player.low_power_ticks,
                 "beacon_control_ticks": player.beacon_control_ticks,
                 "visible_tile_count": player.visible_tile_ids.len(),
                 "explored_tile_count": player.explored_tile_ids.len(),
