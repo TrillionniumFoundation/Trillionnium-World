@@ -16705,6 +16705,12 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR)
         + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_FORMATION_JOIN_COLOR)
         + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_SUPPLY_FLASH_COLOR);
+    let basin_command_feedback_pixel_count = count_color(CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR)
+        + count_color(CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR)
+        + count_color(CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR)
+        + count_color(CLASSIC_RTS_COMMAND_SURFACE_COOLDOWN_COLOR)
+        + count_color(CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR)
+        + count_color(CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR);
     let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
         && (runtime
             .rts_selected_unit_ids
@@ -16767,7 +16773,8 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         && basin_terrain_height_pixel_count > 450
         && basin_opening_action_pixel_count > 300
         && basin_unit_state_pixel_count > 350
-        && basin_combat_phase_pixel_count > 320;
+        && basin_combat_phase_pixel_count > 320
+        && basin_command_feedback_pixel_count > 420;
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -16805,6 +16812,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "basin_opening_action_pixel_count": basin_opening_action_pixel_count,
         "basin_unit_state_pixel_count": basin_unit_state_pixel_count,
         "basin_combat_phase_pixel_count": basin_combat_phase_pixel_count,
+        "basin_command_feedback_pixel_count": basin_command_feedback_pixel_count,
         "selected_units_gate": selected_units_gate,
         "command_surface_gate": command_surface_gate,
         "model_fidelity_gate": model_fidelity_gate,
@@ -39476,7 +39484,8 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
         && bool_at(&visual, "mature_rts_hud_gate")
         && bool_at(&visual, "desktop_product_visual_alignment_gate")
         && u64_at(&visual, "fidelity_panel_pixel_count") > 16_000
-        && u64_at(&visual, "model_edge_pixel_count") > 1_200;
+        && u64_at(&visual, "model_edge_pixel_count") > 1_200
+        && u64_at(&visual, "basin_command_feedback_pixel_count") > 420;
     let command_gate = contract_is(
         &command,
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT,
@@ -39605,7 +39614,8 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
             "fidelity_panel": visual.get("fidelity_panel_pixel_count").cloned().unwrap_or(Value::Null),
             "portrait": visual.get("portrait_pixel_count").cloned().unwrap_or(Value::Null),
             "model_edge": visual.get("model_edge_pixel_count").cloned().unwrap_or(Value::Null),
-            "command_grid": visual.get("command_grid_pixel_count").cloned().unwrap_or(Value::Null)
+            "command_grid": visual.get("command_grid_pixel_count").cloned().unwrap_or(Value::Null),
+            "basin_command_feedback": visual.get("basin_command_feedback_pixel_count").cloned().unwrap_or(Value::Null)
         },
         "desktop_product_visual_alignment_pixels": {
             "map_density": visual.get("product_map_density_pixel_count").cloned().unwrap_or(Value::Null),
@@ -42033,6 +42043,20 @@ struct ClassicFirstContactOpeningLoop {
 }
 
 #[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, Copy)]
+struct ClassicFirstContactCommandFeedback {
+    selected_group: &'static str,
+    active_order: &'static str,
+    target_tile: (i32, i32),
+    blocked_tile: (i32, i32),
+    blocked_reason: &'static str,
+    queued_before: u8,
+    queued_after: u8,
+    command_ack_progress: u8,
+    cooldown_progress: u8,
+}
+
+#[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_OPENING_LOOP: ClassicFirstContactOpeningLoop =
     ClassicFirstContactOpeningLoop {
         flux_bank: 340,
@@ -42044,6 +42068,20 @@ const CLASSIC_FIRST_CONTACT_OPENING_LOOP: ClassicFirstContactOpeningLoop =
         scout_train_progress: 34,
         active_beacon_tile: (16, 9),
         active_relay_tile: (11, 8),
+    };
+
+#[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK: ClassicFirstContactCommandFeedback =
+    ClassicFirstContactCommandFeedback {
+        selected_group: "GROUP 1",
+        active_order: "SECURE BEACON",
+        target_tile: (16, 9),
+        blocked_tile: (15, 16),
+        blocked_reason: "MID VENT BLOCKED",
+        queued_before: 2,
+        queued_after: 3,
+        command_ack_progress: 86,
+        cooldown_progress: 32,
     };
 
 #[cfg(not(target_os = "android"))]
@@ -42878,6 +42916,254 @@ fn classic_draw_first_contact_combat_phase_layers(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_command_feedback_layers(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let feedback = CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK;
+    let target =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, feedback.target_tile);
+    let blocked =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, feedback.blocked_tile);
+    let selected_origin = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (8, 8));
+    let scout_origin = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (25, 8));
+
+    let target_cx = target.0 + cell_w / 2;
+    let target_cy = target.1 + cell_h / 2;
+    for ring in 0..4 {
+        let inset = ring * 4;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target.0 - cell_w / 2 - inset,
+            target.1 - cell_h / 2 - inset,
+            cell_w * 2 + inset * 2,
+            3,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target.0 - cell_w / 2 - inset,
+            target.1 + cell_h + inset,
+            cell_w * 2 + inset * 2,
+            3,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target.0 - cell_w / 2 - inset,
+            target.1 - cell_h / 2 - inset,
+            3,
+            cell_h * 2 + inset * 2,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target.0 + cell_w + inset,
+            target.1 - cell_h / 2 - inset,
+            3,
+            cell_h * 2 + inset * 2,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx - 12,
+        target_cy - 2,
+        24,
+        4,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        target_cx - 2,
+        target_cy - 12,
+        4,
+        24,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+
+    for origin in [selected_origin, scout_origin] {
+        for step in 0..=9 {
+            let x = origin.0 + (target_cx - origin.0) * step / 9;
+            let y = origin.1 + (target_cy - origin.1) * step / 9;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x + cell_w / 2,
+                y + cell_h / 2,
+                8,
+                3,
+                CLASSIC_RTS_SELECTION_FEEDBACK_MOVE_COLOR,
+            );
+        }
+    }
+
+    let blocked_x = blocked.0 + cell_w / 2;
+    let blocked_y = blocked.1 + cell_h / 2;
+    for slash in 0..5 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            blocked_x - 11 + slash * 5,
+            blocked_y - 11 + slash * 5,
+            6,
+            4,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            blocked_x + 11 - slash * 5,
+            blocked_y - 11 + slash * 5,
+            6,
+            4,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+        );
+    }
+
+    let hud_x = map_x + 10;
+    let hud_y = map_y + cell_h * 30 + 8;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        hud_x,
+        hud_y,
+        cell_w * 17,
+        50,
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        hud_x,
+        hud_y,
+        cell_w * 17,
+        3,
+        CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        hud_x + 8,
+        hud_y + 9,
+        &format!("{} {}", feedback.selected_group, feedback.active_order),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        hud_x + 8,
+        hud_y + 25,
+        &format!(
+            "Q {}->{}  ACK {}  CD {}",
+            feedback.queued_before,
+            feedback.queued_after,
+            feedback.command_ack_progress,
+            feedback.cooldown_progress
+        ),
+        1,
+        CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        hud_x + 8,
+        hud_y + 38,
+        feedback.blocked_reason,
+        1,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
+    );
+
+    let ack_w = ((cell_w * 7) * feedback.command_ack_progress as i32 / 100).max(4);
+    let cd_w = ((cell_w * 7) * feedback.cooldown_progress as i32 / 100).max(4);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        hud_x + cell_w * 9,
+        hud_y + 25,
+        cell_w * 7,
+        5,
+        CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        hud_x + cell_w * 9,
+        hud_y + 25,
+        ack_w,
+        5,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        hud_x + cell_w * 9,
+        hud_y + 36,
+        cell_w * 7,
+        5,
+        CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        hud_x + cell_w * 9,
+        hud_y + 36,
+        cd_w,
+        5,
+        CLASSIC_RTS_COMMAND_SURFACE_COOLDOWN_COLOR,
+    );
+
+    for index in 0..feedback.queued_after {
+        let color = if index < feedback.queued_before {
+            CLASSIC_RTS_COMMAND_SURFACE_QUEUE_COLOR
+        } else {
+            CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR
+        };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            target.0 - cell_w + index as i32 * 9,
+            target.1 + cell_h + 16,
+            6,
+            8,
+            color,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_actor(
     buffer: &mut [u32],
     width: usize,
@@ -43582,6 +43868,9 @@ fn classic_draw_first_contact_basin_scene(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_combat_phase_layers(
+        buffer, width, height, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_command_feedback_layers(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
 
