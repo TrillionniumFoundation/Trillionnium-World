@@ -43,6 +43,16 @@ jq -e '
   and .simulation.beacon_capture_progress > 0
   and .simulation.combat_damage > 0
   and .simulation.worker_moved == true
+  and .simulation.command_accepted_count >= 5
+  and .simulation.command_rejected_count >= 2
+  and .simulation.command_flux_spent >= 900
+  and any(.simulation.command_log[]; contains("accepted:train:multi0.command.core"))
+  and any(.simulation.command_log[]; contains("accepted:build:multi0.worker.1"))
+  and any(.simulation.command_log[]; contains("accepted:attack:multi0.striker.0"))
+  and any(.simulation.command_log[]; contains("accepted:capture:multi0.warden.capture"))
+  and any(.simulation.command_log[]; contains("accepted:move:multi0.line.0"))
+  and any(.simulation.command_log[]; contains("rejected:build:multi0.scout.intel:trait_missing:buildable"))
+  and any(.simulation.command_log[]; contains("rejected:move:multi1.worker.0:owner_mismatch"))
   and .simulation.multi0_visible_tile_count >= 120
   and .simulation.multi0_explored_tile_count > .simulation.multi0_visible_tile_count
   and ((.simulation.multi0_shroud_memory_actor_ids | index("multi1.command.core@25,25")) != null)
@@ -63,6 +73,7 @@ jq -e '
   and .gates.rule_trait_gate == true
   and .gates.order_gate == true
   and .gates.simulation_gate == true
+  and .gates.command_resolution_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true

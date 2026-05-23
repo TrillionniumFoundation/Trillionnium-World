@@ -17104,6 +17104,74 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .find(|actor| actor.id == "multi1.command.core")
         .map(|actor| actor.hp)
         .unwrap_or_default();
+    let command_inputs = [
+        (
+            "multi0.command.core",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Train,
+                target_tile: None,
+                target_id: None,
+                rule_id: Some("trnm.worker"),
+            },
+        ),
+        (
+            "multi0.worker.1",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Build,
+                target_tile: Some((10, 9)),
+                target_id: Some("multi0.assembly.pad"),
+                rule_id: Some("trnm.assembly.pad"),
+            },
+        ),
+        (
+            "multi0.striker.0",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Attack,
+                target_tile: Some((25, 25)),
+                target_id: Some("multi1.command.core"),
+                rule_id: None,
+            },
+        ),
+        (
+            "multi0.warden.capture",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Capture,
+                target_tile: Some((16, 9)),
+                target_id: Some("map.actor15"),
+                rule_id: Some("trnm.flux.beacon"),
+            },
+        ),
+        (
+            "multi0.line.0",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Move,
+                target_tile: Some((16, 9)),
+                target_id: Some("map.actor15"),
+                rule_id: None,
+            },
+        ),
+        (
+            "multi0.scout.intel",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Build,
+                target_tile: Some((12, 8)),
+                target_id: Some("multi0.illegal.relay"),
+                rule_id: Some("trnm.flux.relay"),
+            },
+        ),
+        (
+            "multi1.worker.0",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Move,
+                target_tile: Some((24, 24)),
+                target_id: None,
+                rule_id: None,
+            },
+        ),
+    ];
+    for (actor_id, order) in command_inputs {
+        classic_first_contact_openra_like_core_issue_order(&mut world, "Multi0", actor_id, order);
+    }
     classic_first_contact_openra_like_core_tick_for(&mut world, 32);
     let multi0 = world
         .players
@@ -17155,7 +17223,46 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .iter()
             .filter_map(|actor| actor.order)
             .any(|order| order.kind == TrnmOpenRaLikeOrderKind::Harvest);
-    let resource_delta = multi0.flux.saturating_sub(initial_flux);
+    let resource_delta = (world
+        .event_log
+        .iter()
+        .filter(|event| event.starts_with("harvest_deposit:"))
+        .count() as u32)
+        * 12;
+    let command_flux_spent = initial_flux
+        .saturating_add(resource_delta)
+        .saturating_sub(multi0.flux);
+    let command_accepted_count = world
+        .command_results
+        .iter()
+        .filter(|result| result.accepted)
+        .count();
+    let command_rejected_count = world
+        .command_results
+        .iter()
+        .filter(|result| !result.accepted)
+        .count();
+    let command_resolution_gate = command_accepted_count >= 5
+        && command_rejected_count >= 2
+        && command_flux_spent >= 900
+        && world
+            .command_results
+            .iter()
+            .any(|result| result.accepted && result.order == TrnmOpenRaLikeOrderKind::Train)
+        && world
+            .command_results
+            .iter()
+            .any(|result| result.accepted && result.order == TrnmOpenRaLikeOrderKind::Build)
+        && world.command_results.iter().any(|result| {
+            !result.accepted
+                && result.order == TrnmOpenRaLikeOrderKind::Build
+                && result.reason == "trait_missing:buildable"
+        })
+        && world.command_results.iter().any(|result| {
+            !result.accepted
+                && result.order == TrnmOpenRaLikeOrderKind::Move
+                && result.reason == "owner_mismatch"
+        });
     let production_progress = world
         .production
         .iter()
@@ -17214,7 +17321,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && combat_damage > 0
         && worker_moved
         && event_log_gate
-        && shroud_gate;
+        && shroud_gate
+        && command_resolution_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.rust_bevy_owned_runtime
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.warcraft_iii_asset_copied == false;
@@ -17251,6 +17359,18 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "simulation": {
             "tick_count": world.tick,
             "resource_delta": resource_delta,
+            "command_flux_spent": command_flux_spent,
+            "command_accepted_count": command_accepted_count,
+            "command_rejected_count": command_rejected_count,
+            "command_log": world.command_log.clone(),
+            "command_results": world.command_results.iter().map(|result| {
+                json!({
+                    "accepted": result.accepted,
+                    "actor_id": result.actor_id.clone(),
+                    "order": result.order.as_str(),
+                    "reason": result.reason.clone(),
+                })
+            }).collect::<Vec<_>>(),
             "production_progress_percent": production_progress,
             "relay_build_progress": relay_build_progress,
             "beacon_capture_progress": beacon_capture_progress,
@@ -17281,10 +17401,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "simulation_gate": simulation_gate,
             "event_log_gate": event_log_gate,
             "shroud_gate": shroud_gate,
+            "command_resolution_gate": command_resolution_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, orders, production, resources, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -42670,6 +42791,15 @@ struct TrnmOpenRaLikeOrder {
 
 #[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone)]
+struct TrnmOpenRaLikeCommandResolution {
+    accepted: bool,
+    actor_id: String,
+    order: TrnmOpenRaLikeOrderKind,
+    reason: String,
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone)]
 struct TrnmOpenRaLikeActorState {
     id: String,
     rule_id: &'static str,
@@ -42716,6 +42846,8 @@ struct TrnmOpenRaLikeWorld {
     players: Vec<TrnmOpenRaLikePlayerState>,
     production: Vec<TrnmOpenRaLikeProductionItem>,
     event_log: Vec<String>,
+    command_log: Vec<String>,
+    command_results: Vec<TrnmOpenRaLikeCommandResolution>,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -43473,7 +43605,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             TrnmOpenRaLikePlayerState {
                 id: "Multi0",
                 faction: "horizon",
-                flux: 340,
+                flux: 1800,
                 supply_used: 5,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
@@ -43528,6 +43660,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             },
         ],
         event_log: vec!["init:first_contact_basin".to_string()],
+        command_log: Vec::new(),
+        command_results: Vec::new(),
     };
     classic_first_contact_openra_like_core_update_visibility(&mut world);
     world
@@ -43546,6 +43680,346 @@ fn classic_openra_like_player_mut<'a>(
     owner: &str,
 ) -> Option<&'a mut TrnmOpenRaLikePlayerState> {
     world.players.iter_mut().find(|player| player.id == owner)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_rule_has_trait_ref(
+    rule: &TrnmOpenRaLikeRuleSpec,
+    trait_kind: TrnmOpenRaLikeTrait,
+) -> bool {
+    rule.traits.contains(&trait_kind)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_tile_in_bounds(world: &TrnmOpenRaLikeWorld, tile: (i32, i32)) -> bool {
+    let (bound_x, bound_y, bound_w, bound_h) = world.bounds;
+    let min_x = bound_x as i32;
+    let min_y = bound_y as i32;
+    let max_x = min_x + bound_w as i32 - 1;
+    let max_y = min_y + bound_h as i32 - 1;
+    tile.0 >= min_x && tile.0 <= max_x && tile.1 >= min_y && tile.1 <= max_y
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_visible_to_player(
+    world: &TrnmOpenRaLikeWorld,
+    owner: &str,
+    tile: (i32, i32),
+) -> bool {
+    world
+        .players
+        .iter()
+        .find(|player| player.id == owner)
+        .is_some_and(|player| {
+            player
+                .visible_tile_ids
+                .contains(&classic_openra_like_tile_id(tile))
+        })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_build_radius_gate(
+    world: &TrnmOpenRaLikeWorld,
+    owner: &str,
+    target_tile: (i32, i32),
+) -> bool {
+    world
+        .actors
+        .iter()
+        .filter(|actor| actor.owner == owner && actor.build_progress >= 100)
+        .any(|actor| {
+            classic_openra_like_rule_for(actor.rule_id).is_some_and(|rule| {
+                classic_openra_like_rule_has_trait_ref(
+                    rule,
+                    TrnmOpenRaLikeTrait::ProvidesBuildRadius,
+                ) && (actor.tile.0 - target_tile.0).abs() + (actor.tile.1 - target_tile.1).abs()
+                    <= 6
+            })
+        })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_push_resolution(
+    world: &mut TrnmOpenRaLikeWorld,
+    actor_id: &str,
+    order: TrnmOpenRaLikeOrderKind,
+    accepted: bool,
+    reason: impl Into<String>,
+) -> bool {
+    let reason = reason.into();
+    let status = if accepted { "accepted" } else { "rejected" };
+    world
+        .command_log
+        .push(format!("{status}:{}:{}:{reason}", order.as_str(), actor_id));
+    world.command_results.push(TrnmOpenRaLikeCommandResolution {
+        accepted,
+        actor_id: actor_id.to_string(),
+        order,
+        reason,
+    });
+    accepted
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_openra_like_core_issue_order(
+    world: &mut TrnmOpenRaLikeWorld,
+    owner: &'static str,
+    actor_id: &str,
+    order: TrnmOpenRaLikeOrder,
+) -> bool {
+    classic_first_contact_openra_like_core_update_visibility(world);
+    let Some(actor_index) = world.actors.iter().position(|actor| actor.id == actor_id) else {
+        return classic_openra_like_push_resolution(
+            world,
+            actor_id,
+            order.kind,
+            false,
+            "actor_missing",
+        );
+    };
+    if world.actors[actor_index].owner != owner {
+        return classic_openra_like_push_resolution(
+            world,
+            actor_id,
+            order.kind,
+            false,
+            "owner_mismatch",
+        );
+    }
+    let Some(actor_rule) = classic_openra_like_rule_for(world.actors[actor_index].rule_id) else {
+        return classic_openra_like_push_resolution(
+            world,
+            actor_id,
+            order.kind,
+            false,
+            "actor_rule_missing",
+        );
+    };
+
+    let rejection = match order.kind {
+        TrnmOpenRaLikeOrderKind::Move => {
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Mobile) {
+                Some("trait_missing:mobile".to_string())
+            } else if !order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
+            {
+                Some("target_tile_out_of_bounds".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Harvest => {
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Harvester) {
+                Some("trait_missing:harvester".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Build => {
+            let Some(rule_id) = order.rule_id else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "build_rule_missing",
+                );
+            };
+            let Some(target_rule) = classic_openra_like_rule_for(rule_id) else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "build_rule_unknown",
+                );
+            };
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Buildable) {
+                Some("trait_missing:buildable".to_string())
+            } else if !classic_openra_like_rule_has_trait_ref(
+                target_rule,
+                TrnmOpenRaLikeTrait::Buildable,
+            ) {
+                Some("target_rule_not_buildable".to_string())
+            } else if !order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
+            {
+                Some("build_tile_out_of_bounds".to_string())
+            } else if !order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_build_radius_gate(world, owner, tile))
+            {
+                Some("outside_build_radius".to_string())
+            } else if world
+                .players
+                .iter()
+                .find(|player| player.id == owner)
+                .map(|player| player.flux)
+                .unwrap_or_default()
+                < target_rule.cost
+            {
+                Some("insufficient_flux".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Train => {
+            let Some(rule_id) = order.rule_id else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "train_rule_missing",
+                );
+            };
+            let Some(target_rule) = classic_openra_like_rule_for(rule_id) else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "train_rule_unknown",
+                );
+            };
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Producer) {
+                Some("trait_missing:producer".to_string())
+            } else if !classic_openra_like_rule_has_trait_ref(
+                target_rule,
+                TrnmOpenRaLikeTrait::Trainable,
+            ) {
+                Some("target_rule_not_trainable".to_string())
+            } else if world
+                .players
+                .iter()
+                .find(|player| player.id == owner)
+                .map(|player| player.flux)
+                .unwrap_or_default()
+                < target_rule.cost
+            {
+                Some("insufficient_flux".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Capture => {
+            let Some(target_id) = order.target_id else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "capture_target_missing",
+                );
+            };
+            let Some(target) = world.actors.iter().find(|actor| actor.id == target_id) else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "capture_target_unknown",
+                );
+            };
+            if !classic_openra_like_rule_for(target.rule_id).is_some_and(|rule| {
+                classic_openra_like_rule_has_trait_ref(rule, TrnmOpenRaLikeTrait::Capturable)
+            }) {
+                Some("target_not_capturable".to_string())
+            } else if !classic_openra_like_visible_to_player(world, owner, target.tile) {
+                Some("target_not_visible".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Attack => {
+            let Some(target_id) = order.target_id else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "attack_target_missing",
+                );
+            };
+            let Some(target) = world.actors.iter().find(|actor| actor.id == target_id) else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "attack_target_unknown",
+                );
+            };
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Attack) {
+                Some("trait_missing:attack".to_string())
+            } else if !classic_openra_like_visible_to_player(world, owner, target.tile) {
+                Some("target_not_visible".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::ReturnCargo => {
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Harvester) {
+                Some("trait_missing:harvester".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Hold => None,
+    };
+
+    if let Some(reason) = rejection {
+        return classic_openra_like_push_resolution(world, actor_id, order.kind, false, reason);
+    }
+
+    if let Some(rule_id) = order.rule_id {
+        if matches!(
+            order.kind,
+            TrnmOpenRaLikeOrderKind::Build | TrnmOpenRaLikeOrderKind::Train
+        ) {
+            if let Some(rule) = classic_openra_like_rule_for(rule_id) {
+                if let Some(player) = classic_openra_like_player_mut(world, owner) {
+                    player.flux = player.flux.saturating_sub(rule.cost);
+                }
+            }
+        }
+    }
+
+    match order.kind {
+        TrnmOpenRaLikeOrderKind::Build => {
+            let rule_id = order.rule_id.expect("build order rule validated");
+            let target_tile = order.target_tile.expect("build target tile validated");
+            let target_id = order.target_id.unwrap_or("multi0.assembly.pad.queued");
+            world.actors.push(classic_openra_like_actor(
+                target_id,
+                rule_id,
+                owner,
+                target_tile,
+                None,
+            ));
+            if let Some(actor) = world.actors.iter_mut().find(|actor| actor.id == target_id) {
+                actor.build_progress = 0;
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Train => {
+            let rule_id = order.rule_id.expect("train order rule validated");
+            world.production.push(TrnmOpenRaLikeProductionItem {
+                owner,
+                queue: "Unit",
+                rule_id,
+                remaining_ticks: classic_openra_like_rule_for(rule_id)
+                    .and_then(|rule| rule.build_duration)
+                    .unwrap_or(1),
+                progress_percent: 0,
+            });
+        }
+        _ => {
+            world.actors[actor_index].order = Some(order);
+        }
+    }
+    classic_openra_like_push_resolution(world, actor_id, order.kind, true, "accepted")
 }
 
 #[cfg(not(target_os = "android"))]
