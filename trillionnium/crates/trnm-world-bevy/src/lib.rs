@@ -214,6 +214,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_handoff_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_MINIMAP_BREADCRUMBS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_objective_minimap_breadcrumbs_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
@@ -38613,6 +38615,171 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         "source_of_truth": "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently."
     }))
     .expect("classic RTS campaign UI continuity evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_objective_minimap_breadcrumbs_evidence_json(
+    preview_path: &str,
+) -> String {
+    let handoff_json = native_classic_rts_campaign_handoff_evidence_json(preview_path);
+    let handoff: Value =
+        serde_json::from_str(&handoff_json).expect("classic RTS handoff evidence parses");
+    let bool_at = |key: &str| handoff.get(key).and_then(Value::as_bool) == Some(true);
+    let u64_at = |key: &str| handoff.get(key).and_then(Value::as_u64).unwrap_or_default();
+    let array_contains = |pointer: &str, expected: &str| {
+        handoff
+            .pointer(pointer)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+    let action_label_gate = [
+        "RTS:QUEUE:objective:claim:relay_beacon@6,5",
+        "RTS:QUEUE:objective:extract:relay_beacon@9,2",
+        "RTS:QUEUE:camp:clear:forest_creep_camp@8,3",
+        "RTS:QUEUE:recon:mark:enemy_base@10,2",
+        "RTS:QUEUE:aftermath:next:secure_expansion@9,2",
+        "RTS:QUEUE:tier2:keep_claim:central_keep@13,3",
+        "RTS:QUEUE:tier2:victory_handoff:mirror_city@13,3",
+        "RTS:QUEUE:tier2:open_world_route:league-coliseum@12,3",
+        "RTS:QUEUE:tier2:open_world_resume:league-coliseum@12,3",
+    ]
+    .iter()
+    .all(|label| array_contains("/action_labels", label));
+    let command_queue_gate = [
+        "minimap:rally:9,2",
+        "recon_mark:enemy_base@10,2",
+        "aftermath_next:secure_expansion@9,2",
+        "tier2_keep_claim:central_keep@13,3:capture=100",
+        "tier2_victory_handoff:mirror_city@13,3:ready",
+        "tier2_open_world_route:league-coliseum@12,3:task=task-fixture-first-route",
+        "tier2_open_world_resume:league-coliseum@12,3:room=league-coliseum",
+    ]
+    .iter()
+    .all(|command| array_contains("/final_command_queue", command));
+    let next_action_gate = [
+        "secure_expansion",
+        "enter_inner_lane",
+        "press_central_keep",
+        "break_central_keep",
+        "restore_mirror_city",
+        "open_world_after_action",
+        "resume_world_route",
+    ]
+    .iter()
+    .all(|action| array_contains("/final_next_action_ids", action));
+    let route_director_gate = array_contains("/final_route_director_path", "mirror-city-square")
+        && array_contains("/final_route_director_path", "league-coliseum")
+        && array_contains(
+            "/final_route_director_history",
+            "route_director:task-fixture-first-route:mirror-city-square->league-coliseum",
+        )
+        && array_contains(
+            "/final_route_director_history",
+            "rts_open_world_after_action:league-coliseum:route_ready",
+        )
+        && array_contains(
+            "/final_route_director_history",
+            "rts_open_world_after_action:league-coliseum:arrived",
+        );
+    let minimap_breadcrumb_gate = command_queue_gate
+        && route_director_gate
+        && u64_at("expansion_pixel_count") > 60
+        && u64_at("open_world_pixel_count") > 60;
+    let objective_breadcrumb_gate = action_label_gate
+        && next_action_gate
+        && u64_at("victory_pixel_count") > 20
+        && u64_at("keep_pixel_count") > 40
+        && u64_at("restoration_pixel_count") > 20;
+    let milestone_gate = handoff
+        .get("milestones")
+        .and_then(Value::as_object)
+        .is_some_and(|milestones| {
+            [
+                "objective_victory_seen",
+                "creep_camp_seen",
+                "recon_seen",
+                "base_assault_seen",
+                "expansion_seen",
+                "keep_victory_seen",
+                "restoration_seen",
+                "open_world_seen",
+            ]
+            .iter()
+            .all(|milestone| milestones.get(*milestone).and_then(Value::as_bool) == Some(true))
+        });
+    let ui_continuity_gate = bool_at("green")
+        && bool_at("snapshot_round_trip_gate")
+        && handoff.get("contract_version").and_then(Value::as_str)
+            == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT)
+        && handoff.get("final_current_room_id").and_then(Value::as_str) == Some("league-coliseum")
+        && handoff.get("final_map_scene").and_then(Value::as_str) == Some("arena_outdoor")
+        && handoff
+            .get("final_objective_status")
+            .and_then(Value::as_str)
+            == Some("open_world_after_action_ready");
+    let native_client_boundary_gate = handoff
+        .get("cex_runtime_player_client_allowed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && handoff.get("wgpu_required").and_then(Value::as_bool) == Some(false);
+    let green = ui_continuity_gate
+        && objective_breadcrumb_gate
+        && minimap_breadcrumb_gate
+        && milestone_gate
+        && native_client_boundary_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_MINIMAP_BREADCRUMBS_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": handoff.get("preview_format").cloned().unwrap_or(Value::Null),
+        "preview_width": handoff.get("preview_width").cloned().unwrap_or(Value::Null),
+        "preview_height": handoff.get("preview_height").cloned().unwrap_or(Value::Null),
+        "campaign_handoff_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
+        "campaign_handoff_green": handoff.get("green").cloned().unwrap_or(Value::Bool(false)),
+        "required_action_breadcrumbs": [
+            "objective:claim:relay_beacon@6,5",
+            "objective:extract:relay_beacon@9,2",
+            "camp:clear:forest_creep_camp@8,3",
+            "recon:mark:enemy_base@10,2",
+            "aftermath:next:secure_expansion@9,2",
+            "tier2:keep_claim:central_keep@13,3",
+            "tier2:victory_handoff:mirror_city@13,3",
+            "tier2:open_world_route:league-coliseum@12,3",
+            "tier2:open_world_resume:league-coliseum@12,3"
+        ],
+        "required_minimap_breadcrumbs": [
+            "minimap:rally:9,2",
+            "recon_mark:enemy_base@10,2",
+            "aftermath_next:secure_expansion@9,2",
+            "tier2_keep_claim:central_keep@13,3:capture=100",
+            "tier2_victory_handoff:mirror_city@13,3:ready",
+            "route_director:task-fixture-first-route:mirror-city-square->league-coliseum",
+            "rts_open_world_after_action:league-coliseum:arrived"
+        ],
+        "final_next_action_ids": handoff.get("final_next_action_ids").cloned().unwrap_or(Value::Null),
+        "final_route_director_path": handoff.get("final_route_director_path").cloned().unwrap_or(Value::Null),
+        "final_route_director_history": handoff.get("final_route_director_history").cloned().unwrap_or(Value::Null),
+        "final_current_room_id": handoff.get("final_current_room_id").cloned().unwrap_or(Value::Null),
+        "final_map_scene": handoff.get("final_map_scene").cloned().unwrap_or(Value::Null),
+        "final_objective_status": handoff.get("final_objective_status").cloned().unwrap_or(Value::Null),
+        "victory_pixel_count": handoff.get("victory_pixel_count").cloned().unwrap_or(Value::Null),
+        "expansion_pixel_count": handoff.get("expansion_pixel_count").cloned().unwrap_or(Value::Null),
+        "keep_pixel_count": handoff.get("keep_pixel_count").cloned().unwrap_or(Value::Null),
+        "restoration_pixel_count": handoff.get("restoration_pixel_count").cloned().unwrap_or(Value::Null),
+        "open_world_pixel_count": handoff.get("open_world_pixel_count").cloned().unwrap_or(Value::Null),
+        "action_label_gate": action_label_gate,
+        "command_queue_gate": command_queue_gate,
+        "next_action_gate": next_action_gate,
+        "route_director_gate": route_director_gate,
+        "objective_breadcrumb_gate": objective_breadcrumb_gate,
+        "minimap_breadcrumb_gate": minimap_breadcrumb_gate,
+        "milestone_gate": milestone_gate,
+        "ui_continuity_gate": ui_continuity_gate,
+        "native_client_boundary_gate": native_client_boundary_gate,
+        "source_of_truth": "Classic RTS objective/minimap breadcrumbs evidence locks the campaign handoff objective chain, minimap rally/recon/open-world pings, route director path, next-action list, and rendered milestone pixels so the player-facing navigation trail from RTS victory back to trnm_world cannot regress silently."
+    }))
+    .expect("classic RTS objective minimap breadcrumbs evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
