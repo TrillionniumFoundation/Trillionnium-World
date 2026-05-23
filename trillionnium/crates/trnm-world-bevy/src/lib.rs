@@ -16698,6 +16698,13 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         + count_color(CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR)
         + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR)
         + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_QUEUE_PULSE_COLOR);
+    let basin_combat_phase_pixel_count = count_color(CLASSIC_ISO_HIT_FLASH_COLOR)
+        + count_color(CLASSIC_ISO_ATTACK_ARC_COLOR)
+        + count_color(CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR)
+        + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR)
+        + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR)
+        + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_FORMATION_JOIN_COLOR)
+        + count_color(CLASSIC_RTS_PRODUCTION_SPAWN_SUPPLY_FLASH_COLOR);
     let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
         && (runtime
             .rts_selected_unit_ids
@@ -16759,7 +16766,8 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         && product_model_volume_pixel_count > 80
         && basin_terrain_height_pixel_count > 450
         && basin_opening_action_pixel_count > 300
-        && basin_unit_state_pixel_count > 350;
+        && basin_unit_state_pixel_count > 350
+        && basin_combat_phase_pixel_count > 320;
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -16796,6 +16804,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "basin_terrain_height_pixel_count": basin_terrain_height_pixel_count,
         "basin_opening_action_pixel_count": basin_opening_action_pixel_count,
         "basin_unit_state_pixel_count": basin_unit_state_pixel_count,
+        "basin_combat_phase_pixel_count": basin_combat_phase_pixel_count,
         "selected_units_gate": selected_units_gate,
         "command_surface_gate": command_surface_gate,
         "model_fidelity_gate": model_fidelity_gate,
@@ -42717,6 +42726,158 @@ fn classic_draw_first_contact_unit_state_layers(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_combat_phase_layers(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let contacts: [((i32, i32), (i32, i32), u32); 4] = [
+        ((8, 8), (16, 9), CLASSIC_ISO_ATTACK_ARC_COLOR),
+        (
+            (25, 8),
+            (16, 12),
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        ),
+        ((8, 25), (16, 21), CLASSIC_ISO_ATTACK_ARC_COLOR),
+        (
+            (25, 25),
+            (16, 24),
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        ),
+    ];
+    for (from, to, color) in contacts {
+        let steps = ((to.0 - from.0).abs().max((to.1 - from.1).abs())).max(1);
+        for step in 0..=steps {
+            if step % 2 == 1 {
+                continue;
+            }
+            let x = from.0 + (to.0 - from.0) * step / steps;
+            let y = from.1 + (to.1 - from.1) * step / steps;
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (x, y));
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 2,
+                tile_y + cell_h / 2 - 2,
+                (cell_w / 2).max(5),
+                2,
+                color,
+            );
+        }
+    }
+
+    for (tile, offset) in [((16, 9), 0), ((16, 12), 6), ((16, 21), 12), ((16, 24), 18)] {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 2 - 4,
+            tile_y + cell_h / 2 - 4 - offset / 6,
+            8,
+            8,
+            CLASSIC_ISO_HIT_FLASH_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 2 - 2,
+            tile_y + cell_h / 2 - 10 - offset / 8,
+            4,
+            20,
+            CLASSIC_ISO_HIT_FLASH_COLOR,
+        );
+    }
+
+    let relay = classic_first_contact_tile_screen(
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        CLASSIC_FIRST_CONTACT_OPENING_LOOP.active_relay_tile,
+    );
+    let core = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (8, 8));
+    for step in 0..=7 {
+        let x = core.0 + (relay.0 - core.0) * step / 7;
+        let y = core.1 + (relay.1 - core.1) * step / 7;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + cell_w / 2,
+            y + cell_h / 2,
+            6,
+            2,
+            CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+        );
+    }
+
+    let spawn_x = core.0 + cell_w;
+    let spawn_y = core.1 + cell_h * 2;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        spawn_x - 12,
+        spawn_y - 8,
+        24,
+        6,
+        CLASSIC_RTS_PRODUCTION_SPAWN_DOOR_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        spawn_x - 5,
+        spawn_y - 22,
+        10,
+        14,
+        CLASSIC_RTS_PRODUCTION_SPAWN_FORMATION_JOIN_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        spawn_x + 12,
+        spawn_y - 30,
+        4,
+        22,
+        CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        spawn_x + 16,
+        spawn_y - 30,
+        18,
+        8,
+        CLASSIC_RTS_PRODUCTION_SPAWN_RALLY_FLAG_COLOR,
+    );
+    for flash in 0..4 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            spawn_x - 20 + flash * 12,
+            spawn_y - 2 + (flash % 2) * 4,
+            7,
+            4,
+            CLASSIC_RTS_PRODUCTION_SPAWN_SUPPLY_FLASH_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_actor(
     buffer: &mut [u32],
     width: usize,
@@ -43418,6 +43579,9 @@ fn classic_draw_first_contact_basin_scene(
     }
     classic_draw_first_contact_starting_army(buffer, width, height, map_x, map_y, cell_w, cell_h);
     classic_draw_first_contact_unit_state_layers(
+        buffer, width, height, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_combat_phase_layers(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
 
