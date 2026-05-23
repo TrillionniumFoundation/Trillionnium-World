@@ -48,11 +48,17 @@ jq -e '
   and .simulation.combat_damage > 0
   and .simulation.worker_moved == true
   and .simulation.command_accepted_count >= 6
-  and .simulation.command_rejected_count >= 4
+  and .simulation.command_rejected_count >= 6
   and .simulation.command_flux_spent >= 900
   and .simulation.producer_queue_gate == true
   and .simulation.producer_incomplete_gate == true
   and .simulation.tech_train_accept_gate == true
+  and .simulation.attack_range_gate == true
+  and .simulation.attack_visibility_gate == true
+  and .simulation.attack_hit_count > 0
+  and .simulation.attack_kill_count > 0
+  and .simulation.attack_cooldown_wait_count > 0
+  and .simulation.multi1_command_core_removed == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -68,6 +74,8 @@ jq -e '
   and any(.simulation.command_log[]; contains("rejected:move:multi1.worker.0:owner_mismatch"))
   and any(.simulation.command_log[]; contains("rejected:train:multi0.assembly.pad:producer_incomplete"))
   and any(.simulation.command_log[]; contains("rejected:train:multi0.command.core:producer_queue_mismatch"))
+  and any(.simulation.command_log[]; contains("rejected:attack:multi0.worker.0:target_out_of_range"))
+  and any(.simulation.command_log[]; contains("rejected:attack:multi0.line.0:target_not_visible"))
   and any(.simulation.command_log[]; contains("accepted:train:multi0.assembly.pad"))
   and .simulation.multi0_visible_tile_count >= 120
   and .simulation.multi0_explored_tile_count > .simulation.multi0_visible_tile_count
@@ -88,6 +96,9 @@ jq -e '
   and any(.simulation.event_log[]; contains("rally_order:multi0.trained."))
   and any(.simulation.event_log[]; contains("capture_tick"))
   and any(.simulation.event_log[]; contains("attack_hit"))
+  and any(.simulation.event_log[]; contains("attack_cooldown:multi0.striker.0"))
+  and any(.simulation.event_log[]; contains("attack_kill:multi0.striker.0:multi1.command.core"))
+  and any(.simulation.event_log[]; contains("attack_remove:multi1.command.core"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -104,6 +115,9 @@ jq -e '
   and .gates.producer_incomplete_gate == true
   and .gates.tech_train_accept_gate == true
   and .gates.tech_prerequisite_gate == true
+  and .gates.attack_weapon_gate == true
+  and .gates.attack_range_gate == true
+  and .gates.attack_visibility_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
