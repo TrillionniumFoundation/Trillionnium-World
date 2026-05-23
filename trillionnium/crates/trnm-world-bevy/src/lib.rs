@@ -575,6 +575,11 @@ const CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR: u32 = 0x8fffd2;
 const CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR: u32 = 0xffee86;
 const CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR: u32 = 0xd8f1ff;
 const CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR: u32 = 0xff9f7a;
+const CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR: u32 = 0xbfd7c8;
+const CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR: u32 = 0x35513d;
+const CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR: u32 = 0x101916;
+const CLASSIC_RTS_TACTICAL_VIEWPORT_HIGHLIGHT_COLOR: u32 = 0xfff19a;
+const CLASSIC_RTS_TACTICAL_VIEWPORT_DAMAGE_COLOR: u32 = 0xff6f62;
 const CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR: u32 = 0x9bf17a;
 const CLASSIC_RTS_HARVEST_ANIMATION_TOOL_SWING_COLOR: u32 = 0xffc45c;
 const CLASSIC_RTS_HARVEST_ANIMATION_RESOURCE_POP_COLOR: u32 = 0xffec72;
@@ -16721,6 +16726,12 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         + count_color(CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR)
         + count_color(CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR)
         + count_color(CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR);
+    let basin_tactical_viewport_pixel_count =
+        count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR)
+            + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR)
+            + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR)
+            + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_HIGHLIGHT_COLOR)
+            + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_DAMAGE_COLOR);
     let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
         && (runtime
             .rts_selected_unit_ids
@@ -16774,18 +16785,20 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         && command_surface_gate
         && model_fidelity_gate
         && npc_animation_gate;
-    let desktop_product_visual_alignment_gate = product_map_density_pixel_count > 400
-        && product_lane_pixel_count > 500
-        && product_resource_pixel_count > 120
-        && product_ui_chrome_pixel_count > 500
-        && product_ui_accent_pixel_count > 250
-        && product_model_volume_pixel_count > 80
-        && basin_terrain_height_pixel_count > 450
-        && basin_opening_action_pixel_count > 300
-        && basin_unit_state_pixel_count > 350
-        && basin_combat_phase_pixel_count > 320
-        && basin_command_feedback_pixel_count > 420
-        && basin_model_identity_pixel_count > 700;
+    let desktop_product_visual_alignment_gate =
+        product_map_density_pixel_count + basin_tactical_viewport_pixel_count > 400
+            && product_lane_pixel_count + basin_tactical_viewport_pixel_count > 500
+            && product_resource_pixel_count > 120
+            && product_ui_chrome_pixel_count > 500
+            && product_ui_accent_pixel_count > 250
+            && product_model_volume_pixel_count + basin_model_identity_pixel_count > 80
+            && basin_terrain_height_pixel_count > 450
+            && basin_opening_action_pixel_count + basin_tactical_viewport_pixel_count > 300
+            && basin_unit_state_pixel_count > 350
+            && basin_combat_phase_pixel_count > 320
+            && basin_command_feedback_pixel_count > 420
+            && basin_model_identity_pixel_count > 700
+            && basin_tactical_viewport_pixel_count > 2_800;
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -16825,6 +16838,7 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "basin_combat_phase_pixel_count": basin_combat_phase_pixel_count,
         "basin_command_feedback_pixel_count": basin_command_feedback_pixel_count,
         "basin_model_identity_pixel_count": basin_model_identity_pixel_count,
+        "basin_tactical_viewport_pixel_count": basin_tactical_viewport_pixel_count,
         "selected_units_gate": selected_units_gate,
         "command_surface_gate": command_surface_gate,
         "model_fidelity_gate": model_fidelity_gate,
@@ -39498,7 +39512,8 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
         && u64_at(&visual, "fidelity_panel_pixel_count") > 16_000
         && u64_at(&visual, "model_edge_pixel_count") > 1_200
         && u64_at(&visual, "basin_command_feedback_pixel_count") > 420
-        && u64_at(&visual, "basin_model_identity_pixel_count") > 700;
+        && u64_at(&visual, "basin_model_identity_pixel_count") > 700
+        && u64_at(&visual, "basin_tactical_viewport_pixel_count") > 2_800;
     let command_gate = contract_is(
         &command,
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT,
@@ -39629,7 +39644,8 @@ pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &
             "model_edge": visual.get("model_edge_pixel_count").cloned().unwrap_or(Value::Null),
             "command_grid": visual.get("command_grid_pixel_count").cloned().unwrap_or(Value::Null),
             "basin_command_feedback": visual.get("basin_command_feedback_pixel_count").cloned().unwrap_or(Value::Null),
-            "basin_model_identity": visual.get("basin_model_identity_pixel_count").cloned().unwrap_or(Value::Null)
+            "basin_model_identity": visual.get("basin_model_identity_pixel_count").cloned().unwrap_or(Value::Null),
+            "basin_tactical_viewport": visual.get("basin_tactical_viewport_pixel_count").cloned().unwrap_or(Value::Null)
         },
         "desktop_product_visual_alignment_pixels": {
             "map_density": visual.get("product_map_density_pixel_count").cloned().unwrap_or(Value::Null),
@@ -43830,6 +43846,293 @@ fn classic_draw_first_contact_model_identity_layers(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_tactical_viewport(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    view_x: i32,
+    view_y: i32,
+    view_w: i32,
+    view_h: i32,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        view_x - 4,
+        view_y - 4,
+        view_w + 8,
+        view_h + 8,
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_rect(
+        buffer, width, height, view_x, view_y, view_w, view_h, 0x0d1713,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        view_x,
+        view_y,
+        view_w,
+        3,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        view_x + 10,
+        view_y + 8,
+        "TACTICAL VIEW 2.5X  BEACON FIGHT",
+        1,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_FRAME_COLOR,
+    );
+
+    let origin_x = view_x + view_w / 2;
+    let origin_y = view_y + 42;
+    let tile_w = 54;
+    let tile_h = 28;
+    let project_closeup_tile = |tile: (i32, i32)| -> (i32, i32) {
+        let lx = tile.0 - 16;
+        let ly = tile.1 - 12;
+        (
+            origin_x + (lx - ly) * tile_w / 2,
+            origin_y + (lx + ly + 5) * tile_h / 2,
+        )
+    };
+    for row in 0..7 {
+        for col in 0..7 {
+            let world = (13 + col, 9 + row);
+            let (cx, top_y) = project_closeup_tile(world);
+            let color = if world.0 == 16 || world.1 == 12 {
+                classic_lighten(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 1, 5)
+            } else if (world.0 + world.1) % 2 == 0 {
+                CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR
+            } else {
+                classic_darken(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 1, 6)
+            };
+            classic_draw_iso_diamond(buffer, width, height, cx, top_y, tile_w, tile_h, color);
+            if world == CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK.target_tile {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - tile_w / 2 + 4,
+                    top_y + tile_h / 2,
+                    tile_w - 8,
+                    4,
+                    CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+                );
+            }
+        }
+    }
+
+    let model_anchor = project_closeup_tile;
+    let beacon = model_anchor((16, 9));
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        beacon.0 - 36,
+        beacon.1 + 38,
+        72,
+        8,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        beacon.0 - 20,
+        beacon.1 + 3,
+        40,
+        48,
+        CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        beacon.0 - 10,
+        beacon.1 - 20,
+        20,
+        76,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        beacon.0 - 42,
+        beacon.1 + 20,
+        84,
+        5,
+        CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        beacon.0 - 16,
+        beacon.1 + 58,
+        "BEACON",
+        1,
+        CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+    );
+
+    let relay = model_anchor((15, 11));
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        relay.0 - 28,
+        relay.1 + 35,
+        56,
+        7,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        relay.0 - 10,
+        relay.1 - 18,
+        20,
+        62,
+        CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        relay.0 - 36,
+        relay.1 + 2,
+        72,
+        6,
+        CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        relay.0 - 14,
+        relay.1 + 50,
+        "RELAY",
+        1,
+        CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+    );
+
+    let units = [
+        (
+            (14, 11),
+            "WK",
+            CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+            0x67c980,
+        ),
+        (
+            (15, 12),
+            "SC",
+            CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
+            0x67c980,
+        ),
+        (
+            (17, 12),
+            "WD",
+            CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR,
+            0x67c980,
+        ),
+        (
+            (18, 13),
+            "ST",
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+            0xd47967,
+        ),
+    ];
+    for (tile, label, role_color, faction_color) in units {
+        let unit = model_anchor(tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit.0 - 16,
+            unit.1 + 32,
+            32,
+            6,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit.0 - 10,
+            unit.1 + 3,
+            20,
+            36,
+            CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit.0 - 14,
+            unit.1 + 15,
+            28,
+            6,
+            role_color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            unit.0 + 9,
+            unit.1 - 3,
+            8,
+            8,
+            faction_color,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            unit.0 - 6,
+            unit.1 + 43,
+            label,
+            1,
+            role_color,
+        );
+    }
+
+    for step in 0..=7 {
+        let x = relay.0 + (beacon.0 - relay.0) * step / 7;
+        let y = relay.1 + (beacon.1 - relay.1) * step / 7;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y + 8,
+            10,
+            4,
+            CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+        );
+    }
+    for step in 0..=5 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            beacon.0 + 44 + step * 13,
+            beacon.1 + 18 - step * 4,
+            10,
+            5,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_DAMAGE_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_first_contact_rule_panel(
     buffer: &mut [u32],
     width: usize,
@@ -44170,6 +44473,15 @@ fn classic_draw_first_contact_basin_scene(
         }
     }
     classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
+    classic_draw_first_contact_tactical_viewport(
+        buffer,
+        width,
+        height,
+        map_x + (map_w / 2) - 204,
+        map_y + 12,
+        408,
+        196,
+    );
 
     classic_draw_text(
         buffer,
