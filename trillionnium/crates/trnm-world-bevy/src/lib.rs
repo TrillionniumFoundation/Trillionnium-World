@@ -49232,6 +49232,34 @@ fn classic_draw_panel_frame(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_command_label(id: &str) -> String {
+    match id {
+        "worker" | "trnm.worker" => "WORKER".to_string(),
+        "scout" | "trnm.horizon.scout" => "SCOUT".to_string(),
+        "warden" | "trnm.forge.warden" => "WARDN".to_string(),
+        "relay" | "trnm.flux.relay" => "RELAY".to_string(),
+        "core" | "trnm.command.core" => "CORE".to_string(),
+        "signal" | "trnm.signal.array" => "SIGNL".to_string(),
+        _ => classic_catalog_text_label(id, 5),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_queue_label(entry: &str) -> String {
+    if entry == "train:trnm.worker" {
+        "TRAIN WORKER".to_string()
+    } else if entry == "build:trnm.flux.relay" {
+        "BUILD RELAY".to_string()
+    } else if entry == "attack:trnm.flux.beacon" {
+        "SECURE BEACON".to_string()
+    } else if entry == "move:16,9" {
+        "RALLY BEACON".to_string()
+    } else {
+        classic_catalog_text_label(entry, 14)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_rts_product_alignment_hud(
     buffer: &mut [u32],
     width: usize,
@@ -49347,13 +49375,20 @@ fn classic_draw_rts_product_alignment_hud(
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
+    let basin_surface = runtime.map_scene.contains("first_contact_basin");
     let ability_ids = if runtime.rts_ability_command_ids.is_empty() {
         string_vec(["MOVE", "ATTK", "HOLD", "PATL", "FOCS", "BLD"])
     } else {
         let mut ids = runtime
             .rts_ability_command_ids
             .iter()
-            .map(|id| classic_catalog_text_label(id, 4))
+            .map(|id| {
+                if basin_surface {
+                    classic_first_contact_command_label(id)
+                } else {
+                    classic_catalog_text_label(id, 4)
+                }
+            })
             .collect::<Vec<_>>();
         while ids.len() < 6 {
             ids.push("----".to_string());
@@ -49371,7 +49406,12 @@ fn classic_draw_rts_product_alignment_hud(
             .rts_active_ability_id
             .as_deref()
             .is_some_and(|active| {
-                ability_label.eq_ignore_ascii_case(&classic_catalog_text_label(active, 4))
+                let active_label = if basin_surface {
+                    classic_first_contact_command_label(active)
+                } else {
+                    classic_catalog_text_label(active, 4)
+                };
+                ability_label.eq_ignore_ascii_case(&active_label)
             });
         classic_draw_rect(
             buffer,
@@ -49428,14 +49468,25 @@ fn classic_draw_rts_product_alignment_hud(
             CLASSIC_HUD_TEXT_COLOR,
         );
     }
-    let queue_label = runtime
-        .rts_command_queue
-        .iter()
-        .rev()
-        .take(3)
-        .map(|entry| classic_catalog_text_label(entry, 14))
-        .collect::<Vec<_>>()
-        .join(" > ");
+    let queue_label = if basin_surface {
+        runtime
+            .rts_command_queue
+            .iter()
+            .rev()
+            .take(3)
+            .map(|entry| classic_first_contact_queue_label(entry))
+            .collect::<Vec<_>>()
+            .join(" / ")
+    } else {
+        runtime
+            .rts_command_queue
+            .iter()
+            .rev()
+            .take(3)
+            .map(|entry| classic_catalog_text_label(entry, 14))
+            .collect::<Vec<_>>()
+            .join(" > ")
+    };
     classic_draw_text(
         buffer,
         width,
