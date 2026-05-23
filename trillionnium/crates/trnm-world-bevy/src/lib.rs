@@ -17351,12 +17351,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .iter()
             .filter_map(|actor| actor.order)
             .any(|order| order.kind == TrnmOpenRaLikeOrderKind::Harvest);
-    let resource_delta = (world
-        .event_log
-        .iter()
-        .filter(|event| event.starts_with("harvest_deposit:"))
-        .count() as u32)
-        * 12;
+    let resource_delta = world.harvested_resource_amount;
     let command_flux_spent = initial_flux
         .saturating_add(resource_delta)
         .saturating_sub(multi0.flux);
@@ -17464,6 +17459,20 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event.starts_with("power_recovered:Multi2:"));
+    let resource_depletion_gate = world.harvested_resource_amount > 0
+        && world.resource_depleted_count > 0
+        && world
+            .actors
+            .iter()
+            .any(|actor| actor.id == "map.actor10" && actor.resource_remaining == 0)
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("resource_harvested:multi0.worker.0:map.actor10"))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "resource_depleted:map.actor10:trnm.flux.bloom");
     let attack_range_gate = world.command_results.iter().any(|result| {
         !result.accepted
             && result.actor_id == "multi0.worker.0"
@@ -17646,6 +17655,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "low_power_tick",
         "production_paused_low_power",
         "power_recovered",
+        "resource_harvested",
+        "resource_depleted",
         "control_group_recall",
         "queued_group_order",
         "queued_order_execute",
@@ -17683,7 +17694,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     });
     let harvest_path_plan_gate = world.path_plans.iter().any(|plan| {
         plan.actor_id == "multi0.worker.0"
-            && plan.target_tile == (12, 16)
+            && plan.target_tile == (10, 10)
             && !plan.path_tile_ids.is_empty()
     });
     let reached_path_plan_gate = world.path_plans.iter().any(|plan| plan.reached);
@@ -17714,6 +17725,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && worker_moved
         && event_log_gate
         && shroud_gate
+        && resource_depletion_gate
         && command_resolution_gate
         && build_placement_gate
         && pathfinding_gate
@@ -17764,6 +17776,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "simulation": {
             "tick_count": world.tick,
             "resource_delta": resource_delta,
+            "harvested_resource_amount": world.harvested_resource_amount,
+            "resource_depleted_count": world.resource_depleted_count,
             "command_flux_spent": command_flux_spent,
             "command_accepted_count": command_accepted_count,
             "command_rejected_count": command_rejected_count,
@@ -17772,6 +17786,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "tech_train_accept_gate": tech_train_accept_gate,
             "supply_cap_gate": supply_cap_gate,
             "power_low_production_gate": power_low_production_gate,
+            "resource_depletion_gate": resource_depletion_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "build_placement_gate": build_placement_gate,
@@ -17859,6 +17874,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "simulation_gate": simulation_gate,
             "event_log_gate": event_log_gate,
             "shroud_gate": shroud_gate,
+            "resource_depletion_gate": resource_depletion_gate,
             "command_resolution_gate": command_resolution_gate,
             "pathfinding_gate": pathfinding_gate,
             "move_path_plan_gate": move_path_plan_gate,
@@ -17883,7 +17899,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43293,6 +43309,7 @@ struct TrnmOpenRaLikeActorState {
     tile: (i32, i32),
     hp: u32,
     cargo: u32,
+    resource_remaining: u32,
     order: Option<TrnmOpenRaLikeOrder>,
     build_progress: u8,
     capture_progress: u8,
@@ -43400,6 +43417,8 @@ struct TrnmOpenRaLikeWorld {
     counted_supply_provider_ids: Vec<String>,
     low_power_production_pause_count: u32,
     power_recovery_count: u32,
+    harvested_resource_amount: u32,
+    resource_depleted_count: u32,
     destroyed_actor_memory_ids: Vec<String>,
     control_groups: Vec<TrnmOpenRaLikeControlGroup>,
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
@@ -44039,9 +44058,14 @@ fn classic_openra_like_actor(
     tile: (i32, i32),
     order: Option<TrnmOpenRaLikeOrder>,
 ) -> TrnmOpenRaLikeActorState {
-    let hp = classic_openra_like_rule_for(rule_id)
-        .map(|rule| rule.hp)
-        .unwrap_or(1);
+    let rule = classic_openra_like_rule_for(rule_id);
+    let hp = rule.map(|rule| rule.hp).unwrap_or(1);
+    let resource_remaining =
+        if rule.is_some_and(|rule| rule.kind == TrnmOpenRaLikeEntityKind::Resource) {
+            48
+        } else {
+            0
+        };
     TrnmOpenRaLikeActorState {
         id: id.into(),
         rule_id,
@@ -44049,6 +44073,7 @@ fn classic_openra_like_actor(
         tile,
         hp,
         cargo: 0,
+        resource_remaining,
         order,
         build_progress: if order.is_some_and(|order| order.kind == TrnmOpenRaLikeOrderKind::Build) {
             0
@@ -44097,7 +44122,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             Some(if owner == "Multi0" {
                 TrnmOpenRaLikeOrder {
                     kind: TrnmOpenRaLikeOrderKind::Harvest,
-                    target_tile: Some((12, 16)),
+                    target_tile: Some((10, 10)),
                     target_id: Some("map.actor10"),
                     rule_id: Some("trnm.flux.bloom"),
                 }
@@ -44403,6 +44428,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         counted_supply_provider_ids: Vec::new(),
         low_power_production_pause_count: 0,
         power_recovery_count: 0,
+        harvested_resource_amount: 0,
+        resource_depleted_count: 0,
         destroyed_actor_memory_ids: Vec::new(),
         control_groups: vec![
             TrnmOpenRaLikeControlGroup {
@@ -45775,6 +45802,7 @@ fn classic_first_contact_openra_like_core_tick_for(
                 TrnmOpenRaLikeOrderKind::Harvest => {
                     let owner = world.actors[index].owner;
                     let actor_id = world.actors[index].id.clone();
+                    let mut harvest_reached = false;
                     if let Some(target) = order.target_tile {
                         let current = world.actors[index].tile;
                         if let Some((path, blocked_tile_ids)) =
@@ -45800,12 +45828,56 @@ fn classic_first_contact_openra_like_core_tick_for(
                                 blocked_tile_ids,
                                 path.is_empty(),
                             );
+                            harvest_reached = path.is_empty();
                         }
                     }
-                    {
-                        let actor = &mut world.actors[index];
-                        if actor.cargo < 12 {
-                            actor.cargo = (actor.cargo + 2).min(12);
+                    if harvest_reached {
+                        let cargo_free = 12u32.saturating_sub(world.actors[index].cargo);
+                        let mut harvested = 0;
+                        let mut remaining = 0;
+                        let mut depleted_rule_id = None;
+                        if cargo_free > 0 {
+                            if let Some(target_id) = order.target_id {
+                                if let Some(resource_index) =
+                                    world.actors.iter().position(|actor| {
+                                        actor.id == target_id
+                                            && classic_openra_like_rule_for(actor.rule_id)
+                                                .is_some_and(|rule| {
+                                                    rule.kind == TrnmOpenRaLikeEntityKind::Resource
+                                                })
+                                    })
+                                {
+                                    let resource = &mut world.actors[resource_index];
+                                    harvested =
+                                        2u32.min(cargo_free).min(resource.resource_remaining);
+                                    if harvested > 0 {
+                                        resource.resource_remaining -= harvested;
+                                        remaining = resource.resource_remaining;
+                                        if remaining == 0 {
+                                            depleted_rule_id = Some(resource.rule_id);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if harvested > 0 {
+                            world.actors[index].cargo += harvested;
+                            world.harvested_resource_amount += harvested;
+                            world.event_log.push(format!(
+                                "resource_harvested:{}:{}:{}:remaining{}",
+                                actor_id,
+                                order.target_id.unwrap_or("resource"),
+                                harvested,
+                                remaining
+                            ));
+                            if let Some(rule_id) = depleted_rule_id {
+                                world.resource_depleted_count += 1;
+                                world.event_log.push(format!(
+                                    "resource_depleted:{}:{}",
+                                    order.target_id.unwrap_or("resource"),
+                                    rule_id
+                                ));
+                            }
                         }
                     }
                     if world.actors[index].cargo >= 12 || world.tick % 6 == 0 {
@@ -46077,6 +46149,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "tile": {"x": actor.tile.0, "y": actor.tile.1},
                 "hp": actor.hp,
                 "cargo": actor.cargo,
+                "resource_remaining": actor.resource_remaining,
                 "build_progress": actor.build_progress,
                 "capture_progress": actor.capture_progress,
                 "order": actor.order.map(|order| order.kind.as_str()),

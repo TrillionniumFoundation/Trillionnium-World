@@ -46,6 +46,9 @@ jq -e '
   and ((.orders | index("repair")) != null)
   and .simulation.tick_count >= 320
   and .simulation.resource_delta > 0
+  and .simulation.harvested_resource_amount > 0
+  and .simulation.resource_depleted_count > 0
+  and .simulation.resource_depletion_gate == true
   and .simulation.production_progress_percent > 0
   and .simulation.completed_production_count >= 2
   and .simulation.production_spawn_count >= 2
@@ -96,7 +99,7 @@ jq -e '
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
   and any(.simulation.path_plans[]; .actor_id == "multi0.line.0" and .target_tile.x == 16 and .target_tile.y == 9 and ((.blocked_tile_ids | index("16,16")) != null) and (.path_tile_ids | length) > 0)
-  and any(.simulation.path_plans[]; .actor_id == "multi0.worker.0" and .target_tile.x == 12 and .target_tile.y == 16 and (.path_tile_ids | length) > 0)
+  and any(.simulation.path_plans[]; .actor_id == "multi0.worker.0" and .target_tile.x == 10 and .target_tile.y == 10 and (.path_tile_ids | length) > 0)
   and any(.simulation.path_plans[]; .reached == true)
   and any(.simulation.command_log[]; contains("accepted:train:multi0.command.core"))
   and any(.simulation.command_log[]; contains("accepted:build:multi0.worker.1"))
@@ -125,6 +128,8 @@ jq -e '
   and any(.simulation.event_log[]; contains("move_step"))
   and any(.simulation.event_log[]; contains("path_step"))
   and any(.simulation.event_log[]; contains("path_plan"))
+  and any(.simulation.event_log[]; contains("resource_harvested:multi0.worker.0:map.actor10"))
+  and any(.simulation.event_log[]; contains("resource_depleted:map.actor10:trnm.flux.bloom"))
   and any(.simulation.event_log[]; contains("harvest_deposit"))
   and any(.simulation.event_log[]; contains("build_tick"))
   and any(.simulation.event_log[]; contains("train_tick"))
@@ -168,6 +173,7 @@ jq -e '
   and .gates.tech_prerequisite_gate == true
   and .gates.supply_cap_gate == true
   and .gates.power_low_production_gate == true
+  and .gates.resource_depletion_gate == true
   and .gates.build_placement_gate == true
   and .gates.attack_weapon_gate == true
   and .gates.attack_range_gate == true
