@@ -149,6 +149,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh" \
   "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence.sh" \
   "$ROOT/scripts/check_trillionnium_world_map_modeling_gate.sh" \
+  "$ROOT/scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh" \
   "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_status_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_convergence_script_contract_guard_test.sh" \
@@ -251,6 +252,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/production_map_pack_public_evidence_collection_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/production_map_pack_public_evidence_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/map_modeling_gate_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/ui_map_modeling_full_alignment_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/production_map_pack_public_evidence_artifact_guard_test.sh"
 
 run_check status_contract_guard "$ROOT/scripts/v2/release_review_status_script_contract_guard_test.sh"
@@ -464,6 +466,8 @@ run_check production_map_pack_public_evidence_collection "$ROOT/scripts/check_tr
 run_check production_map_pack_public_evidence_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_script_contract_guard_test.sh"
 run_check map_modeling_gate_contract_guard "$ROOT/scripts/v2/map_modeling_gate_script_contract_guard_test.sh"
 run_check map_modeling_gate "$ROOT/scripts/check_trillionnium_world_map_modeling_gate.sh"
+run_check ui_map_modeling_full_alignment_contract_guard "$ROOT/scripts/v2/ui_map_modeling_full_alignment_script_contract_guard_test.sh"
+run_check ui_map_modeling_full_alignment_gate env TRNM_WORLD_FULL_ALIGNMENT_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh"
 run_check production_map_pack_public_evidence_artifact_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_artifact_guard_test.sh"
 run_check readme_release_review_guard "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh"
 run_check packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh"
