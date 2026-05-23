@@ -17163,6 +17163,24 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             },
         ),
         (
+            "multi0.worker.repair",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Repair,
+                target_tile: Some((8, 8)),
+                target_id: Some("multi0.command.core"),
+                rule_id: None,
+            },
+        ),
+        (
+            "multi0.worker.repair",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Repair,
+                target_tile: Some((12, 10)),
+                target_id: Some("multi0.damaged.relay"),
+                rule_id: None,
+            },
+        ),
+        (
             "multi0.worker.0",
             TrnmOpenRaLikeOrder {
                 kind: TrnmOpenRaLikeOrderKind::Attack,
@@ -17287,6 +17305,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
                 TrnmOpenRaLikeTrait::Capturable,
             )
             && classic_openra_like_rule_has_trait("trnm.striker", TrnmOpenRaLikeTrait::Attack)
+            && classic_openra_like_rule_has_trait("trnm.worker", TrnmOpenRaLikeTrait::Repair)
             && classic_openra_like_rule_has_trait(
                 "trnm.command.core",
                 TrnmOpenRaLikeTrait::ProvidesBuildRadius,
@@ -17297,6 +17316,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Train)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Capture)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Attack)
+        && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Repair)
         && world
             .actors
             .iter()
@@ -17373,6 +17393,16 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             && result.order == TrnmOpenRaLikeOrderKind::Attack
             && result.reason == "target_not_visible"
     });
+    let repair_command_gate = world.command_results.iter().any(|result| {
+        result.accepted
+            && result.actor_id == "multi0.worker.repair"
+            && result.order == TrnmOpenRaLikeOrderKind::Repair
+    }) && world.command_results.iter().any(|result| {
+        !result.accepted
+            && result.actor_id == "multi0.worker.repair"
+            && result.order == TrnmOpenRaLikeOrderKind::Repair
+            && result.reason == "repair_target_full"
+    });
     let production_progress = world
         .production
         .iter()
@@ -17419,6 +17449,15 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .unwrap_or_default();
     let worker_moved = active_worker.is_some_and(|actor| actor.tile != (9, 8));
     let combat_damage = initial_enemy_hp.saturating_sub(post_enemy_hp);
+    let repaired_relay_hp = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi0.damaged.relay")
+        .map(|actor| actor.hp)
+        .unwrap_or_default();
+    let repaired_relay_max_hp = classic_openra_like_rule_for("trnm.flux.relay")
+        .map(|rule| rule.hp)
+        .unwrap_or_default();
     let attack_weapon_gate = world.attack_hit_count > 0
         && world.attack_kill_count > 0
         && world.attack_cooldown_wait_count > 0
@@ -17461,6 +17500,17 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event == "attack_remove:multi1.auto.raider");
+    let repair_gate = repair_command_gate
+        && world.repair_tick_count > 0
+        && world.repair_flux_spent > 0
+        && world.repair_complete_count > 0
+        && repaired_relay_hp == repaired_relay_max_hp
+        && world.event_log.iter().any(|event| {
+            event.starts_with("repair_tick:multi0.worker.repair:multi0.damaged.relay")
+        })
+        && world.event_log.iter().any(|event| {
+            event == "repair_complete:multi0.worker.repair:multi0.damaged.relay:70000hp"
+        });
     let control_group_gate = world.control_groups.iter().any(|group| {
         group.owner == "Multi0"
             && group.group_id == "1"
@@ -17507,6 +17557,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "auto_target_acquire",
         "auto_attack_hit",
         "auto_attack_kill",
+        "repair_tick",
+        "repair_complete",
         "control_group_recall",
         "queued_group_order",
         "queued_order_execute",
@@ -17583,6 +17635,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && attack_range_gate
         && attack_visibility_gate
         && auto_target_acquisition_gate
+        && repair_gate
         && control_group_gate
         && queued_order_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
@@ -17629,6 +17682,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "tech_train_accept_gate": tech_train_accept_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
+            "repair_command_gate": repair_command_gate,
             "command_log": world.command_log.clone(),
             "command_results": world.command_results.iter().map(|result| {
                 json!({
@@ -17652,6 +17706,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "auto_attack_hit_count": world.auto_attack_hit_count,
             "auto_attack_kill_count": world.auto_attack_kill_count,
             "multi1_auto_raider_removed": world.actors.iter().all(|actor| actor.id != "multi1.auto.raider"),
+            "repair_tick_count": world.repair_tick_count,
+            "repair_flux_spent": world.repair_flux_spent,
+            "repair_complete_count": world.repair_complete_count,
+            "repaired_relay_hp": repaired_relay_hp,
+            "repaired_relay_max_hp": repaired_relay_max_hp,
             "multi1_command_core_removed": world.actors.iter().all(|actor| actor.id != "multi1.command.core"),
             "control_group_count": world.control_groups.len(),
             "queued_order_count": world.queued_orders.len(),
@@ -17710,12 +17769,14 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "auto_target_acquisition_gate": auto_target_acquisition_gate,
+            "repair_command_gate": repair_command_gate,
+            "repair_gate": repair_gate,
             "control_group_gate": control_group_gate,
             "queued_order_gate": queued_order_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43020,6 +43081,7 @@ enum TrnmOpenRaLikeTrait {
     Capturable,
     GivesIncome,
     Attack,
+    Repair,
     Producer,
     ProvidesBuildRadius,
     MapDetail,
@@ -43038,6 +43100,7 @@ impl TrnmOpenRaLikeTrait {
             TrnmOpenRaLikeTrait::Capturable => "capturable",
             TrnmOpenRaLikeTrait::GivesIncome => "gives_income",
             TrnmOpenRaLikeTrait::Attack => "attack",
+            TrnmOpenRaLikeTrait::Repair => "repair",
             TrnmOpenRaLikeTrait::Producer => "producer",
             TrnmOpenRaLikeTrait::ProvidesBuildRadius => "provides_build_radius",
             TrnmOpenRaLikeTrait::MapDetail => "map_detail",
@@ -43071,6 +43134,7 @@ enum TrnmOpenRaLikeOrderKind {
     Train,
     Capture,
     Attack,
+    Repair,
     Hold,
 }
 
@@ -43085,6 +43149,7 @@ impl TrnmOpenRaLikeOrderKind {
             TrnmOpenRaLikeOrderKind::Train => "train",
             TrnmOpenRaLikeOrderKind::Capture => "capture",
             TrnmOpenRaLikeOrderKind::Attack => "attack",
+            TrnmOpenRaLikeOrderKind::Repair => "repair",
             TrnmOpenRaLikeOrderKind::Hold => "hold",
         }
     }
@@ -43212,6 +43277,9 @@ struct TrnmOpenRaLikeWorld {
     auto_target_acquire_count: u32,
     auto_attack_hit_count: u32,
     auto_attack_kill_count: u32,
+    repair_tick_count: u32,
+    repair_flux_spent: u32,
+    repair_complete_count: u32,
     destroyed_actor_memory_ids: Vec<String>,
     control_groups: Vec<TrnmOpenRaLikeControlGroup>,
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
@@ -43271,6 +43339,7 @@ const TRNM_OPENRA_LIKE_WORKER_TRAITS: &[TrnmOpenRaLikeTrait] = &[
     TrnmOpenRaLikeTrait::Buildable,
     TrnmOpenRaLikeTrait::Harvester,
     TrnmOpenRaLikeTrait::Attack,
+    TrnmOpenRaLikeTrait::Repair,
 ];
 
 #[cfg(not(target_os = "android"))]
@@ -43465,6 +43534,7 @@ const TRNM_OPENRA_LIKE_ORDER_DECK: &[TrnmOpenRaLikeOrderKind] = &[
     TrnmOpenRaLikeOrderKind::Train,
     TrnmOpenRaLikeOrderKind::Capture,
     TrnmOpenRaLikeOrderKind::Attack,
+    TrnmOpenRaLikeOrderKind::Repair,
     TrnmOpenRaLikeOrderKind::Hold,
 ];
 
@@ -44000,6 +44070,31 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             rule_id: None,
         }),
     ));
+    actors.push(classic_openra_like_actor(
+        "multi0.worker.repair",
+        "trnm.worker",
+        "Multi0",
+        (12, 9),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((12, 9)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.damaged.relay",
+        "trnm.flux.relay",
+        "Multi0",
+        (12, 10),
+        None,
+    ));
+    if let Some(relay) = actors
+        .iter_mut()
+        .find(|actor| actor.id == "multi0.damaged.relay")
+    {
+        relay.hp = 28_000;
+    }
     let mut world = TrnmOpenRaLikeWorld {
         tick: 0,
         map_width: 34,
@@ -44084,6 +44179,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         auto_target_acquire_count: 0,
         auto_attack_hit_count: 0,
         auto_attack_kill_count: 0,
+        repair_tick_count: 0,
+        repair_flux_spent: 0,
+        repair_complete_count: 0,
         destroyed_actor_memory_ids: Vec::new(),
         control_groups: vec![
             TrnmOpenRaLikeControlGroup {
@@ -44695,6 +44793,55 @@ fn classic_first_contact_openra_like_core_issue_order(
                 },
             ) {
                 Some("target_out_of_range".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Repair => {
+            let Some(target_id) = order.target_id else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "repair_target_missing",
+                );
+            };
+            let Some(target) = world.actors.iter().find(|actor| actor.id == target_id) else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "repair_target_unknown",
+                );
+            };
+            let Some(target_rule) = classic_openra_like_rule_for(target.rule_id) else {
+                return classic_openra_like_push_resolution(
+                    world,
+                    actor_id,
+                    order.kind,
+                    false,
+                    "repair_target_rule_missing",
+                );
+            };
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Repair) {
+                Some("trait_missing:repair".to_string())
+            } else if target.owner != owner {
+                Some("repair_target_not_friendly".to_string())
+            } else if target_rule.kind != TrnmOpenRaLikeEntityKind::Structure {
+                Some("repair_target_not_structure".to_string())
+            } else if target.hp >= target_rule.hp {
+                Some("repair_target_full".to_string())
+            } else if world
+                .players
+                .iter()
+                .find(|player| player.id == owner)
+                .map(|player| player.flux)
+                .unwrap_or_default()
+                < 4
+            {
+                Some("insufficient_flux".to_string())
             } else {
                 None
             }
@@ -45413,6 +45560,76 @@ fn classic_first_contact_openra_like_core_tick_for(
                         world
                             .event_log
                             .push(format!("attack_kill:{attacker_id}:{defeated_id}"));
+                    }
+                }
+                TrnmOpenRaLikeOrderKind::Repair => {
+                    let Some(target_id) = order.target_id else {
+                        continue;
+                    };
+                    let repairer_id = world.actors[index].id.clone();
+                    let owner = world.actors[index].owner;
+                    let Some(target_index) =
+                        world.actors.iter().position(|actor| actor.id == target_id)
+                    else {
+                        world.event_log.push(format!(
+                            "repair_target_missing_runtime:{repairer_id}:{target_id}"
+                        ));
+                        world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                            kind: TrnmOpenRaLikeOrderKind::Hold,
+                            target_tile: Some(world.actors[index].tile),
+                            target_id: None,
+                            rule_id: None,
+                        });
+                        continue;
+                    };
+                    let Some(max_hp) =
+                        classic_openra_like_rule_for(world.actors[target_index].rule_id)
+                            .map(|rule| rule.hp)
+                    else {
+                        continue;
+                    };
+                    if world.actors[target_index].owner != owner
+                        || world.actors[target_index].hp >= max_hp
+                    {
+                        world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                            kind: TrnmOpenRaLikeOrderKind::Hold,
+                            target_tile: Some(world.actors[index].tile),
+                            target_id: None,
+                            rule_id: None,
+                        });
+                        continue;
+                    }
+                    let Some(player) = classic_openra_like_player_mut(world, owner) else {
+                        continue;
+                    };
+                    if player.flux < 4 {
+                        world
+                            .event_log
+                            .push(format!("repair_stalled:{repairer_id}:{target_id}:flux"));
+                        continue;
+                    }
+                    player.flux -= 4;
+                    world.repair_flux_spent += 4;
+                    let repaired_hp = world.actors[target_index]
+                        .hp
+                        .saturating_add(1_500)
+                        .min(max_hp);
+                    world.actors[target_index].hp = repaired_hp;
+                    world.repair_tick_count += 1;
+                    world.event_log.push(format!(
+                        "repair_tick:{repairer_id}:{target_id}:4flux:{repaired_hp}/{max_hp}hp"
+                    ));
+                    if repaired_hp >= max_hp {
+                        world.repair_complete_count += 1;
+                        world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                            kind: TrnmOpenRaLikeOrderKind::Hold,
+                            target_tile: Some(world.actors[index].tile),
+                            target_id: None,
+                            rule_id: None,
+                        });
+                        world.event_log.push(format!(
+                            "repair_complete:{repairer_id}:{target_id}:{max_hp}hp"
+                        ));
                     }
                 }
                 TrnmOpenRaLikeOrderKind::ReturnCargo
