@@ -46,6 +46,12 @@ jq -e '
   and .simulation.command_accepted_count >= 5
   and .simulation.command_rejected_count >= 2
   and .simulation.command_flux_spent >= 900
+  and .simulation.path_plan_count >= 2
+  and .simulation.move_path_step_count > 0
+  and .simulation.blocked_move_count == 0
+  and any(.simulation.path_plans[]; .actor_id == "multi0.line.0" and .target_tile.x == 16 and .target_tile.y == 9 and ((.blocked_tile_ids | index("16,16")) != null) and (.path_tile_ids | length) > 0)
+  and any(.simulation.path_plans[]; .actor_id == "multi0.worker.0" and .target_tile.x == 12 and .target_tile.y == 16 and (.path_tile_ids | length) > 0)
+  and any(.simulation.path_plans[]; .reached == true)
   and any(.simulation.command_log[]; contains("accepted:train:multi0.command.core"))
   and any(.simulation.command_log[]; contains("accepted:build:multi0.worker.1"))
   and any(.simulation.command_log[]; contains("accepted:attack:multi0.striker.0"))
@@ -62,6 +68,8 @@ jq -e '
   and .shroud.shroud_memory_core_gate == true
   and .shroud.shroud_event_gate == true
   and any(.simulation.event_log[]; contains("move_step"))
+  and any(.simulation.event_log[]; contains("path_step"))
+  and any(.simulation.event_log[]; contains("path_plan"))
   and any(.simulation.event_log[]; contains("harvest_deposit"))
   and any(.simulation.event_log[]; contains("build_tick"))
   and any(.simulation.event_log[]; contains("train_tick"))
@@ -74,6 +82,10 @@ jq -e '
   and .gates.order_gate == true
   and .gates.simulation_gate == true
   and .gates.command_resolution_gate == true
+  and .gates.pathfinding_gate == true
+  and .gates.move_path_plan_gate == true
+  and .gates.harvest_path_plan_gate == true
+  and .gates.reached_path_plan_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true

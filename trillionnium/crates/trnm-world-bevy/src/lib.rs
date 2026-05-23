@@ -17280,6 +17280,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     let combat_damage = initial_enemy_hp.saturating_sub(post_enemy_hp);
     let event_log_gate = [
         "move_step",
+        "path_step",
+        "path_plan",
         "harvest_deposit",
         "build_tick",
         "train_tick",
@@ -17308,6 +17310,34 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && shroud_memory_count > 0
         && shroud_memory_core_gate
         && shroud_event_gate;
+    let move_path_plan_gate = world.path_plans.iter().any(|plan| {
+        plan.actor_id == "multi0.line.0"
+            && plan.target_tile == (16, 9)
+            && !plan.path_tile_ids.is_empty()
+            && plan
+                .blocked_tile_ids
+                .iter()
+                .any(|tile_id| tile_id == "16,16")
+    });
+    let harvest_path_plan_gate = world.path_plans.iter().any(|plan| {
+        plan.actor_id == "multi0.worker.0"
+            && plan.target_tile == (12, 16)
+            && !plan.path_tile_ids.is_empty()
+    });
+    let reached_path_plan_gate = world.path_plans.iter().any(|plan| plan.reached);
+    let pathfinding_gate = world.move_path_step_count > 0
+        && world.blocked_move_count == 0
+        && move_path_plan_gate
+        && harvest_path_plan_gate
+        && reached_path_plan_gate
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("path_step:multi0.line.0"))
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("path_plan:multi0.worker.0"));
     let map_gate = world.map_width == 34
         && world.map_height == 34
         && world.bounds == (1, 1, 32, 32)
@@ -17322,7 +17352,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && worker_moved
         && event_log_gate
         && shroud_gate
-        && command_resolution_gate;
+        && command_resolution_gate
+        && pathfinding_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.rust_bevy_owned_runtime
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.warcraft_iii_asset_copied == false;
@@ -17382,6 +17413,18 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "multi0_visible_tile_count": visible_tile_count,
             "multi0_explored_tile_count": explored_tile_count,
             "multi0_shroud_memory_actor_ids": multi0.shroud_memory_actor_ids.clone(),
+            "path_plan_count": world.path_plans.len(),
+            "move_path_step_count": world.move_path_step_count,
+            "blocked_move_count": world.blocked_move_count,
+            "path_plans": world.path_plans.iter().map(|plan| {
+                json!({
+                    "actor_id": plan.actor_id,
+                    "target_tile": {"x": plan.target_tile.0, "y": plan.target_tile.1},
+                    "path_tile_ids": plan.path_tile_ids.clone(),
+                    "blocked_tile_ids": plan.blocked_tile_ids.clone(),
+                    "reached": plan.reached,
+                })
+            }).collect::<Vec<_>>(),
             "event_log": world.event_log.clone(),
         },
         "shroud": {
@@ -17402,10 +17445,14 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "event_log_gate": event_log_gate,
             "shroud_gate": shroud_gate,
             "command_resolution_gate": command_resolution_gate,
+            "pathfinding_gate": pathfinding_gate,
+            "move_path_plan_gate": move_path_plan_gate,
+            "harvest_path_plan_gate": harvest_path_plan_gate,
+            "reached_path_plan_gate": reached_path_plan_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -42837,6 +42884,16 @@ struct TrnmOpenRaLikeProductionItem {
 
 #[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone)]
+struct TrnmOpenRaLikePathPlan {
+    actor_id: String,
+    target_tile: (i32, i32),
+    path_tile_ids: Vec<String>,
+    blocked_tile_ids: Vec<String>,
+    reached: bool,
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone)]
 struct TrnmOpenRaLikeWorld {
     tick: u32,
     map_width: u32,
@@ -42848,6 +42905,9 @@ struct TrnmOpenRaLikeWorld {
     event_log: Vec<String>,
     command_log: Vec<String>,
     command_results: Vec<TrnmOpenRaLikeCommandResolution>,
+    path_plans: Vec<TrnmOpenRaLikePathPlan>,
+    move_path_step_count: u32,
+    blocked_move_count: u32,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -43590,7 +43650,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         (23, 23),
         Some(TrnmOpenRaLikeOrder {
             kind: TrnmOpenRaLikeOrderKind::Move,
-            target_tile: Some((16, 16)),
+            target_tile: Some((18, 18)),
             target_id: Some("map.actor14"),
             rule_id: None,
         }),
@@ -43662,16 +43722,136 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         event_log: vec!["init:first_contact_basin".to_string()],
         command_log: Vec::new(),
         command_results: Vec::new(),
+        path_plans: Vec::new(),
+        move_path_step_count: 0,
+        blocked_move_count: 0,
     };
     classic_first_contact_openra_like_core_update_visibility(&mut world);
     world
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_openra_like_step_toward(current: (i32, i32), target: (i32, i32)) -> (i32, i32) {
-    let dx = (target.0 - current.0).signum();
-    let dy = (target.1 - current.1).signum();
-    (current.0 + dx, current.1 + dy)
+fn classic_openra_like_static_blocked_tiles() -> HashSet<(i32, i32)> {
+    [
+        (15, 16),
+        (16, 16),
+        (17, 16),
+        (16, 15),
+        (16, 17),
+        (14, 14),
+        (19, 19),
+        (19, 14),
+        (14, 19),
+    ]
+    .into_iter()
+    .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_occupied_tiles(
+    world: &TrnmOpenRaLikeWorld,
+    moving_actor_id: &str,
+    target_tile: (i32, i32),
+) -> HashSet<(i32, i32)> {
+    let mut blocked = classic_openra_like_static_blocked_tiles();
+    for actor in &world.actors {
+        if actor.id == moving_actor_id || actor.tile == target_tile {
+            continue;
+        }
+        if classic_openra_like_rule_for(actor.rule_id).is_some_and(|rule| {
+            matches!(
+                rule.kind,
+                TrnmOpenRaLikeEntityKind::Structure
+                    | TrnmOpenRaLikeEntityKind::Resource
+                    | TrnmOpenRaLikeEntityKind::Objective
+            ) || actor.build_progress < 100
+        }) {
+            blocked.insert(actor.tile);
+        }
+    }
+    blocked
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_pathfind_tiles(
+    world: &TrnmOpenRaLikeWorld,
+    actor_id: &str,
+    start: (i32, i32),
+    target: (i32, i32),
+) -> Option<(Vec<(i32, i32)>, Vec<String>)> {
+    if !classic_openra_like_tile_in_bounds(world, start)
+        || !classic_openra_like_tile_in_bounds(world, target)
+    {
+        return None;
+    }
+    let blocked = classic_openra_like_occupied_tiles(world, actor_id, target);
+    let blocked_tile_ids = classic_openra_like_sorted_tile_ids(
+        blocked
+            .iter()
+            .map(|tile| classic_openra_like_tile_id(*tile))
+            .collect::<HashSet<_>>(),
+    );
+    if start == target {
+        return Some((Vec::new(), blocked_tile_ids));
+    }
+    let mut frontier = VecDeque::from([start]);
+    let mut came_from: HashMap<(i32, i32), (i32, i32)> = HashMap::new();
+    let mut visited = HashSet::from([start]);
+    let directions = [(1, 0), (0, 1), (-1, 0), (0, -1)];
+
+    while let Some(tile) = frontier.pop_front() {
+        for (dx, dy) in directions {
+            let next = (tile.0 + dx, tile.1 + dy);
+            if visited.contains(&next)
+                || blocked.contains(&next)
+                || !classic_openra_like_tile_in_bounds(world, next)
+            {
+                continue;
+            }
+            came_from.insert(next, tile);
+            if next == target {
+                let mut path = vec![target];
+                let mut cursor = target;
+                while let Some(previous) = came_from.get(&cursor).copied() {
+                    if previous == start {
+                        break;
+                    }
+                    path.push(previous);
+                    cursor = previous;
+                }
+                path.reverse();
+                return Some((path, blocked_tile_ids));
+            }
+            visited.insert(next);
+            frontier.push_back(next);
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_record_path_plan(
+    world: &mut TrnmOpenRaLikeWorld,
+    actor_id: &str,
+    target_tile: (i32, i32),
+    path: &[(i32, i32)],
+    blocked_tile_ids: Vec<String>,
+    reached: bool,
+) {
+    let path_tile_ids = path
+        .iter()
+        .map(|tile| classic_openra_like_tile_id(*tile))
+        .collect::<Vec<_>>();
+    world
+        .event_log
+        .push(format!("path_plan:{actor_id}:{}steps", path_tile_ids.len()));
+    world.path_plans.push(TrnmOpenRaLikePathPlan {
+        actor_id: actor_id.to_string(),
+        target_tile,
+        path_tile_ids,
+        blocked_tile_ids,
+        reached,
+    });
 }
 
 #[cfg(not(target_os = "android"))]
@@ -43805,6 +43985,16 @@ fn classic_first_contact_openra_like_core_issue_order(
                 .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
             {
                 Some("target_tile_out_of_bounds".to_string())
+            } else if !order.target_tile.is_some_and(|tile| {
+                classic_openra_like_pathfind_tiles(
+                    world,
+                    actor_id,
+                    world.actors[actor_index].tile,
+                    tile,
+                )
+                .is_some()
+            }) {
+                Some("path_unreachable".to_string())
             } else {
                 None
             }
@@ -44161,12 +44351,37 @@ fn classic_first_contact_openra_like_core_tick_for(
             match order.kind {
                 TrnmOpenRaLikeOrderKind::Move => {
                     if let Some(target) = order.target_tile {
-                        let actor = &mut world.actors[index];
-                        if actor.tile != target {
-                            actor.tile = classic_openra_like_step_toward(actor.tile, target);
+                        let actor_id = world.actors[index].id.clone();
+                        let current = world.actors[index].tile;
+                        if let Some((path, blocked_tile_ids)) =
+                            classic_openra_like_pathfind_tiles(world, &actor_id, current, target)
+                        {
+                            let reached = path.is_empty();
+                            if let Some(next_tile) = path.first().copied() {
+                                world.actors[index].tile = next_tile;
+                                world.move_path_step_count += 1;
+                                world.event_log.push(format!(
+                                    "path_step:{}:{},{}",
+                                    actor_id, next_tile.0, next_tile.1
+                                ));
+                                world.event_log.push(format!(
+                                    "move_step:{}:{},{}",
+                                    actor_id, next_tile.0, next_tile.1
+                                ));
+                            }
+                            classic_openra_like_record_path_plan(
+                                world,
+                                &actor_id,
+                                target,
+                                &path,
+                                blocked_tile_ids,
+                                reached,
+                            );
+                        } else {
+                            world.blocked_move_count += 1;
                             world.event_log.push(format!(
-                                "move_step:{}:{},{}",
-                                actor.id, actor.tile.0, actor.tile.1
+                                "path_blocked:{}:{},{}",
+                                actor_id, target.0, target.1
                             ));
                         }
                     }
@@ -44174,17 +44389,35 @@ fn classic_first_contact_openra_like_core_tick_for(
                 TrnmOpenRaLikeOrderKind::Harvest => {
                     let owner = world.actors[index].owner;
                     let actor_id = world.actors[index].id.clone();
-                    {
-                        let actor = &mut world.actors[index];
-                        if let Some(target) = order.target_tile {
-                            if actor.tile != target {
-                                actor.tile = classic_openra_like_step_toward(actor.tile, target);
+                    if let Some(target) = order.target_tile {
+                        let current = world.actors[index].tile;
+                        if let Some((path, blocked_tile_ids)) =
+                            classic_openra_like_pathfind_tiles(world, &actor_id, current, target)
+                        {
+                            if let Some(next_tile) = path.first().copied() {
+                                world.actors[index].tile = next_tile;
+                                world.move_path_step_count += 1;
+                                world.event_log.push(format!(
+                                    "path_step:{}:{},{}",
+                                    actor_id, next_tile.0, next_tile.1
+                                ));
                                 world.event_log.push(format!(
                                     "move_step:{}:{},{}",
-                                    actor.id, actor.tile.0, actor.tile.1
+                                    actor_id, next_tile.0, next_tile.1
                                 ));
                             }
+                            classic_openra_like_record_path_plan(
+                                world,
+                                &actor_id,
+                                target,
+                                &path,
+                                blocked_tile_ids,
+                                path.is_empty(),
+                            );
                         }
+                    }
+                    {
+                        let actor = &mut world.actors[index];
                         if actor.cargo < 12 {
                             actor.cargo = (actor.cargo + 2).min(12);
                         }
