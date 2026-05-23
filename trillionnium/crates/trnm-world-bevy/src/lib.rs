@@ -216,6 +216,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_MINIMAP_BREADCRUMBS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_objective_minimap_breadcrumbs_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_minute_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
@@ -38780,6 +38782,140 @@ pub fn native_classic_rts_objective_minimap_breadcrumbs_evidence_json(
         "source_of_truth": "Classic RTS objective/minimap breadcrumbs evidence locks the campaign handoff objective chain, minimap rally/recon/open-world pings, route director path, next-action list, and rendered milestone pixels so the player-facing navigation trail from RTS victory back to trnm_world cannot regress silently."
     }))
     .expect("classic RTS objective minimap breadcrumbs evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_first_minute_readiness_evidence_json(preview_path: &str) -> String {
+    let entry: Value = serde_json::from_str(&native_classic_rts_campaign_entry_evidence_json(
+        "local-player",
+    ))
+    .expect("campaign entry evidence parses");
+    let breadcrumbs: Value = serde_json::from_str(
+        &native_classic_rts_objective_minimap_breadcrumbs_evidence_json(preview_path),
+    )
+    .expect("objective minimap breadcrumbs evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let array_contains = |value: &Value, key: &str, expected: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+
+    let campaign_entry_gate = entry.get("contract_version").and_then(Value::as_str)
+        == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT)
+        && bool_at(&entry, "green")
+        && bool_at(&entry, "title_entry_gate")
+        && bool_at(&entry, "start_gate")
+        && bool_at(&entry, "slot_snapshot_gate")
+        && bool_at(&entry, "continue_gate")
+        && bool_at(&entry, "continue_unlock_gate")
+        && bool_at(&entry, "replay_gate")
+        && u64_at(&entry, "input_action_count") == 73
+        && u64_at(&entry, "start_input_count") == 73
+        && u64_at(&entry, "replay_input_count") == 73
+        && u64_at(&entry, "campaign_slot_bytes") > 20_000
+        && array_contains(&entry, "title_actions", "CAMPAIGN:START")
+        && array_contains(&entry, "title_actions", "CAMPAIGN:CONTINUE")
+        && array_contains(&entry, "title_actions", "CAMPAIGN:REPLAY");
+    let campaign_arrival_gate = str_at(&entry, "final_current_room_id") == "league-coliseum"
+        && str_at(&entry, "final_map_scene") == "arena_outdoor"
+        && str_at(&entry, "final_open_world_handoff_state") == "resumed:league-coliseum"
+        && str_at(&entry, "final_contextual_primary_action_label") == "COMBAT:attack";
+    let breadcrumb_gate = breadcrumbs.get("contract_version").and_then(Value::as_str)
+        == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_MINIMAP_BREADCRUMBS_CONTRACT)
+        && bool_at(&breadcrumbs, "green")
+        && bool_at(&breadcrumbs, "campaign_handoff_green")
+        && bool_at(&breadcrumbs, "objective_breadcrumb_gate")
+        && bool_at(&breadcrumbs, "minimap_breadcrumb_gate")
+        && bool_at(&breadcrumbs, "route_director_gate")
+        && bool_at(&breadcrumbs, "ui_continuity_gate")
+        && bool_at(&breadcrumbs, "native_client_boundary_gate")
+        && str_at(&breadcrumbs, "final_current_room_id") == "league-coliseum"
+        && str_at(&breadcrumbs, "final_map_scene") == "arena_outdoor"
+        && str_at(&breadcrumbs, "final_objective_status") == "open_world_after_action_ready"
+        && array_contains(&breadcrumbs, "final_next_action_ids", "secure_expansion")
+        && array_contains(
+            &breadcrumbs,
+            "final_next_action_ids",
+            "open_world_after_action",
+        )
+        && array_contains(&breadcrumbs, "final_next_action_ids", "resume_world_route")
+        && array_contains(
+            &breadcrumbs,
+            "final_route_director_path",
+            "mirror-city-square",
+        )
+        && array_contains(&breadcrumbs, "final_route_director_path", "league-coliseum");
+    let breadcrumb_route_gate = array_contains(
+        &breadcrumbs,
+        "final_route_director_history",
+        "route_director:task-fixture-first-route:mirror-city-square->league-coliseum",
+    ) && array_contains(
+        &breadcrumbs,
+        "final_route_director_history",
+        "rts_open_world_after_action:league-coliseum:arrived",
+    );
+    let preview_gate = str_at(&breadcrumbs, "preview_path") == preview_path
+        && u64_at(&breadcrumbs, "preview_width") == 1920
+        && u64_at(&breadcrumbs, "preview_height") == 1080
+        && Path::new(preview_path).exists()
+        && fs::metadata(preview_path)
+            .map(|metadata| metadata.len() > 100_000)
+            .unwrap_or(false);
+    let native_boundary_gate = bool_at(&breadcrumbs, "native_client_boundary_gate")
+        && entry
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let green = campaign_entry_gate
+        && campaign_arrival_gate
+        && breadcrumb_gate
+        && breadcrumb_route_gate
+        && preview_gate
+        && native_boundary_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT,
+        "green": green,
+        "campaign_entry_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT,
+        "objective_minimap_breadcrumbs_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_MINIMAP_BREADCRUMBS_CONTRACT,
+        "campaign_handoff_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
+        "preview_path": preview_path,
+        "preview_width": breadcrumbs.get("preview_width").cloned().unwrap_or(Value::Null),
+        "preview_height": breadcrumbs.get("preview_height").cloned().unwrap_or(Value::Null),
+        "title_actions": entry.get("title_actions").cloned().unwrap_or(Value::Null),
+        "input_action_count": entry.get("input_action_count").cloned().unwrap_or(Value::Null),
+        "start_input_count": entry.get("start_input_count").cloned().unwrap_or(Value::Null),
+        "replay_input_count": entry.get("replay_input_count").cloned().unwrap_or(Value::Null),
+        "campaign_slot_bytes": entry.get("campaign_slot_bytes").cloned().unwrap_or(Value::Null),
+        "final_current_room_id": entry.get("final_current_room_id").cloned().unwrap_or(Value::Null),
+        "final_map_scene": entry.get("final_map_scene").cloned().unwrap_or(Value::Null),
+        "final_open_world_handoff_state": entry.get("final_open_world_handoff_state").cloned().unwrap_or(Value::Null),
+        "final_contextual_primary_action_label": entry.get("final_contextual_primary_action_label").cloned().unwrap_or(Value::Null),
+        "final_objective_status": breadcrumbs.get("final_objective_status").cloned().unwrap_or(Value::Null),
+        "final_next_action_ids": breadcrumbs.get("final_next_action_ids").cloned().unwrap_or(Value::Null),
+        "final_route_director_path": breadcrumbs.get("final_route_director_path").cloned().unwrap_or(Value::Null),
+        "final_route_director_history": breadcrumbs.get("final_route_director_history").cloned().unwrap_or(Value::Null),
+        "campaign_entry_gate": campaign_entry_gate,
+        "campaign_arrival_gate": campaign_arrival_gate,
+        "breadcrumb_gate": breadcrumb_gate,
+        "breadcrumb_route_gate": breadcrumb_route_gate,
+        "preview_gate": preview_gate,
+        "native_boundary_gate": native_boundary_gate,
+        "source_of_truth": "The first-minute readiness gate ties TITLE campaign start/continue/replay, persisted campaign slot restore, the full classic RTS handoff arrival, objective/minimap breadcrumbs, route director history, and the rendered 1920x1080 native preview into one repeatable Bevy-owned evidence artifact for trnm_world playtest readiness."
+    }))
+    .expect("classic RTS first-minute readiness evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
