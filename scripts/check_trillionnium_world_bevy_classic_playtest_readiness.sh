@@ -98,6 +98,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
@@ -191,6 +192,7 @@ jq -n \
   --slurpfile rts_map_ui_modeling_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness.json" \
   --slurpfile rts_campaign_outcome_ui_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
+  --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
   --slurpfile runner "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" \
   --slurpfile launcher "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" \
@@ -290,6 +292,7 @@ jq -n \
       and ok($rts_map_ui_modeling_readiness)
       and ok($rts_campaign_outcome_ui_readiness)
       and ok($rts_combat_readability_pressure_readiness)
+      and ok($rts_playtest_observability_readiness)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
       and ok($runner)
       and ok($launcher)
@@ -601,6 +604,7 @@ jq -n \
       classic_rts_map_ui_modeling_readiness_green: ok($rts_map_ui_modeling_readiness),
       classic_rts_campaign_outcome_ui_readiness_green: ok($rts_campaign_outcome_ui_readiness),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
+      classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
       playtest_runner_status_green: ok($runner),
       playtest_launcher_green: ok($launcher)
@@ -2685,6 +2689,8 @@ jq -n \
       classic_rts_campaign_outcome_ui_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness/",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
       classic_rts_combat_readability_pressure_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/",
+      classic_rts_playtest_observability_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json",
+      classic_rts_playtest_observability_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness/",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
@@ -2787,6 +2793,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_map_ui_modeling_readiness_green == true
   and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
+  and .checks.classic_rts_playtest_observability_readiness_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true
   and .checks.playtest_launcher_green == true
