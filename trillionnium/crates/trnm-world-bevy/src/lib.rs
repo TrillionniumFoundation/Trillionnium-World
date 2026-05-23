@@ -218,6 +218,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OBJECTIVE_MINIMAP_BREADCRUMBS_CONT
     "trillionnium_world_bevy_classic_rts_objective_minimap_breadcrumbs_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_minute_readiness_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
@@ -38916,6 +38918,225 @@ pub fn native_classic_rts_first_minute_readiness_evidence_json(preview_path: &st
         "source_of_truth": "The first-minute readiness gate ties TITLE campaign start/continue/replay, persisted campaign slot restore, the full classic RTS handoff arrival, objective/minimap breadcrumbs, route director history, and the rendered 1920x1080 native preview into one repeatable Bevy-owned evidence artifact for trnm_world playtest readiness."
     }))
     .expect("classic RTS first-minute readiness evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_map_ui_modeling_readiness_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let visual_path = preview_path("visual-fidelity.ppm");
+    let command_path = preview_path("command-affordance.ppm");
+    let scroll_path = preview_path("scrollable-map.ppm");
+    let camera_path = preview_path("camera-minimap-sync.ppm");
+    let structure_path = preview_path("structure-modeling.ppm");
+    let environment_path = preview_path("environment-life.ppm");
+
+    let visual: Value = serde_json::from_str(&native_classic_rts_visual_fidelity_evidence_json(
+        &visual_path,
+    ))
+    .expect("visual fidelity evidence parses");
+    let command: Value = serde_json::from_str(
+        &native_classic_rts_command_affordance_evidence_json(&command_path),
+    )
+    .expect("command affordance evidence parses");
+    let scroll: Value = serde_json::from_str(&native_classic_rts_scrollable_map_evidence_json(
+        &scroll_path,
+    ))
+    .expect("scrollable map evidence parses");
+    let camera: Value = serde_json::from_str(
+        &native_classic_rts_camera_minimap_sync_evidence_json(&camera_path),
+    )
+    .expect("camera minimap sync evidence parses");
+    let structure: Value = serde_json::from_str(
+        &native_classic_rts_structure_modeling_evidence_json(&structure_path),
+    )
+    .expect("structure modeling evidence parses");
+    let environment: Value = serde_json::from_str(
+        &native_classic_rts_environment_life_evidence_json(&environment_path),
+    )
+    .expect("environment life evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+
+    let visual_gate = contract_is(
+        &visual,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT,
+    ) && bool_at(&visual, "green")
+        && bool_at(&visual, "selected_units_gate")
+        && bool_at(&visual, "command_surface_gate")
+        && bool_at(&visual, "model_fidelity_gate")
+        && bool_at(&visual, "npc_animation_gate")
+        && bool_at(&visual, "mature_rts_hud_gate")
+        && u64_at(&visual, "fidelity_panel_pixel_count") > 16_000
+        && u64_at(&visual, "model_edge_pixel_count") > 1_200;
+    let command_gate = contract_is(
+        &command,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT,
+    ) && bool_at(&command, "green")
+        && bool_at(&command, "live_command_affordance_input_gate")
+        && bool_at(&command, "drag_select_gate")
+        && bool_at(&command, "right_click_move_gate")
+        && bool_at(&command, "attack_cursor_gate")
+        && bool_at(&command, "hotkey_ack_gate")
+        && u64_at(&command, "accepted_input_count") == 4
+        && u64_at(&command, "hotkey_pixel_count") > 200;
+    let scroll_gate = contract_is(
+        &scroll,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT,
+    ) && bool_at(&scroll, "green")
+        && bool_at(&scroll, "map_layer_projection_gate")
+        && bool_at(&scroll, "hud_fixed_gate")
+        && bool_at(&scroll, "camera_runtime_gate")
+        && bool_at(&scroll, "scene_renderer_gate")
+        && u64_at(&scroll, "input_action_count") == 6
+        && u64_at(&scroll, "minimap_pixel_count") > 600;
+    let camera_gate = contract_is(
+        &camera,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT,
+    ) && bool_at(&camera, "green")
+        && bool_at(&camera, "viewport_sync_gate")
+        && bool_at(&camera, "fog_reveal_gate")
+        && bool_at(&camera, "selection_follow_gate")
+        && bool_at(&camera, "control_group_sync_gate")
+        && bool_at(&camera, "route_projection_gate")
+        && bool_at(&camera, "minimap_runtime_gate")
+        && u64_at(&camera, "revealed_tile_union_count") >= 12;
+    let structure_gate = contract_is(
+        &structure,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_STRUCTURE_MODELING_CONTRACT,
+    ) && bool_at(&structure, "green")
+        && bool_at(&structure, "foundation_gate")
+        && bool_at(&structure, "scaffold_gate")
+        && bool_at(&structure, "construction_spark_gate")
+        && bool_at(&structure, "production_glow_gate")
+        && bool_at(&structure, "damage_crack_gate")
+        && bool_at(&structure, "repair_beam_gate")
+        && bool_at(&structure, "structure_stage_gate");
+    let environment_gate = contract_is(
+        &environment,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENVIRONMENT_LIFE_CONTRACT,
+    ) && bool_at(&environment, "green")
+        && bool_at(&environment, "tree_sway_gate")
+        && bool_at(&environment, "torch_flicker_gate")
+        && bool_at(&environment, "water_shimmer_gate")
+        && bool_at(&environment, "banner_flutter_gate")
+        && bool_at(&environment, "resource_glint_gate")
+        && bool_at(&environment, "ambient_dust_gate")
+        && bool_at(&environment, "environment_stage_gate");
+    let source_policy_gate = [
+        &visual,
+        &command,
+        &scroll,
+        &camera,
+        &structure,
+        &environment,
+    ]
+    .iter()
+    .all(|value| {
+        bool_at(value, "original_art_policy_gate")
+            && value
+                .get("warcraft_iii_asset_copied")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && value
+                .get("cex_runtime_player_client_allowed")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && value.get("wgpu_required").and_then(Value::as_bool) == Some(false)
+    });
+    let preview_gate = [
+        &visual_path,
+        &command_path,
+        &scroll_path,
+        &camera_path,
+        &structure_path,
+        &environment_path,
+    ]
+    .iter()
+    .all(|path| file_ready(path));
+    let green = visual_gate
+        && command_gate
+        && scroll_gate
+        && camera_gate
+        && structure_gate
+        && environment_gate
+        && source_policy_gate
+        && preview_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_count": 6,
+        "preview_paths": {
+            "visual_fidelity": visual_path,
+            "command_affordance": command_path,
+            "scrollable_map": scroll_path,
+            "camera_minimap_sync": camera_path,
+            "structure_modeling": structure_path,
+            "environment_life": environment_path
+        },
+        "source_contracts": {
+            "visual_fidelity": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT,
+            "command_affordance": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT,
+            "scrollable_map": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT,
+            "camera_minimap_sync": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT,
+            "structure_modeling": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_STRUCTURE_MODELING_CONTRACT,
+            "environment_life": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENVIRONMENT_LIFE_CONTRACT
+        },
+        "visual_gate": visual_gate,
+        "command_gate": command_gate,
+        "scroll_gate": scroll_gate,
+        "camera_gate": camera_gate,
+        "structure_gate": structure_gate,
+        "environment_gate": environment_gate,
+        "source_policy_gate": source_policy_gate,
+        "preview_gate": preview_gate,
+        "visual_fidelity_pixels": {
+            "fidelity_panel": visual.get("fidelity_panel_pixel_count").cloned().unwrap_or(Value::Null),
+            "portrait": visual.get("portrait_pixel_count").cloned().unwrap_or(Value::Null),
+            "model_edge": visual.get("model_edge_pixel_count").cloned().unwrap_or(Value::Null),
+            "command_grid": visual.get("command_grid_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "command_affordance_pixels": {
+            "drag_marquee": command.get("drag_marquee_pixel_count").cloned().unwrap_or(Value::Null),
+            "right_click_marker": command.get("right_click_marker_pixel_count").cloned().unwrap_or(Value::Null),
+            "attack_cursor": command.get("attack_cursor_pixel_count").cloned().unwrap_or(Value::Null),
+            "hotkey": command.get("hotkey_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "map_camera_pixels": {
+            "scroll_minimap": scroll.get("minimap_pixel_count").cloned().unwrap_or(Value::Null),
+            "camera_viewport": camera.get("viewport_pixel_count").cloned().unwrap_or(Value::Null),
+            "camera_fog": camera.get("fog_pixel_count").cloned().unwrap_or(Value::Null),
+            "camera_route": camera.get("route_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "modeling_pixels": {
+            "foundation_shadow": structure.get("foundation_shadow_pixel_count").cloned().unwrap_or(Value::Null),
+            "scaffold": structure.get("scaffold_pixel_count").cloned().unwrap_or(Value::Null),
+            "production_glow": structure.get("production_glow_pixel_count").cloned().unwrap_or(Value::Null),
+            "tree_sway": environment.get("tree_sway_pixel_count").cloned().unwrap_or(Value::Null),
+            "water_shimmer": environment.get("water_shimmer_pixel_count").cloned().unwrap_or(Value::Null),
+            "ambient_dust": environment.get("ambient_dust_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "source_of_truth": "The map/UI/modeling readiness gate renders and verifies six Bevy-owned classic RTS surfaces together: mature HUD/readability, command affordance input feedback, scrollable map projection, camera-minimap sync, structure construction/damage/repair modeling, and ambient environment life. It keeps the playable trnm_world map/UI/modeling baseline original and independent from CEX/web/WGPU paths."
+    }))
+    .expect("classic RTS map UI modeling readiness evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

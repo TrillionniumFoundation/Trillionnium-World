@@ -1516,6 +1516,21 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-map-ui-modeling-readiness" | "--classic-rts-map-ui-modeling-readiness")
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_map_ui_modeling_readiness_evidence_json(
+                preview_dir
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )
