@@ -178,6 +178,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/s5_device_evidence_collector_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/s5_real_device_evidence_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_operator_payload_fixture_test.sh" \
   "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_title_flow_script_contract_guard_test.sh" \
@@ -301,6 +302,7 @@ run_check s5_real_device_evidence_contract_guard "$ROOT/scripts/v2/s5_real_devic
 run_check s5_real_device_evidence_gate "$ROOT/scripts/check_trillionnium_world_s5_real_device_evidence.sh"
 run_check halium_sidecar_runtime_dev_surface_contract_guard "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_script_contract_guard_test.sh"
 run_check halium_sidecar_runtime_dev_surface_gate "$ROOT/scripts/check_trillionnium_world_halium_sidecar_runtime_dev_surface.sh"
+run_check halium_sidecar_runtime_dev_surface_operator_payload_fixture "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_operator_payload_fixture_test.sh"
 run_check bevy_action_coach_gate "$ROOT/scripts/check_trillionnium_world_bevy_action_coach.sh"
 run_check bevy_player_hud_debug_layer_gate "$ROOT/scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh"
 run_check bevy_player_ui_rescue_contract_guard "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh"
