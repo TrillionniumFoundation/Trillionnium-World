@@ -24,10 +24,13 @@ jq -e '
   and .map.runtime_actor_count >= 48
   and .map.player_count == 4
   and (.rules[] | select(.id == "trnm.worker" and ((.traits | index("harvester")) != null)))
+  and (.rules[] | select(.id == "trnm.worker" and .supply_cost == 1))
   and (.rules[] | select(.id == "trnm.worker" and .vision_radius >= 5))
   and (.rules[] | select(.id == "trnm.horizon.scout" and .vision_radius >= 7))
   and (.rules[] | select(.id == "trnm.flux.relay" and ((.traits | index("refinery")) != null) and .vision_radius >= 5))
+  and (.rules[] | select(.id == "trnm.flux.relay" and .supply_provided == 4))
   and (.rules[] | select(.id == "trnm.command.core" and ((.traits | index("producer")) != null) and ((.traits | index("provides_build_radius")) != null)))
+  and (.rules[] | select(.id == "trnm.command.core" and .supply_provided == 8))
   and (.rules[] | select(.id == "trnm.flux.beacon" and ((.traits | index("capturable")) != null)))
   and (.rules[] | select(.id == "trnm.striker" and ((.traits | index("attack")) != null)))
   and (.rules[] | select(.id == "trnm.worker" and ((.traits | index("repair")) != null)))
@@ -45,6 +48,10 @@ jq -e '
   and .simulation.production_spawn_count >= 2
   and .simulation.production_rally_count >= 2
   and .simulation.multi0_supply_used > .simulation.multi0_initial_supply_used
+  and .simulation.multi0_supply_cap > .simulation.multi0_initial_supply_cap
+  and .simulation.multi0_supply_used <= .simulation.multi0_supply_cap
+  and .simulation.supply_blocked_train_count > 0
+  and .simulation.supply_cap_increase_count > 0
   and .simulation.relay_build_progress > 0
   and .simulation.beacon_capture_progress > 0
   and .simulation.combat_damage > 0
@@ -55,6 +62,7 @@ jq -e '
   and .simulation.producer_queue_gate == true
   and .simulation.producer_incomplete_gate == true
   and .simulation.tech_train_accept_gate == true
+  and .simulation.supply_cap_gate == true
   and .simulation.build_placement_gate == true
   and .simulation.attack_range_gate == true
   and .simulation.attack_visibility_gate == true
@@ -91,6 +99,7 @@ jq -e '
   and any(.simulation.command_log[]; contains("rejected:move:multi1.worker.0:owner_mismatch"))
   and any(.simulation.command_log[]; contains("rejected:train:multi0.assembly.pad:producer_incomplete"))
   and any(.simulation.command_log[]; contains("rejected:train:multi0.command.core:producer_queue_mismatch"))
+  and any(.simulation.command_log[]; contains("rejected:train:multi0.command.core:supply_cap_reached"))
   and any(.simulation.command_log[]; contains("rejected:attack:multi0.worker.0:target_out_of_range"))
   and any(.simulation.command_log[]; contains("rejected:attack:multi0.line.0:target_not_visible"))
   and any(.simulation.command_log[]; contains("rejected:repair:multi0.worker.repair:repair_target_full"))
@@ -111,6 +120,7 @@ jq -e '
   and any(.simulation.event_log[]; contains("build_tick"))
   and any(.simulation.event_log[]; contains("train_tick"))
   and any(.simulation.event_log[]; contains("train_complete:multi0.command.core"))
+  and any(.simulation.event_log[]; contains("supply_cap_increase:Multi0:multi0.flux.relay:trnm.flux.relay:+4"))
   and any(.simulation.event_log[]; contains("production_spawn:multi0.trained."))
   and any(.simulation.event_log[]; contains("rally_order:multi0.trained."))
   and any(.simulation.event_log[]; contains("capture_tick"))
@@ -143,6 +153,7 @@ jq -e '
   and .gates.producer_incomplete_gate == true
   and .gates.tech_train_accept_gate == true
   and .gates.tech_prerequisite_gate == true
+  and .gates.supply_cap_gate == true
   and .gates.build_placement_gate == true
   and .gates.attack_weapon_gate == true
   and .gates.attack_range_gate == true

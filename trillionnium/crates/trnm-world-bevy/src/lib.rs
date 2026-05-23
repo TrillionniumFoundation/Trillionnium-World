@@ -17104,6 +17104,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .find(|player| player.id == "Multi0")
         .map(|player| player.supply_used)
         .unwrap_or_default();
+    let initial_supply_cap = world
+        .players
+        .iter()
+        .find(|player| player.id == "Multi0")
+        .map(|player| player.supply_cap)
+        .unwrap_or_default();
     let initial_enemy_hp = world
         .actors
         .iter()
@@ -17124,6 +17130,15 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
                 target_tile: Some((13, 11)),
                 target_id: None,
                 rule_id: Some("trnm.worker"),
+            },
+        ),
+        (
+            "multi0.command.core",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Train,
+                target_tile: Some((14, 11)),
+                target_id: None,
+                rule_id: Some("trnm.horizon.scout"),
             },
         ),
         (
@@ -17407,6 +17422,18 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     });
     let tech_prerequisite_gate =
         producer_queue_gate && producer_incomplete_gate && tech_train_accept_gate;
+    let supply_cap_gate = world.command_results.iter().any(|result| {
+        !result.accepted
+            && result.actor_id == "multi0.command.core"
+            && result.order == TrnmOpenRaLikeOrderKind::Train
+            && result.reason == "supply_cap_reached"
+    }) && world.supply_blocked_train_count > 0
+        && world.supply_cap_increase_count > 0
+        && multi0.supply_cap > initial_supply_cap
+        && multi0.supply_used <= multi0.supply_cap
+        && world.event_log.iter().any(|event| {
+            event.starts_with("supply_cap_increase:Multi0:multi0.flux.relay:trnm.flux.relay:+4")
+        });
     let attack_range_gate = world.command_results.iter().any(|result| {
         !result.accepted
             && result.actor_id == "multi0.worker.0"
@@ -17585,6 +17612,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "auto_attack_kill",
         "repair_tick",
         "repair_complete",
+        "supply_cap_increase",
         "control_group_recall",
         "queued_group_order",
         "queued_order_execute",
@@ -17658,6 +17686,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && pathfinding_gate
         && production_completion_gate
         && tech_prerequisite_gate
+        && supply_cap_gate
         && attack_weapon_gate
         && attack_range_gate
         && attack_visibility_gate
@@ -17707,6 +17736,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "producer_queue_gate": producer_queue_gate,
             "producer_incomplete_gate": producer_incomplete_gate,
             "tech_train_accept_gate": tech_train_accept_gate,
+            "supply_cap_gate": supply_cap_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "build_placement_gate": build_placement_gate,
@@ -17748,6 +17778,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "multi0_flux": multi0.flux,
             "multi0_supply_used": multi0.supply_used,
             "multi0_initial_supply_used": initial_supply_used,
+            "multi0_supply_cap": multi0.supply_cap,
+            "multi0_initial_supply_cap": initial_supply_cap,
+            "supply_blocked_train_count": world.supply_blocked_train_count,
+            "supply_cap_increase_count": world.supply_cap_increase_count,
             "multi0_beacon_control_ticks": multi0.beacon_control_ticks,
             "multi0_visible_tile_count": visible_tile_count,
             "multi0_explored_tile_count": explored_tile_count,
@@ -17793,6 +17827,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "producer_incomplete_gate": producer_incomplete_gate,
             "tech_train_accept_gate": tech_train_accept_gate,
             "tech_prerequisite_gate": tech_prerequisite_gate,
+            "supply_cap_gate": supply_cap_gate,
             "build_placement_gate": build_placement_gate,
             "attack_weapon_gate": attack_weapon_gate,
             "attack_range_gate": attack_range_gate,
@@ -43150,6 +43185,8 @@ struct TrnmOpenRaLikeRuleSpec {
     vision_radius: u8,
     build_duration: Option<u32>,
     queue: &'static str,
+    supply_cost: u32,
+    supply_provided: u32,
     traits: &'static [TrnmOpenRaLikeTrait],
 }
 
@@ -43224,6 +43261,7 @@ struct TrnmOpenRaLikePlayerState {
     faction: &'static str,
     flux: u32,
     supply_used: u32,
+    supply_cap: u32,
     beacon_control_ticks: u32,
     visible_tile_ids: Vec<String>,
     explored_tile_ids: Vec<String>,
@@ -43309,6 +43347,9 @@ struct TrnmOpenRaLikeWorld {
     repair_tick_count: u32,
     repair_flux_spent: u32,
     repair_complete_count: u32,
+    supply_cap_increase_count: u32,
+    supply_blocked_train_count: u32,
+    counted_supply_provider_ids: Vec<String>,
     destroyed_actor_memory_ids: Vec<String>,
     control_groups: Vec<TrnmOpenRaLikeControlGroup>,
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
@@ -43420,6 +43461,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 5,
         build_duration: Some(100),
         queue: "Unit",
+        supply_cost: 1,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_WORKER_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43433,6 +43476,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 7,
         build_duration: Some(125),
         queue: "Unit",
+        supply_cost: 1,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43446,6 +43491,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 5,
         build_duration: Some(150),
         queue: "Unit",
+        supply_cost: 1,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43459,6 +43506,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 5,
         build_duration: Some(175),
         queue: "Unit",
+        supply_cost: 1,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_UNIT_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43472,6 +43521,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 6,
         build_duration: None,
         queue: "Building/Unit",
+        supply_cost: 0,
+        supply_provided: 8,
         traits: TRNM_OPENRA_LIKE_CORE_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43485,6 +43536,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 5,
         build_duration: Some(180),
         queue: "Building",
+        supply_cost: 0,
+        supply_provided: 4,
         traits: TRNM_OPENRA_LIKE_RELAY_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43498,6 +43551,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 5,
         build_duration: Some(220),
         queue: "Building",
+        supply_cost: 0,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_PRODUCTION_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43511,6 +43566,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 8,
         build_duration: Some(260),
         queue: "Building",
+        supply_cost: 0,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_PRODUCTION_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43524,6 +43581,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 4,
         build_duration: None,
         queue: "Objective",
+        supply_cost: 0,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_OBJECTIVE_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43537,6 +43596,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 0,
         build_duration: None,
         queue: "Resource",
+        supply_cost: 0,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_RESOURCE_TRAITS,
     },
     TrnmOpenRaLikeRuleSpec {
@@ -43550,6 +43611,8 @@ const TRNM_OPENRA_LIKE_RULES: &[TrnmOpenRaLikeRuleSpec] = &[
         vision_radius: 0,
         build_duration: None,
         queue: "MapDetail",
+        supply_cost: 0,
+        supply_provided: 0,
         traits: TRNM_OPENRA_LIKE_MARKER_TRAITS,
     },
 ];
@@ -43874,6 +43937,8 @@ fn classic_openra_like_rule_json(rule: &TrnmOpenRaLikeRuleSpec) -> Value {
         "vision_radius": rule.vision_radius,
         "build_duration": rule.build_duration,
         "queue": rule.queue,
+        "supply_cost": rule.supply_cost,
+        "supply_provided": rule.supply_provided,
         "traits": rule.traits.iter().map(|trait_kind| trait_kind.as_str()).collect::<Vec<_>>(),
     })
 }
@@ -44136,6 +44201,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 faction: "horizon",
                 flux: 1800,
                 supply_used: 5,
+                supply_cap: 8,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44146,6 +44212,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 faction: "forge",
                 flux: 340,
                 supply_used: 4,
+                supply_cap: 8,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44156,6 +44223,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 faction: "horizon",
                 flux: 340,
                 supply_used: 4,
+                supply_cap: 8,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44166,6 +44234,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 faction: "forge",
                 flux: 340,
                 supply_used: 4,
+                supply_cap: 8,
                 beacon_control_ticks: 0,
                 visible_tile_ids: Vec::new(),
                 explored_tile_ids: Vec::new(),
@@ -44211,6 +44280,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         repair_tick_count: 0,
         repair_flux_spent: 0,
         repair_complete_count: 0,
+        supply_cap_increase_count: 0,
+        supply_blocked_train_count: 0,
+        counted_supply_provider_ids: Vec::new(),
         destroyed_actor_memory_ids: Vec::new(),
         control_groups: vec![
             TrnmOpenRaLikeControlGroup {
@@ -44501,6 +44573,54 @@ fn classic_openra_like_missing_prerequisite(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_openra_like_reserved_supply(world: &TrnmOpenRaLikeWorld, owner: &str) -> u32 {
+    world
+        .production
+        .iter()
+        .filter(|item| item.owner == owner && !item.completed)
+        .filter_map(|item| classic_openra_like_rule_for(item.rule_id))
+        .map(|rule| rule.supply_cost)
+        .sum()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_supply_provided_for(rule_id: &str) -> u32 {
+    classic_openra_like_rule_for(rule_id)
+        .map(|rule| rule.supply_provided)
+        .unwrap_or_default()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_mark_supply_provider_complete(
+    world: &mut TrnmOpenRaLikeWorld,
+    owner: &'static str,
+    actor_id: &str,
+    rule_id: &str,
+) {
+    let supply_provided = classic_openra_like_supply_provided_for(rule_id);
+    if supply_provided == 0
+        || world
+            .counted_supply_provider_ids
+            .iter()
+            .any(|counted_id| counted_id == actor_id)
+    {
+        return;
+    }
+    world.counted_supply_provider_ids.push(actor_id.to_string());
+    let mut new_supply_cap = None;
+    if let Some(player) = classic_openra_like_player_mut(world, owner) {
+        player.supply_cap += supply_provided;
+        new_supply_cap = Some(player.supply_cap);
+    }
+    if let Some(new_supply_cap) = new_supply_cap {
+        world.supply_cap_increase_count += 1;
+        world.event_log.push(format!(
+            "supply_cap_increase:{owner}:{actor_id}:{rule_id}:+{supply_provided}:{new_supply_cap}cap"
+        ));
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_recall_control_group(
     world: &mut TrnmOpenRaLikeWorld,
     owner: &'static str,
@@ -44753,6 +44873,20 @@ fn classic_first_contact_openra_like_core_issue_order(
                 classic_openra_like_missing_prerequisite(world, owner, rule_id)
             {
                 Some(format!("prerequisite_missing:{missing}"))
+            } else if world
+                .players
+                .iter()
+                .find(|player| player.id == owner)
+                .is_some_and(|player| {
+                    player
+                        .supply_used
+                        .saturating_add(classic_openra_like_reserved_supply(world, owner))
+                        .saturating_add(target_rule.supply_cost)
+                        > player.supply_cap
+                })
+            {
+                world.supply_blocked_train_count += 1;
+                Some("supply_cap_reached".to_string())
             } else if world
                 .players
                 .iter()
@@ -45292,7 +45426,9 @@ fn classic_first_contact_openra_like_core_tick_for(
                     order,
                 ));
                 if let Some(player) = classic_openra_like_player_mut(world, owner) {
-                    player.supply_used += 1;
+                    player.supply_used += classic_openra_like_rule_for(rule_id)
+                        .map(|rule| rule.supply_cost)
+                        .unwrap_or(1);
                 }
                 if let Some(item) = world.production.get_mut(item_index) {
                     item.completed = true;
@@ -45314,6 +45450,7 @@ fn classic_first_contact_openra_like_core_tick_for(
                 }
             }
         }
+        let mut completed_supply_providers = Vec::new();
         for structure_index in 0..world.actors.len() {
             let rule_id = world.actors[structure_index].rule_id;
             if world.actors[structure_index].build_progress >= 100 {
@@ -45338,6 +45475,16 @@ fn classic_first_contact_openra_like_core_tick_for(
                     .event_log
                     .push(format!("build_auto_tick:{actor_id}:{rule_id}:{progress}%"));
             }
+            if progress >= 100 {
+                completed_supply_providers.push((
+                    world.actors[structure_index].owner,
+                    actor_id,
+                    rule_id,
+                ));
+            }
+        }
+        for (owner, actor_id, rule_id) in completed_supply_providers {
+            classic_openra_like_mark_supply_provider_complete(world, owner, &actor_id, rule_id);
         }
         for queued_index in 0..world.queued_orders.len() {
             if world.queued_orders[queued_index].completed
@@ -45476,6 +45623,7 @@ fn classic_first_contact_openra_like_core_tick_for(
                 }
                 TrnmOpenRaLikeOrderKind::Build => {
                     if let Some(target_id) = order.target_id {
+                        let mut completed_provider = None;
                         if let Some(target) =
                             world.actors.iter_mut().find(|actor| actor.id == target_id)
                         {
@@ -45492,6 +45640,15 @@ fn classic_first_contact_openra_like_core_tick_for(
                                 order.rule_id.unwrap_or(target.rule_id),
                                 target.build_progress
                             ));
+                            if target.build_progress >= 100 {
+                                completed_provider =
+                                    Some((target.owner, target.id.clone(), target.rule_id));
+                            }
+                        }
+                        if let Some((owner, actor_id, rule_id)) = completed_provider {
+                            classic_openra_like_mark_supply_provider_complete(
+                                world, owner, &actor_id, rule_id,
+                            );
                         }
                     }
                 }
@@ -45699,6 +45856,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "faction": player.faction,
                 "flux": player.flux,
                 "supply_used": player.supply_used,
+                "supply_cap": player.supply_cap,
                 "beacon_control_ticks": player.beacon_control_ticks,
                 "visible_tile_count": player.visible_tile_ids.len(),
                 "explored_tile_count": player.explored_tile_ids.len(),
