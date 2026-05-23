@@ -59,6 +59,10 @@ jq -e '
   and .simulation.attack_kill_count > 0
   and .simulation.attack_cooldown_wait_count > 0
   and .simulation.multi1_command_core_removed == true
+  and .simulation.control_group_count >= 2
+  and .simulation.queued_order_count >= 3
+  and .simulation.queued_order_execute_count >= 3
+  and .simulation.completed_queued_order_count >= 3
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -99,6 +103,9 @@ jq -e '
   and any(.simulation.event_log[]; contains("attack_cooldown:multi0.striker.0"))
   and any(.simulation.event_log[]; contains("attack_kill:multi0.striker.0:multi1.command.core"))
   and any(.simulation.event_log[]; contains("attack_remove:multi1.command.core"))
+  and any(.simulation.event_log[]; contains("control_group_recall:Multi0:1"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:1:move"))
+  and ([.simulation.event_log[] | select(contains("queued_order_execute:1:"))] | length) >= 3
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -118,6 +125,8 @@ jq -e '
   and .gates.attack_weapon_gate == true
   and .gates.attack_range_gate == true
   and .gates.attack_visibility_gate == true
+  and .gates.control_group_gate == true
+  and .gates.queued_order_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
