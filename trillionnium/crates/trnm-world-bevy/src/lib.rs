@@ -222,6 +222,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT
     "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
@@ -39352,6 +39354,232 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         "source_of_truth": "The campaign outcome/UI readiness gate verifies the playable first-match loop as one Bevy-native chain: first-minute campaign entry, objective victory and defeat-risk reduction, base assault breach, battle aftermath rewards/next-action UI, and open-world route resume. It intentionally remains local native evidence and does not claim public-launch readiness or external OpenRA parity."
     }))
     .expect("classic RTS campaign outcome UI readiness evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let unit_path = preview_path("unit-status-portrait.ppm");
+    let command_path = preview_path("selection-command-feedback.ppm");
+    let ability_path = preview_path("ability-tooltip-telegraph.ppm");
+    let depth_path = preview_path("depth-readability.ppm");
+    let pressure_path = preview_path("central-keep-pressure.ppm");
+
+    let unit: Value = serde_json::from_str(&native_classic_rts_unit_status_portrait_evidence_json(
+        &unit_path,
+    ))
+    .expect("unit status portrait evidence parses");
+    let command: Value = serde_json::from_str(
+        &native_classic_rts_selection_command_feedback_evidence_json(&command_path),
+    )
+    .expect("selection command feedback evidence parses");
+    let ability: Value = serde_json::from_str(
+        &native_classic_rts_ability_tooltip_telegraph_evidence_json(&ability_path),
+    )
+    .expect("ability tooltip telegraph evidence parses");
+    let depth: Value = serde_json::from_str(&native_classic_rts_depth_readability_evidence_json(
+        &depth_path,
+    ))
+    .expect("depth readability evidence parses");
+    let pressure: Value = serde_json::from_str(
+        &native_classic_rts_central_keep_pressure_evidence_json(&pressure_path),
+    )
+    .expect("central keep pressure evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let array_contains = |value: &Value, key: &str, expected: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+
+    let unit_status_gate = contract_is(
+        &unit,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT,
+    ) && bool_at(&unit, "green")
+        && bool_at(&unit, "portrait_frame_gate")
+        && bool_at(&unit, "health_bar_gate")
+        && bool_at(&unit, "mana_bar_gate")
+        && bool_at(&unit, "xp_bar_gate")
+        && bool_at(&unit, "buff_badge_gate")
+        && bool_at(&unit, "role_badge_gate")
+        && bool_at(&unit, "queue_badge_gate")
+        && bool_at(&unit, "status_runtime_gate")
+        && u64_at(&unit, "portrait_frame_pixel_count") > 1_200
+        && u64_at(&unit, "health_bar_pixel_count") > 300;
+    let command_feedback_gate = contract_is(
+        &command,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+    ) && bool_at(&command, "green")
+        && bool_at(&command, "marquee_gate")
+        && bool_at(&command, "confirm_gate")
+        && bool_at(&command, "rally_gate")
+        && bool_at(&command, "move_gate")
+        && bool_at(&command, "attack_gate")
+        && bool_at(&command, "error_gate")
+        && bool_at(&command, "ack_gate")
+        && bool_at(&command, "command_runtime_gate")
+        && u64_at(&command, "error_pixel_count") > 420;
+    let ability_telegraph_gate = contract_is(
+        &ability,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT,
+    ) && bool_at(&ability, "green")
+        && bool_at(&ability, "tooltip_gate")
+        && bool_at(&ability, "range_gate")
+        && bool_at(&ability, "windup_gate")
+        && bool_at(&ability, "cooldown_gate")
+        && bool_at(&ability, "queue_gate")
+        && bool_at(&ability, "warning_gate")
+        && bool_at(&ability, "ability_runtime_gate")
+        && u64_at(&ability, "accepted_input_count") == 6;
+    let depth_readability_gate = contract_is(
+        &depth,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_DEPTH_READABILITY_CONTRACT,
+    ) && bool_at(&depth, "green")
+        && bool_at(&depth, "foreground_gate")
+        && bool_at(&depth, "behind_gate")
+        && bool_at(&depth, "building_mask_gate")
+        && bool_at(&depth, "target_priority_gate")
+        && bool_at(&depth, "path_occlusion_gate")
+        && bool_at(&depth, "cutaway_gate")
+        && bool_at(&depth, "depth_stage_gate");
+    let pressure_feedback_gate = contract_is(
+        &pressure,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_PRESSURE_CONTRACT,
+    ) && bool_at(&pressure, "green")
+        && bool_at(&pressure, "live_central_keep_input_gate")
+        && bool_at(&pressure, "inner_lane_dependency_gate")
+        && bool_at(&pressure, "keep_route_gate")
+        && bool_at(&pressure, "keep_shield_gate")
+        && bool_at(&pressure, "keep_guard_gate")
+        && bool_at(&pressure, "keep_siege_line_gate")
+        && bool_at(&pressure, "keep_pressure_gate")
+        && u64_at(&pressure, "accepted_input_count") == 40
+        && u64_at(&pressure, "final_defeat_risk_percent") >= 42
+        && str_at(&pressure, "final_central_keep_state") == "pressure_locked:central_keep"
+        && array_contains(&pressure, "final_next_action_ids", "press_central_keep")
+        && array_contains(&pressure, "final_next_action_ids", "break_central_keep");
+    let source_policy_gate = [&unit, &command, &ability, &depth].iter().all(|value| {
+        bool_at(value, "original_art_policy_gate")
+            && value
+                .get("warcraft_iii_asset_copied")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && value
+                .get("cex_runtime_player_client_allowed")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && value.get("wgpu_required").and_then(Value::as_bool) == Some(false)
+    }) && pressure
+        .get("cex_runtime_player_client_allowed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && pressure.get("wgpu_required").and_then(Value::as_bool) == Some(false);
+    let preview_gate = [
+        &unit_path,
+        &command_path,
+        &ability_path,
+        &depth_path,
+        &pressure_path,
+    ]
+    .iter()
+    .all(|path| file_ready(path));
+    let green = unit_status_gate
+        && command_feedback_gate
+        && ability_telegraph_gate
+        && depth_readability_gate
+        && pressure_feedback_gate
+        && source_policy_gate
+        && preview_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_count": 5,
+        "preview_paths": {
+            "unit_status_portrait": unit_path,
+            "selection_command_feedback": command_path,
+            "ability_tooltip_telegraph": ability_path,
+            "depth_readability": depth_path,
+            "central_keep_pressure": pressure_path
+        },
+        "source_contracts": {
+            "unit_status_portrait": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT,
+            "selection_command_feedback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+            "ability_tooltip_telegraph": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT,
+            "depth_readability": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_DEPTH_READABILITY_CONTRACT,
+            "central_keep_pressure": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CENTRAL_KEEP_PRESSURE_CONTRACT
+        },
+        "unit_status_gate": unit_status_gate,
+        "command_feedback_gate": command_feedback_gate,
+        "ability_telegraph_gate": ability_telegraph_gate,
+        "depth_readability_gate": depth_readability_gate,
+        "pressure_feedback_gate": pressure_feedback_gate,
+        "source_policy_gate": source_policy_gate,
+        "preview_gate": preview_gate,
+        "unit_status_summary": {
+            "portrait_frame_pixel_count": unit.get("portrait_frame_pixel_count").cloned().unwrap_or(Value::Null),
+            "health_bar_pixel_count": unit.get("health_bar_pixel_count").cloned().unwrap_or(Value::Null),
+            "mana_bar_pixel_count": unit.get("mana_bar_pixel_count").cloned().unwrap_or(Value::Null),
+            "role_badge_pixel_count": unit.get("role_badge_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "command_feedback_summary": {
+            "marquee_pixel_count": command.get("marquee_pixel_count").cloned().unwrap_or(Value::Null),
+            "attack_pixel_count": command.get("attack_pixel_count").cloned().unwrap_or(Value::Null),
+            "error_pixel_count": command.get("error_pixel_count").cloned().unwrap_or(Value::Null),
+            "ack_pixel_count": command.get("ack_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "ability_telegraph_summary": {
+            "accepted_input_count": ability.get("accepted_input_count").cloned().unwrap_or(Value::Null),
+            "tooltip_pixel_count": ability.get("tooltip_pixel_count").cloned().unwrap_or(Value::Null),
+            "range_pixel_count": ability.get("range_pixel_count").cloned().unwrap_or(Value::Null),
+            "warning_pixel_count": ability.get("warning_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "depth_summary": {
+            "foreground_pixel_count": depth.get("foreground_pixel_count").cloned().unwrap_or(Value::Null),
+            "behind_pixel_count": depth.get("behind_pixel_count").cloned().unwrap_or(Value::Null),
+            "building_mask_pixel_count": depth.get("building_mask_pixel_count").cloned().unwrap_or(Value::Null),
+            "target_priority_pixel_count": depth.get("target_priority_pixel_count").cloned().unwrap_or(Value::Null)
+        },
+        "pressure_summary": {
+            "accepted_input_count": pressure.get("accepted_input_count").cloned().unwrap_or(Value::Null),
+            "final_defeat_risk_percent": pressure.get("final_defeat_risk_percent").cloned().unwrap_or(Value::Null),
+            "final_target_health_percent": pressure.get("final_target_health_percent").cloned().unwrap_or(Value::Null),
+            "final_target_shield_percent": pressure.get("final_target_shield_percent").cloned().unwrap_or(Value::Null),
+            "final_central_keep_state": pressure.get("final_central_keep_state").cloned().unwrap_or(Value::Null),
+            "final_next_action_ids": pressure.get("final_next_action_ids").cloned().unwrap_or(Value::Null)
+        },
+        "source_of_truth": "The combat readability/pressure readiness gate keeps five player-facing combat UI surfaces green together: unit status portraits, command feedback/error acknowledgment, ability tooltip telegraphs, depth/occlusion readability, and central-keep pressure/defeat-risk feedback. It remains Bevy-native original-art evidence and does not claim public launch readiness."
+    }))
+    .expect("classic RTS combat readability pressure readiness evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

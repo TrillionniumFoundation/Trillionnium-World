@@ -1550,6 +1550,24 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-combat-readability-pressure-readiness"
+                | "--classic-rts-combat-readability-pressure-readiness"
+        )
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_combat_readability_pressure_readiness_evidence_json(
+                preview_dir
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-input-frame-budget" | "--classic-input-frame-budget" | "classic-input-budget"
         )
     ) {
