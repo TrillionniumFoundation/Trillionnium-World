@@ -16682,6 +16682,15 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
     let product_ui_chrome_pixel_count = count_color(CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR);
     let product_ui_accent_pixel_count = count_color(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR);
     let product_model_volume_pixel_count = count_color(CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR);
+    let basin_terrain_height_pixel_count = count_color(CLASSIC_RTS_DEPTH_FOREGROUND_COLOR)
+        + count_color(CLASSIC_RTS_DEPTH_BEHIND_COLOR)
+        + count_color(CLASSIC_RTS_DEPTH_CUTAWAY_COLOR);
+    let basin_opening_action_pixel_count =
+        count_color(CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR)
+            + count_color(CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR)
+            + count_color(CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR)
+            + count_color(CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR)
+            + count_color(CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR);
     let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
         && (runtime
             .rts_selected_unit_ids
@@ -16740,7 +16749,9 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         && product_resource_pixel_count > 120
         && product_ui_chrome_pixel_count > 500
         && product_ui_accent_pixel_count > 250
-        && product_model_volume_pixel_count > 80;
+        && product_model_volume_pixel_count > 80
+        && basin_terrain_height_pixel_count > 450
+        && basin_opening_action_pixel_count > 300;
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -16774,6 +16785,8 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "product_ui_chrome_pixel_count": product_ui_chrome_pixel_count,
         "product_ui_accent_pixel_count": product_ui_accent_pixel_count,
         "product_model_volume_pixel_count": product_model_volume_pixel_count,
+        "basin_terrain_height_pixel_count": basin_terrain_height_pixel_count,
+        "basin_opening_action_pixel_count": basin_opening_action_pixel_count,
         "selected_units_gate": selected_units_gate,
         "command_surface_gate": command_surface_gate,
         "model_fidelity_gate": model_fidelity_gate,
@@ -42320,6 +42333,217 @@ fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_tile_height(tile: (i32, i32)) -> i32 {
+    let (x, y) = tile;
+    let dx = (x - 16).abs();
+    let dy = (y - 16).abs();
+    if !(1..=32).contains(&x) || !(1..=32).contains(&y) {
+        0
+    } else if dx <= 3 && dy <= 3 {
+        2
+    } else if x == 16 || y == 16 || (x - y).abs() <= 1 || (x + y - 33).abs() <= 1 {
+        1
+    } else if (6..=11).contains(&x) && (6..=11).contains(&y)
+        || (22..=27).contains(&x) && (22..=27).contains(&y)
+        || (22..=27).contains(&x) && (6..=11).contains(&y)
+        || (6..=11).contains(&x) && (22..=27).contains(&y)
+    {
+        2
+    } else {
+        0
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_terrain_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    for y in 1..=32 {
+        for x in 1..=32 {
+            let tile_height = classic_first_contact_tile_height((x, y));
+            if tile_height == 0 {
+                continue;
+            }
+            let tile_x = map_x + x * cell_w;
+            let tile_y = map_y + y * cell_h;
+            if tile_height >= 2 && (x + y) % 6 == 0 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 4,
+                    tile_y + 2,
+                    (cell_w / 2).max(4),
+                    1,
+                    CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+                );
+            }
+            if classic_first_contact_tile_height((x + 1, y)) < tile_height {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w - 3,
+                    tile_y + 2,
+                    2,
+                    cell_h - 4,
+                    if tile_height >= 2 {
+                        CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
+                    } else {
+                        CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
+                    },
+                );
+            }
+            if classic_first_contact_tile_height((x, y + 1)) < tile_height {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + 2,
+                    tile_y + cell_h - 3,
+                    cell_w - 4,
+                    2,
+                    if tile_height >= 2 {
+                        CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
+                    } else {
+                        CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
+                    },
+                );
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_opening_actions(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    let opening = CLASSIC_FIRST_CONTACT_OPENING_LOOP;
+    let action_paths = [
+        (
+            (8, 8),
+            (12, 16),
+            CLASSIC_RTS_HARVEST_ANIMATION_APPROACH_COLOR,
+        ),
+        (
+            (12, 16),
+            (8, 8),
+            CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+        ),
+        (
+            opening.active_relay_tile,
+            opening.active_beacon_tile,
+            CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+        ),
+    ];
+    for (from, to, color) in action_paths {
+        let steps = ((to.0 - from.0).abs().max((to.1 - from.1).abs())).max(1);
+        for step in 0..=steps {
+            let x = from.0 + (to.0 - from.0) * step / steps;
+            let y = from.1 + (to.1 - from.1) * step / steps;
+            let (tile_x, tile_y) =
+                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (x, y));
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 3,
+                tile_y + cell_h / 2,
+                (cell_w / 2).max(5),
+                3,
+                color,
+            );
+        }
+    }
+
+    let (relay_x, relay_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, opening.active_relay_tile);
+    for level in 0..3 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            relay_x - cell_w / 2 + level * 4,
+            relay_y - cell_h - level * 4,
+            cell_w * 2 - level * 8,
+            3,
+            CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            relay_x - cell_w / 2 + level * 5,
+            relay_y - cell_h - level * 4,
+            3,
+            cell_h + level * 5,
+            CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            relay_x + cell_w + cell_w / 2 - level * 5,
+            relay_y - cell_h - level * 4,
+            3,
+            cell_h + level * 5,
+            CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+        );
+    }
+    for spark in 0..4 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            relay_x + spark * 5,
+            relay_y - cell_h - 12 + (spark % 2) * 5,
+            4,
+            4,
+            CLASSIC_RTS_STRUCTURE_CONSTRUCTION_SPARK_COLOR,
+        );
+    }
+
+    let (beacon_x, beacon_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, opening.active_beacon_tile);
+    for ring in 0..3 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            beacon_x - cell_w - ring * 4,
+            beacon_y - cell_h + ring * 3,
+            cell_w * 3 + ring * 8,
+            3,
+            CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            beacon_x - cell_w - ring * 4,
+            beacon_y + cell_h + ring * 3,
+            cell_w * 3 + ring * 8,
+            3,
+            CLASSIC_RTS_ABILITY_TELEGRAPH_RANGE_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_actor(
     buffer: &mut [u32],
@@ -42346,11 +42570,31 @@ fn classic_draw_first_contact_actor(
                 buffer,
                 width,
                 height,
+                tile_x - cell_w - 2,
+                tile_y + cell_h,
+                cell_w * 3 + 4,
+                5,
+                CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
                 tile_x - cell_w,
                 tile_y - cell_h,
                 cell_w * 3,
                 cell_h * 3,
                 0x16251c,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x - cell_w + 4,
+                tile_y - cell_h - 5,
+                cell_w * 3 - 8,
+                6,
+                CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
             );
             classic_draw_rect(
                 buffer,
@@ -42388,6 +42632,16 @@ fn classic_draw_first_contact_actor(
                 buffer,
                 width,
                 height,
+                cx - cell_w,
+                cy - cell_h,
+                cell_w * 2,
+                cell_h * 2,
+                classic_darken(CLASSIC_RTS_PRODUCT_RESOURCE_COLOR, 1, 8),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
                 cx - cell_w / 2,
                 cy - 2,
                 cell_w,
@@ -42404,8 +42658,28 @@ fn classic_draw_first_contact_actor(
                 cell_h,
                 CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
             );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 3,
+                cy - 3,
+                6,
+                6,
+                CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+            );
         }
         ClassicFirstContactActorKind::Beacon => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w - 4,
+                cy - cell_h / 2 - 4,
+                cell_w * 2 + 8,
+                cell_h + 8,
+                classic_darken(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR, 1, 5),
+            );
             classic_draw_rect(
                 buffer,
                 width,
@@ -42425,6 +42699,16 @@ fn classic_draw_first_contact_actor(
                 6,
                 cell_h * 2,
                 CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - cell_h - 5,
+                cell_w,
+                4,
+                CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
             );
         }
         ClassicFirstContactActorKind::Ridge => {
@@ -42586,6 +42870,16 @@ fn classic_draw_first_contact_starting_army(
             width,
             height,
             cx - cell_w,
+            cy - cell_h + 2,
+            cell_w * 2,
+            4,
+            CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w,
             cy - cell_h,
             cell_w * 2,
             cell_h * 2,
@@ -42609,6 +42903,26 @@ fn classic_draw_first_contact_starting_army(
             cy + cell_h + 2,
             cell_w * 2,
             4,
+            owner_color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w / 2,
+            cy - cell_h - 6,
+            cell_w,
+            4,
+            CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 3,
+            cy - cell_h - 11,
+            6,
+            6,
             owner_color,
         );
         classic_draw_text(buffer, width, height, cx - 7, cy - 4, label, 1, 0x111812);
@@ -42878,6 +43192,7 @@ fn classic_draw_first_contact_basin_scene(
             );
         }
     }
+    classic_draw_first_contact_terrain_layer(buffer, width, height, map_x, map_y, cell_w, cell_h);
 
     classic_draw_rect(
         buffer,
@@ -42958,6 +43273,7 @@ fn classic_draw_first_contact_basin_scene(
             );
         }
     }
+    classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
 
     classic_draw_text(
         buffer,
