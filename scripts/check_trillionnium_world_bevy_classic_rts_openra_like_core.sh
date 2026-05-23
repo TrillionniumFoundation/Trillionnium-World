@@ -93,6 +93,15 @@ jq -e '
   and .simulation.attack_move_engage_count > 0
   and .simulation.attack_move_hit_count > 0
   and .simulation.attack_move_kill_count > 0
+  and .simulation.stance_behavior_gate == true
+  and .simulation.stance_hold_fire_suppressed_count > 0
+  and .simulation.stance_guard_leash_hold_count > 0
+  and .simulation.stance_aggressive_pursuit_count > 0
+  and .simulation.stance_aggressive_hit_count > 0
+  and .simulation.hold_fire_target_hp == .simulation.hold_fire_target_initial_hp
+  and .simulation.guard_stance_tile.x == 21
+  and .simulation.guard_stance_tile.y == 16
+  and (.simulation.aggressive_stance_tile.x != 21 or .simulation.aggressive_stance_tile.y != 18)
   and .simulation.multi1_command_core_removed == true
   and .simulation.auto_target_acquire_count > 0
   and .simulation.auto_attack_hit_count > 0
@@ -170,6 +179,10 @@ jq -e '
   and any(.simulation.event_log[]; contains("attack_move_kill:multi0.attackmove.warden:multi1.attackmove.raider"))
   and any(.simulation.event_log[]; contains("attack_remove:multi1.attackmove.raider"))
   and any(.simulation.event_log[]; contains("attack_move_reached:multi0.attackmove.warden"))
+  and any(.simulation.event_log[]; contains("stance_hold_fire_suppress:multi0.stance.holdfire:multi1.stance.holdfire.target"))
+  and any(.simulation.event_log[]; contains("stance_guard_leash_hold:multi0.stance.guard:multi1.stance.guard.target"))
+  and any(.simulation.event_log[]; contains("stance_aggressive_pursue:multi0.stance.aggressive:multi1.stance.aggressive.target"))
+  and any(.simulation.event_log[]; contains("stance_auto_attack:aggressive:multi0.stance.aggressive:multi1.stance.aggressive.target"))
   and any(.simulation.event_log[]; contains("auto_target_acquire:multi0.guard.sentinel:multi1.auto.raider"))
   and any(.simulation.event_log[]; contains("auto_attack_hit:multi0.guard.sentinel:multi1.auto.raider"))
   and any(.simulation.event_log[]; contains("auto_attack_kill:") and endswith(":multi1.auto.raider"))
@@ -206,6 +219,7 @@ jq -e '
   and .gates.attack_move_command_gate == true
   and .gates.attack_move_gate == true
   and .gates.auto_target_acquisition_gate == true
+  and .gates.stance_behavior_gate == true
   and .gates.repair_command_gate == true
   and .gates.repair_gate == true
   and .gates.control_group_gate == true

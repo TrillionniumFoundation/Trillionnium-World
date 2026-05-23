@@ -17122,6 +17122,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .find(|actor| actor.id == "multi1.auto.raider")
         .map(|actor| actor.hp)
         .unwrap_or_default();
+    let initial_hold_fire_target_hp = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi1.stance.holdfire.target")
+        .map(|actor| actor.hp)
+        .unwrap_or_default();
     let command_inputs = [
         (
             "multi0.command.core",
@@ -17327,6 +17333,24 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .iter()
         .find(|actor| actor.id == "multi1.auto.raider")
         .map(|actor| actor.hp)
+        .unwrap_or_default();
+    let post_hold_fire_target_hp = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi1.stance.holdfire.target")
+        .map(|actor| actor.hp)
+        .unwrap_or_default();
+    let guard_stance_tile = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi0.stance.guard")
+        .map(|actor| actor.tile)
+        .unwrap_or_default();
+    let aggressive_stance_tile = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi0.stance.aggressive")
+        .map(|actor| actor.tile)
         .unwrap_or_default();
     let active_relay = world
         .actors
@@ -17671,6 +17695,34 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event.starts_with("attack_move_reached:multi0.attackmove.warden:"));
+    let stance_behavior_gate = world.stance_hold_fire_suppressed_count > 0
+        && world.stance_guard_leash_hold_count > 0
+        && world.stance_aggressive_pursuit_count > 0
+        && world.stance_aggressive_hit_count > 0
+        && initial_hold_fire_target_hp > 0
+        && post_hold_fire_target_hp == initial_hold_fire_target_hp
+        && guard_stance_tile == (21, 16)
+        && aggressive_stance_tile != (21, 18)
+        && world.event_log.iter().any(|event| {
+            event.starts_with(
+                "stance_hold_fire_suppress:multi0.stance.holdfire:multi1.stance.holdfire.target",
+            )
+        })
+        && world.event_log.iter().any(|event| {
+            event.starts_with(
+                "stance_guard_leash_hold:multi0.stance.guard:multi1.stance.guard.target",
+            )
+        })
+        && world.event_log.iter().any(|event| {
+            event.starts_with(
+                "stance_aggressive_pursue:multi0.stance.aggressive:multi1.stance.aggressive.target",
+            )
+        })
+        && world.event_log.iter().any(|event| {
+            event.starts_with(
+                "stance_auto_attack:aggressive:multi0.stance.aggressive:multi1.stance.aggressive.target",
+            )
+        });
     let repair_gate = repair_command_gate
         && world.repair_tick_count > 0
         && world.repair_flux_spent > 0
@@ -17733,6 +17785,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "auto_target_acquire",
         "auto_attack_hit",
         "auto_attack_kill",
+        "stance_hold_fire_suppress",
+        "stance_guard_leash_hold",
+        "stance_aggressive_pursue",
+        "stance_auto_attack",
         "repair_tick",
         "repair_complete",
         "supply_cap_increase",
@@ -17827,6 +17883,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && attack_visibility_gate
         && attack_move_gate
         && auto_target_acquisition_gate
+        && stance_behavior_gate
         && repair_gate
         && control_group_gate
         && queued_order_gate;
@@ -17910,6 +17967,15 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_move_engage_count": world.attack_move_engage_count,
             "attack_move_hit_count": world.attack_move_hit_count,
             "attack_move_kill_count": world.attack_move_kill_count,
+            "stance_hold_fire_suppressed_count": world.stance_hold_fire_suppressed_count,
+            "stance_guard_leash_hold_count": world.stance_guard_leash_hold_count,
+            "stance_aggressive_pursuit_count": world.stance_aggressive_pursuit_count,
+            "stance_aggressive_hit_count": world.stance_aggressive_hit_count,
+            "stance_behavior_gate": stance_behavior_gate,
+            "hold_fire_target_hp": post_hold_fire_target_hp,
+            "hold_fire_target_initial_hp": initial_hold_fire_target_hp,
+            "guard_stance_tile": {"x": guard_stance_tile.0, "y": guard_stance_tile.1},
+            "aggressive_stance_tile": {"x": aggressive_stance_tile.0, "y": aggressive_stance_tile.1},
             "auto_target_acquire_count": world.auto_target_acquire_count,
             "auto_attack_hit_count": world.auto_attack_hit_count,
             "auto_attack_kill_count": world.auto_attack_kill_count,
@@ -17995,6 +18061,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_move_command_gate": attack_move_command_gate,
             "attack_move_gate": attack_move_gate,
             "auto_target_acquisition_gate": auto_target_acquisition_gate,
+            "stance_behavior_gate": stance_behavior_gate,
             "repair_command_gate": repair_command_gate,
             "repair_gate": repair_gate,
             "control_group_gate": control_group_gate,
@@ -18002,7 +18069,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43388,6 +43455,25 @@ impl TrnmOpenRaLikeOrderKind {
 }
 
 #[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TrnmOpenRaLikeStance {
+    HoldFire,
+    Guard,
+    Aggressive,
+}
+
+#[cfg(not(target_os = "android"))]
+impl TrnmOpenRaLikeStance {
+    fn as_str(self) -> &'static str {
+        match self {
+            TrnmOpenRaLikeStance::HoldFire => "hold_fire",
+            TrnmOpenRaLikeStance::Guard => "guard",
+            TrnmOpenRaLikeStance::Aggressive => "aggressive",
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone, Copy)]
 struct TrnmOpenRaLikeOrder {
     kind: TrnmOpenRaLikeOrderKind,
@@ -43416,6 +43502,7 @@ struct TrnmOpenRaLikeActorState {
     cargo: u32,
     resource_remaining: u32,
     order: Option<TrnmOpenRaLikeOrder>,
+    stance: TrnmOpenRaLikeStance,
     build_progress: u8,
     capture_progress: u8,
     weapon_cooldown_ticks: u32,
@@ -43518,6 +43605,10 @@ struct TrnmOpenRaLikeWorld {
     attack_move_engage_count: u32,
     attack_move_hit_count: u32,
     attack_move_kill_count: u32,
+    stance_hold_fire_suppressed_count: u32,
+    stance_guard_leash_hold_count: u32,
+    stance_aggressive_pursuit_count: u32,
+    stance_aggressive_hit_count: u32,
     repair_tick_count: u32,
     repair_flux_spent: u32,
     repair_complete_count: u32,
@@ -44179,6 +44270,13 @@ fn classic_openra_like_actor(
         } else {
             0
         };
+    let stance = if rule.is_some_and(|rule| {
+        classic_openra_like_rule_has_trait_ref(rule, TrnmOpenRaLikeTrait::Attack)
+    }) {
+        TrnmOpenRaLikeStance::Guard
+    } else {
+        TrnmOpenRaLikeStance::HoldFire
+    };
     TrnmOpenRaLikeActorState {
         id: id.into(),
         rule_id,
@@ -44188,6 +44286,7 @@ fn classic_openra_like_actor(
         cargo: 0,
         resource_remaining,
         order,
+        stance,
         build_progress: if order.is_some_and(|order| order.kind == TrnmOpenRaLikeOrderKind::Build) {
             0
         } else {
@@ -44407,6 +44506,109 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         raider.hp = 2_460;
     }
     actors.push(classic_openra_like_actor(
+        "multi0.stance.spotter",
+        "trnm.horizon.scout",
+        "Multi0",
+        (27, 16),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((27, 16)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.stance.holdfire",
+        "trnm.forge.warden",
+        "Multi0",
+        (30, 30),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((30, 30)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi1.stance.holdfire.target",
+        "trnm.horizon.scout",
+        "Multi1",
+        (32, 30),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((32, 30)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.stance.guard",
+        "trnm.forge.warden",
+        "Multi0",
+        (21, 16),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((21, 16)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi1.stance.guard.target",
+        "trnm.horizon.scout",
+        "Multi1",
+        (29, 16),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((29, 16)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.stance.aggressive",
+        "trnm.forge.warden",
+        "Multi0",
+        (21, 18),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((21, 18)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi1.stance.aggressive.target",
+        "trnm.horizon.scout",
+        "Multi1",
+        (27, 20),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((27, 20)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    for (actor_id, stance) in [
+        ("multi0.stance.spotter", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.stance.holdfire", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.stance.guard", TrnmOpenRaLikeStance::Guard),
+        ("multi0.stance.aggressive", TrnmOpenRaLikeStance::Aggressive),
+        (
+            "multi1.stance.holdfire.target",
+            TrnmOpenRaLikeStance::HoldFire,
+        ),
+        ("multi1.stance.guard.target", TrnmOpenRaLikeStance::HoldFire),
+        (
+            "multi1.stance.aggressive.target",
+            TrnmOpenRaLikeStance::HoldFire,
+        ),
+    ] {
+        if let Some(actor) = actors.iter_mut().find(|actor| actor.id == actor_id) {
+            actor.stance = stance;
+        }
+    }
+    actors.push(classic_openra_like_actor(
         "multi0.worker.repair",
         "trnm.worker",
         "Multi0",
@@ -44567,6 +44769,10 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         attack_move_engage_count: 0,
         attack_move_hit_count: 0,
         attack_move_kill_count: 0,
+        stance_hold_fire_suppressed_count: 0,
+        stance_guard_leash_hold_count: 0,
+        stance_aggressive_pursuit_count: 0,
+        stance_aggressive_hit_count: 0,
         repair_tick_count: 0,
         repair_flux_spent: 0,
         repair_complete_count: 0,
@@ -45682,33 +45888,57 @@ fn classic_openra_like_harvest_dropoff(
 fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> Vec<String> {
     let mut attacks = Vec::new();
     for attacker_index in 0..world.actors.len() {
-        let attacker = &world.actors[attacker_index];
-        if attacker.hp == 0
-            || attacker.weapon_cooldown_ticks > 0
+        let (
+            attacker_id,
+            attacker_rule_id,
+            attacker_owner,
+            attacker_tile,
+            attacker_hp,
+            attacker_order,
+            attacker_stance,
+            attacker_cooldown,
+        ) = {
+            let attacker = &world.actors[attacker_index];
+            (
+                attacker.id.clone(),
+                attacker.rule_id,
+                attacker.owner,
+                attacker.tile,
+                attacker.hp,
+                attacker.order,
+                attacker.stance,
+                attacker.weapon_cooldown_ticks,
+            )
+        };
+        if attacker_hp == 0
+            || attacker_cooldown > 0
             || !matches!(
-                attacker.order.map(|order| order.kind),
+                attacker_order.map(|order| order.kind),
                 None | Some(TrnmOpenRaLikeOrderKind::Hold)
             )
         {
             continue;
         }
-        let Some(weapon) = classic_openra_like_weapon_for(attacker.rule_id) else {
+        let Some(weapon) = classic_openra_like_weapon_for(attacker_rule_id) else {
             continue;
         };
-        if !classic_openra_like_rule_for(attacker.rule_id).is_some_and(|rule| {
+        if !classic_openra_like_rule_for(attacker_rule_id).is_some_and(|rule| {
             classic_openra_like_rule_has_trait_ref(rule, TrnmOpenRaLikeTrait::Attack)
         }) {
             continue;
         }
-        let owner = attacker.owner;
-        let attacker_tile = attacker.tile;
+        let leash_range = match attacker_stance {
+            TrnmOpenRaLikeStance::HoldFire => weapon.range,
+            TrnmOpenRaLikeStance::Guard => weapon.range + 4,
+            TrnmOpenRaLikeStance::Aggressive => weapon.range + 4,
+        };
         let target_index = world
             .actors
             .iter()
             .enumerate()
             .filter(|(_, target)| {
                 target.hp > 0
-                    && target.owner != owner
+                    && target.owner != attacker_owner
                     && target.owner != "Neutral"
                     && classic_openra_like_rule_for(target.rule_id).is_some_and(|rule| {
                         !matches!(
@@ -45716,10 +45946,10 @@ fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> 
                             TrnmOpenRaLikeEntityKind::Marker | TrnmOpenRaLikeEntityKind::Resource
                         )
                     })
-                    && classic_openra_like_visible_to_player(world, owner, target.tile)
+                    && classic_openra_like_visible_to_player(world, attacker_owner, target.tile)
             })
             .filter(|(_, target)| {
-                classic_openra_like_tile_distance(attacker_tile, target.tile) <= weapon.range
+                classic_openra_like_tile_distance(attacker_tile, target.tile) <= leash_range
             })
             .min_by_key(|(_, target)| {
                 (
@@ -45729,12 +45959,58 @@ fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> 
             })
             .map(|(target_index, _)| target_index);
         if let Some(target_index) = target_index {
-            attacks.push((attacker_index, target_index, weapon));
+            let target_id = world.actors[target_index].id.clone();
+            let target_tile = world.actors[target_index].tile;
+            let target_distance = classic_openra_like_tile_distance(attacker_tile, target_tile);
+            match attacker_stance {
+                TrnmOpenRaLikeStance::HoldFire => {
+                    world.stance_hold_fire_suppressed_count += 1;
+                    world.event_log.push(format!(
+                        "stance_hold_fire_suppress:{attacker_id}:{target_id}:{target_distance}"
+                    ));
+                }
+                TrnmOpenRaLikeStance::Guard if target_distance > weapon.range => {
+                    world.stance_guard_leash_hold_count += 1;
+                    world.event_log.push(format!(
+                        "stance_guard_leash_hold:{attacker_id}:{target_id}:{target_distance}>{}",
+                        weapon.range
+                    ));
+                }
+                TrnmOpenRaLikeStance::Aggressive if target_distance > weapon.range => {
+                    if let Some((path, blocked_tile_ids)) = classic_openra_like_pathfind_tiles(
+                        world,
+                        &attacker_id,
+                        attacker_tile,
+                        target_tile,
+                    ) {
+                        if let Some(next_tile) = path.first().copied() {
+                            world.actors[attacker_index].tile = next_tile;
+                            world.move_path_step_count += 1;
+                            world.stance_aggressive_pursuit_count += 1;
+                            world.event_log.push(format!(
+                                "stance_aggressive_pursue:{attacker_id}:{target_id}:{},{}",
+                                next_tile.0, next_tile.1
+                            ));
+                            classic_openra_like_record_path_plan(
+                                world,
+                                &attacker_id,
+                                target_tile,
+                                &path,
+                                blocked_tile_ids,
+                                path.is_empty(),
+                            );
+                        }
+                    }
+                }
+                TrnmOpenRaLikeStance::Aggressive | TrnmOpenRaLikeStance::Guard => {
+                    attacks.push((attacker_index, target_index, weapon, attacker_stance));
+                }
+            }
         }
     }
 
     let mut defeated_actor_ids = Vec::new();
-    for (attacker_index, target_index, weapon) in attacks {
+    for (attacker_index, target_index, weapon, stance) in attacks {
         if attacker_index >= world.actors.len()
             || target_index >= world.actors.len()
             || world.actors[attacker_index].hp == 0
@@ -45762,9 +46038,16 @@ fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> 
         world.auto_target_acquire_count += 1;
         world.auto_attack_hit_count += 1;
         world.attack_hit_count += 1;
+        if stance == TrnmOpenRaLikeStance::Aggressive {
+            world.stance_aggressive_hit_count += 1;
+        }
         world.event_log.push(format!(
             "auto_target_acquire:{attacker_id}:{target_id}:range{}",
             weapon.range
+        ));
+        world.event_log.push(format!(
+            "stance_auto_attack:{}:{attacker_id}:{target_id}",
+            stance.as_str()
         ));
         world.event_log.push(format!(
             "auto_attack_hit:{attacker_id}:{target_id}:{}damage:{}hp",
@@ -46599,6 +46882,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "resource_remaining": actor.resource_remaining,
                 "build_progress": actor.build_progress,
                 "capture_progress": actor.capture_progress,
+                "stance": actor.stance.as_str(),
                 "order": actor.order.map(|order| order.kind.as_str()),
             })
         }).collect::<Vec<_>>(),
