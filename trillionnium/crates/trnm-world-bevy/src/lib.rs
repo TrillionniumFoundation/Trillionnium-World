@@ -16679,14 +16679,26 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
     let product_ui_accent_pixel_count = count_color(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR);
     let product_model_volume_pixel_count = count_color(CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR);
     let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
-        && runtime
+        && (runtime
             .rts_selected_unit_ids
             .iter()
             .any(|id| id.contains("guard"))
-        && runtime
-            .rts_selected_unit_ids
-            .iter()
-            .any(|id| id.contains("creep"));
+            && runtime
+                .rts_selected_unit_ids
+                .iter()
+                .any(|id| id.contains("creep"))
+            || runtime
+                .rts_selected_unit_ids
+                .iter()
+                .any(|id| id == "trnm.worker")
+                && runtime
+                    .rts_selected_unit_ids
+                    .iter()
+                    .any(|id| id.contains("horizon.scout") || id.contains("forge.warden"))
+                && runtime
+                    .rts_selected_unit_ids
+                    .iter()
+                    .any(|id| id.contains("flux.relay")));
     let command_surface_gate = runtime.rts_ability_command_ids.len() >= 6
         && runtime
             .rts_command_queue
@@ -16786,20 +16798,21 @@ fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
         combat_turn: 3,
         rts_control_group_id: Some("1".to_string()),
         rts_selected_unit_ids: string_vec([
-            "player",
-            "arena_guard_left",
-            "arena_guard_right",
-            "arena_creep_attack",
+            "trnm.worker",
+            "trnm.horizon.scout",
+            "trnm.forge.warden",
+            "trnm.flux.relay",
         ]),
         rts_active_control_group_ids: string_vec(["1", "2"]),
         rts_command_queue: string_vec([
             "select_group_1",
-            "move:7,4",
-            "formation:diamond",
-            "attack:arena_creep_attack",
+            "move:16,9",
+            "train:trnm.worker",
+            "build:trnm.flux.relay",
+            "attack:trnm.flux.beacon",
         ]),
-        rts_command_destination_tile: Some("7,4".to_string()),
-        rts_attack_target_id: Some("arena_creep_attack".to_string()),
+        rts_command_destination_tile: Some("16,9".to_string()),
+        rts_attack_target_id: Some("trnm.flux.beacon".to_string()),
         rts_visible_tile_ids: string_vec(["4,4", "5,4", "6,4", "7,4", "8,4", "6,5", "7,5"]),
         rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0", "0,7", "11,7"]),
         rts_production_queue: string_vec(["train:guard", "train:worker", "upgrade:signal_blade"]),
@@ -16808,9 +16821,9 @@ fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
         rts_build_progress_percent: 58,
         rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "queued:210g:60l:upgrade"]),
         rts_unit_health_percents: vec![96, 78, 71, 34],
-        rts_ability_command_ids: string_vec(["move", "attack", "hold", "patrol", "focus", "build"]),
+        rts_ability_command_ids: string_vec(["worker", "scout", "warden", "relay", "core", "signal"]),
         rts_ability_cooldown_percents: vec![0, 0, 16, 0, 42, 25],
-        rts_active_ability_id: Some("focus".to_string()),
+        rts_active_ability_id: Some("worker".to_string()),
         rts_target_health_percent: 38,
         rts_target_armor_percent: 35,
         rts_target_shield_percent: 22,
@@ -16824,10 +16837,10 @@ fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
             "guard_attack_windup",
             "worker_carry_supply",
             "creep_counter_swing",
-            "focus_fire:arena_creep_attack",
+            "secure_beacon:16,9",
         ]),
         last_feedback:
-            "RTS visual fidelity probe: selection, commands, portraits, and NPC actions active"
+            "First Contact Basin probe: workers, scouts, wardens, relay build, and beacon capture active"
                 .to_string(),
         ..Default::default()
     }
@@ -41778,6 +41791,97 @@ struct ClassicFirstContactActor {
 }
 
 #[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClassicFirstContactRuleKind {
+    Unit,
+    Building,
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, Copy)]
+struct ClassicFirstContactRule {
+    id: &'static str,
+    label: &'static str,
+    kind: ClassicFirstContactRuleKind,
+    faction: &'static str,
+    cost: u32,
+    hp: u32,
+    speed: Option<u32>,
+    build_duration: Option<u32>,
+    queue: &'static str,
+}
+
+#[cfg(not(target_os = "android"))]
+const CLASSIC_FIRST_CONTACT_RULES: &[ClassicFirstContactRule] = &[
+    ClassicFirstContactRule {
+        id: "trnm.worker",
+        label: "WORKER",
+        kind: ClassicFirstContactRuleKind::Unit,
+        faction: "shared",
+        cost: 200,
+        hp: 8000,
+        speed: Some(64),
+        build_duration: Some(100),
+        queue: "Unit",
+    },
+    ClassicFirstContactRule {
+        id: "trnm.horizon.scout",
+        label: "H-SCOUT",
+        kind: ClassicFirstContactRuleKind::Unit,
+        faction: "horizon",
+        cost: 250,
+        hp: 9000,
+        speed: Some(92),
+        build_duration: Some(125),
+        queue: "Unit",
+    },
+    ClassicFirstContactRule {
+        id: "trnm.forge.warden",
+        label: "F-WARDEN",
+        kind: ClassicFirstContactRuleKind::Unit,
+        faction: "forge",
+        cost: 300,
+        hp: 18000,
+        speed: Some(56),
+        build_duration: Some(150),
+        queue: "Unit",
+    },
+    ClassicFirstContactRule {
+        id: "trnm.striker",
+        label: "STRIKER",
+        kind: ClassicFirstContactRuleKind::Unit,
+        faction: "shared",
+        cost: 400,
+        hp: 13000,
+        speed: Some(64),
+        build_duration: Some(175),
+        queue: "Unit",
+    },
+    ClassicFirstContactRule {
+        id: "trnm.command.core",
+        label: "COMMAND",
+        kind: ClassicFirstContactRuleKind::Building,
+        faction: "shared",
+        cost: 1600,
+        hp: 70000,
+        speed: None,
+        build_duration: None,
+        queue: "Building/Unit",
+    },
+    ClassicFirstContactRule {
+        id: "trnm.flux.relay",
+        label: "RELAY",
+        kind: ClassicFirstContactRuleKind::Building,
+        faction: "shared",
+        cost: 500,
+        hp: 70000,
+        speed: None,
+        build_duration: None,
+        queue: "Building",
+    },
+];
+
+#[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_BASIN_ACTORS: &[ClassicFirstContactActor] = &[
     ClassicFirstContactActor {
         kind: ClassicFirstContactActorKind::Spawn,
@@ -42324,6 +42428,105 @@ fn classic_draw_first_contact_starting_army(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_first_contact_rule_panel(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    panel_x: i32,
+    panel_y: i32,
+    panel_w: i32,
+) {
+    let rule_y = panel_y + 188;
+    let unit_count = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Unit)
+        .count();
+    let building_count = CLASSIC_FIRST_CONTACT_RULES
+        .iter()
+        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Building)
+        .count();
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        rule_y,
+        "RUST RULE SPEC:",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 118,
+        rule_y,
+        &format!("U{} B{}", unit_count, building_count),
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for (index, rule) in CLASSIC_FIRST_CONTACT_RULES.iter().take(5).enumerate() {
+        debug_assert!(!rule.id.is_empty());
+        let y = rule_y + 20 + index as i32 * 18;
+        let row_color = if rule.kind == ClassicFirstContactRuleKind::Building {
+            0x1f2e28
+        } else {
+            0x17251d
+        };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 12,
+            y - 3,
+            panel_w - 24,
+            16,
+            row_color,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 16,
+            y,
+            rule.label,
+            1,
+            if rule.faction == "horizon" {
+                0x91d6a0
+            } else if rule.faction == "forge" {
+                0xe0997f
+            } else {
+                CLASSIC_HUD_TEXT_COLOR
+            },
+        );
+        let speed_or_queue = rule
+            .speed
+            .map(|speed| format!("S{speed}"))
+            .unwrap_or_else(|| classic_catalog_text_label(rule.queue, 4));
+        let build = rule
+            .build_duration
+            .map(|duration| format!("T{duration}"))
+            .unwrap_or_else(|| "BASE".to_string());
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + panel_w - 108,
+            y,
+            &format!(
+                "{} HP{} C{} {}",
+                speed_or_queue,
+                rule.hp / 1000,
+                rule.cost,
+                build
+            ),
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_first_contact_basin_scene(
     buffer: &mut [u32],
     width: usize,
@@ -42564,36 +42767,7 @@ fn classic_draw_first_contact_basin_scene(
             CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
         );
     }
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 190,
-        "VISIBLE PLAN:",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 208,
-        "LANES / RESOURCES /",
-        1,
-        CLASSIC_HUD_MUTED_TEXT_COLOR,
-    );
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 224,
-        "BEACONS / EXPANSIONS",
-        1,
-        CLASSIC_HUD_MUTED_TEXT_COLOR,
-    );
+    classic_draw_first_contact_rule_panel(buffer, width, height, panel_x, panel_y, panel_w);
 
     let pressure_w = ((runtime.rts_ai_pressure_percent.min(100) as i32) * (panel_w - 28)) / 100;
     classic_draw_rect(
@@ -42665,7 +42839,7 @@ fn classic_draw_first_contact_basin_scene(
         height,
         selection_x + 86,
         selection_y + 30,
-        "ATTACK ARENA CREEP ATTACK",
+        "WORKER + SCOUT SECURE BEACON",
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
