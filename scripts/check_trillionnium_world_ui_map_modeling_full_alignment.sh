@@ -23,6 +23,7 @@ done
 S5_DIR="$ROOT/acceptance/S5_native_bevy_device/latest"
 S4_DIR="$ROOT/acceptance/S4_map_pack_gate/latest"
 HANDOFF="$S5_DIR/bevy-classic-playtest-handoff-packet.json"
+DESKTOP="$S5_DIR/bevy-desktop-real-machine-readiness.json"
 MAP_UI_MODELING="$S5_DIR/bevy-classic-rts-map-ui-modeling-readiness.json"
 ISOMETRIC_MODELING="$S5_DIR/bevy-classic-isometric-modeling.json"
 MODEL_CATALOG="$S5_DIR/bevy-classic-model-catalog.json"
@@ -34,6 +35,7 @@ PUBLIC_LAUNCH="$OUT_DIR/public-launch-readiness.json"
 mkdir -p "$OUT_DIR"
 
 if [[ "$REFRESH" != "0" ]]; then
+  "$ROOT/scripts/check_trillionnium_world_bevy_desktop_real_machine_readiness.sh" >/dev/null
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh" >/dev/null
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh" >/dev/null
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_isometric_modeling.sh" >/dev/null
@@ -62,6 +64,7 @@ artifact_json() {
 ARTIFACTS_JSON="$(
   {
     artifact_json bevy_playtest_handoff_packet "$HANDOFF"
+    artifact_json bevy_desktop_real_machine_readiness "$DESKTOP"
     artifact_json bevy_map_ui_modeling_readiness "$MAP_UI_MODELING"
     artifact_json bevy_isometric_modeling "$ISOMETRIC_MODELING"
     artifact_json bevy_model_catalog "$MODEL_CATALOG"
@@ -74,6 +77,7 @@ ARTIFACTS_JSON="$(
 
 jq -n \
   --slurpfile handoff "$HANDOFF" \
+  --slurpfile desktop "$DESKTOP" \
   --slurpfile mapui "$MAP_UI_MODELING" \
   --slurpfile iso "$ISOMETRIC_MODELING" \
   --slurpfile catalog "$MODEL_CATALOG" \
@@ -83,6 +87,7 @@ jq -n \
   --slurpfile launch "$PUBLIC_LAUNCH" \
   --argjson artifacts "$ARTIFACTS_JSON" '
   ($handoff[0]) as $handoff |
+  ($desktop[0]) as $desktop |
   ($mapui[0]) as $mapui |
   ($iso[0]) as $iso |
   ($catalog[0]) as $catalog |
@@ -92,6 +97,9 @@ jq -n \
   ($launch[0]) as $launch |
   (
     $handoff.green == true
+    and $desktop.green == true
+    and $desktop.gates.desktop_before_mobile_gate == true
+    and $desktop.gates.android_s5_real_device_not_required_gate == true
     and $mapui.green == true
     and $mapui.visual_gate == true
     and $mapui.command_gate == true
@@ -157,10 +165,14 @@ jq -n \
         production_status: (if ($s5_real_device_ready and $public_launch_ready) then "production_ui_alignment_evidence_green" else "blocked_until_s5_real_device_and_external_review_evidence" end),
         source_contracts: {
           handoff_packet: $handoff.contract_version,
+          desktop_real_machine_readiness: $desktop.contract_version,
           map_ui_modeling: $mapui.contract_version
         },
         gates: {
           handoff_packet_green: ($handoff.green == true),
+          desktop_real_machine_green: ($desktop.green == true),
+          desktop_before_mobile_gate: ($desktop.gates.desktop_before_mobile_gate == true),
+          android_s5_real_device_not_required_gate: ($desktop.gates.android_s5_real_device_not_required_gate == true),
           map_ui_modeling_green: ($mapui.green == true),
           visual_gate: ($mapui.visual_gate == true),
           command_gate: ($mapui.command_gate == true),
@@ -170,6 +182,10 @@ jq -n \
         },
         metrics: {
           preview_count: $mapui.preview_count,
+          desktop_screenshot_frame_count: $desktop.desktop_evidence.screenshot_frame_count,
+          desktop_keyboard_event_count: $desktop.desktop_evidence.keyboard_event_count,
+          desktop_release_runner_pid: $desktop.desktop_runtime.release_runner_pid,
+          desktop_display: $desktop.desktop_runtime.display,
           title_actions: $handoff.handoff_summary.title_actions,
           runner_service: $handoff.handoff_summary.runner_service,
           runner_main_pid: $handoff.handoff_summary.runner_main_pid,
@@ -271,6 +287,9 @@ jq -e '
   and (.blockers | index("production_map_pack_public_evidence") != null)
   and (.blockers | index("s5_real_device_evidence") != null)
   and .alignment_domains.ui_design.local_status == "host_side_human_playtest_handoff_aligned"
+  and .alignment_domains.ui_design.gates.desktop_real_machine_green == true
+  and .alignment_domains.ui_design.gates.desktop_before_mobile_gate == true
+  and .alignment_domains.ui_design.gates.android_s5_real_device_not_required_gate == true
   and .alignment_domains.map_engine.local_status == "fixture_map_pack_modeling_aligned"
   and .alignment_domains.map_engine.production_status == "blocked_missing_production_map_pack_public_evidence"
   and .alignment_domains.modeling_design.local_status == "original_low_spec_classic_rts_modeling_aligned"
@@ -278,7 +297,7 @@ jq -e '
   and .alignment_domains.ui_design.gates.map_ui_modeling_green == true
   and .alignment_domains.modeling_design.gates.original_art_policy_gate == true
   and .alignment_domains.map_engine.gates.live_ingestion_disabled == true
-  and (.artifact_manifest | length == 8)
+  and (.artifact_manifest | length == 9)
 ' "$SUMMARY" >/dev/null
 
 {

@@ -145,6 +145,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_live_window_sampled_texture_correlation.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_render_asset_eligibility.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_desktop_real_machine_readiness.sh" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh" \
   "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh" \
   "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence.sh" \
@@ -247,6 +248,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/live_window_sampled_texture_correlation_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/render_asset_eligibility_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/live_window_runtime_texture_manifest_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_desktop_real_machine_readiness_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_evidence_intake_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_readiness_release_review_entry_guard_test.sh" \
   "$ROOT/scripts/v2/production_map_pack_public_evidence_collection_script_contract_guard_test.sh" \
@@ -458,6 +460,8 @@ run_check bevy_live_window_sampled_texture_correlation_gate "$ROOT/scripts/check
 run_check bevy_render_asset_eligibility_contract_guard "$ROOT/scripts/v2/render_asset_eligibility_script_contract_guard_test.sh"
 run_check bevy_render_asset_eligibility_gate "$ROOT/scripts/check_trillionnium_world_bevy_render_asset_eligibility.sh"
 run_check bevy_live_window_screenshot_sequence_artifact jq -e '.contract_version == "trillionnium_world_bevy_live_window_screenshot_sequence_v1" and .green == true and .frame_sequence_gate == true and .contact_sheet_gate == true and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1" and .runtime_texture_manifest_hash_gate == true and .runtime_texture_launch_env_gate == true and .runtime_texture_handle_gate == true and .runtime_probe_contract == "trillionnium_world_bevy_runtime_probe_v1" and .runtime_texture_sprite_asset_binding_contract == "trillionnium_world_bevy_sprite_asset_binding_v1" and .runtime_texture_sprite_asset_binding_gate == true and .runtime_texture_sprite_bound_surface_count >= 24 and .runtime_texture_image_asset_handle_id == "bevy_image_handle::trnm_world_authored_sprite_sheet_v1" and .runtime_texture_atlas_layout_handle_id == "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1" and .gpu_upload_claimed == false and .android_s5_real_device_claimed == false and .live_osm_ingestion_claimed == false' "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-screenshot-sequence.json"
+run_check bevy_desktop_real_machine_readiness_contract_guard "$ROOT/scripts/v2/bevy_desktop_real_machine_readiness_script_contract_guard_test.sh"
+run_check bevy_desktop_real_machine_readiness_gate env TRNM_WORLD_DESKTOP_REAL_MACHINE_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_bevy_desktop_real_machine_readiness.sh"
 run_check public_launch_evidence_intake_contract_guard "$ROOT/scripts/v2/public_launch_evidence_intake_script_contract_guard_test.sh"
 run_check public_launch_evidence_intake_gate "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh"
 run_check release_readiness_entry_guard "$ROOT/scripts/v2/release_readiness_release_review_entry_guard_test.sh"
