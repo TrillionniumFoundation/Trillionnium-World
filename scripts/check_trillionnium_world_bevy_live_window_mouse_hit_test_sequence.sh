@@ -73,7 +73,18 @@ trap cleanup EXIT
 
 WINDOW_ID=""
 for _ in $(seq 1 160); do
-  WINDOW_ID="$(DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" xwininfo -root -tree 2>/dev/null | awk '/"Trillionnium World": \("trnm-world-bevy"/ {print $1; exit}')"
+  WINDOW_ID="$(
+    DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" xwininfo -root -tree 2>/dev/null |
+      awk '/"Trillionnium World": \("trnm-world-bevy"/ {print $1}' |
+      while read -r candidate; do
+        pid="$(DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" xprop -id "$candidate" _NET_WM_PID 2>/dev/null | awk -F= '{gsub(/[[:space:]]/, "", $2); print $2}')"
+        ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | awk '{print $1}')"
+        if [[ "$pid" == "$HOST_PID" || "$ppid" == "$HOST_PID" ]]; then
+          printf '%s\n' "$candidate"
+          break
+        fi
+      done
+  )"
   if [[ -n "$WINDOW_ID" ]]; then
     break
   fi

@@ -9,6 +9,7 @@ REFRESH="${TRNM_WORLD_DESKTOP_REAL_MACHINE_REFRESH:-1}"
 
 RUNNER="$OUT_DIR/bevy-classic-playtest-runner-status.json"
 SCREENSHOT="$OUT_DIR/bevy-live-window-screenshot-sequence.json"
+MOUSE="$OUT_DIR/bevy-live-window-mouse-hit-test-sequence.json"
 LAYER_PROBE="$OUT_DIR/bevy-live-window-layer-pixel-probe.json"
 TEXTURE_CORRELATION="$OUT_DIR/bevy-live-window-texture-correlation.json"
 SAMPLED_CORRELATION="$OUT_DIR/bevy-live-window-sampled-texture-correlation.json"
@@ -19,6 +20,7 @@ mkdir -p "$OUT_DIR"
 if [[ "$REFRESH" != "0" ]]; then
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
   "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh" >/dev/null
+  "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh" >/dev/null
   "$ROOT/scripts/check_trillionnium_world_bevy_live_window_layer_pixel_probe.sh" >/dev/null
   "$ROOT/scripts/check_trillionnium_world_bevy_live_window_texture_correlation.sh" >/dev/null
   "$ROOT/scripts/check_trillionnium_world_bevy_live_window_sampled_texture_correlation.sh" >/dev/null
@@ -44,6 +46,7 @@ ARTIFACTS_JSON="$(
   {
     artifact_json classic_playtest_runner_status "$RUNNER"
     artifact_json live_window_screenshot_sequence "$SCREENSHOT"
+    artifact_json live_window_mouse_hit_test_sequence "$MOUSE"
     artifact_json live_window_layer_pixel_probe "$LAYER_PROBE"
     artifact_json live_window_texture_correlation "$TEXTURE_CORRELATION"
     artifact_json live_window_sampled_texture_correlation "$SAMPLED_CORRELATION"
@@ -54,6 +57,7 @@ ARTIFACTS_JSON="$(
 jq -n \
   --slurpfile runner "$RUNNER" \
   --slurpfile screenshot "$SCREENSHOT" \
+  --slurpfile mouse "$MOUSE" \
   --slurpfile layer "$LAYER_PROBE" \
   --slurpfile texture "$TEXTURE_CORRELATION" \
   --slurpfile sampled "$SAMPLED_CORRELATION" \
@@ -61,6 +65,7 @@ jq -n \
   --argjson artifacts "$ARTIFACTS_JSON" '
   ($runner[0]) as $runner |
   ($screenshot[0]) as $screenshot |
+  ($mouse[0]) as $mouse |
   ($layer[0]) as $layer |
   ($texture[0]) as $texture |
   ($sampled[0]) as $sampled |
@@ -84,6 +89,19 @@ jq -n \
     and $screenshot.runtime_texture_launch_env_gate == true
     and $screenshot.android_s5_real_device_claimed == false
   ) as $screenshot_gate |
+  (
+    $mouse.green == true
+    and $mouse.hit_test_map_gate == true
+    and $mouse.host_window_gate == true
+    and $mouse.mouse_event_count_gate == true
+    and $mouse.frame_count_gate == true
+    and $mouse.frame_sequence_gate == true
+    and $mouse.screenshot_nonblank_gate == true
+    and $mouse.frame_change_gate == true
+    and $mouse.slot_write_gate == true
+    and $mouse.contact_sheet_gate == true
+    and $mouse.android_s5_real_device_claimed == false
+  ) as $mouse_gate |
   (
     $layer.green == true
     and $layer.gates.live_window_sequence_gate == true
@@ -113,6 +131,7 @@ jq -n \
   (
     $runner_gate
     and $screenshot_gate
+    and $mouse_gate
     and $layer_gate
     and $texture_gate
     and $sampled_gate
@@ -123,10 +142,11 @@ jq -n \
     generated_at: (now | todate),
     status: (if $green then "desktop_real_machine_readiness_green" else "desktop_real_machine_readiness_blocked" end),
     green: $green,
-    source_of_truth: "Desktop-first real-machine gate binds the live X11 Bevy window, visible screenshots, XTest keyboard input, live-window pixel/texture correlation, release runner status, and human-playtest handoff packet. It intentionally excludes Android S5 real-device credit.",
+    source_of_truth: "Desktop-first real-machine gate binds the live X11 Bevy window, visible screenshots, XTest keyboard input, XTest mouse button hit-tests against visible Bevy controls, live-window pixel/texture correlation, release runner status, and human-playtest handoff packet. It intentionally excludes Android S5 real-device credit.",
     gates: {
       release_runner_gate: $runner_gate,
       live_window_screenshot_sequence_gate: $screenshot_gate,
+      live_window_mouse_hit_test_sequence_gate: $mouse_gate,
       live_window_layer_pixel_probe_gate: $layer_gate,
       live_window_texture_correlation_gate: $texture_gate,
       live_window_sampled_texture_correlation_gate: $sampled_gate,
@@ -152,6 +172,9 @@ jq -n \
       screenshot_final_frame_path: $screenshot.final_frame_path,
       screenshot_final_frame_bytes: $screenshot.final_frame_bytes,
       keyboard_event_count: ($screenshot.key_events | length),
+      mouse_event_count: ($mouse.mouse_events | length),
+      mouse_slot_a_bytes: $mouse.slot_a_bytes,
+      mouse_contact_sheet_path: $mouse.contact_sheet_path,
       runtime_probe_path: $screenshot.runtime_probe_path,
       layer_pixel_probe_contract: $layer.contract_version,
       texture_correlation_contract: $texture.contract_version,
@@ -165,6 +188,7 @@ jq -n \
       refresh_desktop_real_machine: "./scripts/check_trillionnium_world_bevy_desktop_real_machine_readiness.sh",
       fast_recheck_existing_artifacts: "TRNM_WORLD_DESKTOP_REAL_MACHINE_REFRESH=0 ./scripts/check_trillionnium_world_bevy_desktop_real_machine_readiness.sh",
       refresh_live_window_screenshot_sequence: "./scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh",
+      refresh_live_window_mouse_hit_test_sequence: "./scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh",
       inspect_runner: "systemctl --user status trillionnium-bevy-playtest.service"
     },
     artifact_manifest: $artifacts,
@@ -183,6 +207,7 @@ jq -e '
   and .status == "desktop_real_machine_readiness_green"
   and .gates.release_runner_gate == true
   and .gates.live_window_screenshot_sequence_gate == true
+  and .gates.live_window_mouse_hit_test_sequence_gate == true
   and .gates.live_window_layer_pixel_probe_gate == true
   and .gates.live_window_texture_correlation_gate == true
   and .gates.live_window_sampled_texture_correlation_gate == true
@@ -191,10 +216,12 @@ jq -e '
   and .gates.android_s5_real_device_not_required_gate == true
   and .desktop_evidence.screenshot_frame_count >= 11
   and .desktop_evidence.keyboard_event_count >= 10
+  and .desktop_evidence.mouse_event_count >= 10
+  and .desktop_evidence.mouse_slot_a_bytes > 512
   and .desktop_runtime.release_runner_pid > 0
   and .no_credit_boundaries.android_s5_real_device_claimed == false
   and .no_credit_boundaries.desktop_real_machine_scope == "local_linux_desktop_x11_window_and_release_runner"
-  and (.artifact_manifest | length == 6)
+  and (.artifact_manifest | length == 7)
 ' "$SUMMARY" >/dev/null
 
 {
@@ -207,6 +234,8 @@ jq -e '
     "$(jq -r '.desktop_runtime.release_runner_pid' "$SUMMARY")"
   printf -- '- screenshot_frames: `%s`\n' "$(jq -r '.desktop_evidence.screenshot_frame_count' "$SUMMARY")"
   printf -- '- keyboard_events: `%s`\n' "$(jq -r '.desktop_evidence.keyboard_event_count' "$SUMMARY")"
+  printf -- '- mouse_events: `%s`\n' "$(jq -r '.desktop_evidence.mouse_event_count' "$SUMMARY")"
+  printf -- '- mouse_slot_a_bytes: `%s`\n' "$(jq -r '.desktop_evidence.mouse_slot_a_bytes' "$SUMMARY")"
   printf -- '- android_s5_real_device_claimed: `false`\n\n'
   printf '## Commands\n\n'
   jq -r '.run_commands | to_entries[] | "- `" + .key + "`: `" + .value + "`"' "$SUMMARY"

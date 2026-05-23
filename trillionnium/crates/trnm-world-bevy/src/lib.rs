@@ -64049,7 +64049,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "native_control_button",
             "NEW",
             358,
-            386,
+            460,
             64,
             26,
         ),
@@ -64063,7 +64063,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "native_control_button",
             "CONFIRM",
             428,
-            419,
+            460,
             84,
             26,
         ),
@@ -64077,7 +64077,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "native_control_button",
             "R TALK",
             280,
-            453,
+            460,
             104,
             26,
         ),
@@ -64091,7 +64091,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "native_control_button",
             "T TRAIN",
             392,
-            453,
+            460,
             104,
             26,
         ),
@@ -64105,7 +64105,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "text_adventure_key_button",
             "8 N",
             100,
-            364,
+            397,
             74,
             30,
         ),
@@ -64119,7 +64119,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "native_control_button",
             "F FIGHT",
             504,
-            453,
+            460,
             104,
             26,
         ),
@@ -64147,7 +64147,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "native_control_button",
             "TITLE",
             280,
-            386,
+            460,
             72,
             26,
         ),
@@ -64161,7 +64161,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "native_control_button",
             "CONTINUE",
             428,
-            386,
+            460,
             92,
             26,
         ),
@@ -64174,8 +64174,8 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "selected_slot",
             "native_control_button",
             "CONTINUE",
-            806,
-            493,
+            344,
+            460,
             92,
             26,
         ),
@@ -90347,12 +90347,14 @@ fn contextual_action_row_should_show(
                         ))
                 })
         }
-        "title_menu" => row_signals.iter().any(|(_, visual_state, _, _)| {
-            matches!(
-                visual_state.as_str(),
-                "title_menu_active" | "title_choice_required"
-            )
-        }),
+        "title_menu" => row_signals
+            .iter()
+            .any(|(action_label, visual_state, _, _)| {
+                matches!(
+                    visual_state.as_str(),
+                    "title_menu_active" | "title_choice_required"
+                ) || (action_label == "TITLE:OPEN" && visual_state == "onboarding_next_button")
+            }),
         "account_title_actions" => row_signals
             .iter()
             .any(|(action_label, _, _, enabled)| *enabled && action_label.starts_with("ACCOUNT:")),
