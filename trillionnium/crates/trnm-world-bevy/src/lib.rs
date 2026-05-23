@@ -17110,6 +17110,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .find(|actor| actor.id == "multi1.command.core")
         .map(|actor| actor.hp)
         .unwrap_or_default();
+    let initial_auto_target_hp = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi1.auto.raider")
+        .map(|actor| actor.hp)
+        .unwrap_or_default();
     let command_inputs = [
         (
             "multi0.command.core",
@@ -17249,6 +17255,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .actors
         .iter()
         .find(|actor| actor.id == "multi1.command.core")
+        .map(|actor| actor.hp)
+        .unwrap_or_default();
+    let post_auto_target_hp = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi1.auto.raider")
         .map(|actor| actor.hp)
         .unwrap_or_default();
     let active_relay = world
@@ -17427,6 +17439,28 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event == "attack_remove:multi1.command.core");
+    let auto_target_acquisition_gate = initial_auto_target_hp > 0
+        && post_auto_target_hp == 0
+        && world.auto_target_acquire_count > 0
+        && world.auto_attack_hit_count > 0
+        && world.auto_attack_kill_count > 0
+        && world
+            .actors
+            .iter()
+            .all(|actor| actor.id != "multi1.auto.raider")
+        && world.event_log.iter().any(|event| {
+            event.starts_with("auto_target_acquire:multi0.guard.sentinel:multi1.auto.raider")
+        })
+        && world.event_log.iter().any(|event| {
+            event.starts_with("auto_attack_hit:multi0.guard.sentinel:multi1.auto.raider")
+        })
+        && world.event_log.iter().any(|event| {
+            event.contains("auto_attack_kill:") && event.ends_with(":multi1.auto.raider")
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "attack_remove:multi1.auto.raider");
     let control_group_gate = world.control_groups.iter().any(|group| {
         group.owner == "Multi0"
             && group.group_id == "1"
@@ -17470,6 +17504,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "attack_cooldown",
         "attack_kill",
         "attack_remove",
+        "auto_target_acquire",
+        "auto_attack_hit",
+        "auto_attack_kill",
         "control_group_recall",
         "queued_group_order",
         "queued_order_execute",
@@ -17545,6 +17582,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && attack_weapon_gate
         && attack_range_gate
         && attack_visibility_gate
+        && auto_target_acquisition_gate
         && control_group_gate
         && queued_order_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
@@ -17610,6 +17648,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_hit_count": world.attack_hit_count,
             "attack_kill_count": world.attack_kill_count,
             "attack_cooldown_wait_count": world.attack_cooldown_wait_count,
+            "auto_target_acquire_count": world.auto_target_acquire_count,
+            "auto_attack_hit_count": world.auto_attack_hit_count,
+            "auto_attack_kill_count": world.auto_attack_kill_count,
+            "multi1_auto_raider_removed": world.actors.iter().all(|actor| actor.id != "multi1.auto.raider"),
             "multi1_command_core_removed": world.actors.iter().all(|actor| actor.id != "multi1.command.core"),
             "control_group_count": world.control_groups.len(),
             "queued_order_count": world.queued_orders.len(),
@@ -17667,12 +17709,13 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_weapon_gate": attack_weapon_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
+            "auto_target_acquisition_gate": auto_target_acquisition_gate,
             "control_group_gate": control_group_gate,
             "queued_order_gate": queued_order_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, order legality resolution, cell occupancy/pathfinding, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43166,6 +43209,9 @@ struct TrnmOpenRaLikeWorld {
     attack_hit_count: u32,
     attack_kill_count: u32,
     attack_cooldown_wait_count: u32,
+    auto_target_acquire_count: u32,
+    auto_attack_hit_count: u32,
+    auto_attack_kill_count: u32,
     destroyed_actor_memory_ids: Vec<String>,
     control_groups: Vec<TrnmOpenRaLikeControlGroup>,
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
@@ -43930,6 +43976,30 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             rule_id: None,
         }),
     ));
+    actors.push(classic_openra_like_actor(
+        "multi0.guard.sentinel",
+        "trnm.forge.warden",
+        "Multi0",
+        (13, 10),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((13, 10)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi1.auto.raider",
+        "trnm.horizon.scout",
+        "Multi1",
+        (16, 11),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((16, 11)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
     let mut world = TrnmOpenRaLikeWorld {
         tick: 0,
         map_width: 34,
@@ -44011,6 +44081,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         attack_hit_count: 0,
         attack_kill_count: 0,
         attack_cooldown_wait_count: 0,
+        auto_target_acquire_count: 0,
+        auto_attack_hit_count: 0,
+        auto_attack_kill_count: 0,
         destroyed_actor_memory_ids: Vec::new(),
         control_groups: vec![
             TrnmOpenRaLikeControlGroup {
@@ -44857,6 +44930,116 @@ fn classic_openra_like_spawn_exit_tile(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> Vec<String> {
+    let mut attacks = Vec::new();
+    for attacker_index in 0..world.actors.len() {
+        let attacker = &world.actors[attacker_index];
+        if attacker.hp == 0
+            || attacker.weapon_cooldown_ticks > 0
+            || !matches!(
+                attacker.order.map(|order| order.kind),
+                None | Some(TrnmOpenRaLikeOrderKind::Hold)
+            )
+        {
+            continue;
+        }
+        let Some(weapon) = classic_openra_like_weapon_for(attacker.rule_id) else {
+            continue;
+        };
+        if !classic_openra_like_rule_for(attacker.rule_id).is_some_and(|rule| {
+            classic_openra_like_rule_has_trait_ref(rule, TrnmOpenRaLikeTrait::Attack)
+        }) {
+            continue;
+        }
+        let owner = attacker.owner;
+        let attacker_tile = attacker.tile;
+        let target_index = world
+            .actors
+            .iter()
+            .enumerate()
+            .filter(|(_, target)| {
+                target.hp > 0
+                    && target.owner != owner
+                    && target.owner != "Neutral"
+                    && classic_openra_like_rule_for(target.rule_id).is_some_and(|rule| {
+                        !matches!(
+                            rule.kind,
+                            TrnmOpenRaLikeEntityKind::Marker | TrnmOpenRaLikeEntityKind::Resource
+                        )
+                    })
+                    && classic_openra_like_visible_to_player(world, owner, target.tile)
+            })
+            .filter(|(_, target)| {
+                classic_openra_like_tile_distance(attacker_tile, target.tile) <= weapon.range
+            })
+            .min_by_key(|(_, target)| {
+                (
+                    classic_openra_like_tile_distance(attacker_tile, target.tile),
+                    target.hp,
+                )
+            })
+            .map(|(target_index, _)| target_index);
+        if let Some(target_index) = target_index {
+            attacks.push((attacker_index, target_index, weapon));
+        }
+    }
+
+    let mut defeated_actor_ids = Vec::new();
+    for (attacker_index, target_index, weapon) in attacks {
+        if attacker_index >= world.actors.len()
+            || target_index >= world.actors.len()
+            || world.actors[attacker_index].hp == 0
+            || world.actors[target_index].hp == 0
+            || world.actors[attacker_index].weapon_cooldown_ticks > 0
+        {
+            continue;
+        }
+        let owner = world.actors[attacker_index].owner;
+        let attacker_tile = world.actors[attacker_index].tile;
+        let target_tile = world.actors[target_index].tile;
+        if world.actors[target_index].owner == owner
+            || world.actors[target_index].owner == "Neutral"
+            || !classic_openra_like_visible_to_player(world, owner, target_tile)
+            || classic_openra_like_tile_distance(attacker_tile, target_tile) > weapon.range
+        {
+            continue;
+        }
+
+        let attacker_id = world.actors[attacker_index].id.clone();
+        let target_id = world.actors[target_index].id.clone();
+        let target_hp = world.actors[target_index].hp.saturating_sub(weapon.damage);
+        world.actors[target_index].hp = target_hp;
+        world.actors[attacker_index].weapon_cooldown_ticks = weapon.cooldown_ticks;
+        world.auto_target_acquire_count += 1;
+        world.auto_attack_hit_count += 1;
+        world.attack_hit_count += 1;
+        world.event_log.push(format!(
+            "auto_target_acquire:{attacker_id}:{target_id}:range{}",
+            weapon.range
+        ));
+        world.event_log.push(format!(
+            "auto_attack_hit:{attacker_id}:{target_id}:{}damage:{}hp",
+            weapon.damage, target_hp
+        ));
+        if target_hp == 0 {
+            world.auto_attack_kill_count += 1;
+            world.attack_kill_count += 1;
+            world.actors[target_index].order = None;
+            defeated_actor_ids.push(target_id.clone());
+            let destroyed_memory =
+                format!("{target_id}@{}", classic_openra_like_tile_id(target_tile));
+            if !world.destroyed_actor_memory_ids.contains(&destroyed_memory) {
+                world.destroyed_actor_memory_ids.push(destroyed_memory);
+            }
+            world
+                .event_log
+                .push(format!("auto_attack_kill:{attacker_id}:{target_id}"));
+        }
+    }
+    defeated_actor_ids
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_openra_like_core_tick_for(
     world: &mut TrnmOpenRaLikeWorld,
     tick_count: u32,
@@ -45006,7 +45189,7 @@ fn classic_first_contact_openra_like_core_tick_for(
             .iter()
             .map(|actor| actor.order)
             .collect::<Vec<_>>();
-        let mut defeated_actor_ids = Vec::new();
+        let mut defeated_actor_ids = classic_openra_like_auto_acquire_targets(world);
         for index in 0..world.actors.len() {
             if index >= world.actors.len() {
                 break;

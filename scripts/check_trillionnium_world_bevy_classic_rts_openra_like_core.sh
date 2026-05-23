@@ -59,6 +59,10 @@ jq -e '
   and .simulation.attack_kill_count > 0
   and .simulation.attack_cooldown_wait_count > 0
   and .simulation.multi1_command_core_removed == true
+  and .simulation.auto_target_acquire_count > 0
+  and .simulation.auto_attack_hit_count > 0
+  and .simulation.auto_attack_kill_count > 0
+  and .simulation.multi1_auto_raider_removed == true
   and .simulation.control_group_count >= 2
   and .simulation.queued_order_count >= 3
   and .simulation.queued_order_execute_count >= 3
@@ -103,6 +107,10 @@ jq -e '
   and any(.simulation.event_log[]; contains("attack_cooldown:multi0.striker.0"))
   and any(.simulation.event_log[]; contains("attack_kill:multi0.striker.0:multi1.command.core"))
   and any(.simulation.event_log[]; contains("attack_remove:multi1.command.core"))
+  and any(.simulation.event_log[]; contains("auto_target_acquire:multi0.guard.sentinel:multi1.auto.raider"))
+  and any(.simulation.event_log[]; contains("auto_attack_hit:multi0.guard.sentinel:multi1.auto.raider"))
+  and any(.simulation.event_log[]; contains("auto_attack_kill:") and endswith(":multi1.auto.raider"))
+  and any(.simulation.event_log[]; contains("attack_remove:multi1.auto.raider"))
   and any(.simulation.event_log[]; contains("control_group_recall:Multi0:1"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:1:move"))
   and ([.simulation.event_log[] | select(contains("queued_order_execute:1:"))] | length) >= 3
@@ -125,6 +133,7 @@ jq -e '
   and .gates.attack_weapon_gate == true
   and .gates.attack_range_gate == true
   and .gates.attack_visibility_gate == true
+  and .gates.auto_target_acquisition_gate == true
   and .gates.control_group_gate == true
   and .gates.queued_order_gate == true
   and .gates.shroud_gate == true
