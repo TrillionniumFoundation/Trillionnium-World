@@ -130,14 +130,14 @@ jq -e '
   and .simulation.repair_complete_count > 0
   and .simulation.repaired_relay_hp == .simulation.repaired_relay_max_hp
   and .simulation.control_group_count >= 2
-  and .simulation.queued_order_count >= 12
-  and .simulation.queued_order_execute_count >= 9
+  and .simulation.queued_order_count >= 15
+  and .simulation.queued_order_execute_count >= 12
   and .simulation.queued_order_cancel_count >= 2
   and .simulation.queued_order_chain_ready_count >= 1
   and .simulation.queued_order_chain_reach_count >= 2
   and .simulation.queued_order_override_count >= 1
   and .simulation.queued_order_override_cleared_count >= 2
-  and .simulation.completed_queued_order_count >= 9
+  and .simulation.completed_queued_order_count >= 12
   and .simulation.canceled_queued_order_count >= 4
   and .simulation.queued_order_cancel_gate == true
   and .simulation.queued_order_chain_gate == true
@@ -146,11 +146,16 @@ jq -e '
   and .simulation.queued_order_override_gate == true
   and .simulation.queued_order_override_tile.x == 31
   and .simulation.queued_order_override_tile.y == 29
-  and .simulation.formation_move_slot_count >= 3
-  and .simulation.formation_move_reached_count >= 3
-  and .simulation.formation_move_reassigned_slot_count == 0
+  and .simulation.formation_move_slot_count >= 6
+  and .simulation.formation_move_reached_count >= 6
+  and .simulation.formation_move_reassigned_slot_count >= 1
   and (.simulation.formation_move_slot_tiles | length) >= 3
   and (.simulation.formation_move_actor_tiles | length) >= 3
+  and (.simulation.formation_move_blocked_slot_tiles | length) >= 3
+  and (.simulation.formation_move_blocked_actor_tiles | length) >= 3
+  and .simulation.formation_move_group_order_count >= 2
+  and .simulation.formation_clean_gate == true
+  and .simulation.formation_blocked_reassign_gate == true
   and .simulation.formation_move_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
@@ -264,6 +269,14 @@ jq -e '
   and any(.simulation.event_log[]; contains("formation_move_reached:7:multi0.formation.lead:22,31"))
   and any(.simulation.event_log[]; contains("formation_move_reached:7:multi0.formation.left:21,31"))
   and any(.simulation.event_log[]; contains("formation_move_reached:7:multi0.formation.right:23,31"))
+  and any(.simulation.event_log[]; contains("formation_group_order:Multi0:8:10,31:3slots:1reassigned"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:8:multi0.formation.blocked.lead:slot0:10,31->10,31"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:8:multi0.formation.blocked.left:slot1:10,31->9,31"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:8:multi0.formation.blocked.right:slot2:10,31->10,32"))
+  and ([.simulation.event_log[] | select(contains("queued_order_execute:8:"))] | length) >= 3
+  and any(.simulation.event_log[]; contains("formation_move_reached:8:multi0.formation.blocked.lead:10,31"))
+  and any(.simulation.event_log[]; contains("formation_move_reached:8:multi0.formation.blocked.left:9,31"))
+  and any(.simulation.event_log[]; contains("formation_move_reached:8:multi0.formation.blocked.right:10,32"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
