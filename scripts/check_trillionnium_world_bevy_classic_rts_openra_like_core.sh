@@ -184,6 +184,15 @@ jq -e '
   and .simulation.traffic_yield_tile.x == 4
   and .simulation.traffic_yield_tile.y == 6
   and .simulation.traffic_deadlock_recovery_gate == true
+  and .simulation.traffic_stuck_wait_count >= 2
+  and .simulation.traffic_stuck_timeout_count >= 1
+  and .simulation.traffic_stuck_side_step_count >= 1
+  and .simulation.traffic_stuck_resume_count >= 1
+  and .simulation.traffic_stuck_runner_tile.x == 12
+  and .simulation.traffic_stuck_runner_tile.y == 2
+  and .simulation.traffic_stuck_blocker_tile.x == 9
+  and .simulation.traffic_stuck_blocker_tile.y == 3
+  and .simulation.traffic_stuck_timeout_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -324,6 +333,12 @@ jq -e '
   and any(.simulation.event_log[]; contains("traffic_deadlock_resume:11:multi0.traffic.lead:6,6"))
   and any(.simulation.event_log[]; contains("queued_order_reached:11:multi0.traffic.lead:chain0:6,6"))
   and any(.simulation.event_log[]; contains("queued_order_reached:11:multi0.traffic.yield:chain0:4,6"))
+  and any(.simulation.event_log[]; contains("queued_actor_order:Multi0:12:multi0.traffic.stuck.runner:move:chain0"))
+  and any(.simulation.event_log[]; contains("traffic_stuck_wait:multi0.traffic.stuck.runner:multi0.traffic.stuck.blocker:9,2:wait1"))
+  and any(.simulation.event_log[]; contains("traffic_stuck_timeout:multi0.traffic.stuck.runner:multi0.traffic.stuck.blocker:9,2:wait2"))
+  and any(.simulation.event_log[]; contains("traffic_stuck_side_step:multi0.traffic.stuck.blocker:9,2->9,3"))
+  and any(.simulation.event_log[]; contains("traffic_stuck_resume:12:multi0.traffic.stuck.runner:12,2"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:12:multi0.traffic.stuck.runner:chain0:12,2"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -370,6 +385,7 @@ jq -e '
   and .gates.local_obstruction_recovery_gate == true
   and .gates.path_reservation_gate == true
   and .gates.traffic_deadlock_recovery_gate == true
+  and .gates.traffic_stuck_timeout_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
