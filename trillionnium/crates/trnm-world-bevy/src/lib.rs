@@ -17413,6 +17413,40 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             rule_id: None,
         },
     );
+    classic_openra_like_queue_group_order(
+        &mut world,
+        "Multi0",
+        "6",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((29, 31)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
+    classic_openra_like_queue_group_order(
+        &mut world,
+        "Multi0",
+        "6",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((27, 31)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
+    classic_first_contact_openra_like_core_tick_for(&mut world, 1);
+    classic_openra_like_issue_immediate_actor_order(
+        &mut world,
+        "Multi0",
+        "multi0.override.runner",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((31, 29)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
     classic_first_contact_openra_like_core_tick_for(&mut world, 12);
     let multi0 = world
         .players
@@ -17970,8 +18004,50 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event == "queued_order_reached:5:multi0.chain.runner:chain1:6,31");
-    let queued_order_gate = world.queued_orders.len() >= 7
-        && world.queued_order_execute_count >= 5
+    let queued_override_first = world.queued_orders.iter().find(|order| {
+        order.group_id == "6"
+            && order.actor_id == "multi0.override.runner"
+            && order.chain_index == 0
+    });
+    let queued_override_second = world.queued_orders.iter().find(|order| {
+        order.group_id == "6"
+            && order.actor_id == "multi0.override.runner"
+            && order.chain_index == 1
+    });
+    let queued_override_tile = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi0.override.runner")
+        .map(|actor| actor.tile)
+        .unwrap_or_default();
+    let queued_order_override_gate = world.queued_order_override_count >= 1
+        && world.queued_order_override_cleared_count >= 2
+        && queued_override_first
+            .is_some_and(|order| order.completed && order.canceled && !order.reached)
+        && queued_override_second
+            .is_some_and(|order| !order.completed && order.canceled && !order.reached)
+        && queued_override_tile == (31, 29)
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_order_execute:6:multi0.override.runner:move:chain0")
+        && world.event_log.iter().any(|event| {
+            event == "queued_order_override:Multi0:multi0.override.runner:move:cleared2"
+        })
+        && !world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("queued_order_chain_ready:6:"))
+        && !world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_order_execute:6:multi0.override.runner:move:chain1")
+        && !world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("queued_order_reached:6:"));
+    let queued_order_gate = world.queued_orders.len() >= 9
+        && world.queued_order_execute_count >= 6
         && world
             .queued_orders
             .iter()
@@ -17993,7 +18069,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .count()
             >= 3
         && queued_order_cancel_gate
-        && queued_order_chain_gate;
+        && queued_order_chain_gate
+        && queued_order_override_gate;
     let event_log_gate = [
         "move_step",
         "path_step",
@@ -18044,6 +18121,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "queued_order_cancel",
         "queued_order_chain_ready",
         "queued_order_execute",
+        "queued_order_override",
         "queued_order_reached",
     ]
     .iter()
@@ -18251,11 +18329,15 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "queued_order_cancel_count": world.queued_order_cancel_count,
             "queued_order_chain_ready_count": world.queued_order_chain_ready_count,
             "queued_order_chain_reach_count": world.queued_order_chain_reach_count,
+            "queued_order_override_count": world.queued_order_override_count,
+            "queued_order_override_cleared_count": world.queued_order_override_cleared_count,
             "completed_queued_order_count": world.queued_orders.iter().filter(|order| order.completed).count(),
             "canceled_queued_order_count": world.queued_orders.iter().filter(|order| order.canceled).count(),
             "queued_order_cancel_gate": queued_order_cancel_gate,
             "queued_order_chain_gate": queued_order_chain_gate,
             "queued_order_chain_tile": {"x": queued_chain_tile.0, "y": queued_chain_tile.1},
+            "queued_order_override_gate": queued_order_override_gate,
+            "queued_order_override_tile": {"x": queued_override_tile.0, "y": queued_override_tile.1},
             "worker_moved": worker_moved,
             "multi0_flux": multi0.flux,
             "multi0_supply_used": multi0.supply_used,
@@ -18340,11 +18422,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_gate": control_group_gate,
             "queued_order_cancel_gate": queued_order_cancel_gate,
             "queued_order_chain_gate": queued_order_chain_gate,
+            "queued_order_override_gate": queued_order_override_gate,
             "queued_order_gate": queued_order_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43923,6 +44006,8 @@ struct TrnmOpenRaLikeWorld {
     queued_order_cancel_count: u32,
     queued_order_chain_ready_count: u32,
     queued_order_chain_reach_count: u32,
+    queued_order_override_count: u32,
+    queued_order_override_cleared_count: u32,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -44929,6 +45014,18 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.override.runner",
+        "trnm.horizon.scout",
+        "Multi0",
+        (31, 31),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((31, 31)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "multi0.focus.warden.a",
         "trnm.forge.warden",
         "Multi0",
@@ -45017,6 +45114,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         ("multi0.stance.holdfire", TrnmOpenRaLikeStance::HoldFire),
         ("multi0.stance.guard", TrnmOpenRaLikeStance::Guard),
         ("multi0.stance.aggressive", TrnmOpenRaLikeStance::Aggressive),
+        ("multi0.chain.runner", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.override.runner", TrnmOpenRaLikeStance::HoldFire),
         (
             "multi1.stance.holdfire.target",
             TrnmOpenRaLikeStance::HoldFire,
@@ -45249,12 +45348,21 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 focus_tile: (2, 31),
                 recall_count: 0,
             },
+            TrnmOpenRaLikeControlGroup {
+                owner: "Multi0",
+                group_id: "6",
+                actor_ids: vec!["multi0.override.runner".to_string()],
+                focus_tile: (31, 31),
+                recall_count: 0,
+            },
         ],
         queued_orders: Vec::new(),
         queued_order_execute_count: 0,
         queued_order_cancel_count: 0,
         queued_order_chain_ready_count: 0,
         queued_order_chain_reach_count: 0,
+        queued_order_override_count: 0,
+        queued_order_override_cleared_count: 0,
     };
     classic_openra_like_recompute_power(&mut world);
     classic_first_contact_openra_like_core_update_visibility(&mut world);
@@ -45795,6 +45903,42 @@ fn classic_openra_like_mark_queued_order_reached(
         }
     }
     world.event_log.extend(reached_events);
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_issue_immediate_actor_order(
+    world: &mut TrnmOpenRaLikeWorld,
+    owner: &'static str,
+    actor_id: &str,
+    order: TrnmOpenRaLikeOrder,
+) -> bool {
+    let Some(actor) = world
+        .actors
+        .iter_mut()
+        .find(|actor| actor.owner == owner && actor.id == actor_id)
+    else {
+        return false;
+    };
+
+    let mut cleared_count = 0_u32;
+    for queued_order in &mut world.queued_orders {
+        if queued_order.owner == owner
+            && queued_order.actor_id == actor_id
+            && !queued_order.reached
+            && !queued_order.canceled
+        {
+            queued_order.canceled = true;
+            cleared_count += 1;
+        }
+    }
+    actor.order = Some(order);
+    world.queued_order_override_count += 1;
+    world.queued_order_override_cleared_count += cleared_count;
+    world.event_log.push(format!(
+        "queued_order_override:{owner}:{actor_id}:{}:cleared{cleared_count}",
+        order.kind.as_str()
+    ));
+    true
 }
 
 #[cfg(not(target_os = "android"))]
