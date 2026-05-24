@@ -176,6 +176,14 @@ jq -e '
   and .simulation.path_reservation_wing_tile.x == 3
   and .simulation.path_reservation_wing_tile.y == 4
   and .simulation.path_reservation_gate == true
+  and .simulation.traffic_deadlock_detect_count >= 1
+  and .simulation.traffic_deadlock_yield_count >= 1
+  and .simulation.traffic_deadlock_resume_count >= 1
+  and .simulation.traffic_lead_tile.x == 6
+  and .simulation.traffic_lead_tile.y == 6
+  and .simulation.traffic_yield_tile.x == 4
+  and .simulation.traffic_yield_tile.y == 6
+  and .simulation.traffic_deadlock_recovery_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -309,6 +317,13 @@ jq -e '
   and any(.simulation.event_log[]; contains("path_reservation_grant:multi0.reservation.wing:2,4"))
   and any(.simulation.event_log[]; contains("queued_order_reached:10:multi0.reservation.lead:chain0:2,5"))
   and any(.simulation.event_log[]; contains("queued_order_reached:10:multi0.reservation.wing:chain0:3,4"))
+  and any(.simulation.event_log[]; contains("queued_actor_order:Multi0:11:multi0.traffic.lead:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_actor_order:Multi0:11:multi0.traffic.yield:move:chain0"))
+  and any(.simulation.event_log[]; contains("traffic_deadlock_detect:multi0.traffic.yield:multi0.traffic.lead:6,6<->5,6"))
+  and any(.simulation.event_log[]; contains("traffic_deadlock_yield:multi0.traffic.yield:6,6->6,7"))
+  and any(.simulation.event_log[]; contains("traffic_deadlock_resume:11:multi0.traffic.lead:6,6"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:11:multi0.traffic.lead:chain0:6,6"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:11:multi0.traffic.yield:chain0:4,6"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -354,6 +369,7 @@ jq -e '
   and .gates.formation_move_gate == true
   and .gates.local_obstruction_recovery_gate == true
   and .gates.path_reservation_gate == true
+  and .gates.traffic_deadlock_recovery_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
