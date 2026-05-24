@@ -130,14 +130,14 @@ jq -e '
   and .simulation.repair_complete_count > 0
   and .simulation.repaired_relay_hp == .simulation.repaired_relay_max_hp
   and .simulation.control_group_count >= 2
-  and .simulation.queued_order_count >= 15
-  and .simulation.queued_order_execute_count >= 12
+  and .simulation.queued_order_count >= 17
+  and .simulation.queued_order_execute_count >= 14
   and .simulation.queued_order_cancel_count >= 2
   and .simulation.queued_order_chain_ready_count >= 1
   and .simulation.queued_order_chain_reach_count >= 2
   and .simulation.queued_order_override_count >= 1
   and .simulation.queued_order_override_cleared_count >= 2
-  and .simulation.completed_queued_order_count >= 12
+  and .simulation.completed_queued_order_count >= 14
   and .simulation.canceled_queued_order_count >= 4
   and .simulation.queued_order_cancel_gate == true
   and .simulation.queued_order_chain_gate == true
@@ -167,6 +167,15 @@ jq -e '
   and .simulation.local_obstruction_blocker_tile.x == 3
   and .simulation.local_obstruction_blocker_tile.y == 3
   and .simulation.local_obstruction_recovery_gate == true
+  and .simulation.path_reservation_attempt_count >= 4
+  and .simulation.path_reservation_grant_count >= 3
+  and .simulation.path_reservation_wait_count >= 1
+  and .simulation.path_reservation_collision_avoidance_count >= 1
+  and .simulation.path_reservation_lead_tile.x == 2
+  and .simulation.path_reservation_lead_tile.y == 5
+  and .simulation.path_reservation_wing_tile.x == 3
+  and .simulation.path_reservation_wing_tile.y == 4
+  and .simulation.path_reservation_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -293,6 +302,13 @@ jq -e '
   and any(.simulation.event_log[]; contains("local_obstruction_side_step:multi0.obstruction.blocker:3,2->3,3"))
   and any(.simulation.event_log[]; contains("local_obstruction_gap_claim:multi0.obstruction.leader:3,2"))
   and any(.simulation.event_log[]; contains("local_obstruction_flow_resume:9:multi0.obstruction.leader:6,2"))
+  and any(.simulation.event_log[]; contains("queued_actor_order:Multi0:10:multi0.reservation.lead:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_actor_order:Multi0:10:multi0.reservation.wing:move:chain0"))
+  and any(.simulation.event_log[]; contains("path_reservation_grant:multi0.reservation.lead:2,4"))
+  and any(.simulation.event_log[]; contains("path_reservation_wait:multi0.reservation.wing:multi0.reservation.lead:2,4"))
+  and any(.simulation.event_log[]; contains("path_reservation_grant:multi0.reservation.wing:2,4"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:10:multi0.reservation.lead:chain0:2,5"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:10:multi0.reservation.wing:chain0:3,4"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -337,6 +353,7 @@ jq -e '
   and .gates.queued_order_gate == true
   and .gates.formation_move_gate == true
   and .gates.local_obstruction_recovery_gate == true
+  and .gates.path_reservation_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
