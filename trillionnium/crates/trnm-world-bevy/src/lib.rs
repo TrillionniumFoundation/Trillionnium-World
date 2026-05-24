@@ -17220,6 +17220,15 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             },
         ),
         (
+            "multi0.stop.warden",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Patrol,
+                target_tile: Some((6, 18)),
+                target_id: None,
+                rule_id: None,
+            },
+        ),
+        (
             "multi0.command.core",
             TrnmOpenRaLikeOrder {
                 kind: TrnmOpenRaLikeOrderKind::Patrol,
@@ -17322,7 +17331,30 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     for (actor_id, order) in command_inputs {
         classic_first_contact_openra_like_core_issue_order(&mut world, "Multi0", actor_id, order);
     }
-    classic_first_contact_openra_like_core_tick_for(&mut world, 140);
+    classic_first_contact_openra_like_core_tick_for(&mut world, 12);
+    classic_first_contact_openra_like_core_issue_order(
+        &mut world,
+        "Multi0",
+        "multi0.stop.warden",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Stop,
+            target_tile: None,
+            target_id: None,
+            rule_id: None,
+        },
+    );
+    classic_first_contact_openra_like_core_issue_order(
+        &mut world,
+        "Multi0",
+        "multi1.worker.0",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Stop,
+            target_tile: None,
+            target_id: None,
+            rule_id: None,
+        },
+    );
+    classic_first_contact_openra_like_core_tick_for(&mut world, 128);
     classic_first_contact_openra_like_core_issue_order(
         &mut world,
         "Multi0",
@@ -17421,6 +17453,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Harvest)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::AttackMove)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Patrol)
+        && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Stop)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::ReturnCargo)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Build)
         && TRNM_OPENRA_LIKE_ORDER_DECK.contains(&TrnmOpenRaLikeOrderKind::Train)
@@ -17495,6 +17528,16 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         result.accepted
             && result.actor_id == "multi0.focus.warden.b"
             && result.order == TrnmOpenRaLikeOrderKind::FocusFire
+    });
+    let stop_command_gate = world.command_results.iter().any(|result| {
+        result.accepted
+            && result.actor_id == "multi0.stop.warden"
+            && result.order == TrnmOpenRaLikeOrderKind::Stop
+    }) && world.command_results.iter().any(|result| {
+        !result.accepted
+            && result.actor_id == "multi1.worker.0"
+            && result.order == TrnmOpenRaLikeOrderKind::Stop
+            && result.reason == "owner_mismatch"
     });
     let build_placement_gate = world.command_results.iter().any(|result| {
         result.accepted
@@ -17814,6 +17857,19 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && world.event_log.iter().any(|event| {
             event.starts_with("auto_target_acquire:multi0.priority.guard:multi1.priority.lowhp")
         });
+    let stop_gate = stop_command_gate
+        && world.stop_order_count > 0
+        && world.stop_cleared_patrol_count > 0
+        && world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("stop_order:multi0.stop.warden:patrol->hold:"))
+        && world
+            .actors
+            .iter()
+            .find(|actor| actor.id == "multi0.stop.warden")
+            .and_then(|actor| actor.order)
+            .is_some_and(|order| order.kind == TrnmOpenRaLikeOrderKind::Hold);
     let repair_gate = repair_command_gate
         && world.repair_tick_count > 0
         && world.repair_flux_spent > 0
@@ -17878,6 +17934,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "focus_fire_hit",
         "focus_fire_kill",
         "target_priority_acquire",
+        "stop_order",
         "auto_target_acquire",
         "auto_attack_hit",
         "auto_attack_kill",
@@ -17981,6 +18038,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && patrol_gate
         && focus_fire_gate
         && target_priority_gate
+        && stop_gate
         && auto_target_acquisition_gate
         && stance_behavior_gate
         && repair_gate
@@ -18044,6 +18102,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "focus_fire_command_gate": focus_fire_command_gate,
             "focus_fire_gate": focus_fire_gate,
             "target_priority_gate": target_priority_gate,
+            "stop_command_gate": stop_command_gate,
+            "stop_gate": stop_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "build_placement_gate": build_placement_gate,
@@ -18076,6 +18136,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "focus_fire_hit_count": world.focus_fire_hit_count,
             "focus_fire_kill_count": world.focus_fire_kill_count,
             "target_priority_acquire_count": world.target_priority_acquire_count,
+            "stop_order_count": world.stop_order_count,
+            "stop_cleared_patrol_count": world.stop_cleared_patrol_count,
             "stance_hold_fire_suppressed_count": world.stance_hold_fire_suppressed_count,
             "stance_guard_leash_hold_count": world.stance_guard_leash_hold_count,
             "stance_aggressive_pursuit_count": world.stance_aggressive_pursuit_count,
@@ -18174,6 +18236,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "focus_fire_command_gate": focus_fire_command_gate,
             "focus_fire_gate": focus_fire_gate,
             "target_priority_gate": target_priority_gate,
+            "stop_command_gate": stop_command_gate,
+            "stop_gate": stop_gate,
             "auto_target_acquisition_gate": auto_target_acquisition_gate,
             "stance_behavior_gate": stance_behavior_gate,
             "repair_command_gate": repair_command_gate,
@@ -18183,7 +18247,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43541,6 +43605,7 @@ enum TrnmOpenRaLikeOrderKind {
     Move,
     AttackMove,
     Patrol,
+    Stop,
     Harvest,
     ReturnCargo,
     Build,
@@ -43559,6 +43624,7 @@ impl TrnmOpenRaLikeOrderKind {
             TrnmOpenRaLikeOrderKind::Move => "move",
             TrnmOpenRaLikeOrderKind::AttackMove => "attack_move",
             TrnmOpenRaLikeOrderKind::Patrol => "patrol",
+            TrnmOpenRaLikeOrderKind::Stop => "stop",
             TrnmOpenRaLikeOrderKind::Harvest => "harvest",
             TrnmOpenRaLikeOrderKind::ReturnCargo => "return_cargo",
             TrnmOpenRaLikeOrderKind::Build => "build",
@@ -43731,6 +43797,8 @@ struct TrnmOpenRaLikeWorld {
     focus_fire_hit_count: u32,
     focus_fire_kill_count: u32,
     target_priority_acquire_count: u32,
+    stop_order_count: u32,
+    stop_cleared_patrol_count: u32,
     stance_hold_fire_suppressed_count: u32,
     stance_guard_leash_hold_count: u32,
     stance_aggressive_pursuit_count: u32,
@@ -44042,6 +44110,7 @@ const TRNM_OPENRA_LIKE_ORDER_DECK: &[TrnmOpenRaLikeOrderKind] = &[
     TrnmOpenRaLikeOrderKind::Move,
     TrnmOpenRaLikeOrderKind::AttackMove,
     TrnmOpenRaLikeOrderKind::Patrol,
+    TrnmOpenRaLikeOrderKind::Stop,
     TrnmOpenRaLikeOrderKind::Harvest,
     TrnmOpenRaLikeOrderKind::ReturnCargo,
     TrnmOpenRaLikeOrderKind::Build,
@@ -44733,6 +44802,18 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.stop.warden",
+        "trnm.forge.warden",
+        "Multi0",
+        (3, 18),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((3, 18)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "multi0.focus.warden.a",
         "trnm.forge.warden",
         "Multi0",
@@ -45004,6 +45085,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         focus_fire_hit_count: 0,
         focus_fire_kill_count: 0,
         target_priority_acquire_count: 0,
+        stop_order_count: 0,
+        stop_cleared_patrol_count: 0,
         stance_hold_fire_suppressed_count: 0,
         stance_guard_leash_hold_count: 0,
         stance_aggressive_pursuit_count: 0,
@@ -45635,6 +45718,7 @@ fn classic_first_contact_openra_like_core_issue_order(
                 None
             }
         }
+        TrnmOpenRaLikeOrderKind::Stop => None,
         TrnmOpenRaLikeOrderKind::Harvest => {
             if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Harvester) {
                 Some("trait_missing:harvester".to_string())
@@ -45944,6 +46028,32 @@ fn classic_first_contact_openra_like_core_issue_order(
             world.actors[actor_index].patrol_endpoint_tile = order.target_tile;
             world.actors[actor_index].patrol_returning = false;
             world.actors[actor_index].order = Some(order);
+        }
+        TrnmOpenRaLikeOrderKind::Stop => {
+            let current_tile = world.actors[actor_index].tile;
+            let previous_kind = world.actors[actor_index]
+                .order
+                .map(|previous_order| previous_order.kind.as_str())
+                .unwrap_or("none");
+            let cleared_patrol = world.actors[actor_index].patrol_endpoint_tile.is_some()
+                || previous_kind == TrnmOpenRaLikeOrderKind::Patrol.as_str();
+            world.actors[actor_index].patrol_origin_tile = None;
+            world.actors[actor_index].patrol_endpoint_tile = None;
+            world.actors[actor_index].patrol_returning = false;
+            world.actors[actor_index].order = Some(TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Hold,
+                target_tile: Some(current_tile),
+                target_id: None,
+                rule_id: None,
+            });
+            world.stop_order_count += 1;
+            if cleared_patrol {
+                world.stop_cleared_patrol_count += 1;
+            }
+            world.event_log.push(format!(
+                "stop_order:{actor_id}:{previous_kind}->hold:{},{}",
+                current_tile.0, current_tile.1
+            ));
         }
         _ => {
             world.actors[actor_index].order = Some(order);
@@ -47212,7 +47322,9 @@ fn classic_first_contact_openra_like_core_tick_for(
                         ));
                     }
                 }
-                TrnmOpenRaLikeOrderKind::Train | TrnmOpenRaLikeOrderKind::Hold => {}
+                TrnmOpenRaLikeOrderKind::Train
+                | TrnmOpenRaLikeOrderKind::Stop
+                | TrnmOpenRaLikeOrderKind::Hold => {}
             }
         }
         if !defeated_actor_ids.is_empty() {

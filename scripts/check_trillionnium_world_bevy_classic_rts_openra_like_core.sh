@@ -40,6 +40,7 @@ jq -e '
   and ((.orders | index("move")) != null)
   and ((.orders | index("attack_move")) != null)
   and ((.orders | index("patrol")) != null)
+  and ((.orders | index("stop")) != null)
   and ((.orders | index("harvest")) != null)
   and ((.orders | index("return_cargo")) != null)
   and ((.orders | index("build")) != null)
@@ -105,6 +106,10 @@ jq -e '
   and .simulation.focus_fire_kill_count > 0
   and .simulation.target_priority_gate == true
   and .simulation.target_priority_acquire_count > 0
+  and .simulation.stop_command_gate == true
+  and .simulation.stop_gate == true
+  and .simulation.stop_order_count > 0
+  and .simulation.stop_cleared_patrol_count > 0
   and .simulation.stance_behavior_gate == true
   and .simulation.stance_hold_fire_suppressed_count > 0
   and .simulation.stance_guard_leash_hold_count > 0
@@ -142,6 +147,8 @@ jq -e '
   and any(.simulation.command_log[]; contains("rejected:patrol:multi0.command.core:trait_missing:mobile"))
   and any(.simulation.command_log[]; contains("accepted:focus_fire:multi0.focus.warden.a"))
   and any(.simulation.command_log[]; contains("accepted:focus_fire:multi0.focus.warden.b"))
+  and any(.simulation.command_log[]; contains("accepted:stop:multi0.stop.warden"))
+  and any(.simulation.command_log[]; contains("rejected:stop:multi1.worker.0:owner_mismatch"))
   and any(.simulation.command_log[]; contains("rejected:build:multi0.worker.1:build_tile_blocked"))
   and any(.simulation.command_log[]; contains("accepted:attack:multi0.striker.0"))
   and any(.simulation.command_log[]; contains("accepted:capture:multi0.warden.capture"))
@@ -201,6 +208,7 @@ jq -e '
   and any(.simulation.event_log[]; contains("focus_fire_hit:multi0.focus.warden.b:multi1.focus.target"))
   and any(.simulation.event_log[]; contains("focus_fire_kill:") and endswith(":multi1.focus.target"))
   and any(.simulation.event_log[]; contains("target_priority_acquire:multi0.priority.guard:multi1.priority.lowhp"))
+  and any(.simulation.event_log[]; contains("stop_order:multi0.stop.warden:patrol->hold"))
   and any(.simulation.event_log[]; contains("stance_hold_fire_suppress:multi0.stance.holdfire:multi1.stance.holdfire.target"))
   and any(.simulation.event_log[]; contains("stance_guard_leash_hold:multi0.stance.guard:multi1.stance.guard.target"))
   and any(.simulation.event_log[]; contains("stance_aggressive_pursue:multi0.stance.aggressive:multi1.stance.aggressive.target"))
@@ -245,6 +253,8 @@ jq -e '
   and .gates.focus_fire_command_gate == true
   and .gates.focus_fire_gate == true
   and .gates.target_priority_gate == true
+  and .gates.stop_command_gate == true
+  and .gates.stop_gate == true
   and .gates.auto_target_acquisition_gate == true
   and .gates.stance_behavior_gate == true
   and .gates.repair_command_gate == true
