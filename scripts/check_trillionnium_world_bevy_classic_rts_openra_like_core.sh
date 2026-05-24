@@ -137,6 +137,7 @@ jq -e '
   and .simulation.queued_order_chain_reach_count >= 2
   and .simulation.queued_order_override_count >= 1
   and .simulation.queued_order_override_cleared_count >= 2
+  and .simulation.queued_order_reject_count >= 1
   and .simulation.completed_queued_order_count >= 14
   and .simulation.canceled_queued_order_count >= 4
   and .simulation.queued_order_cancel_gate == true
@@ -146,6 +147,9 @@ jq -e '
   and .simulation.queued_order_override_gate == true
   and .simulation.queued_order_override_tile.x == 31
   and .simulation.queued_order_override_tile.y == 29
+  and .simulation.queued_order_validation_gate == true
+  and .simulation.queued_order_validation_tile.x == 15
+  and .simulation.queued_order_validation_tile.y == 31
   and .simulation.formation_move_slot_count >= 6
   and .simulation.formation_move_reached_count >= 6
   and .simulation.formation_move_reassigned_slot_count >= 1
@@ -297,6 +301,11 @@ jq -e '
   and ([.simulation.event_log[] | select(contains("queued_order_chain_ready:6:"))] | length) == 0
   and ([.simulation.event_log[] | select(contains("queued_order_execute:6:multi0.override.runner:move:chain1"))] | length) == 0
   and ([.simulation.event_log[] | select(contains("queued_order_reached:6:"))] | length) == 0
+  and any(.simulation.event_log[]; contains("queued_actor_order_rejected:Multi0:13:multi0.queue.reject.runner:move:path_unreachable:16,16"))
+  and any(.simulation.event_log[]; contains("queued_actor_order:Multi0:13:multi0.queue.reject.runner:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_execute:13:multi0.queue.reject.runner:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:13:multi0.queue.reject.runner:chain0:15,31"))
+  and ([.snapshot.queued_orders[] | select(.group_id == "13" and .actor_id == "multi0.queue.reject.runner" and .target_tile.x == 16 and .target_tile.y == 16)] | length) == 0
   and any(.simulation.event_log[]; contains("formation_group_order:Multi0:7:22,31:3slots:0reassigned"))
   and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:7:multi0.formation.lead:slot0:22,31->22,31"))
   and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:7:multi0.formation.left:slot1:22,31->21,31"))
@@ -380,6 +389,7 @@ jq -e '
   and .gates.queued_order_cancel_gate == true
   and .gates.queued_order_chain_gate == true
   and .gates.queued_order_override_gate == true
+  and .gates.queued_order_validation_gate == true
   and .gates.queued_order_gate == true
   and .gates.formation_move_gate == true
   and .gates.local_obstruction_recovery_gate == true
