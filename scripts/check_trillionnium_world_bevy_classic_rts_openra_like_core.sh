@@ -157,6 +157,16 @@ jq -e '
   and .simulation.formation_clean_gate == true
   and .simulation.formation_blocked_reassign_gate == true
   and .simulation.formation_move_gate == true
+  and .simulation.local_obstruction_detect_count > 0
+  and .simulation.local_obstruction_hold_count > 0
+  and .simulation.local_obstruction_side_step_count > 0
+  and .simulation.local_obstruction_gap_claim_count > 0
+  and .simulation.local_obstruction_resume_count > 0
+  and ((.simulation.local_obstruction_actor_tiles | map(select(.x == 6 and .y == 2)) | length) == 1)
+  and ((.simulation.local_obstruction_actor_tiles | map(select(.x == 5 and .y == 2)) | length) == 1)
+  and .simulation.local_obstruction_blocker_tile.x == 3
+  and .simulation.local_obstruction_blocker_tile.y == 3
+  and .simulation.local_obstruction_recovery_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -277,6 +287,12 @@ jq -e '
   and any(.simulation.event_log[]; contains("formation_move_reached:8:multi0.formation.blocked.lead:10,31"))
   and any(.simulation.event_log[]; contains("formation_move_reached:8:multi0.formation.blocked.left:9,31"))
   and any(.simulation.event_log[]; contains("formation_move_reached:8:multi0.formation.blocked.right:10,32"))
+  and any(.simulation.event_log[]; contains("formation_group_order:Multi0:9:6,2:2slots:0reassigned"))
+  and any(.simulation.event_log[]; contains("local_obstruction_detect:multi0.obstruction.leader:multi0.obstruction.blocker:3,2"))
+  and any(.simulation.event_log[]; contains("local_obstruction_hold_queue:multi0.obstruction.leader:multi0.obstruction.blocker"))
+  and any(.simulation.event_log[]; contains("local_obstruction_side_step:multi0.obstruction.blocker:3,2->3,3"))
+  and any(.simulation.event_log[]; contains("local_obstruction_gap_claim:multi0.obstruction.leader:3,2"))
+  and any(.simulation.event_log[]; contains("local_obstruction_flow_resume:9:multi0.obstruction.leader:6,2"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -320,6 +336,7 @@ jq -e '
   and .gates.queued_order_override_gate == true
   and .gates.queued_order_gate == true
   and .gates.formation_move_gate == true
+  and .gates.local_obstruction_recovery_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
