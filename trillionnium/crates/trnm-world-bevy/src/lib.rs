@@ -17447,6 +17447,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             rule_id: None,
         },
     );
+    classic_openra_like_queue_group_formation_move(&mut world, "Multi0", "7", (22, 31));
     classic_first_contact_openra_like_core_tick_for(&mut world, 12);
     let multi0 = world
         .players
@@ -18046,8 +18047,65 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event.starts_with("queued_order_reached:6:"));
-    let queued_order_gate = world.queued_orders.len() >= 9
-        && world.queued_order_execute_count >= 6
+    let formation_slot_orders = world
+        .queued_orders
+        .iter()
+        .filter(|order| order.group_id == "7" && order.formation_slot_index.is_some())
+        .collect::<Vec<_>>();
+    let formation_slot_tiles = formation_slot_orders
+        .iter()
+        .filter_map(|order| order.order.target_tile)
+        .collect::<HashSet<_>>();
+    let formation_actor_tiles = [
+        "multi0.formation.lead",
+        "multi0.formation.left",
+        "multi0.formation.right",
+    ]
+    .iter()
+    .filter_map(|actor_id| {
+        world
+            .actors
+            .iter()
+            .find(|actor| actor.id == *actor_id)
+            .map(|actor| actor.tile)
+    })
+    .collect::<HashSet<_>>();
+    let formation_move_gate = world.formation_move_slot_count >= 3
+        && world.formation_move_reached_count >= 3
+        && world.formation_move_reassigned_slot_count == 0
+        && formation_slot_orders.len() >= 3
+        && formation_slot_tiles.len() >= 3
+        && formation_actor_tiles == formation_slot_tiles
+        && formation_slot_orders
+            .iter()
+            .all(|order| order.completed && order.reached && !order.canceled)
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "formation_group_order:Multi0:7:22,31:3slots:0reassigned")
+        && world.event_log.iter().any(|event| {
+            event == "formation_move_slot:Multi0:7:multi0.formation.lead:slot0:22,31->22,31"
+        })
+        && world.event_log.iter().any(|event| {
+            event == "formation_move_slot:Multi0:7:multi0.formation.left:slot1:22,31->21,31"
+        })
+        && world.event_log.iter().any(|event| {
+            event == "formation_move_slot:Multi0:7:multi0.formation.right:slot2:22,31->23,31"
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "formation_move_reached:7:multi0.formation.lead:22,31")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "formation_move_reached:7:multi0.formation.left:21,31")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "formation_move_reached:7:multi0.formation.right:23,31");
+    let queued_order_gate = world.queued_orders.len() >= 12
+        && world.queued_order_execute_count >= 9
         && world
             .queued_orders
             .iter()
@@ -18070,7 +18128,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             >= 3
         && queued_order_cancel_gate
         && queued_order_chain_gate
-        && queued_order_override_gate;
+        && queued_order_override_gate
+        && formation_move_gate;
     let event_log_gate = [
         "move_step",
         "path_step",
@@ -18123,6 +18182,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "queued_order_execute",
         "queued_order_override",
         "queued_order_reached",
+        "formation_group_order",
+        "formation_move_slot",
+        "formation_move_reached",
     ]
     .iter()
     .all(|needle| world.event_log.iter().any(|event| event.contains(needle)));
@@ -18209,7 +18271,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && stance_behavior_gate
         && repair_gate
         && control_group_gate
-        && queued_order_gate;
+        && queued_order_gate
+        && formation_move_gate;
     let source_policy_gate = TRNM_OPENRA_LIKE_SOURCE_POLICY.no_openra_engine_code_copied
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.rust_bevy_owned_runtime
         && TRNM_OPENRA_LIKE_SOURCE_POLICY.warcraft_iii_asset_copied == false;
@@ -18338,6 +18401,16 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "queued_order_chain_tile": {"x": queued_chain_tile.0, "y": queued_chain_tile.1},
             "queued_order_override_gate": queued_order_override_gate,
             "queued_order_override_tile": {"x": queued_override_tile.0, "y": queued_override_tile.1},
+            "formation_move_slot_count": world.formation_move_slot_count,
+            "formation_move_reached_count": world.formation_move_reached_count,
+            "formation_move_reassigned_slot_count": world.formation_move_reassigned_slot_count,
+            "formation_move_slot_tiles": formation_slot_tiles.iter().map(|tile| {
+                json!({"x": tile.0, "y": tile.1})
+            }).collect::<Vec<_>>(),
+            "formation_move_actor_tiles": formation_actor_tiles.iter().map(|tile| {
+                json!({"x": tile.0, "y": tile.1})
+            }).collect::<Vec<_>>(),
+            "formation_move_gate": formation_move_gate,
             "worker_moved": worker_moved,
             "multi0_flux": multi0.flux,
             "multi0_supply_used": multi0.supply_used,
@@ -18424,10 +18497,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "queued_order_chain_gate": queued_order_chain_gate,
             "queued_order_override_gate": queued_order_override_gate,
             "queued_order_gate": queued_order_gate,
+            "formation_move_gate": formation_move_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, formation-move slot assignment with unique destination slots, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43942,6 +44016,8 @@ struct TrnmOpenRaLikeQueuedOrder {
     actor_id: String,
     order: TrnmOpenRaLikeOrder,
     chain_index: u32,
+    formation_slot_index: Option<u32>,
+    formation_anchor_tile: Option<(i32, i32)>,
     issued_tick: u32,
     executed_tick: Option<u32>,
     completed: bool,
@@ -44008,6 +44084,9 @@ struct TrnmOpenRaLikeWorld {
     queued_order_chain_reach_count: u32,
     queued_order_override_count: u32,
     queued_order_override_cleared_count: u32,
+    formation_move_slot_count: u32,
+    formation_move_reached_count: u32,
+    formation_move_reassigned_slot_count: u32,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -45026,6 +45105,42 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.formation.lead",
+        "trnm.horizon.scout",
+        "Multi0",
+        (18, 31),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((18, 31)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.formation.left",
+        "trnm.horizon.scout",
+        "Multi0",
+        (18, 30),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((18, 30)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.formation.right",
+        "trnm.horizon.scout",
+        "Multi0",
+        (18, 29),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((18, 29)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "multi0.focus.warden.a",
         "trnm.forge.warden",
         "Multi0",
@@ -45116,6 +45231,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         ("multi0.stance.aggressive", TrnmOpenRaLikeStance::Aggressive),
         ("multi0.chain.runner", TrnmOpenRaLikeStance::HoldFire),
         ("multi0.override.runner", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.formation.lead", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.formation.left", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.formation.right", TrnmOpenRaLikeStance::HoldFire),
         (
             "multi1.stance.holdfire.target",
             TrnmOpenRaLikeStance::HoldFire,
@@ -45355,6 +45473,17 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 focus_tile: (31, 31),
                 recall_count: 0,
             },
+            TrnmOpenRaLikeControlGroup {
+                owner: "Multi0",
+                group_id: "7",
+                actor_ids: vec![
+                    "multi0.formation.lead".to_string(),
+                    "multi0.formation.left".to_string(),
+                    "multi0.formation.right".to_string(),
+                ],
+                focus_tile: (22, 31),
+                recall_count: 0,
+            },
         ],
         queued_orders: Vec::new(),
         queued_order_execute_count: 0,
@@ -45363,6 +45492,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         queued_order_chain_reach_count: 0,
         queued_order_override_count: 0,
         queued_order_override_cleared_count: 0,
+        formation_move_slot_count: 0,
+        formation_move_reached_count: 0,
+        formation_move_reassigned_slot_count: 0,
     };
     classic_openra_like_recompute_power(&mut world);
     classic_first_contact_openra_like_core_update_visibility(&mut world);
@@ -45816,6 +45948,8 @@ fn classic_openra_like_queue_group_order(
                 actor_id,
                 order,
                 chain_index,
+                formation_slot_index: None,
+                formation_anchor_tile: None,
                 issued_tick: world.tick,
                 executed_tick: None,
                 completed: false,
@@ -45829,6 +45963,151 @@ fn classic_openra_like_queue_group_order(
         "queued_group_order:{owner}:{group_id}:{}:{}actors",
         order.kind.as_str(),
         queued_count
+    ));
+    queued_count
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_formation_offsets() -> [(i32, i32); 13] {
+    [
+        (0, 0),
+        (-1, 0),
+        (1, 0),
+        (0, 1),
+        (0, -1),
+        (-1, 1),
+        (1, 1),
+        (-1, -1),
+        (1, -1),
+        (-2, 0),
+        (2, 0),
+        (0, 2),
+        (0, -2),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_queue_group_formation_move(
+    world: &mut TrnmOpenRaLikeWorld,
+    owner: &'static str,
+    group_id: &'static str,
+    anchor_tile: (i32, i32),
+) -> usize {
+    if !classic_openra_like_tile_in_bounds(world, anchor_tile) {
+        world.event_log.push(format!(
+            "formation_group_order_rejected:{owner}:{group_id}:anchor_out_of_bounds:{}",
+            classic_openra_like_tile_id(anchor_tile)
+        ));
+        return 0;
+    }
+    let Some(group) = world
+        .control_groups
+        .iter()
+        .find(|group| group.owner == owner && group.group_id == group_id)
+    else {
+        return 0;
+    };
+    let actor_ids = group.actor_ids.clone();
+    let offsets = classic_openra_like_formation_offsets();
+    let mut used_slots = HashSet::new();
+    let mut queued_count = 0_usize;
+    let mut reassigned_count = 0_u32;
+
+    for (slot_index, actor_id) in actor_ids.into_iter().enumerate() {
+        let Some(actor) = world
+            .actors
+            .iter()
+            .find(|actor| actor.owner == owner && actor.id == actor_id)
+        else {
+            continue;
+        };
+        let Some(actor_rule) = classic_openra_like_rule_for(actor.rule_id) else {
+            continue;
+        };
+        if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Mobile) {
+            continue;
+        }
+
+        let preferred_offset_index = slot_index.min(offsets.len() - 1);
+        let mut candidate_indices = vec![preferred_offset_index];
+        candidate_indices
+            .extend((0..offsets.len()).filter(|index| *index != preferred_offset_index));
+
+        let mut slot_assignment = None;
+        for offset_index in candidate_indices {
+            let offset = offsets[offset_index];
+            let slot_tile = (anchor_tile.0 + offset.0, anchor_tile.1 + offset.1);
+            if used_slots.contains(&slot_tile)
+                || !classic_openra_like_tile_in_bounds(world, slot_tile)
+                || classic_openra_like_tile_blocked_for_spawn(world, slot_tile)
+            {
+                continue;
+            }
+            if classic_openra_like_pathfind_tiles(world, &actor_id, actor.tile, slot_tile).is_none()
+            {
+                continue;
+            }
+            slot_assignment = Some((slot_tile, offset_index != preferred_offset_index));
+            break;
+        }
+
+        let Some((slot_tile, reassigned)) = slot_assignment else {
+            world.event_log.push(format!(
+                "formation_move_slot_blocked:{owner}:{group_id}:{actor_id}:slot{slot_index}"
+            ));
+            continue;
+        };
+
+        if reassigned {
+            reassigned_count += 1;
+        }
+        used_slots.insert(slot_tile);
+        let chain_index = world
+            .queued_orders
+            .iter()
+            .filter(|queued_order| {
+                queued_order.owner == owner
+                    && queued_order.group_id == group_id
+                    && queued_order.actor_id == actor_id
+            })
+            .map(|queued_order| queued_order.chain_index)
+            .max()
+            .map_or(0, |chain_index| chain_index + 1);
+        let order = TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some(slot_tile),
+            target_id: None,
+            rule_id: None,
+        };
+        world.queued_orders.push(TrnmOpenRaLikeQueuedOrder {
+            owner,
+            group_id,
+            actor_id: actor_id.clone(),
+            order,
+            chain_index,
+            formation_slot_index: Some(slot_index as u32),
+            formation_anchor_tile: Some(anchor_tile),
+            issued_tick: world.tick,
+            executed_tick: None,
+            completed: false,
+            canceled: false,
+            reached: false,
+        });
+        world.event_log.push(format!(
+            "formation_move_slot:{owner}:{group_id}:{actor_id}:slot{slot_index}:{}->{}",
+            classic_openra_like_tile_id(anchor_tile),
+            classic_openra_like_tile_id(slot_tile)
+        ));
+        queued_count += 1;
+    }
+
+    world.formation_move_slot_count += queued_count as u32;
+    world.formation_move_reassigned_slot_count += reassigned_count;
+    world.event_log.push(format!(
+        "formation_group_order:{owner}:{group_id}:{}:{}slots:{}reassigned",
+        classic_openra_like_tile_id(anchor_tile),
+        queued_count,
+        reassigned_count
     ));
     queued_count
 }
@@ -45893,6 +46172,15 @@ fn classic_openra_like_mark_queued_order_reached(
         {
             queued_order.reached = true;
             world.queued_order_chain_reach_count += 1;
+            if queued_order.formation_slot_index.is_some() {
+                world.formation_move_reached_count += 1;
+                reached_events.push(format!(
+                    "formation_move_reached:{}:{}:{}",
+                    queued_order.group_id,
+                    actor_id,
+                    classic_openra_like_tile_id(target)
+                ));
+            }
             reached_events.push(format!(
                 "queued_order_reached:{}:{}:chain{}:{}",
                 queued_order.group_id,
@@ -47782,6 +48070,8 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "actor_id": order.actor_id.clone(),
                 "order": order.order.kind.as_str(),
                 "chain_index": order.chain_index,
+                "formation_slot_index": order.formation_slot_index,
+                "formation_anchor_tile": order.formation_anchor_tile.map(|tile| json!({"x": tile.0, "y": tile.1})),
                 "issued_tick": order.issued_tick,
                 "executed_tick": order.executed_tick,
                 "completed": order.completed,

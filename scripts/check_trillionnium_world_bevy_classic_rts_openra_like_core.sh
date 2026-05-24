@@ -130,14 +130,14 @@ jq -e '
   and .simulation.repair_complete_count > 0
   and .simulation.repaired_relay_hp == .simulation.repaired_relay_max_hp
   and .simulation.control_group_count >= 2
-  and .simulation.queued_order_count >= 9
-  and .simulation.queued_order_execute_count >= 6
+  and .simulation.queued_order_count >= 12
+  and .simulation.queued_order_execute_count >= 9
   and .simulation.queued_order_cancel_count >= 2
   and .simulation.queued_order_chain_ready_count >= 1
   and .simulation.queued_order_chain_reach_count >= 2
   and .simulation.queued_order_override_count >= 1
   and .simulation.queued_order_override_cleared_count >= 2
-  and .simulation.completed_queued_order_count >= 6
+  and .simulation.completed_queued_order_count >= 9
   and .simulation.canceled_queued_order_count >= 4
   and .simulation.queued_order_cancel_gate == true
   and .simulation.queued_order_chain_gate == true
@@ -146,6 +146,12 @@ jq -e '
   and .simulation.queued_order_override_gate == true
   and .simulation.queued_order_override_tile.x == 31
   and .simulation.queued_order_override_tile.y == 29
+  and .simulation.formation_move_slot_count >= 3
+  and .simulation.formation_move_reached_count >= 3
+  and .simulation.formation_move_reassigned_slot_count == 0
+  and (.simulation.formation_move_slot_tiles | length) >= 3
+  and (.simulation.formation_move_actor_tiles | length) >= 3
+  and .simulation.formation_move_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -250,6 +256,14 @@ jq -e '
   and ([.simulation.event_log[] | select(contains("queued_order_chain_ready:6:"))] | length) == 0
   and ([.simulation.event_log[] | select(contains("queued_order_execute:6:multi0.override.runner:move:chain1"))] | length) == 0
   and ([.simulation.event_log[] | select(contains("queued_order_reached:6:"))] | length) == 0
+  and any(.simulation.event_log[]; contains("formation_group_order:Multi0:7:22,31:3slots:0reassigned"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:7:multi0.formation.lead:slot0:22,31->22,31"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:7:multi0.formation.left:slot1:22,31->21,31"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:7:multi0.formation.right:slot2:22,31->23,31"))
+  and ([.simulation.event_log[] | select(contains("queued_order_execute:7:"))] | length) >= 3
+  and any(.simulation.event_log[]; contains("formation_move_reached:7:multi0.formation.lead:22,31"))
+  and any(.simulation.event_log[]; contains("formation_move_reached:7:multi0.formation.left:21,31"))
+  and any(.simulation.event_log[]; contains("formation_move_reached:7:multi0.formation.right:23,31"))
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -292,6 +306,7 @@ jq -e '
   and .gates.queued_order_chain_gate == true
   and .gates.queued_order_override_gate == true
   and .gates.queued_order_gate == true
+  and .gates.formation_move_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
