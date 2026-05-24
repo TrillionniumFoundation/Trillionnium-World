@@ -17332,6 +17332,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         classic_first_contact_openra_like_core_issue_order(&mut world, "Multi0", actor_id, order);
     }
     classic_first_contact_openra_like_core_tick_for(&mut world, 12);
+    classic_openra_like_clear_capture_contest_fixture(&mut world);
     classic_first_contact_openra_like_core_issue_order(
         &mut world,
         "Multi0",
@@ -17867,10 +17868,42 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .map(|actor| actor.capture_progress)
         .unwrap_or_default();
     let beacon_capture_owner = active_beacon.map(|actor| actor.owner).unwrap_or("missing");
+    let contested_beacon = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "map.capture.contested.node");
+    let contested_beacon_capture_progress = contested_beacon
+        .map(|actor| actor.capture_progress)
+        .unwrap_or_default();
+    let contested_beacon_capture_owner = contested_beacon
+        .map(|actor| actor.owner)
+        .unwrap_or("missing");
+    let capture_contested_gate = world.capture_contested_tick_count > 0
+        && world.capture_resume_count == 1
+        && contested_beacon_capture_progress == 100
+        && contested_beacon_capture_owner == "Multi0"
+        && world.event_log.iter().any(|event| {
+            event
+                == "capture_contested:multi0.capture.contested.warden:map.capture.contested.node:multi1.capture.contester:30,2"
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "capture_contest_clear:multi1.capture.contester:30,3->32,3")
+        && world.event_log.iter().any(|event| {
+            event == "capture_resume:multi0.capture.contested.warden:map.capture.contested.node:30,2"
+        })
+        && world.event_log.iter().any(|event| {
+            event
+                == "capture_complete:multi0.capture.contested.warden:map.capture.contested.node:Multi0:100%"
+        })
+        && world.event_log.iter().any(|event| {
+            event == "capture_income:Multi0:map.capture.contested.node:trnm.flux.beacon:+75"
+        });
     let capture_objective_gate = world.capture_path_step_count > 0
-        && world.capture_complete_count == 1
-        && world.capture_income_tick_count == 1
-        && world.capture_income_amount >= 75
+        && world.capture_complete_count >= 2
+        && world.capture_income_tick_count >= 2
+        && world.capture_income_amount >= 150
         && beacon_capture_progress == 100
         && beacon_capture_owner == "Multi0"
         && multi0.beacon_control_ticks > 0
@@ -17885,7 +17918,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && world
             .event_log
             .iter()
-            .any(|event| event == "capture_income:Multi0:map.actor15:trnm.flux.beacon:+75");
+            .any(|event| event == "capture_income:Multi0:map.actor15:trnm.flux.beacon:+75")
+        && capture_contested_gate;
     let worker_moved = active_worker.is_some_and(|actor| actor.tile != (9, 8));
     let combat_damage = initial_enemy_hp.saturating_sub(post_enemy_hp);
     let repaired_relay_hp = world
@@ -18507,6 +18541,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "production_spawn",
         "rally_order",
         "capture_path_step",
+        "capture_contested",
+        "capture_contest_clear",
+        "capture_resume",
         "capture_tick",
         "capture_complete",
         "capture_income",
@@ -18743,9 +18780,14 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "beacon_capture_progress": beacon_capture_progress,
             "capture_beacon_owner": beacon_capture_owner,
             "capture_path_step_count": world.capture_path_step_count,
+            "capture_contested_tick_count": world.capture_contested_tick_count,
+            "capture_resume_count": world.capture_resume_count,
             "capture_complete_count": world.capture_complete_count,
             "capture_income_tick_count": world.capture_income_tick_count,
             "capture_income_amount": world.capture_income_amount,
+            "capture_contested_gate": capture_contested_gate,
+            "contested_beacon_capture_progress": contested_beacon_capture_progress,
+            "contested_beacon_capture_owner": contested_beacon_capture_owner,
             "capture_objective_gate": capture_objective_gate,
             "combat_damage": combat_damage,
             "attack_hit_count": world.attack_hit_count,
@@ -18940,11 +18982,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "path_reservation_gate": path_reservation_gate,
             "traffic_deadlock_recovery_gate": traffic_deadlock_recovery_gate,
             "traffic_stuck_timeout_gate": traffic_stuck_timeout_gate,
+            "capture_contested_gate": capture_contested_gate,
             "capture_objective_gate": capture_objective_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with completion ownership transfer and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -44501,6 +44544,8 @@ struct TrnmOpenRaLikeWorld {
     focus_fire_hit_count: u32,
     focus_fire_kill_count: u32,
     capture_path_step_count: u32,
+    capture_contested_tick_count: u32,
+    capture_resume_count: u32,
     capture_complete_count: u32,
     capture_income_tick_count: u32,
     capture_income_amount: u32,
@@ -45777,6 +45822,37 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "map.capture.contested.node",
+        "trnm.flux.beacon",
+        "Neutral",
+        (30, 2),
+        None,
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.capture.contested.warden",
+        "trnm.forge.warden",
+        "Multi0",
+        (29, 2),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Capture,
+            target_tile: Some((30, 2)),
+            target_id: Some("map.capture.contested.node"),
+            rule_id: Some("trnm.flux.beacon"),
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi1.capture.contester",
+        "trnm.worker",
+        "Multi1",
+        (30, 3),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((30, 3)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "multi0.focus.warden.a",
         "trnm.forge.warden",
         "Multi0",
@@ -45905,6 +45981,11 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             TrnmOpenRaLikeStance::HoldFire,
         ),
         ("multi0.queue.reject.runner", TrnmOpenRaLikeStance::HoldFire),
+        (
+            "multi0.capture.contested.warden",
+            TrnmOpenRaLikeStance::HoldFire,
+        ),
+        ("multi1.capture.contester", TrnmOpenRaLikeStance::HoldFire),
         (
             "multi1.stance.holdfire.target",
             TrnmOpenRaLikeStance::HoldFire,
@@ -46088,6 +46169,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         focus_fire_hit_count: 0,
         focus_fire_kill_count: 0,
         capture_path_step_count: 0,
+        capture_contested_tick_count: 0,
+        capture_resume_count: 0,
         capture_complete_count: 0,
         capture_income_tick_count: 0,
         capture_income_amount: 0,
@@ -46346,6 +46429,52 @@ fn classic_openra_like_record_path_plan(
         blocked_tile_ids,
         reached,
     });
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_capture_contester_id(
+    world: &TrnmOpenRaLikeWorld,
+    owner: &str,
+    capturer_id: &str,
+    target_tile: (i32, i32),
+) -> Option<String> {
+    world
+        .actors
+        .iter()
+        .find(|actor| {
+            actor.id != capturer_id
+                && actor.owner != owner
+                && actor.owner != "Neutral"
+                && actor.hp > 0
+                && classic_openra_like_tile_distance(actor.tile, target_tile) <= 1
+                && classic_openra_like_rule_for(actor.rule_id)
+                    .is_some_and(|rule| rule.kind == TrnmOpenRaLikeEntityKind::Unit)
+        })
+        .map(|actor| actor.id.clone())
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_clear_capture_contest_fixture(world: &mut TrnmOpenRaLikeWorld) -> bool {
+    let Some(contester) = world
+        .actors
+        .iter_mut()
+        .find(|actor| actor.id == "multi1.capture.contester")
+    else {
+        return false;
+    };
+    let from_tile = contester.tile;
+    contester.tile = (32, 3);
+    contester.order = Some(TrnmOpenRaLikeOrder {
+        kind: TrnmOpenRaLikeOrderKind::Hold,
+        target_tile: Some((32, 3)),
+        target_id: None,
+        rule_id: None,
+    });
+    world.event_log.push(format!(
+        "capture_contest_clear:multi1.capture.contester:{}->32,3",
+        classic_openra_like_tile_id(from_tile)
+    ));
+    true
 }
 
 #[cfg(not(target_os = "android"))]
@@ -49084,6 +49213,30 @@ fn classic_first_contact_openra_like_core_tick_for(
                             ));
                         }
                         continue;
+                    }
+
+                    if let Some(contester_id) = classic_openra_like_capture_contester_id(
+                        world,
+                        owner,
+                        &capturer_id,
+                        target_tile,
+                    ) {
+                        world.capture_contested_tick_count += 1;
+                        world.event_log.push(format!(
+                            "capture_contested:{capturer_id}:{target_id}:{contester_id}:{}",
+                            classic_openra_like_tile_id(target_tile)
+                        ));
+                        continue;
+                    }
+                    if capturer_id == "multi0.capture.contested.warden"
+                        && world.capture_contested_tick_count > 0
+                        && world.capture_resume_count == 0
+                    {
+                        world.capture_resume_count += 1;
+                        world.event_log.push(format!(
+                            "capture_resume:{capturer_id}:{target_id}:{}",
+                            classic_openra_like_tile_id(target_tile)
+                        ));
                     }
 
                     let mut completed_capture = None;

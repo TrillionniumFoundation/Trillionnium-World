@@ -76,9 +76,14 @@ jq -e '
   and .simulation.beacon_capture_progress == 100
   and .simulation.capture_beacon_owner == "Multi0"
   and .simulation.capture_path_step_count > 0
-  and .simulation.capture_complete_count == 1
-  and .simulation.capture_income_tick_count == 1
-  and .simulation.capture_income_amount >= 75
+  and .simulation.capture_contested_tick_count > 0
+  and .simulation.capture_resume_count == 1
+  and .simulation.capture_complete_count >= 2
+  and .simulation.capture_income_tick_count >= 2
+  and .simulation.capture_income_amount >= 150
+  and .simulation.capture_contested_gate == true
+  and .simulation.contested_beacon_capture_progress == 100
+  and .simulation.contested_beacon_capture_owner == "Multi0"
   and .simulation.capture_objective_gate == true
   and .simulation.combat_damage > 0
   and .simulation.worker_moved == true
@@ -262,9 +267,14 @@ jq -e '
   and any(.simulation.event_log[]; contains("production_spawn:multi0.trained."))
   and any(.simulation.event_log[]; contains("rally_order:multi0.trained."))
   and any(.simulation.event_log[]; contains("capture_path_step:multi0.warden.capture:15,9->16,9"))
+  and any(.simulation.event_log[]; contains("capture_contested:multi0.capture.contested.warden:map.capture.contested.node:multi1.capture.contester:30,2"))
+  and any(.simulation.event_log[]; contains("capture_contest_clear:multi1.capture.contester:30,3->32,3"))
+  and any(.simulation.event_log[]; contains("capture_resume:multi0.capture.contested.warden:map.capture.contested.node:30,2"))
   and any(.simulation.event_log[]; contains("capture_tick"))
   and any(.simulation.event_log[]; contains("capture_complete:multi0.warden.capture:map.actor15:Multi0:100%"))
+  and any(.simulation.event_log[]; contains("capture_complete:multi0.capture.contested.warden:map.capture.contested.node:Multi0:100%"))
   and any(.simulation.event_log[]; contains("capture_income:Multi0:map.actor15:trnm.flux.beacon:+75"))
+  and any(.simulation.event_log[]; contains("capture_income:Multi0:map.capture.contested.node:trnm.flux.beacon:+75"))
   and any(.simulation.event_log[]; contains("attack_hit"))
   and any(.simulation.event_log[]; contains("attack_cooldown:multi0.striker.0"))
   and any(.simulation.event_log[]; contains("attack_kill:multi0.striker.0:multi1.command.core"))
@@ -405,6 +415,7 @@ jq -e '
   and .gates.path_reservation_gate == true
   and .gates.traffic_deadlock_recovery_gate == true
   and .gates.traffic_stuck_timeout_gate == true
+  and .gates.capture_contested_gate == true
   and .gates.capture_objective_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
