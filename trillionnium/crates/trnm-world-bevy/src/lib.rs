@@ -1,4 +1,4 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "1024"]
 
 //! Native Bevy client path for Trillionnium World.
 //!
@@ -17866,6 +17866,26 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     let beacon_capture_progress = active_beacon
         .map(|actor| actor.capture_progress)
         .unwrap_or_default();
+    let beacon_capture_owner = active_beacon.map(|actor| actor.owner).unwrap_or("missing");
+    let capture_objective_gate = world.capture_path_step_count > 0
+        && world.capture_complete_count == 1
+        && world.capture_income_tick_count == 1
+        && world.capture_income_amount >= 75
+        && beacon_capture_progress == 100
+        && beacon_capture_owner == "Multi0"
+        && multi0.beacon_control_ticks > 0
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "capture_path_step:multi0.warden.capture:15,9->16,9")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "capture_complete:multi0.warden.capture:map.actor15:Multi0:100%")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "capture_income:Multi0:map.actor15:trnm.flux.beacon:+75");
     let worker_moved = active_worker.is_some_and(|actor| actor.tile != (9, 8));
     let combat_damage = initial_enemy_hp.saturating_sub(post_enemy_hp);
     let repaired_relay_hp = world
@@ -18486,7 +18506,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "train_complete",
         "production_spawn",
         "rally_order",
+        "capture_path_step",
         "capture_tick",
+        "capture_complete",
+        "capture_income",
         "attack_hit",
         "attack_cooldown",
         "attack_kill",
@@ -18607,6 +18630,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && production_progress > 0
         && relay_build_progress > 0
         && beacon_capture_progress > 0
+        && capture_objective_gate
         && combat_damage > 0
         && worker_moved
         && event_log_gate
@@ -18717,6 +18741,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "production_rally_count": production_rally_count,
             "relay_build_progress": relay_build_progress,
             "beacon_capture_progress": beacon_capture_progress,
+            "capture_beacon_owner": beacon_capture_owner,
+            "capture_path_step_count": world.capture_path_step_count,
+            "capture_complete_count": world.capture_complete_count,
+            "capture_income_tick_count": world.capture_income_tick_count,
+            "capture_income_amount": world.capture_income_amount,
+            "capture_objective_gate": capture_objective_gate,
             "combat_damage": combat_damage,
             "attack_hit_count": world.attack_hit_count,
             "attack_kill_count": world.attack_kill_count,
@@ -18910,10 +18940,11 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "path_reservation_gate": path_reservation_gate,
             "traffic_deadlock_recovery_gate": traffic_deadlock_recovery_gate,
             "traffic_stuck_timeout_gate": traffic_stuck_timeout_gate,
+            "capture_objective_gate": capture_objective_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with completion ownership transfer and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -44469,6 +44500,10 @@ struct TrnmOpenRaLikeWorld {
     patrol_turn_count: u32,
     focus_fire_hit_count: u32,
     focus_fire_kill_count: u32,
+    capture_path_step_count: u32,
+    capture_complete_count: u32,
+    capture_income_tick_count: u32,
+    capture_income_amount: u32,
     target_priority_acquire_count: u32,
     stop_order_count: u32,
     stop_cleared_patrol_count: u32,
@@ -46052,6 +46087,10 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         patrol_turn_count: 0,
         focus_fire_hit_count: 0,
         focus_fire_kill_count: 0,
+        capture_path_step_count: 0,
+        capture_complete_count: 0,
+        capture_income_tick_count: 0,
+        capture_income_amount: 0,
         target_priority_acquire_count: 0,
         stop_order_count: 0,
         stop_cleared_patrol_count: 0,
@@ -48987,25 +49026,105 @@ fn classic_first_contact_openra_like_core_tick_for(
                     }
                 }
                 TrnmOpenRaLikeOrderKind::Capture => {
-                    if let Some(target_id) = order.target_id {
-                        if let Some(target) =
-                            world.actors.iter_mut().find(|actor| actor.id == target_id)
-                        {
-                            target.capture_progress =
-                                target.capture_progress.saturating_add(5).min(100);
-                            if target.capture_progress >= 100 {
-                                target.owner = "Multi0";
+                    let Some(target_id) = order.target_id else {
+                        continue;
+                    };
+                    let capturer_id = world.actors[index].id.clone();
+                    let owner = world.actors[index].owner;
+                    let current = world.actors[index].tile;
+                    let Some(target_index) =
+                        world.actors.iter().position(|actor| actor.id == target_id)
+                    else {
+                        world.event_log.push(format!(
+                            "capture_target_missing_runtime:{capturer_id}:{target_id}"
+                        ));
+                        world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                            kind: TrnmOpenRaLikeOrderKind::Hold,
+                            target_tile: Some(current),
+                            target_id: None,
+                            rule_id: None,
+                        });
+                        continue;
+                    };
+                    let target_tile = order.target_tile.unwrap_or(world.actors[target_index].tile);
+                    if current != target_tile {
+                        if let Some((path, blocked_tile_ids)) = classic_openra_like_pathfind_tiles(
+                            world,
+                            &capturer_id,
+                            current,
+                            target_tile,
+                        ) {
+                            if let Some(next_tile) = path.first().copied() {
+                                world.actors[index].tile = next_tile;
+                                world.move_path_step_count += 1;
+                                world.capture_path_step_count += 1;
+                                world.event_log.push(format!(
+                                    "path_step:{}:{},{}",
+                                    capturer_id, next_tile.0, next_tile.1
+                                ));
+                                world.event_log.push(format!(
+                                    "capture_path_step:{capturer_id}:{}->{}",
+                                    classic_openra_like_tile_id(current),
+                                    classic_openra_like_tile_id(next_tile)
+                                ));
                             }
+                            classic_openra_like_record_path_plan(
+                                world,
+                                &capturer_id,
+                                target_tile,
+                                &path,
+                                blocked_tile_ids,
+                                path.is_empty(),
+                            );
+                        } else {
+                            world.blocked_move_count += 1;
                             world.event_log.push(format!(
-                                "capture_tick:{}:{}:{}%",
-                                target.id,
-                                order.rule_id.unwrap_or(target.rule_id),
-                                target.capture_progress
+                                "capture_path_blocked:{capturer_id}:{}",
+                                classic_openra_like_tile_id(target_tile)
                             ));
                         }
+                        continue;
                     }
-                    if let Some(player) = classic_openra_like_player_mut(world, "Multi0") {
+
+                    let mut completed_capture = None;
+                    if let Some(target) = world.actors.get_mut(target_index) {
+                        target.capture_progress =
+                            target.capture_progress.saturating_add(5).min(100);
+                        world.event_log.push(format!(
+                            "capture_tick:{}:{}:{}%",
+                            target.id,
+                            order.rule_id.unwrap_or(target.rule_id),
+                            target.capture_progress
+                        ));
+                        if target.capture_progress >= 100 && target.owner != owner {
+                            target.owner = owner;
+                            world.capture_complete_count += 1;
+                            completed_capture =
+                                Some((target.id.clone(), target.rule_id, target.capture_progress));
+                        }
+                    }
+                    if let Some(player) = classic_openra_like_player_mut(world, owner) {
                         player.beacon_control_ticks += 1;
+                    }
+                    if let Some((captured_id, captured_rule_id, progress)) = completed_capture {
+                        let income = 75_u32;
+                        if let Some(player) = classic_openra_like_player_mut(world, owner) {
+                            player.flux += income;
+                        }
+                        world.capture_income_tick_count += 1;
+                        world.capture_income_amount += income;
+                        world.event_log.push(format!(
+                            "capture_complete:{capturer_id}:{captured_id}:{owner}:{progress}%"
+                        ));
+                        world.event_log.push(format!(
+                            "capture_income:{owner}:{captured_id}:{captured_rule_id}:+{income}"
+                        ));
+                        world.actors[index].order = Some(TrnmOpenRaLikeOrder {
+                            kind: TrnmOpenRaLikeOrderKind::Hold,
+                            target_tile: Some(target_tile),
+                            target_id: Some(target_id),
+                            rule_id: order.rule_id,
+                        });
                     }
                 }
                 TrnmOpenRaLikeOrderKind::Attack | TrnmOpenRaLikeOrderKind::FocusFire => {

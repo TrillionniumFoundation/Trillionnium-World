@@ -73,7 +73,13 @@ jq -e '
   and .simulation.low_power_production_pause_count > 0
   and .simulation.power_recovery_count > 0
   and .simulation.relay_build_progress > 0
-  and .simulation.beacon_capture_progress > 0
+  and .simulation.beacon_capture_progress == 100
+  and .simulation.capture_beacon_owner == "Multi0"
+  and .simulation.capture_path_step_count > 0
+  and .simulation.capture_complete_count == 1
+  and .simulation.capture_income_tick_count == 1
+  and .simulation.capture_income_amount >= 75
+  and .simulation.capture_objective_gate == true
   and .simulation.combat_damage > 0
   and .simulation.worker_moved == true
   and .simulation.command_accepted_count >= 6
@@ -255,7 +261,10 @@ jq -e '
   and any(.simulation.event_log[]; contains("production_spawn:multi2.trained.horizon_scout"))
   and any(.simulation.event_log[]; contains("production_spawn:multi0.trained."))
   and any(.simulation.event_log[]; contains("rally_order:multi0.trained."))
+  and any(.simulation.event_log[]; contains("capture_path_step:multi0.warden.capture:15,9->16,9"))
   and any(.simulation.event_log[]; contains("capture_tick"))
+  and any(.simulation.event_log[]; contains("capture_complete:multi0.warden.capture:map.actor15:Multi0:100%"))
+  and any(.simulation.event_log[]; contains("capture_income:Multi0:map.actor15:trnm.flux.beacon:+75"))
   and any(.simulation.event_log[]; contains("attack_hit"))
   and any(.simulation.event_log[]; contains("attack_cooldown:multi0.striker.0"))
   and any(.simulation.event_log[]; contains("attack_kill:multi0.striker.0:multi1.command.core"))
@@ -396,6 +405,7 @@ jq -e '
   and .gates.path_reservation_gate == true
   and .gates.traffic_deadlock_recovery_gate == true
   and .gates.traffic_stuck_timeout_gate == true
+  and .gates.capture_objective_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
   and .source_policy.no_openra_engine_code_copied == true
