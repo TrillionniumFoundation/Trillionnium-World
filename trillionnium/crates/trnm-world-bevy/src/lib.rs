@@ -17391,6 +17391,28 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         },
     );
     classic_openra_like_cancel_group_orders(&mut world, "Multi0", "4");
+    classic_openra_like_queue_group_order(
+        &mut world,
+        "Multi0",
+        "5",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((4, 31)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
+    classic_openra_like_queue_group_order(
+        &mut world,
+        "Multi0",
+        "5",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((6, 31)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
     classic_first_contact_openra_like_core_tick_for(&mut world, 12);
     let multi0 = world
         .players
@@ -17914,8 +17936,42 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event.starts_with("queued_order_execute:4:"));
-    let queued_order_gate = world.queued_orders.len() >= 5
-        && world.queued_order_execute_count >= 3
+    let queued_chain_first = world.queued_orders.iter().find(|order| {
+        order.group_id == "5" && order.actor_id == "multi0.chain.runner" && order.chain_index == 0
+    });
+    let queued_chain_second = world.queued_orders.iter().find(|order| {
+        order.group_id == "5" && order.actor_id == "multi0.chain.runner" && order.chain_index == 1
+    });
+    let queued_chain_tile = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi0.chain.runner")
+        .map(|actor| actor.tile)
+        .unwrap_or_default();
+    let queued_order_chain_gate = queued_chain_first
+        .is_some_and(|order| order.completed && order.reached)
+        && queued_chain_second.is_some_and(|order| order.completed && order.reached)
+        && queued_chain_first
+            .and_then(|order| order.executed_tick)
+            .zip(queued_chain_second.and_then(|order| order.executed_tick))
+            .is_some_and(|(first_tick, second_tick)| second_tick > first_tick)
+        && world.queued_order_chain_ready_count >= 1
+        && world.queued_order_chain_reach_count >= 2
+        && queued_chain_tile == (6, 31)
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_order_chain_ready:5:multi0.chain.runner:chain1")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_order_reached:5:multi0.chain.runner:chain0:4,31")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_order_reached:5:multi0.chain.runner:chain1:6,31");
+    let queued_order_gate = world.queued_orders.len() >= 7
+        && world.queued_order_execute_count >= 5
         && world
             .queued_orders
             .iter()
@@ -17936,7 +17992,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .filter(|event| event.starts_with("queued_order_execute:1:"))
             .count()
             >= 3
-        && queued_order_cancel_gate;
+        && queued_order_cancel_gate
+        && queued_order_chain_gate;
     let event_log_gate = [
         "move_step",
         "path_step",
@@ -17985,7 +18042,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "control_group_recall",
         "queued_group_order",
         "queued_order_cancel",
+        "queued_order_chain_ready",
         "queued_order_execute",
+        "queued_order_reached",
     ]
     .iter()
     .all(|needle| world.event_log.iter().any(|event| event.contains(needle)));
@@ -18190,9 +18249,13 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "queued_order_count": world.queued_orders.len(),
             "queued_order_execute_count": world.queued_order_execute_count,
             "queued_order_cancel_count": world.queued_order_cancel_count,
+            "queued_order_chain_ready_count": world.queued_order_chain_ready_count,
+            "queued_order_chain_reach_count": world.queued_order_chain_reach_count,
             "completed_queued_order_count": world.queued_orders.iter().filter(|order| order.completed).count(),
             "canceled_queued_order_count": world.queued_orders.iter().filter(|order| order.canceled).count(),
             "queued_order_cancel_gate": queued_order_cancel_gate,
+            "queued_order_chain_gate": queued_order_chain_gate,
+            "queued_order_chain_tile": {"x": queued_chain_tile.0, "y": queued_chain_tile.1},
             "worker_moved": worker_moved,
             "multi0_flux": multi0.flux,
             "multi0_supply_used": multi0.supply_used,
@@ -18276,11 +18339,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "repair_gate": repair_gate,
             "control_group_gate": control_group_gate,
             "queued_order_cancel_gate": queued_order_cancel_gate,
+            "queued_order_chain_gate": queued_order_chain_gate,
             "queued_order_gate": queued_order_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43794,10 +43858,12 @@ struct TrnmOpenRaLikeQueuedOrder {
     group_id: &'static str,
     actor_id: String,
     order: TrnmOpenRaLikeOrder,
+    chain_index: u32,
     issued_tick: u32,
     executed_tick: Option<u32>,
     completed: bool,
     canceled: bool,
+    reached: bool,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -43855,6 +43921,8 @@ struct TrnmOpenRaLikeWorld {
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
     queued_order_execute_count: u32,
     queued_order_cancel_count: u32,
+    queued_order_chain_ready_count: u32,
+    queued_order_chain_reach_count: u32,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -44849,6 +44917,18 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.chain.runner",
+        "trnm.horizon.scout",
+        "Multi0",
+        (2, 31),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((2, 31)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "multi0.focus.warden.a",
         "trnm.forge.warden",
         "Multi0",
@@ -45162,10 +45242,19 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 focus_tile: (10, 9),
                 recall_count: 0,
             },
+            TrnmOpenRaLikeControlGroup {
+                owner: "Multi0",
+                group_id: "5",
+                actor_ids: vec!["multi0.chain.runner".to_string()],
+                focus_tile: (2, 31),
+                recall_count: 0,
+            },
         ],
         queued_orders: Vec::new(),
         queued_order_execute_count: 0,
         queued_order_cancel_count: 0,
+        queued_order_chain_ready_count: 0,
+        queued_order_chain_reach_count: 0,
     };
     classic_openra_like_recompute_power(&mut world);
     classic_first_contact_openra_like_core_update_visibility(&mut world);
@@ -45602,15 +45691,28 @@ fn classic_openra_like_queue_group_order(
             .iter()
             .any(|actor| actor.owner == owner && actor.id == actor_id)
         {
+            let chain_index = world
+                .queued_orders
+                .iter()
+                .filter(|queued_order| {
+                    queued_order.owner == owner
+                        && queued_order.group_id == group_id
+                        && queued_order.actor_id == actor_id
+                })
+                .map(|queued_order| queued_order.chain_index)
+                .max()
+                .map_or(0, |chain_index| chain_index + 1);
             world.queued_orders.push(TrnmOpenRaLikeQueuedOrder {
                 owner,
                 group_id,
                 actor_id,
                 order,
+                chain_index,
                 issued_tick: world.tick,
                 executed_tick: None,
                 completed: false,
                 canceled: false,
+                reached: false,
             });
             queued_count += 1;
         }
@@ -45645,6 +45747,54 @@ fn classic_openra_like_cancel_group_orders(
         "queued_order_cancel:{owner}:{group_id}:{canceled_count}orders"
     ));
     canceled_count
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_queued_chain_ready(
+    world: &TrnmOpenRaLikeWorld,
+    queued_index: usize,
+) -> bool {
+    let queued_order = &world.queued_orders[queued_index];
+    if queued_order.chain_index == 0 {
+        return true;
+    }
+    world.queued_orders.iter().any(|candidate| {
+        candidate.owner == queued_order.owner
+            && candidate.group_id == queued_order.group_id
+            && candidate.actor_id == queued_order.actor_id
+            && candidate.chain_index + 1 == queued_order.chain_index
+            && (candidate.reached || candidate.canceled)
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_mark_queued_order_reached(
+    world: &mut TrnmOpenRaLikeWorld,
+    actor_id: &str,
+    order: TrnmOpenRaLikeOrder,
+    target: (i32, i32),
+) {
+    let mut reached_events = Vec::new();
+    for queued_order in &mut world.queued_orders {
+        if queued_order.actor_id == actor_id
+            && queued_order.completed
+            && !queued_order.canceled
+            && !queued_order.reached
+            && queued_order.order.kind == order.kind
+            && queued_order.order.target_tile == Some(target)
+        {
+            queued_order.reached = true;
+            world.queued_order_chain_reach_count += 1;
+            reached_events.push(format!(
+                "queued_order_reached:{}:{}:chain{}:{}",
+                queued_order.group_id,
+                actor_id,
+                queued_order.chain_index,
+                classic_openra_like_tile_id(target)
+            ));
+        }
+    }
+    world.event_log.extend(reached_events);
 }
 
 #[cfg(not(target_os = "android"))]
@@ -46701,8 +46851,19 @@ fn classic_first_contact_openra_like_core_tick_for(
             {
                 continue;
             }
+            if !classic_openra_like_queued_chain_ready(world, queued_index) {
+                continue;
+            }
             let actor_id = world.queued_orders[queued_index].actor_id.clone();
             let owner = world.queued_orders[queued_index].owner;
+            let chain_index = world.queued_orders[queued_index].chain_index;
+            if chain_index > 0 {
+                world.queued_order_chain_ready_count += 1;
+                world.event_log.push(format!(
+                    "queued_order_chain_ready:{}:{}:chain{}",
+                    world.queued_orders[queued_index].group_id, actor_id, chain_index
+                ));
+            }
             if let Some(actor) = world
                 .actors
                 .iter_mut()
@@ -46713,10 +46874,11 @@ fn classic_first_contact_openra_like_core_tick_for(
                 world.queued_orders[queued_index].completed = true;
                 world.queued_order_execute_count += 1;
                 world.event_log.push(format!(
-                    "queued_order_execute:{}:{}:{}",
+                    "queued_order_execute:{}:{}:{}:chain{}",
                     world.queued_orders[queued_index].group_id,
                     actor_id,
-                    world.queued_orders[queued_index].order.kind.as_str()
+                    world.queued_orders[queued_index].order.kind.as_str(),
+                    chain_index
                 ));
             }
         }
@@ -46770,6 +46932,9 @@ fn classic_first_contact_openra_like_core_tick_for(
                                     target_id: order.target_id,
                                     rule_id: order.rule_id,
                                 });
+                                classic_openra_like_mark_queued_order_reached(
+                                    world, &actor_id, order, target,
+                                );
                             }
                         } else {
                             world.blocked_move_count += 1;
@@ -47472,10 +47637,12 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "group_id": order.group_id,
                 "actor_id": order.actor_id.clone(),
                 "order": order.order.kind.as_str(),
+                "chain_index": order.chain_index,
                 "issued_tick": order.issued_tick,
                 "executed_tick": order.executed_tick,
                 "completed": order.completed,
                 "canceled": order.canceled,
+                "reached": order.reached,
             })
         }).collect::<Vec<_>>(),
     })
