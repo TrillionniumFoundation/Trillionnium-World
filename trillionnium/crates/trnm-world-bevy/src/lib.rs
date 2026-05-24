@@ -17379,6 +17379,18 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             rule_id: None,
         },
     );
+    classic_openra_like_queue_group_order(
+        &mut world,
+        "Multi0",
+        "4",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((12, 9)),
+            target_id: Some("map.actor10"),
+            rule_id: None,
+        },
+    );
+    classic_openra_like_cancel_group_orders(&mut world, "Multi0", "4");
     classic_first_contact_openra_like_core_tick_for(&mut world, 12);
     let multi0 = world
         .players
@@ -17887,7 +17899,22 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             && group.actor_ids.len() >= 3
             && group.recall_count > 0
     });
-    let queued_order_gate = world.queued_orders.len() >= 3
+    let queued_order_cancel_gate = world.queued_order_cancel_count >= 2
+        && world
+            .queued_orders
+            .iter()
+            .filter(|order| order.group_id == "4" && order.canceled && !order.completed)
+            .count()
+            >= 2
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_order_cancel:Multi0:4:2orders")
+        && !world
+            .event_log
+            .iter()
+            .any(|event| event.starts_with("queued_order_execute:4:"));
+    let queued_order_gate = world.queued_orders.len() >= 5
         && world.queued_order_execute_count >= 3
         && world
             .queued_orders
@@ -17908,7 +17935,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .iter()
             .filter(|event| event.starts_with("queued_order_execute:1:"))
             .count()
-            >= 3;
+            >= 3
+        && queued_order_cancel_gate;
     let event_log_gate = [
         "move_step",
         "path_step",
@@ -17956,6 +17984,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "harvest_cycle_complete",
         "control_group_recall",
         "queued_group_order",
+        "queued_order_cancel",
         "queued_order_execute",
     ]
     .iter()
@@ -18160,7 +18189,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_count": world.control_groups.len(),
             "queued_order_count": world.queued_orders.len(),
             "queued_order_execute_count": world.queued_order_execute_count,
+            "queued_order_cancel_count": world.queued_order_cancel_count,
             "completed_queued_order_count": world.queued_orders.iter().filter(|order| order.completed).count(),
+            "canceled_queued_order_count": world.queued_orders.iter().filter(|order| order.canceled).count(),
+            "queued_order_cancel_gate": queued_order_cancel_gate,
             "worker_moved": worker_moved,
             "multi0_flux": multi0.flux,
             "multi0_supply_used": multi0.supply_used,
@@ -18243,11 +18275,12 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "repair_command_gate": repair_command_gate,
             "repair_gate": repair_gate,
             "control_group_gate": control_group_gate,
+            "queued_order_cancel_gate": queued_order_cancel_gate,
             "queued_order_gate": queued_order_gate,
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, production/resource spending, objective capture, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -43764,6 +43797,7 @@ struct TrnmOpenRaLikeQueuedOrder {
     issued_tick: u32,
     executed_tick: Option<u32>,
     completed: bool,
+    canceled: bool,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -43820,6 +43854,7 @@ struct TrnmOpenRaLikeWorld {
     control_groups: Vec<TrnmOpenRaLikeControlGroup>,
     queued_orders: Vec<TrnmOpenRaLikeQueuedOrder>,
     queued_order_execute_count: u32,
+    queued_order_cancel_count: u32,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -45130,6 +45165,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         ],
         queued_orders: Vec::new(),
         queued_order_execute_count: 0,
+        queued_order_cancel_count: 0,
     };
     classic_openra_like_recompute_power(&mut world);
     classic_first_contact_openra_like_core_update_visibility(&mut world);
@@ -45574,6 +45610,7 @@ fn classic_openra_like_queue_group_order(
                 issued_tick: world.tick,
                 executed_tick: None,
                 completed: false,
+                canceled: false,
             });
             queued_count += 1;
         }
@@ -45584,6 +45621,30 @@ fn classic_openra_like_queue_group_order(
         queued_count
     ));
     queued_count
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_cancel_group_orders(
+    world: &mut TrnmOpenRaLikeWorld,
+    owner: &'static str,
+    group_id: &'static str,
+) -> usize {
+    let mut canceled_count = 0_usize;
+    for queued_order in &mut world.queued_orders {
+        if queued_order.owner == owner
+            && queued_order.group_id == group_id
+            && !queued_order.completed
+            && !queued_order.canceled
+        {
+            queued_order.canceled = true;
+            canceled_count += 1;
+        }
+    }
+    world.queued_order_cancel_count += canceled_count as u32;
+    world.event_log.push(format!(
+        "queued_order_cancel:{owner}:{group_id}:{canceled_count}orders"
+    ));
+    canceled_count
 }
 
 #[cfg(not(target_os = "android"))]
@@ -46635,6 +46696,7 @@ fn classic_first_contact_openra_like_core_tick_for(
         }
         for queued_index in 0..world.queued_orders.len() {
             if world.queued_orders[queued_index].completed
+                || world.queued_orders[queued_index].canceled
                 || world.queued_orders[queued_index].issued_tick >= world.tick
             {
                 continue;
@@ -47413,6 +47475,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "issued_tick": order.issued_tick,
                 "executed_tick": order.executed_tick,
                 "completed": order.completed,
+                "canceled": order.canceled,
             })
         }).collect::<Vec<_>>(),
     })

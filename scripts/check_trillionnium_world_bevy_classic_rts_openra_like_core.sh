@@ -130,9 +130,12 @@ jq -e '
   and .simulation.repair_complete_count > 0
   and .simulation.repaired_relay_hp == .simulation.repaired_relay_max_hp
   and .simulation.control_group_count >= 2
-  and .simulation.queued_order_count >= 3
+  and .simulation.queued_order_count >= 5
   and .simulation.queued_order_execute_count >= 3
+  and .simulation.queued_order_cancel_count >= 2
   and .simulation.completed_queued_order_count >= 3
+  and .simulation.canceled_queued_order_count >= 2
+  and .simulation.queued_order_cancel_gate == true
   and .simulation.path_plan_count >= 2
   and .simulation.move_path_step_count > 0
   and .simulation.blocked_move_count == 0
@@ -221,7 +224,10 @@ jq -e '
   and any(.simulation.event_log[]; contains("repair_complete:multi0.worker.repair:multi0.damaged.relay:70000hp"))
   and any(.simulation.event_log[]; contains("control_group_recall:Multi0:1"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:1:move"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:4:move"))
+  and any(.simulation.event_log[]; contains("queued_order_cancel:Multi0:4:2orders"))
   and ([.simulation.event_log[] | select(contains("queued_order_execute:1:"))] | length) >= 3
+  and ([.simulation.event_log[] | select(contains("queued_order_execute:4:"))] | length) == 0
   and any(.simulation.event_log[]; contains("vision_reveal:Multi0"))
   and any(.simulation.event_log[]; contains("shroud_memory:Multi0"))
   and .gates.map_gate == true
@@ -260,6 +266,7 @@ jq -e '
   and .gates.repair_command_gate == true
   and .gates.repair_gate == true
   and .gates.control_group_gate == true
+  and .gates.queued_order_cancel_gate == true
   and .gates.queued_order_gate == true
   and .gates.shroud_gate == true
   and .gates.source_policy_gate == true
