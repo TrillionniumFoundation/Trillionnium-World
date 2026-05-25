@@ -62,6 +62,10 @@ jq -e '
   and .simulation.completed_production_count >= 2
   and .simulation.production_spawn_count >= 2
   and .simulation.production_rally_count >= 2
+  and .simulation.production_cancel_count >= 1
+  and .simulation.production_refund_amount >= 100
+  and .simulation.production_cancel_gate == true
+  and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.command.core" and .rule_id == "trnm.worker" and .canceled == true and .completed == false and .spawned_actor_id == null)
   and .simulation.multi0_supply_used > .simulation.multi0_initial_supply_used
   and .simulation.multi0_supply_cap > .simulation.multi0_initial_supply_cap
   and .simulation.multi0_supply_used <= .simulation.multi0_supply_cap
@@ -267,6 +271,7 @@ jq -e '
   and any(.simulation.event_log[]; contains("harvest_deposit"))
   and any(.simulation.event_log[]; contains("build_tick"))
   and any(.simulation.event_log[]; contains("train_tick"))
+  and any(.simulation.event_log[]; contains("production_cancel:Multi0:multi0.command.core:trnm.worker:refund100"))
   and any(.simulation.event_log[]; contains("train_complete:multi0.command.core"))
   and any(.simulation.event_log[]; contains("supply_cap_increase:Multi0:multi0.flux.relay:trnm.flux.relay:+4"))
   and any(.simulation.event_log[]; contains("low_power_tick:Multi2:"))
@@ -394,6 +399,7 @@ jq -e '
   and .gates.harvest_path_plan_gate == true
   and .gates.reached_path_plan_gate == true
   and .gates.production_completion_gate == true
+  and .gates.production_cancel_gate == true
   and .gates.producer_queue_gate == true
   and .gates.producer_incomplete_gate == true
   and .gates.tech_train_accept_gate == true
