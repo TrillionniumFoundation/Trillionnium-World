@@ -17256,6 +17256,15 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             },
         ),
         (
+            "multi0.veteran.warden",
+            TrnmOpenRaLikeOrder {
+                kind: TrnmOpenRaLikeOrderKind::Attack,
+                target_tile: Some((31, 12)),
+                target_id: Some("multi1.veteran.first"),
+                rule_id: None,
+            },
+        ),
+        (
             "multi0.worker.repair",
             TrnmOpenRaLikeOrder {
                 kind: TrnmOpenRaLikeOrderKind::Repair,
@@ -17333,6 +17342,17 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     }
     classic_first_contact_openra_like_core_tick_for(&mut world, 12);
     classic_openra_like_clear_capture_contest_fixture(&mut world);
+    classic_first_contact_openra_like_core_issue_order(
+        &mut world,
+        "Multi0",
+        "multi0.veteran.warden",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Attack,
+            target_tile: Some((31, 13)),
+            target_id: Some("multi1.veteran.second"),
+            rule_id: None,
+        },
+    );
     classic_first_contact_openra_like_core_issue_order(
         &mut world,
         "Multi0",
@@ -17931,6 +17951,24 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     let repaired_relay_max_hp = classic_openra_like_rule_for("trnm.flux.relay")
         .map(|rule| rule.hp)
         .unwrap_or_default();
+    let veteran_actor = world
+        .actors
+        .iter()
+        .find(|actor| actor.id == "multi0.veteran.warden");
+    let veteran_rank = veteran_actor
+        .map(|actor| actor.veteran_rank)
+        .unwrap_or_default();
+    let veteran_kill_count = veteran_actor
+        .map(|actor| actor.kill_count)
+        .unwrap_or_default();
+    let veteran_first_target_removed = world
+        .actors
+        .iter()
+        .all(|actor| actor.id != "multi1.veteran.first");
+    let veteran_second_target_removed = world
+        .actors
+        .iter()
+        .all(|actor| actor.id != "multi1.veteran.second");
     let attack_weapon_gate = world.attack_hit_count > 0
         && world.attack_kill_count > 0
         && world.attack_cooldown_wait_count > 0
@@ -17951,6 +17989,37 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event == "attack_remove:multi1.command.core");
+    let veterancy_gate = world.veterancy_kill_credit_count >= 2
+        && world.veterancy_rank_up_count >= 2
+        && world.veteran_damage_bonus_count >= 1
+        && veteran_rank >= 3
+        && veteran_kill_count >= 2
+        && veteran_first_target_removed
+        && veteran_second_target_removed
+        && world.command_results.iter().any(|result| {
+            result.accepted
+                && result.actor_id == "multi0.veteran.warden"
+                && result.order == TrnmOpenRaLikeOrderKind::Attack
+        })
+        && world.event_log.iter().any(|event| {
+            event == "veteran_kill_credit:multi0.veteran.warden:multi1.veteran.first:kills1"
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "veteran_rank_up:multi0.veteran.warden:rank1->rank2")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "veteran_damage_bonus:multi0.veteran.warden:rank2:700->840")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "attack_kill:multi0.veteran.warden:multi1.veteran.second")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "attack_remove:multi1.veteran.second");
     let auto_target_acquisition_gate = initial_auto_target_hp > 0
         && post_auto_target_hp == 0
         && world.auto_target_acquire_count > 0
@@ -18551,6 +18620,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "attack_cooldown",
         "attack_kill",
         "attack_remove",
+        "veteran_kill_credit",
+        "veteran_rank_up",
+        "veteran_damage_bonus",
         "attack_move_step",
         "attack_move_engage",
         "attack_move_hit",
@@ -18682,6 +18754,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && supply_cap_gate
         && power_low_production_gate
         && attack_weapon_gate
+        && veterancy_gate
         && attack_range_gate
         && attack_visibility_gate
         && attack_move_gate
@@ -18793,6 +18866,14 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "attack_hit_count": world.attack_hit_count,
             "attack_kill_count": world.attack_kill_count,
             "attack_cooldown_wait_count": world.attack_cooldown_wait_count,
+            "veterancy_kill_credit_count": world.veterancy_kill_credit_count,
+            "veterancy_rank_up_count": world.veterancy_rank_up_count,
+            "veteran_damage_bonus_count": world.veteran_damage_bonus_count,
+            "veteran_warden_rank": veteran_rank,
+            "veteran_warden_kill_count": veteran_kill_count,
+            "veteran_first_target_removed": veteran_first_target_removed,
+            "veteran_second_target_removed": veteran_second_target_removed,
+            "veterancy_gate": veterancy_gate,
             "attack_move_step_count": world.attack_move_step_count,
             "attack_move_engage_count": world.attack_move_engage_count,
             "attack_move_hit_count": world.attack_move_hit_count,
@@ -18956,6 +19037,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "power_low_production_gate": power_low_production_gate,
             "build_placement_gate": build_placement_gate,
             "attack_weapon_gate": attack_weapon_gate,
+            "veterancy_gate": veterancy_gate,
             "attack_range_gate": attack_range_gate,
             "attack_visibility_gate": attack_visibility_gate,
             "attack_move_command_gate": attack_move_command_gate,
@@ -18987,7 +19069,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -44425,6 +44507,8 @@ struct TrnmOpenRaLikeActorState {
     hp: u32,
     cargo: u32,
     resource_remaining: u32,
+    kill_count: u32,
+    veteran_rank: u8,
     order: Option<TrnmOpenRaLikeOrder>,
     stance: TrnmOpenRaLikeStance,
     patrol_origin_tile: Option<(i32, i32)>,
@@ -44532,6 +44616,9 @@ struct TrnmOpenRaLikeWorld {
     attack_hit_count: u32,
     attack_kill_count: u32,
     attack_cooldown_wait_count: u32,
+    veterancy_kill_credit_count: u32,
+    veterancy_rank_up_count: u32,
+    veteran_damage_bonus_count: u32,
     auto_target_acquire_count: u32,
     auto_attack_hit_count: u32,
     auto_attack_kill_count: u32,
@@ -45260,6 +45347,8 @@ fn classic_openra_like_actor(
         hp,
         cargo: 0,
         resource_remaining,
+        kill_count: 0,
+        veteran_rank: 1,
         order,
         stance,
         patrol_origin_tile: None,
@@ -45853,6 +45942,54 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.veteran.warden",
+        "trnm.forge.warden",
+        "Multi0",
+        (29, 12),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((29, 12)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi1.veteran.first",
+        "trnm.horizon.scout",
+        "Multi1",
+        (31, 12),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((31, 12)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    if let Some(target) = actors
+        .iter_mut()
+        .find(|actor| actor.id == "multi1.veteran.first")
+    {
+        target.hp = 700;
+    }
+    actors.push(classic_openra_like_actor(
+        "multi1.veteran.second",
+        "trnm.horizon.scout",
+        "Multi1",
+        (31, 13),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((31, 13)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    if let Some(target) = actors
+        .iter_mut()
+        .find(|actor| actor.id == "multi1.veteran.second")
+    {
+        target.hp = 840;
+    }
+    actors.push(classic_openra_like_actor(
         "multi0.focus.warden.a",
         "trnm.forge.warden",
         "Multi0",
@@ -45986,6 +46123,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             TrnmOpenRaLikeStance::HoldFire,
         ),
         ("multi1.capture.contester", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.veteran.warden", TrnmOpenRaLikeStance::HoldFire),
+        ("multi1.veteran.first", TrnmOpenRaLikeStance::HoldFire),
+        ("multi1.veteran.second", TrnmOpenRaLikeStance::HoldFire),
         (
             "multi1.stance.holdfire.target",
             TrnmOpenRaLikeStance::HoldFire,
@@ -46157,6 +46297,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         attack_hit_count: 0,
         attack_kill_count: 0,
         attack_cooldown_wait_count: 0,
+        veterancy_kill_credit_count: 0,
+        veterancy_rank_up_count: 0,
+        veteran_damage_bonus_count: 0,
         auto_target_acquire_count: 0,
         auto_attack_hit_count: 0,
         auto_attack_kill_count: 0,
@@ -46793,6 +46936,66 @@ fn classic_openra_like_weapon_for(rule_id: &str) -> Option<TrnmOpenRaLikeWeaponS
             cooldown_ticks: 5,
         }),
         _ => None,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_effective_weapon_damage(
+    world: &mut TrnmOpenRaLikeWorld,
+    attacker_index: usize,
+    base_damage: u32,
+) -> u32 {
+    let Some(attacker) = world.actors.get(attacker_index) else {
+        return base_damage;
+    };
+    let rank = attacker.veteran_rank;
+    if rank <= 1 {
+        return base_damage;
+    }
+
+    let attacker_id = attacker.id.clone();
+    let bonus = base_damage.saturating_mul(u32::from(rank.saturating_sub(1))) / 5;
+    let boosted_damage = base_damage.saturating_add(bonus);
+    world.veteran_damage_bonus_count += 1;
+    world.event_log.push(format!(
+        "veteran_damage_bonus:{attacker_id}:rank{rank}:{base_damage}->{boosted_damage}"
+    ));
+    boosted_damage
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_award_kill(
+    world: &mut TrnmOpenRaLikeWorld,
+    attacker_index: usize,
+    defeated_id: &str,
+) {
+    let Some((attacker_id, kill_count, rank_up)) =
+        world.actors.get_mut(attacker_index).map(|attacker| {
+            attacker.kill_count = attacker.kill_count.saturating_add(1);
+            let kill_count = attacker.kill_count;
+            let next_rank = (1 + kill_count.min(2)) as u8;
+            let rank_up = if next_rank > attacker.veteran_rank {
+                let previous_rank = attacker.veteran_rank;
+                attacker.veteran_rank = next_rank;
+                Some((previous_rank, next_rank))
+            } else {
+                None
+            };
+            (attacker.id.clone(), kill_count, rank_up)
+        })
+    else {
+        return;
+    };
+
+    world.veterancy_kill_credit_count += 1;
+    world.event_log.push(format!(
+        "veteran_kill_credit:{attacker_id}:{defeated_id}:kills{kill_count}"
+    ));
+    if let Some((previous_rank, next_rank)) = rank_up {
+        world.veterancy_rank_up_count += 1;
+        world.event_log.push(format!(
+            "veteran_rank_up:{attacker_id}:rank{previous_rank}->rank{next_rank}"
+        ));
     }
 }
 
@@ -48417,7 +48620,9 @@ fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> 
 
         let attacker_id = world.actors[attacker_index].id.clone();
         let target_id = world.actors[target_index].id.clone();
-        let target_hp = world.actors[target_index].hp.saturating_sub(weapon.damage);
+        let damage =
+            classic_openra_like_effective_weapon_damage(world, attacker_index, weapon.damage);
+        let target_hp = world.actors[target_index].hp.saturating_sub(damage);
         world.actors[target_index].hp = target_hp;
         world.actors[attacker_index].weapon_cooldown_ticks = weapon.cooldown_ticks;
         world.auto_target_acquire_count += 1;
@@ -48443,7 +48648,7 @@ fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> 
         ));
         world.event_log.push(format!(
             "auto_attack_hit:{attacker_id}:{target_id}:{}damage:{}hp",
-            weapon.damage, target_hp
+            damage, target_hp
         ));
         if target_hp == 0 {
             world.auto_attack_kill_count += 1;
@@ -48458,6 +48663,7 @@ fn classic_openra_like_auto_acquire_targets(world: &mut TrnmOpenRaLikeWorld) -> 
             world
                 .event_log
                 .push(format!("auto_attack_kill:{attacker_id}:{target_id}"));
+            classic_openra_like_award_kill(world, attacker_index, &target_id);
         }
     }
     defeated_actor_ids
@@ -48788,14 +48994,19 @@ fn classic_first_contact_openra_like_core_tick_for(
                             ));
                             continue;
                         }
-                        let target_hp = world.actors[target_index].hp.saturating_sub(weapon.damage);
+                        let damage = classic_openra_like_effective_weapon_damage(
+                            world,
+                            index,
+                            weapon.damage,
+                        );
+                        let target_hp = world.actors[target_index].hp.saturating_sub(damage);
                         world.actors[target_index].hp = target_hp;
                         world.actors[index].weapon_cooldown_ticks = weapon.cooldown_ticks;
                         world.attack_hit_count += 1;
                         world.attack_move_hit_count += 1;
                         world.event_log.push(format!(
                             "attack_move_hit:{actor_id}:{target_id}:{}damage:{}hp",
-                            weapon.damage, target_hp
+                            damage, target_hp
                         ));
                         if target_hp == 0 {
                             let defeated_id = world.actors[target_index].id.clone();
@@ -48814,6 +49025,7 @@ fn classic_first_contact_openra_like_core_tick_for(
                             world
                                 .event_log
                                 .push(format!("attack_move_kill:{actor_id}:{defeated_id}"));
+                            classic_openra_like_award_kill(world, index, &defeated_id);
                         }
                     } else if let Some((path, blocked_tile_ids)) =
                         classic_openra_like_pathfind_tiles(world, &actor_id, current, target)
@@ -49333,7 +49545,9 @@ fn classic_first_contact_openra_like_core_tick_for(
                         ));
                         continue;
                     }
-                    let target_hp = world.actors[target_index].hp.saturating_sub(weapon.damage);
+                    let damage =
+                        classic_openra_like_effective_weapon_damage(world, index, weapon.damage);
+                    let target_hp = world.actors[target_index].hp.saturating_sub(damage);
                     world.actors[target_index].hp = target_hp;
                     world.actors[index].weapon_cooldown_ticks = weapon.cooldown_ticks;
                     world.attack_hit_count += 1;
@@ -49342,12 +49556,12 @@ fn classic_first_contact_openra_like_core_tick_for(
                     }
                     world.event_log.push(format!(
                         "attack_hit:{attacker_id}:{target_id}:{}damage:{}hp",
-                        weapon.damage, target_hp
+                        damage, target_hp
                     ));
                     if order.kind == TrnmOpenRaLikeOrderKind::FocusFire {
                         world.event_log.push(format!(
                             "focus_fire_hit:{attacker_id}:{target_id}:{}damage:{}hp",
-                            weapon.damage, target_hp
+                            damage, target_hp
                         ));
                     }
                     if target_hp == 0 {
@@ -49374,6 +49588,7 @@ fn classic_first_contact_openra_like_core_tick_for(
                                 .event_log
                                 .push(format!("focus_fire_kill:{attacker_id}:{defeated_id}"));
                         }
+                        classic_openra_like_award_kill(world, index, &defeated_id);
                     }
                 }
                 TrnmOpenRaLikeOrderKind::Repair => {
@@ -49500,6 +49715,8 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "hp": actor.hp,
                 "cargo": actor.cargo,
                 "resource_remaining": actor.resource_remaining,
+                "kill_count": actor.kill_count,
+                "veteran_rank": actor.veteran_rank,
                 "build_progress": actor.build_progress,
                 "capture_progress": actor.capture_progress,
                 "stance": actor.stance.as_str(),

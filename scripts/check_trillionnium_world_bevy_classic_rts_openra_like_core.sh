@@ -103,6 +103,14 @@ jq -e '
   and .simulation.attack_hit_count > 0
   and .simulation.attack_kill_count > 0
   and .simulation.attack_cooldown_wait_count > 0
+  and .simulation.veterancy_kill_credit_count >= 2
+  and .simulation.veterancy_rank_up_count >= 2
+  and .simulation.veteran_damage_bonus_count >= 1
+  and .simulation.veteran_warden_rank >= 3
+  and .simulation.veteran_warden_kill_count >= 2
+  and .simulation.veteran_first_target_removed == true
+  and .simulation.veteran_second_target_removed == true
+  and .simulation.veterancy_gate == true
   and .simulation.attack_move_step_count > 0
   and .simulation.attack_move_engage_count > 0
   and .simulation.attack_move_hit_count > 0
@@ -217,6 +225,7 @@ jq -e '
   and any(.simulation.command_log[]; contains("accepted:train:multi0.command.core"))
   and any(.simulation.command_log[]; contains("accepted:build:multi0.worker.1"))
   and any(.simulation.command_log[]; contains("accepted:attack_move:multi0.attackmove.warden"))
+  and any(.simulation.command_log[]; contains("accepted:attack:multi0.veteran.warden"))
   and any(.simulation.command_log[]; contains("rejected:attack_move:multi0.command.core:trait_missing:mobile"))
   and any(.simulation.command_log[]; contains("accepted:patrol:multi0.patrol.warden"))
   and any(.simulation.command_log[]; contains("rejected:patrol:multi0.command.core:trait_missing:mobile"))
@@ -279,6 +288,12 @@ jq -e '
   and any(.simulation.event_log[]; contains("attack_cooldown:multi0.striker.0"))
   and any(.simulation.event_log[]; contains("attack_kill:multi0.striker.0:multi1.command.core"))
   and any(.simulation.event_log[]; contains("attack_remove:multi1.command.core"))
+  and any(.simulation.event_log[]; contains("attack_kill:multi0.veteran.warden:multi1.veteran.first"))
+  and any(.simulation.event_log[]; contains("veteran_kill_credit:multi0.veteran.warden:multi1.veteran.first:kills1"))
+  and any(.simulation.event_log[]; contains("veteran_rank_up:multi0.veteran.warden:rank1->rank2"))
+  and any(.simulation.event_log[]; contains("veteran_damage_bonus:multi0.veteran.warden:rank2:700->840"))
+  and any(.simulation.event_log[]; contains("attack_kill:multi0.veteran.warden:multi1.veteran.second"))
+  and any(.simulation.event_log[]; contains("attack_remove:multi1.veteran.second"))
   and any(.simulation.event_log[]; contains("attack_move_step:multi0.attackmove.warden"))
   and any(.simulation.event_log[]; contains("attack_move_engage:multi0.attackmove.warden:multi1.attackmove.raider"))
   and any(.simulation.event_log[]; contains("attack_move_hit:multi0.attackmove.warden:multi1.attackmove.raider"))
@@ -389,6 +404,7 @@ jq -e '
   and .gates.harvest_return_cargo_gate == true
   and .gates.build_placement_gate == true
   and .gates.attack_weapon_gate == true
+  and .gates.veterancy_gate == true
   and .gates.attack_range_gate == true
   and .gates.attack_visibility_gate == true
   and .gates.attack_move_command_gate == true
