@@ -17393,6 +17393,21 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             rule_id: Some("trnm.striker"),
         },
     );
+    classic_openra_like_set_production_paused(
+        &mut world,
+        "Multi0",
+        "multi0.assembly.pad",
+        "trnm.striker",
+        true,
+    );
+    classic_first_contact_openra_like_core_tick_for(&mut world, 8);
+    classic_openra_like_set_production_paused(
+        &mut world,
+        "Multi0",
+        "multi0.assembly.pad",
+        "trnm.striker",
+        false,
+    );
     classic_first_contact_openra_like_core_tick_for(&mut world, 180);
     classic_openra_like_recall_control_group(&mut world, "Multi0", "1");
     classic_openra_like_queue_group_order(
@@ -17883,6 +17898,18 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         })
         && world.event_log.iter().any(|event| {
             event.starts_with("production_cancel:Multi0:multi0.command.core:trnm.worker:refund100")
+        });
+    let production_pause_resume_gate = world.production_hold_count >= 1
+        && world.production_resume_count >= 1
+        && world.production_hold_tick_count >= 8
+        && world.event_log.iter().any(|event| {
+            event.starts_with("production_hold:Multi0:multi0.assembly.pad:trnm.striker")
+        })
+        && world.event_log.iter().any(|event| {
+            event.starts_with("production_paused_manual:Multi0:multi0.assembly.pad:trnm.striker")
+        })
+        && world.event_log.iter().any(|event| {
+            event.starts_with("production_resume:Multi0:multi0.assembly.pad:trnm.striker")
         });
     let production_completion_gate = completed_production_count >= 2
         && production_spawn_count >= 2
@@ -18627,6 +18654,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "train_tick",
         "train_complete",
         "production_cancel",
+        "production_hold",
+        "production_paused_manual",
+        "production_resume",
         "production_spawn",
         "rally_order",
         "capture_path_step",
@@ -18771,6 +18801,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && pathfinding_gate
         && production_completion_gate
         && production_cancel_gate
+        && production_pause_resume_gate
         && tech_prerequisite_gate
         && supply_cap_gate
         && power_low_production_gate
@@ -18873,6 +18904,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "production_cancel_count": world.production_cancel_count,
             "production_refund_amount": world.production_refund_amount,
             "production_cancel_gate": production_cancel_gate,
+            "production_hold_count": world.production_hold_count,
+            "production_resume_count": world.production_resume_count,
+            "production_hold_tick_count": world.production_hold_tick_count,
+            "production_pause_resume_gate": production_pause_resume_gate,
             "relay_build_progress": relay_build_progress,
             "beacon_capture_progress": beacon_capture_progress,
             "capture_beacon_owner": beacon_capture_owner,
@@ -19054,6 +19089,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "reached_path_plan_gate": reached_path_plan_gate,
             "production_completion_gate": production_completion_gate,
             "production_cancel_gate": production_cancel_gate,
+            "production_pause_resume_gate": production_pause_resume_gate,
             "producer_queue_gate": producer_queue_gate,
             "producer_incomplete_gate": producer_incomplete_gate,
             "tech_train_accept_gate": tech_train_accept_gate,
@@ -19094,7 +19130,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation and refund, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation/refund, manual production hold/resume, spawn exits, rally orders, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -44576,6 +44612,7 @@ struct TrnmOpenRaLikeProductionItem {
     spawned_actor_id: Option<String>,
     completed: bool,
     canceled: bool,
+    paused: bool,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -44679,6 +44716,9 @@ struct TrnmOpenRaLikeWorld {
     power_recovery_count: u32,
     production_cancel_count: u32,
     production_refund_amount: u32,
+    production_hold_count: u32,
+    production_resume_count: u32,
+    production_hold_tick_count: u32,
     harvested_resource_amount: u32,
     resource_depleted_count: u32,
     harvest_return_trip_count: u32,
@@ -46293,6 +46333,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 spawned_actor_id: None,
                 completed: false,
                 canceled: false,
+                paused: false,
             },
             TrnmOpenRaLikeProductionItem {
                 owner: "Multi0",
@@ -46305,6 +46346,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 spawned_actor_id: None,
                 completed: false,
                 canceled: false,
+                paused: false,
             },
             TrnmOpenRaLikeProductionItem {
                 owner: "Multi2",
@@ -46317,6 +46359,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 spawned_actor_id: None,
                 completed: false,
                 canceled: false,
+                paused: false,
             },
         ],
         event_log: vec!["init:first_contact_basin".to_string()],
@@ -46365,6 +46408,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         power_recovery_count: 0,
         production_cancel_count: 0,
         production_refund_amount: 0,
+        production_hold_count: 0,
+        production_resume_count: 0,
+        production_hold_tick_count: 0,
         harvested_resource_amount: 0,
         resource_depleted_count: 0,
         harvest_return_trip_count: 0,
@@ -47271,6 +47317,60 @@ fn classic_openra_like_cancel_production(
     world.event_log.push(format!(
         "production_cancel:{owner}:{producer_id}:{rule_id}:refund{refund}:remaining{remaining_ticks}"
     ));
+    true
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_set_production_paused(
+    world: &mut TrnmOpenRaLikeWorld,
+    owner: &'static str,
+    producer_id: &str,
+    rule_id: &'static str,
+    paused: bool,
+) -> bool {
+    let Some(item_index) = world.production.iter().position(|item| {
+        item.owner == owner
+            && item.producer_id == producer_id
+            && item.rule_id == rule_id
+            && !item.completed
+            && !item.canceled
+    }) else {
+        let action = if paused {
+            "production_hold_rejected"
+        } else {
+            "production_resume_rejected"
+        };
+        world.event_log.push(format!(
+            "{action}:{owner}:{producer_id}:{rule_id}:item_missing"
+        ));
+        return false;
+    };
+
+    if world.production[item_index].paused == paused {
+        let action = if paused {
+            "production_hold_rejected"
+        } else {
+            "production_resume_rejected"
+        };
+        world.event_log.push(format!(
+            "{action}:{owner}:{producer_id}:{rule_id}:state_unchanged"
+        ));
+        return false;
+    }
+
+    world.production[item_index].paused = paused;
+    let remaining_ticks = world.production[item_index].remaining_ticks;
+    if paused {
+        world.production_hold_count += 1;
+        world.event_log.push(format!(
+            "production_hold:{owner}:{producer_id}:{rule_id}:remaining{remaining_ticks}"
+        ));
+    } else {
+        world.production_resume_count += 1;
+        world.event_log.push(format!(
+            "production_resume:{owner}:{producer_id}:{rule_id}:remaining{remaining_ticks}"
+        ));
+    }
     true
 }
 
@@ -48269,6 +48369,7 @@ fn classic_first_contact_openra_like_core_issue_order(
                 spawned_actor_id: None,
                 completed: false,
                 canceled: false,
+                paused: false,
             });
         }
         TrnmOpenRaLikeOrderKind::Patrol => {
@@ -48757,6 +48858,16 @@ fn classic_first_contact_openra_like_core_tick_for(
                 let owner = world.production[item_index].owner;
                 let rule_id = world.production[item_index].rule_id;
                 let producer_id = world.production[item_index].producer_id.clone();
+                if world.production[item_index].paused {
+                    world.production_hold_tick_count += 1;
+                    if world.tick % 4 == 0 {
+                        let remaining_ticks = world.production[item_index].remaining_ticks;
+                        world.event_log.push(format!(
+                            "production_paused_manual:{owner}:{producer_id}:{rule_id}:remaining{remaining_ticks}"
+                        ));
+                    }
+                    continue;
+                }
                 if classic_openra_like_player_low_power(world, owner) {
                     world.low_power_production_pause_count += 1;
                     if world.tick % 8 == 0 {
@@ -49805,6 +49916,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "spawned_actor_id": item.spawned_actor_id.clone(),
                 "completed": item.completed,
                 "canceled": item.canceled,
+                "paused": item.paused,
             })
         }).collect::<Vec<_>>(),
         "control_groups": world.control_groups.iter().map(|group| {
