@@ -72,7 +72,12 @@ jq -e '
   and .simulation.production_rally_retarget_count >= 1
   and .simulation.production_rally_retarget_reject_count >= 1
   and .simulation.production_rally_retarget_gate == true
+  and .simulation.production_queue_wait_tick_count > 0
+  and .simulation.production_queue_promote_count >= 1
+  and .simulation.production_queue_promote_reject_count >= 1
+  and .simulation.production_queue_promote_gate == true
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.command.core" and .rule_id == "trnm.worker" and .canceled == true and .completed == false and .spawned_actor_id == null)
+  and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.command.core" and .rule_id == "trnm.worker" and .priority_promoted == true and .completed == true and .spawned_actor_id != null)
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.assembly.pad" and .rule_id == "trnm.striker" and .paused == false and .completed == true and .spawned_actor_id != null)
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.assembly.pad" and .rule_id == "trnm.striker" and .rally_tile.x == 18 and .rally_tile.y == 12 and .completed == true and .spawned_actor_id != null)
   and .simulation.multi0_supply_used > .simulation.multi0_initial_supply_used
@@ -286,6 +291,9 @@ jq -e '
   and any(.simulation.event_log[]; contains("production_resume:Multi0:multi0.assembly.pad:trnm.striker"))
   and any(.simulation.event_log[]; contains("production_rally_retarget_rejected:Multi0:multi0.assembly.pad:trnm.striker:blocked_tile:16,16"))
   and any(.simulation.event_log[]; contains("production_rally_retarget:Multi0:multi0.assembly.pad:trnm.striker:15,11->18,12"))
+  and any(.simulation.event_log[]; contains("production_queue_promote:Multi0:multi0.command.core:trnm.worker:ahead_of:trnm.horizon.scout"))
+  and any(.simulation.event_log[]; contains("production_queue_promote_rejected:Multi0:multi0.command.core:trnm.striker:item_missing"))
+  and any(.simulation.event_log[]; contains("production_queue_wait:Multi0:multi0.command.core:trnm.horizon.scout:behind:trnm.worker"))
   and any(.simulation.event_log[]; contains("train_complete:multi0.command.core"))
   and any(.simulation.event_log[]; contains("supply_cap_increase:Multi0:multi0.flux.relay:trnm.flux.relay:+4"))
   and any(.simulation.event_log[]; contains("low_power_tick:Multi2:"))
@@ -417,6 +425,7 @@ jq -e '
   and .gates.production_cancel_gate == true
   and .gates.production_pause_resume_gate == true
   and .gates.production_rally_retarget_gate == true
+  and .gates.production_queue_promote_gate == true
   and .gates.producer_queue_gate == true
   and .gates.producer_incomplete_gate == true
   and .gates.tech_train_accept_gate == true
