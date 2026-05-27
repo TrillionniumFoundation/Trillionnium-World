@@ -182,6 +182,12 @@ jq -e '
   and .simulation.control_group_pruned_actor_count >= 2
   and .simulation.control_group_member_prune_gate == true
   and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "11" and .recall_count > 0 and .focus_tile.x == 13 and .focus_tile.y == 31 and (.actor_ids | length) == 1 and ((.actor_ids | index("multi0.queue.reject.runner")) != null) and ((.actor_ids | index("multi0.missing.member")) == null) and ((.actor_ids | index("map.actor1")) == null))
+  and .simulation.control_group_order_prune_count >= 1
+  and .simulation.control_group_order_pruned_actor_count >= 2
+  and .simulation.control_group_order_prune_gate == true
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "14" and (.actor_ids | length) == 1 and ((.actor_ids | index("multi0.queue.prune.runner")) != null) and ((.actor_ids | index("multi0.queue.prune.missing")) == null) and ((.actor_ids | index("map.actor1")) == null))
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "14" and .actor_id == "multi0.queue.prune.runner" and .order == "move" and .target_tile.x == 17 and .target_tile.y == 31)
+  and ([.snapshot.queued_orders[] | select(.group_id == "14" and (.actor_id == "multi0.queue.prune.missing" or .actor_id == "map.actor1"))] | length) == 0
   and .simulation.queued_order_count >= 17
   and .simulation.queued_order_execute_count >= 14
   and .simulation.queued_order_cancel_count >= 2
@@ -367,7 +373,9 @@ jq -e '
   and any(.simulation.event_log[]; contains("control_group_recall:Multi0:1"))
   and any(.simulation.event_log[]; contains("control_group_recall:Multi0:11:1actors@13,31"))
   and any(.simulation.event_log[]; contains("control_group_member_pruned:Multi0:11:multi0.missing.member,foreign:map.actor1"))
+  and any(.simulation.event_log[]; contains("control_group_order_member_pruned:Multi0:14:multi0.queue.prune.missing,foreign:map.actor1"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:1:move"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:14:move:1actors"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:4:move"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:5:move"))
   and any(.simulation.event_log[]; contains("queued_order_cancel:Multi0:4:2orders"))
@@ -478,6 +486,7 @@ jq -e '
   and .gates.repair_gate == true
   and .gates.control_group_gate == true
   and .gates.control_group_member_prune_gate == true
+  and .gates.control_group_order_prune_gate == true
   and .gates.queued_order_cancel_gate == true
   and .gates.queued_order_chain_gate == true
   and .gates.queued_order_override_gate == true
