@@ -18005,6 +18005,33 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             event.starts_with("production_control_group_assign:Multi0:3:multi0.trained.striker.")
                 && event.ends_with("@18,12")
         });
+    let production_control_group_stance_sync_gate =
+        world.production_control_group_stance_sync_count >= 1
+            && world.production.iter().any(|item| {
+                item.owner == "Multi0"
+                    && item.producer_id == "multi0.assembly.pad"
+                    && item.rule_id == "trnm.striker"
+                    && item.completed
+                    && item.spawned_actor_id.is_some()
+                    && item.assigned_control_group_id == Some("3")
+                    && item.assigned_control_group_stance == Some("aggressive")
+            })
+            && world.control_groups.iter().any(|group| {
+                group.owner == "Multi0"
+                    && group.group_id == "3"
+                    && group.focus_tile == (18, 12)
+                    && group.stance == TrnmOpenRaLikeStance::Aggressive
+            })
+            && world.actors.iter().any(|actor| {
+                actor.owner == "Multi0"
+                    && actor.id.starts_with("multi0.trained.striker.")
+                    && actor.stance == TrnmOpenRaLikeStance::Aggressive
+            })
+            && world.event_log.iter().any(|event| {
+                event.starts_with(
+                    "production_control_group_stance_sync:Multi0:3:multi0.trained.striker.",
+                ) && event.ends_with(":guard->aggressive")
+            });
     let production_completion_gate = completed_production_count >= 2
         && production_spawn_count >= 2
         && production_rally_count >= 2
@@ -18754,6 +18781,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "production_rally_retarget",
         "production_rally_retarget_rejected",
         "production_control_group_assign",
+        "production_control_group_stance_sync",
         "production_spawn",
         "rally_order",
         "capture_path_step",
@@ -18902,6 +18930,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && production_rally_retarget_gate
         && production_queue_promote_gate
         && production_control_group_assign_gate
+        && production_control_group_stance_sync_gate
         && tech_prerequisite_gate
         && supply_cap_gate
         && power_low_production_gate
@@ -19017,6 +19046,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "production_queue_promote_gate": production_queue_promote_gate,
             "production_control_group_assign_count": world.production_control_group_assign_count,
             "production_control_group_assign_gate": production_control_group_assign_gate,
+            "production_control_group_stance_sync_count": world.production_control_group_stance_sync_count,
+            "production_control_group_stance_sync_gate": production_control_group_stance_sync_gate,
             "relay_build_progress": relay_build_progress,
             "beacon_capture_progress": beacon_capture_progress,
             "capture_beacon_owner": beacon_capture_owner,
@@ -19202,6 +19233,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "production_rally_retarget_gate": production_rally_retarget_gate,
             "production_queue_promote_gate": production_queue_promote_gate,
             "production_control_group_assign_gate": production_control_group_assign_gate,
+            "production_control_group_stance_sync_gate": production_control_group_stance_sync_gate,
             "producer_queue_gate": producer_queue_gate,
             "producer_incomplete_gate": producer_incomplete_gate,
             "tech_train_accept_gate": tech_train_accept_gate,
@@ -44727,6 +44759,7 @@ struct TrnmOpenRaLikeProductionItem {
     paused: bool,
     priority_promoted: bool,
     assigned_control_group_id: Option<&'static str>,
+    assigned_control_group_stance: Option<&'static str>,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -44754,6 +44787,7 @@ struct TrnmOpenRaLikeControlGroup {
     group_id: &'static str,
     actor_ids: Vec<String>,
     focus_tile: (i32, i32),
+    stance: TrnmOpenRaLikeStance,
     recall_count: u32,
 }
 
@@ -44839,6 +44873,7 @@ struct TrnmOpenRaLikeWorld {
     production_queue_promote_count: u32,
     production_queue_promote_reject_count: u32,
     production_control_group_assign_count: u32,
+    production_control_group_stance_sync_count: u32,
     harvested_resource_amount: u32,
     resource_depleted_count: u32,
     harvest_return_trip_count: u32,
@@ -46456,6 +46491,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 paused: false,
                 priority_promoted: false,
                 assigned_control_group_id: None,
+                assigned_control_group_stance: None,
             },
             TrnmOpenRaLikeProductionItem {
                 owner: "Multi0",
@@ -46471,6 +46507,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 paused: false,
                 priority_promoted: false,
                 assigned_control_group_id: None,
+                assigned_control_group_stance: None,
             },
             TrnmOpenRaLikeProductionItem {
                 owner: "Multi2",
@@ -46486,6 +46523,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 paused: false,
                 priority_promoted: false,
                 assigned_control_group_id: None,
+                assigned_control_group_stance: None,
             },
         ],
         event_log: vec!["init:first_contact_basin".to_string()],
@@ -46543,6 +46581,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         production_queue_promote_count: 0,
         production_queue_promote_reject_count: 0,
         production_control_group_assign_count: 0,
+        production_control_group_stance_sync_count: 0,
         harvested_resource_amount: 0,
         resource_depleted_count: 0,
         harvest_return_trip_count: 0,
@@ -46559,6 +46598,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.warden.capture".to_string(),
                 ],
                 focus_tile: (16, 9),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46569,6 +46609,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.attackmove.warden".to_string(),
                 ],
                 focus_tile: (18, 12),
+                stance: TrnmOpenRaLikeStance::Aggressive,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46579,6 +46620,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.worker.1".to_string(),
                 ],
                 focus_tile: (10, 9),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46586,6 +46628,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 group_id: "5",
                 actor_ids: vec!["multi0.chain.runner".to_string()],
                 focus_tile: (2, 31),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46593,6 +46636,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                 group_id: "6",
                 actor_ids: vec!["multi0.override.runner".to_string()],
                 focus_tile: (31, 31),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46604,6 +46648,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.formation.right".to_string(),
                 ],
                 focus_tile: (22, 31),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46615,6 +46660,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.formation.blocked.right".to_string(),
                 ],
                 focus_tile: (10, 31),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46625,6 +46671,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.obstruction.follower".to_string(),
                 ],
                 focus_tile: (6, 2),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
             TrnmOpenRaLikeControlGroup {
@@ -46635,6 +46682,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.reservation.wing".to_string(),
                 ],
                 focus_tile: (2, 4),
+                stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
         ],
@@ -47645,28 +47693,53 @@ fn classic_openra_like_assign_produced_actor_to_rally_group(
     owner: &'static str,
     actor_id: &str,
     rally_tile: Option<(i32, i32)>,
-) -> Option<&'static str> {
+) -> Option<(&'static str, &'static str)> {
     let rally_tile = rally_tile?;
     let group_index = world
         .control_groups
         .iter()
         .position(|group| group.owner == owner && group.focus_tile == rally_tile)?;
-    let group_id = world.control_groups[group_index].group_id;
-    if !world.control_groups[group_index]
-        .actor_ids
-        .iter()
-        .any(|candidate_id| candidate_id == actor_id)
-    {
-        world.control_groups[group_index]
+    let (group_id, group_stance, assigned_to_group) = {
+        let group = &mut world.control_groups[group_index];
+        let assigned_to_group = !group
             .actor_ids
-            .push(actor_id.to_string());
+            .iter()
+            .any(|candidate_id| candidate_id == actor_id);
+        if assigned_to_group {
+            group.actor_ids.push(actor_id.to_string());
+        }
+        (group.group_id, group.stance, assigned_to_group)
+    };
+    if assigned_to_group {
         world.production_control_group_assign_count += 1;
         world.event_log.push(format!(
             "production_control_group_assign:{owner}:{group_id}:{actor_id}@{}",
             classic_openra_like_tile_id(rally_tile)
         ));
     }
-    Some(group_id)
+
+    let mut stance_sync = None;
+    if let Some(actor) = world
+        .actors
+        .iter_mut()
+        .find(|actor| actor.owner == owner && actor.id == actor_id)
+    {
+        let previous_stance = actor.stance;
+        if previous_stance != group_stance {
+            actor.stance = group_stance;
+            stance_sync = Some((previous_stance, group_stance));
+        }
+    }
+    if let Some((previous_stance, next_stance)) = stance_sync {
+        world.production_control_group_stance_sync_count += 1;
+        world.event_log.push(format!(
+            "production_control_group_stance_sync:{owner}:{group_id}:{actor_id}:{}->{}",
+            previous_stance.as_str(),
+            next_stance.as_str()
+        ));
+    }
+
+    Some((group_id, group_stance.as_str()))
 }
 
 #[cfg(not(target_os = "android"))]
@@ -48667,6 +48740,7 @@ fn classic_first_contact_openra_like_core_issue_order(
                 paused: false,
                 priority_promoted: false,
                 assigned_control_group_id: None,
+                assigned_control_group_stance: None,
             });
         }
         TrnmOpenRaLikeOrderKind::Patrol => {
@@ -49250,15 +49324,20 @@ fn classic_first_contact_openra_like_core_tick_for(
                         .map(|rule| rule.supply_cost)
                         .unwrap_or(1);
                 }
-                let assigned_control_group_id =
+                let assigned_control_group =
                     classic_openra_like_assign_produced_actor_to_rally_group(
                         world, owner, &actor_id, rally_tile,
                     );
+                let (assigned_control_group_id, assigned_control_group_stance) =
+                    assigned_control_group.map_or((None, None), |(group_id, stance)| {
+                        (Some(group_id), Some(stance))
+                    });
                 if let Some(item) = world.production.get_mut(item_index) {
                     item.completed = true;
                     item.progress_percent = 100;
                     item.spawned_actor_id = Some(actor_id.clone());
                     item.assigned_control_group_id = assigned_control_group_id;
+                    item.assigned_control_group_stance = assigned_control_group_stance;
                 }
                 world.event_log.push(format!(
                     "train_complete:{producer_id}:{rule_id}:{actor_id}:spawn@{},{}",
@@ -50235,6 +50314,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "paused": item.paused,
                 "priority_promoted": item.priority_promoted,
                 "assigned_control_group_id": item.assigned_control_group_id,
+                "assigned_control_group_stance": item.assigned_control_group_stance,
             })
         }).collect::<Vec<_>>(),
         "control_groups": world.control_groups.iter().map(|group| {
@@ -50243,6 +50323,7 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
                 "group_id": group.group_id,
                 "actor_ids": group.actor_ids.clone(),
                 "focus_tile": {"x": group.focus_tile.0, "y": group.focus_tile.1},
+                "stance": group.stance.as_str(),
                 "recall_count": group.recall_count,
             })
         }).collect::<Vec<_>>(),
