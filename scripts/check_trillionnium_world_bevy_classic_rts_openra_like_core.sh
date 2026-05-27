@@ -202,6 +202,13 @@ jq -e '
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "19" and .actor_id == "multi0.assignment.runner" and .order == "move" and .target_tile.x == 29 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "19" and .actor_id == "multi0.assignment.wing" and .order == "move" and .target_tile.x == 29 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and ([.snapshot.queued_orders[] | select(.group_id == "19" and (.actor_id == "multi0.assignment.missing" or .actor_id == "map.actor1"))] | length) == 0
+  and .simulation.control_group_reassignment_count >= 1
+  and .simulation.control_group_reassignment_replaced_actor_count >= 1
+  and .simulation.control_group_reassignment_gate == true
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "20" and .focus_tile.x == 31 and .focus_tile.y == 29 and (.actor_ids | length) == 2 and ((.actor_ids | index("multi0.reassignment.runner")) != null) and ((.actor_ids | index("multi0.reassignment.wing")) != null) and ((.actor_ids | index("multi0.reassignment.stale")) == null))
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "20" and .actor_id == "multi0.reassignment.runner" and .order == "move" and .target_tile.x == 31 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "20" and .actor_id == "multi0.reassignment.wing" and .order == "move" and .target_tile.x == 31 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
+  and ([.snapshot.queued_orders[] | select(.group_id == "20" and .actor_id == "multi0.reassignment.stale")] | length) == 0
   and .simulation.control_group_stance_prune_count >= 1
   and .simulation.control_group_stance_pruned_actor_count >= 2
   and .simulation.control_group_stance_prune_gate == true
@@ -415,6 +422,13 @@ jq -e '
   and any(.simulation.event_log[]; contains("queued_order_execute:19:multi0.assignment.wing:move:chain0"))
   and any(.simulation.event_log[]; contains("queued_order_reached:19:multi0.assignment.runner:chain0:29,31"))
   and any(.simulation.event_log[]; contains("queued_order_reached:19:multi0.assignment.wing:chain0:29,31"))
+  and any(.simulation.event_log[]; contains("control_group_reassigned:Multi0:20:multi0.reassignment.stale->2actors@31,29"))
+  and any(.simulation.event_log[]; contains("control_group_assigned:Multi0:20:2actors@31,29"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:20:move:2actors"))
+  and any(.simulation.event_log[]; contains("queued_order_execute:20:multi0.reassignment.runner:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_execute:20:multi0.reassignment.wing:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:20:multi0.reassignment.runner:chain0:31,31"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:20:multi0.reassignment.wing:chain0:31,31"))
   and any(.simulation.event_log[]; contains("control_group_stance_member_pruned:Multi0:15:multi0.stance.prune.missing,foreign:map.actor1"))
   and any(.simulation.event_log[]; contains("control_group_stance_actor_sync:Multi0:15:multi0.stance.prune.runner:guard->aggressive"))
   and any(.simulation.event_log[]; contains("control_group_stance_change:Multi0:15:guard->aggressive:1actors"))
@@ -541,6 +555,7 @@ jq -e '
   and .gates.control_group_order_prune_gate == true
   and .gates.control_group_order_validation_gate == true
   and .gates.control_group_assignment_gate == true
+  and .gates.control_group_reassignment_gate == true
   and .gates.control_group_stance_prune_gate == true
   and .gates.control_group_formation_prune_gate == true
   and .gates.control_group_formation_validation_gate == true

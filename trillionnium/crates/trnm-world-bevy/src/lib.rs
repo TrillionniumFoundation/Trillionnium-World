@@ -17481,6 +17481,23 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             rule_id: None,
         },
     );
+    classic_openra_like_assign_control_group(
+        &mut world,
+        "Multi0",
+        "20",
+        &["multi0.reassignment.runner", "multi0.reassignment.wing"],
+    );
+    classic_openra_like_queue_group_order(
+        &mut world,
+        "Multi0",
+        "20",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((31, 31)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
     classic_openra_like_queue_group_order(
         &mut world,
         "Multi0",
@@ -18540,6 +18557,70 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && world.event_log.iter().any(|event| {
             event == "queued_order_reached:19:multi0.assignment.wing:chain0:29,31"
         });
+    let control_group_reassignment_gate =
+        world.control_group_reassignment_count >= 1
+            && world.control_group_reassignment_replaced_actor_count >= 1
+            && world.control_groups.iter().any(|group| {
+                group.owner == "Multi0"
+                    && group.group_id == "20"
+                    && group.focus_tile == (31, 29)
+                    && group.actor_ids.len() == 2
+                    && group
+                        .actor_ids
+                        .iter()
+                        .any(|actor_id| actor_id == "multi0.reassignment.runner")
+                    && group
+                        .actor_ids
+                        .iter()
+                        .any(|actor_id| actor_id == "multi0.reassignment.wing")
+                    && !group
+                        .actor_ids
+                        .iter()
+                        .any(|actor_id| actor_id == "multi0.reassignment.stale")
+            })
+            && world.queued_orders.iter().any(|order| {
+                order.group_id == "20"
+                    && order.actor_id == "multi0.reassignment.runner"
+                    && order.order.kind == TrnmOpenRaLikeOrderKind::Move
+                    && order.order.target_tile == Some((31, 31))
+                    && order.completed
+                    && order.reached
+                    && !order.canceled
+            })
+            && world.queued_orders.iter().any(|order| {
+                order.group_id == "20"
+                    && order.actor_id == "multi0.reassignment.wing"
+                    && order.order.kind == TrnmOpenRaLikeOrderKind::Move
+                    && order.order.target_tile == Some((31, 31))
+                    && order.completed
+                    && order.reached
+                    && !order.canceled
+            })
+            && !world.queued_orders.iter().any(|order| {
+                order.group_id == "20" && order.actor_id == "multi0.reassignment.stale"
+            }) && world.event_log.iter().any(|event| {
+            event == "control_group_reassigned:Multi0:20:multi0.reassignment.stale->2actors@31,29"
+        })
+            && world
+                .event_log
+                .iter()
+                .any(|event| event == "control_group_assigned:Multi0:20:2actors@31,29")
+            && world
+                .event_log
+                .iter()
+                .any(|event| event == "queued_group_order:Multi0:20:move:2actors")
+            && world.event_log.iter().any(|event| {
+                event == "queued_order_execute:20:multi0.reassignment.runner:move:chain0"
+            })
+            && world.event_log.iter().any(|event| {
+                event == "queued_order_execute:20:multi0.reassignment.wing:move:chain0"
+            })
+            && world.event_log.iter().any(|event| {
+                event == "queued_order_reached:20:multi0.reassignment.runner:chain0:31,31"
+            })
+            && world.event_log.iter().any(|event| {
+                event == "queued_order_reached:20:multi0.reassignment.wing:chain0:31,31"
+            });
     let control_group_stance_broadcast_gate = world.control_group_stance_change_count >= 1
         && world.control_group_stance_actor_sync_count >= 1
         && world.control_groups.iter().any(|group| {
@@ -19182,6 +19263,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "control_group_recall",
         "control_group_assigned",
         "control_group_assignment_rejected",
+        "control_group_reassigned",
         "control_group_member_pruned",
         "control_group_formation_member_pruned",
         "control_group_stance_change",
@@ -19312,6 +19394,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && control_group_order_prune_gate
         && control_group_order_validation_gate
         && control_group_assignment_gate
+        && control_group_reassignment_gate
         && control_group_stance_broadcast_gate
         && control_group_stance_prune_gate
         && control_group_formation_prune_gate
@@ -19486,6 +19569,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_assignment_actor_count": world.control_group_assignment_actor_count,
             "control_group_assignment_reject_count": world.control_group_assignment_reject_count,
             "control_group_assignment_gate": control_group_assignment_gate,
+            "control_group_reassignment_count": world.control_group_reassignment_count,
+            "control_group_reassignment_replaced_actor_count": world.control_group_reassignment_replaced_actor_count,
+            "control_group_reassignment_gate": control_group_reassignment_gate,
             "control_group_stance_prune_count": world.control_group_stance_prune_count,
             "control_group_stance_pruned_actor_count": world.control_group_stance_pruned_actor_count,
             "control_group_stance_prune_gate": control_group_stance_prune_gate,
@@ -19657,6 +19743,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_order_prune_gate": control_group_order_prune_gate,
             "control_group_order_validation_gate": control_group_order_validation_gate,
             "control_group_assignment_gate": control_group_assignment_gate,
+            "control_group_reassignment_gate": control_group_reassignment_gate,
             "control_group_stance_prune_gate": control_group_stance_prune_gate,
             "control_group_formation_prune_gate": control_group_formation_prune_gate,
             "control_group_formation_validation_gate": control_group_formation_validation_gate,
@@ -19676,7 +19763,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation/refund, manual production hold/resume, production rally retarget validation, production queue waiting and priority promotion, spawn exits, rally orders, rally-focused control-group assignment for produced reinforcements, player control-group assignment with missing/foreign rejection, control-group member pruning on recall, control-group member pruning before queued group orders, checked queued group-order validation with per-actor rejection, control-group member pruning before stance broadcasts, control-group member pruning before formation moves, checked formation-move member validation with per-actor rejection, control-group stance broadcasts to existing group members, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation/refund, manual production hold/resume, production rally retarget validation, production queue waiting and priority promotion, spawn exits, rally orders, rally-focused control-group assignment for produced reinforcements, player control-group assignment with missing/foreign rejection, repeated-hotkey control-group reassignment with stale-member replacement, control-group member pruning on recall, control-group member pruning before queued group orders, checked queued group-order validation with per-actor rejection, control-group member pruning before stance broadcasts, control-group member pruning before formation moves, checked formation-move member validation with per-actor rejection, control-group stance broadcasts to existing group members, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -45279,6 +45366,8 @@ struct TrnmOpenRaLikeWorld {
     control_group_assignment_count: u32,
     control_group_assignment_actor_count: u32,
     control_group_assignment_reject_count: u32,
+    control_group_reassignment_count: u32,
+    control_group_reassignment_replaced_actor_count: u32,
     control_group_prune_count: u32,
     control_group_pruned_actor_count: u32,
     control_group_order_prune_count: u32,
@@ -46637,6 +46726,42 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.reassignment.stale",
+        "trnm.horizon.scout",
+        "Multi0",
+        (31, 28),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((31, 28)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.reassignment.runner",
+        "trnm.horizon.scout",
+        "Multi0",
+        (30, 29),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((30, 29)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.reassignment.wing",
+        "trnm.horizon.scout",
+        "Multi0",
+        (32, 29),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((32, 29)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "map.capture.contested.node",
         "trnm.flux.beacon",
         "Neutral",
@@ -46859,6 +46984,9 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         ),
         ("multi0.assignment.runner", TrnmOpenRaLikeStance::HoldFire),
         ("multi0.assignment.wing", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.reassignment.stale", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.reassignment.runner", TrnmOpenRaLikeStance::HoldFire),
+        ("multi0.reassignment.wing", TrnmOpenRaLikeStance::HoldFire),
         (
             "multi0.capture.contested.warden",
             TrnmOpenRaLikeStance::HoldFire,
@@ -47103,6 +47231,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         control_group_assignment_count: 0,
         control_group_assignment_actor_count: 0,
         control_group_assignment_reject_count: 0,
+        control_group_reassignment_count: 0,
+        control_group_reassignment_replaced_actor_count: 0,
         control_group_prune_count: 0,
         control_group_pruned_actor_count: 0,
         control_group_order_prune_count: 0,
@@ -47287,6 +47417,14 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.command.core".to_string(),
                 ],
                 focus_tile: (26, 29),
+                stance: TrnmOpenRaLikeStance::Guard,
+                recall_count: 0,
+            },
+            TrnmOpenRaLikeControlGroup {
+                owner: "Multi0",
+                group_id: "20",
+                actor_ids: vec!["multi0.reassignment.stale".to_string()],
+                focus_tile: (31, 28),
                 stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
@@ -48417,12 +48555,28 @@ fn classic_openra_like_assign_control_group(
         (0, 0)
     };
 
-    if let Some(group) = world
+    let existing_group_index = world
         .control_groups
-        .iter_mut()
-        .find(|group| group.owner == owner && group.group_id == group_id)
-    {
-        group.actor_ids = accepted_actor_ids.clone();
+        .iter()
+        .position(|group| group.owner == owner && group.group_id == group_id);
+    let replaced_actor_ids = existing_group_index
+        .map(|group_index| {
+            world.control_groups[group_index]
+                .actor_ids
+                .iter()
+                .filter(|actor_id| {
+                    !accepted_actor_ids
+                        .iter()
+                        .any(|accepted_actor_id| accepted_actor_id == *actor_id)
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    if let Some(group_index) = existing_group_index {
+        let group = &mut world.control_groups[group_index];
+        group.actor_ids.clone_from(&accepted_actor_ids);
         group.focus_tile = focus_tile;
         group.stance = TrnmOpenRaLikeStance::Guard;
         group.recall_count = 0;
@@ -48435,6 +48589,17 @@ fn classic_openra_like_assign_control_group(
             stance: TrnmOpenRaLikeStance::Guard,
             recall_count: 0,
         });
+    }
+
+    if !replaced_actor_ids.is_empty() {
+        world.control_group_reassignment_count += 1;
+        world.control_group_reassignment_replaced_actor_count += replaced_actor_ids.len() as u32;
+        world.event_log.push(format!(
+            "control_group_reassigned:{owner}:{group_id}:{}->{}actors@{}",
+            replaced_actor_ids.join(","),
+            accepted_actor_ids.len(),
+            classic_openra_like_tile_id(focus_tile)
+        ));
     }
 
     world.control_group_assignment_count += 1;
