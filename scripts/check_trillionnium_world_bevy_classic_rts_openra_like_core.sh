@@ -80,11 +80,15 @@ jq -e '
   and .simulation.production_control_group_assign_gate == true
   and .simulation.production_control_group_stance_sync_count >= 1
   and .simulation.production_control_group_stance_sync_gate == true
+  and .simulation.control_group_stance_change_count >= 1
+  and .simulation.control_group_stance_actor_sync_count >= 1
+  and .simulation.control_group_stance_broadcast_gate == true
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.command.core" and .rule_id == "trnm.worker" and .canceled == true and .completed == false and .spawned_actor_id == null)
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.command.core" and .rule_id == "trnm.worker" and .priority_promoted == true and .completed == true and .spawned_actor_id != null)
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.assembly.pad" and .rule_id == "trnm.striker" and .assigned_control_group_id == "3" and .completed == true and .spawned_actor_id != null)
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.assembly.pad" and .rule_id == "trnm.striker" and .assigned_control_group_id == "3" and .assigned_control_group_stance == "aggressive" and .completed == true and .spawned_actor_id != null)
   and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "3" and .focus_tile.x == 18 and .focus_tile.y == 12 and .stance == "aggressive" and any(.actor_ids[]; startswith("multi0.trained.striker.")))
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "4" and .stance == "hold_fire" and ((.actor_ids | index("multi0.command.core")) != null) and ((.actor_ids | index("multi0.worker.1")) != null))
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.assembly.pad" and .rule_id == "trnm.striker" and .paused == false and .completed == true and .spawned_actor_id != null)
   and any(.snapshot.production[]; .owner == "Multi0" and .producer_id == "multi0.assembly.pad" and .rule_id == "trnm.striker" and .rally_tile.x == 18 and .rally_tile.y == 12 and .completed == true and .spawned_actor_id != null)
   and .simulation.multi0_supply_used > .simulation.multi0_initial_supply_used
@@ -303,6 +307,8 @@ jq -e '
   and any(.simulation.event_log[]; contains("production_queue_wait:Multi0:multi0.command.core:trnm.horizon.scout:behind:trnm.worker"))
   and any(.simulation.event_log[]; startswith("production_control_group_assign:Multi0:3:multi0.trained.striker.") and endswith("@18,12"))
   and any(.simulation.event_log[]; startswith("production_control_group_stance_sync:Multi0:3:multi0.trained.striker.") and endswith(":guard->aggressive"))
+  and any(.simulation.event_log[]; contains("control_group_stance_change:Multi0:4:guard->hold_fire:1actors"))
+  and any(.simulation.event_log[]; contains("control_group_stance_actor_sync:Multi0:4:multi0.worker.1:guard->hold_fire"))
   and any(.simulation.event_log[]; contains("train_complete:multi0.command.core"))
   and any(.simulation.event_log[]; contains("supply_cap_increase:Multi0:multi0.flux.relay:trnm.flux.relay:+4"))
   and any(.simulation.event_log[]; contains("low_power_tick:Multi2:"))
@@ -437,6 +443,7 @@ jq -e '
   and .gates.production_queue_promote_gate == true
   and .gates.production_control_group_assign_gate == true
   and .gates.production_control_group_stance_sync_gate == true
+  and .gates.control_group_stance_broadcast_gate == true
   and .gates.producer_queue_gate == true
   and .gates.producer_incomplete_gate == true
   and .gates.tech_train_accept_gate == true
