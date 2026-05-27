@@ -17448,6 +17448,17 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             rule_id: None,
         },
     );
+    classic_openra_like_queue_group_order_checked(
+        &mut world,
+        "Multi0",
+        "17",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((21, 31)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
     classic_openra_like_queue_group_order(
         &mut world,
         "Multi0",
@@ -18402,6 +18413,47 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             .event_log
             .iter()
             .any(|event| event == "queued_group_order:Multi0:14:move:1actors");
+    let control_group_order_validation_gate = world.control_group_order_validation_count >= 1
+        && world.control_group_order_validation_reject_count >= 1
+        && world.control_groups.iter().any(|group| {
+            group.owner == "Multi0"
+                && group.group_id == "17"
+                && group.actor_ids.len() == 2
+                && group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.group.validation.runner")
+                && group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.command.core")
+        })
+        && world.queued_orders.iter().any(|order| {
+            order.group_id == "17"
+                && order.actor_id == "multi0.group.validation.runner"
+                && order.order.kind == TrnmOpenRaLikeOrderKind::Move
+                && order.order.target_tile == Some((21, 31))
+                && order.completed
+                && order.reached
+                && !order.canceled
+        })
+        && !world.queued_orders.iter().any(|order| {
+            order.group_id == "17" && order.actor_id == "multi0.command.core"
+        })
+        && world.event_log.iter().any(|event| {
+            event
+                == "queued_group_actor_order_rejected:Multi0:17:multi0.command.core:move:trait_missing:mobile:21,31"
+        })
+        && world.event_log.iter().any(|event| {
+            event == "validated_queued_group_order:Multi0:17:move:1actors:1rejected"
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_order_execute:17:multi0.group.validation.runner:move:chain0")
+        && world.event_log.iter().any(|event| {
+            event == "queued_order_reached:17:multi0.group.validation.runner:chain0:21,31"
+        });
     let control_group_stance_broadcast_gate = world.control_group_stance_change_count >= 1
         && world.control_group_stance_actor_sync_count >= 1
         && world.control_groups.iter().any(|group| {
@@ -18996,6 +19048,8 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "control_group_stance_change",
         "control_group_stance_actor_sync",
         "queued_group_order",
+        "queued_group_actor_order_rejected",
+        "validated_queued_group_order",
         "queued_actor_order_rejected",
         "queued_order_cancel",
         "queued_order_chain_ready",
@@ -19114,7 +19168,10 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && repair_gate
         && control_group_gate
         && control_group_member_prune_gate
+        && control_group_order_prune_gate
+        && control_group_order_validation_gate
         && control_group_stance_broadcast_gate
+        && control_group_stance_prune_gate
         && control_group_formation_prune_gate
         && queued_order_gate
         && formation_move_gate
@@ -19279,6 +19336,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_order_prune_count": world.control_group_order_prune_count,
             "control_group_order_pruned_actor_count": world.control_group_order_pruned_actor_count,
             "control_group_order_prune_gate": control_group_order_prune_gate,
+            "control_group_order_validation_count": world.control_group_order_validation_count,
+            "control_group_order_validation_reject_count": world.control_group_order_validation_reject_count,
+            "control_group_order_validation_gate": control_group_order_validation_gate,
             "control_group_stance_prune_count": world.control_group_stance_prune_count,
             "control_group_stance_pruned_actor_count": world.control_group_stance_pruned_actor_count,
             "control_group_stance_prune_gate": control_group_stance_prune_gate,
@@ -19445,6 +19505,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_gate": control_group_gate,
             "control_group_member_prune_gate": control_group_member_prune_gate,
             "control_group_order_prune_gate": control_group_order_prune_gate,
+            "control_group_order_validation_gate": control_group_order_validation_gate,
             "control_group_stance_prune_gate": control_group_stance_prune_gate,
             "control_group_formation_prune_gate": control_group_formation_prune_gate,
             "control_group_stance_broadcast_gate": control_group_stance_broadcast_gate,
@@ -19463,7 +19524,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation/refund, manual production hold/resume, production rally retarget validation, production queue waiting and priority promotion, spawn exits, rally orders, rally-focused control-group assignment for produced reinforcements, control-group member pruning on recall, control-group member pruning before queued group orders, control-group member pruning before stance broadcasts, control-group member pruning before formation moves, control-group stance broadcasts to existing group members, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation/refund, manual production hold/resume, production rally retarget validation, production queue waiting and priority promotion, spawn exits, rally orders, rally-focused control-group assignment for produced reinforcements, control-group member pruning on recall, control-group member pruning before queued group orders, checked queued group-order validation with per-actor rejection, control-group member pruning before stance broadcasts, control-group member pruning before formation moves, control-group stance broadcasts to existing group members, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -45067,6 +45128,8 @@ struct TrnmOpenRaLikeWorld {
     control_group_pruned_actor_count: u32,
     control_group_order_prune_count: u32,
     control_group_order_pruned_actor_count: u32,
+    control_group_order_validation_count: u32,
+    control_group_order_validation_reject_count: u32,
     control_group_stance_prune_count: u32,
     control_group_stance_pruned_actor_count: u32,
     control_group_formation_prune_count: u32,
@@ -46345,6 +46408,18 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.group.validation.runner",
+        "trnm.horizon.scout",
+        "Multi0",
+        (21, 29),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((21, 29)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "multi0.stance.prune.runner",
         "trnm.worker",
         "Multi0",
@@ -46577,6 +46652,10 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         ),
         ("multi0.queue.reject.runner", TrnmOpenRaLikeStance::HoldFire),
         ("multi0.queue.prune.runner", TrnmOpenRaLikeStance::HoldFire),
+        (
+            "multi0.group.validation.runner",
+            TrnmOpenRaLikeStance::HoldFire,
+        ),
         (
             "multi0.formation.prune.runner",
             TrnmOpenRaLikeStance::HoldFire,
@@ -46826,6 +46905,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         control_group_pruned_actor_count: 0,
         control_group_order_prune_count: 0,
         control_group_order_pruned_actor_count: 0,
+        control_group_order_validation_count: 0,
+        control_group_order_validation_reject_count: 0,
         control_group_stance_prune_count: 0,
         control_group_stance_pruned_actor_count: 0,
         control_group_formation_prune_count: 0,
@@ -46980,6 +47061,17 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "map.actor1".to_string(),
                 ],
                 focus_tile: (24, 29),
+                stance: TrnmOpenRaLikeStance::Guard,
+                recall_count: 0,
+            },
+            TrnmOpenRaLikeControlGroup {
+                owner: "Multi0",
+                group_id: "17",
+                actor_ids: vec![
+                    "multi0.group.validation.runner".to_string(),
+                    "multi0.command.core".to_string(),
+                ],
+                focus_tile: (21, 29),
                 stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
@@ -48251,6 +48343,180 @@ fn classic_openra_like_queue_group_order(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_openra_like_order_rejection_reason(
+    world: &TrnmOpenRaLikeWorld,
+    owner: &str,
+    actor_id: &str,
+    order: TrnmOpenRaLikeOrder,
+) -> Option<String> {
+    let actor_index = match world.actors.iter().position(|actor| actor.id == actor_id) {
+        None => return Some("actor_missing".to_string()),
+        Some(actor_index) if world.actors[actor_index].owner != owner => {
+            return Some("owner_mismatch".to_string());
+        }
+        Some(actor_index) => actor_index,
+    };
+    let Some(actor_rule) = classic_openra_like_rule_for(world.actors[actor_index].rule_id) else {
+        return Some("rule_missing".to_string());
+    };
+
+    match order.kind {
+        TrnmOpenRaLikeOrderKind::Move => {
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Mobile) {
+                Some("trait_missing:mobile".to_string())
+            } else if !order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
+            {
+                Some("target_tile_out_of_bounds".to_string())
+            } else if !order.target_tile.is_some_and(|tile| {
+                classic_openra_like_pathfind_tiles(
+                    world,
+                    actor_id,
+                    world.actors[actor_index].tile,
+                    tile,
+                )
+                .is_some()
+            }) {
+                Some("path_unreachable".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::AttackMove => {
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Mobile) {
+                Some("trait_missing:mobile".to_string())
+            } else if !classic_openra_like_rule_has_trait_ref(
+                actor_rule,
+                TrnmOpenRaLikeTrait::Attack,
+            ) {
+                Some("trait_missing:attack".to_string())
+            } else if classic_openra_like_weapon_for(world.actors[actor_index].rule_id).is_none() {
+                Some("weapon_missing".to_string())
+            } else if !order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
+            {
+                Some("target_tile_out_of_bounds".to_string())
+            } else if !order.target_tile.is_some_and(|tile| {
+                classic_openra_like_pathfind_tiles(
+                    world,
+                    actor_id,
+                    world.actors[actor_index].tile,
+                    tile,
+                )
+                .is_some()
+            }) {
+                Some("path_unreachable".to_string())
+            } else {
+                None
+            }
+        }
+        TrnmOpenRaLikeOrderKind::Patrol => {
+            if !classic_openra_like_rule_has_trait_ref(actor_rule, TrnmOpenRaLikeTrait::Mobile) {
+                Some("trait_missing:mobile".to_string())
+            } else if !order
+                .target_tile
+                .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
+            {
+                Some("patrol_tile_out_of_bounds".to_string())
+            } else if !order.target_tile.is_some_and(|tile| {
+                classic_openra_like_pathfind_tiles(
+                    world,
+                    actor_id,
+                    world.actors[actor_index].tile,
+                    tile,
+                )
+                .is_some()
+            }) {
+                Some("path_unreachable".to_string())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_queue_group_order_checked(
+    world: &mut TrnmOpenRaLikeWorld,
+    owner: &'static str,
+    group_id: &'static str,
+    order: TrnmOpenRaLikeOrder,
+) -> usize {
+    let Some((group_index, pruned_actor_labels)) =
+        classic_openra_like_prune_control_group_members(world, owner, group_id)
+    else {
+        return 0;
+    };
+    if !pruned_actor_labels.is_empty() {
+        world.control_group_order_prune_count += 1;
+        world.control_group_order_pruned_actor_count += pruned_actor_labels.len() as u32;
+        world.event_log.push(format!(
+            "control_group_order_member_pruned:{owner}:{group_id}:{}",
+            pruned_actor_labels.join(",")
+        ));
+    }
+
+    let actor_ids = world.control_groups[group_index].actor_ids.clone();
+    let mut queued_count = 0_usize;
+    let mut rejected_count = 0_u32;
+    for actor_id in actor_ids {
+        if let Some(reason) =
+            classic_openra_like_order_rejection_reason(world, owner, &actor_id, order)
+        {
+            let target_label = order
+                .target_tile
+                .map(classic_openra_like_tile_id)
+                .unwrap_or_else(|| "none".to_string());
+            rejected_count += 1;
+            world.queued_order_reject_count += 1;
+            world.control_group_order_validation_reject_count += 1;
+            world.event_log.push(format!(
+                "queued_group_actor_order_rejected:{owner}:{group_id}:{actor_id}:{}:{reason}:{target_label}",
+                order.kind.as_str()
+            ));
+            continue;
+        }
+
+        let chain_index = world
+            .queued_orders
+            .iter()
+            .filter(|queued_order| {
+                queued_order.owner == owner
+                    && queued_order.group_id == group_id
+                    && queued_order.actor_id == actor_id
+            })
+            .map(|queued_order| queued_order.chain_index)
+            .max()
+            .map_or(0, |chain_index| chain_index + 1);
+        world.queued_orders.push(TrnmOpenRaLikeQueuedOrder {
+            owner,
+            group_id,
+            actor_id,
+            order,
+            chain_index,
+            formation_slot_index: None,
+            formation_anchor_tile: None,
+            issued_tick: world.tick,
+            executed_tick: None,
+            completed: false,
+            canceled: false,
+            reached: false,
+        });
+        queued_count += 1;
+    }
+
+    world.control_group_order_validation_count += 1;
+    world.event_log.push(format!(
+        "validated_queued_group_order:{owner}:{group_id}:{}:{queued_count}actors:{rejected_count}rejected",
+        order.kind.as_str()
+    ));
+    queued_count
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_queue_actor_order(
     world: &mut TrnmOpenRaLikeWorld,
     owner: &'static str,
@@ -48305,107 +48571,8 @@ fn classic_openra_like_queue_actor_order_checked(
     actor_id: &str,
     order: TrnmOpenRaLikeOrder,
 ) -> bool {
-    let rejection = match world.actors.iter().position(|actor| actor.id == actor_id) {
-        None => Some("actor_missing".to_string()),
-        Some(actor_index) if world.actors[actor_index].owner != owner => {
-            Some("owner_mismatch".to_string())
-        }
-        Some(actor_index) => {
-            let Some(actor_rule) = classic_openra_like_rule_for(world.actors[actor_index].rule_id)
-            else {
-                return false;
-            };
-            match order.kind {
-                TrnmOpenRaLikeOrderKind::Move => {
-                    if !classic_openra_like_rule_has_trait_ref(
-                        actor_rule,
-                        TrnmOpenRaLikeTrait::Mobile,
-                    ) {
-                        Some("trait_missing:mobile".to_string())
-                    } else if !order
-                        .target_tile
-                        .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
-                    {
-                        Some("target_tile_out_of_bounds".to_string())
-                    } else if !order.target_tile.is_some_and(|tile| {
-                        classic_openra_like_pathfind_tiles(
-                            world,
-                            actor_id,
-                            world.actors[actor_index].tile,
-                            tile,
-                        )
-                        .is_some()
-                    }) {
-                        Some("path_unreachable".to_string())
-                    } else {
-                        None
-                    }
-                }
-                TrnmOpenRaLikeOrderKind::AttackMove => {
-                    if !classic_openra_like_rule_has_trait_ref(
-                        actor_rule,
-                        TrnmOpenRaLikeTrait::Mobile,
-                    ) {
-                        Some("trait_missing:mobile".to_string())
-                    } else if !classic_openra_like_rule_has_trait_ref(
-                        actor_rule,
-                        TrnmOpenRaLikeTrait::Attack,
-                    ) {
-                        Some("trait_missing:attack".to_string())
-                    } else if classic_openra_like_weapon_for(world.actors[actor_index].rule_id)
-                        .is_none()
-                    {
-                        Some("weapon_missing".to_string())
-                    } else if !order
-                        .target_tile
-                        .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
-                    {
-                        Some("target_tile_out_of_bounds".to_string())
-                    } else if !order.target_tile.is_some_and(|tile| {
-                        classic_openra_like_pathfind_tiles(
-                            world,
-                            actor_id,
-                            world.actors[actor_index].tile,
-                            tile,
-                        )
-                        .is_some()
-                    }) {
-                        Some("path_unreachable".to_string())
-                    } else {
-                        None
-                    }
-                }
-                TrnmOpenRaLikeOrderKind::Patrol => {
-                    if !classic_openra_like_rule_has_trait_ref(
-                        actor_rule,
-                        TrnmOpenRaLikeTrait::Mobile,
-                    ) {
-                        Some("trait_missing:mobile".to_string())
-                    } else if !order
-                        .target_tile
-                        .is_some_and(|tile| classic_openra_like_tile_in_bounds(world, tile))
-                    {
-                        Some("patrol_tile_out_of_bounds".to_string())
-                    } else if !order.target_tile.is_some_and(|tile| {
-                        classic_openra_like_pathfind_tiles(
-                            world,
-                            actor_id,
-                            world.actors[actor_index].tile,
-                            tile,
-                        )
-                        .is_some()
-                    }) {
-                        Some("path_unreachable".to_string())
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            }
-        }
-    };
-
-    if let Some(reason) = rejection {
+    if let Some(reason) = classic_openra_like_order_rejection_reason(world, owner, actor_id, order)
+    {
         let target_label = order
             .target_tile
             .map(classic_openra_like_tile_id)
