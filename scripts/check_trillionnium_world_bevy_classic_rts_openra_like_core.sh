@@ -204,6 +204,12 @@ jq -e '
   and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "16" and (.actor_ids | length) == 1 and ((.actor_ids | index("multi0.formation.prune.runner")) != null) and ((.actor_ids | index("multi0.formation.prune.missing")) == null) and ((.actor_ids | index("map.actor1")) == null))
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "16" and .actor_id == "multi0.formation.prune.runner" and .order == "move" and .target_tile.x == 24 and .target_tile.y == 31 and .formation_slot_index == 0 and .formation_anchor_tile.x == 24 and .formation_anchor_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and ([.snapshot.queued_orders[] | select(.group_id == "16" and (.actor_id == "multi0.formation.prune.missing" or .actor_id == "map.actor1"))] | length) == 0
+  and .simulation.control_group_formation_validation_count >= 1
+  and .simulation.control_group_formation_validation_reject_count >= 1
+  and .simulation.control_group_formation_validation_gate == true
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "18" and (.actor_ids | length) == 2 and ((.actor_ids | index("multi0.formation.validation.runner")) != null) and ((.actor_ids | index("multi0.command.core")) != null))
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "18" and .actor_id == "multi0.formation.validation.runner" and .order == "move" and .target_tile.x == 26 and .target_tile.y == 31 and .formation_slot_index == 0 and .formation_anchor_tile.x == 26 and .formation_anchor_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
+  and ([.snapshot.queued_orders[] | select(.group_id == "18" and .actor_id == "multi0.command.core")] | length) == 0
   and .simulation.queued_order_count >= 17
   and .simulation.queued_order_execute_count >= 14
   and .simulation.queued_order_cancel_count >= 2
@@ -211,7 +217,7 @@ jq -e '
   and .simulation.queued_order_chain_reach_count >= 2
   and .simulation.queued_order_override_count >= 1
   and .simulation.queued_order_override_cleared_count >= 2
-  and .simulation.queued_order_reject_count >= 2
+  and .simulation.queued_order_reject_count >= 3
   and .simulation.completed_queued_order_count >= 14
   and .simulation.canceled_queued_order_count >= 4
   and .simulation.queued_order_cancel_gate == true
@@ -398,6 +404,10 @@ jq -e '
   and any(.simulation.event_log[]; contains("control_group_stance_actor_sync:Multi0:15:multi0.stance.prune.runner:guard->aggressive"))
   and any(.simulation.event_log[]; contains("control_group_stance_change:Multi0:15:guard->aggressive:1actors"))
   and any(.simulation.event_log[]; contains("control_group_formation_member_pruned:Multi0:16:multi0.formation.prune.missing,foreign:map.actor1"))
+  and any(.simulation.event_log[]; contains("formation_group_actor_order_rejected:Multi0:18:multi0.command.core:move:trait_missing:mobile:26,31"))
+  and any(.simulation.event_log[]; contains("validated_formation_group_order:Multi0:18:26,31:1slots:1rejected"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:18:multi0.formation.validation.runner:slot0:26,31->26,31"))
+  and any(.simulation.event_log[]; contains("formation_move_reached:18:multi0.formation.validation.runner:26,31"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:1:move"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:14:move:1actors"))
   and any(.simulation.event_log[]; contains("queued_group_order:Multi0:4:move"))
@@ -517,6 +527,7 @@ jq -e '
   and .gates.control_group_order_validation_gate == true
   and .gates.control_group_stance_prune_gate == true
   and .gates.control_group_formation_prune_gate == true
+  and .gates.control_group_formation_validation_gate == true
   and .gates.queued_order_cancel_gate == true
   and .gates.queued_order_chain_gate == true
   and .gates.queued_order_override_gate == true
