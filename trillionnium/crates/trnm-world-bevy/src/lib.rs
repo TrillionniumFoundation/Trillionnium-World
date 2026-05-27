@@ -17436,6 +17436,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
     );
     classic_first_contact_openra_like_core_tick_for(&mut world, 180);
     classic_openra_like_recall_control_group(&mut world, "Multi0", "1");
+    classic_openra_like_recall_control_group(&mut world, "Multi0", "11");
     classic_openra_like_queue_group_order(
         &mut world,
         "Multi0",
@@ -18338,6 +18339,21 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             && group.actor_ids.len() >= 3
             && group.recall_count > 0
     });
+    let control_group_member_prune_gate = world.control_group_prune_count >= 1
+        && world.control_group_pruned_actor_count >= 2
+        && world.control_groups.iter().any(|group| {
+            group.owner == "Multi0"
+                && group.group_id == "11"
+                && group.recall_count > 0
+                && group.focus_tile == (13, 31)
+                && group.actor_ids.len() == 1
+                && group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.queue.reject.runner")
+        }) && world.event_log.iter().any(|event| {
+        event == "control_group_member_pruned:Multi0:11:multi0.missing.member,foreign:map.actor1"
+    });
     let control_group_stance_broadcast_gate = world.control_group_stance_change_count >= 1
         && world.control_group_stance_actor_sync_count >= 1
         && world.control_groups.iter().any(|group| {
@@ -18856,6 +18872,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         "harvest_resume",
         "harvest_cycle_complete",
         "control_group_recall",
+        "control_group_member_pruned",
         "control_group_stance_change",
         "control_group_stance_actor_sync",
         "queued_group_order",
@@ -18976,6 +18993,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && stance_behavior_gate
         && repair_gate
         && control_group_gate
+        && control_group_member_prune_gate
         && control_group_stance_broadcast_gate
         && queued_order_gate
         && formation_move_gate
@@ -19134,6 +19152,9 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "repaired_relay_max_hp": repaired_relay_max_hp,
             "multi1_command_core_removed": world.actors.iter().all(|actor| actor.id != "multi1.command.core"),
             "control_group_count": world.control_groups.len(),
+            "control_group_prune_count": world.control_group_prune_count,
+            "control_group_pruned_actor_count": world.control_group_pruned_actor_count,
+            "control_group_member_prune_gate": control_group_member_prune_gate,
             "control_group_stance_change_count": world.control_group_stance_change_count,
             "control_group_stance_actor_sync_count": world.control_group_stance_actor_sync_count,
             "control_group_stance_broadcast_gate": control_group_stance_broadcast_gate,
@@ -19292,6 +19313,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "repair_command_gate": repair_command_gate,
             "repair_gate": repair_gate,
             "control_group_gate": control_group_gate,
+            "control_group_member_prune_gate": control_group_member_prune_gate,
             "control_group_stance_broadcast_gate": control_group_stance_broadcast_gate,
             "queued_order_cancel_gate": queued_order_cancel_gate,
             "queued_order_chain_gate": queued_order_chain_gate,
@@ -19308,7 +19330,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "source_policy_gate": source_policy_gate,
         },
         "snapshot": classic_openra_like_world_snapshot_json(&world),
-        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation/refund, manual production hold/resume, production rally retarget validation, production queue waiting and priority promotion, spawn exits, rally orders, rally-focused control-group assignment for produced reinforcements, control-group stance broadcasts to existing group members, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
+        "source_of_truth": "This Rust/Bevy-owned OpenRA-like RTS core for First Contact Basin now includes map templates, rules/traits, actor state, finite resource node depletion, harvester return-cargo dropoff loops, order legality resolution, build placement occupancy rejection, cell occupancy/pathfinding, per-tick path reservation for same-cell movement collision avoidance, traffic deadlock recovery for head-on unit exchanges with yield and resume, traffic stuck-timeout recovery for long-blocked movers with blocker side-step and resumed traversal, attack-move engagement while advancing, patrol route turns, focus-fire target locks, target-priority acquisition, stop-order cancellation back to hold, stance behavior for hold-fire suppression, guard leash holding, and aggressive pursuit, producer-bound training completion, production queue cancellation/refund, manual production hold/resume, production rally retarget validation, production queue waiting and priority promotion, spawn exits, rally orders, rally-focused control-group assignment for produced reinforcements, control-group member pruning on recall, control-group stance broadcasts to existing group members, producer queue restrictions, completed-building tech prerequisites, supply cap constraints, power draw/provider accounting with low-power production pause and recovery, weapon range/cooldown/damage resolution, fog and range attack rejection, kill/removal, veteran kill credit, rank-up, and rank-based damage bonuses, guard-stance auto target acquisition, worker repair orders with resource spend and structure HP restoration, core control groups, queued group orders, queued-order cancellation, chained queued waypoints, immediate-order queued waypoint override, queued actor-order validation with unreachable waypoint rejection before execution, formation-move slot assignment with unique destination slots and blocked-slot reassignment, local obstruction recovery with same-owner block detection, queued hold, side-step gap opening, gap claim, and flow resume, production/resource spending, path-to-objective capture with contested pause/resume, completion ownership transfer, and objective income, combat damage, deterministic ticks, and native shroud/vision memory. It uses Trillionnium-owned mod data as source vocabulary and does not copy OpenRA engine code."
     }))
     .expect("openra-like core evidence serializes")
 }
@@ -44908,6 +44930,8 @@ struct TrnmOpenRaLikeWorld {
     production_queue_promote_reject_count: u32,
     production_control_group_assign_count: u32,
     production_control_group_stance_sync_count: u32,
+    control_group_prune_count: u32,
+    control_group_pruned_actor_count: u32,
     control_group_stance_change_count: u32,
     control_group_stance_actor_sync_count: u32,
     harvested_resource_amount: u32,
@@ -46618,6 +46642,8 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         production_queue_promote_reject_count: 0,
         production_control_group_assign_count: 0,
         production_control_group_stance_sync_count: 0,
+        control_group_prune_count: 0,
+        control_group_pruned_actor_count: 0,
         control_group_stance_change_count: 0,
         control_group_stance_actor_sync_count: 0,
         harvested_resource_amount: 0,
@@ -46720,6 +46746,18 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.reservation.wing".to_string(),
                 ],
                 focus_tile: (2, 4),
+                stance: TrnmOpenRaLikeStance::Guard,
+                recall_count: 0,
+            },
+            TrnmOpenRaLikeControlGroup {
+                owner: "Multi0",
+                group_id: "11",
+                actor_ids: vec![
+                    "multi0.queue.reject.runner".to_string(),
+                    "multi0.missing.member".to_string(),
+                    "map.actor1".to_string(),
+                ],
+                focus_tile: (13, 31),
                 stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
@@ -47786,17 +47824,56 @@ fn classic_openra_like_recall_control_group(
     owner: &'static str,
     group_id: &'static str,
 ) -> bool {
-    let Some(group) = world
+    let Some(group_index) = world
         .control_groups
-        .iter_mut()
-        .find(|group| group.owner == owner && group.group_id == group_id)
+        .iter()
+        .position(|group| group.owner == owner && group.group_id == group_id)
     else {
         return false;
     };
+    let (valid_actor_ids, pruned_actor_ids): (Vec<_>, Vec<_>) = world.control_groups[group_index]
+        .actor_ids
+        .iter()
+        .cloned()
+        .partition(|actor_id| {
+            world
+                .actors
+                .iter()
+                .any(|actor| actor.owner == owner && actor.id == *actor_id)
+        });
+    let pruned_actor_labels = pruned_actor_ids
+        .iter()
+        .map(|actor_id| {
+            if world
+                .actors
+                .iter()
+                .any(|actor| actor.owner != owner && actor.id == *actor_id)
+            {
+                format!("foreign:{actor_id}")
+            } else {
+                actor_id.clone()
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let group = &mut world.control_groups[group_index];
+    if !pruned_actor_ids.is_empty() {
+        group.actor_ids = valid_actor_ids;
+        world.control_group_prune_count += 1;
+        world.control_group_pruned_actor_count += pruned_actor_ids.len() as u32;
+        world.event_log.push(format!(
+            "control_group_member_pruned:{owner}:{group_id}:{}",
+            pruned_actor_labels.join(",")
+        ));
+    }
     let mut focus_sum = (0_i32, 0_i32);
     let mut focus_count = 0_i32;
     for actor_id in &group.actor_ids {
-        if let Some(actor) = world.actors.iter().find(|actor| actor.id == *actor_id) {
+        if let Some(actor) = world
+            .actors
+            .iter()
+            .find(|actor| actor.owner == owner && actor.id == *actor_id)
+        {
             focus_sum.0 += actor.tile.0;
             focus_sum.1 += actor.tile.1;
             focus_count += 1;
