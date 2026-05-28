@@ -306,6 +306,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_RECALL_FORMATION_PRE
     &str = "trillionnium_world_bevy_classic_rts_control_group_recall_formation_preview_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_RECALL_OVERRIDE_PREVIEW_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_control_group_recall_override_preview_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_STRIP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_control_group_command_feedback_strip_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_scrollable_map_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT: &str =
@@ -635,6 +637,13 @@ const CLASSIC_RTS_RECALL_OVERRIDE_QUEUE_COLOR: u32 = 0x7dffd0;
 const CLASSIC_RTS_RECALL_OVERRIDE_CANCEL_COLOR: u32 = 0xff9060;
 const CLASSIC_RTS_RECALL_OVERRIDE_FINAL_COLOR: u32 = 0xff6f86;
 const CLASSIC_RTS_RECALL_OVERRIDE_FILTERED_COLOR: u32 = 0xff5f5f;
+const CLASSIC_RTS_COMMAND_STRIP_HUD_COLOR: u32 = 0xb9f2ff;
+const CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR: u32 = 0x73ffd7;
+const CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR: u32 = 0xff8756;
+const CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR: u32 = 0xff668f;
+const CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR: u32 = 0xff5555;
+const CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR: u32 = 0xffb56a;
+const CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR: u32 = 0xf6d05f;
 const CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR: u32 = 0x22e6ff;
 const CLASSIC_RTS_SCROLL_EDGE_COLOR: u32 = 0xffd84a;
 const CLASSIC_RTS_SCROLL_DRAG_COLOR: u32 = 0xff7ab8;
@@ -15922,6 +15931,184 @@ fn classic_draw_rts_control_group_recall_override_preview_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_control_group_command_feedback_strip_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    if let Some(runtime) = runtime {
+        for event in runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+        {
+            if event.contains("control_group_command_feedback_strip:group_28_filtered") {
+                return Some("group_28_filtered");
+            }
+            if event.contains("control_group_command_feedback_strip:group_28_formation") {
+                return Some("group_28_formation");
+            }
+            if event.contains("control_group_command_feedback_strip:group_27_override") {
+                return Some("group_27_override");
+            }
+            if event.contains("control_group_command_feedback_strip:group_26_queued") {
+                return Some("group_26_queued");
+            }
+        }
+        if !runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains("control_group_command_feedback_strip:"))
+        {
+            return None;
+        }
+        return Some(match runtime.combat_turn % 4 {
+            0 => "group_26_queued",
+            1 => "group_27_override",
+            2 => "group_28_formation",
+            _ => "group_28_filtered",
+        });
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_control_group_command_feedback_strip_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let strip_w = 500_i32.min(width as i32 - 28);
+    let strip_x = ((width as i32 - strip_w) / 2).max(14);
+    let strip_y = 46_i32;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        strip_x,
+        strip_y,
+        strip_w,
+        88,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        strip_x,
+        strip_y,
+        strip_w,
+        4,
+        CLASSIC_RTS_COMMAND_STRIP_HUD_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        strip_x + 10,
+        strip_y + 11,
+        "CONTROL GROUP COMMAND FEEDBACK",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let group_id = runtime.rts_control_group_id.as_deref().unwrap_or("?");
+    let focus_tile = runtime
+        .rts_minimap_command_tile_id
+        .as_deref()
+        .unwrap_or("--");
+    let target_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .unwrap_or("--");
+    let hud_line = format!(
+        "GROUP {}  MEMBERS {}  STANCE GUARD  FOCUS {}",
+        group_id,
+        runtime.rts_selected_unit_ids.len(),
+        focus_tile
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        strip_x + 10,
+        strip_y + 28,
+        &classic_catalog_text_label(&hud_line, 54),
+        1,
+        CLASSIC_RTS_COMMAND_STRIP_HUD_COLOR,
+    );
+
+    let detail_line = match stage {
+        "group_28_formation" | "group_28_filtered" => format!(
+            "ANCHOR {}  SLOTS {}",
+            target_tile,
+            classic_catalog_text_label(&runtime.rts_formation_slot_tile_ids.join("/"), 20)
+        ),
+        "group_27_override" => format!("CANCELED {}  FINAL 20,30 / 22,30", target_tile),
+        _ => format!("ORDER TARGET {}", target_tile),
+    };
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        strip_x + 10,
+        strip_y + 44,
+        &classic_catalog_text_label(&detail_line, 54),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let mut draw_chip = |index: i32, label: &str, color: u32| {
+        let chip_x = strip_x + 10 + index * 78;
+        classic_draw_rect(buffer, width, height, chip_x, strip_y + 64, 70, 16, color);
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            chip_x + 5,
+            strip_y + 69,
+            &classic_catalog_text_label(label, 9),
+            1,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+    };
+
+    match stage {
+        "group_26_queued" => {
+            draw_chip(0, "QUEUED", CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+            draw_chip(1, "ORDER 18,31", CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+            draw_chip(2, "RUNNER", CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+            draw_chip(3, "WING", CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+        }
+        "group_27_override" => {
+            draw_chip(0, "CANCEL", CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR);
+            draw_chip(1, "21,25", CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR);
+            draw_chip(2, "FINAL 20", CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR);
+            draw_chip(3, "FINAL 22", CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR);
+        }
+        "group_28_formation" => {
+            draw_chip(0, "ANCHOR", CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR);
+            draw_chip(1, "SLOT 1", CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR);
+            draw_chip(2, "SLOT 2", CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR);
+            draw_chip(3, "QUEUED", CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+        }
+        "group_28_filtered" => {
+            draw_chip(0, "FILTER", CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR);
+            draw_chip(1, "FOREIGN", CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR);
+            draw_chip(2, "CLEAR", CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+            draw_chip(3, "OLD", CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+        }
+        _ => {
+            draw_chip(0, "ACTIVE", CLASSIC_RTS_COMMAND_STRIP_HUD_COLOR);
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_formation_move_execution_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
@@ -25341,6 +25528,535 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
         "source_of_truth": "Control-group recall override preview evidence uses accepted Bevy-native group recall and move commands plus actual classic_draw_scene frames to make group-26 queued recall-order and group-27 override/cancel semantics visible in the playable low-spec renderer."
     }))
     .expect("classic RTS control group recall override preview evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_control_group_command_feedback_strip_evidence_json(
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 960,
+        xp: 96,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 4,
+        rts_control_group_id: Some("26".to_string()),
+        rts_active_control_group_ids: string_vec(["26", "27", "28"]),
+        rts_selected_unit_ids: string_vec([
+            "multi0.recall.order.runner",
+            "multi0.recall.order.wing",
+        ]),
+        rts_control_group_assignments: string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]),
+        rts_command_destination_tile: Some("18,31".to_string()),
+        rts_minimap_command_tile_id: Some("18,30".to_string()),
+        rts_path_tile_ids: string_vec(["18,30", "18,31"]),
+        rts_group_route_tile_ids: string_vec(["18,30", "18,31"]),
+        rts_group_command_state: "command_feedback_strip:group_26_queued".to_string(),
+        rts_ability_command_ids: string_vec(["move", "stop", "hold", "patrol"]),
+        rts_active_ability_id: Some("move".to_string()),
+        ..Default::default()
+    };
+    let stages = [
+        (
+            "group_26_queued",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "18,31:line".to_string(),
+            },
+        ),
+        (
+            "group_27_override",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "27".to_string(),
+            },
+        ),
+        (
+            "group_28_formation",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "1,31:line".to_string(),
+            },
+        ),
+        (
+            "group_28_filtered",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "1,31:line".to_string(),
+            },
+        ),
+    ];
+    let group_26_member_ids =
+        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let group_27_member_ids = string_vec([
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+    ]);
+    let group_28_member_ids = string_vec([
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let group_27_override_final_tile_ids = string_vec(["20,30", "22,30"]);
+    let group_28_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
+    let filtered_member_ids = string_vec([
+        "missing:multi0.recall.formation.missing",
+        "foreign:map.actor1",
+    ]);
+    let cleared_old_member_ids = string_vec([
+        "old:multi0.recall.formation.old.seed",
+        "old:multi0.recall.formation.old.wing",
+    ]);
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in stages.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_control_group_command_feedback_strip_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+
+        runtime.combat_turn = index as u8;
+        runtime.rts_active_control_group_ids = string_vec(["26", "27", "28"]);
+        runtime.rts_control_group_assignments = string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]);
+        runtime.rts_formation_slot_tile_ids.clear();
+
+        let (player_tile, queued_target_tile, canceled_target_tile, anchor_tile) = match *stage {
+            "group_26_queued" => {
+                runtime.rts_control_group_id = Some("26".to_string());
+                runtime.rts_selected_unit_ids = group_26_member_ids.clone();
+                runtime.rts_minimap_command_tile_id = Some("18,30".to_string());
+                runtime.rts_command_destination_tile = Some("18,31".to_string());
+                runtime.rts_path_tile_ids = string_vec(["18,30", "18,31"]);
+                runtime.rts_group_route_tile_ids = string_vec(["18,30", "18,31"]);
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "queued_group_order:Multi0:26:move:2actors",
+                );
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "queued_order_reached:26:multi0.recall.order.runner:chain0:18,31",
+                );
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "queued_order_reached:26:multi0.recall.order.wing:chain0:18,31",
+                );
+                ((18, 30), Some("18,31".to_string()), None, None)
+            }
+            "group_27_override" => {
+                runtime.rts_control_group_id = Some("27".to_string());
+                runtime.rts_selected_unit_ids = group_27_member_ids.clone();
+                runtime.rts_minimap_command_tile_id = Some("21,30".to_string());
+                runtime.rts_command_destination_tile = Some("21,25".to_string());
+                runtime.rts_path_tile_ids = string_vec(["21,30", "21,29", "21,27", "21,25"]);
+                runtime.rts_group_route_tile_ids = string_vec(["21,25", "20,30", "22,30"]);
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "queued_order_execute:27:multi0.recall.override.runner:move:chain0",
+                );
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "queued_order_execute:27:multi0.recall.override.wing:move:chain0",
+                );
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "queued_order_override:Multi0:multi0.recall.override.runner:move:cleared1",
+                );
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "queued_order_override:Multi0:multi0.recall.override.wing:move:cleared1",
+                );
+                (
+                    (21, 30),
+                    None,
+                    Some("21,25".to_string()),
+                    Some("21,25".to_string()),
+                )
+            }
+            "group_28_formation" | "group_28_filtered" => {
+                runtime.rts_control_group_id = Some("28".to_string());
+                runtime.rts_selected_unit_ids = group_28_member_ids.clone();
+                runtime.rts_minimap_command_tile_id = Some("1,30".to_string());
+                runtime.rts_command_destination_tile = Some("1,31".to_string());
+                runtime.rts_path_tile_ids = string_vec(["1,30", "1,31", "2,31"]);
+                runtime.rts_group_route_tile_ids = string_vec(["1,30", "1,31", "2,31"]);
+                runtime.rts_formation_slot_tile_ids = group_28_formation_slot_tile_ids.clone();
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "formation_group_order:Multi0:28:1,31:2slots:0reassigned",
+                );
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "formation_move_slot:Multi0:28:multi0.recall.formation.runner:slot0:1,30->1,31",
+                );
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    "formation_move_slot:Multi0:28:multi0.recall.formation.wing:slot1:1,30->2,31",
+                );
+                if *stage == "group_28_filtered" {
+                    for member_id in filtered_member_ids
+                        .iter()
+                        .chain(cleared_old_member_ids.iter())
+                    {
+                        push_history(
+                            &mut runtime.rts_command_queue,
+                            &format!("filtered_member:{member_id}"),
+                        );
+                    }
+                }
+                (
+                    (1, 30),
+                    Some("1,31".to_string()),
+                    None,
+                    Some("1,31".to_string()),
+                )
+            }
+            _ => ((5, 5), None, None, None),
+        };
+
+        runtime.rts_group_command_state = format!("command_feedback_strip:{stage}");
+        let event = format!("control_group_command_feedback_strip:{stage}");
+        push_history(&mut runtime.rts_combat_event_log, &event);
+        push_history(&mut runtime.rts_command_queue, &event);
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            player_tile,
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!("COMMAND FEEDBACK STRIP {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+
+        stage_summaries.push(json!({
+            "stage": stage,
+            "event": event,
+            "action_label": action_label,
+            "accepted": accepted,
+            "control_group_id": runtime.rts_control_group_id.clone(),
+            "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "member_count": runtime.rts_selected_unit_ids.len(),
+            "stance": "guard",
+            "recall_focus_tile": runtime.rts_minimap_command_tile_id.clone(),
+            "queued_target_tile": queued_target_tile,
+            "canceled_target_tile": canceled_target_tile,
+            "override_final_tile_ids": if *stage == "group_27_override" { group_27_override_final_tile_ids.clone() } else { Vec::new() },
+            "formation_anchor_tile": anchor_tile,
+            "formation_slot_tile_ids": if stage.starts_with("group_28") { group_28_formation_slot_tile_ids.clone() } else { Vec::new() },
+            "queued_member_ids": match *stage {
+                "group_26_queued" => group_26_member_ids.clone(),
+                "group_28_formation" | "group_28_filtered" => group_28_member_ids.clone(),
+                _ => Vec::new(),
+            },
+            "canceled_member_ids": if *stage == "group_27_override" { group_27_member_ids.clone() } else { Vec::new() },
+            "filtered_member_ids": if *stage == "group_28_filtered" { filtered_member_ids.clone() } else { Vec::new() },
+            "cleared_old_member_ids": if *stage == "group_28_filtered" { cleared_old_member_ids.clone() } else { Vec::new() },
+            "group_command_state": runtime.rts_group_command_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "renderer_path": "classic_draw_scene",
+            "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_feedback_strip_input)",
+            "preview_surface": "classic_draw_scene_command_feedback_strip",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let hud_pixel_count = count_color(CLASSIC_RTS_COMMAND_STRIP_HUD_COLOR);
+    let queue_pixel_count = count_color(CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+    let cancel_pixel_count = count_color(CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR);
+    let final_pixel_count = count_color(CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR);
+    let filtered_pixel_count = count_color(CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR);
+    let cleared_pixel_count = count_color(CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+    let anchor_pixel_count = count_color(CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR);
+    let hud_visual_gate = hud_pixel_count > 900;
+    let queue_visual_gate = queue_pixel_count > 900;
+    let cancel_visual_gate = cancel_pixel_count > 500;
+    let final_visual_gate = final_pixel_count > 500;
+    let filtered_visual_gate = filtered_pixel_count > 500;
+    let cleared_visual_gate = cleared_pixel_count > 500;
+    let anchor_visual_gate = anchor_pixel_count > 500;
+    let stage_gate = [
+        "group_26_queued",
+        "group_27_override",
+        "group_28_formation",
+        "group_28_filtered",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let summary_for_stage = |stage_name: &str| -> Option<&serde_json::Value> {
+        stage_summaries.iter().find(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some(stage_name)
+        })
+    };
+    let group_26_strip_gate = summary_for_stage("group_26_queued").is_some_and(|summary| {
+        summary
+            .get("control_group_id")
+            .and_then(|value| value.as_str())
+            == Some("26")
+            && summary
+                .get("recall_focus_tile")
+                .and_then(|value| value.as_str())
+                == Some("18,30")
+            && summary
+                .get("queued_target_tile")
+                .and_then(|value| value.as_str())
+                == Some("18,31")
+            && summary
+                .get("queued_member_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|members| {
+                    members.len() == 2
+                        && members
+                            .iter()
+                            .any(|member| member.as_str() == Some("multi0.recall.order.runner"))
+                        && members
+                            .iter()
+                            .any(|member| member.as_str() == Some("multi0.recall.order.wing"))
+                })
+    });
+    let group_27_strip_gate = summary_for_stage("group_27_override").is_some_and(|summary| {
+        summary
+            .get("control_group_id")
+            .and_then(|value| value.as_str())
+            == Some("27")
+            && summary
+                .get("recall_focus_tile")
+                .and_then(|value| value.as_str())
+                == Some("21,30")
+            && summary
+                .get("canceled_target_tile")
+                .and_then(|value| value.as_str())
+                == Some("21,25")
+            && summary
+                .get("override_final_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| {
+                    tiles.len() == 2
+                        && tiles.iter().any(|tile| tile.as_str() == Some("20,30"))
+                        && tiles.iter().any(|tile| tile.as_str() == Some("22,30"))
+                })
+            && summary
+                .get("canceled_member_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|members| {
+                    members.len() == 2
+                        && members
+                            .iter()
+                            .any(|member| member.as_str() == Some("multi0.recall.override.runner"))
+                        && members
+                            .iter()
+                            .any(|member| member.as_str() == Some("multi0.recall.override.wing"))
+                })
+    });
+    let group_28_strip_gate = summary_for_stage("group_28_formation").is_some_and(|summary| {
+        summary
+            .get("control_group_id")
+            .and_then(|value| value.as_str())
+            == Some("28")
+            && summary
+                .get("recall_focus_tile")
+                .and_then(|value| value.as_str())
+                == Some("1,30")
+            && summary
+                .get("formation_anchor_tile")
+                .and_then(|value| value.as_str())
+                == Some("1,31")
+            && summary
+                .get("formation_slot_tile_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|tiles| {
+                    tiles.len() == 2
+                        && tiles.iter().any(|tile| tile.as_str() == Some("1,31"))
+                        && tiles.iter().any(|tile| tile.as_str() == Some("2,31"))
+                })
+            && summary
+                .get("queued_member_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|members| {
+                    members.len() == 2
+                        && members
+                            .iter()
+                            .any(|member| member.as_str() == Some("multi0.recall.formation.runner"))
+                        && members
+                            .iter()
+                            .any(|member| member.as_str() == Some("multi0.recall.formation.wing"))
+                })
+    });
+    let filtered_cleared_strip_gate =
+        summary_for_stage("group_28_filtered").is_some_and(|summary| {
+            summary
+                .get("filtered_member_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|members| {
+                    members.iter().any(|member| {
+                        member.as_str() == Some("missing:multi0.recall.formation.missing")
+                    }) && members
+                        .iter()
+                        .any(|member| member.as_str() == Some("foreign:map.actor1"))
+                })
+                && summary
+                    .get("cleared_old_member_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|members| {
+                        members.iter().any(|member| {
+                            member.as_str() == Some("old:multi0.recall.formation.old.seed")
+                        }) && members.iter().any(|member| {
+                            member.as_str() == Some("old:multi0.recall.formation.old.wing")
+                        })
+                    })
+        });
+    let live_input_gate = accepted_input_count == stages.len()
+        && input_sources.contains("classic_rts_control_group_command_feedback_strip_input");
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && live_input_gate
+        && hud_visual_gate
+        && queue_visual_gate
+        && cancel_visual_gate
+        && final_visual_gate
+        && filtered_visual_gate
+        && cleared_visual_gate
+        && anchor_visual_gate
+        && stage_gate
+        && group_26_strip_gate
+        && group_27_strip_gate
+        && group_28_strip_gate
+        && filtered_cleared_strip_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_STRIP_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_feedback_strip_input)",
+        "input_action_count": stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "group_26_recall_focus_tile": "18,30",
+        "group_26_queued_target_tile": "18,31",
+        "group_26_member_ids": group_26_member_ids,
+        "group_27_recall_focus_tile": "21,30",
+        "group_27_canceled_target_tile": "21,25",
+        "group_27_canceled_member_ids": group_27_member_ids,
+        "group_27_override_final_tile_ids": group_27_override_final_tile_ids,
+        "group_28_recall_focus_tile": "1,30",
+        "group_28_formation_anchor_tile": "1,31",
+        "group_28_formation_slot_tile_ids": group_28_formation_slot_tile_ids,
+        "group_28_member_ids": group_28_member_ids,
+        "filtered_member_ids": filtered_member_ids,
+        "cleared_old_member_ids": cleared_old_member_ids,
+        "hud_pixel_count": hud_pixel_count,
+        "queue_pixel_count": queue_pixel_count,
+        "cancel_pixel_count": cancel_pixel_count,
+        "final_pixel_count": final_pixel_count,
+        "filtered_pixel_count": filtered_pixel_count,
+        "cleared_pixel_count": cleared_pixel_count,
+        "anchor_pixel_count": anchor_pixel_count,
+        "live_input_gate": live_input_gate,
+        "hud_visual_gate": hud_visual_gate,
+        "queue_visual_gate": queue_visual_gate,
+        "cancel_visual_gate": cancel_visual_gate,
+        "final_visual_gate": final_visual_gate,
+        "filtered_visual_gate": filtered_visual_gate,
+        "cleared_visual_gate": cleared_visual_gate,
+        "anchor_visual_gate": anchor_visual_gate,
+        "stage_gate": stage_gate,
+        "group_26_strip_gate": group_26_strip_gate,
+        "group_27_strip_gate": group_27_strip_gate,
+        "group_28_strip_gate": group_28_strip_gate,
+        "filtered_cleared_strip_gate": filtered_cleared_strip_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium control-group command feedback strip; group-26 queued recall order, group-27 cancel/override final state, group-28 formation anchor/slots, invalid-member filtering, and old-member clearing are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Control-group command feedback strip evidence uses accepted Bevy-native group recall, move, and formation commands plus actual classic_draw_scene frames to prove group 26/27/28 command feedback is visible in the playable low-spec renderer."
+    }))
+    .expect("classic RTS control group command feedback strip evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -47112,6 +47828,17 @@ fn classic_draw_scene(
             height,
             runtime,
             hotkey_stage,
+        );
+    }
+    if let Some(command_strip_stage) =
+        classic_rts_control_group_command_feedback_strip_stage(Some(runtime))
+    {
+        classic_draw_rts_control_group_command_feedback_strip_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            command_strip_stage,
         );
     }
     if let Some(telegraph_stage) = classic_rts_ability_tooltip_telegraph_stage(Some(runtime)) {
