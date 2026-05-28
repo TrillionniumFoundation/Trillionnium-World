@@ -163,7 +163,7 @@ jq -e '
   and .simulation.stance_guard_leash_hold_count > 0
   and .simulation.stance_aggressive_pursuit_count > 0
   and .simulation.stance_aggressive_hit_count > 0
-  and .simulation.hold_fire_target_hp == .simulation.hold_fire_target_initial_hp
+  and .simulation.hold_fire_suppressed_target_hp == .simulation.hold_fire_target_initial_hp
   and .simulation.guard_stance_tile.x == 21
   and .simulation.guard_stance_tile.y == 16
   and (.simulation.aggressive_stance_tile.x != 21 or .simulation.aggressive_stance_tile.y != 18)
@@ -259,6 +259,12 @@ jq -e '
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "27" and .actor_id == "multi0.recall.override.runner" and .order == "move" and .target_tile.x == 21 and .target_tile.y == 25 and .chain_index == 0 and .completed == true and .reached == false and .canceled == true)
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "27" and .actor_id == "multi0.recall.override.wing" and .order == "move" and .target_tile.x == 21 and .target_tile.y == 25 and .chain_index == 0 and .completed == true and .reached == false and .canceled == true)
   and ([.snapshot.queued_orders[] | select(.group_id == "27" and (.actor_id == "multi0.recall.override.old.seed" or .actor_id == "multi0.recall.override.old.wing" or .actor_id == "multi0.recall.override.missing" or .actor_id == "map.actor1"))] | length) == 0
+  and .simulation.control_group_rebuild_count >= 5
+  and .simulation.control_group_rebuild_recall_formation_gate == true
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "28" and .focus_tile.x == 1 and .focus_tile.y == 30 and .recall_count >= 1 and (.actor_ids | length) == 2 and ((.actor_ids | index("multi0.recall.formation.runner")) != null) and ((.actor_ids | index("multi0.recall.formation.wing")) != null) and ((.actor_ids | index("multi0.recall.formation.old.seed")) == null) and ((.actor_ids | index("multi0.recall.formation.old.wing")) == null) and ((.actor_ids | index("multi0.recall.formation.missing")) == null) and ((.actor_ids | index("map.actor1")) == null))
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "28" and .actor_id == "multi0.recall.formation.runner" and .order == "move" and .target_tile.x == 1 and .target_tile.y == 31 and .formation_slot_index == 0 and .formation_anchor_tile.x == 1 and .formation_anchor_tile.y == 31 and .completed == false and .reached == false and .canceled == false)
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "28" and .actor_id == "multi0.recall.formation.wing" and .order == "move" and .target_tile.x == 2 and .target_tile.y == 31 and .formation_slot_index == 1 and .formation_anchor_tile.x == 1 and .formation_anchor_tile.y == 31 and .completed == false and .reached == false and .canceled == false)
+  and ([.snapshot.queued_orders[] | select(.group_id == "28" and (.actor_id == "multi0.recall.formation.old.seed" or .actor_id == "multi0.recall.formation.old.wing" or .actor_id == "multi0.recall.formation.missing" or .actor_id == "map.actor1"))] | length) == 0
   and .simulation.control_group_stance_prune_count >= 1
   and .simulation.control_group_stance_pruned_actor_count >= 2
   and .simulation.control_group_stance_prune_gate == true
@@ -545,6 +551,18 @@ jq -e '
   and any(.simulation.event_log[]; contains("queued_order_override:Multi0:multi0.recall.override.runner:move:cleared1"))
   and any(.simulation.event_log[]; contains("queued_order_override:Multi0:multi0.recall.override.wing:move:cleared1"))
   and ([.simulation.event_log[] | select(contains("queued_order_reached:27:"))] | length) == 0
+  and any(.simulation.event_log[]; contains("control_group_cleared:Multi0:28:2removed:0duplicates@0,0"))
+  and any(.simulation.event_log[]; contains("control_group_removed:Multi0:28:2removed:0actors:0duplicates@0,0"))
+  and any(.simulation.event_log[]; contains("formation_group_order:Multi0:28:1,31:0slots:0reassigned"))
+  and any(.simulation.event_log[]; contains("control_group_assignment_rejected:Multi0:28:missing:multi0.recall.formation.missing,foreign:map.actor1"))
+  and any(.simulation.event_log[]; contains("control_group_assigned:Multi0:28:2actors@1,30"))
+  and any(.simulation.event_log[]; contains("control_group_rebuilt:Multi0:28:2actors@1,30"))
+  and any(.simulation.event_log[]; contains("control_group_recall:Multi0:28:2actors@1,30"))
+  and any(.simulation.event_log[]; contains("formation_group_order:Multi0:28:1,31:2slots:1reassigned"))
+  and any(.simulation.event_log[]; contains("validated_formation_group_order:Multi0:28:1,31:2slots:0rejected"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:28:multi0.recall.formation.runner:slot0:1,31->1,31"))
+  and any(.simulation.event_log[]; contains("formation_move_slot:Multi0:28:multi0.recall.formation.wing:slot1:1,31->2,31"))
+  and ([.simulation.event_log[] | select(contains("queued_order_execute:28:") or contains("formation_move_reached:28:"))] | length) == 0
   and any(.simulation.event_log[]; contains("control_group_stance_member_pruned:Multi0:15:multi0.stance.prune.missing,foreign:map.actor1"))
   and any(.simulation.event_log[]; contains("control_group_stance_actor_sync:Multi0:15:multi0.stance.prune.runner:guard->aggressive"))
   and any(.simulation.event_log[]; contains("control_group_stance_change:Multi0:15:guard->aggressive:1actors"))
@@ -679,6 +697,7 @@ jq -e '
   and .gates.control_group_rebuild_recall_gate == true
   and .gates.control_group_rebuild_recall_order_gate == true
   and .gates.control_group_rebuild_recall_order_override_gate == true
+  and .gates.control_group_rebuild_recall_formation_gate == true
   and .gates.control_group_stance_prune_gate == true
   and .gates.control_group_formation_prune_gate == true
   and .gates.control_group_formation_validation_gate == true
