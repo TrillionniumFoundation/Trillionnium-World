@@ -249,6 +249,16 @@ jq -e '
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "26" and .actor_id == "multi0.recall.order.runner" and .order == "move" and .target_tile.x == 18 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "26" and .actor_id == "multi0.recall.order.wing" and .order == "move" and .target_tile.x == 18 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and ([.snapshot.queued_orders[] | select(.group_id == "26" and (.actor_id == "multi0.recall.order.old.seed" or .actor_id == "multi0.recall.order.old.wing" or .actor_id == "multi0.recall.order.missing" or .actor_id == "map.actor1"))] | length) == 0
+  and .simulation.control_group_rebuild_count >= 4
+  and .simulation.control_group_rebuild_recall_order_override_gate == true
+  and .simulation.control_group_rebuild_recall_order_override_runner_tile.x == 20
+  and .simulation.control_group_rebuild_recall_order_override_runner_tile.y == 30
+  and .simulation.control_group_rebuild_recall_order_override_wing_tile.x == 22
+  and .simulation.control_group_rebuild_recall_order_override_wing_tile.y == 30
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "27" and .focus_tile.x == 21 and .focus_tile.y == 30 and .recall_count >= 1 and (.actor_ids | length) == 2 and ((.actor_ids | index("multi0.recall.override.runner")) != null) and ((.actor_ids | index("multi0.recall.override.wing")) != null) and ((.actor_ids | index("multi0.recall.override.old.seed")) == null) and ((.actor_ids | index("multi0.recall.override.old.wing")) == null) and ((.actor_ids | index("multi0.recall.override.missing")) == null) and ((.actor_ids | index("map.actor1")) == null))
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "27" and .actor_id == "multi0.recall.override.runner" and .order == "move" and .target_tile.x == 21 and .target_tile.y == 25 and .chain_index == 0 and .completed == true and .reached == false and .canceled == true)
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "27" and .actor_id == "multi0.recall.override.wing" and .order == "move" and .target_tile.x == 21 and .target_tile.y == 25 and .chain_index == 0 and .completed == true and .reached == false and .canceled == true)
+  and ([.snapshot.queued_orders[] | select(.group_id == "27" and (.actor_id == "multi0.recall.override.old.seed" or .actor_id == "multi0.recall.override.old.wing" or .actor_id == "multi0.recall.override.missing" or .actor_id == "map.actor1"))] | length) == 0
   and .simulation.control_group_stance_prune_count >= 1
   and .simulation.control_group_stance_pruned_actor_count >= 2
   and .simulation.control_group_stance_prune_gate == true
@@ -270,8 +280,8 @@ jq -e '
   and .simulation.queued_order_cancel_count >= 2
   and .simulation.queued_order_chain_ready_count >= 1
   and .simulation.queued_order_chain_reach_count >= 2
-  and .simulation.queued_order_override_count >= 1
-  and .simulation.queued_order_override_cleared_count >= 2
+  and .simulation.queued_order_override_count >= 3
+  and .simulation.queued_order_override_cleared_count >= 4
   and .simulation.queued_order_reject_count >= 3
   and .simulation.completed_queued_order_count >= 14
   and .simulation.canceled_queued_order_count >= 4
@@ -522,6 +532,19 @@ jq -e '
   and any(.simulation.event_log[]; contains("queued_order_execute:26:multi0.recall.order.wing:move:chain0"))
   and any(.simulation.event_log[]; contains("queued_order_reached:26:multi0.recall.order.runner:chain0:18,31"))
   and any(.simulation.event_log[]; contains("queued_order_reached:26:multi0.recall.order.wing:chain0:18,31"))
+  and any(.simulation.event_log[]; contains("control_group_cleared:Multi0:27:2removed:0duplicates@0,0"))
+  and any(.simulation.event_log[]; contains("control_group_removed:Multi0:27:2removed:0actors:0duplicates@0,0"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:27:move:0actors"))
+  and any(.simulation.event_log[]; contains("control_group_assignment_rejected:Multi0:27:missing:multi0.recall.override.missing,foreign:map.actor1"))
+  and any(.simulation.event_log[]; contains("control_group_assigned:Multi0:27:2actors@21,30"))
+  and any(.simulation.event_log[]; contains("control_group_rebuilt:Multi0:27:2actors@21,30"))
+  and any(.simulation.event_log[]; contains("control_group_recall:Multi0:27:2actors@21,30"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:27:move:2actors"))
+  and any(.simulation.event_log[]; contains("queued_order_execute:27:multi0.recall.override.runner:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_execute:27:multi0.recall.override.wing:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_override:Multi0:multi0.recall.override.runner:move:cleared1"))
+  and any(.simulation.event_log[]; contains("queued_order_override:Multi0:multi0.recall.override.wing:move:cleared1"))
+  and ([.simulation.event_log[] | select(contains("queued_order_reached:27:"))] | length) == 0
   and any(.simulation.event_log[]; contains("control_group_stance_member_pruned:Multi0:15:multi0.stance.prune.missing,foreign:map.actor1"))
   and any(.simulation.event_log[]; contains("control_group_stance_actor_sync:Multi0:15:multi0.stance.prune.runner:guard->aggressive"))
   and any(.simulation.event_log[]; contains("control_group_stance_change:Multi0:15:guard->aggressive:1actors"))
@@ -655,6 +678,7 @@ jq -e '
   and .gates.control_group_rebuild_gate == true
   and .gates.control_group_rebuild_recall_gate == true
   and .gates.control_group_rebuild_recall_order_gate == true
+  and .gates.control_group_rebuild_recall_order_override_gate == true
   and .gates.control_group_stance_prune_gate == true
   and .gates.control_group_formation_prune_gate == true
   and .gates.control_group_formation_validation_gate == true
