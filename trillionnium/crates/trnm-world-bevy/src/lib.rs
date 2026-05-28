@@ -17605,6 +17605,38 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             rule_id: None,
         },
     );
+    classic_openra_like_remove_from_control_group(
+        &mut world,
+        "Multi0",
+        "25",
+        &[
+            "multi0.recall.rebuild.old.seed",
+            "multi0.recall.rebuild.old.wing",
+        ],
+    );
+    classic_openra_like_queue_group_order(
+        &mut world,
+        "Multi0",
+        "25",
+        TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Move,
+            target_tile: Some((29, 31)),
+            target_id: None,
+            rule_id: None,
+        },
+    );
+    classic_openra_like_rebuild_control_group(
+        &mut world,
+        "Multi0",
+        "25",
+        &[
+            "multi0.recall.rebuild.runner",
+            "multi0.recall.rebuild.wing",
+            "multi0.recall.rebuild.missing",
+            "map.actor1",
+        ],
+    );
+    classic_openra_like_recall_control_group(&mut world, "Multi0", "25");
     classic_openra_like_queue_group_order(
         &mut world,
         "Multi0",
@@ -18995,6 +19027,73 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
                     event == &format!("queued_order_reached:24:{actor_id}:chain0:30,31")
                 })
             });
+    let control_group_rebuild_recall_gate = world.control_group_rebuild_count >= 2
+        && world.control_group_clear_count >= 3
+        && world.control_group_assignment_count >= 4
+        && world.control_group_assignment_actor_count >= 8
+        && world.control_group_assignment_reject_count >= 6
+        && world.control_group_remove_count >= 4
+        && world.control_group_remove_actor_count >= 7
+        && world.control_groups.iter().any(|group| {
+            group.owner == "Multi0"
+                && group.group_id == "25"
+                && group.focus_tile == (29, 30)
+                && group.recall_count >= 1
+                && group.actor_ids.len() == 2
+                && group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.recall.rebuild.runner")
+                && group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.recall.rebuild.wing")
+                && !group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.recall.rebuild.old.seed")
+                && !group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.recall.rebuild.old.wing")
+                && !group
+                    .actor_ids
+                    .iter()
+                    .any(|actor_id| actor_id == "multi0.recall.rebuild.missing")
+                && !group.actor_ids.iter().any(|actor_id| actor_id == "map.actor1")
+        })
+        && !world
+            .queued_orders
+            .iter()
+            .any(|order| order.group_id == "25")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "control_group_cleared:Multi0:25:2removed:0duplicates@0,0")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "control_group_removed:Multi0:25:2removed:0actors:0duplicates@0,0")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "queued_group_order:Multi0:25:move:0actors")
+        && world.event_log.iter().any(|event| {
+            event
+                == "control_group_assignment_rejected:Multi0:25:missing:multi0.recall.rebuild.missing,foreign:map.actor1"
+        })
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "control_group_assigned:Multi0:25:2actors@29,30")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "control_group_rebuilt:Multi0:25:2actors@29,30")
+        && world
+            .event_log
+            .iter()
+            .any(|event| event == "control_group_recall:Multi0:25:2actors@29,30");
     let control_group_stance_broadcast_gate = world.control_group_stance_change_count >= 1
         && world.control_group_stance_actor_sync_count >= 1
         && world.control_groups.iter().any(|group| {
@@ -19781,6 +19880,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         && control_group_remove_gate
         && control_group_clear_gate
         && control_group_rebuild_gate
+        && control_group_rebuild_recall_gate
         && control_group_stance_broadcast_gate
         && control_group_stance_prune_gate
         && control_group_formation_prune_gate
@@ -19972,6 +20072,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_clear_gate": control_group_clear_gate,
             "control_group_rebuild_count": world.control_group_rebuild_count,
             "control_group_rebuild_gate": control_group_rebuild_gate,
+            "control_group_rebuild_recall_gate": control_group_rebuild_recall_gate,
             "control_group_stance_prune_count": world.control_group_stance_prune_count,
             "control_group_stance_pruned_actor_count": world.control_group_stance_pruned_actor_count,
             "control_group_stance_prune_gate": control_group_stance_prune_gate,
@@ -20148,6 +20249,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
             "control_group_remove_gate": control_group_remove_gate,
             "control_group_clear_gate": control_group_clear_gate,
             "control_group_rebuild_gate": control_group_rebuild_gate,
+            "control_group_rebuild_recall_gate": control_group_rebuild_recall_gate,
             "control_group_stance_prune_gate": control_group_stance_prune_gate,
             "control_group_formation_prune_gate": control_group_formation_prune_gate,
             "control_group_formation_validation_gate": control_group_formation_validation_gate,
@@ -47320,6 +47422,54 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         }),
     ));
     actors.push(classic_openra_like_actor(
+        "multi0.recall.rebuild.old.seed",
+        "trnm.horizon.scout",
+        "Multi0",
+        (28, 25),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((28, 25)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.recall.rebuild.old.wing",
+        "trnm.horizon.scout",
+        "Multi0",
+        (29, 25),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((29, 25)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.recall.rebuild.runner",
+        "trnm.horizon.scout",
+        "Multi0",
+        (28, 30),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((28, 30)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
+        "multi0.recall.rebuild.wing",
+        "trnm.horizon.scout",
+        "Multi0",
+        (30, 30),
+        Some(TrnmOpenRaLikeOrder {
+            kind: TrnmOpenRaLikeOrderKind::Hold,
+            target_tile: Some((30, 30)),
+            target_id: None,
+            rule_id: None,
+        }),
+    ));
+    actors.push(classic_openra_like_actor(
         "map.capture.contested.node",
         "trnm.flux.beacon",
         "Neutral",
@@ -47557,6 +47707,19 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         ("multi0.rebuild.old.wing", TrnmOpenRaLikeStance::HoldFire),
         ("multi0.rebuild.runner", TrnmOpenRaLikeStance::HoldFire),
         ("multi0.rebuild.wing", TrnmOpenRaLikeStance::HoldFire),
+        (
+            "multi0.recall.rebuild.old.seed",
+            TrnmOpenRaLikeStance::HoldFire,
+        ),
+        (
+            "multi0.recall.rebuild.old.wing",
+            TrnmOpenRaLikeStance::HoldFire,
+        ),
+        (
+            "multi0.recall.rebuild.runner",
+            TrnmOpenRaLikeStance::HoldFire,
+        ),
+        ("multi0.recall.rebuild.wing", TrnmOpenRaLikeStance::HoldFire),
         (
             "multi0.capture.contested.warden",
             TrnmOpenRaLikeStance::HoldFire,
@@ -48047,6 +48210,17 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
                     "multi0.rebuild.old.wing".to_string(),
                 ],
                 focus_tile: (30, 27),
+                stance: TrnmOpenRaLikeStance::Guard,
+                recall_count: 0,
+            },
+            TrnmOpenRaLikeControlGroup {
+                owner: "Multi0",
+                group_id: "25",
+                actor_ids: vec![
+                    "multi0.recall.rebuild.old.seed".to_string(),
+                    "multi0.recall.rebuild.old.wing".to_string(),
+                ],
+                focus_tile: (28, 25),
                 stance: TrnmOpenRaLikeStance::Guard,
                 recall_count: 0,
             },
