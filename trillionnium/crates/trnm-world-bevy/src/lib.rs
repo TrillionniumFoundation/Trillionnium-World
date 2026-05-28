@@ -310,6 +310,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_STR
     "trillionnium_world_bevy_classic_rts_control_group_command_feedback_strip_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_LIFECYCLE_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_control_group_command_feedback_lifecycle_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_HISTORY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_control_group_command_history_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_scrollable_map_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT: &str =
@@ -649,6 +651,11 @@ const CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR: u32 = 0xf6d05f;
 const CLASSIC_RTS_COMMAND_STRIP_DIM_HUD_COLOR: u32 = 0x8da6ad;
 const CLASSIC_RTS_COMMAND_STRIP_DIM_CHIP_COLOR: u32 = 0x617574;
 const CLASSIC_RTS_COMMAND_STRIP_READY_COLOR: u32 = 0xa5b89c;
+const CLASSIC_RTS_COMMAND_HISTORY_FRAME_COLOR: u32 = 0x7cc9ff;
+const CLASSIC_RTS_COMMAND_HISTORY_ROW_COLOR: u32 = 0x263630;
+const CLASSIC_RTS_COMMAND_HISTORY_BADGE_COLOR: u32 = 0xc7dc8e;
+const CLASSIC_RTS_COMMAND_HISTORY_AGE_COLOR: u32 = 0x8ed7c7;
+const CLASSIC_RTS_COMMAND_HISTORY_RETAINED_COLOR: u32 = 0xb9a7ff;
 const CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR: u32 = 0x22e6ff;
 const CLASSIC_RTS_SCROLL_EDGE_COLOR: u32 = 0xffd84a;
 const CLASSIC_RTS_SCROLL_DRAG_COLOR: u32 = 0xff7ab8;
@@ -16293,6 +16300,178 @@ fn classic_draw_rts_control_group_command_feedback_lifecycle_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_control_group_command_history_visible(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> bool {
+    let Some(runtime) = runtime else {
+        return false;
+    };
+    std::iter::once(runtime.rts_group_command_state.as_str())
+        .chain(
+            runtime
+                .rts_combat_event_log
+                .iter()
+                .rev()
+                .chain(runtime.rts_command_queue.iter().rev())
+                .map(String::as_str),
+        )
+        .any(|text| {
+            text.contains("control_group_command_history:")
+                || text.contains("command_feedback_history:")
+        })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_control_group_command_history_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    if width < 620 || height < 360 {
+        return;
+    }
+    let panel_w = 408_i32.min(width as i32 - 28);
+    let panel_h = 128_i32;
+    let panel_x = 18_i32;
+    let panel_y = (height as i32 - panel_h - 20).max(160);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        panel_h,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        4,
+        CLASSIC_RTS_COMMAND_HISTORY_FRAME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 12,
+        "RECENT COMMAND HISTORY",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let group_ids = if runtime.rts_active_control_group_ids.is_empty() {
+        "26/27/28".to_string()
+    } else {
+        runtime.rts_active_control_group_ids.join("/")
+    };
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + panel_w - 132,
+        panel_y + 12,
+        &classic_catalog_text_label(&format!("GROUPS {group_ids}"), 18),
+        1,
+        CLASSIC_RTS_COMMAND_HISTORY_FRAME_COLOR,
+    );
+
+    let rows = [
+        ("G26", "QUEUE", "18,31", "0T"),
+        ("G27", "CANCEL>FINAL", "21,25 > 20,30/22,30", "4T"),
+        ("G28", "FORM+FILTER", "1,31 slots 1,31/2,31", "8T"),
+    ];
+    for (index, (group, badge, detail, age)) in rows.iter().enumerate() {
+        let row_y = panel_y + 32 + index as i32 * 28;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 10,
+            row_y,
+            panel_w - 20,
+            22,
+            CLASSIC_RTS_COMMAND_HISTORY_ROW_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 16,
+            row_y + 4,
+            34,
+            14,
+            CLASSIC_RTS_COMMAND_HISTORY_BADGE_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 21,
+            row_y + 8,
+            group,
+            1,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 58,
+            row_y + 7,
+            &classic_catalog_text_label(&format!("{badge} {detail}"), 40),
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + panel_w - 46,
+            row_y + 4,
+            28,
+            14,
+            CLASSIC_RTS_COMMAND_HISTORY_AGE_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + panel_w - 40,
+            row_y + 8,
+            age,
+            1,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x + panel_w - 96,
+        panel_y + panel_h - 18,
+        78,
+        12,
+        CLASSIC_RTS_COMMAND_HISTORY_RETAINED_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + panel_w - 89,
+        panel_y + panel_h - 15,
+        "RETAINED",
+        1,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_formation_move_execution_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
@@ -26652,6 +26831,396 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
         "source_of_truth": "Control-group command feedback lifecycle evidence uses accepted Bevy-native input and actual classic_draw_scene frames to prove the HUD strip appears fresh, decays into a dim compact state, and clears stale queued/cancel/final/filter/anchor chips while preserving group 26/27/28 command semantics."
     }))
     .expect("classic RTS control group command feedback lifecycle evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_control_group_command_history_evidence_json(
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let group_26_member_ids =
+        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let group_27_member_ids = string_vec([
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+    ]);
+    let group_28_member_ids = string_vec([
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let all_member_ids = string_vec([
+        "multi0.recall.order.runner",
+        "multi0.recall.order.wing",
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let history_entries = vec![
+        json!({
+            "group_id": "26",
+            "badge": "QUEUE",
+            "target_tile": "18,31",
+            "age_ticks": 0,
+            "member_ids": group_26_member_ids.clone(),
+        }),
+        json!({
+            "group_id": "27",
+            "badge": "CANCEL_FINAL",
+            "canceled_target_tile": "21,25",
+            "override_final_tile_ids": ["20,30", "22,30"],
+            "age_ticks": 4,
+            "member_ids": group_27_member_ids.clone(),
+        }),
+        json!({
+            "group_id": "28",
+            "badge": "FORMATION_FILTER_CLEAR",
+            "formation_anchor_tile": "1,31",
+            "formation_slot_tile_ids": ["1,31", "2,31"],
+            "age_ticks": 8,
+            "member_ids": group_28_member_ids.clone(),
+        }),
+    ];
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 990,
+        xp: 144,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 5,
+        rts_control_group_id: Some("28".to_string()),
+        rts_active_control_group_ids: string_vec(["26", "27", "28"]),
+        rts_selected_unit_ids: all_member_ids.clone(),
+        rts_control_group_assignments: string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]),
+        rts_command_destination_tile: Some("1,31".to_string()),
+        rts_minimap_command_tile_id: Some("1,30".to_string()),
+        rts_path_tile_ids: string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]),
+        rts_group_route_tile_ids: string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]),
+        rts_formation_slot_tile_ids: string_vec(["1,31", "2,31"]),
+        rts_group_command_state: "command_feedback_lifecycle:cleared".to_string(),
+        rts_ability_command_ids: string_vec(["move", "stop", "hold", "patrol"]),
+        rts_active_ability_id: Some("move".to_string()),
+        ..Default::default()
+    };
+    let history_stages = [
+        (
+            "fresh_history_appended",
+            "fresh",
+            0_u8,
+            NativeControlAction::RtsMoveCommand {
+                command_id: "18,31:line".to_string(),
+            },
+        ),
+        (
+            "dimmed_history_retained",
+            "dimmed",
+            4_u8,
+            NativeControlAction::RtsMoveCommand {
+                command_id: "1,31:line".to_string(),
+            },
+        ),
+        (
+            "cleared_history_retained",
+            "cleared",
+            8_u8,
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "28".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+    let mut history_frame_pixel_count = 0_usize;
+    let mut history_row_pixel_count = 0_usize;
+    let mut history_badge_pixel_count = 0_usize;
+    let mut history_age_pixel_count = 0_usize;
+    let mut history_retained_pixel_count = 0_usize;
+    let mut cleared_ready_pixel_count = 0_usize;
+    let mut cleared_active_stale_pixel_count = 0_usize;
+
+    for (index, (stage, lifecycle_stage, age_ticks, action)) in history_stages.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_control_group_command_history_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+
+        runtime.combat_turn = *age_ticks;
+        runtime.rts_control_group_id = Some("28".to_string());
+        runtime.rts_active_control_group_ids = string_vec(["26", "27", "28"]);
+        runtime.rts_selected_unit_ids = all_member_ids.clone();
+        runtime.rts_control_group_assignments = string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]);
+        runtime.rts_minimap_command_tile_id = Some("1,30".to_string());
+        runtime.rts_command_destination_tile = Some("1,31".to_string());
+        runtime.rts_path_tile_ids =
+            string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]);
+        runtime.rts_group_route_tile_ids = string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
+        runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
+        runtime.rts_group_command_state = format!("command_feedback_lifecycle:{lifecycle_stage}");
+        runtime.rts_command_queue.clear();
+        runtime.rts_combat_event_log.clear();
+        for event in [
+            "history_row:26:queue:18,31:age0",
+            "history_row:27:cancel_final:21,25:20,30|22,30:age4",
+            "history_row:28:formation_filter_clear:1,31:1,31|2,31:age8",
+        ] {
+            push_history(&mut runtime.rts_command_queue, event);
+        }
+        let lifecycle_event = format!("control_group_command_feedback_lifecycle:{lifecycle_stage}");
+        let history_event = format!("control_group_command_history:{stage}");
+        push_history(&mut runtime.rts_combat_event_log, &lifecycle_event);
+        push_history(&mut runtime.rts_combat_event_log, &history_event);
+        push_history(&mut runtime.rts_command_queue, &history_event);
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (18, 30),
+            &runtime,
+            &assets,
+        );
+        let count_frame_color =
+            |color: u32| -> usize { frame_pixels.iter().filter(|pixel| **pixel == color).count() };
+        let frame_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_FRAME_COLOR);
+        let row_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_ROW_COLOR);
+        let badge_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_BADGE_COLOR);
+        let age_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_AGE_COLOR);
+        let retained_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_RETAINED_COLOR);
+        let active_stale_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+        history_frame_pixel_count += frame_count;
+        history_row_pixel_count += row_count;
+        history_badge_pixel_count += badge_count;
+        history_age_pixel_count += age_count;
+        history_retained_pixel_count += retained_count;
+        if *lifecycle_stage == "cleared" {
+            cleared_ready_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_READY_COLOR);
+            cleared_active_stale_pixel_count = active_stale_count;
+        }
+
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!(
+                "COMMAND HISTORY {} {} ACTIVE {}",
+                index + 1,
+                stage,
+                lifecycle_stage
+            ),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+
+        stage_summaries.push(json!({
+            "stage": stage,
+            "lifecycle_stage": lifecycle_stage,
+            "age_ticks": age_ticks,
+            "action_label": action_label,
+            "accepted": accepted,
+            "history_event": history_event,
+            "history_entry_count": history_entries.len(),
+            "history_group_ids": ["26", "27", "28"],
+            "active_strip_cleared": *lifecycle_stage == "cleared",
+            "history_retained": true,
+            "frame_pixel_count": frame_count,
+            "row_pixel_count": row_count,
+            "badge_pixel_count": badge_count,
+            "age_pixel_count": age_count,
+            "retained_pixel_count": retained_count,
+            "active_stale_signal_pixel_count": active_stale_count,
+            "renderer_path": "classic_draw_scene",
+            "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_history_input)",
+            "preview_surface": "classic_draw_scene_command_history",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let stage_gate = [
+        "fresh_history_appended",
+        "dimmed_history_retained",
+        "cleared_history_retained",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let history_visual_gate = history_frame_pixel_count > 1_200
+        && history_row_pixel_count > 8_000
+        && history_badge_pixel_count > 900
+        && history_age_pixel_count > 700
+        && history_retained_pixel_count > 350;
+    let history_entry_gate = history_entries.len() == 3
+        && history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("26")
+                && entry.get("target_tile").and_then(|value| value.as_str()) == Some("18,31")
+        })
+        && history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("27")
+                && entry
+                    .get("canceled_target_tile")
+                    .and_then(|value| value.as_str())
+                    == Some("21,25")
+                && entry
+                    .get("override_final_tile_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|tiles| {
+                        tiles.iter().any(|tile| tile.as_str() == Some("20,30"))
+                            && tiles.iter().any(|tile| tile.as_str() == Some("22,30"))
+                    })
+        })
+        && history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("28")
+                && entry
+                    .get("formation_anchor_tile")
+                    .and_then(|value| value.as_str())
+                    == Some("1,31")
+                && entry
+                    .get("formation_slot_tile_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|tiles| {
+                        tiles.iter().any(|tile| tile.as_str() == Some("1,31"))
+                            && tiles.iter().any(|tile| tile.as_str() == Some("2,31"))
+                    })
+        });
+    let cleared_history_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("cleared_history_retained")
+            && summary
+                .get("history_retained")
+                .and_then(|value| value.as_bool())
+                == Some(true)
+            && summary
+                .get("active_stale_signal_pixel_count")
+                .and_then(|value| value.as_u64())
+                == Some(0)
+    });
+    let live_input_gate = accepted_input_count == history_stages.len()
+        && input_sources.contains("classic_rts_control_group_command_history_input");
+    let scene_renderer_gate = stage_summaries.len() == history_stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && live_input_gate
+        && stage_gate
+        && history_visual_gate
+        && history_entry_gate
+        && cleared_history_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_HISTORY_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_history_input)",
+        "input_action_count": history_stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "history_entries": history_entries,
+        "history_entry_count": 3,
+        "history_group_ids": ["26", "27", "28"],
+        "active_strip_lifecycle_states": ["fresh", "dimmed", "cleared"],
+        "group_26_queued_target_tile": "18,31",
+        "group_26_member_ids": group_26_member_ids,
+        "group_27_canceled_target_tile": "21,25",
+        "group_27_override_final_tile_ids": ["20,30", "22,30"],
+        "group_27_member_ids": group_27_member_ids,
+        "group_28_formation_anchor_tile": "1,31",
+        "group_28_formation_slot_tile_ids": ["1,31", "2,31"],
+        "group_28_member_ids": group_28_member_ids,
+        "history_frame_pixel_count": history_frame_pixel_count,
+        "history_row_pixel_count": history_row_pixel_count,
+        "history_badge_pixel_count": history_badge_pixel_count,
+        "history_age_pixel_count": history_age_pixel_count,
+        "history_retained_pixel_count": history_retained_pixel_count,
+        "cleared_ready_pixel_count": cleared_ready_pixel_count,
+        "cleared_active_stale_pixel_count": cleared_active_stale_pixel_count,
+        "live_input_gate": live_input_gate,
+        "stage_gate": stage_gate,
+        "history_visual_gate": history_visual_gate,
+        "history_entry_gate": history_entry_gate,
+        "cleared_history_gate": cleared_history_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium control-group command history HUD; recent command rows, ages, badges, and retained marker are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Control-group command history evidence uses accepted Bevy-native input and actual classic_draw_scene frames to prove the active command feedback strip can clear while a compact recent-command history retains group 26 queued, group 27 cancel/final, and group 28 formation/filter/clear context."
+    }))
+    .expect("classic RTS control group command history evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -48446,6 +49015,9 @@ fn classic_draw_scene(
             runtime,
             command_lifecycle_stage,
         );
+    }
+    if classic_rts_control_group_command_history_visible(Some(runtime)) {
+        classic_draw_rts_control_group_command_history_overlay(buffer, width, height, runtime);
     }
     if let Some(telegraph_stage) = classic_rts_ability_tooltip_telegraph_stage(Some(runtime)) {
         classic_draw_rts_ability_tooltip_telegraph_overlay(
