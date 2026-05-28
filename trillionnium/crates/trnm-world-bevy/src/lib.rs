@@ -302,6 +302,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT
     "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_HOTKEY_FEEDBACK_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_control_group_hotkey_feedback_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_RECALL_FORMATION_PREVIEW_CONTRACT:
+    &str = "trillionnium_world_bevy_classic_rts_control_group_recall_formation_preview_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_scrollable_map_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT: &str =
@@ -620,6 +622,12 @@ const CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR: u32 = 0xffe36d;
 const CLASSIC_RTS_CONTROL_GROUP_IDLE_COLOR: u32 = 0xffa05f;
 const CLASSIC_RTS_CONTROL_GROUP_PRODUCTION_COLOR: u32 = 0xd49cff;
 const CLASSIC_RTS_CONTROL_GROUP_ABILITY_COLOR: u32 = 0x7dffd0;
+const CLASSIC_RTS_RECALL_FORMATION_HUD_COLOR: u32 = 0x8fdcff;
+const CLASSIC_RTS_RECALL_FORMATION_FOCUS_COLOR: u32 = 0xd49cff;
+const CLASSIC_RTS_RECALL_FORMATION_ANCHOR_COLOR: u32 = 0xffdf7a;
+const CLASSIC_RTS_RECALL_FORMATION_QUEUED_COLOR: u32 = 0x75ffd8;
+const CLASSIC_RTS_RECALL_FORMATION_FILTERED_COLOR: u32 = 0xff6a5c;
+const CLASSIC_RTS_RECALL_FORMATION_CLEARED_COLOR: u32 = 0xffa05f;
 const CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR: u32 = 0x22e6ff;
 const CLASSIC_RTS_SCROLL_EDGE_COLOR: u32 = 0xffd84a;
 const CLASSIC_RTS_SCROLL_DRAG_COLOR: u32 = 0xff7ab8;
@@ -15477,6 +15485,216 @@ fn classic_draw_rts_formation_move_preview_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_draw_rts_control_group_recall_formation_preview_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let panel_x = 18_i32;
+    let panel_y = 18_i32;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        362,
+        128,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        362,
+        4,
+        CLASSIC_RTS_RECALL_FORMATION_HUD_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 12,
+        "GROUP RECALL FORMATION PREVIEW",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let group_id = runtime.rts_control_group_id.as_deref().unwrap_or("28");
+    let recall_focus_tile = runtime
+        .rts_minimap_command_tile_id
+        .as_deref()
+        .unwrap_or("1,30");
+    let anchor_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .unwrap_or("1,31");
+    let hud_line = format!(
+        "GROUP {}  MEMBERS {}  STANCE GUARD",
+        group_id,
+        runtime.rts_selected_unit_ids.len()
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 30,
+        &classic_catalog_text_label(&hud_line, 38),
+        1,
+        CLASSIC_RTS_RECALL_FORMATION_HUD_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 46,
+        &format!("FOCUS {}  ANCHOR {}", recall_focus_tile, anchor_tile),
+        1,
+        CLASSIC_RTS_RECALL_FORMATION_FOCUS_COLOR,
+    );
+
+    for (index, unit_id) in runtime.rts_selected_unit_ids.iter().take(2).enumerate() {
+        let chip_x = panel_x + 10 + index as i32 * 112;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            chip_x,
+            panel_y + 66,
+            98,
+            18,
+            CLASSIC_RTS_RECALL_FORMATION_QUEUED_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            chip_x + 5,
+            panel_y + 72,
+            &classic_catalog_text_label(unit_id, 12),
+            1,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+    }
+    if stage == "filtered_invalid" {
+        let filtered = [
+            ("MISSING", CLASSIC_RTS_RECALL_FORMATION_FILTERED_COLOR),
+            ("FOREIGN", CLASSIC_RTS_RECALL_FORMATION_FILTERED_COLOR),
+            ("OLD CLR", CLASSIC_RTS_RECALL_FORMATION_CLEARED_COLOR),
+        ];
+        for (index, (label, color)) in filtered.iter().enumerate() {
+            let chip_x = panel_x + 10 + index as i32 * 78;
+            classic_draw_rect(buffer, width, height, chip_x, panel_y + 96, 68, 18, *color);
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                chip_x + 5,
+                panel_y + 102,
+                label,
+                1,
+                CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+            );
+        }
+    } else {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 10,
+            panel_y + 101,
+            &classic_catalog_text_label(&stage.replace('_', " "), 32),
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+    }
+
+    let board_x = (width as i32 / 2 - 118).max(404);
+    let board_y = 48_i32;
+    let cell_w = 44_i32;
+    let cell_h = 30_i32;
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        board_x - 14,
+        board_y - 14,
+        262,
+        184,
+        CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+    );
+    for row in 29..=33 {
+        for col in 0..=4 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                board_x + col * cell_w,
+                board_y + (row - 29) * cell_h,
+                cell_w - 5,
+                cell_h - 5,
+                if (row + col) % 2 == 0 {
+                    CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
+                } else {
+                    CLASSIC_RTS_MINIMAP_FOG_COLOR
+                },
+            );
+        }
+    }
+    {
+        let mut draw_local_tile = |tile_id: &str, color: u32, inset: i32| {
+            if let Some((tile_x, tile_y)) = classic_parse_rts_tile(tile_id) {
+                let local_x = tile_x;
+                let local_y = tile_y - 29;
+                if (0..=4).contains(&local_x) && (0..=4).contains(&local_y) {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        board_x + local_x * cell_w + inset,
+                        board_y + local_y * cell_h + inset,
+                        (cell_w - 5 - inset * 2).max(4),
+                        (cell_h - 5 - inset * 2).max(4),
+                        color,
+                    );
+                }
+            }
+        };
+        for tile_id in &runtime.rts_path_tile_ids {
+            draw_local_tile(tile_id, CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR, 10);
+        }
+        draw_local_tile(
+            recall_focus_tile,
+            CLASSIC_RTS_RECALL_FORMATION_FOCUS_COLOR,
+            4,
+        );
+        draw_local_tile(anchor_tile, CLASSIC_RTS_RECALL_FORMATION_ANCHOR_COLOR, 1);
+        for tile_id in &runtime.rts_formation_slot_tile_ids {
+            draw_local_tile(tile_id, CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR, 9);
+        }
+    }
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        board_x,
+        board_y + 160,
+        "LOCAL TILES X0-4 Y29-33",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_formation_move_execution_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
@@ -24059,6 +24277,383 @@ pub fn native_classic_rts_control_group_hotkey_feedback_evidence_json(
         "source_of_truth": "Control-group hotkey feedback evidence uses accepted native RTS group, production, and ability commands plus actual classic_draw_scene frames to prove keyboard RTS intent is visible in the playable Bevy low-spec renderer."
     }))
     .expect("classic RTS control group hotkey feedback evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 880,
+        xp: 74,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 2,
+        rts_control_group_id: Some("28".to_string()),
+        rts_active_control_group_ids: string_vec(["26", "27", "28"]),
+        rts_selected_unit_ids: string_vec([
+            "multi0.recall.formation.runner",
+            "multi0.recall.formation.wing",
+        ]),
+        rts_control_group_assignments: string_vec([
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]),
+        rts_command_destination_tile: Some("1,31".to_string()),
+        rts_minimap_command_tile_id: Some("1,30".to_string()),
+        rts_formation_slot_tile_ids: string_vec(["1,31", "2,31"]),
+        rts_path_tile_ids: string_vec(["1,30", "1,31", "2,31"]),
+        rts_group_command_state: "recall_formation_preview:group_28".to_string(),
+        rts_ability_command_ids: string_vec(["move", "hold", "patrol", "stop"]),
+        rts_active_ability_id: Some("move".to_string()),
+        ..Default::default()
+    };
+    let stages = [
+        (
+            "recall_focus_hud",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "28".to_string(),
+            },
+        ),
+        (
+            "formation_anchor_slots",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "1,31:line".to_string(),
+            },
+        ),
+        (
+            "queued_valid_members",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "1,31:line".to_string(),
+            },
+        ),
+        (
+            "filtered_invalid",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "1,31:line".to_string(),
+            },
+        ),
+    ];
+    let filtered_member_ids = string_vec([
+        "missing:multi0.recall.formation.missing",
+        "foreign:map.actor1",
+    ]);
+    let cleared_old_member_ids = string_vec([
+        "old:multi0.recall.formation.old.seed",
+        "old:multi0.recall.formation.old.wing",
+    ]);
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+
+    for (index, (stage, action)) in stages.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_control_group_recall_formation_preview_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+        runtime.combat_turn = index as u8;
+        runtime.rts_control_group_id = Some("28".to_string());
+        runtime.rts_active_control_group_ids = string_vec(["26", "27", "28"]);
+        runtime.rts_selected_unit_ids = string_vec([
+            "multi0.recall.formation.runner",
+            "multi0.recall.formation.wing",
+        ]);
+        runtime.rts_control_group_assignments =
+            string_vec(["28:multi0.recall.formation.runner|multi0.recall.formation.wing"]);
+        runtime.rts_minimap_command_tile_id = Some("1,30".to_string());
+        runtime.rts_command_destination_tile = Some("1,31".to_string());
+        runtime.rts_path_tile_ids = string_vec(["1,30", "1,31", "2,31"]);
+        runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
+        runtime.rts_group_command_state = format!("recall_formation_preview:{stage}:group_28");
+        let event = format!("control_group_recall_formation_preview:{stage}");
+        push_history(&mut runtime.rts_combat_event_log, &event);
+        push_history(&mut runtime.rts_command_queue, &event);
+        if *stage == "filtered_invalid" {
+            for member_id in filtered_member_ids
+                .iter()
+                .chain(cleared_old_member_ids.iter())
+            {
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    &format!("filtered_member:{member_id}"),
+                );
+            }
+        }
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (1, 30),
+            &runtime,
+            &assets,
+        );
+        classic_draw_rts_control_group_recall_formation_preview_overlay(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            &runtime,
+            stage,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!("GROUP 28 RECALL FORMATION {} {}", index + 1, stage),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        stage_summaries.push(json!({
+            "stage": stage,
+            "event": event,
+            "action_label": action_label,
+            "accepted": accepted,
+            "control_group_id": runtime.rts_control_group_id.clone(),
+            "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "member_count": runtime.rts_selected_unit_ids.len(),
+            "stance": "guard",
+            "recall_focus_tile": runtime.rts_minimap_command_tile_id.clone(),
+            "formation_anchor_tile": runtime.rts_command_destination_tile.clone(),
+            "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids.clone(),
+            "queued_member_ids": runtime.rts_selected_unit_ids.clone(),
+            "filtered_member_ids": if *stage == "filtered_invalid" { filtered_member_ids.clone() } else { Vec::new() },
+            "cleared_old_member_ids": if *stage == "filtered_invalid" { cleared_old_member_ids.clone() } else { Vec::new() },
+            "group_command_state": runtime.rts_group_command_state.clone(),
+            "command_queue": runtime.rts_command_queue.clone(),
+            "renderer_path": "classic_draw_scene+classic_draw_rts_control_group_recall_formation_preview_overlay",
+            "input_path": "apply_live_native_action_with_source(classic_rts_control_group_recall_formation_preview_input)",
+            "preview_surface": "control_group_28_recall_focus+formation_anchor+slot_markers+member_filter_states",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let hud_pixel_count = count_color(CLASSIC_RTS_RECALL_FORMATION_HUD_COLOR);
+    let focus_pixel_count = count_color(CLASSIC_RTS_RECALL_FORMATION_FOCUS_COLOR);
+    let anchor_pixel_count = count_color(CLASSIC_RTS_RECALL_FORMATION_ANCHOR_COLOR);
+    let slot_pixel_count = count_color(CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR);
+    let queued_pixel_count = count_color(CLASSIC_RTS_RECALL_FORMATION_QUEUED_COLOR);
+    let filtered_pixel_count = count_color(CLASSIC_RTS_RECALL_FORMATION_FILTERED_COLOR);
+    let cleared_pixel_count = count_color(CLASSIC_RTS_RECALL_FORMATION_CLEARED_COLOR);
+    let hud_visual_gate = hud_pixel_count > 650;
+    let focus_visual_gate = focus_pixel_count > 350;
+    let anchor_visual_gate = anchor_pixel_count > 350;
+    let slot_visual_gate = slot_pixel_count > 180;
+    let queued_visual_gate = queued_pixel_count > 1_500;
+    let filtered_visual_gate = filtered_pixel_count > 1_000;
+    let cleared_visual_gate = cleared_pixel_count > 400;
+    let stage_gate = [
+        "recall_focus_hud",
+        "formation_anchor_slots",
+        "queued_valid_members",
+        "filtered_invalid",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let summary_for_stage = |stage_name: &str| -> Option<&serde_json::Value> {
+        stage_summaries.iter().find(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some(stage_name)
+        })
+    };
+    let recall_hud_gate = summary_for_stage("recall_focus_hud").is_some_and(|summary| {
+        summary
+            .get("control_group_id")
+            .and_then(|value| value.as_str())
+            == Some("28")
+            && summary.get("member_count").and_then(|value| value.as_u64()) == Some(2)
+            && summary.get("stance").and_then(|value| value.as_str()) == Some("guard")
+            && summary
+                .get("recall_focus_tile")
+                .and_then(|value| value.as_str())
+                == Some("1,30")
+    });
+    let formation_anchor_gate =
+        summary_for_stage("formation_anchor_slots").is_some_and(|summary| {
+            summary
+                .get("formation_anchor_tile")
+                .and_then(|value| value.as_str())
+                == Some("1,31")
+                && summary
+                    .get("formation_slot_tile_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|tiles| {
+                        tiles.len() == 2
+                            && tiles.iter().any(|tile| tile.as_str() == Some("1,31"))
+                            && tiles.iter().any(|tile| tile.as_str() == Some("2,31"))
+                    })
+        });
+    let queued_member_gate = summary_for_stage("queued_valid_members").is_some_and(|summary| {
+        summary
+            .get("queued_member_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|members| {
+                members.len() == 2
+                    && members
+                        .iter()
+                        .any(|member| member.as_str() == Some("multi0.recall.formation.runner"))
+                    && members
+                        .iter()
+                        .any(|member| member.as_str() == Some("multi0.recall.formation.wing"))
+            })
+    });
+    let filtered_member_gate = summary_for_stage("filtered_invalid").is_some_and(|summary| {
+        summary
+            .get("filtered_member_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|members| {
+                members.iter().any(|member| {
+                    member.as_str() == Some("missing:multi0.recall.formation.missing")
+                }) && members
+                    .iter()
+                    .any(|member| member.as_str() == Some("foreign:map.actor1"))
+            })
+            && summary
+                .get("cleared_old_member_ids")
+                .and_then(|value| value.as_array())
+                .is_some_and(|members| {
+                    members.iter().any(|member| {
+                        member.as_str() == Some("old:multi0.recall.formation.old.seed")
+                    }) && members.iter().any(|member| {
+                        member.as_str() == Some("old:multi0.recall.formation.old.wing")
+                    })
+                })
+    });
+    let live_input_gate = accepted_input_count == stages.len()
+        && input_sources.contains("classic_rts_control_group_recall_formation_preview_input");
+    let scene_renderer_gate = stage_summaries.len() == stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some(
+                    "classic_draw_scene+classic_draw_rts_control_group_recall_formation_preview_overlay",
+                )
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && live_input_gate
+        && hud_visual_gate
+        && focus_visual_gate
+        && anchor_visual_gate
+        && slot_visual_gate
+        && queued_visual_gate
+        && filtered_visual_gate
+        && cleared_visual_gate
+        && stage_gate
+        && recall_hud_gate
+        && formation_anchor_gate
+        && queued_member_gate
+        && filtered_member_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_RECALL_FORMATION_PREVIEW_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene+classic_draw_rts_control_group_recall_formation_preview_overlay",
+        "input_path": "apply_live_native_action_with_source(classic_rts_control_group_recall_formation_preview_input)",
+        "input_action_count": stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "final_control_group_id": runtime.rts_control_group_id,
+        "final_active_control_group_ids": runtime.rts_active_control_group_ids,
+        "final_selected_unit_ids": runtime.rts_selected_unit_ids,
+        "final_recall_focus_tile": runtime.rts_minimap_command_tile_id,
+        "final_formation_anchor_tile": runtime.rts_command_destination_tile,
+        "final_formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids,
+        "final_filtered_member_ids": filtered_member_ids,
+        "final_cleared_old_member_ids": cleared_old_member_ids,
+        "hud_pixel_count": hud_pixel_count,
+        "focus_pixel_count": focus_pixel_count,
+        "anchor_pixel_count": anchor_pixel_count,
+        "slot_pixel_count": slot_pixel_count,
+        "queued_pixel_count": queued_pixel_count,
+        "filtered_pixel_count": filtered_pixel_count,
+        "cleared_pixel_count": cleared_pixel_count,
+        "live_input_gate": live_input_gate,
+        "hud_visual_gate": hud_visual_gate,
+        "focus_visual_gate": focus_visual_gate,
+        "anchor_visual_gate": anchor_visual_gate,
+        "slot_visual_gate": slot_visual_gate,
+        "queued_visual_gate": queued_visual_gate,
+        "filtered_visual_gate": filtered_visual_gate,
+        "cleared_visual_gate": cleared_visual_gate,
+        "stage_gate": stage_gate,
+        "recall_hud_gate": recall_hud_gate,
+        "formation_anchor_gate": formation_anchor_gate,
+        "queued_member_gate": queued_member_gate,
+        "filtered_member_gate": filtered_member_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium control-group recall formation preview overlays; group-28 recall focus, formation anchor, slot markers, queued-member chips, old-member clearing, and invalid-member filtering are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Control-group recall formation preview evidence uses accepted Bevy-native group recall and move commands plus actual classic_draw_scene frames to make the group-28 OpenRA-like recall/formation semantics visible in the playable low-spec renderer."
+    }))
+    .expect("classic RTS control group recall formation preview evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

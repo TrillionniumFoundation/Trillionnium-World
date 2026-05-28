@@ -406,6 +406,25 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-rts-control-group-recall-formation-preview"
+                | "--classic-rts-control-group-recall-formation-preview"
+                | "control-group-recall-formation-preview"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-group-recall-formation-preview.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_control_group_recall_formation_preview_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-rts-scrollable-map" | "--classic-rts-scrollable-map" | "scrollable-map")
     ) {
         let preview_path = args.get(1).map(String::as_str).unwrap_or(
