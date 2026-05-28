@@ -229,6 +229,10 @@ jq -e '
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "22" and .actor_id == "multi0.remove.runner" and .order == "move" and .target_tile.x == 24 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "22" and .actor_id == "multi0.remove.wing" and .order == "move" and .target_tile.x == 24 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and ([.snapshot.queued_orders[] | select(.group_id == "22" and (.actor_id == "multi0.remove.seed" or .actor_id == "multi0.remove.missing" or .actor_id == "map.actor1"))] | length) == 0
+  and .simulation.control_group_clear_count >= 1
+  and .simulation.control_group_clear_gate == true
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "23" and .focus_tile.x == 0 and .focus_tile.y == 0 and (.actor_ids | length) == 0)
+  and ([.snapshot.queued_orders[] | select(.group_id == "23")] | length) == 0
   and .simulation.control_group_stance_prune_count >= 1
   and .simulation.control_group_stance_pruned_actor_count >= 2
   and .simulation.control_group_stance_prune_gate == true
@@ -467,6 +471,11 @@ jq -e '
   and any(.simulation.event_log[]; contains("queued_order_execute:22:multi0.remove.wing:move:chain0"))
   and any(.simulation.event_log[]; contains("queued_order_reached:22:multi0.remove.runner:chain0:24,31"))
   and any(.simulation.event_log[]; contains("queued_order_reached:22:multi0.remove.wing:chain0:24,31"))
+  and any(.simulation.event_log[]; contains("control_group_remove_rejected:Multi0:23:missing:multi0.clear.missing,foreign:map.actor1"))
+  and any(.simulation.event_log[]; contains("control_group_remove_duplicate:Multi0:23:multi0.clear.seed"))
+  and any(.simulation.event_log[]; contains("control_group_cleared:Multi0:23:2removed:1duplicates@0,0"))
+  and any(.simulation.event_log[]; contains("control_group_removed:Multi0:23:2removed:0actors:1duplicates@0,0"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:23:move:0actors"))
   and any(.simulation.event_log[]; contains("control_group_stance_member_pruned:Multi0:15:multi0.stance.prune.missing,foreign:map.actor1"))
   and any(.simulation.event_log[]; contains("control_group_stance_actor_sync:Multi0:15:multi0.stance.prune.runner:guard->aggressive"))
   and any(.simulation.event_log[]; contains("control_group_stance_change:Multi0:15:guard->aggressive:1actors"))
@@ -596,6 +605,7 @@ jq -e '
   and .gates.control_group_reassignment_gate == true
   and .gates.control_group_append_gate == true
   and .gates.control_group_remove_gate == true
+  and .gates.control_group_clear_gate == true
   and .gates.control_group_stance_prune_gate == true
   and .gates.control_group_formation_prune_gate == true
   and .gates.control_group_formation_validation_gate == true
