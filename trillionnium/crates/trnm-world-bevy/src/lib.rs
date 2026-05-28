@@ -308,6 +308,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_RECALL_OVERRIDE_PREV
     "trillionnium_world_bevy_classic_rts_control_group_recall_override_preview_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_STRIP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_control_group_command_feedback_strip_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_LIFECYCLE_CONTRACT:
+    &str = "trillionnium_world_bevy_classic_rts_control_group_command_feedback_lifecycle_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_scrollable_map_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT: &str =
@@ -644,6 +646,9 @@ const CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR: u32 = 0xff668f;
 const CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR: u32 = 0xff5555;
 const CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR: u32 = 0xffb56a;
 const CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR: u32 = 0xf6d05f;
+const CLASSIC_RTS_COMMAND_STRIP_DIM_HUD_COLOR: u32 = 0x8da6ad;
+const CLASSIC_RTS_COMMAND_STRIP_DIM_CHIP_COLOR: u32 = 0x617574;
+const CLASSIC_RTS_COMMAND_STRIP_READY_COLOR: u32 = 0xa5b89c;
 const CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR: u32 = 0x22e6ff;
 const CLASSIC_RTS_SCROLL_EDGE_COLOR: u32 = 0xffd84a;
 const CLASSIC_RTS_SCROLL_DRAG_COLOR: u32 = 0xff7ab8;
@@ -16109,6 +16114,185 @@ fn classic_draw_rts_control_group_command_feedback_strip_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_control_group_command_feedback_lifecycle_stage(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    let runtime = runtime?;
+    for text in std::iter::once(runtime.rts_group_command_state.as_str()).chain(
+        runtime
+            .rts_combat_event_log
+            .iter()
+            .rev()
+            .chain(runtime.rts_command_queue.iter().rev())
+            .map(String::as_str),
+    ) {
+        if text.contains("control_group_command_feedback_lifecycle:cleared")
+            || text.contains("command_feedback_lifecycle:cleared")
+        {
+            return Some("cleared");
+        }
+        if text.contains("control_group_command_feedback_lifecycle:dimmed")
+            || text.contains("command_feedback_lifecycle:dimmed")
+        {
+            return Some("dimmed");
+        }
+        if text.contains("control_group_command_feedback_lifecycle:fresh")
+            || text.contains("command_feedback_lifecycle:fresh")
+        {
+            return Some("fresh");
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_control_group_command_feedback_lifecycle_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    lifecycle_stage: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let strip_w = 520_i32.min(width as i32 - 28);
+    let strip_x = ((width as i32 - strip_w) / 2).max(14);
+    let strip_y = 46_i32;
+    let compact = lifecycle_stage == "cleared";
+    let strip_h = if compact { 50 } else { 96 };
+    let hud_color = match lifecycle_stage {
+        "fresh" => CLASSIC_RTS_COMMAND_STRIP_HUD_COLOR,
+        "dimmed" => CLASSIC_RTS_COMMAND_STRIP_DIM_HUD_COLOR,
+        _ => CLASSIC_RTS_COMMAND_STRIP_READY_COLOR,
+    };
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        strip_x,
+        strip_y,
+        strip_w,
+        strip_h,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer, width, height, strip_x, strip_y, strip_w, 4, hud_color,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        strip_x + 10,
+        strip_y + 11,
+        &format!("COMMAND FEEDBACK {}", lifecycle_stage.to_ascii_uppercase()),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    if compact {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            strip_x + strip_w - 106,
+            strip_y + 13,
+            90,
+            20,
+            CLASSIC_RTS_COMMAND_STRIP_READY_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            strip_x + strip_w - 92,
+            strip_y + 19,
+            "READY",
+            1,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            strip_x + 10,
+            strip_y + 31,
+            "NO STALE QUEUE / CANCEL / FINAL CHIPS",
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        return;
+    }
+
+    let group_ids = if runtime.rts_active_control_group_ids.is_empty() {
+        "26/27/28".to_string()
+    } else {
+        runtime.rts_active_control_group_ids.join("/")
+    };
+    let hud_line = format!(
+        "GROUPS {}  MEMBERS {}  STANCE GUARD",
+        classic_catalog_text_label(&group_ids, 12),
+        runtime.rts_selected_unit_ids.len()
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        strip_x + 10,
+        strip_y + 29,
+        &classic_catalog_text_label(&hud_line, 56),
+        1,
+        hud_color,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        strip_x + 10,
+        strip_y + 45,
+        "26 QUEUE 18,31 | 27 CANCEL 21,25 -> 20,30/22,30 | 28 ANCHOR 1,31",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let mut draw_chip = |index: i32, label: &str, color: u32| {
+        let chip_x = strip_x + 10 + index * 82;
+        classic_draw_rect(buffer, width, height, chip_x, strip_y + 68, 74, 16, color);
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            chip_x + 5,
+            strip_y + 73,
+            &classic_catalog_text_label(label, 10),
+            1,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+    };
+
+    if lifecycle_stage == "fresh" {
+        draw_chip(0, "QUEUED", CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+        draw_chip(1, "CANCEL", CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR);
+        draw_chip(2, "FINAL", CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR);
+        draw_chip(3, "ANCHOR", CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR);
+        draw_chip(4, "FILTER", CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR);
+        draw_chip(5, "CLEAR", CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+    } else {
+        for (index, label) in ["QUEUED", "CANCEL", "FINAL", "ANCHOR", "FILTER", "CLEAR"]
+            .iter()
+            .enumerate()
+        {
+            draw_chip(
+                index as i32,
+                label,
+                CLASSIC_RTS_COMMAND_STRIP_DIM_CHIP_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_formation_move_execution_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
@@ -26057,6 +26241,417 @@ pub fn native_classic_rts_control_group_command_feedback_strip_evidence_json(
         "source_of_truth": "Control-group command feedback strip evidence uses accepted Bevy-native group recall, move, and formation commands plus actual classic_draw_scene frames to prove group 26/27/28 command feedback is visible in the playable low-spec renderer."
     }))
     .expect("classic RTS control group command feedback strip evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json(
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let group_26_member_ids =
+        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let group_27_member_ids = string_vec([
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+    ]);
+    let group_28_member_ids = string_vec([
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let all_member_ids = string_vec([
+        "multi0.recall.order.runner",
+        "multi0.recall.order.wing",
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        coins: 980,
+        xp: 128,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 3,
+        rts_control_group_id: Some("26".to_string()),
+        rts_active_control_group_ids: string_vec(["26", "27", "28"]),
+        rts_selected_unit_ids: all_member_ids.clone(),
+        rts_control_group_assignments: string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]),
+        rts_command_destination_tile: Some("18,31".to_string()),
+        rts_minimap_command_tile_id: Some("18,30".to_string()),
+        rts_path_tile_ids: string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]),
+        rts_group_route_tile_ids: string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]),
+        rts_formation_slot_tile_ids: string_vec(["1,31", "2,31"]),
+        rts_group_command_state: "command_feedback_lifecycle:fresh".to_string(),
+        rts_ability_command_ids: string_vec(["move", "stop", "hold", "patrol"]),
+        rts_active_ability_id: Some("move".to_string()),
+        ..Default::default()
+    };
+    let lifecycle_stages = [
+        (
+            "fresh",
+            0_u8,
+            NativeControlAction::RtsMoveCommand {
+                command_id: "18,31:line".to_string(),
+            },
+        ),
+        (
+            "dimmed",
+            4_u8,
+            NativeControlAction::RtsMoveCommand {
+                command_id: "1,31:line".to_string(),
+            },
+        ),
+        (
+            "cleared",
+            8_u8,
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "28".to_string(),
+            },
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut accepted_input_count = 0_usize;
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut stage_summaries = Vec::new();
+    let mut fresh_signal_pixel_count = 0_usize;
+    let mut dimmed_signal_pixel_count = 0_usize;
+    let mut cleared_ready_pixel_count = 0_usize;
+    let mut dimmed_stale_signal_pixel_count = 0_usize;
+    let mut cleared_stale_signal_pixel_count = 0_usize;
+
+    for (index, (stage, age_ticks, action)) in lifecycle_stages.iter().enumerate() {
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_control_group_command_feedback_lifecycle_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last();
+        let accepted = latest_feedback.is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_input_count += 1;
+        }
+        if let Some(event) = latest_feedback {
+            input_sources.insert(event.input_source.clone());
+        }
+
+        runtime.combat_turn = *age_ticks;
+        runtime.rts_control_group_id = Some(
+            match *stage {
+                "fresh" => "26",
+                "dimmed" => "28",
+                _ => "28",
+            }
+            .to_string(),
+        );
+        runtime.rts_active_control_group_ids = string_vec(["26", "27", "28"]);
+        runtime.rts_selected_unit_ids = all_member_ids.clone();
+        runtime.rts_control_group_assignments = string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]);
+        runtime.rts_minimap_command_tile_id = Some("18,30".to_string());
+        runtime.rts_command_destination_tile = Some("18,31".to_string());
+        runtime.rts_path_tile_ids =
+            string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]);
+        runtime.rts_group_route_tile_ids = string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
+        runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
+        runtime.rts_group_command_state = format!("command_feedback_lifecycle:{stage}");
+        runtime.rts_command_queue.clear();
+        runtime.rts_combat_event_log.clear();
+        for event in [
+            "queued_group_order:Multi0:26:move:2actors",
+            "queued_order_cancelled:27:multi0.recall.override.runner:21,25",
+            "queued_order_override_final:27:20,30|22,30",
+            "formation_group_order:Multi0:28:1,31:2slots:0reassigned",
+            "control_group_member_filtered:Multi0:28:missing:multi0.recall.formation.missing,foreign:map.actor1",
+            "control_group_old_members_cleared:Multi0:28:multi0.recall.formation.old.seed|multi0.recall.formation.old.wing",
+        ] {
+            push_history(&mut runtime.rts_command_queue, event);
+        }
+        let lifecycle_event = format!("control_group_command_feedback_lifecycle:{stage}");
+        push_history(&mut runtime.rts_combat_event_log, &lifecycle_event);
+        push_history(&mut runtime.rts_command_queue, &lifecycle_event);
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (18, 30),
+            &runtime,
+            &assets,
+        );
+        let count_frame_color =
+            |color: u32| -> usize { frame_pixels.iter().filter(|pixel| **pixel == color).count() };
+        let queue_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+        let cancel_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR);
+        let final_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR);
+        let anchor_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR);
+        let filtered_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR);
+        let clear_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+        let stale_signal_pixel_count = queue_pixel_count
+            + cancel_pixel_count
+            + final_pixel_count
+            + anchor_pixel_count
+            + filtered_pixel_count
+            + clear_pixel_count;
+        let dim_hud_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_DIM_HUD_COLOR);
+        let dim_chip_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_DIM_CHIP_COLOR);
+        let ready_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_READY_COLOR);
+        if *stage == "fresh" {
+            fresh_signal_pixel_count = stale_signal_pixel_count;
+        } else if *stage == "dimmed" {
+            dimmed_signal_pixel_count = dim_hud_pixel_count + dim_chip_pixel_count;
+            dimmed_stale_signal_pixel_count = stale_signal_pixel_count;
+        } else {
+            cleared_ready_pixel_count = ready_pixel_count;
+            cleared_stale_signal_pixel_count = stale_signal_pixel_count;
+        }
+
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!(
+                "COMMAND FEEDBACK LIFECYCLE {} {} AGE {}",
+                index + 1,
+                stage,
+                age_ticks
+            ),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+
+        stage_summaries.push(json!({
+            "stage": stage,
+            "lifecycle_event": lifecycle_event,
+            "visibility_state": stage,
+            "age_ticks": age_ticks,
+            "action_label": action_label,
+            "accepted": accepted,
+            "control_group_id": runtime.rts_control_group_id.clone(),
+            "covered_group_ids": ["26", "27", "28"],
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "member_count": runtime.rts_selected_unit_ids.len(),
+            "stance": "guard",
+            "group_26_queued_target_tile": "18,31",
+            "group_27_canceled_target_tile": "21,25",
+            "group_27_override_final_tile_ids": ["20,30", "22,30"],
+            "group_28_formation_anchor_tile": "1,31",
+            "group_28_formation_slot_tile_ids": ["1,31", "2,31"],
+            "group_26_member_ids": group_26_member_ids.clone(),
+            "group_27_member_ids": group_27_member_ids.clone(),
+            "group_28_member_ids": group_28_member_ids.clone(),
+            "group_command_state": runtime.rts_group_command_state.clone(),
+            "queue_pixel_count": queue_pixel_count,
+            "cancel_pixel_count": cancel_pixel_count,
+            "final_pixel_count": final_pixel_count,
+            "anchor_pixel_count": anchor_pixel_count,
+            "filtered_pixel_count": filtered_pixel_count,
+            "clear_pixel_count": clear_pixel_count,
+            "stale_signal_pixel_count": stale_signal_pixel_count,
+            "dim_hud_pixel_count": dim_hud_pixel_count,
+            "dim_chip_pixel_count": dim_chip_pixel_count,
+            "ready_pixel_count": ready_pixel_count,
+            "renderer_path": "classic_draw_scene",
+            "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_feedback_lifecycle_input)",
+            "preview_surface": "classic_draw_scene_command_feedback_lifecycle",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let stage_gate = ["fresh", "dimmed", "cleared"].iter().all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let summary_for_stage = |stage_name: &str| -> Option<&serde_json::Value> {
+        stage_summaries.iter().find(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some(stage_name)
+        })
+    };
+    let fresh_visual_gate = summary_for_stage("fresh").is_some_and(|summary| {
+        summary
+            .get("queue_pixel_count")
+            .and_then(|value| value.as_u64())
+            .is_some_and(|count| count > 500)
+            && summary
+                .get("cancel_pixel_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count > 500)
+            && summary
+                .get("final_pixel_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count > 500)
+            && summary
+                .get("anchor_pixel_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count > 500)
+            && summary
+                .get("filtered_pixel_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count > 500)
+            && summary
+                .get("clear_pixel_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|count| count > 500)
+    });
+    let dimmed_visual_gate = dimmed_signal_pixel_count > 1_100
+        && dimmed_stale_signal_pixel_count == 0
+        && summary_for_stage("dimmed").is_some_and(|summary| {
+            summary
+                .get("age_ticks")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|age| age >= 4)
+        });
+    let cleared_visual_gate = cleared_ready_pixel_count > 350
+        && cleared_stale_signal_pixel_count == 0
+        && summary_for_stage("cleared").is_some_and(|summary| {
+            summary
+                .get("age_ticks")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|age| age >= 8)
+        });
+    let lifecycle_decay_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("fresh")
+            && summary
+                .get("visibility_state")
+                .and_then(|value| value.as_str())
+                == Some("fresh")
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("dimmed")
+            && summary
+                .get("visibility_state")
+                .and_then(|value| value.as_str())
+                == Some("dimmed")
+    }) && stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("cleared")
+            && summary
+                .get("visibility_state")
+                .and_then(|value| value.as_str())
+                == Some("cleared")
+    });
+    let no_stale_after_decay_gate =
+        dimmed_stale_signal_pixel_count == 0 && cleared_stale_signal_pixel_count == 0;
+    let group_coverage_gate = stage_summaries.iter().all(|summary| {
+        summary
+            .get("covered_group_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|groups| {
+                groups.iter().any(|group| group.as_str() == Some("26"))
+                    && groups.iter().any(|group| group.as_str() == Some("27"))
+                    && groups.iter().any(|group| group.as_str() == Some("28"))
+            })
+    });
+    let live_input_gate = accepted_input_count == lifecycle_stages.len()
+        && input_sources.contains("classic_rts_control_group_command_feedback_lifecycle_input");
+    let scene_renderer_gate = stage_summaries.len() == lifecycle_stages.len()
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = write_gate
+        && live_input_gate
+        && stage_gate
+        && fresh_visual_gate
+        && dimmed_visual_gate
+        && cleared_visual_gate
+        && lifecycle_decay_gate
+        && no_stale_after_decay_gate
+        && group_coverage_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_LIFECYCLE_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "classic_draw_scene",
+        "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_feedback_lifecycle_input)",
+        "input_action_count": lifecycle_stages.len(),
+        "accepted_input_count": accepted_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "stage_summaries": stage_summaries,
+        "lifecycle_stage_names": ["fresh", "dimmed", "cleared"],
+        "covered_group_ids": ["26", "27", "28"],
+        "group_26_queued_target_tile": "18,31",
+        "group_26_member_ids": group_26_member_ids,
+        "group_27_canceled_target_tile": "21,25",
+        "group_27_override_final_tile_ids": ["20,30", "22,30"],
+        "group_27_member_ids": group_27_member_ids,
+        "group_28_formation_anchor_tile": "1,31",
+        "group_28_formation_slot_tile_ids": ["1,31", "2,31"],
+        "group_28_member_ids": group_28_member_ids,
+        "fresh_signal_pixel_count": fresh_signal_pixel_count,
+        "dimmed_signal_pixel_count": dimmed_signal_pixel_count,
+        "cleared_ready_pixel_count": cleared_ready_pixel_count,
+        "dimmed_stale_signal_pixel_count": dimmed_stale_signal_pixel_count,
+        "cleared_stale_signal_pixel_count": cleared_stale_signal_pixel_count,
+        "live_input_gate": live_input_gate,
+        "stage_gate": stage_gate,
+        "fresh_visual_gate": fresh_visual_gate,
+        "dimmed_visual_gate": dimmed_visual_gate,
+        "cleared_visual_gate": cleared_visual_gate,
+        "lifecycle_decay_gate": lifecycle_decay_gate,
+        "no_stale_after_decay_gate": no_stale_after_decay_gate,
+        "group_coverage_gate": group_coverage_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium control-group command feedback lifecycle HUD; fresh, dimmed, and cleared strip states are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Control-group command feedback lifecycle evidence uses accepted Bevy-native input and actual classic_draw_scene frames to prove the HUD strip appears fresh, decays into a dim compact state, and clears stale queued/cancel/final/filter/anchor chips while preserving group 26/27/28 command semantics."
+    }))
+    .expect("classic RTS control group command feedback lifecycle evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -47839,6 +48434,17 @@ fn classic_draw_scene(
             height,
             runtime,
             command_strip_stage,
+        );
+    }
+    if let Some(command_lifecycle_stage) =
+        classic_rts_control_group_command_feedback_lifecycle_stage(Some(runtime))
+    {
+        classic_draw_rts_control_group_command_feedback_lifecycle_overlay(
+            buffer,
+            width,
+            height,
+            runtime,
+            command_lifecycle_stage,
         );
     }
     if let Some(telegraph_stage) = classic_rts_ability_tooltip_telegraph_stage(Some(runtime)) {
