@@ -220,6 +220,15 @@ jq -e '
   and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "21" and .actor_id == "multi0.append.wing" and .order == "move" and .target_tile.x == 28 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
   and ([.snapshot.queued_orders[] | select(.group_id == "21" and .actor_id == "multi0.append.seed")] | length) == 1
   and ([.snapshot.queued_orders[] | select(.group_id == "21" and (.actor_id == "multi0.append.missing" or .actor_id == "map.actor1"))] | length) == 0
+  and .simulation.control_group_remove_count >= 1
+  and .simulation.control_group_remove_actor_count >= 1
+  and .simulation.control_group_remove_duplicate_count >= 1
+  and .simulation.control_group_remove_reject_count >= 2
+  and .simulation.control_group_remove_gate == true
+  and any(.snapshot.control_groups[]; .owner == "Multi0" and .group_id == "22" and .focus_tile.x == 24 and .focus_tile.y == 27 and (.actor_ids | length) == 2 and ((.actor_ids | index("multi0.remove.runner")) != null) and ((.actor_ids | index("multi0.remove.wing")) != null) and ((.actor_ids | index("multi0.remove.seed")) == null) and ((.actor_ids | index("multi0.remove.missing")) == null) and ((.actor_ids | index("map.actor1")) == null))
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "22" and .actor_id == "multi0.remove.runner" and .order == "move" and .target_tile.x == 24 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
+  and any(.snapshot.queued_orders[]; .owner == "Multi0" and .group_id == "22" and .actor_id == "multi0.remove.wing" and .order == "move" and .target_tile.x == 24 and .target_tile.y == 31 and .completed == true and .reached == true and .canceled == false)
+  and ([.snapshot.queued_orders[] | select(.group_id == "22" and (.actor_id == "multi0.remove.seed" or .actor_id == "multi0.remove.missing" or .actor_id == "map.actor1"))] | length) == 0
   and .simulation.control_group_stance_prune_count >= 1
   and .simulation.control_group_stance_pruned_actor_count >= 2
   and .simulation.control_group_stance_prune_gate == true
@@ -450,6 +459,14 @@ jq -e '
   and any(.simulation.event_log[]; contains("queued_order_reached:21:multi0.append.seed:chain0:28,31"))
   and any(.simulation.event_log[]; contains("queued_order_reached:21:multi0.append.runner:chain0:28,31"))
   and any(.simulation.event_log[]; contains("queued_order_reached:21:multi0.append.wing:chain0:28,31"))
+  and any(.simulation.event_log[]; contains("control_group_remove_rejected:Multi0:22:missing:multi0.remove.missing,foreign:map.actor1"))
+  and any(.simulation.event_log[]; contains("control_group_remove_duplicate:Multi0:22:multi0.remove.seed"))
+  and any(.simulation.event_log[]; contains("control_group_removed:Multi0:22:1removed:2actors:1duplicates@24,27"))
+  and any(.simulation.event_log[]; contains("queued_group_order:Multi0:22:move:2actors"))
+  and any(.simulation.event_log[]; contains("queued_order_execute:22:multi0.remove.runner:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_execute:22:multi0.remove.wing:move:chain0"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:22:multi0.remove.runner:chain0:24,31"))
+  and any(.simulation.event_log[]; contains("queued_order_reached:22:multi0.remove.wing:chain0:24,31"))
   and any(.simulation.event_log[]; contains("control_group_stance_member_pruned:Multi0:15:multi0.stance.prune.missing,foreign:map.actor1"))
   and any(.simulation.event_log[]; contains("control_group_stance_actor_sync:Multi0:15:multi0.stance.prune.runner:guard->aggressive"))
   and any(.simulation.event_log[]; contains("control_group_stance_change:Multi0:15:guard->aggressive:1actors"))
@@ -578,6 +595,7 @@ jq -e '
   and .gates.control_group_assignment_gate == true
   and .gates.control_group_reassignment_gate == true
   and .gates.control_group_append_gate == true
+  and .gates.control_group_remove_gate == true
   and .gates.control_group_stance_prune_gate == true
   and .gates.control_group_formation_prune_gate == true
   and .gates.control_group_formation_validation_gate == true
