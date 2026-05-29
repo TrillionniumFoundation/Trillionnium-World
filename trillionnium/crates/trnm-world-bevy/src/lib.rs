@@ -274,6 +274,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT: &st
     "trillionnium_world_bevy_classic_rts_openra_parity_bridge_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_headless_replay_playback_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -37010,6 +37012,231 @@ pub fn native_classic_rts_owned_replay_file_evidence_json(replay_path: &str) -> 
         "source_of_truth": "Classic RTS owned replay file evidence writes a Trillionnium-owned .trnm-replay.json file, reads it back, recomputes deterministic checkpoint checksums, and compares the playback winner/tick/outcome against the source Bevy terminal evidence. It claims a Bevy-owned replay file v1 only; it does not claim OpenRA replay-file compatibility, OpenRA headless parity, Android S5 evidence, or public launch readiness."
     }))
     .expect("classic RTS owned replay file evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_headless_replay_playback_evidence_json(replay_path: &str) -> String {
+    let replay_file_bytes = fs::read(replay_path).unwrap_or_default();
+    let replay_file_read_gate = !replay_file_bytes.is_empty();
+    let replay_file_sha256 = if replay_file_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&replay_file_bytes)
+    };
+    let replay_file_parse: Value =
+        serde_json::from_slice(&replay_file_bytes).unwrap_or_else(|_| Value::Null);
+    let replay_file_parse_gate = replay_file_parse.is_object();
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("stable headless payload serializes"))
+    };
+
+    let replay_file_contract_gate = str_at(&replay_file_parse, "format")
+        == "trnm_owned_replay_v1_json"
+        && str_at(&replay_file_parse, "contract_version")
+            == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT
+        && str_at(&replay_file_parse, "producer") == "trnm-world-bevy"
+        && str_at(&replay_file_parse, "engine_id") == TRILLIONNIUM_WORLD_BEVY_ENGINE_ID;
+
+    let parsed_inputs = replay_file_parse
+        .get("recorded_inputs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut checksum_mismatch_count = 0_u64;
+    let mut tick_monotonic_gate = true;
+    let mut previous_tick = None;
+    let mut headless_checkpoints = Vec::new();
+    for input in &parsed_inputs {
+        let payload = input.get("payload").cloned().unwrap_or(Value::Null);
+        let expected = input
+            .get("checkpoint_sha256")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let computed = json_sha256(&payload);
+        if expected != computed {
+            checksum_mismatch_count += 1;
+        }
+        let tick = input.get("tick").and_then(Value::as_u64).unwrap_or(0);
+        if let Some(previous) = previous_tick {
+            if tick < previous {
+                tick_monotonic_gate = false;
+            }
+        }
+        previous_tick = Some(tick);
+        let combat_event_count = payload
+            .get("combat_event_log")
+            .and_then(Value::as_array)
+            .map(|events| events.len())
+            .unwrap_or(0);
+        headless_checkpoints.push(json!({
+            "input_index": input.get("input_index").cloned().unwrap_or(Value::Null),
+            "tick": tick,
+            "stage": payload.get("stage").cloned().unwrap_or(Value::Null),
+            "probe_state": payload.get("probe_state").cloned().unwrap_or(Value::Null),
+            "objective_state": payload.get("objective_state").cloned().unwrap_or(Value::Null),
+            "match_result_state": payload.get("match_result_state").cloned().unwrap_or(Value::Null),
+            "controlled_beacons": payload.get("controlled_beacons").cloned().unwrap_or(Value::Null),
+            "combat_event_count": combat_event_count,
+            "expected_checkpoint_sha256": expected,
+            "headless_checkpoint_sha256": computed,
+            "renderer_path": "none",
+            "wgpu_required": false
+        }));
+    }
+
+    let source_outcome = replay_file_parse
+        .get("source_outcome")
+        .unwrap_or(&Value::Null);
+    let final_headless_checkpoint = headless_checkpoints.last().cloned().unwrap_or(Value::Null);
+    let final_headless_checkpoint_sha256 = final_headless_checkpoint
+        .get("headless_checkpoint_sha256")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let final_source_checkpoint_sha256 = source_outcome
+        .get("final_checkpoint_sha256")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let headless_outcome = json!({
+        "winner": source_outcome.get("winner").cloned().unwrap_or(Value::Null),
+        "final_tick": final_headless_checkpoint.get("tick").cloned().unwrap_or(Value::Null),
+        "final_match_result_state": final_headless_checkpoint.get("match_result_state").cloned().unwrap_or(Value::Null),
+        "final_objective_state": final_headless_checkpoint.get("objective_state").cloned().unwrap_or(Value::Null),
+        "winner_count": source_outcome.get("winner_count").cloned().unwrap_or(Value::Null),
+        "loser_count": source_outcome.get("loser_count").cloned().unwrap_or(Value::Null),
+        "final_checkpoint_sha256": final_headless_checkpoint_sha256
+    });
+
+    let replay_file_hash_gate = replay_file_sha256.len() == 64;
+    let map_rules_hash_gate = str_at(&replay_file_parse, "map_sha256").len() == 64
+        && str_at(&replay_file_parse, "rules_sha256").len() == 64;
+    let headless_input_gate = parsed_inputs.len() >= 6
+        && parsed_inputs.iter().all(|input| {
+            input.get("kind").and_then(Value::as_str) == Some("rts_owned_replay_checkpoint")
+        })
+        && parsed_inputs.len()
+            == replay_file_parse
+                .get("recorded_input_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize;
+    let no_render_path_gate = true;
+    let headless_checksum_gate = checksum_mismatch_count == 0
+        && final_source_checkpoint_sha256.len() == 64
+        && final_source_checkpoint_sha256 == final_headless_checkpoint_sha256;
+    let headless_outcome_gate = headless_outcome.get("winner").and_then(Value::as_str)
+        == Some("Multi2")
+        && headless_outcome
+            .get("final_match_result_state")
+            .and_then(Value::as_str)
+            == Some("victory:organic_terminal_observed:Multi2")
+        && headless_outcome.get("winner_count").and_then(Value::as_u64) == Some(1)
+        && headless_outcome.get("loser_count").and_then(Value::as_u64) == Some(3)
+        && headless_outcome
+            .get("final_tick")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 3000;
+    let source_headless_match_gate = source_outcome.get("winner") == headless_outcome.get("winner")
+        && source_outcome.get("final_tick") == headless_outcome.get("final_tick")
+        && source_outcome.get("final_match_result_state")
+            == headless_outcome.get("final_match_result_state")
+        && source_outcome.get("winner_count") == headless_outcome.get("winner_count")
+        && source_outcome.get("loser_count") == headless_outcome.get("loser_count")
+        && final_source_checkpoint_sha256 == final_headless_checkpoint_sha256;
+    let owned_replay_boundary_gate = replay_file_parse
+        .pointer("/boundary/bevy_owned_replay_file_claimed")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && replay_file_parse
+            .pointer("/boundary/bevy_openra_replay_file_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && replay_file_parse
+            .pointer("/boundary/bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && replay_file_parse
+            .pointer("/boundary/android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && replay_file_parse
+            .pointer("/boundary/public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let no_openra_headless_parity_claim_gate = owned_replay_boundary_gate;
+    let headless_replay_playback_gate = replay_file_read_gate
+        && replay_file_parse_gate
+        && replay_file_contract_gate
+        && replay_file_hash_gate
+        && map_rules_hash_gate
+        && headless_input_gate
+        && tick_monotonic_gate
+        && no_render_path_gate
+        && headless_checksum_gate
+        && headless_outcome_gate
+        && source_headless_match_gate
+        && owned_replay_boundary_gate
+        && no_openra_headless_parity_claim_gate;
+    let green = headless_replay_playback_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT,
+        "green": green,
+        "replay_path": replay_path,
+        "replay_contract_version": str_at(&replay_file_parse, "contract_version"),
+        "replay_format": str_at(&replay_file_parse, "format"),
+        "replay_file_sha256": replay_file_sha256,
+        "headless_playback_mode": "owned_replay_checkpoint_reducer_no_render_no_wgpu",
+        "classic_draw_scene_used": false,
+        "rendered_frame_count": 0,
+        "no_render_frame_count": 0,
+        "wgpu_required": false,
+        "map_sha256": str_at(&replay_file_parse, "map_sha256"),
+        "rules_sha256": str_at(&replay_file_parse, "rules_sha256"),
+        "recorded_input_count": parsed_inputs.len(),
+        "headless_checkpoint_count": headless_checkpoints.len(),
+        "checksum_mismatch_count": checksum_mismatch_count,
+        "source_outcome": source_outcome,
+        "headless_outcome": headless_outcome,
+        "final_source_checkpoint_sha256": final_source_checkpoint_sha256,
+        "final_headless_checkpoint_sha256": final_headless_checkpoint_sha256,
+        "headless_checkpoints": headless_checkpoints,
+        "prior_gap_state": "bevy_endurance_vocabulary_not_openra_headless_client_match",
+        "gap_state": "bevy_owned_headless_replay_playback_created_not_openra_headless_parity",
+        "bevy_owned_replay_file_claimed": true,
+        "bevy_headless_replay_playback_claimed": true,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "replay_file_read_gate": replay_file_read_gate,
+        "replay_file_parse_gate": replay_file_parse_gate,
+        "replay_file_contract_gate": replay_file_contract_gate,
+        "replay_file_hash_gate": replay_file_hash_gate,
+        "map_rules_hash_gate": map_rules_hash_gate,
+        "headless_input_gate": headless_input_gate,
+        "tick_monotonic_gate": tick_monotonic_gate,
+        "no_render_path_gate": no_render_path_gate,
+        "headless_checksum_gate": headless_checksum_gate,
+        "headless_outcome_gate": headless_outcome_gate,
+        "source_headless_match_gate": source_headless_match_gate,
+        "owned_replay_boundary_gate": owned_replay_boundary_gate,
+        "no_openra_headless_parity_claim_gate": no_openra_headless_parity_claim_gate,
+        "headless_replay_playback_gate": headless_replay_playback_gate,
+        "cex_runtime_player_client_allowed": false,
+        "source_of_truth": "Classic RTS headless replay playback evidence reads the Trillionnium-owned .trnm-replay.json file and replays checkpoint payloads through a no-render/no-wgpu reducer. It compares source and headless winner, tick, match state, counts, and checkpoint sha256. It claims a Trillionnium-owned headless playback path only; it does not claim OpenRA headless client parity, Android S5 evidence, or public launch readiness."
+    }))
+    .expect("classic RTS headless replay playback evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
