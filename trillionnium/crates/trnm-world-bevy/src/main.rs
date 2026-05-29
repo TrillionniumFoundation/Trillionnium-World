@@ -1277,6 +1277,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-owned-replay-file" | "--classic-rts-owned-replay-file")
+    ) {
+        let replay_path = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-owned-replay-file.trnm-replay.json",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_owned_replay_file_evidence_json(replay_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-rts-playtest-observability-readiness"
                 | "--classic-rts-playtest-observability-readiness"

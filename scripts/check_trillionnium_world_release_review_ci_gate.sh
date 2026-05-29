@@ -137,6 +137,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_transition.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_parity_bridge.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_owned_replay_file.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" \
@@ -256,6 +257,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_npc_transition_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_depth_readability_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_parity_bridge_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_owned_replay_file_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_playtest_launcher_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh" \
@@ -342,6 +344,7 @@ run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_b
 # Bevy first-minute command feedback replay contract: trillionnium_world_bevy_first_minute_command_feedback_replay_v1
 # Bevy first-minute command feedback rejection replay contract: trillionnium_world_bevy_first_minute_command_feedback_rejection_replay_v1
 # Bevy classic OpenRA parity bridge contract: trillionnium_world_bevy_classic_rts_openra_parity_bridge_v1
+# Bevy classic owned replay file contract: trillionnium_world_bevy_classic_rts_owned_replay_file_v1
 run_check bevy_classic_asset_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh"
 run_check bevy_classic_manifest_lint_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh"
 run_check bevy_classic_animation_preview_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh"
@@ -472,6 +475,8 @@ run_check bevy_classic_rts_depth_readability_contract_guard "$ROOT/scripts/v2/be
 run_check bevy_classic_rts_depth_readability_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh"
 run_check bevy_classic_rts_openra_parity_bridge_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_parity_bridge_script_contract_guard_test.sh"
 run_check bevy_classic_rts_openra_parity_bridge_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_parity_bridge.sh"
+run_check bevy_classic_rts_owned_replay_file_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_owned_replay_file_script_contract_guard_test.sh"
+run_check bevy_classic_rts_owned_replay_file_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_owned_replay_file.sh"
 run_check bevy_classic_playtest_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
 run_check bevy_classic_playtest_runner_status_contract_guard "$ROOT/scripts/v2/bevy_classic_playtest_runner_status_script_contract_guard_test.sh"
 run_check bevy_classic_playtest_launcher_contract_guard "$ROOT/scripts/v2/bevy_classic_playtest_launcher_script_contract_guard_test.sh"

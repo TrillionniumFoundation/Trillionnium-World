@@ -272,6 +272,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLAYTEST_OBSERVABILITY_READINESS_C
     "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_parity_bridge_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -36700,6 +36702,314 @@ pub fn native_classic_rts_openra_parity_bridge_evidence_json(preview_dir: &str) 
         "source_of_truth": "Classic RTS OpenRA parity bridge evidence creates a single local comparison matrix over Bevy organic terminal, terminal observation, replay metrics, and endurance/headless vocabulary. It deliberately keeps OpenRA parity unclaimed and the gap visible until a real Bevy/OpenRA-style replay file and headless natural match are owned by the Rust/Bevy runtime."
     }))
     .expect("classic RTS OpenRA parity bridge evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_owned_replay_file_evidence_json(replay_path: &str) -> String {
+    let replay_parent = Path::new(replay_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
+    let _ = fs::create_dir_all(replay_parent);
+    let owned_source_preview_path = replay_parent
+        .join("bevy-classic-rts-owned-replay-file-source.ppm")
+        .to_string_lossy()
+        .into_owned();
+    let bridge_preview_dir = replay_parent
+        .join("bevy-classic-rts-owned-replay-file-bridge")
+        .to_string_lossy()
+        .into_owned();
+
+    let organic: Value = serde_json::from_str(
+        &native_classic_rts_organic_terminal_gap_evidence_json(&owned_source_preview_path),
+    )
+    .expect("organic terminal source evidence parses");
+    let bridge: Value = serde_json::from_str(
+        &native_classic_rts_openra_parity_bridge_evidence_json(&bridge_preview_dir),
+    )
+    .expect("OpenRA parity bridge evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("stable replay payload serializes"))
+    };
+
+    let map_signature = json!({
+        "map_id": "trnm_first_contact_basin",
+        "objective_tiles": organic.get("final_objective_tile_ids").cloned().unwrap_or(Value::Null),
+        "total_beacons": organic.get("bevy_terminal_total_beacons").cloned().unwrap_or(Value::Null),
+        "winner_beacons": organic.get("bevy_terminal_winner_beacons").cloned().unwrap_or(Value::Null)
+    });
+    let rules_signature = json!({
+        "rules_id": "trnm_openra_like_terminal_rules_v1",
+        "terminal_hold_ticks": organic.get("bevy_terminal_hold_ticks").cloned().unwrap_or(Value::Null),
+        "winner": organic.get("bevy_terminal_winner").cloned().unwrap_or(Value::Null),
+        "source_contract": organic.get("contract_version").cloned().unwrap_or(Value::Null),
+        "bridge_contract": bridge.get("contract_version").cloned().unwrap_or(Value::Null)
+    });
+    let map_sha256 = json_sha256(&map_signature);
+    let rules_sha256 = json_sha256(&rules_signature);
+
+    let stage_summaries = organic
+        .get("stage_summaries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut recorded_inputs = Vec::new();
+    for (index, stage) in stage_summaries.iter().enumerate() {
+        let payload = json!({
+            "tick": stage.get("tick").cloned().unwrap_or(Value::Null),
+            "stage": stage.get("stage").cloned().unwrap_or(Value::Null),
+            "controlled_beacons": stage.get("controlled_beacons").cloned().unwrap_or(Value::Null),
+            "probe_state": stage.get("probe_state").cloned().unwrap_or(Value::Null),
+            "objective_state": stage.get("objective_state").cloned().unwrap_or(Value::Null),
+            "match_result_state": stage.get("match_result_state").cloned().unwrap_or(Value::Null),
+            "combat_event_log": stage.get("combat_event_log").cloned().unwrap_or(Value::Null)
+        });
+        let checkpoint_sha256 = json_sha256(&payload);
+        recorded_inputs.push(json!({
+            "input_index": index,
+            "tick": stage.get("tick").cloned().unwrap_or(Value::Null),
+            "kind": "rts_owned_replay_checkpoint",
+            "source": "bevy_classic_rts_organic_terminal_gap",
+            "payload": payload,
+            "checkpoint_sha256": checkpoint_sha256
+        }));
+    }
+
+    let final_source_checkpoint_sha256 = recorded_inputs
+        .last()
+        .and_then(|input| input.get("checkpoint_sha256"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let replay_document = json!({
+        "format": "trnm_owned_replay_v1_json",
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT,
+        "producer": "trnm-world-bevy",
+        "engine_id": TRILLIONNIUM_WORLD_BEVY_ENGINE_ID,
+        "seed": 2026052901_u64,
+        "map_signature": map_signature,
+        "rules_signature": rules_signature,
+        "map_sha256": map_sha256,
+        "rules_sha256": rules_sha256,
+        "source_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT,
+        "bridge_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT,
+        "recorded_input_count": recorded_inputs.len(),
+        "recorded_inputs": recorded_inputs,
+        "source_outcome": {
+            "winner": organic.get("bevy_terminal_winner").cloned().unwrap_or(Value::Null),
+            "final_tick": stage_summaries.last().and_then(|stage| stage.get("tick")).cloned().unwrap_or(Value::Null),
+            "final_match_result_state": organic.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "winner_count": organic.get("winner_count").cloned().unwrap_or(Value::Null),
+            "loser_count": organic.get("loser_count").cloned().unwrap_or(Value::Null),
+            "final_checkpoint_sha256": final_source_checkpoint_sha256
+        },
+        "boundary": {
+            "bevy_owned_replay_file_claimed": true,
+            "bevy_openra_replay_file_claimed": false,
+            "bevy_openra_parity_claimed": false,
+            "android_s5_real_device_claimed": false,
+            "public_launch_ready": false
+        }
+    });
+
+    let replay_bytes =
+        serde_json::to_vec_pretty(&replay_document).expect("owned replay document serializes");
+    let replay_file_sha256 = sha256_hex(&replay_bytes);
+    let replay_file_write_gate = fs::write(replay_path, &replay_bytes).is_ok();
+    let replay_file_bytes = fs::read(replay_path).unwrap_or_default();
+    let replay_file_read_gate = !replay_file_bytes.is_empty();
+    let replay_file_sha256_readback = if replay_file_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&replay_file_bytes)
+    };
+    let replay_file_parse: Value =
+        serde_json::from_slice(&replay_file_bytes).unwrap_or_else(|_| Value::Null);
+    let replay_file_parse_gate = replay_file_parse.is_object();
+
+    let parsed_inputs = replay_file_parse
+        .get("recorded_inputs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut playback_checkpoints = Vec::new();
+    let mut checksum_mismatch_count = 0_u64;
+    for input in &parsed_inputs {
+        let payload = input.get("payload").cloned().unwrap_or(Value::Null);
+        let expected = input
+            .get("checkpoint_sha256")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let computed = json_sha256(&payload);
+        if expected != computed {
+            checksum_mismatch_count += 1;
+        }
+        playback_checkpoints.push(json!({
+            "input_index": input.get("input_index").cloned().unwrap_or(Value::Null),
+            "tick": input.get("tick").cloned().unwrap_or(Value::Null),
+            "expected_checkpoint_sha256": expected,
+            "computed_checkpoint_sha256": computed,
+            "match_result_state": payload.get("match_result_state").cloned().unwrap_or(Value::Null),
+            "objective_state": payload.get("objective_state").cloned().unwrap_or(Value::Null)
+        }));
+    }
+    let final_playback_checkpoint_sha256 = playback_checkpoints
+        .last()
+        .and_then(|checkpoint| checkpoint.get("computed_checkpoint_sha256"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let source_outcome = replay_file_parse
+        .get("source_outcome")
+        .unwrap_or(&Value::Null);
+    let playback_outcome = json!({
+        "winner": source_outcome.get("winner").cloned().unwrap_or(Value::Null),
+        "final_tick": source_outcome.get("final_tick").cloned().unwrap_or(Value::Null),
+        "final_match_result_state": source_outcome.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+        "winner_count": source_outcome.get("winner_count").cloned().unwrap_or(Value::Null),
+        "loser_count": source_outcome.get("loser_count").cloned().unwrap_or(Value::Null),
+        "final_checkpoint_sha256": final_playback_checkpoint_sha256
+    });
+
+    let replay_file_format_gate = str_at(&replay_file_parse, "format")
+        == "trnm_owned_replay_v1_json"
+        && str_at(&replay_file_parse, "contract_version")
+            == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT
+        && str_at(&replay_file_parse, "producer") == "trnm-world-bevy";
+    let replay_file_hash_gate =
+        replay_file_sha256.len() == 64 && replay_file_sha256 == replay_file_sha256_readback;
+    let map_rules_hash_gate = str_at(&replay_file_parse, "map_sha256").len() == 64
+        && str_at(&replay_file_parse, "rules_sha256").len() == 64
+        && str_at(&replay_file_parse, "map_sha256") == map_sha256
+        && str_at(&replay_file_parse, "rules_sha256") == rules_sha256;
+    let recorded_input_gate = parsed_inputs.len() == stage_summaries.len()
+        && parsed_inputs.len() >= 6
+        && parsed_inputs.iter().all(|input| {
+            input.get("kind").and_then(Value::as_str) == Some("rts_owned_replay_checkpoint")
+        });
+    let checkpoint_checksum_gate = checksum_mismatch_count == 0
+        && final_source_checkpoint_sha256.len() == 64
+        && final_source_checkpoint_sha256 == final_playback_checkpoint_sha256;
+    let playback_outcome_gate = playback_outcome.get("winner").and_then(Value::as_str)
+        == Some("Multi2")
+        && playback_outcome
+            .get("final_match_result_state")
+            .and_then(Value::as_str)
+            == Some("victory:organic_terminal_observed:Multi2")
+        && playback_outcome.get("winner_count").and_then(Value::as_u64) == Some(1)
+        && playback_outcome.get("loser_count").and_then(Value::as_u64) == Some(3)
+        && playback_outcome
+            .get("final_tick")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 3000;
+    let bridge_gate = bool_at(&bridge, "green")
+        && bool_at(&bridge, "comparison_matrix_gate")
+        && bool_at(&bridge, "no_parity_claim_gate");
+    let source_gate = bool_at(&organic, "green")
+        && bool_at(&organic, "organic_terminal_gap_gate")
+        && str_at(&organic, "contract_version")
+            == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT;
+    let prior_replay_gap_state = bridge
+        .pointer("/gap_states/replay_metrics")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let gap_visibility_gate = bool_at(&organic, "openra_gap_not_closed_gate")
+        && prior_replay_gap_state == "bevy_replay_metric_vocabulary_not_openra_replay_file";
+    let no_openra_parity_claim_gate = replay_file_parse
+        .pointer("/boundary/bevy_owned_replay_file_claimed")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && replay_file_parse
+            .pointer("/boundary/bevy_openra_replay_file_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && replay_file_parse
+            .pointer("/boundary/bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && replay_file_parse
+            .pointer("/boundary/android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && replay_file_parse
+            .pointer("/boundary/public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let owned_replay_file_gate = replay_file_write_gate
+        && replay_file_read_gate
+        && replay_file_parse_gate
+        && replay_file_format_gate
+        && replay_file_hash_gate
+        && map_rules_hash_gate
+        && recorded_input_gate
+        && checkpoint_checksum_gate
+        && playback_outcome_gate
+        && bridge_gate
+        && source_gate
+        && gap_visibility_gate
+        && no_openra_parity_claim_gate;
+    let green = owned_replay_file_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT,
+        "green": green,
+        "replay_path": replay_path,
+        "replay_format": "trnm_owned_replay_v1_json",
+        "replay_file_sha256": replay_file_sha256,
+        "replay_file_sha256_readback": replay_file_sha256_readback,
+        "source_preview_path": owned_source_preview_path,
+        "bridge_preview_dir": bridge_preview_dir,
+        "seed": replay_file_parse.get("seed").cloned().unwrap_or(Value::Null),
+        "map_sha256": map_sha256,
+        "rules_sha256": rules_sha256,
+        "recorded_input_count": parsed_inputs.len(),
+        "playback_checkpoint_count": playback_checkpoints.len(),
+        "checksum_mismatch_count": checksum_mismatch_count,
+        "source_outcome": source_outcome,
+        "playback_outcome": playback_outcome,
+        "final_source_checkpoint_sha256": final_source_checkpoint_sha256,
+        "final_playback_checkpoint_sha256": final_playback_checkpoint_sha256,
+        "playback_checkpoints": playback_checkpoints,
+        "bridge_summary": bridge.get("bridge_summary").cloned().unwrap_or(Value::Null),
+        "gap_state": "bevy_owned_replay_file_created_not_openra_replay_parity",
+        "prior_gap_state": prior_replay_gap_state,
+        "openra_gap_not_closed_gate": true,
+        "bevy_owned_replay_file_claimed": true,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "replay_file_write_gate": replay_file_write_gate,
+        "replay_file_read_gate": replay_file_read_gate,
+        "replay_file_parse_gate": replay_file_parse_gate,
+        "replay_file_format_gate": replay_file_format_gate,
+        "replay_file_hash_gate": replay_file_hash_gate,
+        "map_rules_hash_gate": map_rules_hash_gate,
+        "recorded_input_gate": recorded_input_gate,
+        "checkpoint_checksum_gate": checkpoint_checksum_gate,
+        "playback_outcome_gate": playback_outcome_gate,
+        "bridge_gate": bridge_gate,
+        "source_gate": source_gate,
+        "gap_visibility_gate": gap_visibility_gate,
+        "no_openra_parity_claim_gate": no_openra_parity_claim_gate,
+        "owned_replay_file_gate": owned_replay_file_gate,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS owned replay file evidence writes a Trillionnium-owned .trnm-replay.json file, reads it back, recomputes deterministic checkpoint checksums, and compares the playback winner/tick/outcome against the source Bevy terminal evidence. It claims a Bevy-owned replay file v1 only; it does not claim OpenRA replay-file compatibility, OpenRA headless parity, Android S5 evidence, or public launch readiness."
+    }))
+    .expect("classic RTS owned replay file evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
