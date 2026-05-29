@@ -17,10 +17,14 @@ required_lines=(
   'bytes_match'
   'contract_match'
   'status_match'
-  'length == 58'
-  'expected fifty-eight artifacts including operator handoff, checkpoint manifest, CEX adapter readiness, Bevy action coach, player HUD/debug layer, player UI rescue, classic RTS control loop, first-minute command feedback replay, first-minute command feedback recordings, first-minute command feedback contact sheet, live-window screenshots, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, map modeling gate, bundle negative fixtures, evidence bundle, template negative fixtures, evidence kit, blocker consistency, status-only fixture guard, S5 real-device validation, public launch evidence intake, production map-pack collection, cohort/commercial collection, external ops collection, production map-pack public evidence, cohort/commercial validation, and external ops validation'
+  'length == 59'
+  'expected fifty-nine artifacts including operator handoff, checkpoint manifest, packet semantic negative fixture, CEX adapter readiness, Bevy action coach, player HUD/debug layer, player UI rescue, classic RTS control loop, first-minute command feedback replay, first-minute command feedback recordings, first-minute command feedback contact sheet, live-window screenshots, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, map modeling gate, bundle negative fixtures, evidence bundle, template negative fixtures, evidence kit, blocker consistency, status-only fixture guard, S5 real-device validation, public launch evidence intake, production map-pack collection, cohort/commercial collection, external ops collection, production map-pack public evidence, cohort/commercial validation, and external ops validation'
   'require_artifact_json_expr'
   'require_artifact_ppm_header'
+  'packet_integrity_semantic_fixture'
+  'trillionnium_world_release_review_packet_integrity_semantic_fixture_v1'
+  'expected_semantic_failure_count == 4'
+  'checksum_mismatch_failure_count == 0'
   'first_minute_command_feedback_replay_semantics'
   'command_input_action_count == 7'
   'accepted_command_input_count == 7'
@@ -36,7 +40,7 @@ required_lines=(
   'release_review_packet_integrity_green_with_public_launch_blockers'
   'android_s5_real_device_claimed: false'
   'host_side_bevy_runtime_replay_not_android_real_device'
-  'packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_cex_adapter_local_bevy_playability_evidence_and_first_minute_command_feedback_replay_semantics'
+  'packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_packet_semantic_negative_fixture_cex_adapter_local_bevy_playability_evidence_and_first_minute_command_feedback_replay_semantics'
 )
 
 for line in "${required_lines[@]}"; do

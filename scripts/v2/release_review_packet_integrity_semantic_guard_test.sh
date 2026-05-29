@@ -58,6 +58,32 @@ for index in $(seq 1 54); do
   add_artifact_from_path "fixture_${index}" "fixture_${index}" "$artifact_path" fixture
 done
 
+semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
+jq -n '{
+  contract_version: "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1",
+  status: "release_review_packet_integrity_semantic_fixture_green",
+  green: true,
+  fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
+  fake_packet_artifact_count: 59,
+  expected_semantic_failure_count: 4,
+  expected_semantic_failure_names: [
+    "first_minute_command_feedback_replay_semantics",
+    "first_minute_command_feedback_source_recording_semantics",
+    "first_minute_command_feedback_recording_semantics",
+    "first_minute_command_feedback_replay_ppm_semantics"
+  ],
+  checksum_mismatch_failure_count: 0,
+  bytes_mismatch_failure_count: 0,
+  contract_mismatch_failure_count: 0,
+  status_mismatch_failure_count: 0,
+  ready_for_release_review: true,
+  public_launch_ready: false,
+  android_s5_real_device_claimed: false,
+  proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
+}' >"$semantic_fixture_json"
+add_artifact_from_path release_review_packet_integrity_semantic_fixture "Release review packet integrity semantic fixture" "$semantic_fixture_json" release_review_gate
+
 replay_json="$TMP_DIR/bevy-first-minute-command-feedback-replay.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_first_minute_command_feedback_replay_v1",
