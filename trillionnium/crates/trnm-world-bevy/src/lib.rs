@@ -288,6 +288,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_EXECUTOR_REPLAY_DETERM
     &str = "trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_EXECUTOR_FAILURE_RECOVERY_MATRIX_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -39553,6 +39555,671 @@ pub fn native_classic_rts_multi_match_bot_executor_evaluation_evidence_json(
         "source_of_truth": "Classic RTS multi-match bot executor evaluation runs the Bevy-owned executor action log across multiple deterministic seed and map-variant fixtures, verifying action acceptance, command-delta replay, final runtime state, and command queue checksums for each variant. It claims only Trillionnium-owned multi-match executor evaluation; OpenRA runtime bot execution parity, live ladder/bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS multi-match bot executor evaluation evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_executor_failure_recovery_matrix_evidence_json(
+    preview_dir: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let source_multi_match_dir = preview_path("source-multi-match-bot-executor-evaluation");
+    let matrix_preview_path = preview_path("bot-executor-failure-recovery-matrix.ppm");
+    let matrix_log_path = preview_path("bot-executor-failure-recovery-matrix.matrix.json");
+
+    let source_multi_match: Value = serde_json::from_str(
+        &native_classic_rts_multi_match_bot_executor_evaluation_evidence_json(
+            &source_multi_match_dir,
+        ),
+    )
+    .expect("multi-match bot executor evaluation evidence parses");
+    let source_action_log_path = source_multi_match
+        .get("source_action_log_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let source_action_log_bytes = fs::read(&source_action_log_path).unwrap_or_default();
+    let source_action_log_sha256 = sha256_hex(&source_action_log_bytes);
+    let source_action_log: Value =
+        serde_json::from_slice(&source_action_log_bytes).unwrap_or(Value::Null);
+    let source_execution_log = source_action_log
+        .get("execution_log")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let assets = load_classic_runtime_assets();
+    let stable_json_sha256 = |value: &Value| {
+        sha256_hex(
+            &serde_json::to_vec(value).expect("stable failure recovery matrix payload serializes"),
+        )
+    };
+    let recovery_safe_runtime_summary = |runtime: &NativeFirstPlayableRuntime| {
+        json!({
+            "faction_id": runtime.rts_faction_id.clone(),
+            "objective_capture_percent": runtime.rts_objective_capture_percent,
+            "objective_owner_state": runtime.rts_objective_owner_state.clone(),
+            "tier_two_tech_ids": runtime.rts_tier_two_tech_ids.clone(),
+            "tech_state": runtime.rts_tech_state.clone(),
+            "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+            "siege_breach_state": runtime.rts_siege_breach_state.clone(),
+            "base_breach_percent": runtime.rts_base_breach_percent,
+            "base_assault_result_state": runtime.rts_base_assault_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "next_action_ids": runtime.rts_next_action_ids.clone(),
+            "command_queue": runtime.rts_command_queue.clone()
+        })
+    };
+    let source_final_runtime_summary = source_multi_match
+        .get("source_final_runtime_summary")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let source_recovery_safe_runtime_summary = json!({
+        "faction_id": source_final_runtime_summary.get("faction_id").cloned().unwrap_or(Value::Null),
+        "objective_capture_percent": source_final_runtime_summary.get("objective_capture_percent").cloned().unwrap_or(Value::Null),
+        "objective_owner_state": source_final_runtime_summary.get("objective_owner_state").cloned().unwrap_or(Value::Null),
+        "tier_two_tech_ids": source_final_runtime_summary.get("tier_two_tech_ids").cloned().unwrap_or(Value::Null),
+        "tech_state": source_final_runtime_summary.get("tech_state").cloned().unwrap_or(Value::Null),
+        "tier_two_push_state": source_final_runtime_summary.get("tier_two_push_state").cloned().unwrap_or(Value::Null),
+        "siege_breach_state": source_final_runtime_summary.get("siege_breach_state").cloned().unwrap_or(Value::Null),
+        "base_breach_percent": source_final_runtime_summary.get("base_breach_percent").cloned().unwrap_or(Value::Null),
+        "base_assault_result_state": source_final_runtime_summary.get("base_assault_result_state").cloned().unwrap_or(Value::Null),
+        "match_result_state": source_final_runtime_summary.get("match_result_state").cloned().unwrap_or(Value::Null),
+        "next_action_ids": source_final_runtime_summary.get("next_action_ids").cloned().unwrap_or(Value::Null),
+        "command_queue": source_final_runtime_summary.get("command_queue").cloned().unwrap_or(Value::Null)
+    });
+    let source_recovery_safe_runtime_sha256 =
+        stable_json_sha256(&source_recovery_safe_runtime_summary);
+    let source_final_runtime_sha256 = source_multi_match
+        .get("source_final_runtime_sha256")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let source_command_queue_sha256 = source_multi_match
+        .get("source_command_queue_sha256")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let blocked_cases = vec![
+        (
+            "empty_queue_rejected",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: String::new(),
+            },
+            "rts_queue_id_required",
+        ),
+        (
+            "empty_group_rejected",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: String::new(),
+            },
+            "rts_group_id_required",
+        ),
+        (
+            "ability_before_attack_rejected",
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: "relay_overcharge".to_string(),
+            },
+            "rts_attack_required_before_ability",
+        ),
+        (
+            "invalid_tile_rejected",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "bad-tile:line".to_string(),
+            },
+            "rts_invalid_tile:bad-tile",
+        ),
+        (
+            "blank_queue_rejected",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "  ".to_string(),
+            },
+            "rts_queue_id_required",
+        ),
+        (
+            "attack_target_missing_rejected",
+            NativeControlAction::RtsAttackCommand {
+                target_id: String::new(),
+            },
+            "rts_attack_target_required",
+        ),
+    ];
+
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield:failure_recovery_matrix".to_string(),
+        coins: 680,
+        xp: 420,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 4,
+        ..Default::default()
+    };
+    let mut matrix_log = Vec::new();
+    let mut blocked_reason_values = Vec::new();
+    let mut blocked_input_sources = Vec::new();
+    let mut recovery_input_sources = Vec::new();
+    let mut source_action_label_parse_count = 0_usize;
+    let mut blocked_attempt_count = 0_usize;
+    let mut blocked_rejection_count = 0_usize;
+    let mut blocked_expected_reason_count = 0_usize;
+    let mut blocked_feedback_event_count = 0_usize;
+    let mut blocked_command_queue_unchanged_count = 0_usize;
+    let mut blocked_command_queue_sha_match_count = 0_usize;
+    let mut recovery_action_count = 0_usize;
+    let mut recovery_accepted_action_count = 0_usize;
+    let mut recovery_command_marker_hit_count = 0_usize;
+    let mut recovery_command_delta_match_count = 0_usize;
+
+    for (source_index, source_event) in source_execution_log.iter().enumerate() {
+        let (blocked_case_id, blocked_action, expected_blocked_reason) =
+            &blocked_cases[source_index % blocked_cases.len()];
+        let blocked_action_label = native_control_action_label(blocked_action);
+        let blocked_availability = native_live_action_availability(&runtime, blocked_action);
+        let blocked_command_len_before = runtime.rts_command_queue.len();
+        let blocked_command_queue_before = json!(runtime.rts_command_queue.clone());
+        let blocked_command_queue_sha_before = stable_json_sha256(&blocked_command_queue_before);
+        let blocked_feedback_len_before = runtime.input_feedback_history.len();
+        let blocked_history_len_before = runtime.blocked_action_history.len();
+        let blocked_response = apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_bot_executor_failure_recovery_matrix_blocked_input",
+            blocked_action.clone(),
+        );
+        let blocked_feedback = runtime.input_feedback_history.last().cloned();
+        if let Some(event) = &blocked_feedback {
+            push_unique_string(&mut blocked_input_sources, &event.input_source);
+        }
+        let blocked_command_queue_after = json!(runtime.rts_command_queue.clone());
+        let blocked_command_queue_sha_after = stable_json_sha256(&blocked_command_queue_after);
+        let blocked_command_len_after = runtime.rts_command_queue.len();
+        let blocked_feedback_event_delta = runtime
+            .input_feedback_history
+            .len()
+            .saturating_sub(blocked_feedback_len_before);
+        let blocked_history_delta = runtime
+            .blocked_action_history
+            .len()
+            .saturating_sub(blocked_history_len_before);
+        let blocked_command_queue_unchanged = runtime.rts_command_queue.len()
+            == blocked_command_len_before
+            && blocked_command_queue_before == blocked_command_queue_after;
+        let blocked_command_queue_sha_match =
+            blocked_command_queue_sha_before == blocked_command_queue_sha_after;
+        let blocked_reason_match = blocked_availability.1 == *expected_blocked_reason
+            && blocked_feedback
+                .as_ref()
+                .is_some_and(|event| event.reason == *expected_blocked_reason);
+        let blocked_rejected = !blocked_availability.0
+            && blocked_response.is_none()
+            && blocked_feedback
+                .as_ref()
+                .is_some_and(|event| !event.accepted)
+            && blocked_feedback_event_delta == 1
+            && blocked_history_delta == 1;
+        blocked_attempt_count += 1;
+        if blocked_rejected {
+            blocked_rejection_count += 1;
+            blocked_feedback_event_count += 1;
+        }
+        if blocked_reason_match {
+            blocked_expected_reason_count += 1;
+        }
+        if blocked_command_queue_unchanged {
+            blocked_command_queue_unchanged_count += 1;
+        }
+        if blocked_command_queue_sha_match {
+            blocked_command_queue_sha_match_count += 1;
+        }
+        push_unique_string(&mut blocked_reason_values, &blocked_availability.1);
+
+        let source_action_label = source_event
+            .get("action_label")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let source_command_marker = source_event
+            .get("command_marker")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let source_command_delta = source_event
+            .get("command_delta")
+            .cloned()
+            .unwrap_or(Value::Array(Vec::new()));
+        let parsed_action = native_control_action_from_label(&source_action_label);
+        let mut recovery_log = json!({
+            "source_index": source_index,
+            "source_action_label": source_action_label,
+            "action_label_parse_gate": false,
+            "accepted": false,
+            "command_marker": source_command_marker,
+            "command_marker_hit": false,
+            "command_delta_match": false
+        });
+        if let Some(action) = parsed_action {
+            source_action_label_parse_count += 1;
+            recovery_action_count += 1;
+            let recovery_availability = native_live_action_availability(&runtime, &action);
+            let recovery_feedback_len_before = runtime.input_feedback_history.len();
+            let recovery_command_len_before = runtime.rts_command_queue.len();
+            apply_live_native_action_with_source(
+                &mut world,
+                &mut character,
+                &mut gameplay_log,
+                &mut runtime,
+                "local-player",
+                "classic_rts_bot_executor_failure_recovery_matrix_recovery_input",
+                action,
+            );
+            let recovery_feedback = runtime.input_feedback_history.last().cloned();
+            if let Some(event) = &recovery_feedback {
+                push_unique_string(&mut recovery_input_sources, &event.input_source);
+            }
+            let recovery_accepted = recovery_feedback
+                .as_ref()
+                .is_some_and(|event| event.accepted);
+            if recovery_accepted {
+                recovery_accepted_action_count += 1;
+            }
+            let recovery_command_delta_vec =
+                runtime.rts_command_queue[recovery_command_len_before..].to_vec();
+            let recovery_command_delta = json!(recovery_command_delta_vec);
+            let recovery_command_marker_hit = recovery_command_delta
+                .as_array()
+                .map(|entries| {
+                    entries.iter().any(|entry| {
+                        entry
+                            .as_str()
+                            .is_some_and(|text| text.starts_with(&source_command_marker))
+                    })
+                })
+                .unwrap_or(false);
+            if recovery_command_marker_hit {
+                recovery_command_marker_hit_count += 1;
+            }
+            let recovery_command_delta_match = recovery_command_delta == source_command_delta;
+            if recovery_command_delta_match {
+                recovery_command_delta_match_count += 1;
+            }
+            recovery_log = json!({
+                "source_index": source_index,
+                "source_decision_index": source_event.get("decision_index").cloned().unwrap_or(Value::Null),
+                "source_planner_phase": source_event.get("planner_phase").cloned().unwrap_or(Value::Null),
+                "source_action_label": source_action_label,
+                "action_label_parse_gate": true,
+                "availability_before": recovery_availability.1,
+                "input_source": recovery_feedback.as_ref().map(|event| event.input_source.clone()).unwrap_or_default(),
+                "accepted": recovery_accepted,
+                "feedback_event_delta": runtime
+                    .input_feedback_history
+                    .len()
+                    .saturating_sub(recovery_feedback_len_before),
+                "feedback_reason": recovery_feedback.as_ref().map(|event| event.reason.clone()),
+                "command_marker": source_command_marker,
+                "command_marker_hit": recovery_command_marker_hit,
+                "command_delta_match": recovery_command_delta_match,
+                "source_command_delta": source_command_delta,
+                "recovery_command_delta": recovery_command_delta,
+                "objective_capture_percent": runtime.rts_objective_capture_percent,
+                "tech_state": runtime.rts_tech_state.clone(),
+                "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+                "siege_breach_state": runtime.rts_siege_breach_state.clone(),
+                "match_result_state": runtime.rts_match_result_state.clone(),
+                "objective_status": runtime.objective_status.clone()
+            });
+        }
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((source_index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((source_index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("RECOVERY {} {}", source_index + 1, blocked_case_id),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        matrix_log.push(json!({
+            "matrix_index": source_index,
+            "blocked": {
+                "case_id": blocked_case_id,
+                "action_label": blocked_action_label,
+                "input_source": blocked_feedback.as_ref().map(|event| event.input_source.clone()).unwrap_or_default(),
+                "accepted": blocked_feedback.as_ref().is_some_and(|event| event.accepted),
+                "expected_reason": expected_blocked_reason,
+                "availability_before": blocked_availability.1,
+                "feedback_reason": blocked_feedback.as_ref().map(|event| event.reason.clone()),
+                "rejected": blocked_rejected,
+                "expected_reason_match": blocked_reason_match,
+                "command_queue_unchanged": blocked_command_queue_unchanged,
+                "command_queue_sha_match": blocked_command_queue_sha_match,
+                "command_queue_len_before": blocked_command_len_before,
+                "command_queue_len_after": blocked_command_len_after,
+                "feedback_event_delta": blocked_feedback_event_delta,
+                "blocked_history_delta": blocked_history_delta
+            },
+            "recovery": recovery_log
+        }));
+    }
+
+    let final_recovery_safe_runtime_summary = recovery_safe_runtime_summary(&runtime);
+    let final_recovery_safe_runtime_sha256 =
+        stable_json_sha256(&final_recovery_safe_runtime_summary);
+    let recovery_safe_runtime_sha_match =
+        final_recovery_safe_runtime_sha256 == source_recovery_safe_runtime_sha256;
+    let final_command_queue = json!(runtime.rts_command_queue.clone());
+    let final_command_queue_sha256 = stable_json_sha256(&final_command_queue);
+    let command_queue_sha_match = final_command_queue_sha256 == source_command_queue_sha256;
+    let feedback_blocked_count = runtime
+        .input_feedback_history
+        .iter()
+        .filter(|event| !event.accepted)
+        .count();
+    let feedback_recovery_count = runtime
+        .input_feedback_history
+        .iter()
+        .filter(|event| event.accepted)
+        .count();
+    let write_preview_gate = write_classic_rgb_buffer_ppm(
+        &matrix_preview_path,
+        preview_width,
+        preview_height,
+        &preview_pixels,
+    )
+    .is_ok();
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let matrix_log_payload = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_EXECUTOR_FAILURE_RECOVERY_MATRIX_CONTRACT,
+        "source_multi_match_dir": source_multi_match_dir,
+        "source_action_log_path": source_action_log_path,
+        "source_action_log_sha256": source_action_log_sha256,
+        "source_final_runtime_sha256": source_final_runtime_sha256,
+        "source_recovery_safe_runtime_sha256": source_recovery_safe_runtime_sha256,
+        "source_command_queue_sha256": source_command_queue_sha256,
+        "blocked_input_source": "classic_rts_bot_executor_failure_recovery_matrix_blocked_input",
+        "recovery_input_source": "classic_rts_bot_executor_failure_recovery_matrix_recovery_input",
+        "source_replay_action_count": source_execution_log.len(),
+        "blocked_injection_count": blocked_attempt_count,
+        "blocked_rejection_count": blocked_rejection_count,
+        "blocked_expected_reason_count": blocked_expected_reason_count,
+        "blocked_feedback_event_count": blocked_feedback_event_count,
+        "blocked_command_queue_unchanged_count": blocked_command_queue_unchanged_count,
+        "blocked_command_queue_sha_match_count": blocked_command_queue_sha_match_count,
+        "recovery_action_count": recovery_action_count,
+        "recovery_accepted_action_count": recovery_accepted_action_count,
+        "recovery_command_marker_hit_count": recovery_command_marker_hit_count,
+        "recovery_command_delta_match_count": recovery_command_delta_match_count,
+        "recovery_safe_runtime_sha_match": recovery_safe_runtime_sha_match,
+        "command_queue_sha_match": command_queue_sha_match,
+        "matrix_log": matrix_log
+    });
+    let matrix_log_bytes =
+        serde_json::to_vec_pretty(&matrix_log_payload).expect("failure recovery log serializes");
+    let matrix_log_sha256 = sha256_hex(&matrix_log_bytes);
+    let matrix_log_write_gate = fs::write(&matrix_log_path, &matrix_log_bytes).is_ok();
+    let matrix_log_readback_gate = fs::read(&matrix_log_path)
+        .map(|bytes| sha256_hex(&bytes) == matrix_log_sha256)
+        .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let source_multi_match_contract_gate = source_multi_match
+        .get("contract_version")
+        .and_then(Value::as_str)
+        == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_CONTRACT);
+    let source_multi_match_gate = bool_at(&source_multi_match, "green")
+        && bool_at(
+            &source_multi_match,
+            "multi_match_bot_executor_evaluation_gate",
+        )
+        && u64_at(&source_multi_match, "variant_count") == 4
+        && u64_at(&source_multi_match, "total_replay_action_count") == 24
+        && u64_at(&source_multi_match, "total_accepted_action_count") == 24
+        && str_at(&source_multi_match, "multi_match_bot_executor_evaluation_state")
+            == "bevy_executor_action_log_runs_across_multiple_deterministic_match_variants_not_openra_ladder";
+    let source_action_log_readback_gate = !source_action_log.is_null()
+        && source_action_log_sha256.len() == 64
+        && source_multi_match
+            .get("source_action_log_sha256")
+            .and_then(Value::as_str)
+            == Some(source_action_log_sha256.as_str())
+        && source_execution_log.len() == 6;
+    let expected_count = source_execution_log.len();
+    let blocked_rejection_gate = blocked_attempt_count == expected_count
+        && blocked_rejection_count == expected_count
+        && blocked_expected_reason_count == expected_count
+        && blocked_feedback_event_count == expected_count
+        && feedback_blocked_count == expected_count
+        && runtime.blocked_action_history.len() >= expected_count
+        && blocked_reason_values
+            .iter()
+            .any(|reason| reason == "rts_queue_id_required")
+        && blocked_reason_values
+            .iter()
+            .any(|reason| reason == "rts_group_id_required")
+        && blocked_reason_values
+            .iter()
+            .any(|reason| reason == "rts_attack_required_before_ability")
+        && blocked_reason_values
+            .iter()
+            .any(|reason| reason == "rts_invalid_tile:bad-tile")
+        && blocked_reason_values
+            .iter()
+            .any(|reason| reason == "rts_attack_target_required");
+    let blocked_non_pollution_gate = blocked_command_queue_unchanged_count == expected_count
+        && blocked_command_queue_sha_match_count == expected_count
+        && command_queue_sha_match;
+    let recovery_acceptance_gate = source_action_label_parse_count == expected_count
+        && recovery_action_count == expected_count
+        && recovery_accepted_action_count == expected_count
+        && recovery_command_marker_hit_count == expected_count
+        && recovery_command_delta_match_count == expected_count
+        && feedback_recovery_count == expected_count;
+    let recovery_runtime_gate = recovery_safe_runtime_sha_match
+        && command_queue_sha_match
+        && final_recovery_safe_runtime_summary == source_recovery_safe_runtime_summary
+        && final_recovery_safe_runtime_summary
+            .get("faction_id")
+            .and_then(Value::as_str)
+            == Some("mirror_guard")
+        && final_recovery_safe_runtime_summary
+            .get("objective_capture_percent")
+            .and_then(Value::as_u64)
+            == Some(100)
+        && final_recovery_safe_runtime_summary
+            .get("tier_two_tech_ids")
+            .and_then(Value::as_array)
+            .is_some_and(|techs| techs.iter().any(|tech| tech == "relay_foundry"))
+        && final_recovery_safe_runtime_summary
+            .get("siege_breach_state")
+            .and_then(Value::as_str)
+            == Some("counterplay_won:gate_bulwark")
+        && final_recovery_safe_runtime_summary
+            .get("match_result_state")
+            .and_then(Value::as_str)
+            == Some("siege_breakthrough:inner_lane")
+        && final_recovery_safe_runtime_summary
+            .get("next_action_ids")
+            .and_then(Value::as_array)
+            .is_some_and(|actions| actions.iter().any(|action| action == "enter_inner_lane"));
+    let input_source_gate = blocked_input_sources
+        == vec!["classic_rts_bot_executor_failure_recovery_matrix_blocked_input".to_string()]
+        && recovery_input_sources
+            == vec!["classic_rts_bot_executor_failure_recovery_matrix_recovery_input".to_string()]
+        && runtime.input_feedback_history.len() == expected_count * 2;
+    let preview_gate = write_preview_gate && non_background_pixels > 250_000;
+    let matrix_log_gate =
+        matrix_log_sha256.len() == 64 && matrix_log_write_gate && matrix_log_readback_gate;
+    let boundary_gate = source_multi_match
+        .get("bevy_openra_runtime_bot_executor_claimed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && source_multi_match
+            .get("bevy_openra_live_bot_match_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_multi_match
+            .get("bevy_openra_bot_ai_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_multi_match
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_multi_match
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_multi_match
+            .get("public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let bot_executor_failure_recovery_matrix_gate = source_multi_match_contract_gate
+        && source_multi_match_gate
+        && source_action_log_readback_gate
+        && blocked_rejection_gate
+        && blocked_non_pollution_gate
+        && recovery_acceptance_gate
+        && recovery_runtime_gate
+        && input_source_gate
+        && preview_gate
+        && matrix_log_gate
+        && boundary_gate;
+    let green = bot_executor_failure_recovery_matrix_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_EXECUTOR_FAILURE_RECOVERY_MATRIX_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_paths": {
+            "source_multi_match_bot_executor_evaluation": source_multi_match_dir,
+            "failure_recovery_matrix_preview": matrix_preview_path
+        },
+        "matrix_log_path": matrix_log_path,
+        "matrix_log_sha256": matrix_log_sha256,
+        "source_action_log_path": source_action_log_path,
+        "source_action_log_sha256": source_action_log_sha256,
+        "source_final_runtime_sha256": source_final_runtime_sha256,
+        "source_recovery_safe_runtime_sha256": source_recovery_safe_runtime_sha256,
+        "recovery_safe_runtime_sha256": final_recovery_safe_runtime_sha256,
+        "source_command_queue_sha256": source_command_queue_sha256,
+        "recovery_command_queue_sha256": final_command_queue_sha256,
+        "planner_live_decision_log_sha256": source_multi_match.get("planner_live_decision_log_sha256").cloned().unwrap_or(Value::Null),
+        "planner_strategy_checksum_sha256": source_multi_match.get("planner_strategy_checksum_sha256").cloned().unwrap_or(Value::Null),
+        "bot_executor_failure_recovery_matrix_state": "bevy_executor_rejects_blocked_actions_and_recovers_without_command_queue_pollution_not_openra_runtime_bot",
+        "source_replay_action_count": source_execution_log.len(),
+        "blocked_injection_count": blocked_attempt_count,
+        "blocked_rejection_count": blocked_rejection_count,
+        "blocked_expected_reason_count": blocked_expected_reason_count,
+        "blocked_feedback_event_count": blocked_feedback_event_count,
+        "blocked_command_queue_unchanged_count": blocked_command_queue_unchanged_count,
+        "blocked_command_queue_sha_match_count": blocked_command_queue_sha_match_count,
+        "blocked_reason_values": blocked_reason_values,
+        "blocked_input_sources": blocked_input_sources,
+        "recovery_input_sources": recovery_input_sources,
+        "recovery_action_count": recovery_action_count,
+        "recovery_accepted_action_count": recovery_accepted_action_count,
+        "recovery_command_marker_hit_count": recovery_command_marker_hit_count,
+        "recovery_command_delta_match_count": recovery_command_delta_match_count,
+        "feedback_blocked_count": feedback_blocked_count,
+        "feedback_recovery_count": feedback_recovery_count,
+        "final_input_feedback_event_count": runtime.input_feedback_history.len(),
+        "final_blocked_action_history_count": runtime.blocked_action_history.len(),
+        "recovery_safe_runtime_sha_match": recovery_safe_runtime_sha_match,
+        "command_queue_sha_match": command_queue_sha_match,
+        "source_multi_match_summary": {
+            "variant_count": source_multi_match.get("variant_count").cloned().unwrap_or(Value::Null),
+            "total_replay_action_count": source_multi_match.get("total_replay_action_count").cloned().unwrap_or(Value::Null),
+            "total_accepted_action_count": source_multi_match.get("total_accepted_action_count").cloned().unwrap_or(Value::Null),
+            "evaluation_log_sha256": source_multi_match.get("evaluation_log_sha256").cloned().unwrap_or(Value::Null)
+        },
+        "source_recovery_safe_runtime_summary": source_recovery_safe_runtime_summary,
+        "final_recovery_safe_runtime_summary": final_recovery_safe_runtime_summary,
+        "matrix_log": matrix_log_payload.get("matrix_log").cloned().unwrap_or(Value::Null),
+        "blocked_action_history": runtime.blocked_action_history,
+        "non_background_pixels": non_background_pixels,
+        "write_preview_gate": write_preview_gate,
+        "source_multi_match_contract_gate": source_multi_match_contract_gate,
+        "source_multi_match_gate": source_multi_match_gate,
+        "source_action_log_readback_gate": source_action_log_readback_gate,
+        "blocked_rejection_gate": blocked_rejection_gate,
+        "blocked_non_pollution_gate": blocked_non_pollution_gate,
+        "recovery_acceptance_gate": recovery_acceptance_gate,
+        "recovery_runtime_gate": recovery_runtime_gate,
+        "input_source_gate": input_source_gate,
+        "preview_gate": preview_gate,
+        "matrix_log_write_gate": matrix_log_write_gate,
+        "matrix_log_readback_gate": matrix_log_readback_gate,
+        "matrix_log_gate": matrix_log_gate,
+        "boundary_gate": boundary_gate,
+        "bot_executor_failure_recovery_matrix_gate": bot_executor_failure_recovery_matrix_gate,
+        "bevy_bot_executor_failure_recovery_matrix_claimed": true,
+        "bevy_multi_match_bot_executor_evaluation_claimed": true,
+        "bevy_openra_runtime_bot_executor_claimed": false,
+        "bevy_openra_live_bot_match_claimed": false,
+        "bevy_openra_bot_ai_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot executor failure/recovery matrix injects blocked Bevy-native executor actions before every recovery action, verifies structured rejection reasons and unchanged command queues, then replays the canonical recovery actions to the same command queue and recovery-safe runtime checksum. It claims only Trillionnium-owned Bevy executor rejection/recovery evidence; OpenRA runtime bot execution parity, live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS bot executor failure recovery matrix evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

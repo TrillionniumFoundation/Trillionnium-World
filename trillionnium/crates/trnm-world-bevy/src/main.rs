@@ -1422,6 +1422,24 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-rts-bot-executor-failure-recovery-matrix"
+                | "--classic-rts-bot-executor-failure-recovery-matrix"
+        )
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-executor-failure-recovery-matrix",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_bot_executor_failure_recovery_matrix_evidence_json(
+                preview_dir
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-rts-bot-decision-state-gap" | "--classic-rts-bot-decision-state-gap")
     ) {
         let preview_path = args.get(1).map(String::as_str).unwrap_or(
