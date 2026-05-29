@@ -1388,6 +1388,22 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-rts-bot-planner-executor-replay-determinism"
+                | "--classic-rts-bot-planner-executor-replay-determinism"
+        )
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-planner-executor-replay-determinism",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_bot_planner_executor_replay_determinism_evidence_json(preview_dir)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-rts-bot-decision-state-gap" | "--classic-rts-bot-decision-state-gap")
     ) {
         let preview_path = args.get(1).map(String::as_str).unwrap_or(

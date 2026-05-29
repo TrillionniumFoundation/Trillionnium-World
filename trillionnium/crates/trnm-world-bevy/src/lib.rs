@@ -284,6 +284,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_C
     "trillionnium_world_bevy_classic_rts_planner_live_autonomous_bot_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_ACTION_EXECUTOR_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_planner_action_executor_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_EXECUTOR_REPLAY_DETERMINISM_CONTRACT:
+    &str = "trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -38548,6 +38550,438 @@ pub fn native_classic_rts_bot_planner_action_executor_evidence_json(preview_dir:
         "source_of_truth": "Classic RTS bot planner action executor evidence translates the planner live-loop decision log into accepted Bevy-native RTS control actions, records the executor action log, and verifies concrete runtime mutations. It claims only a Trillionnium-owned action executor proof; OpenRA runtime bot execution parity, live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS bot planner action executor evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_planner_executor_replay_determinism_evidence_json(
+    preview_dir: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let source_executor_dir = preview_path("source-bot-planner-action-executor");
+    let replay_preview_path = preview_path("bot-planner-executor-replay-determinism.ppm");
+    let replay_log_path = preview_path("bot-planner-executor-replay-determinism.replay.json");
+
+    let source_executor: Value = serde_json::from_str(
+        &native_classic_rts_bot_planner_action_executor_evidence_json(&source_executor_dir),
+    )
+    .expect("bot planner action executor evidence parses");
+    let source_action_log_path = source_executor
+        .get("action_log_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let source_action_log_bytes = fs::read(&source_action_log_path).unwrap_or_default();
+    let source_action_log_sha256 = sha256_hex(&source_action_log_bytes);
+    let source_action_log: Value =
+        serde_json::from_slice(&source_action_log_bytes).unwrap_or(Value::Null);
+    let source_execution_log = source_action_log
+        .get("execution_log")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 680,
+        xp: 420,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 4,
+        ..Default::default()
+    };
+    let runtime_summary = |runtime: &NativeFirstPlayableRuntime| {
+        json!({
+            "faction_id": runtime.rts_faction_id.clone(),
+            "objective_capture_percent": runtime.rts_objective_capture_percent,
+            "objective_owner_state": runtime.rts_objective_owner_state.clone(),
+            "tier_two_tech_ids": runtime.rts_tier_two_tech_ids.clone(),
+            "tech_state": runtime.rts_tech_state.clone(),
+            "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+            "siege_breach_state": runtime.rts_siege_breach_state.clone(),
+            "base_breach_percent": runtime.rts_base_breach_percent,
+            "base_assault_result_state": runtime.rts_base_assault_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "next_action_ids": runtime.rts_next_action_ids.clone(),
+            "input_feedback_event_count": runtime.input_feedback_history.len(),
+            "command_queue": runtime.rts_command_queue.clone()
+        })
+    };
+    let stable_json_sha256 = |value: &Value| {
+        sha256_hex(
+            &serde_json::to_vec(value).expect("stable replay determinism payload serializes"),
+        )
+    };
+
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut replay_execution_log = Vec::new();
+    let mut replayed_action_labels = Vec::new();
+    let mut replay_input_sources = Vec::new();
+    let mut accepted_replay_action_count = 0_usize;
+    let mut replay_command_marker_hit_count = 0_usize;
+    let mut command_delta_match_count = 0_usize;
+    let mut action_label_parse_count = 0_usize;
+
+    for (index, source_event) in source_execution_log.iter().enumerate() {
+        let action_label = source_event
+            .get("action_label")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        replayed_action_labels.push(action_label.clone());
+        let source_command_marker = source_event
+            .get("command_marker")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let source_command_delta = source_event
+            .get("command_delta")
+            .cloned()
+            .unwrap_or(Value::Array(Vec::new()));
+        let Some(action) = native_control_action_from_label(&action_label) else {
+            replay_execution_log.push(json!({
+                "source_decision_index": source_event.get("decision_index").cloned().unwrap_or(Value::Null),
+                "action_label": action_label,
+                "action_label_parse_gate": false,
+                "accepted": false,
+                "command_marker": source_command_marker,
+                "command_marker_hit": false,
+                "command_delta_match": false
+            }));
+            continue;
+        };
+        action_label_parse_count += 1;
+        let availability_before = native_live_action_availability(&runtime, &action);
+        let feedback_len_before = runtime.input_feedback_history.len();
+        let command_len_before = runtime.rts_command_queue.len();
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_bot_planner_executor_replay_input",
+            action,
+        );
+        let latest_feedback = runtime.input_feedback_history.last().cloned();
+        let accepted = latest_feedback.as_ref().is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_replay_action_count += 1;
+        }
+        if let Some(event) = &latest_feedback {
+            push_unique_string(&mut replay_input_sources, &event.input_source);
+        }
+        let replay_command_delta_vec = runtime.rts_command_queue[command_len_before..].to_vec();
+        let replay_command_delta_value = json!(replay_command_delta_vec);
+        let command_marker_hit = replay_command_delta_value
+            .as_array()
+            .map(|entries| {
+                entries.iter().any(|entry| {
+                    entry
+                        .as_str()
+                        .is_some_and(|text| text.starts_with(&source_command_marker))
+                })
+            })
+            .unwrap_or(false);
+        if command_marker_hit {
+            replay_command_marker_hit_count += 1;
+        }
+        let command_delta_match = source_command_delta == replay_command_delta_value;
+        if command_delta_match {
+            command_delta_match_count += 1;
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("EXEC REPLAY {} {}", index + 1, action_label),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        replay_execution_log.push(json!({
+            "source_decision_index": source_event.get("decision_index").cloned().unwrap_or(Value::Null),
+            "source_planner_phase": source_event.get("planner_phase").cloned().unwrap_or(Value::Null),
+            "source_tick": source_event.get("source_tick").cloned().unwrap_or(Value::Null),
+            "source_executor_action": source_event.get("executor_action").cloned().unwrap_or(Value::Null),
+            "action_label": action_label,
+            "action_label_parse_gate": true,
+            "availability_before": availability_before.1,
+            "input_source": latest_feedback.as_ref().map(|event| event.input_source.clone()).unwrap_or_default(),
+            "accepted": accepted,
+            "feedback_event_delta": runtime.input_feedback_history.len().saturating_sub(feedback_len_before),
+            "feedback_reason": latest_feedback.as_ref().map(|event| event.reason.clone()),
+            "command_marker": source_command_marker,
+            "command_marker_hit": command_marker_hit,
+            "command_delta_match": command_delta_match,
+            "source_command_delta": source_command_delta,
+            "replay_command_delta": replay_command_delta_value,
+            "objective_capture_percent": runtime.rts_objective_capture_percent,
+            "tech_state": runtime.rts_tech_state.clone(),
+            "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+            "siege_breach_state": runtime.rts_siege_breach_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "objective_status": runtime.objective_status.clone()
+        }));
+    }
+
+    let write_preview_gate = write_classic_rgb_buffer_ppm(
+        &replay_preview_path,
+        preview_width,
+        preview_height,
+        &preview_pixels,
+    )
+    .is_ok();
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let source_final_runtime_summary = source_executor
+        .get("final_runtime_summary")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let replay_final_runtime_summary = runtime_summary(&runtime);
+    let source_final_runtime_sha256 = stable_json_sha256(&source_final_runtime_summary);
+    let replay_final_runtime_sha256 = stable_json_sha256(&replay_final_runtime_summary);
+    let source_command_queue = source_final_runtime_summary
+        .get("command_queue")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let replay_command_queue = replay_final_runtime_summary
+        .get("command_queue")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let source_command_queue_sha256 = stable_json_sha256(&source_command_queue);
+    let replay_command_queue_sha256 = stable_json_sha256(&replay_command_queue);
+
+    let replay_log_payload = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_EXECUTOR_REPLAY_DETERMINISM_CONTRACT,
+        "source_action_log_path": source_action_log_path,
+        "source_action_log_sha256": source_action_log_sha256,
+        "source_executor_summary_sha256": source_executor.get("action_log_sha256").cloned().unwrap_or(Value::Null),
+        "replay_input_source": "classic_rts_bot_planner_executor_replay_input",
+        "replay_action_count": replay_execution_log.len(),
+        "accepted_replay_action_count": accepted_replay_action_count,
+        "replay_command_marker_hit_count": replay_command_marker_hit_count,
+        "command_delta_match_count": command_delta_match_count,
+        "source_final_runtime_sha256": source_final_runtime_sha256,
+        "replay_final_runtime_sha256": replay_final_runtime_sha256,
+        "source_command_queue_sha256": source_command_queue_sha256,
+        "replay_command_queue_sha256": replay_command_queue_sha256,
+        "execution_log": replay_execution_log
+    });
+    let replay_log_bytes =
+        serde_json::to_vec_pretty(&replay_log_payload).expect("executor replay log serializes");
+    let replay_log_sha256 = sha256_hex(&replay_log_bytes);
+    let replay_log_write_gate = fs::write(&replay_log_path, &replay_log_bytes).is_ok();
+    let replay_log_readback_gate = fs::read(&replay_log_path)
+        .map(|bytes| sha256_hex(&bytes) == replay_log_sha256)
+        .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let source_contract_gate = source_executor
+        .get("contract_version")
+        .and_then(Value::as_str)
+        == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_ACTION_EXECUTOR_CONTRACT);
+    let source_executor_gate = bool_at(&source_executor, "green")
+        && bool_at(&source_executor, "bot_planner_action_executor_gate")
+        && u64_at(&source_executor, "executor_action_count") == 6
+        && u64_at(&source_executor, "accepted_action_count") == 6
+        && u64_at(&source_executor, "command_marker_hit_count") == 6
+        && str_at(&source_executor, "bot_planner_action_executor_state")
+            == "bevy_planner_decisions_execute_as_native_rts_actions_not_openra_runtime_bot";
+    let source_action_log_readback_gate = !source_action_log.is_null()
+        && source_action_log_sha256.len() == 64
+        && source_executor
+            .get("action_log_sha256")
+            .and_then(Value::as_str)
+            == Some(source_action_log_sha256.as_str())
+        && source_execution_log.len() == 6;
+    let replay_mapping_gate = action_label_parse_count == source_execution_log.len()
+        && replayed_action_labels.len() == 6
+        && replayed_action_labels
+            == source_executor
+                .get("action_labels")
+                .and_then(Value::as_array)
+                .map(|labels| {
+                    labels
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+    let replay_acceptance_gate = accepted_replay_action_count == source_execution_log.len()
+        && replay_command_marker_hit_count == source_execution_log.len()
+        && command_delta_match_count == source_execution_log.len()
+        && runtime.input_feedback_history.len() == source_execution_log.len()
+        && replay_input_sources
+            == vec!["classic_rts_bot_planner_executor_replay_input".to_string()];
+    let runtime_determinism_gate = source_final_runtime_summary == replay_final_runtime_summary
+        && source_final_runtime_sha256 == replay_final_runtime_sha256
+        && source_command_queue == replay_command_queue
+        && source_command_queue_sha256 == replay_command_queue_sha256
+        && replay_final_runtime_summary
+            .get("faction_id")
+            .and_then(Value::as_str)
+            == Some("mirror_guard")
+        && replay_final_runtime_summary
+            .get("objective_capture_percent")
+            .and_then(Value::as_u64)
+            == Some(100)
+        && replay_final_runtime_summary
+            .get("tier_two_push_state")
+            .and_then(Value::as_str)
+            == Some("siege_push_ready:gate_bulwark")
+        && replay_final_runtime_summary
+            .get("siege_breach_state")
+            .and_then(Value::as_str)
+            == Some("counterplay_won:gate_bulwark")
+        && replay_final_runtime_summary
+            .get("match_result_state")
+            .and_then(Value::as_str)
+            == Some("siege_breakthrough:inner_lane");
+    let preview_gate = write_preview_gate && non_background_pixels > 250_000;
+    let replay_log_gate =
+        replay_log_sha256.len() == 64 && replay_log_write_gate && replay_log_readback_gate;
+    let boundary_gate = source_executor
+        .get("bevy_openra_runtime_bot_executor_claimed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && source_executor
+            .get("bevy_openra_live_bot_match_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_executor
+            .get("bevy_openra_bot_ai_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_executor
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_executor
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_executor
+            .get("public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let bot_planner_executor_replay_determinism_gate = source_contract_gate
+        && source_executor_gate
+        && source_action_log_readback_gate
+        && replay_mapping_gate
+        && replay_acceptance_gate
+        && runtime_determinism_gate
+        && preview_gate
+        && replay_log_gate
+        && boundary_gate;
+    let green = bot_planner_executor_replay_determinism_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_EXECUTOR_REPLAY_DETERMINISM_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_paths": {
+            "source_bot_planner_action_executor": source_executor_dir,
+            "replay_preview": replay_preview_path
+        },
+        "source_action_log_path": source_action_log_path,
+        "source_action_log_sha256": source_action_log_sha256,
+        "replay_log_path": replay_log_path,
+        "replay_log_sha256": replay_log_sha256,
+        "planner_live_decision_log_sha256": source_executor.get("planner_live_decision_log_sha256").cloned().unwrap_or(Value::Null),
+        "planner_strategy_checksum_sha256": source_executor.get("planner_strategy_checksum_sha256").cloned().unwrap_or(Value::Null),
+        "bot_planner_executor_replay_determinism_state": "bevy_executor_action_log_replays_to_identical_runtime_state_not_openra_runtime_bot",
+        "source_executor_action_count": source_execution_log.len(),
+        "replay_action_count": replay_execution_log.len(),
+        "accepted_replay_action_count": accepted_replay_action_count,
+        "replay_command_marker_hit_count": replay_command_marker_hit_count,
+        "command_delta_match_count": command_delta_match_count,
+        "replay_input_sources": replay_input_sources,
+        "replayed_action_labels": replayed_action_labels,
+        "source_final_runtime_sha256": source_final_runtime_sha256,
+        "replay_final_runtime_sha256": replay_final_runtime_sha256,
+        "source_command_queue_sha256": source_command_queue_sha256,
+        "replay_command_queue_sha256": replay_command_queue_sha256,
+        "source_final_runtime_summary": source_final_runtime_summary,
+        "replay_final_runtime_summary": replay_final_runtime_summary,
+        "replay_execution_log": replay_log_payload.get("execution_log").cloned().unwrap_or(Value::Null),
+        "non_background_pixels": non_background_pixels,
+        "write_preview_gate": write_preview_gate,
+        "source_contract_gate": source_contract_gate,
+        "source_executor_gate": source_executor_gate,
+        "source_action_log_readback_gate": source_action_log_readback_gate,
+        "replay_mapping_gate": replay_mapping_gate,
+        "replay_acceptance_gate": replay_acceptance_gate,
+        "runtime_determinism_gate": runtime_determinism_gate,
+        "preview_gate": preview_gate,
+        "replay_log_write_gate": replay_log_write_gate,
+        "replay_log_readback_gate": replay_log_readback_gate,
+        "replay_log_gate": replay_log_gate,
+        "boundary_gate": boundary_gate,
+        "bot_planner_executor_replay_determinism_gate": bot_planner_executor_replay_determinism_gate,
+        "bevy_bot_planner_executor_replay_determinism_claimed": true,
+        "bevy_openra_runtime_bot_executor_claimed": false,
+        "bevy_openra_live_bot_match_claimed": false,
+        "bevy_openra_bot_ai_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot planner executor replay determinism evidence reads the prior Bevy-owned action executor log, replays its six action labels into a fresh Bevy runtime, and proves the replayed command deltas, final runtime summary, and command queue checksum match the source executor. It claims only Trillionnium-owned executor replay determinism; OpenRA runtime bot execution parity, live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS bot planner executor replay determinism evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
