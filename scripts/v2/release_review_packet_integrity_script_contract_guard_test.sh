@@ -19,10 +19,24 @@ required_lines=(
   'status_match'
   'length == 58'
   'expected fifty-eight artifacts including operator handoff, checkpoint manifest, CEX adapter readiness, Bevy action coach, player HUD/debug layer, player UI rescue, classic RTS control loop, first-minute command feedback replay, first-minute command feedback recordings, first-minute command feedback contact sheet, live-window screenshots, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, map modeling gate, bundle negative fixtures, evidence bundle, template negative fixtures, evidence kit, blocker consistency, status-only fixture guard, S5 real-device validation, public launch evidence intake, production map-pack collection, cohort/commercial collection, external ops collection, production map-pack public evidence, cohort/commercial validation, and external ops validation'
+  'require_artifact_json_expr'
+  'require_artifact_ppm_header'
+  'first_minute_command_feedback_replay_semantics'
+  'command_input_action_count == 7'
+  'accepted_command_input_count == 7'
+  'retained_history_group_ids == ["26", "27", "28"]'
+  'pruned_history_group_ids == ["25", "24"]'
+  'cleared_active_stale_pixel_count == 0'
+  'first_minute_command_feedback_source_recording_semantics'
+  'source_timeline_green == true'
+  'first_minute_command_feedback_recording_semantics'
+  'RTS:MOVE:18,31:line'
+  'first_minute_command_feedback_replay_ppm_semantics'
+  'ppm_header_and_size_match'
   'release_review_packet_integrity_green_with_public_launch_blockers'
   'android_s5_real_device_claimed: false'
   'host_side_bevy_runtime_replay_not_android_real_device'
-  'packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_cex_adapter_and_local_bevy_playability_evidence'
+  'packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_cex_adapter_local_bevy_playability_evidence_and_first_minute_command_feedback_replay_semantics'
 )
 
 for line in "${required_lines[@]}"; do
@@ -32,4 +46,4 @@ for line in "${required_lines[@]}"; do
   fi
 done
 
-echo "[PASS] release review packet integrity script keeps packet refresh, checksum/byte/contract/status verification, no-refresh mode, and Android S5 boundary"
+echo "[PASS] release review packet integrity script keeps packet refresh, checksum/byte/contract/status verification, first-minute command feedback replay semantic checks, no-refresh mode, and Android S5 boundary"

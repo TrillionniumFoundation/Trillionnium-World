@@ -69,6 +69,54 @@ require_json_expr() {
   fi
 }
 
+packet_artifact_path() {
+  local artifact_id="$1"
+  if [[ ! -f "$PACKET_JSON" ]]; then
+    return 0
+  fi
+  jq -r --arg artifact_id "$artifact_id" '(.artifacts // [] | map(select(.id == $artifact_id)) | .[0].path) // empty' "$PACKET_JSON" 2>/dev/null || true
+}
+
+require_artifact_json_expr() {
+  local name="$1"
+  local artifact_id="$2"
+  local expr="$3"
+  local detail="$4"
+  local path
+  path="$(packet_artifact_path "$artifact_id")"
+  if [[ -z "$path" ]]; then
+    add_check "$name" fail "$artifact_id" missing_packet_artifact
+  else
+    require_json_expr "$name" "$path" "$expr" "$detail"
+  fi
+}
+
+require_artifact_ppm_header() {
+  local name="$1"
+  local artifact_id="$2"
+  local min_bytes="$3"
+  local path
+  path="$(packet_artifact_path "$artifact_id")"
+  if [[ -z "$path" ]]; then
+    add_check "$name" fail "$artifact_id" missing_packet_artifact
+    return
+  fi
+  if [[ ! -f "$path" ]]; then
+    add_check "$name" fail "$path" missing
+    return
+  fi
+
+  local header
+  local bytes
+  header="$(head -c 15 "$path" || true)"
+  bytes="$(wc -c <"$path" | tr -d ' ')"
+  if [[ "$header" == $'P3\n1280 720\n255' && "$bytes" -gt "$min_bytes" ]]; then
+    add_check "$name" ok "$path" ppm_header_and_size_match "P3 1280x720 > ${min_bytes} bytes" "$bytes"
+  else
+    add_check "$name" fail "$path" ppm_header_or_size_mismatch "P3 1280x720 > ${min_bytes} bytes" "bytes=${bytes}"
+  fi
+}
+
 if [[ "$REFRESH_PACKET" -eq 1 ]]; then
   if TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$PACKET_JSON" \
     TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_MD="$PACKET_MD" \
@@ -86,6 +134,10 @@ require_json_expr packet_boundary "$PACKET_JSON" '.android_s5_real_device_claime
 require_json_expr packet_review_status "$PACKET_JSON" '.ready_for_release_review == true and (.status == "release_review_packet_ready_with_public_launch_blockers" or .status == "release_review_packet_green")' "packet is ready for review or public launch review"
 require_json_expr packet_missing_artifacts "$PACKET_JSON" '(.missing_artifacts // []) | length == 0' "packet reports no missing artifacts"
 require_json_expr packet_artifact_count "$PACKET_JSON" '(.artifacts // []) | length == 58' "packet has expected fifty-eight artifacts including operator handoff, checkpoint manifest, CEX adapter readiness, Bevy action coach, player HUD/debug layer, player UI rescue, classic RTS control loop, first-minute command feedback replay, first-minute command feedback recordings, first-minute command feedback contact sheet, live-window screenshots, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, map modeling gate, bundle negative fixtures, evidence bundle, template negative fixtures, evidence kit, blocker consistency, status-only fixture guard, S5 real-device validation, public launch evidence intake, production map-pack collection, cohort/commercial collection, external ops collection, production map-pack public evidence, cohort/commercial validation, and external ops validation"
+require_artifact_json_expr first_minute_command_feedback_replay_semantics native_bevy_first_minute_command_feedback_replay '.contract_version == "trillionnium_world_bevy_first_minute_command_feedback_replay_v1" and .green == true and .command_input_action_count == 7 and .accepted_command_input_count == 7 and .first_minute_replay_gate == true and .command_recording_parse_gate == true and .live_command_input_gate == true and .scene_renderer_gate == true and .history_entry_count == 3 and .history_capacity == 3 and .retained_history_group_ids == ["26", "27", "28"] and .pruned_history_group_ids == ["25", "24"] and .cleared_active_stale_pixel_count == 0 and .preview_width == 1280 and .preview_height == 720 and .android_s5_real_device_claimed == false' "first-minute command feedback replay keeps 7/7 live RTS inputs, recent-3 prune evidence, stale-chip absence, 1280x720 contact sheet boundary"
+require_artifact_json_expr first_minute_command_feedback_source_recording_semantics native_bevy_first_minute_command_feedback_source_recording '.contract_version == "trillionnium_world_bevy_first_minute_input_recording_v1" and .source_timeline_contract == "trillionnium_world_bevy_first_minute_interaction_timeline_v1" and .source_timeline_green == true and (.steps | length) == 10 and .android_s5_real_device_claimed == false' "first-minute source recording keeps original first-minute replay timeline and Android no-claim boundary"
+require_artifact_json_expr first_minute_command_feedback_recording_semantics native_bevy_first_minute_command_feedback_recording '.contract_version == "trillionnium_world_bevy_first_minute_command_feedback_recording_v1" and .source_input_replay_contract == "trillionnium_world_bevy_first_minute_input_replay_v1" and .source_input_recording_contract == "trillionnium_world_bevy_first_minute_input_recording_v1" and .source_input_replay_green == true and .command_history_capacity == 3 and .retained_history_group_ids == ["26", "27", "28"] and .pruned_history_group_ids == ["25", "24"] and (.steps | length) == 7 and [.steps[].action_label] == ["RTS:SELECT:26", "RTS:MOVE:18,31:line", "RTS:SELECT:27", "RTS:MOVE:21,25:line", "RTS:SELECT:28", "RTS:MOVE:1,31:line", "RTS:SELECT:26"] and .android_s5_real_device_claimed == false' "command feedback recording keeps exact 7 action labels, recent-3 history, prune list, and Android no-claim boundary"
+require_artifact_ppm_header first_minute_command_feedback_replay_ppm_semantics native_bevy_first_minute_command_feedback_replay_ppm 8000000
 
 if [[ -f "$PACKET_MD" ]]; then
   if grep -Fq -- 'Native/Bevy replay, action coach, HUD/debug layer, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.' "$PACKET_MD" && grep -Fq -- 'Still Requires Real External Evidence' "$PACKET_MD"; then
@@ -188,7 +240,7 @@ jq -n \
     android_s5_real_device_claimed: false,
     proof_scope: "host_side_bevy_runtime_replay_not_android_real_device",
     packet: {json_path: $packet_json, markdown_path: $packet_markdown, refresh_log_path: $packet_log},
-    integrity_rule: "packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_cex_adapter_and_local_bevy_playability_evidence",
+    integrity_rule: "packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_cex_adapter_local_bevy_playability_evidence_and_first_minute_command_feedback_replay_semantics",
     artifact_count: $artifact_count,
     checks: $checks,
     failures: $failures,
