@@ -22,6 +22,8 @@ required_lines=(
   'release_review_packet_script_contract_guard_test.sh'
   'release_review_packet_integrity_script_contract_guard_test.sh'
   'release_review_packet_integrity_drift_guard_test.sh'
+  'release_review_packet_integrity_semantic_guard_test.sh'
+  'packet_integrity_semantic_guard'
   'release_review_checkpoint_manifest_script_contract_guard_test.sh'
   'checkpoint_manifest_contract_guard'
   'checkpoint_manifest'

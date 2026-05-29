@@ -167,6 +167,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/release_review_packet_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_packet_integrity_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_packet_integrity_drift_guard_test.sh" \
+  "$ROOT/scripts/v2/release_review_packet_integrity_semantic_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_checkpoint_manifest_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh" \
@@ -283,6 +284,7 @@ run_check convergence_contract_guard "$ROOT/scripts/v2/release_review_convergenc
 run_check packet_contract_guard "$ROOT/scripts/v2/release_review_packet_script_contract_guard_test.sh"
 run_check packet_integrity_contract_guard "$ROOT/scripts/v2/release_review_packet_integrity_script_contract_guard_test.sh"
 run_check packet_integrity_drift_guard "$ROOT/scripts/v2/release_review_packet_integrity_drift_guard_test.sh"
+run_check packet_integrity_semantic_guard "$ROOT/scripts/v2/release_review_packet_integrity_semantic_guard_test.sh"
 run_check public_launch_bundle_negative_fixtures_contract_guard "$ROOT/scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh"
 run_check public_launch_bundle_negative_fixtures_gate "$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh"
 run_check public_launch_evidence_bundle_contract_guard "$ROOT/scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh"
