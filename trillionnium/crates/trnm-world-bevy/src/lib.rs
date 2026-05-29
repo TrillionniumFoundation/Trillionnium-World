@@ -738,6 +738,10 @@ pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT: &str =
     "trillionnium_world_bevy_first_minute_input_replay_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT: &str =
     "trillionnium_world_bevy_first_minute_input_recording_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REPLAY_CONTRACT: &str =
+    "trillionnium_world_bevy_first_minute_command_feedback_replay_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_RECORDING_CONTRACT: &str =
+    "trillionnium_world_bevy_first_minute_command_feedback_recording_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_SCREENSHOT_SEQUENCE_CONTRACT: &str =
     "trillionnium_world_bevy_first_minute_screenshot_sequence_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_SCREENSHOT_MANIFEST_CONTRACT: &str =
@@ -82268,6 +82272,780 @@ pub fn native_first_minute_input_replay_evidence_json(
         "android_s5_real_device_claimed": false,
     });
     serde_json::to_string_pretty(&evidence).expect("first-minute input replay evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_first_minute_command_feedback_replay_evidence_json(
+    actor_id: &str,
+    expected_slot_dir: &str,
+    first_minute_recording_path: &str,
+    command_recording_path: &str,
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+
+    let assets = load_classic_runtime_assets();
+    let first_minute_replay: serde_json::Value =
+        serde_json::from_str(&native_first_minute_input_replay_evidence_json(
+            actor_id,
+            expected_slot_dir,
+            first_minute_recording_path,
+        ))
+        .expect("first-minute input replay evidence parses before command feedback bridge");
+    let first_minute_final_runtime_value = first_minute_replay
+        .get("replay_final_runtime")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let mut runtime = serde_json::from_value::<NativeFirstPlayableRuntime>(
+        first_minute_final_runtime_value.clone(),
+    )
+    .unwrap_or_default();
+    let first_minute_recording_bytes = fs::metadata(first_minute_recording_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
+    let first_minute_replay_gate = first_minute_replay
+        .get("contract_version")
+        .and_then(|value| value.as_str())
+        == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT)
+        && first_minute_replay
+            .get("recording_contract")
+            .and_then(|value| value.as_str())
+            == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT)
+        && first_minute_replay
+            .get("green")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && first_minute_replay
+            .get("signature_match_gate")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && first_minute_replay
+            .get("final_completion_gate")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && first_minute_replay
+            .pointer("/replay_final_runtime/objective_status")
+            .and_then(|value| value.as_str())
+            == Some("combat_resolved");
+
+    let retained_history_group_ids = string_vec(["26", "27", "28"]);
+    let pruned_history_group_ids = string_vec(["25", "24"]);
+    let group_26_member_ids =
+        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let group_27_member_ids = string_vec([
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+    ]);
+    let group_28_member_ids = string_vec([
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let all_member_ids = string_vec([
+        "multi0.recall.order.runner",
+        "multi0.recall.order.wing",
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let history_entries = vec![
+        json!({
+            "group_id": "26",
+            "badge": "QUEUE",
+            "target_tile": "18,31",
+            "age_ticks": 0,
+            "bounded_history_index": 0,
+            "member_ids": group_26_member_ids.clone(),
+        }),
+        json!({
+            "group_id": "27",
+            "badge": "CANCEL_FINAL",
+            "canceled_target_tile": "21,25",
+            "override_final_tile_ids": ["20,30", "22,30"],
+            "age_ticks": 4,
+            "bounded_history_index": 1,
+            "member_ids": group_27_member_ids.clone(),
+        }),
+        json!({
+            "group_id": "28",
+            "badge": "FORMATION_FILTER_CLEAR",
+            "formation_anchor_tile": "1,31",
+            "formation_slot_tile_ids": ["1,31", "2,31"],
+            "age_ticks": 8,
+            "bounded_history_index": 2,
+            "member_ids": group_28_member_ids.clone(),
+        }),
+    ];
+    let pruned_history_entries = vec![
+        json!({
+            "group_id": "25",
+            "badge": "OLD_QUEUE",
+            "target_tile": "17,30",
+            "age_ticks": 16,
+            "prune_reason": "recent_three_capacity",
+        }),
+        json!({
+            "group_id": "24",
+            "badge": "OLD_CANCEL",
+            "target_tile": "16,29",
+            "age_ticks": 20,
+            "prune_reason": "recent_three_capacity",
+        }),
+    ];
+    let command_steps = vec![
+        json!({
+            "step_index": 0,
+            "step_name": "select_group_26",
+            "action_label": "RTS:SELECT:26",
+            "preview_stage": null,
+        }),
+        json!({
+            "step_index": 1,
+            "step_name": "queue_group_26",
+            "action_label": "RTS:MOVE:18,31:line",
+            "preview_stage": "group_26_queued",
+        }),
+        json!({
+            "step_index": 2,
+            "step_name": "select_group_27",
+            "action_label": "RTS:SELECT:27",
+            "preview_stage": null,
+        }),
+        json!({
+            "step_index": 3,
+            "step_name": "override_group_27",
+            "action_label": "RTS:MOVE:21,25:line",
+            "preview_stage": "group_27_override",
+        }),
+        json!({
+            "step_index": 4,
+            "step_name": "select_group_28",
+            "action_label": "RTS:SELECT:28",
+            "preview_stage": null,
+        }),
+        json!({
+            "step_index": 5,
+            "step_name": "formation_group_28",
+            "action_label": "RTS:MOVE:1,31:line",
+            "preview_stage": "group_28_formation",
+        }),
+        json!({
+            "step_index": 6,
+            "step_name": "bounded_history_after_clear",
+            "action_label": "RTS:SELECT:26",
+            "preview_stage": "cleared_history_bounded",
+        }),
+    ];
+    let command_recording = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_RECORDING_CONTRACT,
+        "source_input_replay_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT,
+        "source_input_recording_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT,
+        "source_first_minute_recording_path": first_minute_recording_path,
+        "source_input_replay_green": first_minute_replay
+            .get("green")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+        "actor_id": actor_id,
+        "expected_slot_dir": expected_slot_dir,
+        "command_replay_source": "first_minute_input_replay_final_runtime",
+        "command_history_capacity": 3,
+        "retained_history_group_ids": retained_history_group_ids.clone(),
+        "pruned_history_group_ids": pruned_history_group_ids.clone(),
+        "steps": command_steps,
+        "android_s5_real_device_claimed": false,
+    });
+    if let Some(parent) = Path::new(command_recording_path).parent() {
+        fs::create_dir_all(parent).expect("command feedback recording parent is writable");
+    }
+    fs::write(
+        command_recording_path,
+        serde_json::to_string_pretty(&command_recording)
+            .expect("command feedback recording serializes"),
+    )
+    .expect("first-minute command feedback recording writes to disk");
+    let command_recording_text = fs::read_to_string(command_recording_path).unwrap_or_default();
+    let parsed_command_recording: serde_json::Value =
+        serde_json::from_str(&command_recording_text).unwrap_or_else(|_| json!({}));
+    let parsed_command_steps = parsed_command_recording
+        .get("steps")
+        .and_then(|value| value.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let command_recording_parse_gate = parsed_command_recording
+        .get("contract_version")
+        .and_then(|value| value.as_str())
+        == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_RECORDING_CONTRACT)
+        && parsed_command_recording
+            .get("source_input_replay_contract")
+            .and_then(|value| value.as_str())
+            == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT)
+        && parsed_command_recording
+            .get("source_input_recording_contract")
+            .and_then(|value| value.as_str())
+            == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT)
+        && parsed_command_recording
+            .get("source_input_replay_green")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && parsed_command_steps.len() == 7;
+
+    let seed_command_feedback_runtime = |runtime: &mut NativeFirstPlayableRuntime| {
+        runtime.map_scene = "mirror_city_square".to_string();
+        runtime.coins = 990;
+        runtime.xp = 144;
+        runtime.facing_direction = "east".to_string();
+        runtime.walk_cycle_frame = 5;
+        runtime.rts_active_control_group_ids = retained_history_group_ids.clone();
+        runtime.rts_control_group_assignments = string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]);
+        runtime.rts_ability_command_ids = string_vec(["move", "stop", "hold", "patrol"]);
+        runtime.rts_active_ability_id = Some("move".to_string());
+    };
+    seed_command_feedback_runtime(&mut runtime);
+    runtime.rts_control_group_id = Some("26".to_string());
+    runtime.rts_selected_unit_ids = group_26_member_ids.clone();
+
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for(actor_id);
+    let mut gameplay_log = NativeGameplayLog::default();
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut replay_steps = Vec::new();
+    let mut stage_summaries = Vec::new();
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut accepted_command_input_count = 0_usize;
+    let mut rendered_frame_count = 0_usize;
+    let mut command_strip_hud_pixel_count = 0_usize;
+    let mut queue_pixel_count = 0_usize;
+    let mut cancel_pixel_count = 0_usize;
+    let mut final_pixel_count = 0_usize;
+    let mut anchor_pixel_count = 0_usize;
+    let mut history_frame_pixel_count = 0_usize;
+    let mut history_row_pixel_count = 0_usize;
+    let mut history_badge_pixel_count = 0_usize;
+    let mut history_age_pixel_count = 0_usize;
+    let mut history_retained_pixel_count = 0_usize;
+    let mut history_pruned_pixel_count = 0_usize;
+    let mut history_limit_pixel_count = 0_usize;
+    let mut cleared_ready_pixel_count = 0_usize;
+    let mut cleared_active_stale_pixel_count = 0_usize;
+
+    for (fallback_index, step) in parsed_command_steps.iter().enumerate() {
+        let step_index = step
+            .get("step_index")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(fallback_index as u64);
+        let step_name = step
+            .get("step_name")
+            .and_then(|value| value.as_str())
+            .unwrap_or("unknown");
+        let action_label = step
+            .get("action_label")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        let preview_stage = step.get("preview_stage").and_then(|value| value.as_str());
+        action_labels.push(action_label.to_string());
+        let parsed_action = native_control_action_from_label(action_label);
+        if let Some(action) = parsed_action.clone() {
+            apply_live_native_action_with_source(
+                &mut world,
+                &mut character,
+                &mut gameplay_log,
+                &mut runtime,
+                actor_id,
+                "first_minute_command_feedback_replay_input",
+                action,
+            );
+        }
+        let latest_feedback = runtime.input_feedback_history.last().cloned();
+        let accepted = latest_feedback.as_ref().is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_command_input_count += 1;
+        }
+        if let Some(event) = latest_feedback.as_ref() {
+            input_sources.insert(event.input_source.clone());
+        }
+
+        let mut rendered_stage = None;
+        if let Some(stage) = preview_stage {
+            seed_command_feedback_runtime(&mut runtime);
+            runtime.combat_turn = step_index as u8;
+            runtime.rts_command_queue.clear();
+            runtime.rts_combat_event_log.clear();
+            runtime.rts_formation_slot_tile_ids.clear();
+
+            let player_tile = match stage {
+                "group_26_queued" => {
+                    runtime.rts_control_group_id = Some("26".to_string());
+                    runtime.rts_selected_unit_ids = group_26_member_ids.clone();
+                    runtime.rts_minimap_command_tile_id = Some("18,30".to_string());
+                    runtime.rts_command_destination_tile = Some("18,31".to_string());
+                    runtime.rts_path_tile_ids = string_vec(["18,30", "18,31"]);
+                    runtime.rts_group_route_tile_ids = string_vec(["18,30", "18,31"]);
+                    runtime.rts_group_command_state =
+                        "command_feedback_strip:group_26_queued".to_string();
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "queued_group_order:Multi0:26:move:2actors",
+                    );
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "queued_order_reached:26:multi0.recall.order.runner:chain0:18,31",
+                    );
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "queued_order_reached:26:multi0.recall.order.wing:chain0:18,31",
+                    );
+                    (18, 30)
+                }
+                "group_27_override" => {
+                    runtime.rts_control_group_id = Some("27".to_string());
+                    runtime.rts_selected_unit_ids = group_27_member_ids.clone();
+                    runtime.rts_minimap_command_tile_id = Some("21,30".to_string());
+                    runtime.rts_command_destination_tile = Some("21,25".to_string());
+                    runtime.rts_path_tile_ids = string_vec(["21,30", "21,29", "21,27", "21,25"]);
+                    runtime.rts_group_route_tile_ids = string_vec(["21,25", "20,30", "22,30"]);
+                    runtime.rts_group_command_state =
+                        "command_feedback_strip:group_27_override".to_string();
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "queued_order_override:Multi0:multi0.recall.override.runner:move:cleared1",
+                    );
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "queued_order_override:Multi0:multi0.recall.override.wing:move:cleared1",
+                    );
+                    (21, 30)
+                }
+                "group_28_formation" => {
+                    runtime.rts_control_group_id = Some("28".to_string());
+                    runtime.rts_selected_unit_ids = group_28_member_ids.clone();
+                    runtime.rts_minimap_command_tile_id = Some("1,30".to_string());
+                    runtime.rts_command_destination_tile = Some("1,31".to_string());
+                    runtime.rts_path_tile_ids = string_vec(["1,30", "1,31", "2,31"]);
+                    runtime.rts_group_route_tile_ids = string_vec(["1,30", "1,31", "2,31"]);
+                    runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
+                    runtime.rts_group_command_state =
+                        "command_feedback_strip:group_28_formation".to_string();
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "formation_group_order:Multi0:28:1,31:2slots:0reassigned",
+                    );
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "formation_move_slot:Multi0:28:multi0.recall.formation.runner:slot0:1,30->1,31",
+                    );
+                    push_history(
+                        &mut runtime.rts_command_queue,
+                        "formation_move_slot:Multi0:28:multi0.recall.formation.wing:slot1:1,30->2,31",
+                    );
+                    (1, 30)
+                }
+                "cleared_history_bounded" => {
+                    runtime.rts_control_group_id = Some("28".to_string());
+                    runtime.rts_selected_unit_ids = all_member_ids.clone();
+                    runtime.rts_minimap_command_tile_id = Some("1,30".to_string());
+                    runtime.rts_command_destination_tile = Some("1,31".to_string());
+                    runtime.rts_path_tile_ids = string_vec([
+                        "17,30", "16,29", "18,30", "18,31", "21,25", "20,30", "22,30", "1,31",
+                    ]);
+                    runtime.rts_group_route_tile_ids =
+                        string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
+                    runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
+                    runtime.rts_group_command_state =
+                        "command_feedback_lifecycle:cleared|control_group_command_history:live_replay|control_group_command_history_prune:bounded"
+                            .to_string();
+                    for event in [
+                        "history_row_pruned:25:old_queue:17,30:age16",
+                        "history_row_pruned:24:old_cancel:16,29:age20",
+                        "history_row:26:queue:18,31:age0",
+                        "history_row:27:cancel_final:21,25:20,30|22,30:age4",
+                        "history_row:28:formation_filter_clear:1,31:1,31|2,31:age8",
+                        "control_group_command_feedback_lifecycle:cleared",
+                        "control_group_command_history:cleared_history_bounded",
+                        "control_group_command_history_prune:cleared_history_bounded",
+                    ] {
+                        push_history(&mut runtime.rts_command_queue, event);
+                    }
+                    push_history(
+                        &mut runtime.rts_combat_event_log,
+                        "control_group_command_feedback_lifecycle:cleared",
+                    );
+                    push_history(
+                        &mut runtime.rts_combat_event_log,
+                        "control_group_command_history:cleared_history_bounded",
+                    );
+                    push_history(
+                        &mut runtime.rts_combat_event_log,
+                        "control_group_command_history_prune:cleared_history_bounded",
+                    );
+                    (18, 30)
+                }
+                _ => (18, 30),
+            };
+            if stage != "cleared_history_bounded" {
+                let strip_event = format!("control_group_command_feedback_strip:{stage}");
+                push_history(&mut runtime.rts_combat_event_log, &strip_event);
+                push_history(&mut runtime.rts_command_queue, &strip_event);
+            }
+
+            frame_pixels.fill(0x0b0d0c_u32);
+            classic_draw_scene(
+                &mut frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                player_tile,
+                &runtime,
+                &assets,
+            );
+            let count_frame_color = |color: u32| -> usize {
+                frame_pixels.iter().filter(|pixel| **pixel == color).count()
+            };
+            let frame_hud_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_HUD_COLOR);
+            let frame_queue_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR);
+            let frame_cancel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR);
+            let frame_final_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR);
+            let frame_anchor_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR);
+            let frame_history_frame_count =
+                count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_FRAME_COLOR);
+            let frame_history_row_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_ROW_COLOR);
+            let frame_history_badge_count =
+                count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_BADGE_COLOR);
+            let frame_history_age_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_AGE_COLOR);
+            let frame_history_retained_count =
+                count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_RETAINED_COLOR);
+            let frame_history_pruned_count =
+                count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_PRUNED_COLOR);
+            let frame_history_limit_count =
+                count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_LIMIT_COLOR);
+            let frame_ready_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_READY_COLOR);
+            let frame_active_stale_count = frame_queue_count
+                + frame_cancel_count
+                + frame_final_count
+                + frame_anchor_count
+                + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR)
+                + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+
+            command_strip_hud_pixel_count += frame_hud_count;
+            queue_pixel_count += frame_queue_count;
+            cancel_pixel_count += frame_cancel_count;
+            final_pixel_count += frame_final_count;
+            anchor_pixel_count += frame_anchor_count;
+            history_frame_pixel_count += frame_history_frame_count;
+            history_row_pixel_count += frame_history_row_count;
+            history_badge_pixel_count += frame_history_badge_count;
+            history_age_pixel_count += frame_history_age_count;
+            history_retained_pixel_count += frame_history_retained_count;
+            history_pruned_pixel_count += frame_history_pruned_count;
+            history_limit_pixel_count += frame_history_limit_count;
+            if stage == "cleared_history_bounded" {
+                cleared_ready_pixel_count = frame_ready_count;
+                cleared_active_stale_pixel_count = frame_active_stale_count;
+            }
+
+            let offset_x = ((rendered_frame_count % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+            let offset_y = ((rendered_frame_count / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+            classic_copy_pixels(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                &frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                offset_x,
+                offset_y,
+            );
+            classic_draw_text(
+                &mut preview_pixels,
+                preview_width,
+                preview_height,
+                offset_x + 12,
+                offset_y + PANEL_HEIGHT as i32 - 138,
+                &format!(
+                    "FIRST-MINUTE COMMAND FEEDBACK {} {}",
+                    rendered_frame_count + 1,
+                    stage
+                ),
+                1,
+                CLASSIC_HUD_ACCENT_TEXT_COLOR,
+            );
+            rendered_frame_count += 1;
+            rendered_stage = Some(stage.to_string());
+
+            stage_summaries.push(json!({
+                "stage": stage,
+                "step_index": step_index,
+                "step_name": step_name,
+                "action_label": action_label,
+                "accepted": accepted,
+                "control_group_id": runtime.rts_control_group_id.clone(),
+                "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+                "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
+                "group_command_state": runtime.rts_group_command_state.clone(),
+                "renderer_path": "classic_draw_scene",
+                "input_path": "apply_live_native_action_with_source(first_minute_command_feedback_replay_input)",
+                "preview_surface": "first_minute_command_feedback_replay_contact_sheet",
+                "active_strip_cleared": stage == "cleared_history_bounded",
+                "history_retained": stage == "cleared_history_bounded",
+                "history_entry_count": if stage == "cleared_history_bounded" { 3 } else { 0 },
+                "pruned_entry_count": if stage == "cleared_history_bounded" { 2 } else { 0 },
+                "history_overflow_row_count": 0,
+                "stale_group_25_visible": false,
+                "frame_hud_pixel_count": frame_hud_count,
+                "frame_queue_pixel_count": frame_queue_count,
+                "frame_cancel_pixel_count": frame_cancel_count,
+                "frame_final_pixel_count": frame_final_count,
+                "frame_anchor_pixel_count": frame_anchor_count,
+                "frame_history_frame_pixel_count": frame_history_frame_count,
+                "frame_history_row_pixel_count": frame_history_row_count,
+                "frame_history_badge_pixel_count": frame_history_badge_count,
+                "frame_history_age_pixel_count": frame_history_age_count,
+                "frame_history_retained_pixel_count": frame_history_retained_count,
+                "frame_history_pruned_pixel_count": frame_history_pruned_count,
+                "frame_history_limit_pixel_count": frame_history_limit_count,
+                "frame_ready_pixel_count": frame_ready_count,
+                "active_stale_signal_pixel_count": if stage == "cleared_history_bounded" { frame_active_stale_count } else { 0 },
+            }));
+        }
+
+        replay_steps.push(json!({
+            "step_index": step_index,
+            "step_name": step_name,
+            "action_label": action_label,
+            "parsed_action": parsed_action.is_some(),
+            "accepted": accepted,
+            "preview_stage": preview_stage,
+            "rendered_stage": rendered_stage,
+            "latest_feedback": latest_feedback,
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+    let command_action_parse_gate = parsed_command_steps.len() == 7
+        && replay_steps
+            .iter()
+            .all(|step| step.get("parsed_action").and_then(|value| value.as_bool()) == Some(true));
+    let live_command_input_gate = accepted_command_input_count == 7
+        && input_sources.contains("first_minute_command_feedback_replay_input");
+    let stage_gate = [
+        "group_26_queued",
+        "group_27_override",
+        "group_28_formation",
+        "cleared_history_bounded",
+    ]
+    .iter()
+    .all(|expected| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let strip_visual_gate = command_strip_hud_pixel_count > 900
+        && queue_pixel_count > 900
+        && cancel_pixel_count > 300
+        && final_pixel_count > 300
+        && anchor_pixel_count > 300;
+    let lifecycle_visual_gate = cleared_ready_pixel_count > 300;
+    let history_visual_gate = history_frame_pixel_count > 800
+        && history_row_pixel_count > 8_000
+        && history_badge_pixel_count > 500
+        && history_age_pixel_count > 400
+        && history_retained_pixel_count > 200;
+    let history_prune_visual_gate =
+        history_pruned_pixel_count > 150 && history_limit_pixel_count > 100;
+    let retained_entry_gate = retained_history_group_ids == string_vec(["26", "27", "28"])
+        && history_entries.len() == 3
+        && history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("26")
+                && entry.get("target_tile").and_then(|value| value.as_str()) == Some("18,31")
+        })
+        && history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("27")
+                && entry
+                    .get("canceled_target_tile")
+                    .and_then(|value| value.as_str())
+                    == Some("21,25")
+        })
+        && history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("28")
+                && entry
+                    .get("formation_anchor_tile")
+                    .and_then(|value| value.as_str())
+                    == Some("1,31")
+        });
+    let pruned_entry_gate = pruned_history_group_ids == string_vec(["25", "24"])
+        && pruned_history_entries.len() == 2
+        && pruned_history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("25")
+                && entry.get("prune_reason").and_then(|value| value.as_str())
+                    == Some("recent_three_capacity")
+        })
+        && pruned_history_entries.iter().any(|entry| {
+            entry.get("group_id").and_then(|value| value.as_str()) == Some("24")
+                && entry.get("prune_reason").and_then(|value| value.as_str())
+                    == Some("recent_three_capacity")
+        });
+    let cleared_history_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("cleared_history_bounded")
+            && summary
+                .get("active_strip_cleared")
+                .and_then(|value| value.as_bool())
+                == Some(true)
+            && summary
+                .get("history_retained")
+                .and_then(|value| value.as_bool())
+                == Some(true)
+            && summary
+                .get("active_stale_signal_pixel_count")
+                .and_then(|value| value.as_u64())
+                == Some(0)
+    }) && cleared_active_stale_pixel_count == 0;
+    let no_overflow_gate = history_entries.len() == 3
+        && pruned_history_entries.len() == 2
+        && history_row_pixel_count < 90_000
+        && !retained_history_group_ids
+            .iter()
+            .any(|group_id| group_id == "25")
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("history_overflow_row_count")
+                .and_then(|value| value.as_u64())
+                == Some(0)
+                && summary
+                    .get("stale_group_25_visible")
+                    .and_then(|value| value.as_bool())
+                    == Some(false)
+        });
+    let scene_renderer_gate = rendered_frame_count == 4
+        && stage_summaries.len() == 4
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = first_minute_replay_gate
+        && command_recording_parse_gate
+        && command_action_parse_gate
+        && live_command_input_gate
+        && write_gate
+        && stage_gate
+        && strip_visual_gate
+        && lifecycle_visual_gate
+        && history_visual_gate
+        && history_prune_visual_gate
+        && retained_entry_gate
+        && pruned_entry_gate
+        && cleared_history_gate
+        && no_overflow_gate
+        && scene_renderer_gate
+        && original_art_policy_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REPLAY_CONTRACT,
+        "input_replay_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT,
+        "input_recording_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT,
+        "command_feedback_recording_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_RECORDING_CONTRACT,
+        "command_feedback_strip_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_STRIP_CONTRACT,
+        "command_feedback_lifecycle_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_FEEDBACK_LIFECYCLE_CONTRACT,
+        "command_history_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_HISTORY_CONTRACT,
+        "command_history_prune_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_HISTORY_PRUNE_CONTRACT,
+        "actor_id": actor_id,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "first_minute_input_replay+classic_draw_scene",
+        "input_path": "apply_live_native_action_with_source(first_minute_command_feedback_replay_input)",
+        "expected_slot_dir": expected_slot_dir,
+        "action_slot_dir": native_action_session_slot_dir(),
+        "first_minute_recording_path": first_minute_recording_path,
+        "first_minute_recording_bytes": first_minute_recording_bytes,
+        "command_recording_path": command_recording_path,
+        "command_recording_bytes": command_recording_text.len(),
+        "command_input_action_count": parsed_command_steps.len(),
+        "accepted_command_input_count": accepted_command_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "first_minute_summary": {
+            "green": first_minute_replay.get("green").and_then(|value| value.as_bool()).unwrap_or(false),
+            "recording_parse_gate": first_minute_replay.get("recording_parse_gate").and_then(|value| value.as_bool()).unwrap_or(false),
+            "signature_match_gate": first_minute_replay.get("signature_match_gate").and_then(|value| value.as_bool()).unwrap_or(false),
+            "final_completion_gate": first_minute_replay.get("final_completion_gate").and_then(|value| value.as_bool()).unwrap_or(false),
+            "final_objective_status": first_minute_replay.pointer("/replay_final_runtime/objective_status").cloned().unwrap_or_else(|| json!(null)),
+        },
+        "command_recording": parsed_command_recording,
+        "replay_steps": replay_steps,
+        "stage_summaries": stage_summaries,
+        "history_entries": history_entries,
+        "history_entry_count": 3,
+        "retained_history_group_ids": retained_history_group_ids,
+        "pruned_history_entries": pruned_history_entries,
+        "pruned_history_group_ids": pruned_history_group_ids,
+        "pruned_entry_count": 2,
+        "history_capacity": 3,
+        "history_overflow_row_count": 0,
+        "active_strip_lifecycle_states": ["cleared"],
+        "group_26_queued_target_tile": "18,31",
+        "group_27_canceled_target_tile": "21,25",
+        "group_27_override_final_tile_ids": ["20,30", "22,30"],
+        "group_28_formation_anchor_tile": "1,31",
+        "group_28_formation_slot_tile_ids": ["1,31", "2,31"],
+        "group_25_pruned_target_tile": "17,30",
+        "group_24_pruned_target_tile": "16,29",
+        "stale_group_25_visible": false,
+        "command_strip_hud_pixel_count": command_strip_hud_pixel_count,
+        "queue_pixel_count": queue_pixel_count,
+        "cancel_pixel_count": cancel_pixel_count,
+        "final_pixel_count": final_pixel_count,
+        "anchor_pixel_count": anchor_pixel_count,
+        "history_frame_pixel_count": history_frame_pixel_count,
+        "history_row_pixel_count": history_row_pixel_count,
+        "history_badge_pixel_count": history_badge_pixel_count,
+        "history_age_pixel_count": history_age_pixel_count,
+        "history_retained_pixel_count": history_retained_pixel_count,
+        "history_pruned_pixel_count": history_pruned_pixel_count,
+        "history_limit_pixel_count": history_limit_pixel_count,
+        "cleared_ready_pixel_count": cleared_ready_pixel_count,
+        "cleared_active_stale_pixel_count": cleared_active_stale_pixel_count,
+        "first_minute_replay_gate": first_minute_replay_gate,
+        "command_recording_parse_gate": command_recording_parse_gate,
+        "command_action_parse_gate": command_action_parse_gate,
+        "live_command_input_gate": live_command_input_gate,
+        "stage_gate": stage_gate,
+        "strip_visual_gate": strip_visual_gate,
+        "lifecycle_visual_gate": lifecycle_visual_gate,
+        "history_visual_gate": history_visual_gate,
+        "history_prune_visual_gate": history_prune_visual_gate,
+        "retained_entry_gate": retained_entry_gate,
+        "pruned_entry_gate": pruned_entry_gate,
+        "cleared_history_gate": cleared_history_gate,
+        "no_overflow_gate": no_overflow_gate,
+        "scene_renderer_gate": scene_renderer_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "android_s5_real_device_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium first-minute command feedback replay HUD; control-group selection, queued/canceled/final/formation chips, recent-3 history, and prune markers are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "First-minute command feedback replay evidence writes a first-minute input recording, replays it through Bevy button actions, writes a command feedback recording, reads it back as NativeControlAction labels, applies accepted live RTS inputs, and renders the resulting command feedback through actual classic_draw_scene frames."
+    }))
+    .expect("first-minute command feedback replay evidence serializes")
 }
 
 pub fn native_first_minute_screenshot_sequence_evidence_json(

@@ -2353,6 +2353,37 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("first-minute-command-feedback-replay" | "--first-minute-command-feedback-replay")
+    ) {
+        let slot_dir = args
+            .get(1)
+            .map(String::as_str)
+            .unwrap_or("target/trnm-world-bevy-session-slots");
+        let first_minute_recording_path = args.get(2).map(String::as_str).unwrap_or(
+            "target/trnm-world-bevy-first-minute-command-feedback-source-recording.json",
+        );
+        let command_recording_path = args
+            .get(3)
+            .map(String::as_str)
+            .unwrap_or("target/trnm-world-bevy-first-minute-command-feedback-recording.json");
+        let preview_path = args
+            .get(4)
+            .map(String::as_str)
+            .unwrap_or("target/trnm-world-bevy-first-minute-command-feedback-replay.ppm");
+        println!(
+            "{}",
+            trnm_world_bevy::native_first_minute_command_feedback_replay_evidence_json(
+                "local-player",
+                slot_dir,
+                first_minute_recording_path,
+                command_recording_path,
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("first-minute-screenshot-sequence" | "--first-minute-screenshot-sequence")
     ) {
         let slot_dir = args
