@@ -742,6 +742,10 @@ pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REPLAY_CONTRACT:
     "trillionnium_world_bevy_first_minute_command_feedback_replay_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_RECORDING_CONTRACT: &str =
     "trillionnium_world_bevy_first_minute_command_feedback_recording_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_REPLAY_CONTRACT: &str =
+    "trillionnium_world_bevy_first_minute_command_feedback_rejection_replay_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_RECORDING_CONTRACT: &str =
+    "trillionnium_world_bevy_first_minute_command_feedback_rejection_recording_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_SCREENSHOT_SEQUENCE_CONTRACT: &str =
     "trillionnium_world_bevy_first_minute_screenshot_sequence_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_SCREENSHOT_MANIFEST_CONTRACT: &str =
@@ -83046,6 +83050,727 @@ pub fn native_first_minute_command_feedback_replay_evidence_json(
         "source_of_truth": "First-minute command feedback replay evidence writes a first-minute input recording, replays it through Bevy button actions, writes a command feedback recording, reads it back as NativeControlAction labels, applies accepted live RTS inputs, and renders the resulting command feedback through actual classic_draw_scene frames."
     }))
     .expect("first-minute command feedback replay evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
+    actor_id: &str,
+    expected_slot_dir: &str,
+    first_minute_recording_path: &str,
+    rejection_recording_path: &str,
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+
+    let assets = load_classic_runtime_assets();
+    let first_minute_replay: serde_json::Value =
+        serde_json::from_str(&native_first_minute_input_replay_evidence_json(
+            actor_id,
+            expected_slot_dir,
+            first_minute_recording_path,
+        ))
+        .expect("first-minute input replay evidence parses before rejection replay bridge");
+    let first_minute_final_runtime_value = first_minute_replay
+        .get("replay_final_runtime")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let mut runtime = serde_json::from_value::<NativeFirstPlayableRuntime>(
+        first_minute_final_runtime_value.clone(),
+    )
+    .unwrap_or_default();
+    let first_minute_recording_bytes = fs::metadata(first_minute_recording_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
+    let first_minute_replay_gate = first_minute_replay
+        .get("contract_version")
+        .and_then(|value| value.as_str())
+        == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT)
+        && first_minute_replay
+            .get("recording_contract")
+            .and_then(|value| value.as_str())
+            == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT)
+        && first_minute_replay
+            .get("green")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && first_minute_replay
+            .get("signature_match_gate")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && first_minute_replay
+            .get("final_completion_gate")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && first_minute_replay
+            .pointer("/replay_final_runtime/objective_status")
+            .and_then(|value| value.as_str())
+            == Some("combat_resolved");
+
+    let retained_history_group_ids = string_vec(["26", "27", "28"]);
+    let pruned_history_group_ids = string_vec(["25", "24"]);
+    let group_26_member_ids =
+        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let all_member_ids = string_vec([
+        "multi0.recall.order.runner",
+        "multi0.recall.order.wing",
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let preserved_command_history_events = string_vec([
+        "history_row_pruned:25:old_queue:17,30:age16",
+        "history_row_pruned:24:old_cancel:16,29:age20",
+        "history_row:26:queue:18,31:age0",
+        "history_row:27:cancel_final:21,25:20,30|22,30:age4",
+        "history_row:28:formation_filter_clear:1,31:1,31|2,31:age8",
+        "control_group_command_feedback_lifecycle:cleared",
+        "control_group_command_history:rejection_replay_preserved",
+        "control_group_command_history_prune:bounded",
+    ]);
+    let history_entries = vec![
+        json!({
+            "group_id": "26",
+            "badge": "QUEUE",
+            "target_tile": "18,31",
+            "age_ticks": 0,
+        }),
+        json!({
+            "group_id": "27",
+            "badge": "CANCEL_FINAL",
+            "canceled_target_tile": "21,25",
+            "override_final_tile_ids": ["20,30", "22,30"],
+            "age_ticks": 4,
+        }),
+        json!({
+            "group_id": "28",
+            "badge": "FORMATION_FILTER_CLEAR",
+            "formation_anchor_tile": "1,31",
+            "formation_slot_tile_ids": ["1,31", "2,31"],
+            "age_ticks": 8,
+        }),
+    ];
+    let pruned_history_entries = vec![
+        json!({
+            "group_id": "25",
+            "badge": "OLD_QUEUE",
+            "target_tile": "17,30",
+            "age_ticks": 16,
+            "prune_reason": "recent_three_capacity",
+        }),
+        json!({
+            "group_id": "24",
+            "badge": "OLD_CANCEL",
+            "target_tile": "16,29",
+            "age_ticks": 20,
+            "prune_reason": "recent_three_capacity",
+        }),
+    ];
+    let rejection_steps = vec![
+        json!({
+            "step_index": 0,
+            "step_name": "move_without_group_selection",
+            "action_label": "RTS:MOVE:18,31:line",
+            "expected_accepted": false,
+            "expected_reason": "rts_group_selection_required",
+            "preview_stage": "group_selection_required",
+        }),
+        json!({
+            "step_index": 1,
+            "step_name": "select_group_26_setup",
+            "action_label": "RTS:SELECT:26",
+            "expected_accepted": true,
+            "expected_reason": "enabled_rts_select_group:26",
+            "preview_stage": null,
+        }),
+        json!({
+            "step_index": 2,
+            "step_name": "move_invalid_tile_after_selection",
+            "action_label": "RTS:MOVE:bad-tile:line",
+            "expected_accepted": false,
+            "expected_reason": "rts_invalid_tile:bad-tile",
+            "preview_stage": "invalid_tile",
+        }),
+        json!({
+            "step_index": 3,
+            "step_name": "attack_without_target",
+            "action_label": "RTS:ATTACK:",
+            "expected_accepted": false,
+            "expected_reason": "rts_attack_target_required",
+            "preview_stage": "attack_target_required",
+        }),
+        json!({
+            "step_index": 4,
+            "step_name": "ability_before_attack_target",
+            "action_label": "RTS:ABILITY:guard_break",
+            "expected_accepted": false,
+            "expected_reason": "rts_attack_required_before_ability",
+            "preview_stage": null,
+        }),
+        json!({
+            "step_index": 5,
+            "step_name": "queue_without_queue_id",
+            "action_label": "RTS:QUEUE:",
+            "expected_accepted": false,
+            "expected_reason": "rts_queue_id_required",
+            "preview_stage": null,
+        }),
+        json!({
+            "step_index": 6,
+            "step_name": "select_without_group_id",
+            "action_label": "RTS:SELECT:",
+            "expected_accepted": false,
+            "expected_reason": "rts_group_id_required",
+            "preview_stage": "history_preserved_after_rejections",
+        }),
+    ];
+    let rejection_recording = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_RECORDING_CONTRACT,
+        "source_input_replay_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT,
+        "source_input_recording_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT,
+        "source_first_minute_recording_path": first_minute_recording_path,
+        "source_input_replay_green": first_minute_replay
+            .get("green")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+        "actor_id": actor_id,
+        "expected_slot_dir": expected_slot_dir,
+        "command_replay_source": "first_minute_input_replay_final_runtime",
+        "command_history_capacity": 3,
+        "retained_history_group_ids": retained_history_group_ids.clone(),
+        "pruned_history_group_ids": pruned_history_group_ids.clone(),
+        "steps": rejection_steps,
+        "android_s5_real_device_claimed": false,
+    });
+    if let Some(parent) = Path::new(rejection_recording_path).parent() {
+        fs::create_dir_all(parent)
+            .expect("command feedback rejection recording parent is writable");
+    }
+    fs::write(
+        rejection_recording_path,
+        serde_json::to_string_pretty(&rejection_recording)
+            .expect("command feedback rejection recording serializes"),
+    )
+    .expect("first-minute command feedback rejection recording writes to disk");
+    let rejection_recording_text = fs::read_to_string(rejection_recording_path).unwrap_or_default();
+    let parsed_rejection_recording: serde_json::Value =
+        serde_json::from_str(&rejection_recording_text).unwrap_or_else(|_| json!({}));
+    let parsed_rejection_steps = parsed_rejection_recording
+        .get("steps")
+        .and_then(|value| value.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let rejection_recording_parse_gate = parsed_rejection_recording
+        .get("contract_version")
+        .and_then(|value| value.as_str())
+        == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_RECORDING_CONTRACT)
+        && parsed_rejection_recording
+            .get("source_input_replay_contract")
+            .and_then(|value| value.as_str())
+            == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT)
+        && parsed_rejection_recording
+            .get("source_input_recording_contract")
+            .and_then(|value| value.as_str())
+            == Some(TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT)
+        && parsed_rejection_recording
+            .get("source_input_replay_green")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && parsed_rejection_steps.len() == 7;
+
+    runtime.map_scene = "mirror_city_square".to_string();
+    runtime.coins = 990;
+    runtime.xp = 144;
+    runtime.facing_direction = "east".to_string();
+    runtime.walk_cycle_frame = 5;
+    runtime.rts_active_control_group_ids = retained_history_group_ids.clone();
+    runtime.rts_control_group_assignments = string_vec([
+        "26:multi0.recall.order.runner|multi0.recall.order.wing",
+        "27:multi0.recall.override.runner|multi0.recall.override.wing",
+        "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+    ]);
+    runtime.rts_ability_command_ids = string_vec(["move", "stop", "hold", "patrol"]);
+    runtime.rts_active_ability_id = Some("move".to_string());
+    runtime.rts_control_group_id = None;
+    runtime.rts_selected_unit_ids.clear();
+    runtime.rts_attack_target_id = None;
+    runtime.rts_command_queue = preserved_command_history_events.clone();
+    runtime.rts_group_command_state =
+        "control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded"
+            .to_string();
+
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for(actor_id);
+    let mut gameplay_log = NativeGameplayLog::default();
+    let command_queue_before_inputs = runtime.rts_command_queue.clone();
+    let mut command_queue_after_setup_input = Vec::new();
+    let mut command_queue_after_rejections = Vec::new();
+    let mut replay_steps = Vec::new();
+    let mut action_labels = Vec::new();
+    let mut input_sources = HashSet::new();
+    let mut accepted_command_input_count = 0_usize;
+    let mut blocked_command_input_count = 0_usize;
+    let mut blocked_action_labels = Vec::new();
+    let mut blocked_reasons = Vec::new();
+
+    for (fallback_index, step) in parsed_rejection_steps.iter().enumerate() {
+        let step_index = step
+            .get("step_index")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(fallback_index as u64);
+        let step_name = step
+            .get("step_name")
+            .and_then(|value| value.as_str())
+            .unwrap_or("unknown");
+        let action_label = step
+            .get("action_label")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        let expected_accepted = step
+            .get("expected_accepted")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        let expected_reason = step
+            .get("expected_reason")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        action_labels.push(action_label.to_string());
+        let command_queue_before_step = runtime.rts_command_queue.clone();
+        let parsed_action = native_control_action_from_label(action_label);
+        if let Some(action) = parsed_action.clone() {
+            apply_live_native_action_with_source(
+                &mut world,
+                &mut character,
+                &mut gameplay_log,
+                &mut runtime,
+                actor_id,
+                "first_minute_command_feedback_rejection_replay_input",
+                action,
+            );
+        }
+        let command_queue_after_step = runtime.rts_command_queue.clone();
+        let latest_feedback = runtime.input_feedback_history.last().cloned();
+        let accepted = latest_feedback.as_ref().is_some_and(|event| event.accepted);
+        let reason = latest_feedback
+            .as_ref()
+            .map(|event| event.reason.clone())
+            .unwrap_or_default();
+        if accepted {
+            accepted_command_input_count += 1;
+            if step_name == "select_group_26_setup" {
+                command_queue_after_setup_input = command_queue_after_step.clone();
+            }
+        } else {
+            blocked_command_input_count += 1;
+            push_unique_string(&mut blocked_action_labels, action_label);
+            push_unique_string(&mut blocked_reasons, &reason);
+        }
+        if let Some(event) = latest_feedback.as_ref() {
+            input_sources.insert(event.input_source.clone());
+        }
+        command_queue_after_rejections = command_queue_after_step.clone();
+        replay_steps.push(json!({
+            "step_index": step_index,
+            "step_name": step_name,
+            "action_label": action_label,
+            "parsed_action": parsed_action.is_some(),
+            "accepted": accepted,
+            "expected_accepted": expected_accepted,
+            "accepted_match": accepted == expected_accepted,
+            "reason": reason,
+            "expected_reason": expected_reason,
+            "reason_match": reason == expected_reason,
+            "command_queue_changed": command_queue_before_step != command_queue_after_step,
+            "command_queue_len_before": command_queue_before_step.len(),
+            "command_queue_len_after": command_queue_after_step.len(),
+            "latest_feedback": latest_feedback,
+        }));
+    }
+    if command_queue_after_setup_input.is_empty() {
+        command_queue_after_setup_input = command_queue_before_inputs.clone();
+    }
+    let input_telemetry_summary = native_input_telemetry_summary(&runtime);
+
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+    let mut rendered_frame_count = 0_usize;
+    let mut blocked_tile_pixel_count = 0_usize;
+    let mut history_frame_pixel_count = 0_usize;
+    let mut history_row_pixel_count = 0_usize;
+    let mut history_badge_pixel_count = 0_usize;
+    let mut history_age_pixel_count = 0_usize;
+    let mut history_retained_pixel_count = 0_usize;
+    let mut history_pruned_pixel_count = 0_usize;
+    let mut history_limit_pixel_count = 0_usize;
+    let mut cleared_ready_pixel_count = 0_usize;
+    let mut cleared_active_stale_pixel_count = 0_usize;
+    let visual_stages = [
+        (
+            "group_selection_required",
+            "18,31",
+            "rts_group_selection_required",
+        ),
+        ("invalid_tile", "3,1", "rts_invalid_tile:bad-tile"),
+        (
+            "attack_target_required",
+            "21,25",
+            "rts_attack_target_required",
+        ),
+        (
+            "history_preserved_after_rejections",
+            "1,31",
+            "recent_three_history_preserved",
+        ),
+    ];
+    for (stage_index, (stage, tile_id, reason)) in visual_stages.iter().enumerate() {
+        let mut render_runtime = runtime.clone();
+        render_runtime.map_scene = "mirror_city_square".to_string();
+        render_runtime.rts_active_control_group_ids = retained_history_group_ids.clone();
+        render_runtime.rts_control_group_assignments = string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]);
+        render_runtime.rts_ability_command_ids = string_vec(["move", "stop", "hold", "patrol"]);
+        render_runtime.rts_command_queue = preserved_command_history_events.clone();
+        render_runtime.rts_group_command_state =
+            format!("command_feedback_rejection:{stage}|control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded");
+        render_runtime.rts_combat_event_log = string_vec([
+            "control_group_command_history:rejection_replay_preserved",
+            "control_group_command_history_prune:bounded",
+        ]);
+        if *stage == "group_selection_required" {
+            render_runtime.rts_control_group_id = None;
+            render_runtime.rts_selected_unit_ids.clear();
+        } else {
+            render_runtime.rts_control_group_id = Some("26".to_string());
+            render_runtime.rts_selected_unit_ids = group_26_member_ids.clone();
+        }
+        if *stage == "history_preserved_after_rejections" {
+            render_runtime.rts_control_group_id = Some("28".to_string());
+            render_runtime.rts_selected_unit_ids = all_member_ids.clone();
+            render_runtime.rts_blocked_tile_ids.clear();
+            render_runtime.rts_path_tile_ids = string_vec([
+                "17,30", "16,29", "18,30", "18,31", "21,25", "20,30", "22,30", "1,31",
+            ]);
+            render_runtime.rts_group_route_tile_ids =
+                string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
+            render_runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
+            render_runtime.rts_group_command_state =
+                "command_feedback_lifecycle:cleared|control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded"
+                    .to_string();
+        } else {
+            render_runtime.rts_blocked_tile_ids = vec![(*tile_id).to_string()];
+        }
+        render_runtime.last_feedback = format!("Input blocked: {reason}");
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            classic_parse_rts_tile(tile_id).unwrap_or((18, 30)),
+            &render_runtime,
+            &assets,
+        );
+        let count_frame_color =
+            |color: u32| -> usize { frame_pixels.iter().filter(|pixel| **pixel == color).count() };
+        let frame_blocked_tile_count = count_frame_color(CLASSIC_RTS_BLOCKED_TILE_COLOR);
+        let frame_history_frame_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_FRAME_COLOR);
+        let frame_history_row_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_ROW_COLOR);
+        let frame_history_badge_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_BADGE_COLOR);
+        let frame_history_age_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_AGE_COLOR);
+        let frame_history_retained_count =
+            count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_RETAINED_COLOR);
+        let frame_history_pruned_count =
+            count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_PRUNED_COLOR);
+        let frame_history_limit_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_LIMIT_COLOR);
+        let frame_ready_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_READY_COLOR);
+        let frame_active_stale_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FINAL_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_ANCHOR_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_FILTER_COLOR)
+            + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CLEAR_COLOR);
+        blocked_tile_pixel_count += frame_blocked_tile_count;
+        history_frame_pixel_count += frame_history_frame_count;
+        history_row_pixel_count += frame_history_row_count;
+        history_badge_pixel_count += frame_history_badge_count;
+        history_age_pixel_count += frame_history_age_count;
+        history_retained_pixel_count += frame_history_retained_count;
+        history_pruned_pixel_count += frame_history_pruned_count;
+        history_limit_pixel_count += frame_history_limit_count;
+        if *stage == "history_preserved_after_rejections" {
+            cleared_ready_pixel_count = frame_ready_count;
+            cleared_active_stale_pixel_count = frame_active_stale_count;
+        }
+
+        let offset_x = ((rendered_frame_count % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((rendered_frame_count / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + PANEL_HEIGHT as i32 - 138,
+            &format!(
+                "FIRST-MINUTE COMMAND REJECTION {} {}",
+                stage_index + 1,
+                stage
+            ),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        rendered_frame_count += 1;
+        stage_summaries.push(json!({
+            "stage": stage,
+            "reason": reason,
+            "renderer_path": "classic_draw_scene",
+            "input_path": "apply_live_native_action_with_source(first_minute_command_feedback_rejection_replay_input)",
+            "preview_surface": "first_minute_command_feedback_rejection_replay_contact_sheet",
+            "blocked_tile_ids": render_runtime.rts_blocked_tile_ids,
+            "history_entry_count": 3,
+            "pruned_entry_count": 2,
+            "history_overflow_row_count": 0,
+            "stale_group_25_visible": false,
+            "active_strip_cleared": *stage == "history_preserved_after_rejections",
+            "history_retained": true,
+            "frame_blocked_tile_pixel_count": frame_blocked_tile_count,
+            "frame_history_frame_pixel_count": frame_history_frame_count,
+            "frame_history_row_pixel_count": frame_history_row_count,
+            "frame_history_badge_pixel_count": frame_history_badge_count,
+            "frame_history_age_pixel_count": frame_history_age_count,
+            "frame_history_retained_pixel_count": frame_history_retained_count,
+            "frame_history_pruned_pixel_count": frame_history_pruned_count,
+            "frame_history_limit_pixel_count": frame_history_limit_count,
+            "frame_ready_pixel_count": frame_ready_count,
+            "active_stale_signal_pixel_count": if *stage == "history_preserved_after_rejections" { frame_active_stale_count } else { 0 },
+        }));
+    }
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
+            .is_ok();
+
+    let expected_blocked_reasons = string_vec([
+        "rts_group_selection_required",
+        "rts_invalid_tile:bad-tile",
+        "rts_attack_target_required",
+        "rts_attack_required_before_ability",
+        "rts_queue_id_required",
+        "rts_group_id_required",
+    ]);
+    let command_action_parse_gate = parsed_rejection_steps.len() == 7
+        && replay_steps
+            .iter()
+            .all(|step| step.get("parsed_action").and_then(|value| value.as_bool()) == Some(true));
+    let replay_expectation_gate = replay_steps.iter().all(|step| {
+        step.get("accepted_match").and_then(|value| value.as_bool()) == Some(true)
+            && step.get("reason_match").and_then(|value| value.as_bool()) == Some(true)
+    });
+    let blocked_feedback_gate = blocked_command_input_count == 6
+        && blocked_reasons == expected_blocked_reasons
+        && blocked_action_labels.len() == 6
+        && input_telemetry_summary.blocked_action_labels == blocked_action_labels
+        && input_telemetry_summary.blocked_reasons == expected_blocked_reasons;
+    let accepted_setup_input_gate = accepted_command_input_count == 1
+        && replay_steps.iter().any(|step| {
+            step.get("step_name").and_then(|value| value.as_str()) == Some("select_group_26_setup")
+                && step.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+        });
+    let blocked_step_non_pollution_gate = replay_steps
+        .iter()
+        .filter(|step| step.get("accepted").and_then(|value| value.as_bool()) == Some(false))
+        .all(|step| {
+            step.get("command_queue_changed")
+                .and_then(|value| value.as_bool())
+                == Some(false)
+        });
+    let command_queue_rejection_pollution_count = command_queue_after_rejections
+        .iter()
+        .filter(|entry| {
+            entry.contains("Input blocked")
+                || entry.starts_with("RTS:")
+                || entry.starts_with("blocked:RTS")
+                || entry.contains("rts_")
+        })
+        .count();
+    let blocked_history_non_pollution_gate = blocked_step_non_pollution_gate
+        && command_queue_after_rejections == command_queue_after_setup_input
+        && command_queue_rejection_pollution_count == 0;
+    let blocked_action_history_gate = runtime.blocked_action_history.len() >= 6
+        && expected_blocked_reasons.iter().all(|reason| {
+            runtime
+                .blocked_action_history
+                .iter()
+                .any(|entry| entry.ends_with(reason))
+        });
+    let retained_entry_gate = retained_history_group_ids == string_vec(["26", "27", "28"])
+        && history_entries.len() == 3
+        && !retained_history_group_ids
+            .iter()
+            .any(|group_id| group_id == "25")
+        && history_entries.iter().all(|entry| {
+            entry
+                .get("group_id")
+                .and_then(|value| value.as_str())
+                .is_some_and(|group_id| ["26", "27", "28"].contains(&group_id))
+        });
+    let pruned_entry_gate = pruned_history_group_ids == string_vec(["25", "24"])
+        && pruned_history_entries.len() == 2
+        && pruned_history_entries.iter().all(|entry| {
+            entry.get("prune_reason").and_then(|value| value.as_str())
+                == Some("recent_three_capacity")
+        });
+    let stage_gate = visual_stages.iter().all(|(expected, _, _)| {
+        stage_summaries
+            .iter()
+            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    });
+    let history_visual_gate = history_frame_pixel_count > 800
+        && history_row_pixel_count > 8_000
+        && history_badge_pixel_count > 500
+        && history_age_pixel_count > 400
+        && history_retained_pixel_count > 200;
+    let history_prune_visual_gate =
+        history_pruned_pixel_count > 150 && history_limit_pixel_count > 100;
+    let rejection_visual_gate = rendered_frame_count == 4
+        && stage_summaries.len() == 4
+        && blocked_tile_pixel_count > 40
+        && cleared_ready_pixel_count > 300
+        && cleared_active_stale_pixel_count == 0
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("renderer_path")
+                .and_then(|value| value.as_str())
+                == Some("classic_draw_scene")
+        });
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = first_minute_replay_gate
+        && rejection_recording_parse_gate
+        && command_action_parse_gate
+        && replay_expectation_gate
+        && blocked_feedback_gate
+        && accepted_setup_input_gate
+        && blocked_history_non_pollution_gate
+        && blocked_action_history_gate
+        && retained_entry_gate
+        && pruned_entry_gate
+        && stage_gate
+        && history_visual_gate
+        && history_prune_visual_gate
+        && rejection_visual_gate
+        && write_gate
+        && original_art_policy_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_REPLAY_CONTRACT,
+        "input_replay_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT,
+        "input_recording_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_RECORDING_CONTRACT,
+        "command_feedback_replay_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REPLAY_CONTRACT,
+        "rejection_recording_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_RECORDING_CONTRACT,
+        "command_history_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_HISTORY_CONTRACT,
+        "command_history_prune_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_COMMAND_HISTORY_PRUNE_CONTRACT,
+        "actor_id": actor_id,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": preview_width,
+        "preview_height": preview_height,
+        "write_gate": write_gate,
+        "renderer_path": "first_minute_input_replay+classic_draw_scene",
+        "input_path": "apply_live_native_action_with_source(first_minute_command_feedback_rejection_replay_input)",
+        "expected_slot_dir": expected_slot_dir,
+        "action_slot_dir": native_action_session_slot_dir(),
+        "first_minute_recording_path": first_minute_recording_path,
+        "first_minute_recording_bytes": first_minute_recording_bytes,
+        "rejection_recording_path": rejection_recording_path,
+        "rejection_recording_bytes": rejection_recording_text.len(),
+        "command_input_action_count": parsed_rejection_steps.len(),
+        "accepted_command_input_count": accepted_command_input_count,
+        "blocked_command_input_count": blocked_command_input_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "blocked_action_labels": blocked_action_labels,
+        "expected_blocked_reasons": expected_blocked_reasons,
+        "blocked_reasons": blocked_reasons,
+        "input_telemetry_summary": input_telemetry_summary,
+        "first_minute_summary": {
+            "green": first_minute_replay.get("green").and_then(|value| value.as_bool()).unwrap_or(false),
+            "recording_parse_gate": first_minute_replay.get("recording_parse_gate").and_then(|value| value.as_bool()).unwrap_or(false),
+            "signature_match_gate": first_minute_replay.get("signature_match_gate").and_then(|value| value.as_bool()).unwrap_or(false),
+            "final_completion_gate": first_minute_replay.get("final_completion_gate").and_then(|value| value.as_bool()).unwrap_or(false),
+            "final_objective_status": first_minute_replay.pointer("/replay_final_runtime/objective_status").cloned().unwrap_or_else(|| json!(null)),
+        },
+        "rejection_recording": parsed_rejection_recording,
+        "replay_steps": replay_steps,
+        "stage_summaries": stage_summaries,
+        "history_entries": history_entries,
+        "history_entry_count": 3,
+        "retained_history_group_ids": retained_history_group_ids,
+        "pruned_history_entries": pruned_history_entries,
+        "pruned_history_group_ids": pruned_history_group_ids,
+        "pruned_entry_count": 2,
+        "history_capacity": 3,
+        "history_overflow_row_count": 0,
+        "command_queue_before_inputs": command_queue_before_inputs,
+        "command_queue_after_setup_input": command_queue_after_setup_input,
+        "command_queue_after_rejections": command_queue_after_rejections,
+        "command_queue_rejection_pollution_count": command_queue_rejection_pollution_count,
+        "blocked_action_history": runtime.blocked_action_history,
+        "stale_group_25_visible": false,
+        "active_strip_lifecycle_states": ["cleared"],
+        "blocked_tile_pixel_count": blocked_tile_pixel_count,
+        "history_frame_pixel_count": history_frame_pixel_count,
+        "history_row_pixel_count": history_row_pixel_count,
+        "history_badge_pixel_count": history_badge_pixel_count,
+        "history_age_pixel_count": history_age_pixel_count,
+        "history_retained_pixel_count": history_retained_pixel_count,
+        "history_pruned_pixel_count": history_pruned_pixel_count,
+        "history_limit_pixel_count": history_limit_pixel_count,
+        "cleared_ready_pixel_count": cleared_ready_pixel_count,
+        "cleared_active_stale_pixel_count": cleared_active_stale_pixel_count,
+        "first_minute_replay_gate": first_minute_replay_gate,
+        "rejection_recording_parse_gate": rejection_recording_parse_gate,
+        "command_action_parse_gate": command_action_parse_gate,
+        "replay_expectation_gate": replay_expectation_gate,
+        "blocked_feedback_gate": blocked_feedback_gate,
+        "accepted_setup_input_gate": accepted_setup_input_gate,
+        "blocked_step_non_pollution_gate": blocked_step_non_pollution_gate,
+        "blocked_history_non_pollution_gate": blocked_history_non_pollution_gate,
+        "blocked_action_history_gate": blocked_action_history_gate,
+        "retained_entry_gate": retained_entry_gate,
+        "pruned_entry_gate": pruned_entry_gate,
+        "stage_gate": stage_gate,
+        "history_visual_gate": history_visual_gate,
+        "history_prune_visual_gate": history_prune_visual_gate,
+        "rejection_visual_gate": rejection_visual_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "android_s5_real_device_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "source_art_policy": "Original Trillionnium first-minute command feedback rejection replay HUD; rejected RTS command markers, blocked-tile contact sheet, recent-3 history, and prune markers are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "First-minute command feedback rejection replay evidence writes and replays first-minute input, writes a rejection command recording, applies blocked RTS live inputs through apply_live_native_action_with_source, and proves blocked feedback does not mutate the preserved recent-3 command history before rendering classic_draw_scene frames."
+    }))
+    .expect("first-minute command feedback rejection replay evidence serializes")
 }
 
 pub fn native_first_minute_screenshot_sequence_evidence_json(

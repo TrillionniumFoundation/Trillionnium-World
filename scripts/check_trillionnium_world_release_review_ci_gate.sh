@@ -121,6 +121,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_group_command_history.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_group_command_history_prune.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_rejection_replay.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_scrollable_map.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_camera_minimap_sync.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_queue_path_preview.sh" \
@@ -238,6 +239,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_control_group_command_history_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_control_group_command_history_prune_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_first_minute_command_feedback_replay_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_first_minute_command_feedback_rejection_replay_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_scrollable_map_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_camera_minimap_sync_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_command_queue_path_preview_script_contract_guard_test.sh" \
@@ -336,6 +338,7 @@ run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_b
 # Bevy classic control-group command history contract: trillionnium_world_bevy_classic_rts_control_group_command_history_v1
 # Bevy classic control-group command history prune contract: trillionnium_world_bevy_classic_rts_control_group_command_history_prune_v1
 # Bevy first-minute command feedback replay contract: trillionnium_world_bevy_first_minute_command_feedback_replay_v1
+# Bevy first-minute command feedback rejection replay contract: trillionnium_world_bevy_first_minute_command_feedback_rejection_replay_v1
 run_check bevy_classic_asset_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh"
 run_check bevy_classic_manifest_lint_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh"
 run_check bevy_classic_animation_preview_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh"
@@ -434,6 +437,8 @@ run_check bevy_classic_rts_control_group_command_history_prune_contract_guard "$
 run_check bevy_classic_rts_control_group_command_history_prune_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_control_group_command_history_prune.sh"
 run_check bevy_first_minute_command_feedback_replay_contract_guard "$ROOT/scripts/v2/bevy_first_minute_command_feedback_replay_script_contract_guard_test.sh"
 run_check bevy_first_minute_command_feedback_replay_gate "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh"
+run_check bevy_first_minute_command_feedback_rejection_replay_contract_guard "$ROOT/scripts/v2/bevy_first_minute_command_feedback_rejection_replay_script_contract_guard_test.sh"
+run_check bevy_first_minute_command_feedback_rejection_replay_gate "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_rejection_replay.sh"
 run_check bevy_classic_rts_scrollable_map_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_scrollable_map_script_contract_guard_test.sh"
 run_check bevy_classic_rts_scrollable_map_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_scrollable_map.sh"
 run_check bevy_classic_rts_camera_minimap_sync_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_camera_minimap_sync_script_contract_guard_test.sh"

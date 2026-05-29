@@ -2384,6 +2384,39 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "first-minute-command-feedback-rejection-replay"
+                | "--first-minute-command-feedback-rejection-replay"
+        )
+    ) {
+        let slot_dir = args
+            .get(1)
+            .map(String::as_str)
+            .unwrap_or("target/trnm-world-bevy-session-slots");
+        let first_minute_recording_path = args.get(2).map(String::as_str).unwrap_or(
+            "target/trnm-world-bevy-first-minute-command-feedback-rejection-source-recording.json",
+        );
+        let rejection_recording_path = args.get(3).map(String::as_str).unwrap_or(
+            "target/trnm-world-bevy-first-minute-command-feedback-rejection-recording.json",
+        );
+        let preview_path = args
+            .get(4)
+            .map(String::as_str)
+            .unwrap_or("target/trnm-world-bevy-first-minute-command-feedback-rejection-replay.ppm");
+        println!(
+            "{}",
+            trnm_world_bevy::native_first_minute_command_feedback_rejection_replay_evidence_json(
+                "local-player",
+                slot_dir,
+                first_minute_recording_path,
+                rejection_recording_path,
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("first-minute-screenshot-sequence" | "--first-minute-screenshot-sequence")
     ) {
         let slot_dir = args
