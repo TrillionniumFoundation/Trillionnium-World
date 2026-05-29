@@ -1303,6 +1303,25 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-natural-terminal-contract" | "--classic-rts-natural-terminal-contract")
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-natural-terminal-contract",
+        );
+        let replay_path = args.get(2).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-owned-replay-file.trnm-replay.json",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_natural_terminal_contract_evidence_json(
+                preview_dir,
+                replay_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some(
             "classic-rts-playtest-observability-readiness"
                 | "--classic-rts-playtest-observability-readiness"

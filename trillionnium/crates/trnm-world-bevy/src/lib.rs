@@ -276,6 +276,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_headless_replay_playback_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_natural_terminal_contract_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -37237,6 +37239,245 @@ pub fn native_classic_rts_headless_replay_playback_evidence_json(replay_path: &s
         "source_of_truth": "Classic RTS headless replay playback evidence reads the Trillionnium-owned .trnm-replay.json file and replays checkpoint payloads through a no-render/no-wgpu reducer. It compares source and headless winner, tick, match state, counts, and checkpoint sha256. It claims a Trillionnium-owned headless playback path only; it does not claim OpenRA headless client parity, Android S5 evidence, or public launch readiness."
     }))
     .expect("classic RTS headless replay playback evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_natural_terminal_contract_evidence_json(
+    preview_dir: &str,
+    replay_path: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let organic_path = preview_path("organic-terminal.ppm");
+    let observation_path = preview_path("terminal-observation.ppm");
+
+    let organic: Value = serde_json::from_str(
+        &native_classic_rts_organic_terminal_gap_evidence_json(&organic_path),
+    )
+    .expect("organic terminal evidence parses");
+    let observation: Value = serde_json::from_str(
+        &native_classic_rts_terminal_observation_gap_evidence_json(&observation_path),
+    )
+    .expect("terminal observation evidence parses");
+    let headless: Value = serde_json::from_str(
+        &native_classic_rts_headless_replay_playback_evidence_json(replay_path),
+    )
+    .expect("headless replay playback evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let array_len = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0)
+    };
+    let last_stage_tick = |value: &Value| {
+        value
+            .get("stage_summaries")
+            .and_then(Value::as_array)
+            .and_then(|stages| stages.last())
+            .and_then(|stage| stage.get("tick"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+
+    let organic_final_tick = last_stage_tick(&organic);
+    let observation_final_tick = last_stage_tick(&observation);
+    let headless_outcome = headless.get("headless_outcome").unwrap_or(&Value::Null);
+    let terminal_winner = str_at(&organic, "bevy_terminal_winner");
+    let terminal_total_beacons = u64_at(&organic, "bevy_terminal_total_beacons");
+    let terminal_winner_beacons = u64_at(&organic, "bevy_terminal_winner_beacons");
+    let terminal_hold_ticks = u64_at(&organic, "bevy_terminal_hold_ticks");
+
+    let organic_terminal_gate = contract_is(
+        &organic,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT,
+    ) && bool_at(&organic, "green")
+        && bool_at(&organic, "organic_terminal_gap_gate")
+        && bool_at(&organic, "terminal_probe_game_over")
+        && bool_at(&organic, "terminal_probe_winner_observed")
+        && bool_at(&organic, "terminal_probe_loser_observed")
+        && terminal_winner == "Multi2"
+        && terminal_winner_beacons == 2
+        && terminal_total_beacons == 4
+        && terminal_hold_ticks == 3000
+        && u64_at(&organic, "winner_count") == 1
+        && u64_at(&organic, "loser_count") == 3
+        && str_at(&organic, "final_match_result_state")
+            == "victory:organic_terminal_observed:Multi2"
+        && str_at(&organic, "final_objective_status") == "organic_terminal_observed:Multi2:2_of_4";
+    let terminal_observation_gate = contract_is(
+        &observation,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TERMINAL_OBSERVATION_GAP_CONTRACT,
+    ) && bool_at(&observation, "green")
+        && bool_at(&observation, "terminal_victory_rules_ready")
+        && bool_at(&observation, "terminal_observation_gap_gate")
+        && bool_at(&observation, "terminal_probe_game_over")
+        && bool_at(&observation, "terminal_probe_winner_observed")
+        && str_at(&observation, "bevy_terminal_winner") == terminal_winner
+        && u64_at(&observation, "bevy_terminal_winner_beacons") == terminal_winner_beacons
+        && u64_at(&observation, "bevy_terminal_total_beacons") == terminal_total_beacons
+        && u64_at(&observation, "bevy_terminal_hold_ticks") == terminal_hold_ticks
+        && u64_at(&observation, "terminal_probe_loser_count") == 3
+        && str_at(&observation, "final_match_result_state")
+            == "victory:terminal_observation:Multi2"
+        && str_at(&observation, "final_objective_status") == "terminal_observed:Multi2:2_of_4";
+    let headless_terminal_gate = contract_is(
+        &headless,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT,
+    ) && bool_at(&headless, "green")
+        && bool_at(&headless, "headless_replay_playback_gate")
+        && bool_at(&headless, "source_headless_match_gate")
+        && headless_outcome.get("winner").and_then(Value::as_str) == Some(terminal_winner.as_str())
+        && headless_outcome.get("winner_count").and_then(Value::as_u64) == Some(1)
+        && headless_outcome.get("loser_count").and_then(Value::as_u64) == Some(3)
+        && headless_outcome
+            .get("final_match_result_state")
+            .and_then(Value::as_str)
+            == Some("victory:organic_terminal_observed:Multi2")
+        && headless_outcome
+            .get("final_tick")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= terminal_hold_ticks;
+    let terminal_rule_contract_gate = terminal_winner == "Multi2"
+        && terminal_winner_beacons == 2
+        && terminal_total_beacons == 4
+        && terminal_hold_ticks == 3000
+        && organic.get("final_objective_tile_ids") == observation.get("final_objective_tile_ids");
+    let terminal_timeline_gate = array_len(&organic, "stage_summaries") == 6
+        && array_len(&observation, "stage_summaries") == 6
+        && organic_final_tick >= terminal_hold_ticks
+        && observation_final_tick >= terminal_hold_ticks;
+    let terminal_outcome_contract_gate = organic_terminal_gate
+        && terminal_observation_gate
+        && headless_terminal_gate
+        && terminal_rule_contract_gate
+        && terminal_timeline_gate;
+    let preview_gate = file_ready(&organic_path) && file_ready(&observation_path);
+    let gap_visibility_gate = bool_at(&organic, "openra_gap_not_closed_gate")
+        && bool_at(&observation, "openra_gap_not_closed_gate")
+        && str_at(&organic, "bevy_terminal_observation_gap_state")
+            == "bevy_deterministic_observation_not_openra_natural_gameover"
+        && str_at(&observation, "bevy_terminal_observation_gap_state")
+            == "bevy_terminal_observation_vocabulary_not_natural_openra_match"
+        && str_at(&headless, "gap_state")
+            == "bevy_owned_headless_replay_playback_created_not_openra_headless_parity";
+    let no_openra_natural_terminal_claim_gate = organic
+        .get("bevy_natural_gameover_claimed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && observation
+            .get("bevy_natural_terminal_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && headless
+            .get("bevy_openra_headless_client_match_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && organic
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && observation
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && headless
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let boundary_gate = no_openra_natural_terminal_claim_gate
+        && headless
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && headless.get("public_launch_ready").and_then(Value::as_bool) == Some(false);
+    let natural_terminal_contract_gate =
+        terminal_outcome_contract_gate && preview_gate && gap_visibility_gate && boundary_gate;
+    let green = natural_terminal_contract_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "replay_path": replay_path,
+        "preview_paths": {
+            "organic_terminal": organic_path,
+            "terminal_observation": observation_path
+        },
+        "source_contracts": {
+            "organic_terminal_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT,
+            "terminal_observation_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TERMINAL_OBSERVATION_GAP_CONTRACT,
+            "headless_replay_playback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT
+        },
+        "terminal_contract_state": "bevy_natural_terminal_contract_v1_not_openra_natural_match",
+        "terminal_winner": terminal_winner,
+        "terminal_winner_beacons": terminal_winner_beacons,
+        "terminal_total_beacons": terminal_total_beacons,
+        "terminal_hold_ticks": terminal_hold_ticks,
+        "terminal_rule": "control_2_of_4_flux_beacons_for_3000_ticks",
+        "terminal_objective_tile_ids": organic.get("final_objective_tile_ids").cloned().unwrap_or(Value::Null),
+        "terminal_outcome": {
+            "winner": terminal_winner,
+            "winner_count": 1,
+            "loser_count": 3,
+            "organic_final_tick": organic_final_tick,
+            "terminal_observation_final_tick": observation_final_tick,
+            "headless_final_tick": headless_outcome.get("final_tick").cloned().unwrap_or(Value::Null),
+            "organic_match_result_state": organic.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "terminal_observation_match_result_state": observation.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "headless_match_result_state": headless_outcome.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "organic_objective_status": organic.get("final_objective_status").cloned().unwrap_or(Value::Null),
+            "terminal_observation_objective_status": observation.get("final_objective_status").cloned().unwrap_or(Value::Null),
+            "headless_final_checkpoint_sha256": headless.get("final_headless_checkpoint_sha256").cloned().unwrap_or(Value::Null)
+        },
+        "organic_terminal_gate": organic_terminal_gate,
+        "terminal_observation_gate": terminal_observation_gate,
+        "headless_terminal_gate": headless_terminal_gate,
+        "terminal_rule_contract_gate": terminal_rule_contract_gate,
+        "terminal_timeline_gate": terminal_timeline_gate,
+        "terminal_outcome_contract_gate": terminal_outcome_contract_gate,
+        "preview_gate": preview_gate,
+        "gap_visibility_gate": gap_visibility_gate,
+        "no_openra_natural_terminal_claim_gate": no_openra_natural_terminal_claim_gate,
+        "boundary_gate": boundary_gate,
+        "natural_terminal_contract_gate": natural_terminal_contract_gate,
+        "bevy_natural_terminal_contract_claimed": true,
+        "bevy_openra_natural_terminal_match_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS natural terminal contract evidence normalizes Bevy organic terminal, terminal observation, owned replay, and headless playback into one stable terminal outcome contract. It claims a Trillionnium-owned terminal contract only; OpenRA natural terminal parity, OpenRA headless client match, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS natural terminal contract evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
