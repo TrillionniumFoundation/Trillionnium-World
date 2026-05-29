@@ -1340,6 +1340,19 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some("classic-rts-native-bot-ai-planner" | "--classic-rts-native-bot-ai-planner")
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-native-bot-ai-planner",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_native_bot_ai_planner_evidence_json(preview_dir)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-rts-bot-decision-state-gap" | "--classic-rts-bot-decision-state-gap")
     ) {
         let preview_path = args.get(1).map(String::as_str).unwrap_or(

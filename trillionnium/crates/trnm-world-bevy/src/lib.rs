@@ -278,6 +278,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT:
     "trillionnium_world_bevy_classic_rts_headless_replay_playback_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_natural_terminal_contract_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATIVE_BOT_AI_PLANNER_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_native_bot_ai_planner_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -37478,6 +37480,351 @@ pub fn native_classic_rts_natural_terminal_contract_evidence_json(
         "source_of_truth": "Classic RTS natural terminal contract evidence normalizes Bevy organic terminal, terminal observation, owned replay, and headless playback into one stable terminal outcome contract. It claims a Trillionnium-owned terminal contract only; OpenRA natural terminal parity, OpenRA headless client match, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS natural terminal contract evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_native_bot_ai_planner_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let macro_path = preview_path("bot-macro-economy-gap.ppm");
+    let map_path = preview_path("bot-map-intel-gap.ppm");
+    let tech_path = preview_path("bot-tech-transition-gap.ppm");
+    let terminal_dir = preview_path("natural-terminal-contract");
+    let replay_path = Path::new(preview_dir)
+        .join("bot-planner-owned-replay.trnm-replay.json")
+        .to_string_lossy()
+        .into_owned();
+
+    let macro_economy: Value = serde_json::from_str(
+        &native_classic_rts_bot_macro_economy_gap_evidence_json(&macro_path),
+    )
+    .expect("bot macro economy gap evidence parses");
+    let map_intel: Value = serde_json::from_str(
+        &native_classic_rts_bot_map_intel_gap_evidence_json(&map_path),
+    )
+    .expect("bot map intel gap evidence parses");
+    let tech_transition: Value = serde_json::from_str(
+        &native_classic_rts_bot_tech_transition_gap_evidence_json(&tech_path),
+    )
+    .expect("bot tech transition gap evidence parses");
+    let owned_replay: Value = serde_json::from_str(
+        &native_classic_rts_owned_replay_file_evidence_json(&replay_path),
+    )
+    .expect("owned replay file evidence parses");
+    let terminal_contract: Value = serde_json::from_str(
+        &native_classic_rts_natural_terminal_contract_evidence_json(&terminal_dir, &replay_path),
+    )
+    .expect("natural terminal contract evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let array_len = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0)
+    };
+    let stage_has = |value: &Value, stage_name: &str| {
+        value
+            .get("stage_summaries")
+            .and_then(Value::as_array)
+            .map(|stages| {
+                stages
+                    .iter()
+                    .any(|stage| stage.get("stage").and_then(Value::as_str) == Some(stage_name))
+            })
+            .unwrap_or(false)
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+
+    let source_contract_gate = contract_is(
+        &macro_economy,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MACRO_ECONOMY_GAP_CONTRACT,
+    ) && contract_is(
+        &map_intel,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MAP_INTEL_GAP_CONTRACT,
+    ) && contract_is(
+        &tech_transition,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_TECH_TRANSITION_GAP_CONTRACT,
+    ) && contract_is(
+        &owned_replay,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT,
+    ) && contract_is(
+        &terminal_contract,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT,
+    );
+    let source_green_gate = bool_at(&macro_economy, "green")
+        && bool_at(&map_intel, "green")
+        && bool_at(&tech_transition, "green")
+        && bool_at(&owned_replay, "green")
+        && bool_at(&terminal_contract, "green");
+    let owned_replay_file_gate = bool_at(&owned_replay, "owned_replay_file_gate")
+        && bool_at(&owned_replay, "playback_outcome_gate")
+        && u64_at(&owned_replay, "checksum_mismatch_count") == 0;
+    let macro_economy_phase_gate = bool_at(&macro_economy, "macro_economy_gap_gate")
+        && u64_at(&macro_economy, "macro_stage_count") == 6
+        && u64_at(&macro_economy, "macro_signal_count") >= 24
+        && stage_has(&macro_economy, "worker_saturation_open")
+        && stage_has(&macro_economy, "resource_deny_rebuild")
+        && str_at(&macro_economy, "final_macro_state") == "deny_rebuild_pressure"
+        && str_at(&macro_economy, "final_match_result_state")
+            == "macro_economy_gap:deny_rebuild_pressure";
+    let map_intel_phase_gate = bool_at(&map_intel, "map_intel_gap_gate")
+        && u64_at(&map_intel, "intel_stage_count") == 6
+        && u64_at(&map_intel, "intel_signal_count") >= 24
+        && stage_has(&map_intel, "initial_scout_sweep")
+        && stage_has(&map_intel, "rotate_pressure_reveal")
+        && str_at(&map_intel, "final_intel_state") == "rotate_pressure_confirmed_beacon"
+        && str_at(&map_intel, "final_match_result_state")
+            == "map_intel_gap:rotate_pressure_confirmed_beacon";
+    let tech_transition_phase_gate = bool_at(&tech_transition, "tech_transition_gap_gate")
+        && u64_at(&tech_transition, "tech_transition_stage_count") == 6
+        && u64_at(&tech_transition, "tech_transition_signal_count") >= 24
+        && stage_has(&tech_transition, "early_signal_read")
+        && stage_has(&tech_transition, "terminal_tech_lock")
+        && str_at(&tech_transition, "final_tech_transition_state") == "terminal_tech_lock_secured"
+        && str_at(&tech_transition, "final_match_result_state")
+            == "tech_transition_gap:terminal_tech_lock_secured";
+    let terminal_contract_gate = bool_at(&terminal_contract, "natural_terminal_contract_gate")
+        && str_at(&terminal_contract, "terminal_winner") == "Multi2"
+        && u64_at(&terminal_contract, "terminal_winner_beacons") == 2
+        && u64_at(&terminal_contract, "terminal_total_beacons") == 4
+        && u64_at(&terminal_contract, "terminal_hold_ticks") == 3000;
+    let planner_pressure_gate = u64_at(&macro_economy, "final_objective_capture_percent") >= 90
+        && u64_at(&map_intel, "final_objective_capture_percent") >= 90
+        && u64_at(&tech_transition, "final_objective_capture_percent") >= 95
+        && u64_at(&macro_economy, "final_rts_defeat_risk_percent") <= 20
+        && u64_at(&map_intel, "final_rts_defeat_risk_percent") <= 20
+        && u64_at(&tech_transition, "final_rts_defeat_risk_percent") <= 15
+        && u64_at(&tech_transition, "final_rts_ai_pressure_percent")
+            >= u64_at(&macro_economy, "final_rts_ai_pressure_percent");
+    let source_signal_count = u64_at(&macro_economy, "macro_signal_count")
+        + u64_at(&map_intel, "intel_signal_count")
+        + u64_at(&tech_transition, "tech_transition_signal_count");
+    let strategy_phases = vec![
+        json!({
+            "phase": "scout_resource_beacons",
+            "source": "map_intel.initial_scout_sweep",
+            "planner_decision": "send_scout_and_stamp_fog_memory_before_macro_commit",
+            "gate": stage_has(&map_intel, "initial_scout_sweep")
+        }),
+        json!({
+            "phase": "stabilize_macro_workers",
+            "source": "macro.worker_saturation_open",
+            "planner_decision": "saturate_workers_then_hold_supply_recovery_budget",
+            "gate": stage_has(&macro_economy, "worker_saturation_open")
+        }),
+        json!({
+            "phase": "confirm_enemy_pressure_lane",
+            "source": "map_intel.rotate_pressure_reveal",
+            "planner_decision": "rotate_pressure_after_hidden_army_prediction_confirms_beacon_lane",
+            "gate": stage_has(&map_intel, "rotate_pressure_reveal")
+        }),
+        json!({
+            "phase": "unlock_tier_two_tech",
+            "source": "tech_transition.counter_tech_switch",
+            "planner_decision": "counter_tech_switch_before_enemy_skimmer_window",
+            "gate": stage_has(&tech_transition, "counter_tech_switch")
+        }),
+        json!({
+            "phase": "transition_siege_push",
+            "source": "tech_transition.siege_response_window",
+            "planner_decision": "convert_macro_bank_to_bastion_siege_response",
+            "gate": stage_has(&tech_transition, "siege_response_window")
+        }),
+        json!({
+            "phase": "terminal_contract_alignment",
+            "source": "natural_terminal_contract",
+            "planner_decision": "lock_two_of_four_beacons_until_terminal_contract_green",
+            "gate": terminal_contract_gate
+        }),
+    ];
+    let planner_phase_count = strategy_phases.len();
+    let planner_phase_gate = planner_phase_count == 6
+        && strategy_phases
+            .iter()
+            .all(|phase| phase.get("gate").and_then(Value::as_bool) == Some(true));
+    let strategy_payload = json!({
+        "phases": strategy_phases,
+        "macro_final_state": macro_economy.get("final_macro_state").cloned().unwrap_or(Value::Null),
+        "map_final_state": map_intel.get("final_intel_state").cloned().unwrap_or(Value::Null),
+        "tech_final_state": tech_transition.get("final_tech_transition_state").cloned().unwrap_or(Value::Null),
+        "terminal_winner": terminal_contract.get("terminal_winner").cloned().unwrap_or(Value::Null),
+        "source_signal_count": source_signal_count
+    });
+    let strategy_checksum_sha256 =
+        sha256_hex(&serde_json::to_vec(&strategy_payload).expect("strategy payload serializes"));
+    let planner_replayability_gate = strategy_checksum_sha256.len() == 64
+        && planner_phase_gate
+        && array_len(&macro_economy, "stage_summaries") == 6
+        && array_len(&map_intel, "stage_summaries") == 6
+        && array_len(&tech_transition, "stage_summaries") == 6
+        && source_signal_count >= 120
+        && owned_replay_file_gate;
+    let preview_gate = file_ready(&macro_path) && file_ready(&map_path) && file_ready(&tech_path);
+    let no_openra_bot_parity_claim_gate = macro_economy
+        .get("bevy_native_macro_economy_ai_claimed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && map_intel
+            .get("bevy_native_shroud_memory_ai_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && tech_transition
+            .get("bevy_native_tech_transition_ai_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && macro_economy
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && map_intel
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && tech_transition
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && terminal_contract
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let boundary_gate = no_openra_bot_parity_claim_gate
+        && terminal_contract
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && terminal_contract
+            .get("public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && [&macro_economy, &map_intel, &tech_transition]
+            .iter()
+            .all(|value| {
+                value
+                    .get("cex_runtime_player_client_allowed")
+                    .and_then(Value::as_bool)
+                    == Some(false)
+                    && value.get("wgpu_required").and_then(Value::as_bool) == Some(false)
+                    && bool_at(value, "openra_gap_not_closed_gate")
+            });
+    let native_bot_ai_planner_gate = source_contract_gate
+        && source_green_gate
+        && macro_economy_phase_gate
+        && map_intel_phase_gate
+        && tech_transition_phase_gate
+        && terminal_contract_gate
+        && planner_pressure_gate
+        && planner_phase_gate
+        && planner_replayability_gate
+        && preview_gate
+        && boundary_gate;
+    let green = native_bot_ai_planner_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATIVE_BOT_AI_PLANNER_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_paths": {
+            "macro_economy_gap": macro_path,
+            "map_intel_gap": map_path,
+            "tech_transition_gap": tech_path,
+            "natural_terminal_contract": terminal_dir
+        },
+        "source_contracts": {
+            "macro_economy_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MACRO_ECONOMY_GAP_CONTRACT,
+            "map_intel_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_MAP_INTEL_GAP_CONTRACT,
+            "tech_transition_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_TECH_TRANSITION_GAP_CONTRACT,
+            "owned_replay_file": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT,
+            "natural_terminal_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT
+        },
+        "planner_strategy_state": "bevy_native_bot_ai_planner_v1_macro_intel_tech_closed_not_openra_bot_parity",
+        "planner_phase_count": planner_phase_count,
+        "strategy_phases": strategy_payload.get("phases").cloned().unwrap_or(Value::Null),
+        "strategy_checksum_sha256": strategy_checksum_sha256,
+        "source_signal_count": source_signal_count,
+        "macro_summary": {
+            "stage_count": macro_economy.get("macro_stage_count").cloned().unwrap_or(Value::Null),
+            "signal_count": macro_economy.get("macro_signal_count").cloned().unwrap_or(Value::Null),
+            "final_state": macro_economy.get("final_macro_state").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": macro_economy.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "final_objective_capture_percent": macro_economy.get("final_objective_capture_percent").cloned().unwrap_or(Value::Null)
+        },
+        "map_intel_summary": {
+            "stage_count": map_intel.get("intel_stage_count").cloned().unwrap_or(Value::Null),
+            "signal_count": map_intel.get("intel_signal_count").cloned().unwrap_or(Value::Null),
+            "final_state": map_intel.get("final_intel_state").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": map_intel.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "final_objective_capture_percent": map_intel.get("final_objective_capture_percent").cloned().unwrap_or(Value::Null)
+        },
+        "tech_transition_summary": {
+            "stage_count": tech_transition.get("tech_transition_stage_count").cloned().unwrap_or(Value::Null),
+            "signal_count": tech_transition.get("tech_transition_signal_count").cloned().unwrap_or(Value::Null),
+            "final_state": tech_transition.get("final_tech_transition_state").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": tech_transition.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "final_objective_capture_percent": tech_transition.get("final_objective_capture_percent").cloned().unwrap_or(Value::Null)
+        },
+        "terminal_contract_summary": {
+            "terminal_state": terminal_contract.get("terminal_contract_state").cloned().unwrap_or(Value::Null),
+            "winner": terminal_contract.get("terminal_winner").cloned().unwrap_or(Value::Null),
+            "winner_beacons": terminal_contract.get("terminal_winner_beacons").cloned().unwrap_or(Value::Null),
+            "total_beacons": terminal_contract.get("terminal_total_beacons").cloned().unwrap_or(Value::Null),
+            "hold_ticks": terminal_contract.get("terminal_hold_ticks").cloned().unwrap_or(Value::Null)
+        },
+        "owned_replay_summary": {
+            "replay_path": replay_path,
+            "recorded_input_count": owned_replay.get("recorded_input_count").cloned().unwrap_or(Value::Null),
+            "playback_checkpoint_count": owned_replay.get("playback_checkpoint_count").cloned().unwrap_or(Value::Null),
+            "checksum_mismatch_count": owned_replay.get("checksum_mismatch_count").cloned().unwrap_or(Value::Null),
+            "final_playback_checkpoint_sha256": owned_replay.get("final_playback_checkpoint_sha256").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "owned_replay_file_gate": owned_replay_file_gate,
+        "macro_economy_phase_gate": macro_economy_phase_gate,
+        "map_intel_phase_gate": map_intel_phase_gate,
+        "tech_transition_phase_gate": tech_transition_phase_gate,
+        "terminal_contract_gate": terminal_contract_gate,
+        "planner_pressure_gate": planner_pressure_gate,
+        "planner_phase_gate": planner_phase_gate,
+        "planner_replayability_gate": planner_replayability_gate,
+        "preview_gate": preview_gate,
+        "no_openra_bot_parity_claim_gate": no_openra_bot_parity_claim_gate,
+        "boundary_gate": boundary_gate,
+        "native_bot_ai_planner_gate": native_bot_ai_planner_gate,
+        "bevy_native_bot_ai_planner_claimed": true,
+        "bevy_openra_bot_ai_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS native bot AI planner evidence composes existing Bevy macro economy, map-intel, tech-transition, and natural terminal contracts into one deterministic strategy timeline and checksum. It claims a Trillionnium-owned planner evidence gate only; OpenRA native bot AI parity, OpenRA full parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS native bot AI planner evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
