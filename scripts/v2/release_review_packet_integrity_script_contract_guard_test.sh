@@ -17,8 +17,8 @@ required_lines=(
   'bytes_match'
   'contract_match'
   'status_match'
-  'length == 59'
-  'expected fifty-nine artifacts including operator handoff, checkpoint manifest, packet semantic negative fixture, CEX adapter readiness, Bevy action coach, player HUD/debug layer, player UI rescue, classic RTS control loop, first-minute command feedback replay, first-minute command feedback recordings, first-minute command feedback contact sheet, live-window screenshots, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, map modeling gate, bundle negative fixtures, evidence bundle, template negative fixtures, evidence kit, blocker consistency, status-only fixture guard, S5 real-device validation, public launch evidence intake, production map-pack collection, cohort/commercial collection, external ops collection, production map-pack public evidence, cohort/commercial validation, and external ops validation'
+  'length == 63'
+  'expected sixty-three artifacts including operator handoff, checkpoint manifest, packet semantic negative fixture, CEX adapter readiness, Bevy action coach, player HUD/debug layer, player UI rescue, classic RTS control loop, first-minute command feedback replay, first-minute command feedback recordings, first-minute command feedback contact sheet, first-minute command feedback rejection replay, first-minute command feedback rejection recordings, first-minute command feedback rejection contact sheet, live-window screenshots, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, map modeling gate, bundle negative fixtures, evidence bundle, template negative fixtures, evidence kit, blocker consistency, status-only fixture guard, S5 real-device validation, public launch evidence intake, production map-pack collection, cohort/commercial collection, external ops collection, production map-pack public evidence, cohort/commercial validation, and external ops validation'
   'require_artifact_json_expr'
   'require_artifact_ppm_header'
   'packet_integrity_semantic_fixture'
@@ -36,11 +36,20 @@ required_lines=(
   'first_minute_command_feedback_recording_semantics'
   'RTS:MOVE:18,31:line'
   'first_minute_command_feedback_replay_ppm_semantics'
+  'first_minute_command_feedback_rejection_replay_semantics'
+  'accepted_command_input_count == 1'
+  'blocked_command_input_count == 6'
+  'command_queue_rejection_pollution_count == 0'
+  'rts_invalid_tile:bad-tile'
+  'first_minute_command_feedback_rejection_source_recording_semantics'
+  'first_minute_command_feedback_rejection_recording_semantics'
+  'RTS:ABILITY:guard_break'
+  'first_minute_command_feedback_rejection_replay_ppm_semantics'
   'ppm_header_and_size_match'
   'release_review_packet_integrity_green_with_public_launch_blockers'
   'android_s5_real_device_claimed: false'
   'host_side_bevy_runtime_replay_not_android_real_device'
-  'packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_packet_semantic_negative_fixture_cex_adapter_local_bevy_playability_evidence_and_first_minute_command_feedback_replay_semantics'
+  'packet_artifact_paths_must_exist_and_recorded_sha256_bytes_contract_status_must_match_current_files_including_checkpoint_manifest_packet_semantic_negative_fixture_cex_adapter_local_bevy_playability_evidence_first_minute_command_feedback_replay_semantics_and_first_minute_command_feedback_rejection_replay_semantics'
 )
 
 for line in "${required_lines[@]}"; do
@@ -50,4 +59,4 @@ for line in "${required_lines[@]}"; do
   fi
 done
 
-echo "[PASS] release review packet integrity script keeps packet refresh, checksum/byte/contract/status verification, first-minute command feedback replay semantic checks, no-refresh mode, and Android S5 boundary"
+echo "[PASS] release review packet integrity script keeps packet refresh, checksum/byte/contract/status verification, first-minute command feedback replay/rejection semantic checks, no-refresh mode, and Android S5 boundary"
