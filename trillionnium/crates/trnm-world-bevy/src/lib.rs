@@ -286,6 +286,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_ACTION_EXECUTOR_CONTRA
     "trillionnium_world_bevy_classic_rts_bot_planner_action_executor_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_EXECUTOR_REPLAY_DETERMINISM_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -38982,6 +38984,575 @@ pub fn native_classic_rts_bot_planner_executor_replay_determinism_evidence_json(
         "source_of_truth": "Classic RTS bot planner executor replay determinism evidence reads the prior Bevy-owned action executor log, replays its six action labels into a fresh Bevy runtime, and proves the replayed command deltas, final runtime summary, and command queue checksum match the source executor. It claims only Trillionnium-owned executor replay determinism; OpenRA runtime bot execution parity, live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS bot planner executor replay determinism evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_multi_match_bot_executor_evaluation_evidence_json(
+    preview_dir: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 2;
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let source_replay_dir = preview_path("source-bot-planner-executor-replay-determinism");
+    let evaluation_preview_path = preview_path("multi-match-bot-executor-evaluation.ppm");
+    let evaluation_log_path = preview_path("multi-match-bot-executor-evaluation.matches.json");
+
+    let source_replay: Value = serde_json::from_str(
+        &native_classic_rts_bot_planner_executor_replay_determinism_evidence_json(
+            &source_replay_dir,
+        ),
+    )
+    .expect("bot planner executor replay determinism evidence parses");
+    let source_action_log_path = source_replay
+        .get("source_action_log_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let source_action_log_bytes = fs::read(&source_action_log_path).unwrap_or_default();
+    let source_action_log_sha256 = sha256_hex(&source_action_log_bytes);
+    let source_action_log: Value =
+        serde_json::from_slice(&source_action_log_bytes).unwrap_or(Value::Null);
+    let source_execution_log = source_action_log
+        .get("execution_log")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let assets = load_classic_runtime_assets();
+    let runtime_summary = |runtime: &NativeFirstPlayableRuntime| {
+        json!({
+            "faction_id": runtime.rts_faction_id.clone(),
+            "objective_capture_percent": runtime.rts_objective_capture_percent,
+            "objective_owner_state": runtime.rts_objective_owner_state.clone(),
+            "tier_two_tech_ids": runtime.rts_tier_two_tech_ids.clone(),
+            "tech_state": runtime.rts_tech_state.clone(),
+            "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+            "siege_breach_state": runtime.rts_siege_breach_state.clone(),
+            "base_breach_percent": runtime.rts_base_breach_percent,
+            "base_assault_result_state": runtime.rts_base_assault_result_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "next_action_ids": runtime.rts_next_action_ids.clone(),
+            "input_feedback_event_count": runtime.input_feedback_history.len(),
+            "command_queue": runtime.rts_command_queue.clone()
+        })
+    };
+    let stable_json_sha256 = |value: &Value| {
+        sha256_hex(
+            &serde_json::to_vec(value).expect("stable multi-match evaluation payload serializes"),
+        )
+    };
+    let source_final_runtime_summary = source_replay
+        .get("source_final_runtime_summary")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let source_final_runtime_sha256 = source_replay
+        .get("source_final_runtime_sha256")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let source_command_queue_sha256 = source_replay
+        .get("source_command_queue_sha256")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let variants = [
+        (
+            "seed_2026052901_forest_relay",
+            2_026_052_901_u64,
+            "forest_relay",
+            "inner_lane",
+            "balanced",
+            680_u64,
+            420_u64,
+            "east",
+            4_u8,
+        ),
+        (
+            "seed_2026052902_ridge_watch",
+            2_026_052_902_u64,
+            "ridge_watch",
+            "north_pass",
+            "low_gold",
+            612_u64,
+            460_u64,
+            "north",
+            2_u8,
+        ),
+        (
+            "seed_2026052903_marsh_gate",
+            2_026_052_903_u64,
+            "marsh_gate",
+            "south_bridge",
+            "high_pressure",
+            742_u64,
+            395_u64,
+            "south",
+            6_u8,
+        ),
+        (
+            "seed_2026052904_market_ruins",
+            2_026_052_904_u64,
+            "market_ruins",
+            "central_lane",
+            "delayed_tech",
+            705_u64,
+            488_u64,
+            "west",
+            1_u8,
+        ),
+    ];
+
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut variant_summaries = Vec::new();
+    let mut variant_seed_values: Vec<u64> = Vec::new();
+    let mut variant_map_values = Vec::new();
+    let mut variant_economy_values = Vec::new();
+    let mut accepted_variant_count = 0_usize;
+    let mut runtime_sha_match_count = 0_usize;
+    let mut command_queue_sha_match_count = 0_usize;
+    let mut total_replay_action_count = 0_usize;
+    let mut total_accepted_action_count = 0_usize;
+    let mut total_command_marker_hit_count = 0_usize;
+    let mut total_command_delta_match_count = 0_usize;
+    let mut total_action_label_parse_count = 0_usize;
+
+    for (
+        variant_index,
+        (
+            variant_id,
+            seed,
+            map_variant,
+            lane_variant,
+            economy_variant,
+            coins,
+            xp,
+            facing,
+            walk_frame,
+        ),
+    ) in variants.iter().enumerate()
+    {
+        if !variant_seed_values.contains(seed) {
+            variant_seed_values.push(*seed);
+        }
+        push_unique_string(&mut variant_map_values, map_variant);
+        push_unique_string(&mut variant_economy_values, economy_variant);
+        let mut world = native_bevy_playable_fixture();
+        let mut character = WorldTrillionniumCharacter::default_for("local-player");
+        let mut gameplay_log = NativeGameplayLog::default();
+        let mut runtime = NativeFirstPlayableRuntime {
+            map_scene: format!("rts_battlefield:{}", map_variant),
+            coins: *coins,
+            xp: *xp,
+            facing_direction: (*facing).to_string(),
+            walk_cycle_frame: *walk_frame,
+            ..Default::default()
+        };
+        let mut match_execution_log = Vec::new();
+        let mut variant_input_sources = Vec::new();
+        let mut variant_action_label_parse_count = 0_usize;
+        let mut variant_accepted_action_count = 0_usize;
+        let mut variant_command_marker_hit_count = 0_usize;
+        let mut variant_command_delta_match_count = 0_usize;
+
+        for (source_index, source_event) in source_execution_log.iter().enumerate() {
+            let action_label = source_event
+                .get("action_label")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            let source_command_marker = source_event
+                .get("command_marker")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            let source_command_delta = source_event
+                .get("command_delta")
+                .cloned()
+                .unwrap_or(Value::Array(Vec::new()));
+            let Some(action) = native_control_action_from_label(&action_label) else {
+                match_execution_log.push(json!({
+                    "source_index": source_index,
+                    "source_decision_index": source_event.get("decision_index").cloned().unwrap_or(Value::Null),
+                    "action_label": action_label,
+                    "action_label_parse_gate": false,
+                    "accepted": false,
+                    "command_marker": source_command_marker,
+                    "command_marker_hit": false,
+                    "command_delta_match": false
+                }));
+                continue;
+            };
+            variant_action_label_parse_count += 1;
+            total_action_label_parse_count += 1;
+            let availability_before = native_live_action_availability(&runtime, &action);
+            let feedback_len_before = runtime.input_feedback_history.len();
+            let command_len_before = runtime.rts_command_queue.len();
+            apply_live_native_action_with_source(
+                &mut world,
+                &mut character,
+                &mut gameplay_log,
+                &mut runtime,
+                "local-player",
+                "classic_rts_multi_match_bot_executor_evaluation_input",
+                action,
+            );
+            let latest_feedback = runtime.input_feedback_history.last().cloned();
+            let accepted = latest_feedback.as_ref().is_some_and(|event| event.accepted);
+            if accepted {
+                variant_accepted_action_count += 1;
+                total_accepted_action_count += 1;
+            }
+            if let Some(event) = &latest_feedback {
+                push_unique_string(&mut variant_input_sources, &event.input_source);
+            }
+            let replay_command_delta_vec = runtime.rts_command_queue[command_len_before..].to_vec();
+            let replay_command_delta_value = json!(replay_command_delta_vec);
+            let command_marker_hit = replay_command_delta_value
+                .as_array()
+                .map(|entries| {
+                    entries.iter().any(|entry| {
+                        entry
+                            .as_str()
+                            .is_some_and(|text| text.starts_with(&source_command_marker))
+                    })
+                })
+                .unwrap_or(false);
+            if command_marker_hit {
+                variant_command_marker_hit_count += 1;
+                total_command_marker_hit_count += 1;
+            }
+            let command_delta_match = source_command_delta == replay_command_delta_value;
+            if command_delta_match {
+                variant_command_delta_match_count += 1;
+                total_command_delta_match_count += 1;
+            }
+            total_replay_action_count += 1;
+            match_execution_log.push(json!({
+                "source_index": source_index,
+                "source_decision_index": source_event.get("decision_index").cloned().unwrap_or(Value::Null),
+                "source_planner_phase": source_event.get("planner_phase").cloned().unwrap_or(Value::Null),
+                "source_tick": source_event.get("source_tick").cloned().unwrap_or(Value::Null),
+                "action_label": action_label,
+                "action_label_parse_gate": true,
+                "availability_before": availability_before.1,
+                "input_source": latest_feedback.as_ref().map(|event| event.input_source.clone()).unwrap_or_default(),
+                "accepted": accepted,
+                "feedback_event_delta": runtime.input_feedback_history.len().saturating_sub(feedback_len_before),
+                "feedback_reason": latest_feedback.as_ref().map(|event| event.reason.clone()),
+                "command_marker": source_command_marker,
+                "command_marker_hit": command_marker_hit,
+                "command_delta_match": command_delta_match,
+                "source_command_delta": source_command_delta,
+                "variant_command_delta": replay_command_delta_value,
+                "objective_capture_percent": runtime.rts_objective_capture_percent,
+                "tech_state": runtime.rts_tech_state.clone(),
+                "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+                "siege_breach_state": runtime.rts_siege_breach_state.clone(),
+                "match_result_state": runtime.rts_match_result_state.clone(),
+                "objective_status": runtime.objective_status.clone()
+            }));
+        }
+
+        let final_runtime_summary = runtime_summary(&runtime);
+        let final_runtime_sha256 = stable_json_sha256(&final_runtime_summary);
+        let final_command_queue = final_runtime_summary
+            .get("command_queue")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let final_command_queue_sha256 = stable_json_sha256(&final_command_queue);
+        let runtime_sha_match = final_runtime_sha256 == source_final_runtime_sha256;
+        if runtime_sha_match {
+            runtime_sha_match_count += 1;
+        }
+        let command_queue_sha_match = final_command_queue_sha256 == source_command_queue_sha256;
+        if command_queue_sha_match {
+            command_queue_sha_match_count += 1;
+        }
+        let variant_input_source_gate = variant_input_sources
+            == vec!["classic_rts_multi_match_bot_executor_evaluation_input".to_string()];
+        let variant_gate = variant_action_label_parse_count == source_execution_log.len()
+            && variant_accepted_action_count == source_execution_log.len()
+            && variant_command_marker_hit_count == source_execution_log.len()
+            && variant_command_delta_match_count == source_execution_log.len()
+            && runtime.input_feedback_history.len() == source_execution_log.len()
+            && variant_input_source_gate
+            && final_runtime_summary == source_final_runtime_summary
+            && runtime_sha_match
+            && command_queue_sha_match;
+        if variant_gate {
+            accepted_variant_count += 1;
+        }
+
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((variant_index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((variant_index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("MATCH {} {}", variant_index + 1, map_variant),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        variant_summaries.push(json!({
+            "variant_index": variant_index,
+            "variant_id": *variant_id,
+            "seed": *seed,
+            "map_variant": *map_variant,
+            "lane_variant": *lane_variant,
+            "economy_variant": *economy_variant,
+            "initial_runtime": {
+                "map_scene": format!("rts_battlefield:{}", map_variant),
+                "coins": *coins,
+                "xp": *xp,
+                "facing_direction": *facing,
+                "walk_cycle_frame": *walk_frame
+            },
+            "input_sources": variant_input_sources,
+            "action_label_parse_count": variant_action_label_parse_count,
+            "replay_action_count": match_execution_log.len(),
+            "accepted_action_count": variant_accepted_action_count,
+            "command_marker_hit_count": variant_command_marker_hit_count,
+            "command_delta_match_count": variant_command_delta_match_count,
+            "runtime_sha_match": runtime_sha_match,
+            "command_queue_sha_match": command_queue_sha_match,
+            "variant_gate": variant_gate,
+            "final_runtime_sha256": final_runtime_sha256,
+            "final_command_queue_sha256": final_command_queue_sha256,
+            "final_runtime_summary": final_runtime_summary,
+            "execution_log": match_execution_log
+        }));
+    }
+
+    let write_preview_gate = write_classic_rgb_buffer_ppm(
+        &evaluation_preview_path,
+        preview_width,
+        preview_height,
+        &preview_pixels,
+    )
+    .is_ok();
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let evaluation_log_payload = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_CONTRACT,
+        "source_replay_dir": source_replay_dir,
+        "source_action_log_path": source_action_log_path,
+        "source_action_log_sha256": source_action_log_sha256,
+        "source_final_runtime_sha256": source_final_runtime_sha256,
+        "source_command_queue_sha256": source_command_queue_sha256,
+        "evaluation_input_source": "classic_rts_multi_match_bot_executor_evaluation_input",
+        "variant_count": variants.len(),
+        "accepted_variant_count": accepted_variant_count,
+        "total_replay_action_count": total_replay_action_count,
+        "total_accepted_action_count": total_accepted_action_count,
+        "total_command_marker_hit_count": total_command_marker_hit_count,
+        "total_command_delta_match_count": total_command_delta_match_count,
+        "runtime_sha_match_count": runtime_sha_match_count,
+        "command_queue_sha_match_count": command_queue_sha_match_count,
+        "variant_summaries": variant_summaries
+    });
+    let evaluation_log_bytes = serde_json::to_vec_pretty(&evaluation_log_payload)
+        .expect("multi-match executor evaluation log serializes");
+    let evaluation_log_sha256 = sha256_hex(&evaluation_log_bytes);
+    let evaluation_log_write_gate = fs::write(&evaluation_log_path, &evaluation_log_bytes).is_ok();
+    let evaluation_log_readback_gate = fs::read(&evaluation_log_path)
+        .map(|bytes| sha256_hex(&bytes) == evaluation_log_sha256)
+        .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let source_replay_contract_gate = source_replay
+        .get("contract_version")
+        .and_then(Value::as_str)
+        == Some(
+            TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_EXECUTOR_REPLAY_DETERMINISM_CONTRACT,
+        );
+    let source_replay_gate = bool_at(&source_replay, "green")
+        && bool_at(
+            &source_replay,
+            "bot_planner_executor_replay_determinism_gate",
+        )
+        && u64_at(&source_replay, "source_executor_action_count") == 6
+        && u64_at(&source_replay, "replay_action_count") == 6
+        && u64_at(&source_replay, "accepted_replay_action_count") == 6
+        && u64_at(&source_replay, "replay_command_marker_hit_count") == 6
+        && u64_at(&source_replay, "command_delta_match_count") == 6
+        && str_at(
+            &source_replay,
+            "bot_planner_executor_replay_determinism_state",
+        )
+            == "bevy_executor_action_log_replays_to_identical_runtime_state_not_openra_runtime_bot";
+    let source_action_log_readback_gate = !source_action_log.is_null()
+        && source_action_log_sha256.len() == 64
+        && source_replay
+            .get("source_action_log_sha256")
+            .and_then(Value::as_str)
+            == Some(source_action_log_sha256.as_str())
+        && source_execution_log.len() == 6;
+    let variant_count_gate = variants.len() >= 3 && variants.len() == variant_summaries.len();
+    let variant_diversity_gate = variant_seed_values.len() >= 3
+        && variant_map_values.len() >= 3
+        && variant_economy_values.len() >= 3;
+    let expected_total_actions = source_execution_log.len() * variants.len();
+    let multi_match_acceptance_gate = total_action_label_parse_count == expected_total_actions
+        && total_replay_action_count == expected_total_actions
+        && total_accepted_action_count == expected_total_actions
+        && total_command_marker_hit_count == expected_total_actions
+        && total_command_delta_match_count == expected_total_actions
+        && accepted_variant_count == variants.len();
+    let multi_match_runtime_gate = runtime_sha_match_count == variants.len()
+        && command_queue_sha_match_count == variants.len()
+        && source_final_runtime_sha256.len() == 64
+        && source_command_queue_sha256.len() == 64;
+    let preview_gate = write_preview_gate && non_background_pixels > 250_000;
+    let evaluation_log_gate = evaluation_log_sha256.len() == 64
+        && evaluation_log_write_gate
+        && evaluation_log_readback_gate;
+    let boundary_gate = source_replay
+        .get("bevy_openra_runtime_bot_executor_claimed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && source_replay
+            .get("bevy_openra_live_bot_match_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_replay
+            .get("bevy_openra_bot_ai_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_replay
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_replay
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && source_replay
+            .get("public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let multi_match_bot_executor_evaluation_gate = source_replay_contract_gate
+        && source_replay_gate
+        && source_action_log_readback_gate
+        && variant_count_gate
+        && variant_diversity_gate
+        && multi_match_acceptance_gate
+        && multi_match_runtime_gate
+        && preview_gate
+        && evaluation_log_gate
+        && boundary_gate;
+    let green = multi_match_bot_executor_evaluation_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_paths": {
+            "source_bot_planner_executor_replay_determinism": source_replay_dir,
+            "evaluation_preview": evaluation_preview_path
+        },
+        "evaluation_log_path": evaluation_log_path,
+        "evaluation_log_sha256": evaluation_log_sha256,
+        "source_action_log_path": source_action_log_path,
+        "source_action_log_sha256": source_action_log_sha256,
+        "source_final_runtime_sha256": source_final_runtime_sha256,
+        "source_command_queue_sha256": source_command_queue_sha256,
+        "planner_live_decision_log_sha256": source_replay.get("planner_live_decision_log_sha256").cloned().unwrap_or(Value::Null),
+        "planner_strategy_checksum_sha256": source_replay.get("planner_strategy_checksum_sha256").cloned().unwrap_or(Value::Null),
+        "multi_match_bot_executor_evaluation_state": "bevy_executor_action_log_runs_across_multiple_deterministic_match_variants_not_openra_ladder",
+        "variant_count": variants.len(),
+        "accepted_variant_count": accepted_variant_count,
+        "variant_seed_values": variant_seed_values,
+        "variant_map_values": variant_map_values,
+        "variant_economy_values": variant_economy_values,
+        "total_replay_action_count": total_replay_action_count,
+        "total_accepted_action_count": total_accepted_action_count,
+        "total_command_marker_hit_count": total_command_marker_hit_count,
+        "total_command_delta_match_count": total_command_delta_match_count,
+        "runtime_sha_match_count": runtime_sha_match_count,
+        "command_queue_sha_match_count": command_queue_sha_match_count,
+        "source_replay_summary": {
+            "source_executor_action_count": source_replay.get("source_executor_action_count").cloned().unwrap_or(Value::Null),
+            "replay_action_count": source_replay.get("replay_action_count").cloned().unwrap_or(Value::Null),
+            "accepted_replay_action_count": source_replay.get("accepted_replay_action_count").cloned().unwrap_or(Value::Null),
+            "command_delta_match_count": source_replay.get("command_delta_match_count").cloned().unwrap_or(Value::Null),
+            "replay_log_sha256": source_replay.get("replay_log_sha256").cloned().unwrap_or(Value::Null)
+        },
+        "source_final_runtime_summary": source_final_runtime_summary,
+        "variant_summaries": evaluation_log_payload.get("variant_summaries").cloned().unwrap_or(Value::Null),
+        "non_background_pixels": non_background_pixels,
+        "write_preview_gate": write_preview_gate,
+        "source_replay_contract_gate": source_replay_contract_gate,
+        "source_replay_gate": source_replay_gate,
+        "source_action_log_readback_gate": source_action_log_readback_gate,
+        "variant_count_gate": variant_count_gate,
+        "variant_diversity_gate": variant_diversity_gate,
+        "multi_match_acceptance_gate": multi_match_acceptance_gate,
+        "multi_match_runtime_gate": multi_match_runtime_gate,
+        "preview_gate": preview_gate,
+        "evaluation_log_write_gate": evaluation_log_write_gate,
+        "evaluation_log_readback_gate": evaluation_log_readback_gate,
+        "evaluation_log_gate": evaluation_log_gate,
+        "boundary_gate": boundary_gate,
+        "multi_match_bot_executor_evaluation_gate": multi_match_bot_executor_evaluation_gate,
+        "bevy_multi_match_bot_executor_evaluation_claimed": true,
+        "bevy_bot_planner_executor_replay_determinism_claimed": true,
+        "bevy_openra_runtime_bot_executor_claimed": false,
+        "bevy_openra_live_bot_match_claimed": false,
+        "bevy_openra_bot_ai_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS multi-match bot executor evaluation runs the Bevy-owned executor action log across multiple deterministic seed and map-variant fixtures, verifying action acceptance, command-delta replay, final runtime state, and command queue checksums for each variant. It claims only Trillionnium-owned multi-match executor evaluation; OpenRA runtime bot execution parity, live ladder/bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS multi-match bot executor evaluation evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
