@@ -282,6 +282,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATIVE_BOT_AI_PLANNER_CONTRACT: &s
     "trillionnium_world_bevy_classic_rts_native_bot_ai_planner_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_planner_live_autonomous_bot_loop_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_ACTION_EXECUTOR_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_bot_planner_action_executor_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -38133,6 +38135,419 @@ pub fn native_classic_rts_planner_live_autonomous_bot_loop_evidence_json(
         "source_of_truth": "Classic RTS planner-to-live autonomous bot loop evidence maps the Trillionnium native bot planner phases onto the autonomous bot skirmish timeline, writes a replayable decision log, and verifies terminal alignment without forced hooks. It claims only a Bevy-owned planner-driven autonomous loop; OpenRA live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS planner live autonomous bot loop evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_bot_planner_action_executor_evidence_json(preview_dir: &str) -> String {
+    const PANEL_WIDTH: usize = 640;
+    const PANEL_HEIGHT: usize = 360;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let planner_loop_dir = preview_path("planner-live-autonomous-bot-loop");
+    let executor_preview_path = preview_path("bot-planner-action-executor.ppm");
+    let action_log_path = preview_path("bot-planner-action-executor.actions.json");
+
+    let planner_loop: Value = serde_json::from_str(
+        &native_classic_rts_planner_live_autonomous_bot_loop_evidence_json(&planner_loop_dir),
+    )
+    .expect("planner live autonomous bot loop evidence parses");
+
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "rts_battlefield".to_string(),
+        coins: 680,
+        xp: 420,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 4,
+        ..Default::default()
+    };
+    let decision_specs = vec![
+        (
+            "stabilize_macro_workers",
+            "spawn_and_mine",
+            "macro_bootstrap",
+            "execute_faction_base",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "faction:mirror_guard".to_string(),
+            },
+            "faction:mirror_guard:base_online",
+        ),
+        (
+            "scout_resource_beacons",
+            "scout_beacons",
+            "map_intel_scouting",
+            "execute_recon_sweep",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "recon:sweep:watchtower_scan@7,4".to_string(),
+            },
+            "recon_sweep:watchtower_scan@7,4",
+        ),
+        (
+            "confirm_enemy_pressure_lane",
+            "first_beacon_capture",
+            "map_intel_pressure_confirm",
+            "execute_beacon_claim",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "objective:claim:relay_beacon@6,5".to_string(),
+            },
+            "objective_claim:relay_beacon@6,5",
+        ),
+        (
+            "unlock_tier_two_tech",
+            "army_production_rally",
+            "tech_transition_unlock",
+            "execute_relay_foundry_unlock",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:tech:relay_foundry@relay_outpost".to_string(),
+            },
+            "tier2_tech:relay_foundry@relay_outpost",
+        ),
+        (
+            "transition_siege_push",
+            "beacon_fight",
+            "siege_push_commit",
+            "execute_gate_bulwark_push",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:push:gate_bulwark@10,3".to_string(),
+            },
+            "tier2_push:gate_bulwark@10,3",
+        ),
+        (
+            "terminal_contract_alignment",
+            "terminal_resolution",
+            "terminal_hold",
+            "execute_final_gate_break",
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "tier2:finish:gate_bulwark@10,3".to_string(),
+            },
+            "tier2_finish:gate_bulwark@10,3",
+        ),
+    ];
+    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
+    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
+    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
+    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut execution_log = Vec::new();
+    let mut action_labels = Vec::new();
+    let mut expected_command_markers = Vec::new();
+    let mut input_sources = Vec::new();
+    let mut accepted_action_count = 0_usize;
+    let mut command_marker_hit_count = 0_usize;
+
+    let decision_at = |phase_name: &str| {
+        planner_loop
+            .get("decision_log")
+            .and_then(Value::as_array)
+            .and_then(|decisions| {
+                decisions.iter().find(|decision| {
+                    decision.get("planner_phase").and_then(Value::as_str) == Some(phase_name)
+                })
+            })
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+
+    for (index, (planner_phase, live_stage, decision_kind, executor_action, action, marker)) in
+        decision_specs.iter().enumerate()
+    {
+        let decision = decision_at(planner_phase);
+        let action_label = native_control_action_label(action);
+        action_labels.push(action_label.clone());
+        expected_command_markers.push((*marker).to_string());
+        let availability_before = native_live_action_availability(&runtime, action);
+        let feedback_len_before = runtime.input_feedback_history.len();
+        let command_len_before = runtime.rts_command_queue.len();
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut gameplay_log,
+            &mut runtime,
+            "local-player",
+            "classic_rts_bot_planner_action_executor_input",
+            action.clone(),
+        );
+        let latest_feedback = runtime.input_feedback_history.last().cloned();
+        let accepted = latest_feedback.as_ref().is_some_and(|event| event.accepted);
+        if accepted {
+            accepted_action_count += 1;
+        }
+        if let Some(event) = &latest_feedback {
+            push_unique_string(&mut input_sources, &event.input_source);
+        }
+        let command_delta = runtime.rts_command_queue[command_len_before..].to_vec();
+        let command_marker_hit = command_delta.iter().any(|entry| entry.starts_with(marker));
+        if command_marker_hit {
+            command_marker_hit_count += 1;
+        }
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &runtime,
+            &assets,
+        );
+        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            offset_x + 12,
+            offset_y + 12,
+            &format!("BOT EXEC {} {}", index + 1, executor_action),
+            2,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        execution_log.push(json!({
+            "decision_index": index,
+            "planner_phase": planner_phase,
+            "live_stage": live_stage,
+            "source_decision_kind": decision_kind,
+            "executor_action": executor_action,
+            "source_tick": decision.get("tick").cloned().unwrap_or(Value::Null),
+            "source_decision_found": !decision.is_null(),
+            "action_label": action_label,
+            "input_source": latest_feedback.as_ref().map(|event| event.input_source.clone()).unwrap_or_default(),
+            "accepted": accepted,
+            "availability_before": availability_before.1,
+            "feedback_event_delta": runtime.input_feedback_history.len().saturating_sub(feedback_len_before),
+            "feedback_reason": latest_feedback.as_ref().map(|event| event.reason.clone()),
+            "command_marker": marker,
+            "command_marker_hit": command_marker_hit,
+            "command_delta": command_delta,
+            "objective_capture_percent": runtime.rts_objective_capture_percent,
+            "tech_state": runtime.rts_tech_state.clone(),
+            "tier_two_push_state": runtime.rts_tier_two_push_state.clone(),
+            "siege_breach_state": runtime.rts_siege_breach_state.clone(),
+            "match_result_state": runtime.rts_match_result_state.clone(),
+            "objective_status": runtime.objective_status.clone()
+        }));
+    }
+
+    let write_preview_gate = write_classic_rgb_buffer_ppm(
+        &executor_preview_path,
+        preview_width,
+        preview_height,
+        &preview_pixels,
+    )
+    .is_ok();
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|color| **color != 0x0b0d0c_u32)
+        .count();
+    let action_log_payload = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_ACTION_EXECUTOR_CONTRACT,
+        "planner_live_decision_log_sha256": planner_loop.get("decision_log_sha256").cloned().unwrap_or(Value::Null),
+        "planner_strategy_checksum_sha256": planner_loop.get("planner_strategy_checksum_sha256").cloned().unwrap_or(Value::Null),
+        "input_source": "classic_rts_bot_planner_action_executor_input",
+        "executor_action_count": decision_specs.len(),
+        "accepted_action_count": accepted_action_count,
+        "command_marker_hit_count": command_marker_hit_count,
+        "execution_log": execution_log
+    });
+    let action_log_bytes =
+        serde_json::to_vec_pretty(&action_log_payload).expect("action executor log serializes");
+    let action_log_sha256 = sha256_hex(&action_log_bytes);
+    let action_log_write_gate = fs::write(&action_log_path, &action_log_bytes).is_ok();
+    let action_log_readback_gate = fs::read(&action_log_path)
+        .map(|bytes| sha256_hex(&bytes) == action_log_sha256)
+        .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let source_contract_gate = planner_loop.get("contract_version").and_then(Value::as_str)
+        == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_CONTRACT);
+    let source_loop_gate = bool_at(&planner_loop, "green")
+        && bool_at(&planner_loop, "planner_live_autonomous_bot_loop_gate")
+        && bool_at(&planner_loop, "decision_log_replay_gate")
+        && u64_at(&planner_loop, "replayable_decision_count") == 6
+        && str_at(&planner_loop, "planner_live_loop_state")
+            == "bevy_planner_drives_live_autonomous_bot_timeline_not_openra_bot_match";
+    let action_mapping_gate = execution_log.len() == decision_specs.len()
+        && execution_log.iter().all(|event| {
+            event.get("source_decision_found").and_then(Value::as_bool) == Some(true)
+                && event.get("command_marker_hit").and_then(Value::as_bool) == Some(true)
+        })
+        && action_labels.len() == decision_specs.len()
+        && action_labels
+            .iter()
+            .all(|label| native_control_action_from_label(label).is_some());
+    let executor_acceptance_gate = accepted_action_count == decision_specs.len()
+        && runtime.input_feedback_history.len() == decision_specs.len()
+        && input_sources.len() == 1
+        && input_sources
+            .iter()
+            .any(|source| source == "classic_rts_bot_planner_action_executor_input");
+    let runtime_mutation_gate = runtime.rts_faction_id.as_deref() == Some("mirror_guard")
+        && runtime
+            .rts_visible_tile_ids
+            .iter()
+            .any(|tile| tile == "7,4")
+        && runtime.rts_objective_capture_percent == 100
+        && runtime
+            .rts_tier_two_tech_ids
+            .iter()
+            .any(|tech| tech == "relay_foundry")
+        && runtime.rts_tier_two_push_state == "siege_push_ready:gate_bulwark"
+        && runtime.rts_siege_breach_state == "counterplay_won:gate_bulwark"
+        && runtime.rts_base_breach_percent == 100
+        && runtime
+            .rts_next_action_ids
+            .iter()
+            .any(|action| action == "enter_inner_lane")
+        && command_marker_hit_count == decision_specs.len();
+    let terminal_source_alignment_gate = planner_loop
+        .pointer("/autonomous_summary/winner")
+        .and_then(Value::as_str)
+        == Some("Multi2")
+        && planner_loop
+            .pointer("/autonomous_summary/winner_beacons")
+            .and_then(Value::as_u64)
+            == Some(2)
+        && planner_loop
+            .pointer("/autonomous_summary/hold_ticks")
+            .and_then(Value::as_u64)
+            == Some(3000)
+        && planner_loop
+            .pointer("/autonomous_summary/final_match_result_state")
+            .and_then(Value::as_str)
+            == Some("victory:bot_terminal:Multi2");
+    let preview_gate = write_preview_gate && non_background_pixels > 250_000;
+    let action_log_gate =
+        action_log_sha256.len() == 64 && action_log_write_gate && action_log_readback_gate;
+    let boundary_gate = planner_loop
+        .get("bevy_openra_live_bot_match_claimed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && planner_loop
+            .get("bevy_openra_bot_ai_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && planner_loop
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && planner_loop
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && planner_loop
+            .get("public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let bot_planner_action_executor_gate = source_contract_gate
+        && source_loop_gate
+        && action_mapping_gate
+        && executor_acceptance_gate
+        && runtime_mutation_gate
+        && terminal_source_alignment_gate
+        && preview_gate
+        && action_log_gate
+        && boundary_gate;
+    let green = bot_planner_action_executor_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_PLANNER_ACTION_EXECUTOR_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_paths": {
+            "planner_live_autonomous_bot_loop": planner_loop_dir,
+            "executor_preview": executor_preview_path
+        },
+        "action_log_path": action_log_path,
+        "action_log_sha256": action_log_sha256,
+        "planner_live_decision_log_sha256": planner_loop.get("decision_log_sha256").cloned().unwrap_or(Value::Null),
+        "planner_strategy_checksum_sha256": planner_loop.get("planner_strategy_checksum_sha256").cloned().unwrap_or(Value::Null),
+        "bot_planner_action_executor_state": "bevy_planner_decisions_execute_as_native_rts_actions_not_openra_runtime_bot",
+        "executor_action_count": decision_specs.len(),
+        "accepted_action_count": accepted_action_count,
+        "command_marker_hit_count": command_marker_hit_count,
+        "input_sources": input_sources,
+        "action_labels": action_labels,
+        "expected_command_markers": expected_command_markers,
+        "execution_log": action_log_payload.get("execution_log").cloned().unwrap_or(Value::Null),
+        "planner_live_summary": {
+            "planner_phase_count": planner_loop.get("planner_phase_count").cloned().unwrap_or(Value::Null),
+            "live_stage_count": planner_loop.get("live_stage_count").cloned().unwrap_or(Value::Null),
+            "replayable_decision_count": planner_loop.get("replayable_decision_count").cloned().unwrap_or(Value::Null),
+            "winner": planner_loop.pointer("/autonomous_summary/winner").cloned().unwrap_or(Value::Null),
+            "winner_beacons": planner_loop.pointer("/autonomous_summary/winner_beacons").cloned().unwrap_or(Value::Null),
+            "hold_ticks": planner_loop.pointer("/autonomous_summary/hold_ticks").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": planner_loop.pointer("/autonomous_summary/final_match_result_state").cloned().unwrap_or(Value::Null)
+        },
+        "final_runtime_summary": {
+            "faction_id": runtime.rts_faction_id,
+            "objective_capture_percent": runtime.rts_objective_capture_percent,
+            "objective_owner_state": runtime.rts_objective_owner_state,
+            "tier_two_tech_ids": runtime.rts_tier_two_tech_ids,
+            "tech_state": runtime.rts_tech_state,
+            "tier_two_push_state": runtime.rts_tier_two_push_state,
+            "siege_breach_state": runtime.rts_siege_breach_state,
+            "base_breach_percent": runtime.rts_base_breach_percent,
+            "base_assault_result_state": runtime.rts_base_assault_result_state,
+            "match_result_state": runtime.rts_match_result_state,
+            "next_action_ids": runtime.rts_next_action_ids,
+            "input_feedback_event_count": runtime.input_feedback_history.len(),
+            "command_queue": runtime.rts_command_queue
+        },
+        "non_background_pixels": non_background_pixels,
+        "write_preview_gate": write_preview_gate,
+        "source_contract_gate": source_contract_gate,
+        "source_loop_gate": source_loop_gate,
+        "action_mapping_gate": action_mapping_gate,
+        "executor_acceptance_gate": executor_acceptance_gate,
+        "runtime_mutation_gate": runtime_mutation_gate,
+        "terminal_source_alignment_gate": terminal_source_alignment_gate,
+        "preview_gate": preview_gate,
+        "action_log_write_gate": action_log_write_gate,
+        "action_log_readback_gate": action_log_readback_gate,
+        "action_log_gate": action_log_gate,
+        "boundary_gate": boundary_gate,
+        "bot_planner_action_executor_gate": bot_planner_action_executor_gate,
+        "bevy_bot_planner_action_executor_claimed": true,
+        "bevy_openra_runtime_bot_executor_claimed": false,
+        "bevy_openra_live_bot_match_claimed": false,
+        "bevy_openra_bot_ai_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS bot planner action executor evidence translates the planner live-loop decision log into accepted Bevy-native RTS control actions, records the executor action log, and verifies concrete runtime mutations. It claims only a Trillionnium-owned action executor proof; OpenRA runtime bot execution parity, live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS bot planner action executor evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
