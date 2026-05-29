@@ -270,6 +270,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENDURANCE_SKIRMISH_GAP_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_endurance_skirmish_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLAYTEST_OBSERVABILITY_READINESS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_parity_bridge_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -36434,6 +36436,270 @@ pub fn native_classic_rts_endurance_skirmish_gap_evidence_json(preview_path: &st
         "source_of_truth": "Classic RTS endurance skirmish gap evidence binds Bevy to OpenRA longrun/endurance/autostart vocabulary with a 120-second sustained engagement profile while explicitly not claiming OpenRA headless-client match parity."
     }))
     .expect("classic RTS endurance skirmish gap evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_parity_bridge_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let organic_path = preview_path("organic-terminal-gap.ppm");
+    let observation_path = preview_path("terminal-observation-gap.ppm");
+    let replay_path = preview_path("replay-metrics-gap.ppm");
+    let endurance_path = preview_path("endurance-skirmish-gap.ppm");
+
+    let organic: Value = serde_json::from_str(
+        &native_classic_rts_organic_terminal_gap_evidence_json(&organic_path),
+    )
+    .expect("organic terminal gap evidence parses");
+    let observation: Value = serde_json::from_str(
+        &native_classic_rts_terminal_observation_gap_evidence_json(&observation_path),
+    )
+    .expect("terminal observation gap evidence parses");
+    let replay: Value = serde_json::from_str(&native_classic_rts_replay_metrics_gap_evidence_json(
+        &replay_path,
+    ))
+    .expect("replay metrics gap evidence parses");
+    let endurance: Value = serde_json::from_str(
+        &native_classic_rts_endurance_skirmish_gap_evidence_json(&endurance_path),
+    )
+    .expect("endurance skirmish gap evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let array_len = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0)
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+
+    let source_contract_gate = contract_is(
+        &organic,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT,
+    ) && contract_is(
+        &observation,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TERMINAL_OBSERVATION_GAP_CONTRACT,
+    ) && contract_is(
+        &replay,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_REPLAY_METRICS_GAP_CONTRACT,
+    ) && contract_is(
+        &endurance,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENDURANCE_SKIRMISH_GAP_CONTRACT,
+    );
+    let source_green_gate = bool_at(&organic, "green")
+        && bool_at(&observation, "green")
+        && bool_at(&replay, "green")
+        && bool_at(&endurance, "green");
+    let terminal_rule_comparison_gate = str_at(&organic, "bevy_terminal_winner") == "Multi2"
+        && str_at(&observation, "bevy_terminal_winner") == "Multi2"
+        && u64_at(&organic, "bevy_terminal_winner_beacons") == 2
+        && u64_at(&observation, "bevy_terminal_winner_beacons") == 2
+        && u64_at(&organic, "bevy_terminal_total_beacons") == 4
+        && u64_at(&observation, "bevy_terminal_total_beacons") == 4
+        && u64_at(&organic, "bevy_terminal_hold_ticks") == 3000
+        && u64_at(&observation, "bevy_terminal_hold_ticks") == 3000
+        && bool_at(&organic, "terminal_probe_game_over")
+        && bool_at(&observation, "terminal_probe_game_over")
+        && bool_at(&observation, "terminal_victory_rules_ready");
+    let replay_outcome_comparison_gate = str_at(&organic, "final_match_result_state")
+        == "victory:organic_terminal_observed:Multi2"
+        && str_at(&observation, "final_match_result_state")
+            == "victory:terminal_observation:Multi2"
+        && u64_at(&organic, "winner_count") >= 1
+        && u64_at(&organic, "loser_count") >= 1
+        && u64_at(&observation, "terminal_probe_loser_count") == 3;
+    let replay_metrics_comparison_gate = bool_at(&replay, "replay_startgame_order")
+        && array_len(&replay, "replay_client_slots") == 4
+        && u64_at(&replay, "replay_actor_order_tokens") >= 12
+        && u64_at(&replay, "replay_unique_actor_token_count") >= 6
+        && u64_at(&replay, "replay_economy_tokens") >= 12
+        && u64_at(&replay, "replay_tech_tokens") >= 6
+        && u64_at(&replay, "replay_combat_tokens") >= 12
+        && u64_at(&replay, "elapsed_seconds") >= 55
+        && str_at(&replay, "outcome_signal") == "sustained_engagement_no_terminal_victory"
+        && !bool_at(&replay, "winner_claimed");
+    let headless_endurance_comparison_gate = bool_at(&endurance, "endurance_startgame_order")
+        && bool_at(&endurance, "endurance_autostart_order")
+        && array_len(&endurance, "endurance_client_slots") == 4
+        && u64_at(&endurance, "elapsed_seconds") >= 120
+        && u64_at(&endurance, "peak_active_units") >= 24
+        && u64_at(&endurance, "contested_beacon_peak") >= 2
+        && u64_at(&endurance, "combat_event_count") >= 20
+        && str_at(&endurance, "outcome_signal") == "sustained_engagement_no_terminal_victory"
+        && !bool_at(&endurance, "winner_claimed");
+    let openra_target_commit_gate = str_at(&organic, "openra_parity_target_commit") == "5f1bf76"
+        && str_at(&observation, "openra_terminal_readiness_target_commit") == "174525a"
+        && str_at(&observation, "openra_terminal_probe_target_commit") == "bf42eb1"
+        && str_at(&observation, "openra_strategic_terminal_target_commit") == "9e08464"
+        && str_at(&replay, "openra_replay_summary_target_commit") == "d5ceade"
+        && str_at(&replay, "openra_battle_outcome_target_commit") == "9b2664b"
+        && str_at(&endurance, "openra_endurance_skirmish_target_commit") == "2cb80a0"
+        && str_at(&endurance, "openra_longrun_skirmish_target_commit") == "5227d99"
+        && str_at(&endurance, "openra_multibot_autostart_target_commit") == "4b966c1";
+    let gap_visibility_gate = bool_at(&organic, "openra_gap_not_closed_gate")
+        && bool_at(&observation, "openra_gap_not_closed_gate")
+        && bool_at(&replay, "openra_gap_not_closed_gate")
+        && bool_at(&endurance, "openra_gap_not_closed_gate")
+        && str_at(&organic, "bevy_terminal_observation_gap_state")
+            == "bevy_deterministic_observation_not_openra_natural_gameover"
+        && str_at(&observation, "bevy_terminal_observation_gap_state")
+            == "bevy_terminal_observation_vocabulary_not_natural_openra_match"
+        && str_at(&replay, "bevy_replay_metrics_gap_state")
+            == "bevy_replay_metric_vocabulary_not_openra_replay_file"
+        && str_at(&endurance, "bevy_endurance_skirmish_gap_state")
+            == "bevy_endurance_vocabulary_not_openra_headless_client_match";
+    let no_parity_claim_gate = !bool_at(&organic, "bevy_openra_parity_claimed")
+        && !bool_at(&organic, "bevy_natural_gameover_claimed")
+        && !bool_at(&observation, "bevy_openra_parity_claimed")
+        && !bool_at(&observation, "bevy_natural_terminal_parity_claimed")
+        && !bool_at(&replay, "bevy_replay_file_claimed")
+        && !bool_at(&replay, "bevy_replay_parity_claimed")
+        && !bool_at(&endurance, "bevy_headless_match_claimed")
+        && !bool_at(&endurance, "bevy_openra_parity_claimed");
+    let preview_gate = [
+        &organic_path,
+        &observation_path,
+        &replay_path,
+        &endurance_path,
+    ]
+    .iter()
+    .all(|path| file_ready(path));
+    let boundary_gate = [&organic, &observation, &replay, &endurance]
+        .iter()
+        .all(|value| {
+            value
+                .get("cex_runtime_player_client_allowed")
+                .and_then(Value::as_bool)
+                == Some(false)
+                && value.get("wgpu_required").and_then(Value::as_bool) == Some(false)
+        });
+    let comparison_matrix_gate = source_contract_gate
+        && source_green_gate
+        && terminal_rule_comparison_gate
+        && replay_outcome_comparison_gate
+        && replay_metrics_comparison_gate
+        && headless_endurance_comparison_gate
+        && openra_target_commit_gate
+        && gap_visibility_gate
+        && no_parity_claim_gate
+        && boundary_gate;
+    let green = comparison_matrix_gate && preview_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_count": 4,
+        "preview_paths": {
+            "organic_terminal_gap": organic_path,
+            "terminal_observation_gap": observation_path,
+            "replay_metrics_gap": replay_path,
+            "endurance_skirmish_gap": endurance_path
+        },
+        "source_contracts": {
+            "organic_terminal_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ORGANIC_TERMINAL_GAP_CONTRACT,
+            "terminal_observation_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TERMINAL_OBSERVATION_GAP_CONTRACT,
+            "replay_metrics_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_REPLAY_METRICS_GAP_CONTRACT,
+            "endurance_skirmish_gap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ENDURANCE_SKIRMISH_GAP_CONTRACT
+        },
+        "comparison_axis_count": 4,
+        "comparison_axes": [
+            {
+                "axis": "terminal_rule",
+                "bevy_signal": "control_2_of_4_flux_beacons_for_3000_ticks",
+                "openra_target": "StrategicVictoryConditions:control_2_of_4_flux_beacons_for_3000_ticks",
+                "gate": terminal_rule_comparison_gate
+            },
+            {
+                "axis": "natural_terminal_outcome",
+                "bevy_signal": "organic_terminal_observed_and_terminal_observation_winner_multi2",
+                "openra_target": "OpenRA GameOver/replay outcome vocabulary",
+                "gate": replay_outcome_comparison_gate
+            },
+            {
+                "axis": "replay_metrics_vocabulary",
+                "bevy_signal": "startgame_slots_actor_order_economy_tech_combat_outcome_summary",
+                "openra_target": "OpenRA replay summary plus battle outcome token vocabulary",
+                "gate": replay_metrics_comparison_gate
+            },
+            {
+                "axis": "headless_endurance_profile",
+                "bevy_signal": "120s_autostart_four_slot_sustained_engagement_profile",
+                "openra_target": "OpenRA headless-client longrun/autostart vocabulary",
+                "gate": headless_endurance_comparison_gate
+            }
+        ],
+        "openra_target_commits": {
+            "organic_terminal": organic.get("openra_parity_target_commit").cloned().unwrap_or(Value::Null),
+            "terminal_readiness": observation.get("openra_terminal_readiness_target_commit").cloned().unwrap_or(Value::Null),
+            "terminal_probe": observation.get("openra_terminal_probe_target_commit").cloned().unwrap_or(Value::Null),
+            "strategic_terminal": observation.get("openra_strategic_terminal_target_commit").cloned().unwrap_or(Value::Null),
+            "replay_summary": replay.get("openra_replay_summary_target_commit").cloned().unwrap_or(Value::Null),
+            "battle_outcome": replay.get("openra_battle_outcome_target_commit").cloned().unwrap_or(Value::Null),
+            "endurance_skirmish": endurance.get("openra_endurance_skirmish_target_commit").cloned().unwrap_or(Value::Null),
+            "longrun_skirmish": endurance.get("openra_longrun_skirmish_target_commit").cloned().unwrap_or(Value::Null),
+            "multibot_autostart": endurance.get("openra_multibot_autostart_target_commit").cloned().unwrap_or(Value::Null)
+        },
+        "gap_states": {
+            "organic_terminal": organic.get("bevy_terminal_observation_gap_state").cloned().unwrap_or(Value::Null),
+            "terminal_observation": observation.get("bevy_terminal_observation_gap_state").cloned().unwrap_or(Value::Null),
+            "replay_metrics": replay.get("bevy_replay_metrics_gap_state").cloned().unwrap_or(Value::Null),
+            "endurance_skirmish": endurance.get("bevy_endurance_skirmish_gap_state").cloned().unwrap_or(Value::Null)
+        },
+        "bridge_summary": {
+            "terminal_winner": organic.get("bevy_terminal_winner").cloned().unwrap_or(Value::Null),
+            "terminal_winner_beacons": organic.get("bevy_terminal_winner_beacons").cloned().unwrap_or(Value::Null),
+            "terminal_total_beacons": organic.get("bevy_terminal_total_beacons").cloned().unwrap_or(Value::Null),
+            "terminal_hold_ticks": organic.get("bevy_terminal_hold_ticks").cloned().unwrap_or(Value::Null),
+            "organic_final_match_result_state": organic.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "terminal_observation_final_match_result_state": observation.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "replay_elapsed_seconds": replay.get("elapsed_seconds").cloned().unwrap_or(Value::Null),
+            "replay_actor_order_tokens": replay.get("replay_actor_order_tokens").cloned().unwrap_or(Value::Null),
+            "replay_unique_actor_token_count": replay.get("replay_unique_actor_token_count").cloned().unwrap_or(Value::Null),
+            "endurance_elapsed_seconds": endurance.get("elapsed_seconds").cloned().unwrap_or(Value::Null),
+            "endurance_peak_active_units": endurance.get("peak_active_units").cloned().unwrap_or(Value::Null),
+            "endurance_combat_event_count": endurance.get("combat_event_count").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "terminal_rule_comparison_gate": terminal_rule_comparison_gate,
+        "replay_outcome_comparison_gate": replay_outcome_comparison_gate,
+        "replay_metrics_comparison_gate": replay_metrics_comparison_gate,
+        "headless_endurance_comparison_gate": headless_endurance_comparison_gate,
+        "openra_target_commit_gate": openra_target_commit_gate,
+        "gap_visibility_gate": gap_visibility_gate,
+        "no_parity_claim_gate": no_parity_claim_gate,
+        "boundary_gate": boundary_gate,
+        "preview_gate": preview_gate,
+        "comparison_matrix_gate": comparison_matrix_gate,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "source_of_truth": "Classic RTS OpenRA parity bridge evidence creates a single local comparison matrix over Bevy organic terminal, terminal observation, replay metrics, and endurance/headless vocabulary. It deliberately keeps OpenRA parity unclaimed and the gap visible until a real Bevy/OpenRA-style replay file and headless natural match are owned by the Rust/Bevy runtime."
+    }))
+    .expect("classic RTS OpenRA parity bridge evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
