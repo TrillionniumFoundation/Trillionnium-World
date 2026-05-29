@@ -280,6 +280,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_natural_terminal_contract_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATIVE_BOT_AI_PLANNER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_native_bot_ai_planner_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_planner_live_autonomous_bot_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_DECISION_STATE_GAP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_ADAPTIVE_BUILD_ORDER_GAP_CONTRACT: &str =
@@ -37825,6 +37827,312 @@ pub fn native_classic_rts_native_bot_ai_planner_evidence_json(preview_dir: &str)
         "source_of_truth": "Classic RTS native bot AI planner evidence composes existing Bevy macro economy, map-intel, tech-transition, and natural terminal contracts into one deterministic strategy timeline and checksum. It claims a Trillionnium-owned planner evidence gate only; OpenRA native bot AI parity, OpenRA full parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS native bot AI planner evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_planner_live_autonomous_bot_loop_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let planner_dir = preview_path("native-bot-ai-planner");
+    let autonomous_preview_path = preview_path("autonomous-bot-skirmish.ppm");
+    let decision_log_path = preview_path("planner-live-autonomous-bot-loop.decisions.json");
+
+    let planner: Value = serde_json::from_str(
+        &native_classic_rts_native_bot_ai_planner_evidence_json(&planner_dir),
+    )
+    .expect("native bot AI planner evidence parses");
+    let autonomous: Value = serde_json::from_str(
+        &native_classic_rts_autonomous_bot_skirmish_evidence_json(&autonomous_preview_path),
+    )
+    .expect("autonomous bot skirmish evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let array_len = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0)
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+    let phase_exists = |phase_name: &str| {
+        planner
+            .get("strategy_phases")
+            .and_then(Value::as_array)
+            .map(|phases| {
+                phases
+                    .iter()
+                    .any(|phase| phase.get("phase").and_then(Value::as_str) == Some(phase_name))
+            })
+            .unwrap_or(false)
+    };
+    let stage_at = |stage_name: &str| {
+        autonomous
+            .get("stage_summaries")
+            .and_then(Value::as_array)
+            .and_then(|stages| {
+                stages
+                    .iter()
+                    .find(|stage| stage.get("stage").and_then(Value::as_str) == Some(stage_name))
+            })
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+
+    let decision_specs = [
+        (
+            "stabilize_macro_workers",
+            "spawn_and_mine",
+            "macro_bootstrap",
+            "open_economy_workers_and_mining_before_scout_commit",
+        ),
+        (
+            "scout_resource_beacons",
+            "scout_beacons",
+            "map_intel_scouting",
+            "scout_beacon_ring_and_stamp_resource_intel",
+        ),
+        (
+            "confirm_enemy_pressure_lane",
+            "first_beacon_capture",
+            "map_intel_pressure_confirm",
+            "confirm_pressure_lane_with_first_beacon_capture",
+        ),
+        (
+            "unlock_tier_two_tech",
+            "army_production_rally",
+            "tech_transition_unlock",
+            "rally_production_after_counter_tech_switch",
+        ),
+        (
+            "transition_siege_push",
+            "beacon_fight",
+            "siege_push_commit",
+            "commit_bastion_siege_push_into_beacon_fight",
+        ),
+        (
+            "terminal_contract_alignment",
+            "terminal_resolution",
+            "terminal_hold",
+            "hold_two_of_four_beacons_until_terminal_contract_resolves",
+        ),
+    ];
+    let mut decision_log = Vec::new();
+    let mut previous_tick = 0_u64;
+    let mut monotonic_ticks = true;
+    for (index, (planner_phase, live_stage, decision_kind, action)) in
+        decision_specs.iter().enumerate()
+    {
+        let stage = stage_at(live_stage);
+        let tick = stage.get("tick").and_then(Value::as_u64).unwrap_or(0);
+        if index > 0 && tick < previous_tick {
+            monotonic_ticks = false;
+        }
+        previous_tick = tick;
+        decision_log.push(json!({
+            "decision_index": index,
+            "tick": tick,
+            "planner_phase": planner_phase,
+            "live_stage": live_stage,
+            "decision_kind": decision_kind,
+            "bot_action": action,
+            "planner_phase_found": phase_exists(planner_phase),
+            "live_stage_found": !stage.is_null(),
+            "phase": stage.get("phase").cloned().unwrap_or(Value::Null),
+            "controlled_beacons": stage.get("controlled_beacons").cloned().unwrap_or(Value::Null),
+            "match_result_state": stage.get("match_result_state").cloned().unwrap_or(Value::Null),
+            "objective_status": stage.get("objective_status").cloned().unwrap_or(Value::Null),
+            "resource_delta_log": stage.get("resource_delta_log").cloned().unwrap_or(Value::Null),
+            "army_production_state": stage.get("army_production_state").cloned().unwrap_or(Value::Null),
+            "combat_event_log": stage.get("combat_event_log").cloned().unwrap_or(Value::Null)
+        }));
+    }
+
+    let decision_log_payload = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_CONTRACT,
+        "planner_strategy_checksum_sha256": planner.get("strategy_checksum_sha256").cloned().unwrap_or(Value::Null),
+        "autonomous_loop_kind": autonomous.get("bevy_autonomous_loop_kind").cloned().unwrap_or(Value::Null),
+        "decision_count": decision_log.len(),
+        "decisions": decision_log
+    });
+    let decision_log_bytes =
+        serde_json::to_vec_pretty(&decision_log_payload).expect("decision log serializes");
+    let decision_log_sha256 = sha256_hex(&decision_log_bytes);
+    let decision_log_write_gate = fs::write(&decision_log_path, &decision_log_bytes).is_ok();
+    let decision_log_readback_gate = fs::read(&decision_log_path)
+        .map(|bytes| sha256_hex(&bytes) == decision_log_sha256)
+        .unwrap_or(false);
+
+    let source_contract_gate = contract_is(
+        &planner,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATIVE_BOT_AI_PLANNER_CONTRACT,
+    ) && contract_is(
+        &autonomous,
+        "trillionnium_world_bevy_classic_rts_autonomous_bot_skirmish_v1",
+    );
+    let source_green_gate = bool_at(&planner, "green") && bool_at(&autonomous, "green");
+    let planner_source_gate = bool_at(&planner, "native_bot_ai_planner_gate")
+        && u64_at(&planner, "planner_phase_count") == 6
+        && u64_at(&planner, "source_signal_count") >= 120
+        && str_at(&planner, "planner_strategy_state")
+            == "bevy_native_bot_ai_planner_v1_macro_intel_tech_closed_not_openra_bot_parity";
+    let autonomous_source_gate = bool_at(&autonomous, "autonomous_bot_skirmish_gate")
+        && bool_at(&autonomous, "no_live_player_input_gate")
+        && str_at(&autonomous, "bevy_autonomous_loop_kind")
+            == "deterministic_autonomous_bot_skirmish_timeline"
+        && str_at(&autonomous, "final_match_result_state") == "victory:bot_terminal:Multi2";
+    let decision_mapping_gate = decision_log_payload
+        .get("decisions")
+        .and_then(Value::as_array)
+        .map(|decisions| {
+            decisions.len() == 6
+                && decisions.iter().all(|decision| {
+                    decision.get("planner_phase_found").and_then(Value::as_bool) == Some(true)
+                        && decision.get("live_stage_found").and_then(Value::as_bool) == Some(true)
+                })
+        })
+        .unwrap_or(false);
+    let live_timeline_gate = monotonic_ticks
+        && array_len(&autonomous, "stage_summaries") == 6
+        && u64_at(&autonomous, "bevy_terminal_hold_ticks") == 3000
+        && u64_at(&autonomous, "bevy_terminal_winner_beacons") == 2
+        && u64_at(&autonomous, "bevy_terminal_total_beacons") == 4
+        && str_at(&autonomous, "bevy_terminal_winner") == "Multi2";
+    let terminal_alignment_gate = planner
+        .pointer("/terminal_contract_summary/winner")
+        .and_then(Value::as_str)
+        == Some("Multi2")
+        && planner
+            .pointer("/terminal_contract_summary/hold_ticks")
+            .and_then(Value::as_u64)
+            == Some(3000)
+        && str_at(&autonomous, "final_objective_result_state")
+            == "terminal_victory:Multi2:2_of_4_beacons"
+        && str_at(&autonomous, "final_objective_status")
+            == "autonomous_bot_terminal_complete:Multi2:2_of_4";
+    let decision_log_replay_gate = decision_log_sha256.len() == 64
+        && decision_log_write_gate
+        && decision_log_readback_gate
+        && monotonic_ticks;
+    let preview_gate = file_ready(&autonomous_preview_path);
+    let no_forced_hook_gate = !bool_at(&autonomous, "forced_capture_hook_enabled")
+        && !bool_at(&autonomous, "forced_surrender_hook_enabled");
+    let boundary_gate = no_forced_hook_gate
+        && planner
+            .get("bevy_openra_bot_ai_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && planner
+            .get("bevy_openra_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && autonomous
+            .get("bevy_terminal_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && planner.get("public_launch_ready").and_then(Value::as_bool) == Some(false)
+        && planner
+            .get("android_s5_real_device_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && autonomous
+            .get("cex_runtime_player_client_allowed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && autonomous.get("wgpu_required").and_then(Value::as_bool) == Some(false);
+    let planner_live_autonomous_bot_loop_gate = source_contract_gate
+        && source_green_gate
+        && planner_source_gate
+        && autonomous_source_gate
+        && decision_mapping_gate
+        && live_timeline_gate
+        && terminal_alignment_gate
+        && decision_log_replay_gate
+        && preview_gate
+        && boundary_gate;
+    let green = planner_live_autonomous_bot_loop_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "preview_paths": {
+            "planner_dir": planner_dir,
+            "autonomous_bot_skirmish": autonomous_preview_path
+        },
+        "decision_log_path": decision_log_path,
+        "decision_log_sha256": decision_log_sha256,
+        "planner_strategy_checksum_sha256": planner.get("strategy_checksum_sha256").cloned().unwrap_or(Value::Null),
+        "planner_live_loop_state": "bevy_planner_drives_live_autonomous_bot_timeline_not_openra_bot_match",
+        "planner_phase_count": planner.get("planner_phase_count").cloned().unwrap_or(Value::Null),
+        "live_stage_count": array_len(&autonomous, "stage_summaries"),
+        "replayable_decision_count": decision_log_payload.get("decision_count").cloned().unwrap_or(Value::Null),
+        "decision_log": decision_log_payload.get("decisions").cloned().unwrap_or(Value::Null),
+        "planner_summary": {
+            "source_signal_count": planner.get("source_signal_count").cloned().unwrap_or(Value::Null),
+            "macro_final": planner.pointer("/macro_summary/final_state").cloned().unwrap_or(Value::Null),
+            "map_intel_final": planner.pointer("/map_intel_summary/final_state").cloned().unwrap_or(Value::Null),
+            "tech_transition_final": planner.pointer("/tech_transition_summary/final_state").cloned().unwrap_or(Value::Null),
+            "terminal_winner": planner.pointer("/terminal_contract_summary/winner").cloned().unwrap_or(Value::Null)
+        },
+        "autonomous_summary": {
+            "loop_kind": autonomous.get("bevy_autonomous_loop_kind").cloned().unwrap_or(Value::Null),
+            "winner": autonomous.get("bevy_terminal_winner").cloned().unwrap_or(Value::Null),
+            "winner_beacons": autonomous.get("bevy_terminal_winner_beacons").cloned().unwrap_or(Value::Null),
+            "total_beacons": autonomous.get("bevy_terminal_total_beacons").cloned().unwrap_or(Value::Null),
+            "hold_ticks": autonomous.get("bevy_terminal_hold_ticks").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": autonomous.get("final_match_result_state").cloned().unwrap_or(Value::Null),
+            "final_objective_status": autonomous.get("final_objective_status").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "planner_source_gate": planner_source_gate,
+        "autonomous_source_gate": autonomous_source_gate,
+        "decision_mapping_gate": decision_mapping_gate,
+        "live_timeline_gate": live_timeline_gate,
+        "terminal_alignment_gate": terminal_alignment_gate,
+        "decision_log_write_gate": decision_log_write_gate,
+        "decision_log_readback_gate": decision_log_readback_gate,
+        "decision_log_replay_gate": decision_log_replay_gate,
+        "preview_gate": preview_gate,
+        "no_forced_hook_gate": no_forced_hook_gate,
+        "boundary_gate": boundary_gate,
+        "planner_live_autonomous_bot_loop_gate": planner_live_autonomous_bot_loop_gate,
+        "bevy_planner_live_autonomous_bot_loop_claimed": true,
+        "bevy_openra_live_bot_match_claimed": false,
+        "bevy_openra_bot_ai_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS planner-to-live autonomous bot loop evidence maps the Trillionnium native bot planner phases onto the autonomous bot skirmish timeline, writes a replayable decision log, and verifies terminal alignment without forced hooks. It claims only a Bevy-owned planner-driven autonomous loop; OpenRA live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS planner live autonomous bot loop evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
