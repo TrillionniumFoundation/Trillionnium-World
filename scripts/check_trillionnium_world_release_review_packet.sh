@@ -27,6 +27,7 @@ MAP_MODELING_GATE_LOG="$ACCEPTANCE_DIR/release-review-packet-map-modeling-gate.l
 CEX_ADAPTER_LOG="$ACCEPTANCE_DIR/release-review-packet-cex-adapter-readiness.log"
 CHECKPOINT_MANIFEST_LOG="$ACCEPTANCE_DIR/release-review-packet-checkpoint-manifest.log"
 PACKET_INTEGRITY_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-semantic-fixture.log"
+PACKET_INTEGRITY_BOT_EXECUTOR_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.log"
 ARTIFACTS_FILE="$(mktemp)"
 trap 'rm -f "$ARTIFACTS_FILE"' EXIT
 
@@ -44,6 +45,7 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_cex_adapter_readiness.sh" >"$CEX_ADAPTER_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh" >"$CHECKPOINT_MANIFEST_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture.sh" >"$PACKET_INTEGRITY_SEMANTIC_FIXTURE_LOG"
+"$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture.sh" >"$PACKET_INTEGRITY_BOT_EXECUTOR_SEMANTIC_FIXTURE_LOG"
 
 artifact() {
   local id="$1"
@@ -163,6 +165,7 @@ artifact release_review_status_markdown "Release review status Markdown" "$STATU
 artifact release_review_convergence "Release review convergence" "$CONVERGENCE_JSON" release_review_gate
 artifact release_review_checkpoint_manifest "Release review checkpoint manifest" "$ACCEPTANCE_DIR/release-review-checkpoint-manifest.json" release_review_checkpoint
 artifact release_review_packet_integrity_semantic_fixture "Release review packet integrity semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-semantic-fixture.json" release_review_gate
+artifact release_review_packet_integrity_bot_executor_semantic_fixture "Release review packet integrity bot executor semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.json" release_review_gate
 artifact release_review_packet_convergence_log "Release review packet convergence log" "$CONVERGENCE_LOG" release_review_log
 
 ARTIFACTS_JSON="$(jq -s '.' "$ARTIFACTS_FILE")"
