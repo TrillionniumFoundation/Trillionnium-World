@@ -50,7 +50,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 54); do
+for index in $(seq 1 52); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 86,
+  fake_packet_artifact_count: 87,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 86,
+  fake_packet_artifact_count: 87,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 86,
+  fake_packet_artifact_count: 87,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -147,7 +147,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 86,
+  fake_packet_artifact_count: 87,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -169,6 +169,85 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$bot_gap_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_bot_gap_semantic_fixture "Release review packet integrity bot gap semantic fixture" "$bot_gap_semantic_fixture_json" release_review_gate
+
+control_loop_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-control-loop-semantic-fixture.json"
+jq -n '{
+  contract_version: "trillionnium_world_release_review_packet_integrity_control_loop_semantic_fixture_v1",
+  status: "release_review_packet_integrity_control_loop_semantic_fixture_green",
+  green: true,
+  fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
+  fake_packet_artifact_count: 87,
+  expected_semantic_failure_count: 2,
+  expected_semantic_failure_names: [
+    "classic_rts_control_loop_semantics",
+    "classic_rts_control_loop_ppm_semantics"
+  ],
+  checksum_mismatch_failure_count: 0,
+  bytes_mismatch_failure_count: 0,
+  contract_mismatch_failure_count: 0,
+  status_mismatch_failure_count: 0,
+  ready_for_release_review: true,
+  public_launch_ready: false,
+  android_s5_real_device_claimed: false,
+  proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
+}' >"$control_loop_semantic_fixture_json"
+add_artifact_from_path release_review_packet_integrity_control_loop_semantic_fixture "Release review packet integrity control loop semantic fixture" "$control_loop_semantic_fixture_json" release_review_gate
+
+control_loop_json="$TMP_DIR/bevy-classic-rts-control-loop.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_control_loop_v1",
+  green: true,
+  preview_width: 1280,
+  preview_height: 360,
+  preview_format: "ppm_p3_rgb",
+  write_gate: true,
+  mirror_scene_gate: true,
+  coliseum_scene_gate: true,
+  non_background_pixels: 460800,
+  control_group_id: "1",
+  move_selected_unit_count: 4,
+  attack_selected_unit_count: 4,
+  move_command_queue: ["select_group_1", "move:7,4", "formation:diamond"],
+  attack_command_queue: ["select_group_1", "attack:arena_creep_attack"],
+  attack_target_id: "arena_creep_attack",
+  selection_marker_pixel_count: 1576,
+  formation_line_pixel_count: 485,
+  command_marker_pixel_count: 808,
+  attack_feedback_pixel_count: 601,
+  strategy_panel_pixel_count: 140066,
+  minimap_pixel_count: 3833,
+  fog_pixel_count: 2124,
+  vision_pixel_count: 240,
+  resource_hud_pixel_count: 462,
+  production_queue_pixel_count: 9045,
+  move_production_queue: ["train:worker", "train:guard"],
+  move_build_queue: ["build:scout_tower"],
+  attack_build_queue: ["upgrade:training_hall"],
+  move_training_progress_percent: 64,
+  attack_build_progress_percent: 56,
+  unit_health_card_pixel_count: 804,
+  ability_command_pixel_count: 13511,
+  target_health_pixel_count: 350,
+  attack_target_health_percent: 46,
+  attack_active_ability_id: "focus_fire",
+  attack_ability_command_ids: ["attack", "focus_fire", "guard", "retreat"],
+  attack_combat_event_log: ["focus_fire:arena_creep_attack", "damage:28"],
+  selection_gate: true,
+  command_queue_gate: true,
+  strategy_hud_gate: true,
+  macro_loop_gate: true,
+  tactical_combat_gate: true,
+  gameplay_surface_gate: true,
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false
+}' >"$control_loop_json"
+add_artifact_from_path native_bevy_classic_rts_control_loop "Native/Bevy classic RTS control loop" "$control_loop_json" release_review_input
+
+control_loop_ppm="$TMP_DIR/bevy-classic-rts-control-loop.ppm"
+printf 'P3\n1280 360\n255\n' >"$control_loop_ppm"
+truncate -s 4000001 "$control_loop_ppm"
+add_artifact_from_path native_bevy_classic_rts_control_loop_ppm "Native/Bevy classic RTS control loop PPM" "$control_loop_ppm" release_review_visual_evidence
 
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" >"$TMP_DIR/first-minute-command-feedback-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_rejection_replay.sh" >"$TMP_DIR/first-minute-command-feedback-rejection-replay.log"
