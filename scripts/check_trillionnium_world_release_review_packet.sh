@@ -29,6 +29,7 @@ CHECKPOINT_MANIFEST_LOG="$ACCEPTANCE_DIR/release-review-packet-checkpoint-manife
 PACKET_INTEGRITY_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-semantic-fixture.log"
 PACKET_INTEGRITY_BOT_EXECUTOR_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.log"
 PACKET_INTEGRITY_BOT_EXECUTOR_MATRIX_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.log"
+PACKET_INTEGRITY_BOT_GAP_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.log"
 BOT_DECISION_STATE_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-decision-state-gap.log"
 BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adaptive-build-order-gap.log"
 BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
@@ -52,6 +53,7 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture.sh" >"$PACKET_INTEGRITY_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture.sh" >"$PACKET_INTEGRITY_BOT_EXECUTOR_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh" >"$PACKET_INTEGRITY_BOT_EXECUTOR_MATRIX_SEMANTIC_FIXTURE_LOG"
+"$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture.sh" >"$PACKET_INTEGRITY_BOT_GAP_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh" >"$BOT_DECISION_STATE_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
@@ -185,6 +187,7 @@ artifact release_review_checkpoint_manifest "Release review checkpoint manifest"
 artifact release_review_packet_integrity_semantic_fixture "Release review packet integrity semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-semantic-fixture.json" release_review_gate
 artifact release_review_packet_integrity_bot_executor_semantic_fixture "Release review packet integrity bot executor semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.json" release_review_gate
 artifact release_review_packet_integrity_bot_executor_matrix_semantic_fixture "Release review packet integrity bot executor failure/recovery matrix semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.json" release_review_gate
+artifact release_review_packet_integrity_bot_gap_semantic_fixture "Release review packet integrity bot gap semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.json" release_review_gate
 artifact release_review_packet_convergence_log "Release review packet convergence log" "$CONVERGENCE_LOG" release_review_log
 
 ARTIFACTS_JSON="$(jq -s '.' "$ARTIFACTS_FILE")"

@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 85,
+  fake_packet_artifact_count: 86,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 85,
+  fake_packet_artifact_count: 86,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 85,
+  fake_packet_artifact_count: 86,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -139,6 +139,36 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$bot_matrix_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_bot_executor_matrix_semantic_fixture "Release review packet integrity bot executor failure/recovery matrix semantic fixture" "$bot_matrix_semantic_fixture_json" release_review_gate
+
+bot_gap_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.json"
+jq -n '{
+  contract_version: "trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture_v1",
+  status: "release_review_packet_integrity_bot_gap_semantic_fixture_green",
+  green: true,
+  fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
+  fake_packet_artifact_count: 86,
+  expected_semantic_failure_count: 8,
+  expected_semantic_failure_names: [
+    "bot_decision_state_gap_semantics",
+    "bot_decision_state_gap_ppm_semantics",
+    "bot_adaptive_build_order_gap_semantics",
+    "bot_adaptive_build_order_gap_ppm_semantics",
+    "bot_tactical_micro_gap_semantics",
+    "bot_tactical_micro_gap_ppm_semantics",
+    "bot_map_intel_gap_semantics",
+    "bot_map_intel_gap_ppm_semantics"
+  ],
+  checksum_mismatch_failure_count: 0,
+  bytes_mismatch_failure_count: 0,
+  contract_mismatch_failure_count: 0,
+  status_mismatch_failure_count: 0,
+  ready_for_release_review: true,
+  public_launch_ready: false,
+  android_s5_real_device_claimed: false,
+  proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
+}' >"$bot_gap_semantic_fixture_json"
+add_artifact_from_path release_review_packet_integrity_bot_gap_semantic_fixture "Release review packet integrity bot gap semantic fixture" "$bot_gap_semantic_fixture_json" release_review_gate
 
 replay_json="$TMP_DIR/bevy-first-minute-command-feedback-replay.json"
 jq -n '{
