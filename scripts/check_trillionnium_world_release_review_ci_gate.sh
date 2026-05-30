@@ -148,6 +148,8 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" \
@@ -278,6 +280,8 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_bot_planner_executor_replay_determinism_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_multi_match_bot_executor_evaluation_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_bot_executor_failure_recovery_matrix_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_bot_decision_state_gap_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_bot_adaptive_build_order_gap_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_playtest_launcher_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh" \
@@ -377,6 +381,7 @@ run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_b
 # Bevy classic bot planner executor replay determinism contract: trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1
 # Bevy classic multi-match bot executor evaluation contract: trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation_v1
 # Bevy classic bot executor failure/recovery matrix contract: trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix_v1
+# Bevy classic bot gap foundation contracts: trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1 / trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap_v1
 run_check bevy_classic_asset_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh"
 run_check bevy_classic_manifest_lint_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh"
 run_check bevy_classic_animation_preview_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh"
@@ -525,6 +530,10 @@ run_check bevy_classic_rts_multi_match_bot_executor_evaluation_contract_guard "$
 run_check bevy_classic_rts_multi_match_bot_executor_evaluation_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation.sh"
 run_check bevy_classic_rts_bot_executor_failure_recovery_matrix_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_bot_executor_failure_recovery_matrix_script_contract_guard_test.sh"
 run_check bevy_classic_rts_bot_executor_failure_recovery_matrix_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix.sh"
+run_check bevy_classic_rts_bot_decision_state_gap_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_bot_decision_state_gap_script_contract_guard_test.sh"
+run_check bevy_classic_rts_bot_decision_state_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh"
+run_check bevy_classic_rts_bot_adaptive_build_order_gap_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_bot_adaptive_build_order_gap_script_contract_guard_test.sh"
+run_check bevy_classic_rts_bot_adaptive_build_order_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh"
 run_check bevy_classic_playtest_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
 run_check bevy_classic_playtest_runner_status_contract_guard "$ROOT/scripts/v2/bevy_classic_playtest_runner_status_script_contract_guard_test.sh"
 run_check bevy_classic_playtest_launcher_contract_guard "$ROOT/scripts/v2/bevy_classic_playtest_launcher_script_contract_guard_test.sh"
