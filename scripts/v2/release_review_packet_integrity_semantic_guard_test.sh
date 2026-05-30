@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 93,
+  fake_packet_artifact_count: 96,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 93,
+  fake_packet_artifact_count: 96,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 93,
+  fake_packet_artifact_count: 96,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -147,7 +147,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 93,
+  fake_packet_artifact_count: 96,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -177,7 +177,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 93,
+  fake_packet_artifact_count: 96,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -256,7 +256,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 93,
+  fake_packet_artifact_count: 96,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_selection_minimap_semantics",
@@ -323,7 +323,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_build_lifecycle_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_build_lifecycle_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 93,
+  fake_packet_artifact_count: 96,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_build_lifecycle_semantics",
@@ -385,6 +385,75 @@ build_lifecycle_ppm="$TMP_DIR/bevy-classic-rts-build-lifecycle.ppm"
 printf 'P3\n640 360\n255\n' >"$build_lifecycle_ppm"
 truncate -s 1000001 "$build_lifecycle_ppm"
 add_artifact_from_path native_bevy_classic_rts_build_lifecycle_ppm "Native/Bevy classic RTS build lifecycle PPM" "$build_lifecycle_ppm" release_review_visual_evidence
+
+
+tech_tree_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-tech-tree-semantic-fixture.json"
+jq -n '{
+  contract_version: "trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture_v1",
+  status: "release_review_packet_integrity_tech_tree_semantic_fixture_green",
+  green: true,
+  fixture_kind: "classic_rts_tech_tree_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_tech_tree_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
+  fake_packet_artifact_count: 96,
+  expected_semantic_failure_count: 2,
+  expected_semantic_failure_names: [
+    "classic_rts_tech_tree_semantics",
+    "classic_rts_tech_tree_ppm_semantics"
+  ],
+  checksum_mismatch_failure_count: 0,
+  bytes_mismatch_failure_count: 0,
+  contract_mismatch_failure_count: 0,
+  status_mismatch_failure_count: 0,
+  ready_for_release_review: true,
+  public_launch_ready: false,
+  android_s5_real_device_claimed: false,
+  proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
+}' >"$tech_tree_semantic_fixture_json"
+add_artifact_from_path release_review_packet_integrity_tech_tree_semantic_fixture "Release review packet integrity tech tree semantic fixture" "$tech_tree_semantic_fixture_json" release_review_gate
+
+tech_tree_json="$TMP_DIR/bevy-classic-rts-tech-tree.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_tech_tree_v1",
+  green: true,
+  preview_width: 1280,
+  preview_height: 1080,
+  preview_format: "ppm_p3_rgb",
+  write_gate: true,
+  input_path: "apply_live_native_action_with_source(classic_rts_tech_tree_input)",
+  input_action_count: 6,
+  accepted_input_count: 6,
+  action_labels: ["RTS:SELECT:1", "RTS:QUEUE:faction:mirror_guard", "RTS:QUEUE:build:training_hall@4,3", "RTS:QUEUE:research:wayfinder_code@town_hall", "RTS:QUEUE:upgrade:iron_lacing@training_hall", "RTS:QUEUE:unlock:relay_guard"],
+  final_faction_id: "mirror_guard",
+  final_base_structure_ids: ["town_hall", "training_hall", "signal_spire"],
+  final_tech_research_ids: ["wayfinder_code"],
+  final_completed_upgrade_ids: ["iron_lacing"],
+  final_unlocked_unit_ids: ["worker", "guard", "relay_guard"],
+  final_unlocked_structure_ids: ["signal_spire"],
+  final_tech_requirements_log: ["base:town_hall|required:training_hall|locked:relay_guard", "structure:training_hall:queued_at:4,3", "research:wayfinder_code:requires:town_hall", "upgrade:iron_lacing:requires:training_hall+wayfinder_code", "unlock:relay_guard:requires:iron_lacing+signal_spire"],
+  final_tech_progress_percent: 100,
+  final_tech_state: "unlocked:relay_guard",
+  final_command_queue: ["select_group_1", "faction:mirror_guard:base_online", "queue:faction:mirror_guard", "blueprint:training_hall@4,3", "build_site:4,3", "queue:build:training_hall@4,3", "research:wayfinder_code@town_hall", "queue:research:wayfinder_code@town_hall", "upgrade:iron_lacing@training_hall", "queue:upgrade:iron_lacing@training_hall", "unlock:relay_guard", "queue:unlock:relay_guard"],
+  non_background_pixels: 1382400,
+  tech_base_pixel_count: 180,
+  tech_research_pixel_count: 72,
+  tech_upgrade_pixel_count: 64,
+  tech_unlock_pixel_count: 108,
+  tech_requirement_pixel_count: 96,
+  live_tech_tree_input_gate: true,
+  faction_base_gate: true,
+  research_gate: true,
+  upgrade_gate: true,
+  unlock_gate: true,
+  dependency_gate: true,
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false
+}' >"$tech_tree_json"
+add_artifact_from_path native_bevy_classic_rts_tech_tree "Native/Bevy classic RTS tech tree" "$tech_tree_json" release_review_input
+
+tech_tree_ppm="$TMP_DIR/bevy-classic-rts-tech-tree.ppm"
+printf 'P3\n1280 1080\n255\n' >"$tech_tree_ppm"
+truncate -s 8000001 "$tech_tree_ppm"
+add_artifact_from_path native_bevy_classic_rts_tech_tree_ppm "Native/Bevy classic RTS tech tree PPM" "$tech_tree_ppm" release_review_visual_evidence
 
 replay_json="$TMP_DIR/bevy-first-minute-command-feedback-replay.json"
 jq -n '{

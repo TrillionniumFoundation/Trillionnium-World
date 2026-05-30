@@ -283,27 +283,27 @@ jq -n '{
   write_gate: true,
   input_path: "apply_live_native_action_with_source(classic_rts_selection_minimap_input)",
   input_action_count: 4,
-  accepted_input_count: 3,
-  action_labels: ["RTS:SELECT:box:frontline", "RTS:MOVE:minimap:9,3:wrong", "RTS:SELECT:2", "RTS:MOVE:6,5:split"],
+  accepted_input_count: 4,
+  action_labels: ["RTS:SELECT:box:frontline", "RTS:MOVE:minimap:9,2:rally", "RTS:SELECT:2", "RTS:MOVE:6,5:split"],
   final_control_group_id: "2",
   final_selected_unit_ids: ["square_guard_patrol", "square_creep_wander"],
   final_selection_box_tile_ids: ["5,5", "6,5", "5,4", "6,4"],
   final_control_group_assignments: ["1:player|square_guard_patrol|square_worker_carry|square_creep_wander", "2:square_guard_patrol|square_creep_wander"],
   final_active_control_group_ids: ["1", "2"],
-  final_minimap_command_tile_id: "9,3",
-  final_minimap_command_kind: "wrong",
+  final_minimap_command_tile_id: "9,2",
+  final_minimap_command_kind: "rally",
   final_group_route_tile_ids: ["5,5", "6,4", "6,5", "7,5", "6,6"],
-  final_group_command_state: "wrong_route",
+  final_group_command_state: "split_route:group_2",
   final_command_queue: ["box_select:5,5|6,5|5,4|6,4", "select_group_1", "minimap:rally:9,2", "move:9,2", "formation:rally", "path:6,5>7,4>8,3>9,2", "slots:8,3|9,2|10,2|9,3", "assign_group_2:square_guard_patrol|square_creep_wander", "select_group_2", "split_route:5,5>6,4>6,5>7,5>6,6", "move:6,5", "formation:split", "path:6,5", "slots:5,5|7,5|5,6|7,6", "disperse:5,5|6,4|6,6|7,5"],
   non_background_pixels: 921600,
-  selection_box_pixel_count: 12,
-  minimap_command_pixel_count: 12,
+  selection_box_pixel_count: 4269,
+  minimap_command_pixel_count: 2009,
   group_two_pixel_count: 342,
-  split_route_pixel_count: 12,
+  split_route_pixel_count: 2183,
   live_selection_minimap_input_gate: true,
-  selection_box_gate: false,
+  selection_box_gate: true,
   control_group_gate: true,
-  minimap_command_gate: false,
+  minimap_command_gate: true,
   split_route_gate: true,
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
@@ -311,9 +311,10 @@ jq -n '{
 add_artifact_from_path native_bevy_classic_rts_selection_minimap "Native/Bevy classic RTS selection/minimap" "$selection_minimap_json" release_review_input
 
 selection_minimap_ppm="$TMP_DIR/bevy-classic-rts-selection-minimap.ppm"
-printf 'P3\n1279 720\n255\n' >"$selection_minimap_ppm"
+printf 'P3\n1280 720\n255\n' >"$selection_minimap_ppm"
 truncate -s 8000001 "$selection_minimap_ppm"
 add_artifact_from_path native_bevy_classic_rts_selection_minimap_ppm "Native/Bevy classic RTS selection/minimap PPM" "$selection_minimap_ppm" release_review_visual_evidence
+
 
 
 build_lifecycle_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-build-lifecycle-semantic-fixture.json"
@@ -353,24 +354,24 @@ jq -n '{
   accepted_input_count: 6,
   action_labels: ["RTS:SELECT:1", "RTS:QUEUE:build:watch_tower@7,4", "RTS:QUEUE:complete:watch_tower@7,4", "RTS:QUEUE:repair:watch_tower@7,4", "RTS:QUEUE:build:scout_tower@8,4", "RTS:QUEUE:cancel:scout_tower@8,4"],
   final_structure_state: "cancelled:scout_tower@8,4",
-  final_build_site_tile_ids: ["8,4", "8,5", "9,4"],
+  final_build_site_tile_ids: ["8,4", "9,4"],
   final_building_blueprint_id: "scout_tower",
   final_building_progress_percent: 100,
   final_completed_structure_ids: ["watch_tower"],
   final_repair_target_id: "watch_tower",
-  final_repair_progress_percent: 76,
+  final_repair_progress_percent: 80,
   final_cancelled_structure_ids: ["scout_tower"],
   final_refund_delta_log: ["gold:+90", "lumber:+30"],
-  final_structure_health_percents: [54, 91],
-  final_resource_spend_log: ["spent:140g:30l:guard", "repair:-45g:-20l"],
-  final_command_queue: ["select_group_1", "blueprint:watch_tower@7,4", "build_site:7,4|7,5|8,4", "queue:build:watch_tower@7,4", "complete:watch_tower@7,4", "queue:complete:watch_tower@7,4", "repair:watch_tower@7,4", "queue:repair:watch_tower@7,4", "blueprint:scout_tower@8,4", "build_site:8,4|8,5|9,4", "queue:build:scout_tower@8,4", "cancel:scout_tower@8,4", "refund:gold:+90|lumber:+30", "queue:cancel:scout_tower@8,4"],
+  final_structure_health_percents: [100, 82],
+  final_resource_spend_log: ["build:-120g:-40l", "repair:-45g:-20l"],
+  final_command_queue: ["select_group_1", "blueprint:watch_tower@7,4", "complete:watch_tower@7,4", "repair:watch_tower@7,4", "blueprint:scout_tower@8,4", "cancel:scout_tower@8,4", "refund:gold:+90|lumber:+30"],
   non_background_pixels: 230400,
-  build_blueprint_pixel_count: 1211,
-  build_progress_pixel_count: 241,
-  structure_complete_pixel_count: 172,
-  structure_health_pixel_count: 76,
-  repair_pixel_count: 472,
-  cancel_refund_pixel_count: 143,
+  build_blueprint_pixel_count: 72,
+  build_progress_pixel_count: 44,
+  structure_complete_pixel_count: 112,
+  structure_health_pixel_count: 48,
+  repair_pixel_count: 88,
+  cancel_refund_pixel_count: 56,
   live_build_lifecycle_input_gate: true,
   build_placement_gate: true,
   completion_gate: true,
@@ -385,7 +386,6 @@ build_lifecycle_ppm="$TMP_DIR/bevy-classic-rts-build-lifecycle.ppm"
 printf 'P3\n640 360\n255\n' >"$build_lifecycle_ppm"
 truncate -s 1000001 "$build_lifecycle_ppm"
 add_artifact_from_path native_bevy_classic_rts_build_lifecycle_ppm "Native/Bevy classic RTS build lifecycle PPM" "$build_lifecycle_ppm" release_review_visual_evidence
-
 
 tech_tree_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-tech-tree-semantic-fixture.json"
 jq -n '{
@@ -415,44 +415,46 @@ tech_tree_json="$TMP_DIR/bevy-classic-rts-tech-tree.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_rts_tech_tree_v1",
   green: true,
-  preview_width: 1280,
-  preview_height: 1080,
+  preview_width: 640,
+  preview_height: 360,
   preview_format: "ppm_p3_rgb",
   write_gate: true,
   input_path: "apply_live_native_action_with_source(classic_rts_tech_tree_input)",
   input_action_count: 6,
-  accepted_input_count: 6,
-  action_labels: ["RTS:SELECT:1", "RTS:QUEUE:faction:mirror_guard", "RTS:QUEUE:build:training_hall@4,3", "RTS:QUEUE:research:wayfinder_code@town_hall", "RTS:QUEUE:upgrade:iron_lacing@training_hall", "RTS:QUEUE:unlock:relay_guard"],
-  final_faction_id: "mirror_guard",
-  final_base_structure_ids: ["town_hall", "training_hall", "signal_spire"],
-  final_tech_research_ids: ["wayfinder_code"],
-  final_completed_upgrade_ids: ["iron_lacing"],
-  final_unlocked_unit_ids: ["worker", "guard", "relay_guard"],
-  final_unlocked_structure_ids: ["signal_spire"],
-  final_tech_requirements_log: ["base:town_hall|required:training_hall|locked:relay_guard", "structure:training_hall:queued_at:4,3", "research:wayfinder_code:requires:town_hall", "upgrade:iron_lacing:requires:training_hall+wayfinder_code", "unlock:relay_guard:requires:iron_lacing+signal_spire"],
-  final_tech_progress_percent: 100,
-  final_tech_state: "unlocked:relay_guard",
-  final_command_queue: ["select_group_1", "faction:mirror_guard:base_online", "queue:faction:mirror_guard", "blueprint:training_hall@4,3", "build_site:4,3", "queue:build:training_hall@4,3", "research:wayfinder_code@town_hall", "queue:research:wayfinder_code@town_hall", "upgrade:iron_lacing@training_hall", "queue:upgrade:iron_lacing@training_hall", "unlock:relay_guard", "queue:unlock:relay_guard"],
-  non_background_pixels: 1382400,
-  tech_base_pixel_count: 180,
-  tech_research_pixel_count: 72,
-  tech_upgrade_pixel_count: 64,
-  tech_unlock_pixel_count: 108,
-  tech_requirement_pixel_count: 96,
+  accepted_input_count: 5,
+  action_labels: ["RTS:SELECT:1", "RTS:QUEUE:build:watch_tower@7,4", "RTS:QUEUE:complete:watch_tower@7,4", "RTS:QUEUE:repair:watch_tower@7,4", "RTS:QUEUE:build:scout_tower@8,4", "RTS:QUEUE:cancel:wrong_tower@8,4"],
+  final_structure_state: "building:scout_tower@8,4",
+  final_build_site_tile_ids: ["8,4", "8,5"],
+  final_building_blueprint_id: "scout_tower",
+  final_building_progress_percent: 42,
+  final_completed_structure_ids: ["watch_tower"],
+  final_repair_target_id: "watch_tower",
+  final_repair_progress_percent: 50,
+  final_cancelled_structure_ids: [],
+  final_refund_delta_log: ["gold:+10"],
+  final_structure_health_percents: [54],
+  final_resource_spend_log: ["spent:140g:30l:guard"],
+  final_command_queue: ["select_group_1", "blueprint:watch_tower@7,4", "complete:watch_tower@7,4", "repair:watch_tower@7,4", "blueprint:scout_tower@8,4"],
+  non_background_pixels: 230400,
+  build_blueprint_pixel_count: 12,
+  build_progress_pixel_count: 8,
+  structure_complete_pixel_count: 20,
+  structure_health_pixel_count: 10,
+  repair_pixel_count: 12,
+  cancel_refund_pixel_count: 0,
   live_tech_tree_input_gate: true,
-  faction_base_gate: true,
-  research_gate: true,
-  upgrade_gate: true,
-  unlock_gate: true,
-  dependency_gate: true,
+  build_placement_gate: false,
+  completion_gate: true,
+  repair_gate: false,
+  cancel_refund_gate: false,
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
 }' >"$tech_tree_json"
 add_artifact_from_path native_bevy_classic_rts_tech_tree "Native/Bevy classic RTS tech tree" "$tech_tree_json" release_review_input
 
 tech_tree_ppm="$TMP_DIR/bevy-classic-rts-tech-tree.ppm"
-printf 'P3\n1280 1080\n255\n' >"$tech_tree_ppm"
-truncate -s 8000001 "$tech_tree_ppm"
+printf 'P3\n641 360\n255\n' >"$tech_tree_ppm"
+truncate -s 1000001 "$tech_tree_ppm"
 add_artifact_from_path native_bevy_classic_rts_tech_tree_ppm "Native/Bevy classic RTS tech tree PPM" "$tech_tree_ppm" release_review_visual_evidence
 
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" >"$TMP_DIR/first-minute-command-feedback-replay.log"
@@ -530,14 +532,14 @@ status=$?
 set -e
 
 if [[ "$status" -eq 0 ]]; then
-  echo "[FAIL] packet integrity selection/minimap semantic fixture unexpectedly passed" >&2
+  echo "[FAIL] packet integrity tech tree semantic fixture unexpectedly passed" >&2
   cat "$TMP_DIR/stdout.log" >&2
   cat "$TMP_DIR/stderr.log" >&2
   exit 1
 fi
 
 if [[ ! -f "$summary_json" ]]; then
-  echo "[FAIL] packet integrity selection/minimap semantic fixture did not write summary" >&2
+  echo "[FAIL] packet integrity tech tree semantic fixture did not write summary" >&2
   exit 1
 fi
 
@@ -545,12 +547,12 @@ jq -e '
   .status == "release_review_packet_integrity_blocked"
   and .green == false
   and (.failures | length) == 2
-  and ([.failures[].name] | index("classic_rts_selection_minimap_semantics"))
-  and ([.failures[].name] | index("classic_rts_selection_minimap_ppm_semantics"))
+  and ([.failures[].name] | index("classic_rts_tech_tree_semantics"))
+  and ([.failures[].name] | index("classic_rts_tech_tree_ppm_semantics"))
   and (([.failures[].detail] | index("sha256_mismatch")) == null)
   and (([.failures[].detail] | index("bytes_mismatch")) == null)
   and (([.failures[].detail] | index("contract_mismatch")) == null)
   and (([.failures[].detail] | index("status_mismatch")) == null)
 ' "$summary_json" >/dev/null
 
-echo "[PASS] release review packet integrity rejects semantically invalid classic RTS selection/minimap summary and PPM even when checksums match"
+echo "[PASS] release review packet integrity rejects semantically invalid classic RTS tech tree summary and PPM even when checksums match"
