@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 66,
+  fake_packet_artifact_count: 75,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -212,6 +212,169 @@ rejection_ppm_path="$TMP_DIR/bevy-first-minute-command-feedback-rejection-replay
 printf 'P3\n1280 720\n255\n' >"$rejection_ppm_path"
 truncate -s 8000001 "$rejection_ppm_path"
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay_ppm "Native/Bevy first-minute command feedback rejection replay PPM" "$rejection_ppm_path" release_review_visual_evidence
+
+action_log_json="$TMP_DIR/bot-planner-action-executor.actions.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_bot_planner_action_executor_v1",
+  executor_action_count: 6,
+  accepted_action_count: 6,
+  command_marker_hit_count: 6,
+  input_source: "classic_rts_bot_planner_action_executor_input",
+  planner_live_decision_log_sha256: "1111111111111111111111111111111111111111111111111111111111111111",
+  planner_strategy_checksum_sha256: "2222222222222222222222222222222222222222222222222222222222222222",
+  execution_log: [
+    {accepted: true, action_label: "RTS:QUEUE:faction:mirror_guard", command_marker_hit: true, feedback_event_delta: 1, input_source: "classic_rts_bot_planner_action_executor_input"},
+    {accepted: true, action_label: "RTS:QUEUE:recon:sweep:watchtower_scan@7,4", command_marker_hit: true, feedback_event_delta: 1, input_source: "classic_rts_bot_planner_action_executor_input"},
+    {accepted: true, action_label: "RTS:QUEUE:objective:claim:relay_beacon@6,5", command_marker_hit: true, feedback_event_delta: 1, input_source: "classic_rts_bot_planner_action_executor_input"},
+    {accepted: true, action_label: "RTS:QUEUE:tier2:tech:relay_foundry@relay_outpost", command_marker_hit: true, feedback_event_delta: 1, input_source: "classic_rts_bot_planner_action_executor_input"},
+    {accepted: true, action_label: "RTS:QUEUE:tier2:push:gate_bulwark@10,3", command_marker_hit: true, feedback_event_delta: 1, input_source: "classic_rts_bot_planner_action_executor_input"},
+    {accepted: true, action_label: "RTS:QUEUE:tier2:finish:gate_bulwark@10,3", command_marker_hit: true, feedback_event_delta: 1, input_source: "classic_rts_bot_planner_action_executor_input"}
+  ]
+}' >"$action_log_json"
+add_artifact_from_path native_bevy_bot_planner_action_executor_log "Native/Bevy bot planner action executor log" "$action_log_json" release_review_recording
+
+action_summary_json="$TMP_DIR/bevy-classic-rts-bot-planner-action-executor.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_bot_planner_action_executor_v1",
+  green: true,
+  bot_planner_action_executor_gate: true,
+  executor_action_count: 6,
+  accepted_action_count: 6,
+  command_marker_hit_count: 6,
+  action_labels: [
+    "RTS:QUEUE:faction:mirror_guard",
+    "RTS:QUEUE:recon:sweep:watchtower_scan@7,4",
+    "RTS:QUEUE:objective:claim:relay_beacon@6,5",
+    "RTS:QUEUE:tier2:tech:relay_foundry@relay_outpost",
+    "RTS:QUEUE:tier2:push:gate_bulwark@10,3",
+    "RTS:QUEUE:tier2:finish:gate_bulwark@10,3"
+  ],
+  input_sources: ["classic_rts_bot_planner_action_executor_input"],
+  final_runtime_summary: {
+    faction_id: "mirror_guard",
+    objective_capture_percent: 100,
+    tier_two_tech_ids: ["relay_foundry"],
+    siege_breach_state: "counterplay_won:gate_bulwark",
+    match_result_state: "siege_breakthrough:inner_lane"
+  },
+  bevy_bot_planner_action_executor_claimed: true,
+  bevy_openra_runtime_bot_executor_claimed: false,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false
+}' >"$action_summary_json"
+add_artifact_from_path native_bevy_bot_planner_action_executor "Native/Bevy bot planner action executor" "$action_summary_json" release_review_input
+
+action_ppm_path="$TMP_DIR/bot-planner-action-executor.ppm"
+printf 'P3\n1280 1080\n255\n' >"$action_ppm_path"
+truncate -s 8000001 "$action_ppm_path"
+add_artifact_from_path native_bevy_bot_planner_action_executor_ppm "Native/Bevy bot planner action executor PPM" "$action_ppm_path" release_review_visual_evidence
+
+replay_log_json="$TMP_DIR/bot-planner-executor-replay-determinism.replay.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1",
+  replay_action_count: 6,
+  accepted_replay_action_count: 6,
+  replay_command_marker_hit_count: 6,
+  command_delta_match_count: 6,
+  source_final_runtime_sha256: "3333333333333333333333333333333333333333333333333333333333333333",
+  replay_final_runtime_sha256: "3333333333333333333333333333333333333333333333333333333333333333",
+  source_command_queue_sha256: "4444444444444444444444444444444444444444444444444444444444444444",
+  replay_command_queue_sha256: "4444444444444444444444444444444444444444444444444444444444444444",
+  replay_input_source: "classic_rts_bot_planner_executor_replay_input",
+  source_action_log_path: "/tmp/bot-planner-action-executor.actions.json",
+  source_action_log_sha256: "5555555555555555555555555555555555555555555555555555555555555555",
+  source_executor_summary_sha256: "6666666666666666666666666666666666666666666666666666666666666666",
+  execution_log: [
+    {accepted: true, action_label_parse_gate: true, command_marker_hit: true, command_delta_match: true, input_source: "classic_rts_bot_planner_executor_replay_input"},
+    {accepted: true, action_label_parse_gate: true, command_marker_hit: true, command_delta_match: true, input_source: "classic_rts_bot_planner_executor_replay_input"},
+    {accepted: true, action_label_parse_gate: true, command_marker_hit: true, command_delta_match: true, input_source: "classic_rts_bot_planner_executor_replay_input"},
+    {accepted: true, action_label_parse_gate: true, command_marker_hit: true, command_delta_match: true, input_source: "classic_rts_bot_planner_executor_replay_input"},
+    {accepted: true, action_label_parse_gate: true, command_marker_hit: true, command_delta_match: true, input_source: "classic_rts_bot_planner_executor_replay_input"},
+    {accepted: true, action_label_parse_gate: true, command_marker_hit: true, command_delta_match: true, input_source: "classic_rts_bot_planner_executor_replay_input"}
+  ]
+}' >"$replay_log_json"
+add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism_log "Native/Bevy bot planner executor replay determinism log" "$replay_log_json" release_review_recording
+
+replay_summary_json="$TMP_DIR/bevy-classic-rts-bot-planner-executor-replay-determinism.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1",
+  green: true,
+  bot_planner_executor_replay_determinism_gate: true,
+  source_executor_action_count: 6,
+  replay_action_count: 6,
+  accepted_replay_action_count: 6,
+  replay_command_marker_hit_count: 6,
+  command_delta_match_count: 6,
+  runtime_determinism_gate: true,
+  source_final_runtime_sha256: "3333333333333333333333333333333333333333333333333333333333333333",
+  replay_final_runtime_sha256: "3333333333333333333333333333333333333333333333333333333333333333",
+  source_command_queue_sha256: "4444444444444444444444444444444444444444444444444444444444444444",
+  replay_command_queue_sha256: "4444444444444444444444444444444444444444444444444444444444444444",
+  replay_input_sources: ["classic_rts_bot_planner_executor_replay_input"],
+  bevy_bot_planner_executor_replay_determinism_claimed: true,
+  bevy_openra_runtime_bot_executor_claimed: false,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false
+}' >"$replay_summary_json"
+add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism "Native/Bevy bot planner executor replay determinism" "$replay_summary_json" release_review_input
+
+replay_ppm_path="$TMP_DIR/bot-planner-executor-replay-determinism.ppm"
+printf 'P3\n1280 1080\n255\n' >"$replay_ppm_path"
+truncate -s 8000001 "$replay_ppm_path"
+add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism_ppm "Native/Bevy bot planner executor replay determinism PPM" "$replay_ppm_path" release_review_visual_evidence
+
+multi_log_json="$TMP_DIR/multi-match-bot-executor-evaluation.matches.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation_v1",
+  variant_count: 4,
+  accepted_variant_count: 4,
+  total_replay_action_count: 24,
+  total_accepted_action_count: 24,
+  total_command_marker_hit_count: 24,
+  total_command_delta_match_count: 24,
+  runtime_sha_match_count: 4,
+  command_queue_sha_match_count: 4,
+  evaluation_input_source: "classic_rts_multi_match_bot_executor_evaluation_input",
+  source_action_log_path: "/tmp/bot-planner-action-executor.actions.json",
+  source_action_log_sha256: "5555555555555555555555555555555555555555555555555555555555555555",
+  source_final_runtime_sha256: "3333333333333333333333333333333333333333333333333333333333333333",
+  source_command_queue_sha256: "4444444444444444444444444444444444444444444444444444444444444444",
+  source_replay_dir: "/tmp/source-replay",
+  variant_summaries: [
+    {variant_id: "seed_2026052901_forest_relay", replay_action_count: 6, accepted_action_count: 6, command_marker_hit_count: 6, command_delta_match_count: 6, runtime_sha_match: true, command_queue_sha_match: true, map_variant: "forest_relay", economy_variant: "balanced"},
+    {variant_id: "seed_2026052902_ridge_watch", replay_action_count: 6, accepted_action_count: 6, command_marker_hit_count: 6, command_delta_match_count: 6, runtime_sha_match: true, command_queue_sha_match: true, map_variant: "ridge_watch", economy_variant: "low_gold"},
+    {variant_id: "seed_2026052903_marsh_gate", replay_action_count: 6, accepted_action_count: 6, command_marker_hit_count: 6, command_delta_match_count: 6, runtime_sha_match: true, command_queue_sha_match: true, map_variant: "marsh_gate", economy_variant: "high_pressure"},
+    {variant_id: "seed_2026052904_market_ruins", replay_action_count: 6, accepted_action_count: 6, command_marker_hit_count: 6, command_delta_match_count: 6, runtime_sha_match: true, command_queue_sha_match: true, map_variant: "market_ruins", economy_variant: "delayed_tech"}
+  ]
+}' >"$multi_log_json"
+add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_log "Native/Bevy multi-match bot executor evaluation log" "$multi_log_json" release_review_recording
+
+multi_summary_json="$TMP_DIR/bevy-classic-rts-multi-match-bot-executor-evaluation.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation_v1",
+  green: true,
+  multi_match_bot_executor_evaluation_gate: true,
+  variant_count: 4,
+  accepted_variant_count: 4,
+  total_replay_action_count: 24,
+  total_accepted_action_count: 24,
+  total_command_marker_hit_count: 24,
+  total_command_delta_match_count: 24,
+  runtime_sha_match_count: 4,
+  command_queue_sha_match_count: 4,
+  variant_map_values: ["forest_relay", "ridge_watch", "marsh_gate", "market_ruins"],
+  bevy_multi_match_bot_executor_evaluation_claimed: true,
+  bevy_bot_planner_executor_replay_determinism_claimed: true,
+  bevy_openra_runtime_bot_executor_claimed: false,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false
+}' >"$multi_summary_json"
+add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation "Native/Bevy multi-match bot executor evaluation" "$multi_summary_json" release_review_input
+
+multi_ppm_path="$TMP_DIR/multi-match-bot-executor-evaluation.ppm"
+printf 'P3\n1280 720\n255\n' >"$multi_ppm_path"
+truncate -s 8000001 "$multi_ppm_path"
+add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_ppm "Native/Bevy multi-match bot executor evaluation PPM" "$multi_ppm_path" release_review_visual_evidence
 
 failure_matrix_log_json="$TMP_DIR/bot-executor-failure-recovery-matrix.matrix.json"
 jq -n '{
