@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -147,7 +147,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -177,7 +177,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -256,7 +256,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_selection_minimap_semantics",
@@ -323,7 +323,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_build_lifecycle_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_build_lifecycle_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_build_lifecycle_semantics",
@@ -394,7 +394,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_tech_tree_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_tech_tree_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 96,
+  fake_packet_artifact_count: 99,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_tech_tree_semantics",
@@ -454,6 +454,74 @@ tech_tree_ppm="$TMP_DIR/bevy-classic-rts-tech-tree.ppm"
 printf 'P3\n1280 1080\n255\n' >"$tech_tree_ppm"
 truncate -s 8000001 "$tech_tree_ppm"
 add_artifact_from_path native_bevy_classic_rts_tech_tree_ppm "Native/Bevy classic RTS tech tree PPM" "$tech_tree_ppm" release_review_visual_evidence
+
+projectile_ability_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-projectile-ability-semantic-fixture.json"
+jq -n '{
+  contract_version: "trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture_v1",
+  status: "release_review_packet_integrity_projectile_ability_semantic_fixture_green",
+  green: true,
+  fixture_kind: "classic_rts_projectile_ability_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_projectile_ability_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
+  fake_packet_artifact_count: 99,
+  expected_semantic_failure_count: 2,
+  expected_semantic_failure_names: ["classic_rts_projectile_ability_semantics", "classic_rts_projectile_ability_ppm_semantics"],
+  checksum_mismatch_failure_count: 0,
+  bytes_mismatch_failure_count: 0,
+  contract_mismatch_failure_count: 0,
+  status_mismatch_failure_count: 0,
+  ready_for_release_review: true,
+  public_launch_ready: false,
+  android_s5_real_device_claimed: false,
+  proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
+}' >"$projectile_ability_semantic_fixture_json"
+add_artifact_from_path release_review_packet_integrity_projectile_ability_semantic_fixture "Release review packet integrity projectile/ability semantic fixture" "$projectile_ability_semantic_fixture_json" release_review_gate
+
+projectile_ability_json="$TMP_DIR/bevy-classic-rts-projectile-ability.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_projectile_ability_v1",
+  green: true,
+  preview_width: 1280,
+  preview_height: 1080,
+  preview_format: "ppm_p3_rgb",
+  write_gate: true,
+  input_path: "apply_live_native_action_with_source(classic_rts_projectile_ability_input)",
+  input_action_count: 5,
+  accepted_input_count: 5,
+  action_labels: ["RTS:SELECT:1", "RTS:MOVE:8,4:wedge", "RTS:ATTACK:arena_creep_attack", "RTS:ABILITY:focus_fire", "RTS:ABILITY:guard_break"],
+  final_active_projectile_id: "guard_break_bolt",
+  final_projectile_trail_tile_ids: ["5,4", "5,5", "6,5", "6,6"],
+  final_projectile_impact_tile_id: "6,5",
+  final_ability_effect_tile_ids: ["6,4", "6,5", "7,5", "6,6"],
+  final_ability_damage_ticks: [16, 21, 35],
+  final_target_health_percent: 18,
+  final_target_armor_percent: 18,
+  final_target_shield_percent: 0,
+  final_ability_resolution_state: "resolved:guard_break:arena_creep_attack",
+  final_command_queue: ["select_group_1", "move:8,4:wedge", "attack:arena_creep_attack", "ability:focus_fire", "ability:guard_break", "damage_ticks:16+21+35", "armor_shield:18:0"],
+  final_combat_event_log: ["projectile_launch:guard_break_bolt", "projectile_impact:guard_break:arena_creep_attack", "shield_broken", "damage:72"],
+  non_background_pixels: 1382400,
+  projectile_trail_pixel_count: 188,
+  projectile_impact_pixel_count: 160,
+  ability_radius_pixel_count: 260,
+  damage_tick_pixel_count: 72,
+  armor_shield_pixel_count: 48,
+  attack_feedback_pixel_count: 256,
+  live_projectile_ability_input_gate: true,
+  projectile_trail_gate: true,
+  projectile_impact_gate: true,
+  ability_radius_gate: true,
+  damage_tick_gate: true,
+  armor_shield_gate: true,
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false
+}' >"$projectile_ability_json"
+add_artifact_from_path native_bevy_classic_rts_projectile_ability "Native/Bevy classic RTS projectile/ability" "$projectile_ability_json" release_review_input
+
+projectile_ability_ppm="$TMP_DIR/bevy-classic-rts-projectile-ability.ppm"
+printf 'P3\n1280 1080\n255\n' >"$projectile_ability_ppm"
+truncate -s 8000001 "$projectile_ability_ppm"
+add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Bevy classic RTS projectile/ability PPM" "$projectile_ability_ppm" release_review_visual_evidence
+
 
 replay_json="$TMP_DIR/bevy-first-minute-command-feedback-replay.json"
 jq -n '{

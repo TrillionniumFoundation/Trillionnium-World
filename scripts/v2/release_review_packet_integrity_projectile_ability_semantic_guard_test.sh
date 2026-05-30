@@ -192,7 +192,7 @@ jq -n '{
   android_s5_real_device_claimed: false,
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$control_loop_semantic_fixture_json"
-add_artifact_from_path release_review_packet_integrity_control_loop_semantic_fixture "Release review packet integrity control loop semantic fixture" "$control_loop_semantic_fixture_json" release_review_gate
+add_artifact_from_path release_review_packet_integrity_control_loop_semantic_fixture "Release review packet integrity selection/minimap semantic fixture" "$control_loop_semantic_fixture_json" release_review_gate
 
 control_loop_json="$TMP_DIR/bevy-classic-rts-control-loop.json"
 jq -n '{
@@ -316,6 +316,7 @@ truncate -s 8000001 "$selection_minimap_ppm"
 add_artifact_from_path native_bevy_classic_rts_selection_minimap_ppm "Native/Bevy classic RTS selection/minimap PPM" "$selection_minimap_ppm" release_review_visual_evidence
 
 
+
 build_lifecycle_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-build-lifecycle-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture_v1",
@@ -353,24 +354,24 @@ jq -n '{
   accepted_input_count: 6,
   action_labels: ["RTS:SELECT:1", "RTS:QUEUE:build:watch_tower@7,4", "RTS:QUEUE:complete:watch_tower@7,4", "RTS:QUEUE:repair:watch_tower@7,4", "RTS:QUEUE:build:scout_tower@8,4", "RTS:QUEUE:cancel:scout_tower@8,4"],
   final_structure_state: "cancelled:scout_tower@8,4",
-  final_build_site_tile_ids: ["8,4", "8,5", "9,4"],
+  final_build_site_tile_ids: ["8,4", "9,4"],
   final_building_blueprint_id: "scout_tower",
   final_building_progress_percent: 100,
   final_completed_structure_ids: ["watch_tower"],
   final_repair_target_id: "watch_tower",
-  final_repair_progress_percent: 76,
+  final_repair_progress_percent: 80,
   final_cancelled_structure_ids: ["scout_tower"],
   final_refund_delta_log: ["gold:+90", "lumber:+30"],
-  final_structure_health_percents: [54, 91],
-  final_resource_spend_log: ["spent:140g:30l:guard", "repair:-45g:-20l"],
-  final_command_queue: ["select_group_1", "blueprint:watch_tower@7,4", "build_site:7,4|7,5|8,4", "queue:build:watch_tower@7,4", "complete:watch_tower@7,4", "queue:complete:watch_tower@7,4", "repair:watch_tower@7,4", "queue:repair:watch_tower@7,4", "blueprint:scout_tower@8,4", "build_site:8,4|8,5|9,4", "queue:build:scout_tower@8,4", "cancel:scout_tower@8,4", "refund:gold:+90|lumber:+30", "queue:cancel:scout_tower@8,4"],
+  final_structure_health_percents: [100, 82],
+  final_resource_spend_log: ["build:-120g:-40l", "repair:-45g:-20l"],
+  final_command_queue: ["select_group_1", "blueprint:watch_tower@7,4", "complete:watch_tower@7,4", "repair:watch_tower@7,4", "blueprint:scout_tower@8,4", "cancel:scout_tower@8,4", "refund:gold:+90|lumber:+30"],
   non_background_pixels: 230400,
-  build_blueprint_pixel_count: 1211,
-  build_progress_pixel_count: 241,
-  structure_complete_pixel_count: 172,
-  structure_health_pixel_count: 76,
-  repair_pixel_count: 472,
-  cancel_refund_pixel_count: 143,
+  build_blueprint_pixel_count: 72,
+  build_progress_pixel_count: 44,
+  structure_complete_pixel_count: 112,
+  structure_health_pixel_count: 48,
+  repair_pixel_count: 88,
+  cancel_refund_pixel_count: 56,
   live_build_lifecycle_input_gate: true,
   build_placement_gate: true,
   completion_gate: true,
@@ -385,7 +386,6 @@ build_lifecycle_ppm="$TMP_DIR/bevy-classic-rts-build-lifecycle.ppm"
 printf 'P3\n640 360\n255\n' >"$build_lifecycle_ppm"
 truncate -s 1000001 "$build_lifecycle_ppm"
 add_artifact_from_path native_bevy_classic_rts_build_lifecycle_ppm "Native/Bevy classic RTS build lifecycle PPM" "$build_lifecycle_ppm" release_review_visual_evidence
-
 
 tech_tree_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-tech-tree-semantic-fixture.json"
 jq -n '{
@@ -480,46 +480,46 @@ projectile_ability_json="$TMP_DIR/bevy-classic-rts-projectile-ability.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_rts_projectile_ability_v1",
   green: true,
-  preview_width: 1280,
-  preview_height: 1080,
+  preview_width: 640,
+  preview_height: 360,
   preview_format: "ppm_p3_rgb",
   write_gate: true,
   input_path: "apply_live_native_action_with_source(classic_rts_projectile_ability_input)",
   input_action_count: 5,
-  accepted_input_count: 5,
-  action_labels: ["RTS:SELECT:1", "RTS:MOVE:8,4:wedge", "RTS:ATTACK:arena_creep_attack", "RTS:ABILITY:focus_fire", "RTS:ABILITY:guard_break"],
-  final_active_projectile_id: "guard_break_bolt",
-  final_projectile_trail_tile_ids: ["5,4", "5,5", "6,5", "6,6"],
-  final_projectile_impact_tile_id: "6,5",
-  final_ability_effect_tile_ids: ["6,4", "6,5", "7,5", "6,6"],
-  final_ability_damage_ticks: [16, 21, 35],
-  final_target_health_percent: 18,
-  final_target_armor_percent: 18,
-  final_target_shield_percent: 0,
-  final_ability_resolution_state: "resolved:guard_break:arena_creep_attack",
-  final_command_queue: ["select_group_1", "move:8,4:wedge", "attack:arena_creep_attack", "ability:focus_fire", "ability:guard_break", "damage_ticks:16+21+35", "armor_shield:18:0"],
-  final_combat_event_log: ["projectile_launch:guard_break_bolt", "projectile_impact:guard_break:arena_creep_attack", "shield_broken", "damage:72"],
-  non_background_pixels: 1382400,
-  projectile_trail_pixel_count: 188,
-  projectile_impact_pixel_count: 160,
-  ability_radius_pixel_count: 260,
-  damage_tick_pixel_count: 72,
-  armor_shield_pixel_count: 48,
-  attack_feedback_pixel_count: 256,
+  accepted_input_count: 4,
+  action_labels: ["RTS:SELECT:1", "RTS:MOVE:8,4:wedge", "RTS:ATTACK:arena_creep_attack", "RTS:ABILITY:focus_fire", "RTS:ABILITY:misfire"],
+  final_active_projectile_id: "misfired_bolt",
+  final_projectile_trail_tile_ids: ["5,4", "5,5"],
+  final_projectile_impact_tile_id: "5,5",
+  final_ability_effect_tile_ids: ["5,5", "7,5"],
+  final_ability_damage_ticks: [9, 12, 10],
+  final_target_health_percent: 44,
+  final_target_armor_percent: 34,
+  final_target_shield_percent: 12,
+  final_ability_resolution_state: "misfired:guard_break:arena_creep_attack",
+  final_command_queue: ["select_group_1", "move:8,4:wedge", "attack:arena_creep_attack", "ability:focus_fire", "ability:misfire", "damage_ticks:9+12+10", "armor_shield:34:12"],
+  final_combat_event_log: ["projectile_launch:misfired_bolt", "projectile_impact:misfire:arena_creep_attack", "shield_remaining", "damage:31"],
+  non_background_pixels: 230400,
+  projectile_trail_pixel_count: 30,
+  projectile_impact_pixel_count: 20,
+  ability_radius_pixel_count: 40,
+  damage_tick_pixel_count: 10,
+  armor_shield_pixel_count: 8,
+  attack_feedback_pixel_count: 80,
   live_projectile_ability_input_gate: true,
-  projectile_trail_gate: true,
-  projectile_impact_gate: true,
-  ability_radius_gate: true,
-  damage_tick_gate: true,
-  armor_shield_gate: true,
+  projectile_trail_gate: false,
+  projectile_impact_gate: false,
+  ability_radius_gate: false,
+  damage_tick_gate: false,
+  armor_shield_gate: false,
   cex_runtime_player_client_allowed: false,
   wgpu_required: false
 }' >"$projectile_ability_json"
 add_artifact_from_path native_bevy_classic_rts_projectile_ability "Native/Bevy classic RTS projectile/ability" "$projectile_ability_json" release_review_input
 
 projectile_ability_ppm="$TMP_DIR/bevy-classic-rts-projectile-ability.ppm"
-printf 'P3\n1280 1080\n255\n' >"$projectile_ability_ppm"
-truncate -s 8000001 "$projectile_ability_ppm"
+printf 'P3\n641 360\n255\n' >"$projectile_ability_ppm"
+truncate -s 1000001 "$projectile_ability_ppm"
 add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Bevy classic RTS projectile/ability PPM" "$projectile_ability_ppm" release_review_visual_evidence
 
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" >"$TMP_DIR/first-minute-command-feedback-replay.log"
@@ -528,291 +528,43 @@ add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Be
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism.sh" >"$TMP_DIR/bot-planner-executor-replay-determinism.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation.sh" >"$TMP_DIR/multi-match-bot-executor-evaluation.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix.sh" >"$TMP_DIR/bot-executor-failure-recovery-matrix.log"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh" >"$TMP_DIR/bot-decision-state-gap.log"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$TMP_DIR/bot-adaptive-build-order-gap.log"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$TMP_DIR/bot-tactical-micro-gap.log"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >"$TMP_DIR/bot-map-intel-gap.log"
 
-first_minute_dir="$ROOT/acceptance/S5_native_bevy_device/latest"
-add_artifact_from_path native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$first_minute_dir/bevy-first-minute-command-feedback-replay.json" release_review_input
-add_artifact_from_path native_bevy_first_minute_command_feedback_source_recording "Native/Bevy first-minute command feedback source recording" "$first_minute_dir/bevy-first-minute-command-feedback-source-recording.json" release_review_recording
-add_artifact_from_path native_bevy_first_minute_command_feedback_recording "Native/Bevy first-minute command feedback command recording" "$first_minute_dir/bevy-first-minute-command-feedback-recording.json" release_review_recording
-add_artifact_from_path native_bevy_first_minute_command_feedback_replay_ppm "Native/Bevy first-minute command feedback replay PPM" "$first_minute_dir/bevy-first-minute-command-feedback-replay.ppm" release_review_visual_evidence
-add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay "Native/Bevy first-minute command feedback rejection replay" "$first_minute_dir/bevy-first-minute-command-feedback-rejection-replay.json" release_review_input
-add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_source_recording "Native/Bevy first-minute command feedback rejection source recording" "$first_minute_dir/bevy-first-minute-command-feedback-rejection-source-recording.json" release_review_recording
-add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_recording "Native/Bevy first-minute command feedback rejection recording" "$first_minute_dir/bevy-first-minute-command-feedback-rejection-recording.json" release_review_recording
-add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay_ppm "Native/Bevy first-minute command feedback rejection replay PPM" "$first_minute_dir/bevy-first-minute-command-feedback-rejection-replay.ppm" release_review_visual_evidence
+native_dir="$ROOT/acceptance/S5_native_bevy_device/latest"
+add_artifact_from_path native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$native_dir/bevy-first-minute-command-feedback-replay.json" release_review_input
+add_artifact_from_path native_bevy_first_minute_command_feedback_source_recording "Native/Bevy first-minute command feedback source recording" "$native_dir/bevy-first-minute-command-feedback-source-recording.json" release_review_recording
+add_artifact_from_path native_bevy_first_minute_command_feedback_recording "Native/Bevy first-minute command feedback command recording" "$native_dir/bevy-first-minute-command-feedback-recording.json" release_review_recording
+add_artifact_from_path native_bevy_first_minute_command_feedback_replay_ppm "Native/Bevy first-minute command feedback replay PPM" "$native_dir/bevy-first-minute-command-feedback-replay.ppm" release_review_visual_evidence
+add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay "Native/Bevy first-minute command feedback rejection replay" "$native_dir/bevy-first-minute-command-feedback-rejection-replay.json" release_review_input
+add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_source_recording "Native/Bevy first-minute command feedback rejection source recording" "$native_dir/bevy-first-minute-command-feedback-rejection-source-recording.json" release_review_recording
+add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_recording "Native/Bevy first-minute command feedback rejection recording" "$native_dir/bevy-first-minute-command-feedback-rejection-recording.json" release_review_recording
+add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay_ppm "Native/Bevy first-minute command feedback rejection replay PPM" "$native_dir/bevy-first-minute-command-feedback-rejection-replay.ppm" release_review_visual_evidence
 
-action_summary_json="$TMP_DIR/bevy-classic-rts-bot-planner-action-executor.bad.json"
-jq '
-  .accepted_action_count = 5
-  | .command_marker_hit_count = 5
-  | .action_labels[1] = "RTS:QUEUE:recon:sweep:wrong_tile@0,0"
-  | .final_runtime_summary.objective_capture_percent = 50
-' "$first_minute_dir/bevy-classic-rts-bot-planner-action-executor.json" >"$action_summary_json"
-add_artifact_from_path native_bevy_bot_planner_action_executor "Native/Bevy bot planner action executor" "$action_summary_json" release_review_input
+add_artifact_from_path native_bevy_bot_planner_action_executor "Native/Bevy bot planner action executor" "$native_dir/bevy-classic-rts-bot-planner-action-executor.json" release_review_input
+add_artifact_from_path native_bevy_bot_planner_action_executor_log "Native/Bevy bot planner action executor log" "$native_dir/bevy-classic-rts-bot-planner-action-executor/bot-planner-action-executor.actions.json" release_review_recording
+add_artifact_from_path native_bevy_bot_planner_action_executor_ppm "Native/Bevy bot planner action executor PPM" "$native_dir/bevy-classic-rts-bot-planner-action-executor/bot-planner-action-executor.ppm" release_review_visual_evidence
+add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism "Native/Bevy bot planner executor replay determinism" "$native_dir/bevy-classic-rts-bot-planner-executor-replay-determinism.json" release_review_input
+add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism_log "Native/Bevy bot planner executor replay determinism log" "$native_dir/bevy-classic-rts-bot-planner-executor-replay-determinism/bot-planner-executor-replay-determinism.replay.json" release_review_recording
+add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism_ppm "Native/Bevy bot planner executor replay determinism PPM" "$native_dir/bevy-classic-rts-bot-planner-executor-replay-determinism/bot-planner-executor-replay-determinism.ppm" release_review_visual_evidence
+add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation "Native/Bevy multi-match bot executor evaluation" "$native_dir/bevy-classic-rts-multi-match-bot-executor-evaluation.json" release_review_input
+add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_log "Native/Bevy multi-match bot executor evaluation log" "$native_dir/bevy-classic-rts-multi-match-bot-executor-evaluation/multi-match-bot-executor-evaluation.matches.json" release_review_recording
+add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_ppm "Native/Bevy multi-match bot executor evaluation PPM" "$native_dir/bevy-classic-rts-multi-match-bot-executor-evaluation/multi-match-bot-executor-evaluation.ppm" release_review_visual_evidence
 
-action_log_json="$TMP_DIR/bot-planner-action-executor.actions.bad.json"
-jq '
-  .accepted_action_count = 5
-  | .command_marker_hit_count = 5
-  | .execution_log[0].accepted = false
-  | .execution_log[0].command_marker_hit = false
-  | .execution_log[0].action_label = "RTS:QUEUE:faction:wrong_guard"
-' "$first_minute_dir/bevy-classic-rts-bot-planner-action-executor/bot-planner-action-executor.actions.json" >"$action_log_json"
-add_artifact_from_path native_bevy_bot_planner_action_executor_log "Native/Bevy bot planner action executor log" "$action_log_json" release_review_recording
+add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix "Native/Bevy bot executor failure recovery matrix" "$native_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix.json" release_review_input
+add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_log "Native/Bevy bot executor failure recovery matrix log" "$native_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix/bot-executor-failure-recovery-matrix.matrix.json" release_review_recording
+add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_ppm "Native/Bevy bot executor failure recovery matrix PPM" "$native_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix/bot-executor-failure-recovery-matrix.ppm" release_review_visual_evidence
 
-action_ppm_path="$TMP_DIR/bot-planner-action-executor.bad.ppm"
-printf 'P3\n1279 1080\n255\n' >"$action_ppm_path"
-truncate -s 8000001 "$action_ppm_path"
-add_artifact_from_path native_bevy_bot_planner_action_executor_ppm "Native/Bevy bot planner action executor PPM" "$action_ppm_path" release_review_visual_evidence
-
-replay_summary_json="$TMP_DIR/bevy-classic-rts-bot-planner-executor-replay-determinism.bad.json"
-jq '
-  .accepted_replay_action_count = 5
-  | .command_delta_match_count = 5
-  | .runtime_determinism_gate = false
-  | .replay_final_runtime_sha256 = "bad-runtime-sha"
-' "$first_minute_dir/bevy-classic-rts-bot-planner-executor-replay-determinism.json" >"$replay_summary_json"
-add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism "Native/Bevy bot planner executor replay determinism" "$replay_summary_json" release_review_input
-
-replay_log_json="$TMP_DIR/bot-planner-executor-replay-determinism.replay.bad.json"
-jq '
-  .accepted_replay_action_count = 5
-  | .command_delta_match_count = 5
-  | .replay_final_runtime_sha256 = "bad-runtime-sha"
-  | .execution_log[0].accepted = false
-  | .execution_log[0].command_delta_match = false
-' "$first_minute_dir/bevy-classic-rts-bot-planner-executor-replay-determinism/bot-planner-executor-replay-determinism.replay.json" >"$replay_log_json"
-add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism_log "Native/Bevy bot planner executor replay determinism log" "$replay_log_json" release_review_recording
-
-replay_ppm_path="$TMP_DIR/bot-planner-executor-replay-determinism.bad.ppm"
-printf 'P3\n1280 1079\n255\n' >"$replay_ppm_path"
-truncate -s 8000001 "$replay_ppm_path"
-add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism_ppm "Native/Bevy bot planner executor replay determinism PPM" "$replay_ppm_path" release_review_visual_evidence
-
-multi_summary_json="$TMP_DIR/bevy-classic-rts-multi-match-bot-executor-evaluation.bad.json"
-jq '
-  .variant_count = 3
-  | .accepted_variant_count = 3
-  | .total_accepted_action_count = 23
-  | .total_command_delta_match_count = 23
-  | .runtime_sha_match_count = 3
-  | .variant_map_values = ["forest_relay", "ridge_watch", "marsh_gate"]
-' "$first_minute_dir/bevy-classic-rts-multi-match-bot-executor-evaluation.json" >"$multi_summary_json"
-add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation "Native/Bevy multi-match bot executor evaluation" "$multi_summary_json" release_review_input
-
-multi_log_json="$TMP_DIR/multi-match-bot-executor-evaluation.matches.bad.json"
-jq '
-  .variant_count = 3
-  | .accepted_variant_count = 3
-  | .total_accepted_action_count = 23
-  | .total_command_delta_match_count = 23
-  | .runtime_sha_match_count = 3
-  | .variant_summaries[0].accepted_action_count = 5
-  | .variant_summaries[0].command_delta_match_count = 5
-  | .variant_summaries[0].runtime_sha_match = false
-' "$first_minute_dir/bevy-classic-rts-multi-match-bot-executor-evaluation/multi-match-bot-executor-evaluation.matches.json" >"$multi_log_json"
-add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_log "Native/Bevy multi-match bot executor evaluation log" "$multi_log_json" release_review_recording
-
-multi_ppm_path="$TMP_DIR/multi-match-bot-executor-evaluation.bad.ppm"
-printf 'P3\n1279 720\n255\n' >"$multi_ppm_path"
-truncate -s 8000001 "$multi_ppm_path"
-add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_ppm "Native/Bevy multi-match bot executor evaluation PPM" "$multi_ppm_path" release_review_visual_evidence
-
-add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix "Native/Bevy bot executor failure recovery matrix" "$first_minute_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix.json" release_review_input
-add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_log "Native/Bevy bot executor failure recovery matrix log" "$first_minute_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix/bot-executor-failure-recovery-matrix.matrix.json" release_review_recording
-add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_ppm "Native/Bevy bot executor failure recovery matrix PPM" "$first_minute_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix/bot-executor-failure-recovery-matrix.ppm" release_review_visual_evidence
-
-bot_decision_gap_json="$TMP_DIR/bevy-classic-rts-bot-decision-state-gap.json"
-jq -n '{
-  contract_version: "trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1",
-  green: true,
-  preview_width: 1280,
-  preview_height: 1080,
-  write_gate: true,
-  input_action_count: 0,
-  bevy_bot_decision_gap_state: "bevy_bot_decision_vocabulary_not_openra_native_bot_ai",
-  bevy_native_bot_ai_claimed: false,
-  bevy_openra_parity_claimed: false,
-  openra_gap_not_closed_gate: true,
-  openra_bot_economy_tech_target_commit: "f6c47d9",
-  openra_bot_beacon_pressure_target_commit: "2b6f25b",
-  openra_organic_bot_terminal_target_commit: "5f1bf76",
-  bot_decision_stage_count: 6,
-  stage_summaries: [
-    {stage: "economy_seed"},
-    {stage: "scout_objectives"},
-    {stage: "capture_beacon"},
-    {stage: "tech_switch"},
-    {stage: "defend_counter"},
-    {stage: "attack_commit_with_counter_repath"}
-  ],
-  decision_signal_count: 18,
-  economy_decision_count: 3,
-  objective_decision_count: 4,
-  combat_decision_count: 4,
-  tech_decision_count: 2,
-  final_bot_decision_state: "attack_commit_with_counter_repath",
-  final_rts_ai_pressure_percent: 70,
-  final_rts_defeat_risk_percent: 35,
-  final_objective_capture_percent: 90,
-  final_match_result_state: "bot_decision_gap:attack_commit_with_counter_repath",
-  final_command_queue: ["decision:combat:attack_commit_with_counter_repath", "parity_claim:false"],
-  final_army_production_batch_ids: ["batch:tech:signal+skimmer+bastion"],
-  bot_decision_state_gap_gate: true,
-  cex_runtime_player_client_allowed: false,
-  wgpu_required: false
-}' >"$bot_decision_gap_json"
-add_artifact_from_path native_bevy_bot_decision_state_gap "Native/Bevy bot decision-state gap" "$bot_decision_gap_json" release_review_input
-
-bot_decision_gap_ppm="$TMP_DIR/bevy-classic-rts-bot-decision-state-gap.ppm"
-printf 'P3\n1280 1080\n255\n' >"$bot_decision_gap_ppm"
-truncate -s 8000001 "$bot_decision_gap_ppm"
-add_artifact_from_path native_bevy_bot_decision_state_gap_ppm "Native/Bevy bot decision-state gap PPM" "$bot_decision_gap_ppm" release_review_visual_evidence
-
-bot_adaptive_gap_json="$TMP_DIR/bevy-classic-rts-bot-adaptive-build-order-gap.json"
-jq -n '{
-  contract_version: "trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap_v1",
-  green: true,
-  preview_width: 1280,
-  preview_height: 1080,
-  write_gate: true,
-  input_action_count: 0,
-  bevy_bot_adaptive_build_gap_state: "bevy_adaptive_build_order_vocabulary_not_openra_native_ai_planner",
-  bevy_native_adaptive_ai_claimed: false,
-  bevy_openra_parity_claimed: false,
-  openra_gap_not_closed_gate: true,
-  openra_bot_economy_tech_target_commit: "f6c47d9",
-  openra_bot_beacon_pressure_target_commit: "2b6f25b",
-  openra_organic_bot_terminal_target_commit: "5f1bf76",
-  adaptive_stage_count: 6,
-  stage_summaries: [
-    {stage: "opening_worker_split"},
-    {stage: "scout_trigger_response"},
-    {stage: "expand_or_defend_branch"},
-    {stage: "tech_counter_switch"},
-    {stage: "pressure_window_commit"},
-    {stage: "retreat_rebuild_reattack"}
-  ],
-  adaptive_signal_count: 24,
-  opening_build_order_count: 3,
-  scout_trigger_count: 2,
-  branch_switch_count: 3,
-  counter_tech_switch_count: 2,
-  pressure_window_count: 2,
-  retreat_rebuild_count: 2,
-  final_adaptive_state: "pressure_window_rebuild_reattack",
-  final_rts_ai_pressure_percent: 70,
-  final_rts_defeat_risk_percent: 20,
-  final_objective_capture_percent: 90,
-  final_match_result_state: "adaptive_build_gap:pressure_window_rebuild_reattack",
-  final_command_queue: ["adaptive_stage:retreat_rebuild_reattack", "native_openra_ai_planner:false"],
-  final_army_production_batch_ids: ["build_order:signal_array_into_skimmer", "build_order:pullback_rebuild_then_reattack"],
-  adaptive_build_order_gap_gate: true,
-  cex_runtime_player_client_allowed: false,
-  wgpu_required: false
-}' >"$bot_adaptive_gap_json"
-add_artifact_from_path native_bevy_bot_adaptive_build_order_gap "Native/Bevy bot adaptive build-order gap" "$bot_adaptive_gap_json" release_review_input
-
-bot_adaptive_gap_ppm="$TMP_DIR/bevy-classic-rts-bot-adaptive-build-order-gap.ppm"
-printf 'P3\n1280 1080\n255\n' >"$bot_adaptive_gap_ppm"
-truncate -s 8000001 "$bot_adaptive_gap_ppm"
-add_artifact_from_path native_bevy_bot_adaptive_build_order_gap_ppm "Native/Bevy bot adaptive build-order gap PPM" "$bot_adaptive_gap_ppm" release_review_visual_evidence
-
-bot_tactical_micro_gap_json="$TMP_DIR/bevy-classic-rts-bot-tactical-micro-gap.json"
-jq -n '{
-  contract_version: "trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap_v1",
-  green: true,
-  preview_width: 1280,
-  preview_height: 1080,
-  write_gate: true,
-  input_action_count: 0,
-  bevy_bot_tactical_micro_gap_state: "bevy_tactical_micro_vocabulary_not_openra_native_combat_ai",
-  bevy_native_combat_ai_claimed: false,
-  bevy_openra_parity_claimed: false,
-  openra_gap_not_closed_gate: true,
-  openra_bot_economy_tech_target_commit: "f6c47d9",
-  openra_bot_beacon_pressure_target_commit: "2b6f25b",
-  openra_organic_bot_terminal_target_commit: "5f1bf76",
-  micro_stage_count: 6,
-  stage_summaries: [
-    {stage: "target_priority_probe"},
-    {stage: "focus_fire_commit"},
-    {stage: "kite_and_stutter_step"},
-    {stage: "flank_angle_split"},
-    {stage: "ability_timing_window"},
-    {stage: "low_health_pullback_regroup"}
-  ],
-  micro_signal_count: 24,
-  target_swap_count: 3,
-  focus_fire_order_count: 3,
-  kite_step_count: 3,
-  flank_angle_count: 2,
-  ability_timing_count: 2,
-  low_health_pullback_count: 2,
-  final_micro_state: "pullback_regroup_reattack",
-  final_rts_ai_pressure_percent: 70,
-  final_rts_defeat_risk_percent: 20,
-  final_objective_capture_percent: 90,
-  final_match_result_state: "tactical_micro_gap:pullback_regroup_reattack",
-  final_command_queue: ["micro_stage:low_health_pullback_regroup", "native_openra_combat_ai:false"],
-  final_army_production_batch_ids: ["micro_control:focus_fire_low_armor_striker", "micro_control:pull_redline_units_regroup_reattack"],
-  tactical_micro_gap_gate: true,
-  cex_runtime_player_client_allowed: false,
-  wgpu_required: false
-}' >"$bot_tactical_micro_gap_json"
-add_artifact_from_path native_bevy_bot_tactical_micro_gap "Native/Bevy bot tactical micro gap" "$bot_tactical_micro_gap_json" release_review_input
-
-bot_tactical_micro_gap_ppm="$TMP_DIR/bevy-classic-rts-bot-tactical-micro-gap.ppm"
-printf 'P3\n1280 1080\n255\n' >"$bot_tactical_micro_gap_ppm"
-truncate -s 8000001 "$bot_tactical_micro_gap_ppm"
-add_artifact_from_path native_bevy_bot_tactical_micro_gap_ppm "Native/Bevy bot tactical micro gap PPM" "$bot_tactical_micro_gap_ppm" release_review_visual_evidence
-
-bot_map_intel_gap_json="$TMP_DIR/bevy-classic-rts-bot-map-intel-gap.json"
-jq -n '{
-  contract_version: "trillionnium_world_bevy_classic_rts_bot_map_intel_gap_v1",
-  green: true,
-  preview_width: 1280,
-  preview_height: 1080,
-  write_gate: true,
-  input_action_count: 0,
-  bevy_bot_map_intel_gap_state: "bevy_map_intel_vocabulary_not_openra_native_shroud_memory_ai",
-  bevy_native_shroud_memory_ai_claimed: false,
-  bevy_openra_parity_claimed: false,
-  openra_gap_not_closed_gate: true,
-  openra_bot_economy_tech_target_commit: "f6c47d9",
-  openra_bot_beacon_pressure_target_commit: "2b6f25b",
-  openra_organic_bot_terminal_target_commit: "5f1bf76",
-  intel_stage_count: 6,
-  stage_summaries: [
-    {stage: "initial_scout_sweep"},
-    {stage: "fog_memory_stamp"},
-    {stage: "expansion_threat_inference"},
-    {stage: "enemy_tech_read"},
-    {stage: "hidden_army_prediction"},
-    {stage: "rotate_pressure_reveal"}
-  ],
-  intel_signal_count: 24,
-  scout_sweep_count: 3,
-  fog_memory_stamp_count: 4,
-  expansion_threat_count: 3,
-  enemy_tech_read_count: 2,
-  hidden_army_prediction_count: 2,
-  pressure_rotation_count: 2,
-  final_intel_state: "rotate_pressure_confirmed_beacon",
-  final_rts_ai_pressure_percent: 80,
-  final_rts_defeat_risk_percent: 20,
-  final_objective_capture_percent: 90,
-  final_match_result_state: "map_intel_gap:rotate_pressure_confirmed_beacon",
-  final_command_queue: ["intel_stage:rotate_pressure_reveal", "native_openra_shroud_memory_ai:false"],
-  final_army_production_batch_ids: ["map_intel:fog_memory_last_seen_grid", "map_intel:rotate_pressure_to_confirmed_beacon"],
-  map_intel_gap_gate: true,
-  cex_runtime_player_client_allowed: false,
-  wgpu_required: false
-}' >"$bot_map_intel_gap_json"
-add_artifact_from_path native_bevy_bot_map_intel_gap "Native/Bevy bot map intel gap" "$bot_map_intel_gap_json" release_review_input
-
-bot_map_intel_gap_ppm="$TMP_DIR/bevy-classic-rts-bot-map-intel-gap.ppm"
-printf 'P3\n1280 1080\n255\n' >"$bot_map_intel_gap_ppm"
-truncate -s 8000001 "$bot_map_intel_gap_ppm"
-add_artifact_from_path native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "$bot_map_intel_gap_ppm" release_review_visual_evidence
+add_artifact_from_path native_bevy_bot_decision_state_gap "Native/Bevy bot decision-state gap" "$native_dir/bevy-classic-rts-bot-decision-state-gap.json" release_review_input
+add_artifact_from_path native_bevy_bot_decision_state_gap_ppm "Native/Bevy bot decision-state gap PPM" "$native_dir/bevy-classic-rts-bot-decision-state-gap.ppm" release_review_visual_evidence
+add_artifact_from_path native_bevy_bot_adaptive_build_order_gap "Native/Bevy bot adaptive build-order gap" "$native_dir/bevy-classic-rts-bot-adaptive-build-order-gap.json" release_review_input
+add_artifact_from_path native_bevy_bot_adaptive_build_order_gap_ppm "Native/Bevy bot adaptive build-order gap PPM" "$native_dir/bevy-classic-rts-bot-adaptive-build-order-gap.ppm" release_review_visual_evidence
+add_artifact_from_path native_bevy_bot_tactical_micro_gap "Native/Bevy bot tactical micro gap" "$native_dir/bevy-classic-rts-bot-tactical-micro-gap.json" release_review_input
+add_artifact_from_path native_bevy_bot_tactical_micro_gap_ppm "Native/Bevy bot tactical micro gap PPM" "$native_dir/bevy-classic-rts-bot-tactical-micro-gap.ppm" release_review_visual_evidence
+add_artifact_from_path native_bevy_bot_map_intel_gap "Native/Bevy bot map intel gap" "$native_dir/bevy-classic-rts-bot-map-intel-gap.json" release_review_input
+add_artifact_from_path native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "$native_dir/bevy-classic-rts-bot-map-intel-gap.ppm" release_review_visual_evidence
 
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \
@@ -845,34 +597,27 @@ status=$?
 set -e
 
 if [[ "$status" -eq 0 ]]; then
-  echo "[FAIL] packet integrity bot executor semantic fixture unexpectedly passed" >&2
+  echo "[FAIL] packet integrity projectile/ability semantic fixture unexpectedly passed" >&2
   cat "$TMP_DIR/stdout.log" >&2
   cat "$TMP_DIR/stderr.log" >&2
   exit 1
 fi
 
 if [[ ! -f "$summary_json" ]]; then
-  echo "[FAIL] packet integrity bot executor semantic fixture did not write summary" >&2
+  echo "[FAIL] packet integrity projectile/ability semantic fixture did not write summary" >&2
   exit 1
 fi
 
 jq -e '
-  .status == "release_review_packet_integrity_blocked"
-  and .green == false
-  and (.failures | length) == 9
-  and ([.failures[].name] | index("bot_planner_action_executor_semantics"))
-  and ([.failures[].name] | index("bot_planner_action_executor_log_semantics"))
-  and ([.failures[].name] | index("bot_planner_action_executor_ppm_semantics"))
-  and ([.failures[].name] | index("bot_planner_executor_replay_determinism_semantics"))
-  and ([.failures[].name] | index("bot_planner_executor_replay_determinism_log_semantics"))
-  and ([.failures[].name] | index("bot_planner_executor_replay_determinism_ppm_semantics"))
-  and ([.failures[].name] | index("multi_match_bot_executor_evaluation_semantics"))
-  and ([.failures[].name] | index("multi_match_bot_executor_evaluation_log_semantics"))
-  and ([.failures[].name] | index("multi_match_bot_executor_evaluation_ppm_semantics"))
-  and (([.failures[].detail] | index("sha256_mismatch")) == null)
-  and (([.failures[].detail] | index("bytes_mismatch")) == null)
-  and (([.failures[].detail] | index("contract_mismatch")) == null)
-  and (([.failures[].detail] | index("status_mismatch")) == null)
-' "$summary_json" >/dev/null
+	  .status == "release_review_packet_integrity_blocked"
+	  and .green == false
+	  and (.failures | length) == 2
+	  and ([.failures[].name] | index("classic_rts_projectile_ability_semantics"))
+	  and ([.failures[].name] | index("classic_rts_projectile_ability_ppm_semantics"))
+	  and (([.failures[].detail] | index("sha256_mismatch")) == null)
+	  and (([.failures[].detail] | index("bytes_mismatch")) == null)
+	  and (([.failures[].detail] | index("contract_mismatch")) == null)
+	  and (([.failures[].detail] | index("status_mismatch")) == null)
+	' "$summary_json" >/dev/null
 
-echo "[PASS] release review packet integrity rejects semantically invalid bot executor source-chain artifacts even when checksums match"
+echo "[PASS] release review packet integrity rejects semantically invalid classic RTS projectile/ability summary and PPM even when checksums match"

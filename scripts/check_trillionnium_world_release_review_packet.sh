@@ -34,9 +34,11 @@ PACKET_INTEGRITY_CONTROL_LOOP_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-revi
 PACKET_INTEGRITY_SELECTION_MINIMAP_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-selection-minimap-semantic-fixture.log"
 PACKET_INTEGRITY_BUILD_LIFECYCLE_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-build-lifecycle-semantic-fixture.log"
 PACKET_INTEGRITY_TECH_TREE_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-tech-tree-semantic-fixture.log"
+PACKET_INTEGRITY_PROJECTILE_ABILITY_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-projectile-ability-semantic-fixture.log"
 SELECTION_MINIMAP_LOG="$ACCEPTANCE_DIR/release-review-packet-selection-minimap.log"
 BUILD_LIFECYCLE_LOG="$ACCEPTANCE_DIR/release-review-packet-build-lifecycle.log"
 TECH_TREE_LOG="$ACCEPTANCE_DIR/release-review-packet-tech-tree.log"
+PROJECTILE_ABILITY_LOG="$ACCEPTANCE_DIR/release-review-packet-projectile-ability.log"
 BOT_DECISION_STATE_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-decision-state-gap.log"
 BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adaptive-build-order-gap.log"
 BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
@@ -65,9 +67,11 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture.sh" >"$PACKET_INTEGRITY_SELECTION_MINIMAP_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture.sh" >"$PACKET_INTEGRITY_BUILD_LIFECYCLE_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture.sh" >"$PACKET_INTEGRITY_TECH_TREE_SEMANTIC_FIXTURE_LOG"
+"$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture.sh" >"$PACKET_INTEGRITY_PROJECTILE_ABILITY_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_minimap.sh" >"$SELECTION_MINIMAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_build_lifecycle.sh" >"$BUILD_LIFECYCLE_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tech_tree.sh" >"$TECH_TREE_LOG"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_projectile_ability.sh" >"$PROJECTILE_ABILITY_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh" >"$BOT_DECISION_STATE_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
@@ -150,6 +154,8 @@ artifact native_bevy_classic_rts_build_lifecycle "Native/Bevy classic RTS build 
 artifact native_bevy_classic_rts_build_lifecycle_ppm "Native/Bevy classic RTS build lifecycle PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-build-lifecycle.ppm" release_review_visual_evidence
 artifact native_bevy_classic_rts_tech_tree "Native/Bevy classic RTS tech tree" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.json" release_review_input
 artifact native_bevy_classic_rts_tech_tree_ppm "Native/Bevy classic RTS tech tree PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.ppm" release_review_visual_evidence
+artifact native_bevy_classic_rts_projectile_ability "Native/Bevy classic RTS projectile/ability" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json" release_review_input
+artifact native_bevy_classic_rts_projectile_ability_ppm "Native/Bevy classic RTS projectile/ability PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.ppm" release_review_visual_evidence
 artifact native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-replay.json" release_review_input
 artifact native_bevy_first_minute_command_feedback_source_recording "Native/Bevy first-minute command feedback source recording" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-source-recording.json" release_review_recording
 artifact native_bevy_first_minute_command_feedback_recording "Native/Bevy first-minute command feedback command recording" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-recording.json" release_review_recording
@@ -212,6 +218,7 @@ artifact release_review_packet_integrity_control_loop_semantic_fixture "Release 
 artifact release_review_packet_integrity_selection_minimap_semantic_fixture "Release review packet integrity selection/minimap semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-selection-minimap-semantic-fixture.json" release_review_gate
 artifact release_review_packet_integrity_build_lifecycle_semantic_fixture "Release review packet integrity build lifecycle semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-build-lifecycle-semantic-fixture.json" release_review_gate
 artifact release_review_packet_integrity_tech_tree_semantic_fixture "Release review packet integrity tech tree semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-tech-tree-semantic-fixture.json" release_review_gate
+artifact release_review_packet_integrity_projectile_ability_semantic_fixture "Release review packet integrity projectile/ability semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-projectile-ability-semantic-fixture.json" release_review_gate
 artifact release_review_packet_convergence_log "Release review packet convergence log" "$CONVERGENCE_LOG" release_review_log
 
 ARTIFACTS_JSON="$(jq -s '.' "$ARTIFACTS_FILE")"

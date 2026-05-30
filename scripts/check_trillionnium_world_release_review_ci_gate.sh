@@ -48,10 +48,11 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_control_loop_semantic_fixture.sh" \
-  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture.sh" \
-  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture.sh" \
-  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture.sh" \
-  "$ROOT/scripts/check_trillionnium_world_release_review_ci_gate.sh" \
+	  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture.sh" \
+	  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture.sh" \
+	  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture.sh" \
+	  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture.sh" \
+	  "$ROOT/scripts/check_trillionnium_world_release_review_ci_gate.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_checkpoint_manifest.sh" \
   "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" \
   "$ROOT/scripts/check_trillionnium_world_cex_adapter_readiness.sh" \
@@ -195,10 +196,11 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/release_review_packet_integrity_bot_executor_matrix_semantic_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_packet_integrity_bot_gap_semantic_guard_test.sh" \
   "$ROOT/scripts/v2/release_review_packet_integrity_control_loop_semantic_guard_test.sh" \
-  "$ROOT/scripts/v2/release_review_packet_integrity_selection_minimap_semantic_guard_test.sh" \
-  "$ROOT/scripts/v2/release_review_packet_integrity_build_lifecycle_semantic_guard_test.sh" \
-  "$ROOT/scripts/v2/release_review_packet_integrity_tech_tree_semantic_guard_test.sh" \
-  "$ROOT/scripts/v2/release_review_checkpoint_manifest_script_contract_guard_test.sh" \
+	  "$ROOT/scripts/v2/release_review_packet_integrity_selection_minimap_semantic_guard_test.sh" \
+	  "$ROOT/scripts/v2/release_review_packet_integrity_build_lifecycle_semantic_guard_test.sh" \
+	  "$ROOT/scripts/v2/release_review_packet_integrity_tech_tree_semantic_guard_test.sh" \
+	  "$ROOT/scripts/v2/release_review_packet_integrity_projectile_ability_semantic_guard_test.sh" \
+	  "$ROOT/scripts/v2/release_review_checkpoint_manifest_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh" \
@@ -345,6 +347,8 @@ run_check packet_integrity_build_lifecycle_semantic_guard "$ROOT/scripts/v2/rele
 run_check packet_integrity_build_lifecycle_semantic_fixture_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture.sh"
 run_check packet_integrity_tech_tree_semantic_guard "$ROOT/scripts/v2/release_review_packet_integrity_tech_tree_semantic_guard_test.sh"
 run_check packet_integrity_tech_tree_semantic_fixture_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture.sh"
+run_check packet_integrity_projectile_ability_semantic_guard "$ROOT/scripts/v2/release_review_packet_integrity_projectile_ability_semantic_guard_test.sh"
+run_check packet_integrity_projectile_ability_semantic_fixture_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture.sh"
 run_check public_launch_bundle_negative_fixtures_contract_guard "$ROOT/scripts/v2/public_launch_bundle_negative_fixtures_script_contract_guard_test.sh"
 run_check public_launch_bundle_negative_fixtures_gate "$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh"
 run_check public_launch_evidence_bundle_contract_guard "$ROOT/scripts/v2/public_launch_evidence_bundle_script_contract_guard_test.sh"
