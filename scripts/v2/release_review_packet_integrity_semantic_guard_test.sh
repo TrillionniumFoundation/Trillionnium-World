@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 90,
+  fake_packet_artifact_count: 93,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 90,
+  fake_packet_artifact_count: 93,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 90,
+  fake_packet_artifact_count: 93,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -147,7 +147,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 90,
+  fake_packet_artifact_count: 93,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -177,7 +177,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 90,
+  fake_packet_artifact_count: 93,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -256,7 +256,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 90,
+  fake_packet_artifact_count: 93,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_selection_minimap_semantics",
@@ -314,6 +314,77 @@ selection_minimap_ppm="$TMP_DIR/bevy-classic-rts-selection-minimap.ppm"
 printf 'P3\n1280 720\n255\n' >"$selection_minimap_ppm"
 truncate -s 8000001 "$selection_minimap_ppm"
 add_artifact_from_path native_bevy_classic_rts_selection_minimap_ppm "Native/Bevy classic RTS selection/minimap PPM" "$selection_minimap_ppm" release_review_visual_evidence
+
+
+build_lifecycle_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-build-lifecycle-semantic-fixture.json"
+jq -n '{
+  contract_version: "trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture_v1",
+  status: "release_review_packet_integrity_build_lifecycle_semantic_fixture_green",
+  green: true,
+  fixture_kind: "classic_rts_build_lifecycle_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_build_lifecycle_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
+  fake_packet_artifact_count: 93,
+  expected_semantic_failure_count: 2,
+  expected_semantic_failure_names: [
+    "classic_rts_build_lifecycle_semantics",
+    "classic_rts_build_lifecycle_ppm_semantics"
+  ],
+  checksum_mismatch_failure_count: 0,
+  bytes_mismatch_failure_count: 0,
+  contract_mismatch_failure_count: 0,
+  status_mismatch_failure_count: 0,
+  ready_for_release_review: true,
+  public_launch_ready: false,
+  android_s5_real_device_claimed: false,
+  proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
+}' >"$build_lifecycle_semantic_fixture_json"
+add_artifact_from_path release_review_packet_integrity_build_lifecycle_semantic_fixture "Release review packet integrity build lifecycle semantic fixture" "$build_lifecycle_semantic_fixture_json" release_review_gate
+
+build_lifecycle_json="$TMP_DIR/bevy-classic-rts-build-lifecycle.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_build_lifecycle_v1",
+  green: true,
+  preview_width: 640,
+  preview_height: 360,
+  preview_format: "ppm_p3_rgb",
+  write_gate: true,
+  input_path: "apply_live_native_action_with_source(classic_rts_build_lifecycle_input)",
+  input_action_count: 6,
+  accepted_input_count: 6,
+  action_labels: ["RTS:SELECT:1", "RTS:QUEUE:build:watch_tower@7,4", "RTS:QUEUE:complete:watch_tower@7,4", "RTS:QUEUE:repair:watch_tower@7,4", "RTS:QUEUE:build:scout_tower@8,4", "RTS:QUEUE:cancel:scout_tower@8,4"],
+  final_structure_state: "cancelled:scout_tower@8,4",
+  final_build_site_tile_ids: ["8,4", "8,5", "9,4"],
+  final_building_blueprint_id: "scout_tower",
+  final_building_progress_percent: 100,
+  final_completed_structure_ids: ["watch_tower"],
+  final_repair_target_id: "watch_tower",
+  final_repair_progress_percent: 76,
+  final_cancelled_structure_ids: ["scout_tower"],
+  final_refund_delta_log: ["gold:+90", "lumber:+30"],
+  final_structure_health_percents: [54, 91],
+  final_resource_spend_log: ["spent:140g:30l:guard", "repair:-45g:-20l"],
+  final_command_queue: ["select_group_1", "blueprint:watch_tower@7,4", "build_site:7,4|7,5|8,4", "queue:build:watch_tower@7,4", "complete:watch_tower@7,4", "queue:complete:watch_tower@7,4", "repair:watch_tower@7,4", "queue:repair:watch_tower@7,4", "blueprint:scout_tower@8,4", "build_site:8,4|8,5|9,4", "queue:build:scout_tower@8,4", "cancel:scout_tower@8,4", "refund:gold:+90|lumber:+30", "queue:cancel:scout_tower@8,4"],
+  non_background_pixels: 230400,
+  build_blueprint_pixel_count: 1211,
+  build_progress_pixel_count: 241,
+  structure_complete_pixel_count: 172,
+  structure_health_pixel_count: 76,
+  repair_pixel_count: 472,
+  cancel_refund_pixel_count: 143,
+  live_build_lifecycle_input_gate: true,
+  build_placement_gate: true,
+  completion_gate: true,
+  repair_gate: true,
+  cancel_refund_gate: true,
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false
+}' >"$build_lifecycle_json"
+add_artifact_from_path native_bevy_classic_rts_build_lifecycle "Native/Bevy classic RTS build lifecycle" "$build_lifecycle_json" release_review_input
+
+build_lifecycle_ppm="$TMP_DIR/bevy-classic-rts-build-lifecycle.ppm"
+printf 'P3\n640 360\n255\n' >"$build_lifecycle_ppm"
+truncate -s 1000001 "$build_lifecycle_ppm"
+add_artifact_from_path native_bevy_classic_rts_build_lifecycle_ppm "Native/Bevy classic RTS build lifecycle PPM" "$build_lifecycle_ppm" release_review_visual_evidence
 
 replay_json="$TMP_DIR/bevy-first-minute-command-feedback-replay.json"
 jq -n '{
