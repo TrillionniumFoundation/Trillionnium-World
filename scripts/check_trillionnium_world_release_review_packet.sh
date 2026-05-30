@@ -31,6 +31,8 @@ PACKET_INTEGRITY_BOT_EXECUTOR_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-revi
 PACKET_INTEGRITY_BOT_EXECUTOR_MATRIX_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.log"
 BOT_DECISION_STATE_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-decision-state-gap.log"
 BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adaptive-build-order-gap.log"
+BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
+BOT_MAP_INTEL_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-map-intel-gap.log"
 ARTIFACTS_FILE="$(mktemp)"
 trap 'rm -f "$ARTIFACTS_FILE"' EXIT
 
@@ -52,6 +54,8 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh" >"$PACKET_INTEGRITY_BOT_EXECUTOR_MATRIX_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh" >"$BOT_DECISION_STATE_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >"$BOT_MAP_INTEL_GAP_LOG"
 
 artifact() {
   local id="$1"
@@ -148,6 +152,10 @@ artifact native_bevy_bot_decision_state_gap "Native/Bevy bot decision-state gap"
 artifact native_bevy_bot_decision_state_gap_ppm "Native/Bevy bot decision-state gap PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-decision-state-gap.ppm" release_review_visual_evidence
 artifact native_bevy_bot_adaptive_build_order_gap "Native/Bevy bot adaptive build-order gap" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-adaptive-build-order-gap.json" release_review_input
 artifact native_bevy_bot_adaptive_build_order_gap_ppm "Native/Bevy bot adaptive build-order gap PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-adaptive-build-order-gap.ppm" release_review_visual_evidence
+artifact native_bevy_bot_tactical_micro_gap "Native/Bevy bot tactical micro gap" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-tactical-micro-gap.json" release_review_input
+artifact native_bevy_bot_tactical_micro_gap_ppm "Native/Bevy bot tactical micro gap PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-tactical-micro-gap.ppm" release_review_visual_evidence
+artifact native_bevy_bot_map_intel_gap "Native/Bevy bot map intel gap" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-map-intel-gap.json" release_review_input
+artifact native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-map-intel-gap.ppm" release_review_visual_evidence
 artifact native_bevy_classic_playtest_readiness "Native/Bevy classic playtest readiness" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json" release_review_input
 artifact native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" release_review_input
 artifact cex_adapter_readiness "CEX production world adapter readiness" "$ROOT/acceptance/S3_repository_adapter/latest/cex-production-adapter-readiness.json" release_review_input

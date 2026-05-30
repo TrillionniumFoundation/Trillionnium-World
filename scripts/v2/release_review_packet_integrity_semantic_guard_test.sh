@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 81,
+  fake_packet_artifact_count: 85,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 81,
+  fake_packet_artifact_count: 85,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 81,
+  fake_packet_artifact_count: 85,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -616,6 +616,104 @@ bot_adaptive_gap_ppm="$TMP_DIR/bevy-classic-rts-bot-adaptive-build-order-gap.ppm
 printf 'P3\n1280 1080\n255\n' >"$bot_adaptive_gap_ppm"
 truncate -s 8000001 "$bot_adaptive_gap_ppm"
 add_artifact_from_path native_bevy_bot_adaptive_build_order_gap_ppm "Native/Bevy bot adaptive build-order gap PPM" "$bot_adaptive_gap_ppm" release_review_visual_evidence
+
+bot_tactical_micro_gap_json="$TMP_DIR/bevy-classic-rts-bot-tactical-micro-gap.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap_v1",
+  green: true,
+  preview_width: 1280,
+  preview_height: 1080,
+  write_gate: true,
+  input_action_count: 0,
+  bevy_bot_tactical_micro_gap_state: "bevy_tactical_micro_vocabulary_not_openra_native_combat_ai",
+  bevy_native_combat_ai_claimed: false,
+  bevy_openra_parity_claimed: false,
+  openra_gap_not_closed_gate: true,
+  openra_bot_economy_tech_target_commit: "f6c47d9",
+  openra_bot_beacon_pressure_target_commit: "2b6f25b",
+  openra_organic_bot_terminal_target_commit: "5f1bf76",
+  micro_stage_count: 6,
+  stage_summaries: [
+    {stage: "target_priority_probe"},
+    {stage: "focus_fire_commit"},
+    {stage: "kite_and_stutter_step"},
+    {stage: "flank_angle_split"},
+    {stage: "ability_timing_window"},
+    {stage: "low_health_pullback_regroup"}
+  ],
+  micro_signal_count: 24,
+  target_swap_count: 3,
+  focus_fire_order_count: 3,
+  kite_step_count: 3,
+  flank_angle_count: 2,
+  ability_timing_count: 2,
+  low_health_pullback_count: 2,
+  final_micro_state: "pullback_regroup_reattack",
+  final_rts_ai_pressure_percent: 70,
+  final_rts_defeat_risk_percent: 20,
+  final_objective_capture_percent: 90,
+  final_match_result_state: "tactical_micro_gap:pullback_regroup_reattack",
+  final_command_queue: ["micro_stage:low_health_pullback_regroup", "native_openra_combat_ai:false"],
+  final_army_production_batch_ids: ["micro_control:focus_fire_low_armor_striker", "micro_control:pull_redline_units_regroup_reattack"],
+  tactical_micro_gap_gate: true,
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false
+}' >"$bot_tactical_micro_gap_json"
+add_artifact_from_path native_bevy_bot_tactical_micro_gap "Native/Bevy bot tactical micro gap" "$bot_tactical_micro_gap_json" release_review_input
+
+bot_tactical_micro_gap_ppm="$TMP_DIR/bevy-classic-rts-bot-tactical-micro-gap.ppm"
+printf 'P3\n1280 1080\n255\n' >"$bot_tactical_micro_gap_ppm"
+truncate -s 8000001 "$bot_tactical_micro_gap_ppm"
+add_artifact_from_path native_bevy_bot_tactical_micro_gap_ppm "Native/Bevy bot tactical micro gap PPM" "$bot_tactical_micro_gap_ppm" release_review_visual_evidence
+
+bot_map_intel_gap_json="$TMP_DIR/bevy-classic-rts-bot-map-intel-gap.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_bot_map_intel_gap_v1",
+  green: true,
+  preview_width: 1280,
+  preview_height: 1080,
+  write_gate: true,
+  input_action_count: 0,
+  bevy_bot_map_intel_gap_state: "bevy_map_intel_vocabulary_not_openra_native_shroud_memory_ai",
+  bevy_native_shroud_memory_ai_claimed: false,
+  bevy_openra_parity_claimed: false,
+  openra_gap_not_closed_gate: true,
+  openra_bot_economy_tech_target_commit: "f6c47d9",
+  openra_bot_beacon_pressure_target_commit: "2b6f25b",
+  openra_organic_bot_terminal_target_commit: "5f1bf76",
+  intel_stage_count: 6,
+  stage_summaries: [
+    {stage: "initial_scout_sweep"},
+    {stage: "fog_memory_stamp"},
+    {stage: "expansion_threat_inference"},
+    {stage: "enemy_tech_read"},
+    {stage: "hidden_army_prediction"},
+    {stage: "rotate_pressure_reveal"}
+  ],
+  intel_signal_count: 24,
+  scout_sweep_count: 3,
+  fog_memory_stamp_count: 4,
+  expansion_threat_count: 3,
+  enemy_tech_read_count: 2,
+  hidden_army_prediction_count: 2,
+  pressure_rotation_count: 2,
+  final_intel_state: "rotate_pressure_confirmed_beacon",
+  final_rts_ai_pressure_percent: 80,
+  final_rts_defeat_risk_percent: 20,
+  final_objective_capture_percent: 90,
+  final_match_result_state: "map_intel_gap:rotate_pressure_confirmed_beacon",
+  final_command_queue: ["intel_stage:rotate_pressure_reveal", "native_openra_shroud_memory_ai:false"],
+  final_army_production_batch_ids: ["map_intel:fog_memory_last_seen_grid", "map_intel:rotate_pressure_to_confirmed_beacon"],
+  map_intel_gap_gate: true,
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false
+}' >"$bot_map_intel_gap_json"
+add_artifact_from_path native_bevy_bot_map_intel_gap "Native/Bevy bot map intel gap" "$bot_map_intel_gap_json" release_review_input
+
+bot_map_intel_gap_ppm="$TMP_DIR/bevy-classic-rts-bot-map-intel-gap.ppm"
+printf 'P3\n1280 1080\n255\n' >"$bot_map_intel_gap_ppm"
+truncate -s 8000001 "$bot_map_intel_gap_ppm"
+add_artifact_from_path native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "$bot_map_intel_gap_ppm" release_review_visual_evidence
 
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \
