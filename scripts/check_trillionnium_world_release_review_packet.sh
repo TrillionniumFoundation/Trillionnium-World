@@ -31,6 +31,8 @@ PACKET_INTEGRITY_BOT_EXECUTOR_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-revi
 PACKET_INTEGRITY_BOT_EXECUTOR_MATRIX_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.log"
 PACKET_INTEGRITY_BOT_GAP_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.log"
 PACKET_INTEGRITY_CONTROL_LOOP_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-control-loop-semantic-fixture.log"
+PACKET_INTEGRITY_SELECTION_MINIMAP_SEMANTIC_FIXTURE_LOG="$ACCEPTANCE_DIR/release-review-packet-integrity-selection-minimap-semantic-fixture.log"
+SELECTION_MINIMAP_LOG="$ACCEPTANCE_DIR/release-review-packet-selection-minimap.log"
 BOT_DECISION_STATE_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-decision-state-gap.log"
 BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adaptive-build-order-gap.log"
 BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
@@ -56,6 +58,8 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh" >"$PACKET_INTEGRITY_BOT_EXECUTOR_MATRIX_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture.sh" >"$PACKET_INTEGRITY_BOT_GAP_SEMANTIC_FIXTURE_LOG"
 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_control_loop_semantic_fixture.sh" >"$PACKET_INTEGRITY_CONTROL_LOOP_SEMANTIC_FIXTURE_LOG"
+"$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture.sh" >"$PACKET_INTEGRITY_SELECTION_MINIMAP_SEMANTIC_FIXTURE_LOG"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_selection_minimap.sh" >"$SELECTION_MINIMAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh" >"$BOT_DECISION_STATE_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
@@ -132,6 +136,8 @@ artifact native_bevy_classic_isometric_modeling "Native/Bevy classic isometric m
 artifact native_bevy_classic_isometric_modeling_ppm "Native/Bevy classic isometric modeling PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-isometric-modeling.ppm" release_review_visual_evidence
 artifact native_bevy_classic_rts_control_loop "Native/Bevy classic RTS control loop" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.json" release_review_input
 artifact native_bevy_classic_rts_control_loop_ppm "Native/Bevy classic RTS control loop PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-control-loop.ppm" release_review_visual_evidence
+artifact native_bevy_classic_rts_selection_minimap "Native/Bevy classic RTS selection/minimap" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.json" release_review_input
+artifact native_bevy_classic_rts_selection_minimap_ppm "Native/Bevy classic RTS selection/minimap PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-selection-minimap.ppm" release_review_visual_evidence
 artifact native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-replay.json" release_review_input
 artifact native_bevy_first_minute_command_feedback_source_recording "Native/Bevy first-minute command feedback source recording" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-source-recording.json" release_review_recording
 artifact native_bevy_first_minute_command_feedback_recording "Native/Bevy first-minute command feedback command recording" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-recording.json" release_review_recording
@@ -191,6 +197,7 @@ artifact release_review_packet_integrity_bot_executor_semantic_fixture "Release 
 artifact release_review_packet_integrity_bot_executor_matrix_semantic_fixture "Release review packet integrity bot executor failure/recovery matrix semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.json" release_review_gate
 artifact release_review_packet_integrity_bot_gap_semantic_fixture "Release review packet integrity bot gap semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.json" release_review_gate
 artifact release_review_packet_integrity_control_loop_semantic_fixture "Release review packet integrity control loop semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-control-loop-semantic-fixture.json" release_review_gate
+artifact release_review_packet_integrity_selection_minimap_semantic_fixture "Release review packet integrity selection/minimap semantic fixture" "$ACCEPTANCE_DIR/release-review-packet-integrity-selection-minimap-semantic-fixture.json" release_review_gate
 artifact release_review_packet_convergence_log "Release review packet convergence log" "$CONVERGENCE_LOG" release_review_log
 
 ARTIFACTS_JSON="$(jq -s '.' "$ARTIFACTS_FILE")"

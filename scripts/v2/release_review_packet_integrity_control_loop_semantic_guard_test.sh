@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 87,
+  fake_packet_artifact_count: 90,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 87,
+  fake_packet_artifact_count: 90,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 87,
+  fake_packet_artifact_count: 90,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -147,7 +147,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 87,
+  fake_packet_artifact_count: 90,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -177,7 +177,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 87,
+  fake_packet_artifact_count: 90,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -248,6 +248,72 @@ control_loop_ppm="$TMP_DIR/bevy-classic-rts-control-loop.ppm"
 printf 'P3\n1279 360\n255\n' >"$control_loop_ppm"
 truncate -s 4000001 "$control_loop_ppm"
 add_artifact_from_path native_bevy_classic_rts_control_loop_ppm "Native/Bevy classic RTS control loop PPM" "$control_loop_ppm" release_review_visual_evidence
+
+selection_minimap_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-selection-minimap-semantic-fixture.json"
+jq -n '{
+  contract_version: "trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture_v1",
+  status: "release_review_packet_integrity_selection_minimap_semantic_fixture_green",
+  green: true,
+  fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
+  fake_packet_artifact_count: 90,
+  expected_semantic_failure_count: 2,
+  expected_semantic_failure_names: [
+    "classic_rts_selection_minimap_semantics",
+    "classic_rts_selection_minimap_ppm_semantics"
+  ],
+  checksum_mismatch_failure_count: 0,
+  bytes_mismatch_failure_count: 0,
+  contract_mismatch_failure_count: 0,
+  status_mismatch_failure_count: 0,
+  ready_for_release_review: true,
+  public_launch_ready: false,
+  android_s5_real_device_claimed: false,
+  proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
+}' >"$selection_minimap_semantic_fixture_json"
+add_artifact_from_path release_review_packet_integrity_selection_minimap_semantic_fixture "Release review packet integrity selection/minimap semantic fixture" "$selection_minimap_semantic_fixture_json" release_review_gate
+
+selection_minimap_json="$TMP_DIR/bevy-classic-rts-selection-minimap.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_selection_minimap_v1",
+  green: true,
+  preview_width: 1280,
+  preview_height: 720,
+  preview_format: "ppm_p3_rgb",
+  write_gate: true,
+  input_path: "apply_live_native_action_with_source(classic_rts_selection_minimap_input)",
+  input_action_count: 4,
+  accepted_input_count: 4,
+  action_labels: ["RTS:SELECT:box:frontline", "RTS:MOVE:minimap:9,2:rally", "RTS:SELECT:2", "RTS:MOVE:6,5:split"],
+  final_control_group_id: "2",
+  final_selected_unit_ids: ["square_guard_patrol", "square_creep_wander"],
+  final_selection_box_tile_ids: ["5,5", "6,5", "5,4", "6,4"],
+  final_control_group_assignments: ["1:player|square_guard_patrol|square_worker_carry|square_creep_wander", "2:square_guard_patrol|square_creep_wander"],
+  final_active_control_group_ids: ["1", "2"],
+  final_minimap_command_tile_id: "9,2",
+  final_minimap_command_kind: "rally",
+  final_group_route_tile_ids: ["5,5", "6,4", "6,5", "7,5", "6,6"],
+  final_group_command_state: "split_route:group_2",
+  final_command_queue: ["box_select:5,5|6,5|5,4|6,4", "select_group_1", "minimap:rally:9,2", "move:9,2", "formation:rally", "path:6,5>7,4>8,3>9,2", "slots:8,3|9,2|10,2|9,3", "assign_group_2:square_guard_patrol|square_creep_wander", "select_group_2", "split_route:5,5>6,4>6,5>7,5>6,6", "move:6,5", "formation:split", "path:6,5", "slots:5,5|7,5|5,6|7,6", "disperse:5,5|6,4|6,6|7,5"],
+  non_background_pixels: 921600,
+  selection_box_pixel_count: 4269,
+  minimap_command_pixel_count: 2009,
+  group_two_pixel_count: 342,
+  split_route_pixel_count: 2183,
+  live_selection_minimap_input_gate: true,
+  selection_box_gate: true,
+  control_group_gate: true,
+  minimap_command_gate: true,
+  split_route_gate: true,
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false
+}' >"$selection_minimap_json"
+add_artifact_from_path native_bevy_classic_rts_selection_minimap "Native/Bevy classic RTS selection/minimap" "$selection_minimap_json" release_review_input
+
+selection_minimap_ppm="$TMP_DIR/bevy-classic-rts-selection-minimap.ppm"
+printf 'P3\n1280 720\n255\n' >"$selection_minimap_ppm"
+truncate -s 8000001 "$selection_minimap_ppm"
+add_artifact_from_path native_bevy_classic_rts_selection_minimap_ppm "Native/Bevy classic RTS selection/minimap PPM" "$selection_minimap_ppm" release_review_visual_evidence
 
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" >"$TMP_DIR/first-minute-command-feedback-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_rejection_replay.sh" >"$TMP_DIR/first-minute-command-feedback-rejection-replay.log"
