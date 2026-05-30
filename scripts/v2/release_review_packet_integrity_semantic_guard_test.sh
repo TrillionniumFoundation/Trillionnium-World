@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 63,
+  fake_packet_artifact_count: 66,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -212,6 +212,95 @@ rejection_ppm_path="$TMP_DIR/bevy-first-minute-command-feedback-rejection-replay
 printf 'P3\n1280 720\n255\n' >"$rejection_ppm_path"
 truncate -s 8000001 "$rejection_ppm_path"
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay_ppm "Native/Bevy first-minute command feedback rejection replay PPM" "$rejection_ppm_path" release_review_visual_evidence
+
+failure_matrix_log_json="$TMP_DIR/bot-executor-failure-recovery-matrix.matrix.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix_v1",
+  source_replay_action_count: 6,
+  blocked_injection_count: 6,
+  blocked_rejection_count: 6,
+  blocked_expected_reason_count: 6,
+  blocked_feedback_event_count: 6,
+  blocked_command_queue_unchanged_count: 6,
+  blocked_command_queue_sha_match_count: 6,
+  blocked_input_source: "classic_rts_bot_executor_failure_recovery_matrix_blocked_input",
+  recovery_input_source: "classic_rts_bot_executor_failure_recovery_matrix_recovery_input",
+  recovery_action_count: 6,
+  recovery_accepted_action_count: 6,
+  recovery_command_marker_hit_count: 6,
+  recovery_command_delta_match_count: 6,
+  recovery_safe_runtime_sha_match: true,
+  command_queue_sha_match: true,
+  source_action_log_path: "/tmp/bot-planner-action-executor.actions.json",
+  source_action_log_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  source_final_runtime_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  source_recovery_safe_runtime_sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  source_command_queue_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  source_multi_match_dir: "/tmp/source-multi-match",
+  matrix_log: [
+    {blocked: {accepted: false, rejected: true, expected_reason: "rts_queue_id_required", expected_reason_match: true, command_queue_unchanged: true, command_queue_sha_match: true, feedback_event_delta: 1, blocked_history_delta: 1}, recovery: {action_label_parse_gate: true, accepted: true, command_marker_hit: true, command_delta_match: true}},
+    {blocked: {accepted: false, rejected: true, expected_reason: "rts_group_id_required", expected_reason_match: true, command_queue_unchanged: true, command_queue_sha_match: true, feedback_event_delta: 1, blocked_history_delta: 1}, recovery: {action_label_parse_gate: true, accepted: true, command_marker_hit: true, command_delta_match: true}},
+    {blocked: {accepted: false, rejected: true, expected_reason: "rts_attack_required_before_ability", expected_reason_match: true, command_queue_unchanged: true, command_queue_sha_match: true, feedback_event_delta: 1, blocked_history_delta: 1}, recovery: {action_label_parse_gate: true, accepted: true, command_marker_hit: true, command_delta_match: true}},
+    {blocked: {accepted: false, rejected: true, expected_reason: "rts_invalid_tile:bad-tile", expected_reason_match: true, command_queue_unchanged: true, command_queue_sha_match: true, feedback_event_delta: 1, blocked_history_delta: 1}, recovery: {action_label_parse_gate: true, accepted: true, command_marker_hit: true, command_delta_match: true}},
+    {blocked: {accepted: false, rejected: true, expected_reason: "rts_queue_id_required", expected_reason_match: true, command_queue_unchanged: true, command_queue_sha_match: true, feedback_event_delta: 1, blocked_history_delta: 1}, recovery: {action_label_parse_gate: true, accepted: true, command_marker_hit: true, command_delta_match: true}},
+    {blocked: {accepted: false, rejected: true, expected_reason: "rts_attack_target_required", expected_reason_match: true, command_queue_unchanged: true, command_queue_sha_match: true, feedback_event_delta: 1, blocked_history_delta: 1}, recovery: {action_label_parse_gate: true, accepted: true, command_marker_hit: true, command_delta_match: true}}
+  ]
+}' >"$failure_matrix_log_json"
+add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_log "Native/Bevy bot executor failure recovery matrix log" "$failure_matrix_log_json" release_review_recording
+
+failure_matrix_summary_json="$TMP_DIR/bevy-classic-rts-bot-executor-failure-recovery-matrix.json"
+jq -n \
+  --argjson matrix_log "$(jq -c '.matrix_log' "$failure_matrix_log_json")" \
+  '{
+    contract_version: "trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix_v1",
+    green: true,
+    bot_executor_failure_recovery_matrix_state: "bevy_executor_rejects_blocked_actions_and_recovers_without_command_queue_pollution_not_openra_runtime_bot",
+    bot_executor_failure_recovery_matrix_gate: true,
+    source_replay_action_count: 6,
+    blocked_injection_count: 6,
+    blocked_rejection_count: 6,
+    blocked_expected_reason_count: 6,
+    blocked_feedback_event_count: 6,
+    blocked_command_queue_unchanged_count: 6,
+    blocked_command_queue_sha_match_count: 6,
+    blocked_reason_values: ["rts_queue_id_required", "rts_group_id_required", "rts_attack_required_before_ability", "rts_invalid_tile:bad-tile", "rts_attack_target_required"],
+    blocked_input_sources: ["classic_rts_bot_executor_failure_recovery_matrix_blocked_input"],
+    recovery_input_sources: ["classic_rts_bot_executor_failure_recovery_matrix_recovery_input"],
+    recovery_action_count: 6,
+    recovery_accepted_action_count: 6,
+    recovery_command_marker_hit_count: 6,
+    recovery_command_delta_match_count: 6,
+    feedback_blocked_count: 6,
+    feedback_recovery_count: 6,
+    final_input_feedback_event_count: 12,
+    recovery_safe_runtime_sha_match: true,
+    command_queue_sha_match: true,
+    matrix_log: $matrix_log,
+    source_multi_match_summary: {
+      variant_count: 4,
+      total_replay_action_count: 24,
+      total_accepted_action_count: 24,
+      evaluation_log_sha256: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    final_recovery_safe_runtime_summary: {
+      faction_id: "mirror_guard",
+      objective_capture_percent: 100,
+      tier_two_tech_ids: ["relay_foundry"],
+      siege_breach_state: "counterplay_won:gate_bulwark",
+      match_result_state: "siege_breakthrough:inner_lane"
+    },
+    bevy_bot_executor_failure_recovery_matrix_claimed: true,
+    bevy_multi_match_bot_executor_evaluation_claimed: true,
+    bevy_openra_runtime_bot_executor_claimed: false,
+    android_s5_real_device_claimed: false,
+    public_launch_ready: false
+  }' >"$failure_matrix_summary_json"
+add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix "Native/Bevy bot executor failure recovery matrix" "$failure_matrix_summary_json" release_review_input
+
+failure_matrix_ppm_path="$TMP_DIR/bot-executor-failure-recovery-matrix.ppm"
+printf 'P3\n1280 1080\n255\n' >"$failure_matrix_ppm_path"
+truncate -s 8000001 "$failure_matrix_ppm_path"
+add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_ppm "Native/Bevy bot executor failure recovery matrix PPM" "$failure_matrix_ppm_path" release_review_visual_evidence
 
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \
