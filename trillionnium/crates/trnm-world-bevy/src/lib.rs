@@ -274,6 +274,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT: &st
     "trillionnium_world_bevy_classic_rts_openra_parity_bridge_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_LANE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_parity_lane_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
@@ -37013,6 +37015,330 @@ pub fn native_classic_rts_openra_parity_lane_evidence_json(preview_dir: &str) ->
         "source_of_truth": "Classic RTS OpenRA parity lane evidence composes the Rust/Bevy-owned OpenRA-like rules vocabulary, comparison bridge, owned replay file, headless replay playback, natural terminal contract, and planner-driven autonomous bot loop into one repeatable local lane. It claims only Trillionnium-owned parity-lane evidence; OpenRA runtime parity, OpenRA replay compatibility, OpenRA headless-client parity, OpenRA live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA parity lane evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_replay_compat_adapter_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let lane_dir = preview_path("openra-parity-lane");
+    let terminal_dir = preview_path("natural-terminal-contract");
+    let adapter_path = preview_path("openra-replay-summary-adapter.json");
+
+    let lane: Value = serde_json::from_str(&native_classic_rts_openra_parity_lane_evidence_json(
+        &lane_dir,
+    ))
+    .expect("OpenRA parity lane evidence parses");
+    let replay_path = lane
+        .pointer("/preview_paths/owned_replay_file")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let replay_bytes = fs::read(&replay_path).unwrap_or_default();
+    let replay_file_sha256 = if replay_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&replay_bytes)
+    };
+    let replay: Value = serde_json::from_slice(&replay_bytes).unwrap_or_else(|_| Value::Null);
+    let headless: Value = serde_json::from_str(
+        &native_classic_rts_headless_replay_playback_evidence_json(&replay_path),
+    )
+    .expect("headless replay playback evidence parses");
+    let terminal: Value = serde_json::from_str(
+        &native_classic_rts_natural_terminal_contract_evidence_json(&terminal_dir, &replay_path),
+    )
+    .expect("natural terminal contract evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let json_sha256 =
+        |value: &Value| sha256_hex(&serde_json::to_vec(value).expect("adapter payload serializes"));
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+
+    let replay_inputs = replay
+        .get("recorded_inputs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let input_ticks: Vec<u64> = replay_inputs
+        .iter()
+        .map(|input| input.get("tick").and_then(Value::as_u64).unwrap_or(0))
+        .collect();
+    let tick_monotonic_gate = input_ticks.windows(2).all(|window| window[0] <= window[1]);
+    let stage_names: Vec<String> = replay_inputs
+        .iter()
+        .map(|input| {
+            input
+                .pointer("/payload/stage")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        })
+        .collect();
+    let combat_event_count: usize = replay_inputs
+        .iter()
+        .map(|input| {
+            input
+                .pointer("/payload/combat_event_log")
+                .and_then(Value::as_array)
+                .map(Vec::len)
+                .unwrap_or(0)
+        })
+        .sum();
+    let source_outcome = replay.get("source_outcome").unwrap_or(&Value::Null);
+    let headless_outcome = headless.get("headless_outcome").unwrap_or(&Value::Null);
+
+    let player_slots = string_vec(["Multi0", "Multi1", "Multi2", "Multi3"]);
+    let bot_slots = string_vec(["Multi1", "Multi2", "Multi3"]);
+    let openra_replay_summary_adapter = json!({
+        "adapter_schema": "openra_replay_summary_adapter_v1_json",
+        "source_replay_format": replay.get("format").cloned().unwrap_or(Value::Null),
+        "source_replay_contract": replay.get("contract_version").cloned().unwrap_or(Value::Null),
+        "source_replay_sha256": replay_file_sha256,
+        "engine_id": replay.get("engine_id").cloned().unwrap_or(Value::Null),
+        "seed": replay.get("seed").cloned().unwrap_or(Value::Null),
+        "map": {
+            "uid": replay.get("map_sha256").cloned().unwrap_or(Value::Null),
+            "map_id": replay.pointer("/map_signature/map_id").cloned().unwrap_or(Value::Null),
+            "objective_tiles": replay.pointer("/map_signature/objective_tiles").cloned().unwrap_or(Value::Null)
+        },
+        "rules": {
+            "uid": replay.get("rules_sha256").cloned().unwrap_or(Value::Null),
+            "rules_id": replay.pointer("/rules_signature/rules_id").cloned().unwrap_or(Value::Null),
+            "terminal_hold_ticks": replay.pointer("/rules_signature/terminal_hold_ticks").cloned().unwrap_or(Value::Null)
+        },
+        "start_game": {
+            "order": "StartGame",
+            "tick": input_ticks.first().copied().unwrap_or(0),
+            "slots": player_slots,
+            "human_slot": "Multi0",
+            "bot_slots": bot_slots,
+            "bot_type": "trnm-rush"
+        },
+        "timeline": {
+            "recorded_input_count": replay_inputs.len(),
+            "ticks": input_ticks,
+            "stages": stage_names,
+            "combat_event_count": combat_event_count,
+            "final_checkpoint_sha256": source_outcome.get("final_checkpoint_sha256").cloned().unwrap_or(Value::Null)
+        },
+        "outcome": {
+            "winner": source_outcome.get("winner").cloned().unwrap_or(Value::Null),
+            "winner_count": source_outcome.get("winner_count").cloned().unwrap_or(Value::Null),
+            "loser_count": source_outcome.get("loser_count").cloned().unwrap_or(Value::Null),
+            "final_tick": source_outcome.get("final_tick").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": source_outcome.get("final_match_result_state").cloned().unwrap_or(Value::Null)
+        },
+        "headless": {
+            "mode": headless.get("headless_playback_mode").cloned().unwrap_or(Value::Null),
+            "rendered_frame_count": headless.get("rendered_frame_count").cloned().unwrap_or(Value::Null),
+            "wgpu_required": headless.get("wgpu_required").cloned().unwrap_or(Value::Null),
+            "final_checkpoint_sha256": headless.get("final_headless_checkpoint_sha256").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": headless_outcome.get("final_match_result_state").cloned().unwrap_or(Value::Null)
+        },
+        "terminal_contract": {
+            "winner": terminal.get("terminal_winner").cloned().unwrap_or(Value::Null),
+            "winner_beacons": terminal.get("terminal_winner_beacons").cloned().unwrap_or(Value::Null),
+            "total_beacons": terminal.get("terminal_total_beacons").cloned().unwrap_or(Value::Null),
+            "hold_ticks": terminal.get("terminal_hold_ticks").cloned().unwrap_or(Value::Null)
+        },
+        "compatibility": {
+            "openra_replay_summary_schema_mapped": true,
+            "openra_binary_replay_compatible": false,
+            "openra_engine_runtime_required": false,
+            "openra_headless_client_match_claimed": false,
+            "openra_replay_file_claimed": false,
+            "openra_runtime_parity_claimed": false
+        }
+    });
+    let adapter_sha256 = json_sha256(&openra_replay_summary_adapter);
+    let adapter_write_gate = serde_json::to_vec_pretty(&openra_replay_summary_adapter)
+        .map(|bytes| fs::write(&adapter_path, bytes).is_ok())
+        .unwrap_or(false);
+    let adapter_readback: Value = fs::read(&adapter_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let source_contract_gate = contract_is(
+        &lane,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_LANE_CONTRACT,
+    ) && str_at(&replay, "contract_version")
+        == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT
+        && contract_is(
+            &headless,
+            TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT,
+        )
+        && contract_is(
+            &terminal,
+            TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT,
+        );
+    let source_green_gate = bool_at(&lane, "green")
+        && bool_at(&headless, "green")
+        && bool_at(&terminal, "green")
+        && bool_at(&lane, "openra_parity_lane_gate")
+        && bool_at(&headless, "headless_replay_playback_gate")
+        && bool_at(&terminal, "natural_terminal_contract_gate");
+    let replay_parse_gate = replay.is_object()
+        && str_at(&replay, "format") == "trnm_owned_replay_v1_json"
+        && replay_file_sha256.len() == 64
+        && str_at(&replay, "map_sha256").len() == 64
+        && str_at(&replay, "rules_sha256").len() == 64;
+    let summary_schema_gate = str_at(&adapter_readback, "adapter_schema")
+        == "openra_replay_summary_adapter_v1_json"
+        && adapter_readback
+            .pointer("/start_game/order")
+            .and_then(Value::as_str)
+            == Some("StartGame")
+        && adapter_readback
+            .pointer("/start_game/slots")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            == Some(4)
+        && adapter_readback
+            .pointer("/timeline/stages")
+            .and_then(Value::as_array)
+            .map(|stages| {
+                stages
+                    .iter()
+                    .any(|stage| stage.as_str() == Some("replay_outcome_probe"))
+            })
+            == Some(true)
+        && adapter_readback
+            .pointer("/outcome/winner")
+            .and_then(Value::as_str)
+            == Some("Multi2");
+    let replay_timeline_gate = replay_inputs.len() >= 6
+        && replay_inputs.iter().all(|input| {
+            input.get("kind").and_then(Value::as_str) == Some("rts_owned_replay_checkpoint")
+        })
+        && tick_monotonic_gate
+        && combat_event_count >= 10
+        && source_outcome
+            .get("final_tick")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 3000;
+    let headless_adapter_gate = bool_at(&headless, "source_headless_match_gate")
+        && !bool_at(&headless, "wgpu_required")
+        && u64_at(&headless, "rendered_frame_count") == 0
+        && source_outcome.get("final_checkpoint_sha256")
+            == headless.get("final_headless_checkpoint_sha256");
+    let terminal_adapter_gate = str_at(&terminal, "terminal_winner") == "Multi2"
+        && u64_at(&terminal, "terminal_winner_beacons") == 2
+        && u64_at(&terminal, "terminal_total_beacons") == 4
+        && u64_at(&terminal, "terminal_hold_ticks") == 3000;
+    let compatibility_boundary_gate = adapter_readback
+        .pointer("/compatibility/openra_replay_summary_schema_mapped")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && adapter_readback
+            .pointer("/compatibility/openra_binary_replay_compatible")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && adapter_readback
+            .pointer("/compatibility/openra_replay_file_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && adapter_readback
+            .pointer("/compatibility/openra_headless_client_match_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && adapter_readback
+            .pointer("/compatibility/openra_runtime_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && bool_at(&lane, "no_openra_parity_claim_gate")
+        && !bool_at(&lane, "public_launch_ready");
+    let adapter_file_gate = adapter_write_gate
+        && adapter_readback.is_object()
+        && adapter_sha256.len() == 64
+        && Path::new(&adapter_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 1_000)
+            .unwrap_or(false);
+    let openra_replay_compat_adapter_gate = source_contract_gate
+        && source_green_gate
+        && replay_parse_gate
+        && summary_schema_gate
+        && replay_timeline_gate
+        && headless_adapter_gate
+        && terminal_adapter_gate
+        && compatibility_boundary_gate
+        && adapter_file_gate;
+    let green = openra_replay_compat_adapter_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "adapter_path": adapter_path,
+        "adapter_sha256": adapter_sha256,
+        "adapter_state": "bevy_owned_replay_to_openra_style_summary_adapter_not_binary_openra_replay",
+        "source_contracts": {
+            "openra_parity_lane": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_LANE_CONTRACT,
+            "owned_replay_file": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT,
+            "headless_replay_playback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT,
+            "natural_terminal_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT
+        },
+        "source_paths": {
+            "openra_parity_lane": lane_dir,
+            "owned_replay_file": replay_path,
+            "natural_terminal_contract": terminal_dir
+        },
+        "adapter_summary": {
+            "schema": adapter_readback.get("adapter_schema").cloned().unwrap_or(Value::Null),
+            "source_replay_format": adapter_readback.get("source_replay_format").cloned().unwrap_or(Value::Null),
+            "source_replay_sha256": adapter_readback.get("source_replay_sha256").cloned().unwrap_or(Value::Null),
+            "map_uid": adapter_readback.pointer("/map/uid").cloned().unwrap_or(Value::Null),
+            "rules_uid": adapter_readback.pointer("/rules/uid").cloned().unwrap_or(Value::Null),
+            "start_game_order": adapter_readback.pointer("/start_game/order").cloned().unwrap_or(Value::Null),
+            "slot_count": adapter_readback.pointer("/start_game/slots").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
+            "recorded_input_count": adapter_readback.pointer("/timeline/recorded_input_count").cloned().unwrap_or(Value::Null),
+            "combat_event_count": adapter_readback.pointer("/timeline/combat_event_count").cloned().unwrap_or(Value::Null),
+            "winner": adapter_readback.pointer("/outcome/winner").cloned().unwrap_or(Value::Null),
+            "final_tick": adapter_readback.pointer("/outcome/final_tick").cloned().unwrap_or(Value::Null),
+            "headless_mode": adapter_readback.pointer("/headless/mode").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "replay_parse_gate": replay_parse_gate,
+        "summary_schema_gate": summary_schema_gate,
+        "replay_timeline_gate": replay_timeline_gate,
+        "headless_adapter_gate": headless_adapter_gate,
+        "terminal_adapter_gate": terminal_adapter_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "adapter_file_gate": adapter_file_gate,
+        "openra_replay_compat_adapter_gate": openra_replay_compat_adapter_gate,
+        "bevy_openra_replay_summary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA replay compatibility adapter evidence converts the Trillionnium-owned replay plus headless playback result into an OpenRA-style replay summary schema with StartGame, slots, map/rules ids, timeline, outcome, and headless checksum fields. It claims only a schema adapter; OpenRA binary replay compatibility, OpenRA headless-client match parity, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA replay compatibility adapter evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
