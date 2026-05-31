@@ -280,6 +280,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_COMMAND_VOCAB_ADAPTER_CONTR
     "trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
@@ -38140,6 +38142,486 @@ pub fn native_classic_rts_openra_order_serializer_fixture_evidence_json(
         "source_of_truth": "Classic RTS OpenRA order serializer fixture evidence serializes the Trillionnium-owned OpenRA-style command vocabulary into a deterministic JSONL order stream with per-record payload hashes, a manifest sha, and a roundtrip parser check. It claims only a local OpenRA-style order-stream fixture; OpenRA binary replay compatibility, OpenRA-native order serialization, OpenRA network-order streams, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA order serializer fixture evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_order_replay_reducer_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let serializer_dir = preview_path("openra-order-serializer-fixture");
+    let reducer_path = preview_path("openra-order-replay-reducer.json");
+    let snapshot_path = preview_path("openra-order-replay-snapshots.jsonl");
+
+    let serializer_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_order_serializer_fixture_evidence_json(&serializer_dir),
+    )
+    .expect("OpenRA order serializer fixture evidence parses");
+    let serializer_path = serializer_evidence
+        .get("serializer_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let manifest_path = serializer_evidence
+        .get("manifest_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let stream_bytes = fs::read(&serializer_path).unwrap_or_default();
+    let stream_sha256 = if stream_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&stream_bytes)
+    };
+    let stream_text = String::from_utf8(stream_bytes.clone()).unwrap_or_default();
+    let manifest_bytes = fs::read(&manifest_path).unwrap_or_default();
+    let manifest_file_sha256 = if manifest_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&manifest_bytes)
+    };
+    let manifest: Value = serde_json::from_slice(&manifest_bytes).unwrap_or_else(|_| Value::Null);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let json_sha256 =
+        |value: &Value| sha256_hex(&serde_json::to_vec(value).expect("reducer payload serializes"));
+    let string_array_at = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+
+    let mut record_parse_gate = true;
+    let mut records: Vec<Value> = Vec::new();
+    for line in stream_text.lines().filter(|line| !line.trim().is_empty()) {
+        match serde_json::from_str::<Value>(line) {
+            Ok(record) => records.push(record),
+            Err(_) => record_parse_gate = false,
+        }
+    }
+
+    let frames = records
+        .iter()
+        .map(|record| record.get("frame").and_then(Value::as_u64).unwrap_or(0))
+        .collect::<Vec<_>>();
+    let sequence_gate = records.iter().enumerate().all(|(index, record)| {
+        record.get("sequence").and_then(Value::as_u64) == Some(index as u64)
+    });
+    let frame_monotonic_gate = frames.windows(2).all(|window| window[0] <= window[1]);
+    let record_schema_gate = records.iter().all(|record| {
+        record.get("record_schema").and_then(Value::as_str) == Some("openra_order_stream_record_v1")
+    });
+    let record_payload_sha_gate = records.iter().all(|record| {
+        let payload = record.get("payload").unwrap_or(&Value::Null);
+        let expected = json_sha256(payload);
+        record
+            .get("payload_sha256")
+            .and_then(Value::as_str)
+            .is_some_and(|actual| actual == expected)
+    });
+
+    let mut slots: Vec<String> = Vec::new();
+    let mut bot_slots: Vec<String> = Vec::new();
+    let mut human_slot = String::new();
+    let mut map_uid = String::new();
+    let mut rules_uid = String::new();
+    let mut start_game_count = 0usize;
+    let mut sync_frame_count = 0usize;
+    let mut bot_order_count = 0usize;
+    let mut terminal_probe_count = 0usize;
+    let mut game_over_count = 0usize;
+    let mut replay_outcome_count = 0usize;
+    let mut winner_order_count = 0usize;
+    let mut losers_order_count = 0usize;
+    let mut outcome_order_count = 0usize;
+    let mut final_frame = 0u64;
+    let mut last_stage = String::new();
+    let mut last_probe_state = String::new();
+    let mut final_objective_state = String::new();
+    let mut final_match_result_state = String::new();
+    let mut final_controlled_beacons = 0u64;
+    let mut winner_slot = String::new();
+    let mut loser_slots: Vec<String> = Vec::new();
+    let mut outcome_slots: Vec<Value> = Vec::new();
+    let mut reducer_trace: Vec<Value> = Vec::new();
+    let mut reducer_snapshots: Vec<Value> = Vec::new();
+
+    for record in &records {
+        let sequence = record.get("sequence").and_then(Value::as_u64).unwrap_or(0);
+        let frame = record.get("frame").and_then(Value::as_u64).unwrap_or(0);
+        final_frame = final_frame.max(frame);
+        let order = record
+            .get("order")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let source_kind = record
+            .get("source_kind")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let source_order = record.get("source_order").unwrap_or(&Value::Null);
+        let event_text = source_order
+            .get("source_event")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+
+        match order {
+            "StartGame" => {
+                start_game_count += 1;
+                slots = string_array_at(source_order, "/slots");
+                bot_slots = string_array_at(source_order, "/bot_slots");
+                human_slot = source_order
+                    .get("human_slot")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                map_uid = source_order
+                    .pointer("/openra_style_payload/map_uid")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                rules_uid = source_order
+                    .pointer("/openra_style_payload/rules_uid")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+            }
+            "SyncFrame" => sync_frame_count += 1,
+            "BotOrder" => bot_order_count += 1,
+            "TerminalProbe" => terminal_probe_count += 1,
+            "GameOver" => game_over_count += 1,
+            "ReplayOutcome" => replay_outcome_count += 1,
+            "Winner" => {
+                winner_order_count += 1;
+                if let Some(winner) = event_text.strip_prefix("Winner:") {
+                    winner_slot = winner.to_string();
+                }
+            }
+            "Losers" => {
+                losers_order_count += 1;
+                if let Some(losers) = event_text.strip_prefix("Losers:") {
+                    loser_slots = losers
+                        .split('|')
+                        .filter(|slot| !slot.is_empty())
+                        .map(str::to_string)
+                        .collect();
+                }
+            }
+            "Outcome" => {
+                outcome_order_count += 1;
+                if let Some(outcome) = event_text.strip_prefix("Outcome:") {
+                    let mut parts = outcome.split(':');
+                    let slot = parts.next().unwrap_or_default().to_string();
+                    let result = parts.next().unwrap_or_default().to_string();
+                    outcome_slots.push(json!({
+                        "slot": slot,
+                        "result": result,
+                        "frame": frame
+                    }));
+                }
+            }
+            _ => {}
+        }
+
+        let stage = source_order
+            .get("source_stage")
+            .and_then(Value::as_str)
+            .or_else(|| {
+                record
+                    .pointer("/payload/sync_stage")
+                    .and_then(Value::as_str)
+            })
+            .unwrap_or_default()
+            .to_string();
+        let probe_state = record
+            .pointer("/payload/probe_state")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        if !stage.is_empty() {
+            last_stage = stage.clone();
+        }
+        if !probe_state.is_empty() {
+            last_probe_state = probe_state.clone();
+        }
+        if source_kind == "checkpoint" {
+            final_controlled_beacons = source_order
+                .get("controlled_beacons")
+                .and_then(Value::as_u64)
+                .unwrap_or(final_controlled_beacons);
+            final_objective_state = source_order
+                .get("objective_state")
+                .and_then(Value::as_str)
+                .unwrap_or(&final_objective_state)
+                .to_string();
+            final_match_result_state = source_order
+                .get("match_result_state")
+                .and_then(Value::as_str)
+                .unwrap_or(&final_match_result_state)
+                .to_string();
+            reducer_snapshots.push(json!({
+                "snapshot_schema": "openra_order_reducer_snapshot_v1",
+                "sequence": sequence,
+                "frame": frame,
+                "order": order,
+                "stage": stage,
+                "probe_state": probe_state,
+                "controlled_beacons": final_controlled_beacons,
+                "objective_state": final_objective_state,
+                "match_result_state": final_match_result_state
+            }));
+        }
+        reducer_trace.push(json!({
+            "sequence": sequence,
+            "frame": frame,
+            "order": order,
+            "source_kind": source_kind,
+            "payload_sha256": record.get("payload_sha256").cloned().unwrap_or(Value::Null)
+        }));
+    }
+
+    let reducer_trace_sha256 = json_sha256(&Value::Array(reducer_trace.clone()));
+    let reducer_state = json!({
+        "state_schema": "openra_order_stream_reducer_state_v1_json",
+        "phase": if replay_outcome_count > 0 { "replay_complete" } else if game_over_count > 0 { "ended" } else { "running" },
+        "map_uid": map_uid,
+        "rules_uid": rules_uid,
+        "slots": slots,
+        "human_slot": human_slot,
+        "bot_slots": bot_slots,
+        "final_frame": final_frame,
+        "last_stage": last_stage,
+        "last_probe_state": last_probe_state,
+        "final_controlled_beacons": final_controlled_beacons,
+        "final_objective_state": final_objective_state,
+        "final_match_result_state": final_match_result_state,
+        "winner": winner_slot,
+        "losers": loser_slots,
+        "outcomes": outcome_slots,
+        "order_counts": {
+            "StartGame": start_game_count,
+            "SyncFrame": sync_frame_count,
+            "BotOrder": bot_order_count,
+            "TerminalProbe": terminal_probe_count,
+            "GameOver": game_over_count,
+            "ReplayOutcome": replay_outcome_count,
+            "Winner": winner_order_count,
+            "Losers": losers_order_count,
+            "Outcome": outcome_order_count
+        },
+        "trace_sha256": reducer_trace_sha256
+    });
+    let reducer_state_sha256 = json_sha256(&reducer_state);
+    let reducer_write_gate = serde_json::to_vec_pretty(&reducer_state)
+        .map(|bytes| fs::write(&reducer_path, bytes).is_ok())
+        .unwrap_or(false);
+    let reducer_readback: Value = fs::read(&reducer_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let reducer_readback_sha256 = if reducer_readback.is_object() {
+        json_sha256(&reducer_readback)
+    } else {
+        String::new()
+    };
+    let snapshot_stream = reducer_snapshots
+        .iter()
+        .map(|snapshot| serde_json::to_string(snapshot).expect("reducer snapshot serializes"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let snapshot_sha256 = sha256_hex(snapshot_stream.as_bytes());
+    let snapshot_write_gate = fs::write(&snapshot_path, snapshot_stream.as_bytes()).is_ok();
+
+    let source_contract_gate = contract_is(
+        &serializer_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CONTRACT,
+    ) && str_at(&manifest, "manifest_schema")
+        == "openra_order_serializer_fixture_manifest_v1_json"
+        && str_at(&manifest, "stream_schema") == "openra_order_stream_fixture_v1_jsonl"
+        && str_at(&manifest, "record_schema") == "openra_order_stream_record_v1";
+    let source_green_gate = bool_at(&serializer_evidence, "green")
+        && bool_at(&serializer_evidence, "openra_order_serializer_fixture_gate");
+    let source_stream_input_gate = !serializer_path.is_empty()
+        && stream_sha256.len() == 64
+        && str_at(&manifest, "serializer_sha256") == stream_sha256
+        && str_at(&serializer_evidence, "serializer_sha256") == stream_sha256
+        && manifest_file_sha256.len() == 64
+        && records.len() >= 20;
+    let replay_reducer_parse_gate = record_parse_gate
+        && record_schema_gate
+        && sequence_gate
+        && frame_monotonic_gate
+        && record_payload_sha_gate;
+    let replay_reducer_state_gate = start_game_count == 1
+        && sync_frame_count >= 4
+        && bot_order_count >= 4
+        && terminal_probe_count >= 4
+        && game_over_count >= 1
+        && replay_outcome_count == 1
+        && winner_order_count == 1
+        && losers_order_count == 1
+        && outcome_order_count == 4
+        && reducer_readback.get("state_schema").and_then(Value::as_str)
+            == Some("openra_order_stream_reducer_state_v1_json")
+        && reducer_readback.get("phase").and_then(Value::as_str) == Some("replay_complete")
+        && reducer_readback.get("winner").and_then(Value::as_str) == Some("Multi2")
+        && reducer_readback
+            .get("losers")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            == Some(3)
+        && reducer_readback
+            .get("final_frame")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 3000
+        && reducer_readback.get("last_stage").and_then(Value::as_str)
+            == Some("replay_outcome_probe")
+        && reducer_readback
+            .get("final_controlled_beacons")
+            .and_then(Value::as_u64)
+            == Some(2)
+        && reducer_readback
+            .get("final_match_result_state")
+            .and_then(Value::as_str)
+            .is_some_and(|state| state.contains("Multi2"));
+    let reducer_file_gate = reducer_write_gate
+        && reducer_readback.is_object()
+        && reducer_readback_sha256 == reducer_state_sha256
+        && reducer_state_sha256.len() == 64
+        && Path::new(&reducer_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false);
+    let snapshot_file_gate = snapshot_write_gate
+        && snapshot_sha256.len() == 64
+        && reducer_snapshots.len() >= 6
+        && Path::new(&snapshot_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false);
+    let compatibility_boundary_gate =
+        bool_at(
+            &serializer_evidence,
+            "bevy_openra_order_serializer_fixture_claimed",
+        ) && !bool_at(&serializer_evidence, "bevy_openra_binary_replay_compatible")
+            && !bool_at(&serializer_evidence, "bevy_openra_order_serializer_claimed")
+            && !bool_at(
+                &serializer_evidence,
+                "bevy_openra_network_order_stream_claimed",
+            )
+            && !bool_at(&serializer_evidence, "bevy_openra_runtime_parity_claimed")
+            && !bool_at(&serializer_evidence, "public_launch_ready")
+            && manifest
+                .pointer("/compatibility/openra_style_order_stream_fixture")
+                .and_then(Value::as_bool)
+                == Some(true)
+            && manifest
+                .pointer("/compatibility/openra_binary_replay_compatible")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && manifest
+                .pointer("/compatibility/openra_network_order_stream_claimed")
+                .and_then(Value::as_bool)
+                == Some(false);
+    let openra_order_replay_reducer_gate = source_contract_gate
+        && source_green_gate
+        && source_stream_input_gate
+        && replay_reducer_parse_gate
+        && replay_reducer_state_gate
+        && reducer_file_gate
+        && snapshot_file_gate
+        && compatibility_boundary_gate;
+    let green = openra_order_replay_reducer_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "reducer_path": reducer_path,
+        "reducer_state_sha256": reducer_state_sha256,
+        "snapshot_path": snapshot_path,
+        "snapshot_sha256": snapshot_sha256,
+        "adapter_state": "bevy_owned_openra_style_order_stream_replayed_by_rust_reducer",
+        "source_contracts": {
+            "openra_order_serializer_fixture": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CONTRACT
+        },
+        "source_paths": {
+            "openra_order_serializer_fixture": serializer_dir,
+            "serializer_jsonl": serializer_path,
+            "serializer_manifest": manifest_path
+        },
+        "reducer_summary": {
+            "stream_schema": str_at(&manifest, "stream_schema"),
+            "record_schema": str_at(&manifest, "record_schema"),
+            "source_stream_sha256": stream_sha256,
+            "source_manifest_file_sha256": manifest_file_sha256,
+            "record_count": records.len(),
+            "snapshot_count": reducer_snapshots.len(),
+            "final_frame": final_frame,
+            "winner": reducer_readback.get("winner").cloned().unwrap_or(Value::Null),
+            "loser_count": reducer_readback.get("losers").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
+            "outcome_order_count": outcome_order_count,
+            "trace_sha256": reducer_trace_sha256,
+            "state_schema": reducer_readback.get("state_schema").cloned().unwrap_or(Value::Null),
+            "phase": reducer_readback.get("phase").cloned().unwrap_or(Value::Null),
+            "last_stage": reducer_readback.get("last_stage").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": reducer_readback.get("final_match_result_state").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "source_stream_input_gate": source_stream_input_gate,
+        "record_parse_gate": record_parse_gate,
+        "record_schema_gate": record_schema_gate,
+        "sequence_gate": sequence_gate,
+        "frame_monotonic_gate": frame_monotonic_gate,
+        "record_payload_sha_gate": record_payload_sha_gate,
+        "replay_reducer_parse_gate": replay_reducer_parse_gate,
+        "replay_reducer_state_gate": replay_reducer_state_gate,
+        "reducer_file_gate": reducer_file_gate,
+        "snapshot_file_gate": snapshot_file_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "openra_order_replay_reducer_gate": openra_order_replay_reducer_gate,
+        "bevy_openra_order_replay_reducer_claimed": true,
+        "bevy_openra_order_serializer_fixture_claimed": true,
+        "bevy_openra_command_vocabulary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA order replay reducer evidence replays the deterministic OpenRA-style JSONL order stream through a Rust reducer, validates sequence/frame/payload hashes, writes replay snapshots, and derives the final winner/outcome state digest. It claims only a local Rust reducer over the Trillionnium-owned order stream; OpenRA binary replay compatibility, OpenRA-native order serialization, OpenRA network-order streams, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA order replay reducer evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

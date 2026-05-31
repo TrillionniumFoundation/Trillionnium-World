@@ -1344,6 +1344,23 @@ fn main() {
     }
     if matches!(
         args.first().map(String::as_str),
+        Some(
+            "classic-rts-openra-order-replay-reducer" | "--classic-rts-openra-order-replay-reducer"
+        )
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-replay-reducer",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_openra_order_replay_reducer_evidence_json(
+                preview_dir
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
         Some("classic-rts-owned-replay-file" | "--classic-rts-owned-replay-file")
     ) {
         let replay_path = args.get(1).map(String::as_str).unwrap_or(
