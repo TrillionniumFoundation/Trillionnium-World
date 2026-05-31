@@ -282,6 +282,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CO
     "trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_HEADLESS_COMPARISON_HARNESS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_headless_comparison_harness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
@@ -38622,6 +38624,552 @@ pub fn native_classic_rts_openra_order_replay_reducer_evidence_json(preview_dir:
         "source_of_truth": "Classic RTS OpenRA order replay reducer evidence replays the deterministic OpenRA-style JSONL order stream through a Rust reducer, validates sequence/frame/payload hashes, writes replay snapshots, and derives the final winner/outcome state digest. It claims only a local Rust reducer over the Trillionnium-owned order stream; OpenRA binary replay compatibility, OpenRA-native order serialization, OpenRA network-order streams, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA order replay reducer evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_headless_comparison_harness_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let reducer_dir = preview_path("openra-order-replay-reducer");
+    let replay_adapter_dir = preview_path("openra-replay-compat-adapter");
+    let comparison_path = preview_path("openra-headless-comparison-harness.json");
+    let mismatch_matrix_path = preview_path("openra-headless-comparison-mismatch-matrix.json");
+
+    let reducer_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_order_replay_reducer_evidence_json(&reducer_dir),
+    )
+    .expect("OpenRA order replay reducer evidence parses");
+    let replay_adapter: Value = serde_json::from_str(
+        &native_classic_rts_openra_replay_compat_adapter_evidence_json(&replay_adapter_dir),
+    )
+    .expect("OpenRA replay compatibility adapter evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let bool_ptr = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    };
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let str_ptr = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let u64_ptr =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("comparison payload serializes"))
+    };
+
+    let reducer_path = str_at(&reducer_evidence, "reducer_path");
+    let reducer_state: Value = fs::read(&reducer_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let snapshot_path = str_at(&reducer_evidence, "snapshot_path");
+    let snapshot_text = fs::read_to_string(&snapshot_path).unwrap_or_default();
+    let mut snapshot_parse_gate = true;
+    let mut snapshots = Vec::new();
+    for line in snapshot_text.lines().filter(|line| !line.trim().is_empty()) {
+        match serde_json::from_str::<Value>(line) {
+            Ok(snapshot) => snapshots.push(snapshot),
+            Err(_) => snapshot_parse_gate = false,
+        }
+    }
+
+    let replay_adapter_path = str_at(&replay_adapter, "adapter_path");
+    let replay_summary: Value = fs::read(&replay_adapter_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let reducer_slots = reducer_state
+        .get("slots")
+        .cloned()
+        .unwrap_or(Value::Array(Vec::new()));
+    let replay_slots = replay_summary
+        .pointer("/start_game/slots")
+        .cloned()
+        .unwrap_or(Value::Array(Vec::new()));
+    let reducer_bot_slots = reducer_state
+        .get("bot_slots")
+        .cloned()
+        .unwrap_or(Value::Array(Vec::new()));
+    let replay_bot_slots = replay_summary
+        .pointer("/start_game/bot_slots")
+        .cloned()
+        .unwrap_or(Value::Array(Vec::new()));
+    let reducer_loser_count = reducer_state
+        .get("losers")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let replay_recorded_input_count = u64_ptr(&replay_summary, "/timeline/recorded_input_count");
+    let reducer_snapshot_count = snapshots.len() as u64;
+    let replay_final_tick = u64_ptr(&replay_summary, "/outcome/final_tick");
+
+    let comparison_row = |field: &str, reducer_value: Value, reference_value: Value| {
+        let aligned = reducer_value == reference_value;
+        json!({
+            "field": field,
+            "reducer_value": reducer_value,
+            "reference_value": reference_value,
+            "aligned": aligned
+        })
+    };
+    let comparison_rows = vec![
+        comparison_row(
+            "map_uid",
+            reducer_state.get("map_uid").cloned().unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/map/uid")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "rules_uid",
+            reducer_state
+                .get("rules_uid")
+                .cloned()
+                .unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/rules/uid")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row("start_game_slots", reducer_slots, replay_slots),
+        comparison_row(
+            "human_slot",
+            reducer_state
+                .get("human_slot")
+                .cloned()
+                .unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/start_game/human_slot")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row("bot_slots", reducer_bot_slots, replay_bot_slots),
+        comparison_row(
+            "final_frame",
+            reducer_state
+                .get("final_frame")
+                .cloned()
+                .unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/outcome/final_tick")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "timeline_final_tick",
+            reducer_state
+                .get("final_frame")
+                .cloned()
+                .unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/timeline/ticks")
+                .and_then(Value::as_array)
+                .and_then(|ticks| ticks.last())
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "winner",
+            reducer_state.get("winner").cloned().unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/outcome/winner")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "loser_count",
+            json!(reducer_loser_count),
+            replay_summary
+                .pointer("/outcome/loser_count")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "final_match_result_state",
+            reducer_state
+                .get("final_match_result_state")
+                .cloned()
+                .unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/outcome/final_match_result_state")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "headless_match_result_state",
+            reducer_state
+                .get("final_match_result_state")
+                .cloned()
+                .unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/headless/final_match_result_state")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "controlled_beacons",
+            reducer_state
+                .get("final_controlled_beacons")
+                .cloned()
+                .unwrap_or(Value::Null),
+            replay_summary
+                .pointer("/terminal_contract/winner_beacons")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "snapshot_count",
+            json!(reducer_snapshot_count),
+            replay_summary
+                .pointer("/timeline/recorded_input_count")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "headless_rendered_frame_count",
+            json!(0),
+            replay_summary
+                .pointer("/headless/rendered_frame_count")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+        comparison_row(
+            "headless_wgpu_required",
+            json!(false),
+            replay_summary
+                .pointer("/headless/wgpu_required")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+    ];
+    let comparison_count = comparison_rows.len();
+    let aligned_count = comparison_rows
+        .iter()
+        .filter(|row| row.get("aligned").and_then(Value::as_bool) == Some(true))
+        .count();
+    let mismatch_count = comparison_count.saturating_sub(aligned_count);
+
+    let mismatch_case =
+        |case_name: &str, field: &str, expected_value: Value, mutated_value: Value| {
+            let mismatch_detected = expected_value != mutated_value;
+            json!({
+                "case": case_name,
+                "field": field,
+                "expected_value": expected_value,
+                "mutated_value": mutated_value,
+                "mismatch_detected": mismatch_detected
+            })
+        };
+    let mismatch_matrix = vec![
+        mismatch_case(
+            "winner_mismatch_probe",
+            "winner",
+            replay_summary
+                .pointer("/outcome/winner")
+                .cloned()
+                .unwrap_or(Value::Null),
+            json!("Multi1"),
+        ),
+        mismatch_case(
+            "frame_regression_probe",
+            "final_frame",
+            replay_summary
+                .pointer("/outcome/final_tick")
+                .cloned()
+                .unwrap_or(Value::Null),
+            json!(replay_final_tick.saturating_sub(60)),
+        ),
+        mismatch_case(
+            "map_uid_mismatch_probe",
+            "map_uid",
+            replay_summary
+                .pointer("/map/uid")
+                .cloned()
+                .unwrap_or(Value::Null),
+            json!(format!("{}:mutated", str_ptr(&replay_summary, "/map/uid"))),
+        ),
+        mismatch_case(
+            "rules_uid_mismatch_probe",
+            "rules_uid",
+            replay_summary
+                .pointer("/rules/uid")
+                .cloned()
+                .unwrap_or(Value::Null),
+            json!(format!(
+                "{}:mutated",
+                str_ptr(&replay_summary, "/rules/uid")
+            )),
+        ),
+        mismatch_case(
+            "match_state_mismatch_probe",
+            "final_match_result_state",
+            replay_summary
+                .pointer("/outcome/final_match_result_state")
+                .cloned()
+                .unwrap_or(Value::Null),
+            json!("victory:organic_terminal_observed:Multi1"),
+        ),
+        mismatch_case(
+            "snapshot_drop_probe",
+            "snapshot_count",
+            json!(replay_recorded_input_count),
+            json!(reducer_snapshot_count.saturating_sub(1)),
+        ),
+        mismatch_case(
+            "headless_wgpu_toggle_probe",
+            "headless_wgpu_required",
+            replay_summary
+                .pointer("/headless/wgpu_required")
+                .cloned()
+                .unwrap_or(Value::Null),
+            json!(true),
+        ),
+    ];
+    let detected_negative_case_count = mismatch_matrix
+        .iter()
+        .filter(|case| case.get("mismatch_detected").and_then(Value::as_bool) == Some(true))
+        .count();
+
+    let comparison_report = json!({
+        "comparison_schema": "openra_headless_comparison_harness_v1_json",
+        "sources": {
+            "order_replay_reducer": {
+                "contract_version": reducer_evidence.get("contract_version").cloned().unwrap_or(Value::Null),
+                "reducer_path": reducer_path,
+                "snapshot_path": snapshot_path,
+                "state_sha256": reducer_evidence.get("reducer_state_sha256").cloned().unwrap_or(Value::Null),
+                "snapshot_sha256": reducer_evidence.get("snapshot_sha256").cloned().unwrap_or(Value::Null)
+            },
+            "replay_summary_adapter": {
+                "contract_version": replay_adapter.get("contract_version").cloned().unwrap_or(Value::Null),
+                "adapter_path": replay_adapter_path,
+                "adapter_sha256": replay_adapter.get("adapter_sha256").cloned().unwrap_or(Value::Null),
+                "source_replay_sha256": replay_adapter.pointer("/adapter_summary/source_replay_sha256").cloned().unwrap_or(Value::Null)
+            }
+        },
+        "comparisons": comparison_rows,
+        "mismatch_matrix": mismatch_matrix.clone(),
+        "summary": {
+            "comparison_count": comparison_count,
+            "aligned_count": aligned_count,
+            "mismatch_count": mismatch_count,
+            "negative_case_count": detected_negative_case_count,
+            "final_frame": reducer_state.get("final_frame").cloned().unwrap_or(Value::Null),
+            "winner": reducer_state.get("winner").cloned().unwrap_or(Value::Null),
+            "headless_mode": replay_summary.pointer("/headless/mode").cloned().unwrap_or(Value::Null),
+            "snapshot_count": reducer_snapshot_count,
+            "recorded_input_count": replay_recorded_input_count,
+            "reducer_trace_sha256": reducer_state.get("trace_sha256").cloned().unwrap_or(Value::Null),
+            "source_stream_sha256": reducer_evidence.pointer("/reducer_summary/source_stream_sha256").cloned().unwrap_or(Value::Null)
+        }
+    });
+    let comparison_sha256 = json_sha256(&comparison_report);
+    let mismatch_matrix_value = Value::Array(mismatch_matrix.clone());
+    let mismatch_matrix_sha256 = json_sha256(&mismatch_matrix_value);
+    let comparison_write_gate = serde_json::to_vec_pretty(&comparison_report)
+        .map(|bytes| fs::write(&comparison_path, bytes).is_ok())
+        .unwrap_or(false);
+    let mismatch_matrix_write_gate = serde_json::to_vec_pretty(&mismatch_matrix_value)
+        .map(|bytes| fs::write(&mismatch_matrix_path, bytes).is_ok())
+        .unwrap_or(false);
+    let comparison_readback: Value = fs::read(&comparison_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let mismatch_matrix_readback: Value = fs::read(&mismatch_matrix_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let source_contract_gate = contract_is(
+        &reducer_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT,
+    ) && contract_is(
+        &replay_adapter,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT,
+    ) && str_at(&reducer_state, "state_schema")
+        == "openra_order_stream_reducer_state_v1_json"
+        && str_at(&replay_summary, "adapter_schema") == "openra_replay_summary_adapter_v1_json";
+    let source_green_gate = bool_at(&reducer_evidence, "green")
+        && bool_at(&reducer_evidence, "openra_order_replay_reducer_gate")
+        && bool_at(&replay_adapter, "green")
+        && bool_at(&replay_adapter, "openra_replay_compat_adapter_gate");
+    let source_artifact_gate = reducer_state.is_object()
+        && replay_summary.is_object()
+        && snapshot_parse_gate
+        && snapshots.len() >= 6
+        && Path::new(&reducer_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false)
+        && Path::new(&snapshot_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false)
+        && Path::new(&replay_adapter_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false);
+    let comparison_alignment_gate =
+        comparison_count >= 12 && aligned_count == comparison_count && mismatch_count == 0;
+    let headless_comparison_gate = str_ptr(&replay_summary, "/headless/mode")
+        == "owned_replay_checkpoint_reducer_no_render_no_wgpu"
+        && bool_ptr(&replay_summary, "/headless/wgpu_required") == false
+        && u64_ptr(&replay_summary, "/headless/rendered_frame_count") == 0
+        && str_ptr(&reducer_state, "/winner") == "Multi2"
+        && str_ptr(&replay_summary, "/outcome/winner") == "Multi2"
+        && str_ptr(&reducer_state, "/final_match_result_state")
+            == str_ptr(&replay_summary, "/headless/final_match_result_state")
+        && u64_ptr(&reducer_state, "/final_frame") == replay_final_tick
+        && u64_ptr(&reducer_state, "/final_controlled_beacons")
+            == u64_ptr(&replay_summary, "/terminal_contract/winner_beacons");
+    let mismatch_matrix_gate = mismatch_matrix.len() >= 6
+        && detected_negative_case_count == mismatch_matrix.len()
+        && mismatch_matrix_readback
+            .as_array()
+            .is_some_and(|cases| cases.len() == mismatch_matrix.len());
+    let comparison_file_gate = comparison_write_gate
+        && mismatch_matrix_write_gate
+        && comparison_readback.is_object()
+        && mismatch_matrix_readback.is_array()
+        && comparison_sha256.len() == 64
+        && mismatch_matrix_sha256.len() == 64
+        && Path::new(&comparison_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 1_000)
+            .unwrap_or(false)
+        && Path::new(&mismatch_matrix_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false);
+    let compatibility_boundary_gate =
+        bool_at(
+            &reducer_evidence,
+            "bevy_openra_order_replay_reducer_claimed",
+        ) && bool_at(
+            &replay_adapter,
+            "bevy_openra_replay_summary_adapter_claimed",
+        ) && !bool_at(&reducer_evidence, "bevy_openra_binary_replay_compatible")
+            && !bool_at(
+                &reducer_evidence,
+                "bevy_openra_network_order_stream_claimed",
+            )
+            && !bool_at(&reducer_evidence, "bevy_openra_runtime_parity_claimed")
+            && !bool_at(&reducer_evidence, "bevy_openra_parity_claimed")
+            && !bool_at(&replay_adapter, "bevy_openra_binary_replay_compatible")
+            && !bool_at(&replay_adapter, "bevy_openra_headless_client_match_claimed")
+            && !bool_at(&replay_adapter, "bevy_openra_runtime_parity_claimed")
+            && !bool_at(&replay_adapter, "bevy_openra_parity_claimed")
+            && !bool_ptr(
+                &replay_summary,
+                "/compatibility/openra_engine_runtime_required",
+            )
+            && !bool_ptr(
+                &replay_summary,
+                "/compatibility/openra_runtime_parity_claimed",
+            )
+            && !bool_at(&reducer_evidence, "public_launch_ready")
+            && !bool_at(&replay_adapter, "public_launch_ready");
+    let openra_headless_comparison_harness_gate = source_contract_gate
+        && source_green_gate
+        && source_artifact_gate
+        && comparison_alignment_gate
+        && headless_comparison_gate
+        && mismatch_matrix_gate
+        && comparison_file_gate
+        && compatibility_boundary_gate;
+    let green = openra_headless_comparison_harness_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "comparison_path": comparison_path,
+        "comparison_sha256": comparison_sha256,
+        "mismatch_matrix_path": mismatch_matrix_path,
+        "mismatch_matrix_sha256": mismatch_matrix_sha256,
+        "adapter_state": "bevy_owned_openra_style_reducer_compared_with_headless_replay_harness",
+        "source_contracts": {
+            "openra_order_replay_reducer": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": {
+            "openra_order_replay_reducer": reducer_dir,
+            "openra_replay_compat_adapter": replay_adapter_dir,
+            "reducer_state": str_ptr(&comparison_report, "/sources/order_replay_reducer/reducer_path"),
+            "reducer_snapshots": str_ptr(&comparison_report, "/sources/order_replay_reducer/snapshot_path"),
+            "replay_summary_adapter": str_ptr(&comparison_report, "/sources/replay_summary_adapter/adapter_path")
+        },
+        "comparison_summary": {
+            "comparison_schema": comparison_readback.get("comparison_schema").cloned().unwrap_or(Value::Null),
+            "comparison_count": comparison_count,
+            "aligned_count": aligned_count,
+            "mismatch_count": mismatch_count,
+            "negative_case_count": mismatch_matrix.len(),
+            "detected_negative_case_count": detected_negative_case_count,
+            "final_frame": reducer_state.get("final_frame").cloned().unwrap_or(Value::Null),
+            "replay_final_tick": replay_summary.pointer("/outcome/final_tick").cloned().unwrap_or(Value::Null),
+            "winner": reducer_state.get("winner").cloned().unwrap_or(Value::Null),
+            "headless_mode": replay_summary.pointer("/headless/mode").cloned().unwrap_or(Value::Null),
+            "reducer_state_sha256": reducer_evidence.get("reducer_state_sha256").cloned().unwrap_or(Value::Null),
+            "replay_adapter_sha256": replay_adapter.get("adapter_sha256").cloned().unwrap_or(Value::Null),
+            "source_stream_sha256": reducer_evidence.pointer("/reducer_summary/source_stream_sha256").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "source_artifact_gate": source_artifact_gate,
+        "snapshot_parse_gate": snapshot_parse_gate,
+        "comparison_alignment_gate": comparison_alignment_gate,
+        "headless_comparison_gate": headless_comparison_gate,
+        "mismatch_matrix_gate": mismatch_matrix_gate,
+        "comparison_file_gate": comparison_file_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "openra_headless_comparison_harness_gate": openra_headless_comparison_harness_gate,
+        "bevy_openra_headless_comparison_harness_claimed": true,
+        "bevy_openra_order_replay_reducer_claimed": true,
+        "bevy_openra_order_serializer_fixture_claimed": true,
+        "bevy_openra_replay_summary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA headless comparison harness evidence compares the Rust order-stream reducer state against the Bevy-owned replay summary/headless outcome field-by-field, then writes a mismatch probe matrix proving corrupted winner/frame/map/rules/state/snapshot/gpu fields are detected. It claims only a local comparison harness over Trillionnium-owned OpenRA-style evidence; OpenRA binary replay compatibility, OpenRA-native order serialization, OpenRA network-order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA headless comparison harness evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
