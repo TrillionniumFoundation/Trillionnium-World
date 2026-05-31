@@ -272,6 +272,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLAYTEST_OBSERVABILITY_READINESS_C
     "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_parity_bridge_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_LANE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_parity_lane_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
@@ -36718,6 +36720,299 @@ pub fn native_classic_rts_openra_parity_bridge_evidence_json(preview_dir: &str) 
         "source_of_truth": "Classic RTS OpenRA parity bridge evidence creates a single local comparison matrix over Bevy organic terminal, terminal observation, replay metrics, and endurance/headless vocabulary. It deliberately keeps OpenRA parity unclaimed and the gap visible until a real Bevy/OpenRA-style replay file and headless natural match are owned by the Rust/Bevy runtime."
     }))
     .expect("classic RTS OpenRA parity bridge evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_parity_lane_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let bridge_dir = preview_path("openra-parity-bridge");
+    let replay_path = preview_path("openra-parity-lane.trnm-replay.json");
+    let terminal_dir = preview_path("natural-terminal-contract");
+    let planner_dir = preview_path("planner-live-autonomous-bot-loop");
+
+    let core: Value = serde_json::from_str(&native_classic_rts_openra_like_core_evidence_json())
+        .expect("OpenRA-like core evidence parses");
+    let bridge: Value = serde_json::from_str(
+        &native_classic_rts_openra_parity_bridge_evidence_json(&bridge_dir),
+    )
+    .expect("OpenRA parity bridge evidence parses");
+    let owned_replay: Value = serde_json::from_str(
+        &native_classic_rts_owned_replay_file_evidence_json(&replay_path),
+    )
+    .expect("owned replay file evidence parses");
+    let headless: Value = serde_json::from_str(
+        &native_classic_rts_headless_replay_playback_evidence_json(&replay_path),
+    )
+    .expect("headless replay playback evidence parses");
+    let terminal: Value = serde_json::from_str(
+        &native_classic_rts_natural_terminal_contract_evidence_json(&terminal_dir, &replay_path),
+    )
+    .expect("natural terminal contract evidence parses");
+    let planner_loop: Value = serde_json::from_str(
+        &native_classic_rts_planner_live_autonomous_bot_loop_evidence_json(&planner_dir),
+    )
+    .expect("planner live autonomous bot loop evidence parses");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let array_len = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0)
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+
+    let source_contract_gate = contract_is(
+        &core,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT,
+    ) && contract_is(
+        &bridge,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT,
+    ) && contract_is(
+        &owned_replay,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT,
+    ) && contract_is(
+        &headless,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT,
+    ) && contract_is(
+        &terminal,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT,
+    ) && contract_is(
+        &planner_loop,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_CONTRACT,
+    );
+    let source_green_gate = bool_at(&core, "green")
+        && bool_at(&bridge, "green")
+        && bool_at(&owned_replay, "green")
+        && bool_at(&headless, "green")
+        && bool_at(&terminal, "green")
+        && bool_at(&planner_loop, "green");
+    let rules_mod_vocabulary_gate = str_at(&core, "runtime_model")
+        == "rust_bevy_owned_openra_like_rts_core"
+        && core
+            .pointer("/source_policy/no_openra_engine_code_copied")
+            .and_then(Value::as_bool)
+            == Some(true)
+        && core
+            .pointer("/source_policy/rust_bevy_owned_runtime")
+            .and_then(Value::as_bool)
+            == Some(true)
+        && core
+            .pointer("/source_policy/uses_trillionnium_owned_mod_data")
+            .and_then(Value::as_bool)
+            == Some(true)
+        && core.pointer("/map/width").and_then(Value::as_u64) == Some(34)
+        && core.pointer("/map/height").and_then(Value::as_u64) == Some(34)
+        && core.pointer("/map/player_count").and_then(Value::as_u64) == Some(4)
+        && core
+            .pointer("/map/rule_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 10
+        && core
+            .pointer("/map/actor_template_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 39
+        && array_len(&core, "orders") >= 10
+        && core
+            .pointer("/simulation/tick_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 320;
+    let comparison_bridge_gate = bool_at(&bridge, "comparison_matrix_gate")
+        && bool_at(&bridge, "no_parity_claim_gate")
+        && u64_at(&bridge, "comparison_axis_count") == 4;
+    let owned_replay_lane_gate = bool_at(&owned_replay, "owned_replay_file_gate")
+        && str_at(&owned_replay, "replay_format") == "trnm_owned_replay_v1_json"
+        && u64_at(&owned_replay, "recorded_input_count") >= 6
+        && u64_at(&owned_replay, "checksum_mismatch_count") == 0;
+    let headless_playback_lane_gate = bool_at(&headless, "headless_replay_playback_gate")
+        && str_at(&headless, "headless_playback_mode")
+            == "owned_replay_checkpoint_reducer_no_render_no_wgpu"
+        && u64_at(&headless, "rendered_frame_count") == 0
+        && u64_at(&headless, "checksum_mismatch_count") == 0
+        && !bool_at(&headless, "wgpu_required");
+    let natural_terminal_lane_gate = bool_at(&terminal, "natural_terminal_contract_gate")
+        && str_at(&terminal, "terminal_winner") == "Multi2"
+        && u64_at(&terminal, "terminal_winner_beacons") == 2
+        && u64_at(&terminal, "terminal_total_beacons") == 4
+        && u64_at(&terminal, "terminal_hold_ticks") == 3000;
+    let bot_skirmish_lane_gate = bool_at(&planner_loop, "planner_live_autonomous_bot_loop_gate")
+        && str_at(&planner_loop, "planner_live_loop_state")
+            == "bevy_planner_drives_live_autonomous_bot_timeline_not_openra_bot_match"
+        && planner_loop
+            .pointer("/autonomous_summary/winner")
+            .and_then(Value::as_str)
+            == Some("Multi2")
+        && planner_loop
+            .pointer("/autonomous_summary/final_match_result_state")
+            .and_then(Value::as_str)
+            == Some("victory:bot_terminal:Multi2")
+        && u64_at(&planner_loop, "replayable_decision_count") == 6;
+    let replay_headless_consistency_gate = owned_replay.get("replay_file_sha256")
+        == headless.get("replay_file_sha256")
+        && owned_replay.get("final_playback_checkpoint_sha256")
+            == headless.get("final_headless_checkpoint_sha256");
+    let no_openra_parity_claim_gate = !bool_at(&bridge, "public_launch_ready")
+        && !bool_at(&owned_replay, "bevy_openra_replay_file_claimed")
+        && !bool_at(&owned_replay, "bevy_openra_parity_claimed")
+        && !bool_at(&headless, "bevy_openra_headless_client_match_claimed")
+        && !bool_at(&headless, "bevy_openra_parity_claimed")
+        && !bool_at(&terminal, "bevy_openra_natural_terminal_match_claimed")
+        && !bool_at(&terminal, "bevy_openra_parity_claimed")
+        && !bool_at(&planner_loop, "bevy_openra_live_bot_match_claimed")
+        && !bool_at(&planner_loop, "bevy_openra_bot_ai_parity_claimed")
+        && !bool_at(&planner_loop, "bevy_openra_parity_claimed");
+    let boundary_gate = !bool_at(&bridge, "android_s5_real_device_claimed")
+        && !bool_at(&bridge, "public_launch_ready")
+        && !bool_at(&owned_replay, "android_s5_real_device_claimed")
+        && !bool_at(&owned_replay, "public_launch_ready")
+        && !bool_at(&headless, "android_s5_real_device_claimed")
+        && !bool_at(&headless, "public_launch_ready")
+        && !bool_at(&terminal, "android_s5_real_device_claimed")
+        && !bool_at(&terminal, "public_launch_ready")
+        && !bool_at(&planner_loop, "android_s5_real_device_claimed")
+        && !bool_at(&planner_loop, "public_launch_ready");
+    let openra_parity_lane_gate = source_contract_gate
+        && source_green_gate
+        && rules_mod_vocabulary_gate
+        && comparison_bridge_gate
+        && owned_replay_lane_gate
+        && headless_playback_lane_gate
+        && natural_terminal_lane_gate
+        && bot_skirmish_lane_gate
+        && replay_headless_consistency_gate
+        && no_openra_parity_claim_gate
+        && boundary_gate;
+    let green = openra_parity_lane_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_LANE_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "lane_state": "bevy_openra_parity_lane_v1_local_runtime_green_not_openra_runtime_parity",
+        "lane_axis_count": 6,
+        "preview_paths": {
+            "openra_parity_bridge": bridge_dir,
+            "owned_replay_file": replay_path,
+            "natural_terminal_contract": terminal_dir,
+            "planner_live_autonomous_bot_loop": planner_dir
+        },
+        "source_contracts": {
+            "openra_like_core": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT,
+            "openra_parity_bridge": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_BRIDGE_CONTRACT,
+            "owned_replay_file": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT,
+            "headless_replay_playback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT,
+            "natural_terminal_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_NATURAL_TERMINAL_CONTRACT,
+            "planner_live_autonomous_bot_loop": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_CONTRACT
+        },
+        "lane_axes": [
+            {
+                "axis": "rules_mod_vocabulary",
+                "evidence": "classic-rts-openra-like-core",
+                "bevy_signal": "owned_rules_map_orders_and_simulation_green",
+                "openra_target": "OpenRA-like mod/rules vocabulary shape",
+                "gate": rules_mod_vocabulary_gate
+            },
+            {
+                "axis": "comparison_bridge",
+                "evidence": "classic-rts-openra-parity-bridge",
+                "bevy_signal": "terminal_replay_and_endurance_comparison_matrix_green",
+                "openra_target": "OpenRA terminal/replay/headless comparison target commits",
+                "gate": comparison_bridge_gate
+            },
+            {
+                "axis": "owned_replay_file",
+                "evidence": "classic-rts-owned-replay-file",
+                "bevy_signal": "trnm_owned_replay_v1_json_written_and_replayed",
+                "openra_target": "OpenRA replay file compatibility still unclaimed",
+                "gate": owned_replay_lane_gate
+            },
+            {
+                "axis": "headless_replay_playback",
+                "evidence": "classic-rts-headless-replay-playback",
+                "bevy_signal": "no_render_no_wgpu_checkpoint_reducer_matches_source",
+                "openra_target": "OpenRA headless client match parity still unclaimed",
+                "gate": headless_playback_lane_gate
+            },
+            {
+                "axis": "natural_terminal_contract",
+                "evidence": "classic-rts-natural-terminal-contract",
+                "bevy_signal": "multi2_controls_two_of_four_beacons_for_3000_ticks",
+                "openra_target": "OpenRA natural terminal match parity still unclaimed",
+                "gate": natural_terminal_lane_gate
+            },
+            {
+                "axis": "bot_skirmish_loop",
+                "evidence": "classic-rts-planner-live-autonomous-bot-loop",
+                "bevy_signal": "planner_drives_replayable_autonomous_bot_terminal_loop",
+                "openra_target": "OpenRA live bot match parity still unclaimed",
+                "gate": bot_skirmish_lane_gate
+            }
+        ],
+        "lane_summary": {
+            "runtime_model": core.get("runtime_model").cloned().unwrap_or(Value::Null),
+            "rules_count": core.pointer("/map/rule_count").cloned().unwrap_or(Value::Null),
+            "actor_template_count": core.pointer("/map/actor_template_count").cloned().unwrap_or(Value::Null),
+            "order_count": array_len(&core, "orders"),
+            "bridge_axis_count": bridge.get("comparison_axis_count").cloned().unwrap_or(Value::Null),
+            "replay_format": owned_replay.get("replay_format").cloned().unwrap_or(Value::Null),
+            "replay_file_sha256": owned_replay.get("replay_file_sha256").cloned().unwrap_or(Value::Null),
+            "recorded_input_count": owned_replay.get("recorded_input_count").cloned().unwrap_or(Value::Null),
+            "headless_playback_mode": headless.get("headless_playback_mode").cloned().unwrap_or(Value::Null),
+            "final_checkpoint_sha256": headless.get("final_headless_checkpoint_sha256").cloned().unwrap_or(Value::Null),
+            "terminal_winner": terminal.get("terminal_winner").cloned().unwrap_or(Value::Null),
+            "terminal_hold_ticks": terminal.get("terminal_hold_ticks").cloned().unwrap_or(Value::Null),
+            "bot_loop_state": planner_loop.get("planner_live_loop_state").cloned().unwrap_or(Value::Null),
+            "bot_loop_winner": planner_loop.pointer("/autonomous_summary/winner").cloned().unwrap_or(Value::Null),
+            "bot_loop_decision_count": planner_loop.get("replayable_decision_count").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "rules_mod_vocabulary_gate": rules_mod_vocabulary_gate,
+        "comparison_bridge_gate": comparison_bridge_gate,
+        "owned_replay_lane_gate": owned_replay_lane_gate,
+        "headless_playback_lane_gate": headless_playback_lane_gate,
+        "natural_terminal_lane_gate": natural_terminal_lane_gate,
+        "bot_skirmish_lane_gate": bot_skirmish_lane_gate,
+        "replay_headless_consistency_gate": replay_headless_consistency_gate,
+        "no_openra_parity_claim_gate": no_openra_parity_claim_gate,
+        "boundary_gate": boundary_gate,
+        "openra_parity_lane_gate": openra_parity_lane_gate,
+        "bevy_openra_parity_lane_evidence_claimed": true,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_natural_terminal_match_claimed": false,
+        "bevy_openra_live_bot_match_claimed": false,
+        "bevy_openra_bot_ai_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA parity lane evidence composes the Rust/Bevy-owned OpenRA-like rules vocabulary, comparison bridge, owned replay file, headless replay playback, natural terminal contract, and planner-driven autonomous bot loop into one repeatable local lane. It claims only Trillionnium-owned parity-lane evidence; OpenRA runtime parity, OpenRA replay compatibility, OpenRA headless-client parity, OpenRA live bot match parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA parity lane evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
