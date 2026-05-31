@@ -276,6 +276,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_LANE_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_openra_parity_lane_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_COMMAND_VOCAB_ADAPTER_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
@@ -37339,6 +37341,399 @@ pub fn native_classic_rts_openra_replay_compat_adapter_evidence_json(preview_dir
         "source_of_truth": "Classic RTS OpenRA replay compatibility adapter evidence converts the Trillionnium-owned replay plus headless playback result into an OpenRA-style replay summary schema with StartGame, slots, map/rules ids, timeline, outcome, and headless checksum fields. It claims only a schema adapter; OpenRA binary replay compatibility, OpenRA headless-client match parity, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA replay compatibility adapter evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_command_vocab_adapter_evidence_json(preview_dir: &str) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let replay_adapter_dir = preview_path("openra-replay-compat-adapter");
+    let command_adapter_path = preview_path("openra-command-vocabulary-adapter.json");
+
+    let replay_adapter: Value = serde_json::from_str(
+        &native_classic_rts_openra_replay_compat_adapter_evidence_json(&replay_adapter_dir),
+    )
+    .expect("OpenRA replay compatibility adapter evidence parses");
+    let replay_path = replay_adapter
+        .pointer("/source_paths/owned_replay_file")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let replay_bytes = fs::read(&replay_path).unwrap_or_default();
+    let replay_file_sha256 = if replay_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&replay_bytes)
+    };
+    let replay: Value = serde_json::from_slice(&replay_bytes).unwrap_or_else(|_| Value::Null);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let json_sha256 =
+        |value: &Value| sha256_hex(&serde_json::to_vec(value).expect("adapter payload serializes"));
+
+    let replay_inputs = replay
+        .get("recorded_inputs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let tick_sequence: Vec<u64> = replay_inputs
+        .iter()
+        .map(|input| input.get("tick").and_then(Value::as_u64).unwrap_or(0))
+        .collect();
+    let tick_monotonic_gate = tick_sequence
+        .windows(2)
+        .all(|window| window[0] <= window[1]);
+    let stage_sequence: Vec<String> = replay_inputs
+        .iter()
+        .map(|input| {
+            input
+                .pointer("/payload/stage")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        })
+        .collect();
+    let combat_event_count: usize = replay_inputs
+        .iter()
+        .map(|input| {
+            input
+                .pointer("/payload/combat_event_log")
+                .and_then(Value::as_array)
+                .map(Vec::len)
+                .unwrap_or(0)
+        })
+        .sum();
+
+    let mut checkpoint_orders: Vec<Value> = Vec::new();
+    let mut event_orders: Vec<Value> = Vec::new();
+    for input in &replay_inputs {
+        let tick = input.get("tick").and_then(Value::as_u64).unwrap_or(0);
+        let payload = input.get("payload").unwrap_or(&Value::Null);
+        let stage = payload
+            .get("stage")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let probe_state = payload
+            .get("probe_state")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let order = match probe_state {
+            "game_over" => "GameOver",
+            "replay" => "ReplayOutcome",
+            _ => "SyncFrame",
+        };
+        checkpoint_orders.push(json!({
+            "tick": tick,
+            "order": order,
+            "source_kind": input.get("kind").cloned().unwrap_or(Value::Null),
+            "source_stage": stage,
+            "objective_state": payload.get("objective_state").cloned().unwrap_or(Value::Null),
+            "match_result_state": payload.get("match_result_state").cloned().unwrap_or(Value::Null),
+            "controlled_beacons": payload.get("controlled_beacons").cloned().unwrap_or(Value::Null),
+            "openra_style_payload": {
+                "frame": tick,
+                "sync_stage": stage,
+                "probe_state": probe_state
+            }
+        }));
+
+        if let Some(events) = payload.get("combat_event_log").and_then(Value::as_array) {
+            for event in events {
+                let event_text = event.as_str().unwrap_or_default();
+                let event_order = if event_text.starts_with("bot_orders:") {
+                    "BotOrder"
+                } else if event_text.starts_with("terminal_probe:") {
+                    "TerminalProbe"
+                } else if event_text.starts_with("GameOver:") {
+                    "GameOver"
+                } else if event_text.starts_with("Winner:") {
+                    "Winner"
+                } else if event_text.starts_with("Losers:") {
+                    "Losers"
+                } else if event_text.starts_with("Outcome:") {
+                    "Outcome"
+                } else {
+                    "ObservedEvent"
+                };
+                event_orders.push(json!({
+                    "tick": tick,
+                    "order": event_order,
+                    "source_stage": stage,
+                    "source_event": event_text,
+                    "openra_style_payload": {
+                        "frame": tick,
+                        "event": event_text
+                    }
+                }));
+            }
+        }
+    }
+
+    let start_game_order = json!({
+        "tick": 0,
+        "order": "StartGame",
+        "slots": ["Multi0", "Multi1", "Multi2", "Multi3"],
+        "human_slot": "Multi0",
+        "bot_slots": ["Multi1", "Multi2", "Multi3"],
+        "bot_type": "trnm-rush",
+        "openra_style_payload": {
+            "map_uid": replay.get("map_sha256").cloned().unwrap_or(Value::Null),
+            "rules_uid": replay.get("rules_sha256").cloned().unwrap_or(Value::Null)
+        }
+    });
+    let outcome_event_count = event_orders
+        .iter()
+        .filter(|order| {
+            order
+                .get("order")
+                .and_then(Value::as_str)
+                .is_some_and(|name| name == "Outcome")
+        })
+        .count();
+    let winner_event_gate = event_orders.iter().any(|order| {
+        order.get("order").and_then(Value::as_str) == Some("Winner")
+            && order
+                .get("source_event")
+                .and_then(Value::as_str)
+                .is_some_and(|event| event.contains("Multi2"))
+    });
+    let replay_outcome = replay.get("source_outcome").unwrap_or(&Value::Null);
+
+    let command_vocab_adapter = json!({
+        "adapter_schema": "openra_replay_command_vocab_adapter_v1_json",
+        "source_replay_format": replay.get("format").cloned().unwrap_or(Value::Null),
+        "source_replay_contract": replay.get("contract_version").cloned().unwrap_or(Value::Null),
+        "source_replay_sha256": replay_file_sha256,
+        "source_summary_schema": replay_adapter.pointer("/adapter_summary/schema").cloned().unwrap_or(Value::Null),
+        "command_vocabulary": [
+            "StartGame",
+            "SyncFrame",
+            "BotOrder",
+            "TerminalProbe",
+            "GameOver",
+            "Winner",
+            "Losers",
+            "Outcome"
+        ],
+        "start_game_order": start_game_order,
+        "checkpoint_orders": checkpoint_orders,
+        "event_orders": event_orders,
+        "timeline": {
+            "ticks": tick_sequence,
+            "stages": stage_sequence,
+            "checkpoint_order_count": replay_inputs.len(),
+            "event_order_count": combat_event_count,
+            "final_tick": replay_outcome.get("final_tick").cloned().unwrap_or(Value::Null)
+        },
+        "outcome": {
+            "winner": replay_outcome.get("winner").cloned().unwrap_or(Value::Null),
+            "winner_count": replay_outcome.get("winner_count").cloned().unwrap_or(Value::Null),
+            "loser_count": replay_outcome.get("loser_count").cloned().unwrap_or(Value::Null),
+            "final_match_result_state": replay_outcome.get("final_match_result_state").cloned().unwrap_or(Value::Null)
+        },
+        "compatibility": {
+            "openra_command_vocabulary_schema_mapped": true,
+            "openra_binary_replay_compatible": false,
+            "openra_order_serializer_claimed": false,
+            "openra_network_order_stream_claimed": false,
+            "openra_headless_client_match_claimed": false,
+            "openra_runtime_parity_claimed": false
+        }
+    });
+    let command_adapter_sha256 = json_sha256(&command_vocab_adapter);
+    let command_adapter_write_gate = serde_json::to_vec_pretty(&command_vocab_adapter)
+        .map(|bytes| fs::write(&command_adapter_path, bytes).is_ok())
+        .unwrap_or(false);
+    let command_adapter_readback: Value = fs::read(&command_adapter_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let source_contract_gate = contract_is(
+        &replay_adapter,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT,
+    ) && str_at(&replay, "contract_version")
+        == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT;
+    let source_green_gate = bool_at(&replay_adapter, "green")
+        && bool_at(&replay_adapter, "openra_replay_compat_adapter_gate");
+    let replay_payload_gate = str_at(&replay, "format") == "trnm_owned_replay_v1_json"
+        && replay_file_sha256.len() == 64
+        && replay_inputs.len() >= 6
+        && tick_monotonic_gate
+        && combat_event_count >= 10
+        && replay_outcome.get("winner").and_then(Value::as_str) == Some("Multi2");
+    let command_vocabulary_gate = command_adapter_readback
+        .get("command_vocabulary")
+        .and_then(Value::as_array)
+        .is_some_and(|orders| {
+            let contains = |name: &str| orders.iter().any(|order| order.as_str() == Some(name));
+            contains("StartGame")
+                && contains("SyncFrame")
+                && contains("BotOrder")
+                && contains("TerminalProbe")
+                && contains("GameOver")
+                && contains("Outcome")
+        });
+    let checkpoint_command_gate = command_adapter_readback
+        .get("checkpoint_orders")
+        .and_then(Value::as_array)
+        .is_some_and(|orders| {
+            orders.len() == replay_inputs.len()
+                && orders
+                    .first()
+                    .and_then(|order| order.get("order"))
+                    .and_then(Value::as_str)
+                    == Some("SyncFrame")
+                && orders
+                    .iter()
+                    .any(|order| order.get("order").and_then(Value::as_str) == Some("GameOver"))
+                && orders.iter().any(|order| {
+                    order.get("order").and_then(Value::as_str) == Some("ReplayOutcome")
+                })
+        });
+    let event_command_gate = command_adapter_readback
+        .get("event_orders")
+        .and_then(Value::as_array)
+        .is_some_and(|orders| {
+            orders.len() == combat_event_count
+                && orders
+                    .iter()
+                    .filter(|order| order.get("order").and_then(Value::as_str) == Some("BotOrder"))
+                    .count()
+                    >= 4
+                && orders.iter().any(|order| {
+                    order.get("order").and_then(Value::as_str) == Some("TerminalProbe")
+                })
+                && orders
+                    .iter()
+                    .any(|order| order.get("order").and_then(Value::as_str) == Some("Winner"))
+                && orders
+                    .iter()
+                    .filter(|order| order.get("order").and_then(Value::as_str) == Some("Outcome"))
+                    .count()
+                    == 4
+        });
+    let outcome_command_gate = winner_event_gate
+        && outcome_event_count == 4
+        && command_adapter_readback
+            .pointer("/outcome/winner")
+            .and_then(Value::as_str)
+            == Some("Multi2")
+        && command_adapter_readback
+            .pointer("/timeline/final_tick")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 3000;
+    let compatibility_boundary_gate = command_adapter_readback
+        .pointer("/compatibility/openra_command_vocabulary_schema_mapped")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && command_adapter_readback
+            .pointer("/compatibility/openra_binary_replay_compatible")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && command_adapter_readback
+            .pointer("/compatibility/openra_order_serializer_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && command_adapter_readback
+            .pointer("/compatibility/openra_network_order_stream_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && command_adapter_readback
+            .pointer("/compatibility/openra_runtime_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && !bool_at(&replay_adapter, "bevy_openra_binary_replay_compatible")
+        && !bool_at(&replay_adapter, "bevy_openra_runtime_parity_claimed")
+        && !bool_at(&replay_adapter, "public_launch_ready");
+    let command_adapter_file_gate = command_adapter_write_gate
+        && command_adapter_readback.is_object()
+        && command_adapter_sha256.len() == 64
+        && Path::new(&command_adapter_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 1_000)
+            .unwrap_or(false);
+    let openra_command_vocab_adapter_gate = source_contract_gate
+        && source_green_gate
+        && replay_payload_gate
+        && command_vocabulary_gate
+        && checkpoint_command_gate
+        && event_command_gate
+        && outcome_command_gate
+        && compatibility_boundary_gate
+        && command_adapter_file_gate;
+    let green = openra_command_vocab_adapter_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_COMMAND_VOCAB_ADAPTER_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "command_adapter_path": command_adapter_path,
+        "command_adapter_sha256": command_adapter_sha256,
+        "adapter_state": "bevy_owned_replay_to_openra_style_command_vocabulary_adapter_not_binary_openra_replay",
+        "source_contracts": {
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT,
+            "owned_replay_file": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT
+        },
+        "source_paths": {
+            "openra_replay_compat_adapter": replay_adapter_dir,
+            "owned_replay_file": replay_path
+        },
+        "command_adapter_summary": {
+            "schema": command_adapter_readback.get("adapter_schema").cloned().unwrap_or(Value::Null),
+            "source_replay_format": command_adapter_readback.get("source_replay_format").cloned().unwrap_or(Value::Null),
+            "source_replay_sha256": command_adapter_readback.get("source_replay_sha256").cloned().unwrap_or(Value::Null),
+            "vocabulary_count": command_adapter_readback.get("command_vocabulary").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
+            "checkpoint_order_count": command_adapter_readback.pointer("/timeline/checkpoint_order_count").cloned().unwrap_or(Value::Null),
+            "event_order_count": command_adapter_readback.pointer("/timeline/event_order_count").cloned().unwrap_or(Value::Null),
+            "final_tick": command_adapter_readback.pointer("/timeline/final_tick").cloned().unwrap_or(Value::Null),
+            "winner": command_adapter_readback.pointer("/outcome/winner").cloned().unwrap_or(Value::Null),
+            "has_start_game": command_adapter_readback.pointer("/start_game_order/order").and_then(Value::as_str) == Some("StartGame"),
+            "has_game_over": checkpoint_command_gate,
+            "has_outcome_orders": outcome_event_count == 4
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "replay_payload_gate": replay_payload_gate,
+        "command_vocabulary_gate": command_vocabulary_gate,
+        "checkpoint_command_gate": checkpoint_command_gate,
+        "event_command_gate": event_command_gate,
+        "outcome_command_gate": outcome_command_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "command_adapter_file_gate": command_adapter_file_gate,
+        "openra_command_vocab_adapter_gate": openra_command_vocab_adapter_gate,
+        "bevy_openra_command_vocabulary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA command vocabulary adapter evidence maps the Trillionnium-owned replay checkpoints and combat events into an OpenRA-style command vocabulary with StartGame, SyncFrame, BotOrder, TerminalProbe, GameOver, Winner, Losers, and Outcome orders. It claims only a local command-vocabulary schema adapter; OpenRA binary replay compatibility, OpenRA order serialization, OpenRA network-order streams, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA command vocabulary adapter evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
