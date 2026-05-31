@@ -23,7 +23,7 @@ jq -e '
   and .command_adapter_summary.schema == "openra_replay_command_vocab_adapter_v1_json"
   and .command_adapter_summary.source_replay_format == "trnm_owned_replay_v1_json"
   and (.command_adapter_summary.source_replay_sha256 | type == "string" and length == 64)
-  and .command_adapter_summary.vocabulary_count >= 8
+  and .command_adapter_summary.vocabulary_count >= 9
   and .command_adapter_summary.checkpoint_order_count >= 6
   and .command_adapter_summary.event_order_count >= 10
   and .command_adapter_summary.final_tick >= 3000
@@ -64,6 +64,7 @@ jq -e '
   and (.command_vocabulary | index("BotOrder") != null)
   and (.command_vocabulary | index("TerminalProbe") != null)
   and (.command_vocabulary | index("GameOver") != null)
+  and (.command_vocabulary | index("ReplayOutcome") != null)
   and (.command_vocabulary | index("Outcome") != null)
   and .start_game_order.order == "StartGame"
   and (.start_game_order.slots | length) == 4

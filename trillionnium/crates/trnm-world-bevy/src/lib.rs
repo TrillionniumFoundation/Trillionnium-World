@@ -278,6 +278,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTR
     "trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_COMMAND_VOCAB_ADAPTER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OWNED_REPLAY_FILE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_owned_replay_file_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_HEADLESS_REPLAY_PLAYBACK_CONTRACT: &str =
@@ -37527,6 +37529,7 @@ pub fn native_classic_rts_openra_command_vocab_adapter_evidence_json(preview_dir
             "BotOrder",
             "TerminalProbe",
             "GameOver",
+            "ReplayOutcome",
             "Winner",
             "Losers",
             "Outcome"
@@ -37588,6 +37591,7 @@ pub fn native_classic_rts_openra_command_vocab_adapter_evidence_json(preview_dir
                 && contains("BotOrder")
                 && contains("TerminalProbe")
                 && contains("GameOver")
+                && contains("ReplayOutcome")
                 && contains("Outcome")
         });
     let checkpoint_command_gate = command_adapter_readback
@@ -37734,6 +37738,408 @@ pub fn native_classic_rts_openra_command_vocab_adapter_evidence_json(preview_dir
         "source_of_truth": "Classic RTS OpenRA command vocabulary adapter evidence maps the Trillionnium-owned replay checkpoints and combat events into an OpenRA-style command vocabulary with StartGame, SyncFrame, BotOrder, TerminalProbe, GameOver, Winner, Losers, and Outcome orders. It claims only a local command-vocabulary schema adapter; OpenRA binary replay compatibility, OpenRA order serialization, OpenRA network-order streams, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA command vocabulary adapter evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_order_serializer_fixture_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let command_vocab_dir = preview_path("openra-command-vocab-adapter");
+    let serializer_path = preview_path("openra-order-stream-fixture.jsonl");
+    let manifest_path = preview_path("openra-order-serializer-fixture.json");
+
+    let command_vocab_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_command_vocab_adapter_evidence_json(&command_vocab_dir),
+    )
+    .expect("OpenRA command vocabulary adapter evidence parses");
+    let command_adapter_path = command_vocab_evidence
+        .get("command_adapter_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let command_adapter_bytes = fs::read(&command_adapter_path).unwrap_or_default();
+    let command_adapter: Value =
+        serde_json::from_slice(&command_adapter_bytes).unwrap_or_else(|_| Value::Null);
+    let command_adapter_file_sha256 = if command_adapter_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&command_adapter_bytes)
+    };
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let json_sha256 =
+        |value: &Value| sha256_hex(&serde_json::to_vec(value).expect("adapter payload serializes"));
+    let frame_at = |order: &Value| {
+        order
+            .get("tick")
+            .and_then(Value::as_u64)
+            .or_else(|| {
+                order
+                    .pointer("/openra_style_payload/frame")
+                    .and_then(Value::as_u64)
+            })
+            .unwrap_or(0)
+    };
+
+    let command_adapter_payload_sha256 = if command_adapter.is_object() {
+        json_sha256(&command_adapter)
+    } else {
+        String::new()
+    };
+    let source_replay_sha256 = str_at(&command_adapter, "source_replay_sha256");
+    let checkpoint_orders = command_adapter
+        .get("checkpoint_orders")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let event_orders = command_adapter
+        .get("event_orders")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let start_game_order = command_adapter
+        .get("start_game_order")
+        .cloned()
+        .unwrap_or_else(|| json!({"tick": 0, "order": "StartGame"}));
+
+    let mut raw_orders: Vec<(u64, u8, usize, &'static str, Value)> = Vec::new();
+    raw_orders.push((
+        frame_at(&start_game_order),
+        0,
+        0,
+        "start_game",
+        start_game_order,
+    ));
+    for (index, order) in checkpoint_orders.iter().cloned().enumerate() {
+        raw_orders.push((frame_at(&order), 1, index, "checkpoint", order));
+    }
+    for (index, order) in event_orders.iter().cloned().enumerate() {
+        raw_orders.push((frame_at(&order), 2, index, "event", order));
+    }
+    raw_orders.sort_by_key(|(frame, priority, index, _, _)| (*frame, *priority, *index));
+
+    let mut serialized_records: Vec<Value> = Vec::new();
+    for (sequence, (frame, _, source_index, source_kind, source_order)) in
+        raw_orders.iter().enumerate()
+    {
+        let order_name = source_order
+            .get("order")
+            .and_then(Value::as_str)
+            .unwrap_or("Unknown")
+            .to_string();
+        let payload = source_order
+            .get("openra_style_payload")
+            .cloned()
+            .unwrap_or_else(|| source_order.clone());
+        let payload_sha256 = json_sha256(&payload);
+        serialized_records.push(json!({
+            "record_schema": "openra_order_stream_record_v1",
+            "sequence": sequence,
+            "frame": frame,
+            "order": order_name,
+            "source_kind": source_kind,
+            "source_index": source_index,
+            "payload_sha256": payload_sha256,
+            "payload": payload,
+            "source_order": source_order
+        }));
+    }
+
+    let serialized_stream = serialized_records
+        .iter()
+        .map(|record| serde_json::to_string(record).expect("order stream record serializes"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let serialized_bytes = serialized_stream.as_bytes();
+    let serializer_sha256 = sha256_hex(serialized_bytes);
+    let serializer_write_gate = fs::write(&serializer_path, serialized_bytes).is_ok();
+    let readback_bytes = fs::read(&serializer_path).unwrap_or_default();
+    let readback_sha256 = if readback_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&readback_bytes)
+    };
+
+    let mut roundtrip_parse_gate = true;
+    let mut roundtrip_records: Vec<Value> = Vec::new();
+    match String::from_utf8(readback_bytes.clone()) {
+        Ok(text) => {
+            for line in text.lines().filter(|line| !line.trim().is_empty()) {
+                match serde_json::from_str::<Value>(line) {
+                    Ok(record) => roundtrip_records.push(record),
+                    Err(_) => roundtrip_parse_gate = false,
+                }
+            }
+        }
+        Err(_) => roundtrip_parse_gate = false,
+    }
+
+    let roundtrip_frames = roundtrip_records
+        .iter()
+        .map(|record| record.get("frame").and_then(Value::as_u64).unwrap_or(0))
+        .collect::<Vec<_>>();
+    let roundtrip_frame_monotonic_gate = roundtrip_frames
+        .windows(2)
+        .all(|window| window[0] <= window[1]);
+    let roundtrip_sequence_gate = roundtrip_records.iter().enumerate().all(|(index, record)| {
+        record.get("sequence").and_then(Value::as_u64) == Some(index as u64)
+    });
+    let roundtrip_payload_sha_gate = roundtrip_records.iter().all(|record| {
+        let payload = record.get("payload").unwrap_or(&Value::Null);
+        let expected = json_sha256(payload);
+        record
+            .get("payload_sha256")
+            .and_then(Value::as_str)
+            .is_some_and(|actual| actual == expected)
+    });
+    let roundtrip_record_schema_gate = roundtrip_records.iter().all(|record| {
+        record.get("record_schema").and_then(Value::as_str) == Some("openra_order_stream_record_v1")
+    });
+    let order_names = roundtrip_records
+        .iter()
+        .map(|record| {
+            record
+                .get("order")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    let has_order = |name: &str| order_names.iter().any(|order| order == name);
+    let first_order = roundtrip_records
+        .first()
+        .and_then(|record| record.get("order"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let final_order = roundtrip_records
+        .last()
+        .and_then(|record| record.get("order"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let final_frame = roundtrip_frames.iter().copied().max().unwrap_or(0);
+    let winner = command_adapter
+        .pointer("/outcome/winner")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let vocabulary_count = command_adapter
+        .get("command_vocabulary")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+
+    let serializer_manifest = json!({
+        "manifest_schema": "openra_order_serializer_fixture_manifest_v1_json",
+        "stream_schema": "openra_order_stream_fixture_v1_jsonl",
+        "record_schema": "openra_order_stream_record_v1",
+        "serializer_path": serializer_path,
+        "serializer_sha256": serializer_sha256,
+        "source_command_adapter_path": command_adapter_path,
+        "source_command_adapter_file_sha256": command_adapter_file_sha256,
+        "source_command_adapter_payload_sha256": command_adapter_payload_sha256,
+        "source_replay_sha256": source_replay_sha256,
+        "record_count": serialized_records.len(),
+        "checkpoint_order_count": checkpoint_orders.len(),
+        "event_order_count": event_orders.len(),
+        "vocabulary_count": vocabulary_count,
+        "first_order": first_order,
+        "final_order": final_order,
+        "final_frame": final_frame,
+        "winner": winner,
+        "compatibility": {
+            "openra_style_order_stream_fixture": true,
+            "openra_binary_replay_compatible": false,
+            "openra_order_serializer_claimed": false,
+            "openra_network_order_stream_claimed": false,
+            "openra_headless_client_match_claimed": false,
+            "openra_runtime_parity_claimed": false
+        }
+    });
+    let manifest_sha256 = json_sha256(&serializer_manifest);
+    let manifest_write_gate = serde_json::to_vec_pretty(&serializer_manifest)
+        .map(|bytes| fs::write(&manifest_path, bytes).is_ok())
+        .unwrap_or(false);
+    let manifest_readback: Value = fs::read(&manifest_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let source_contract_gate = contract_is(
+        &command_vocab_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_COMMAND_VOCAB_ADAPTER_CONTRACT,
+    ) && str_at(&command_adapter, "adapter_schema")
+        == "openra_replay_command_vocab_adapter_v1_json";
+    let source_green_gate = bool_at(&command_vocab_evidence, "green")
+        && bool_at(&command_vocab_evidence, "openra_command_vocab_adapter_gate");
+    let source_serializer_input_gate = command_adapter.is_object()
+        && command_adapter_payload_sha256
+            == command_vocab_evidence
+                .get("command_adapter_sha256")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+        && source_replay_sha256.len() == 64
+        && checkpoint_orders.len() >= 6
+        && event_orders.len() >= 10
+        && str_at(&command_adapter, "source_replay_format") == "trnm_owned_replay_v1_json";
+    let serialized_record_count_gate = serialized_records.len()
+        == 1 + checkpoint_orders.len() + event_orders.len()
+        && serialized_records.len() >= 20
+        && roundtrip_records.len() == serialized_records.len();
+    let serialized_vocabulary_gate = has_order("StartGame")
+        && has_order("SyncFrame")
+        && has_order("BotOrder")
+        && has_order("TerminalProbe")
+        && has_order("GameOver")
+        && has_order("ReplayOutcome")
+        && has_order("Winner")
+        && has_order("Losers")
+        && has_order("Outcome");
+    let serializer_file_gate = serializer_write_gate
+        && readback_sha256 == serializer_sha256
+        && serializer_sha256.len() == 64
+        && Path::new(&serializer_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 2_000)
+            .unwrap_or(false);
+    let manifest_gate = manifest_write_gate
+        && manifest_readback.is_object()
+        && str_at(&manifest_readback, "manifest_schema")
+            == "openra_order_serializer_fixture_manifest_v1_json"
+        && str_at(&manifest_readback, "stream_schema") == "openra_order_stream_fixture_v1_jsonl"
+        && str_at(&manifest_readback, "serializer_sha256") == serializer_sha256
+        && manifest_sha256.len() == 64
+        && manifest_readback
+            .pointer("/compatibility/openra_style_order_stream_fixture")
+            .and_then(Value::as_bool)
+            == Some(true);
+    let roundtrip_gate = roundtrip_parse_gate
+        && roundtrip_record_schema_gate
+        && roundtrip_sequence_gate
+        && roundtrip_frame_monotonic_gate
+        && roundtrip_payload_sha_gate
+        && first_order.as_str() == Some("StartGame")
+        && final_frame >= 3000;
+    let compatibility_boundary_gate = !bool_at(
+        &command_vocab_evidence,
+        "bevy_openra_binary_replay_compatible",
+    ) && !bool_at(
+        &command_vocab_evidence,
+        "bevy_openra_order_serializer_claimed",
+    ) && !bool_at(
+        &command_vocab_evidence,
+        "bevy_openra_network_order_stream_claimed",
+    ) && !bool_at(
+        &command_vocab_evidence,
+        "bevy_openra_runtime_parity_claimed",
+    ) && !bool_at(&command_vocab_evidence, "public_launch_ready")
+        && manifest_readback
+            .pointer("/compatibility/openra_binary_replay_compatible")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && manifest_readback
+            .pointer("/compatibility/openra_order_serializer_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && manifest_readback
+            .pointer("/compatibility/openra_network_order_stream_claimed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && manifest_readback
+            .pointer("/compatibility/openra_runtime_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let openra_order_serializer_fixture_gate = source_contract_gate
+        && source_green_gate
+        && source_serializer_input_gate
+        && serialized_record_count_gate
+        && serialized_vocabulary_gate
+        && serializer_file_gate
+        && manifest_gate
+        && roundtrip_gate
+        && compatibility_boundary_gate;
+    let green = openra_order_serializer_fixture_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "serializer_path": serializer_path,
+        "serializer_sha256": serializer_sha256,
+        "manifest_path": manifest_path,
+        "manifest_sha256": manifest_sha256,
+        "adapter_state": "bevy_owned_openra_style_order_serializer_fixture_not_openra_order_stream",
+        "source_contracts": {
+            "openra_command_vocab_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_COMMAND_VOCAB_ADAPTER_CONTRACT
+        },
+        "source_paths": {
+            "openra_command_vocab_adapter": command_vocab_dir,
+            "command_adapter_json": command_adapter_path
+        },
+        "serializer_summary": {
+            "stream_schema": manifest_readback.get("stream_schema").cloned().unwrap_or(Value::Null),
+            "record_schema": manifest_readback.get("record_schema").cloned().unwrap_or(Value::Null),
+            "source_command_adapter_payload_sha256": command_adapter_payload_sha256,
+            "source_command_adapter_file_sha256": command_adapter_file_sha256,
+            "source_replay_sha256": source_replay_sha256,
+            "vocabulary_count": vocabulary_count,
+            "serialized_record_count": serialized_records.len(),
+            "roundtrip_record_count": roundtrip_records.len(),
+            "checkpoint_order_count": checkpoint_orders.len(),
+            "event_order_count": event_orders.len(),
+            "first_order": first_order,
+            "final_order": final_order,
+            "final_frame": final_frame,
+            "winner": manifest_readback.get("winner").cloned().unwrap_or(Value::Null)
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "source_serializer_input_gate": source_serializer_input_gate,
+        "serialized_record_count_gate": serialized_record_count_gate,
+        "serialized_vocabulary_gate": serialized_vocabulary_gate,
+        "serializer_file_gate": serializer_file_gate,
+        "manifest_gate": manifest_gate,
+        "roundtrip_parse_gate": roundtrip_parse_gate,
+        "roundtrip_record_schema_gate": roundtrip_record_schema_gate,
+        "roundtrip_sequence_gate": roundtrip_sequence_gate,
+        "roundtrip_frame_monotonic_gate": roundtrip_frame_monotonic_gate,
+        "roundtrip_payload_sha_gate": roundtrip_payload_sha_gate,
+        "roundtrip_gate": roundtrip_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "openra_order_serializer_fixture_gate": openra_order_serializer_fixture_gate,
+        "bevy_openra_order_serializer_fixture_claimed": true,
+        "bevy_openra_command_vocabulary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA order serializer fixture evidence serializes the Trillionnium-owned OpenRA-style command vocabulary into a deterministic JSONL order stream with per-record payload hashes, a manifest sha, and a roundtrip parser check. It claims only a local OpenRA-style order-stream fixture; OpenRA binary replay compatibility, OpenRA-native order serialization, OpenRA network-order streams, OpenRA runtime parity, Android S5 evidence, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA order serializer fixture evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

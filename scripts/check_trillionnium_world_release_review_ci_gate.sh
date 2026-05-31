@@ -153,6 +153,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_parity_lane.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_action_executor.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation.sh" \
@@ -296,6 +297,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_parity_lane_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_replay_compat_adapter_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_command_vocab_adapter_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_openra_order_serializer_fixture_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_bot_planner_action_executor_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_bot_planner_executor_replay_determinism_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_multi_match_bot_executor_evaluation_script_contract_guard_test.sh" \
@@ -413,6 +415,7 @@ run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_b
 # Bevy classic OpenRA parity lane contract: trillionnium_world_bevy_classic_rts_openra_parity_lane_v1
 # Bevy classic OpenRA replay compatibility adapter contract: trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter_v1
 # Bevy classic OpenRA command vocabulary adapter contract: trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter_v1
+# Bevy classic OpenRA order serializer fixture contract: trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture_v1
 # Bevy classic planner live autonomous bot loop contract: trillionnium_world_bevy_classic_rts_planner_live_autonomous_bot_loop_v1
 # Bevy classic bot planner action executor contract: trillionnium_world_bevy_classic_rts_bot_planner_action_executor_v1
 # Bevy classic bot planner executor replay determinism contract: trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism_v1
@@ -565,6 +568,8 @@ run_check bevy_classic_rts_openra_replay_compat_adapter_contract_guard "$ROOT/sc
 run_check bevy_classic_rts_openra_replay_compat_adapter_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter.sh"
 run_check bevy_classic_rts_openra_command_vocab_adapter_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_command_vocab_adapter_script_contract_guard_test.sh"
 run_check bevy_classic_rts_openra_command_vocab_adapter_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter.sh"
+run_check bevy_classic_rts_openra_order_serializer_fixture_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_order_serializer_fixture_script_contract_guard_test.sh"
+run_check bevy_classic_rts_openra_order_serializer_fixture_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture.sh"
 run_check bevy_classic_rts_bot_planner_action_executor_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_bot_planner_action_executor_script_contract_guard_test.sh"
 run_check bevy_classic_rts_bot_planner_action_executor_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_action_executor.sh"
 run_check bevy_classic_rts_bot_planner_executor_replay_determinism_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_bot_planner_executor_replay_determinism_script_contract_guard_test.sh"

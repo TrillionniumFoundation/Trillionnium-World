@@ -18,6 +18,7 @@ required_script_lines=(
   'BotOrder'
   'TerminalProbe'
   'GameOver'
+  'ReplayOutcome'
   'Outcome'
   'openra_command_vocab_adapter_gate == true'
   'openra_order_serializer_claimed == false'
