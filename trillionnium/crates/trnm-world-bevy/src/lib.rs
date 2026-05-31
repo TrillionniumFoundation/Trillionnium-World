@@ -77788,6 +77788,17 @@ pub fn native_player_ui_rescue_evidence_json(actor_id: &str) -> String {
 }
 
 pub fn native_authored_art_pack_evidence_json(actor_id: &str) -> String {
+    let actor_id = actor_id.to_string();
+    std::thread::Builder::new()
+        .name("trnm-authored-art-pack-evidence".to_string())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || native_authored_art_pack_evidence_json_inner(&actor_id))
+        .expect("authored art pack evidence thread spawns")
+        .join()
+        .expect("authored art pack evidence thread completes")
+}
+
+fn native_authored_art_pack_evidence_json_inner(actor_id: &str) -> String {
     let player_ui_rescue: Value =
         serde_json::from_str(&native_player_ui_rescue_evidence_json(actor_id))
             .expect("player UI rescue evidence parses for authored art pack");

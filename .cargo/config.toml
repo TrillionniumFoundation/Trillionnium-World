@@ -10,3 +10,4 @@ world-bevy = "run -p trnm-world-bevy --"
 
 [env]
 TRILLIONNIUM_WORLD_DEV_ENV = "1"
+RUST_MIN_STACK = "33554432"
