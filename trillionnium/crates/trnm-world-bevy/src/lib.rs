@@ -288,6 +288,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REDUCER_CON
     "trillionnium_world_bevy_classic_rts_openra_imported_replay_reducer_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_openra_imported_headless_comparison_harness_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_imported_replay_audit_ledger_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_HEADLESS_COMPARISON_HARNESS_CONTRACT: &str =
@@ -41137,6 +41139,651 @@ pub fn native_classic_rts_openra_imported_headless_comparison_harness_evidence_j
         "source_of_truth": "Classic RTS OpenRA imported headless comparison harness evidence compares the payload-decoder-fed imported replay reducer state directly against the Bevy-owned OpenRA-style headless replay summary, including source replay hashes and decoded stream continuity. It claims only a local comparison harness over Trillionnium-owned imported replay evidence; OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA imported headless comparison harness evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let imported_headless_dir = preview_path("openra-imported-headless-comparison-harness");
+    let imported_headless_summary_path =
+        preview_path("openra-imported-headless-comparison-harness.json");
+    let ledger_path = preview_path("openra-imported-replay-audit-ledger.jsonl");
+    let ledger_report_path = preview_path("openra-imported-replay-audit-ledger.json");
+    let negative_corpus_path =
+        preview_path("openra-imported-replay-audit-ledger-negative-corpus.json");
+
+    let imported_headless_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_headless_comparison_harness_evidence_json(
+            &imported_headless_dir,
+        ),
+    )
+    .expect("OpenRA imported headless comparison harness evidence parses");
+    let imported_headless_summary_write_gate =
+        serde_json::to_vec_pretty(&imported_headless_evidence)
+            .map(|bytes| fs::write(&imported_headless_summary_path, bytes).is_ok())
+            .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let str_ptr = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let u64_ptr =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("audit ledger payload serializes"))
+    };
+
+    let imported_reducer_dir = str_ptr(
+        &imported_headless_evidence,
+        "/source_paths/openra_imported_replay_reducer",
+    );
+    let decoded_stream_path = Path::new(&imported_reducer_dir)
+        .join("openra-order-payload-decoder")
+        .join("openra-order-payload-decoded-stream.jsonl")
+        .to_string_lossy()
+        .into_owned();
+    let imported_reducer_state_path = str_ptr(
+        &imported_headless_evidence,
+        "/source_paths/imported_reducer_state",
+    );
+    let imported_snapshot_path = str_ptr(
+        &imported_headless_evidence,
+        "/source_paths/imported_reducer_snapshots",
+    );
+    let replay_adapter_path = str_ptr(
+        &imported_headless_evidence,
+        "/source_paths/replay_summary_adapter",
+    );
+    let imported_headless_comparison_path = str_at(&imported_headless_evidence, "comparison_path");
+
+    let decoded_stream_bytes = fs::read(&decoded_stream_path).unwrap_or_default();
+    let decoded_stream_sha256 = if decoded_stream_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&decoded_stream_bytes)
+    };
+    let decoded_stream_text = String::from_utf8(decoded_stream_bytes.clone()).unwrap_or_default();
+    let mut record_parse_gate = true;
+    let mut records = Vec::new();
+    for line in decoded_stream_text
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+    {
+        match serde_json::from_str::<Value>(line) {
+            Ok(record) => records.push(record),
+            Err(_) => record_parse_gate = false,
+        }
+    }
+
+    let snapshot_text = fs::read_to_string(&imported_snapshot_path).unwrap_or_default();
+    let mut snapshot_parse_gate = true;
+    let mut snapshots = Vec::new();
+    for line in snapshot_text.lines().filter(|line| !line.trim().is_empty()) {
+        match serde_json::from_str::<Value>(line) {
+            Ok(snapshot) => snapshots.push(snapshot),
+            Err(_) => snapshot_parse_gate = false,
+        }
+    }
+
+    let imported_reducer_state: Value = fs::read(&imported_reducer_state_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let replay_summary: Value = fs::read(&replay_adapter_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let imported_headless_comparison: Value = fs::read(&imported_headless_comparison_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let mut ledger_inputs: Vec<(u64, u8, u64, Value)> = Vec::new();
+    for record in &records {
+        let sequence = record.get("sequence").and_then(Value::as_u64).unwrap_or(0);
+        let frame = record.get("frame").and_then(Value::as_u64).unwrap_or(0);
+        ledger_inputs.push((
+            frame,
+            0,
+            sequence,
+            json!({
+                "entry_kind": "decoded_order_record",
+                "source_sequence": sequence,
+                "frame": frame,
+                "order": record.get("order").cloned().unwrap_or(Value::Null),
+                "source_kind": record.get("source_kind").cloned().unwrap_or(Value::Null),
+                "payload_sha256": record.get("payload_sha256").cloned().unwrap_or(Value::Null)
+            }),
+        ));
+    }
+    for snapshot in &snapshots {
+        let sequence = snapshot
+            .get("sequence")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let frame = snapshot.get("frame").and_then(Value::as_u64).unwrap_or(0);
+        ledger_inputs.push((
+            frame,
+            1,
+            sequence,
+            json!({
+                "entry_kind": "reducer_snapshot",
+                "source_sequence": sequence,
+                "frame": frame,
+                "order": snapshot.get("order").cloned().unwrap_or(Value::Null),
+                "stage": snapshot.get("stage").cloned().unwrap_or(Value::Null),
+                "probe_state": snapshot.get("probe_state").cloned().unwrap_or(Value::Null),
+                "controlled_beacons": snapshot.get("controlled_beacons").cloned().unwrap_or(Value::Null),
+                "objective_state": snapshot.get("objective_state").cloned().unwrap_or(Value::Null),
+                "match_result_state": snapshot.get("match_result_state").cloned().unwrap_or(Value::Null),
+                "snapshot_sha256": json_sha256(snapshot)
+            }),
+        ));
+    }
+    let final_frame = u64_ptr(&imported_reducer_state, "/final_frame");
+    let winner = str_ptr(&imported_reducer_state, "/winner");
+    let source_replay_sha256 = str_ptr(
+        &imported_headless_evidence,
+        "/comparison_summary/source_replay_sha256",
+    );
+    ledger_inputs.push((
+        final_frame,
+        2,
+        records.len() as u64 + snapshots.len() as u64,
+        json!({
+            "entry_kind": "headless_summary",
+            "frame": final_frame,
+            "winner": winner,
+            "headless_mode": replay_summary.pointer("/headless/mode").cloned().unwrap_or(Value::Null),
+            "rendered_frame_count": replay_summary.pointer("/headless/rendered_frame_count").cloned().unwrap_or(Value::Null),
+            "wgpu_required": replay_summary.pointer("/headless/wgpu_required").cloned().unwrap_or(Value::Null),
+            "source_replay_sha256": source_replay_sha256,
+            "decoded_stream_sha256": decoded_stream_sha256,
+            "final_match_result_state": imported_reducer_state.get("final_match_result_state").cloned().unwrap_or(Value::Null)
+        }),
+    ));
+    ledger_inputs.sort_by_key(|(frame, priority, sequence, _)| (*frame, *priority, *sequence));
+
+    let mut previous_ledger_sha256 = "GENESIS".to_string();
+    let mut ledger_entries = Vec::new();
+    for (ledger_index, (frame, _, _, payload)) in ledger_inputs.iter().enumerate() {
+        let entry_kind = payload
+            .get("entry_kind")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_string();
+        let entry_core = json!({
+            "entry_schema": "openra_imported_replay_audit_ledger_entry_v1_json",
+            "ledger_index": ledger_index,
+            "entry_kind": entry_kind,
+            "frame": frame,
+            "previous_ledger_sha256": previous_ledger_sha256,
+            "payload": payload
+        });
+        let entry_sha256 = json_sha256(&entry_core);
+        let mut entry = entry_core;
+        if let Some(object) = entry.as_object_mut() {
+            object.insert("entry_sha256".to_string(), json!(entry_sha256.clone()));
+        }
+        previous_ledger_sha256 = entry_sha256;
+        ledger_entries.push(entry);
+    }
+    let final_ledger_sha256 = previous_ledger_sha256;
+    let ledger_stream = ledger_entries
+        .iter()
+        .map(|entry| serde_json::to_string(entry).expect("audit ledger entry serializes"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let ledger_file_sha256 = sha256_hex(ledger_stream.as_bytes());
+    let ledger_write_gate = fs::write(&ledger_path, ledger_stream.as_bytes()).is_ok();
+
+    let validate_ledger = |candidate_entries: &[Value],
+                           expected_count: usize,
+                           expected_final_sha256: &str,
+                           expected_stream_sha256: &str,
+                           expected_final_frame: u64,
+                           expected_winner: &str|
+     -> Result<(), String> {
+        if candidate_entries.len() != expected_count {
+            return Err("ledger_entry_count_mismatch".to_string());
+        }
+        let mut previous = "GENESIS".to_string();
+        let mut previous_frame = 0u64;
+        for (index, entry) in candidate_entries.iter().enumerate() {
+            if entry.get("entry_schema").and_then(Value::as_str)
+                != Some("openra_imported_replay_audit_ledger_entry_v1_json")
+            {
+                return Err("ledger_entry_schema_invalid".to_string());
+            }
+            if entry.get("ledger_index").and_then(Value::as_u64) != Some(index as u64) {
+                return Err("ledger_index_mismatch".to_string());
+            }
+            if entry.get("previous_ledger_sha256").and_then(Value::as_str)
+                != Some(previous.as_str())
+            {
+                return Err("ledger_previous_sha_mismatch".to_string());
+            }
+            let frame = entry.get("frame").and_then(Value::as_u64).unwrap_or(0);
+            if frame < previous_frame {
+                return Err("ledger_frame_regression".to_string());
+            }
+            previous_frame = frame;
+            let recorded_entry_sha256 = entry
+                .get("entry_sha256")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            if recorded_entry_sha256.len() != 64 {
+                return Err("ledger_entry_sha_invalid".to_string());
+            }
+            let mut entry_core = entry.clone();
+            if let Some(object) = entry_core.as_object_mut() {
+                object.remove("entry_sha256");
+            }
+            if json_sha256(&entry_core) != recorded_entry_sha256 {
+                return Err("ledger_entry_sha_mismatch".to_string());
+            }
+            previous = recorded_entry_sha256.to_string();
+        }
+        if previous != expected_final_sha256 {
+            return Err("ledger_final_sha_mismatch".to_string());
+        }
+        let final_entry = candidate_entries
+            .last()
+            .ok_or_else(|| "ledger_final_entry_missing".to_string())?;
+        if final_entry.get("entry_kind").and_then(Value::as_str) != Some("headless_summary") {
+            return Err("ledger_final_entry_kind_invalid".to_string());
+        }
+        if final_entry.get("frame").and_then(Value::as_u64) != Some(expected_final_frame) {
+            return Err("ledger_final_frame_mismatch".to_string());
+        }
+        if final_entry
+            .pointer("/payload/winner")
+            .and_then(Value::as_str)
+            != Some(expected_winner)
+        {
+            return Err("ledger_winner_mismatch".to_string());
+        }
+        if final_entry
+            .pointer("/payload/decoded_stream_sha256")
+            .and_then(Value::as_str)
+            != Some(expected_stream_sha256)
+        {
+            return Err("ledger_decoded_stream_sha_mismatch".to_string());
+        }
+        Ok(())
+    };
+
+    let ledger_validation_gate = validate_ledger(
+        &ledger_entries,
+        records.len() + snapshots.len() + 1,
+        final_ledger_sha256.as_str(),
+        decoded_stream_sha256.as_str(),
+        final_frame,
+        winner.as_str(),
+    )
+    .is_ok();
+
+    let mut negative_inputs: Vec<(&str, &str, Vec<Value>, String, String, u64, String)> =
+        Vec::new();
+    let mut dropped_entry = ledger_entries.clone();
+    let _ = dropped_entry.pop();
+    negative_inputs.push((
+        "dropped_ledger_entry",
+        "ledger_entry_count_mismatch",
+        dropped_entry,
+        final_ledger_sha256.clone(),
+        decoded_stream_sha256.clone(),
+        final_frame,
+        winner.clone(),
+    ));
+    let mut previous_sha_break = ledger_entries.clone();
+    if let Some(entry) = previous_sha_break.get_mut(1) {
+        entry["previous_ledger_sha256"] =
+            json!("0000000000000000000000000000000000000000000000000000000000000000");
+    }
+    negative_inputs.push((
+        "previous_sha_break",
+        "ledger_previous_sha_mismatch",
+        previous_sha_break,
+        final_ledger_sha256.clone(),
+        decoded_stream_sha256.clone(),
+        final_frame,
+        winner.clone(),
+    ));
+    let mut payload_tamper = ledger_entries.clone();
+    if let Some(entry) = payload_tamper.last_mut() {
+        entry["payload"]["winner"] = json!("Multi1");
+    }
+    negative_inputs.push((
+        "payload_tamper_without_rehash",
+        "ledger_entry_sha_mismatch",
+        payload_tamper,
+        final_ledger_sha256.clone(),
+        decoded_stream_sha256.clone(),
+        final_frame,
+        winner.clone(),
+    ));
+    let mut frame_regression = ledger_entries.clone();
+    if let Some(entry) = frame_regression.last_mut() {
+        entry["frame"] = json!(1);
+    }
+    negative_inputs.push((
+        "frame_regression",
+        "ledger_frame_regression",
+        frame_regression,
+        final_ledger_sha256.clone(),
+        decoded_stream_sha256.clone(),
+        final_frame,
+        winner.clone(),
+    ));
+    negative_inputs.push((
+        "final_sha_mismatch",
+        "ledger_final_sha_mismatch",
+        ledger_entries.clone(),
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".to_string(),
+        decoded_stream_sha256.clone(),
+        final_frame,
+        winner.clone(),
+    ));
+    negative_inputs.push((
+        "decoded_stream_sha_mismatch",
+        "ledger_decoded_stream_sha_mismatch",
+        ledger_entries.clone(),
+        final_ledger_sha256.clone(),
+        "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        final_frame,
+        winner.clone(),
+    ));
+    negative_inputs.push((
+        "winner_mismatch",
+        "ledger_winner_mismatch",
+        ledger_entries.clone(),
+        final_ledger_sha256.clone(),
+        decoded_stream_sha256.clone(),
+        final_frame,
+        "Multi1".to_string(),
+    ));
+
+    let mut negative_cases = Vec::new();
+    for (
+        case_name,
+        expected_error,
+        candidate_entries,
+        expected_final_sha256,
+        expected_stream_sha256,
+        expected_final_frame,
+        expected_winner,
+    ) in negative_inputs
+    {
+        match validate_ledger(
+            &candidate_entries,
+            records.len() + snapshots.len() + 1,
+            expected_final_sha256.as_str(),
+            expected_stream_sha256.as_str(),
+            expected_final_frame,
+            expected_winner.as_str(),
+        ) {
+            Ok(_) => negative_cases.push(json!({
+                "case": case_name,
+                "expected_error": expected_error,
+                "detected": false,
+                "actual_error": Value::Null
+            })),
+            Err(error) => negative_cases.push(json!({
+                "case": case_name,
+                "expected_error": expected_error,
+                "detected": error == expected_error,
+                "actual_error": error
+            })),
+        }
+    }
+    let detected_negative_case_count = negative_cases
+        .iter()
+        .filter(|case| case.get("detected").and_then(Value::as_bool) == Some(true))
+        .count();
+    let negative_corpus_sha256 = json_sha256(&Value::Array(negative_cases.clone()));
+    let negative_corpus_write_gate =
+        serde_json::to_vec_pretty(&Value::Array(negative_cases.clone()))
+            .map(|bytes| fs::write(&negative_corpus_path, bytes).is_ok())
+            .unwrap_or(false);
+
+    let ledger_report = json!({
+        "ledger_schema": "openra_imported_replay_audit_ledger_v1_json",
+        "ledger_path": ledger_path,
+        "ledger_file_sha256": ledger_file_sha256,
+        "final_ledger_sha256": final_ledger_sha256,
+        "negative_corpus_path": negative_corpus_path,
+        "negative_corpus_sha256": negative_corpus_sha256,
+        "sources": {
+            "openra_imported_headless_comparison_harness": imported_headless_dir,
+            "openra_imported_headless_comparison_harness_summary": imported_headless_summary_path,
+            "decoded_stream": decoded_stream_path,
+            "imported_reducer_state": imported_reducer_state_path,
+            "imported_reducer_snapshots": imported_snapshot_path,
+            "replay_summary_adapter": replay_adapter_path,
+            "imported_headless_comparison": imported_headless_comparison_path
+        },
+        "summary": {
+            "entry_count": ledger_entries.len(),
+            "decoded_record_count": records.len(),
+            "snapshot_count": snapshots.len(),
+            "final_frame": final_frame,
+            "winner": winner,
+            "headless_mode": replay_summary.pointer("/headless/mode").cloned().unwrap_or(Value::Null),
+            "source_replay_sha256": source_replay_sha256,
+            "decoded_stream_sha256": decoded_stream_sha256,
+            "ledger_file_sha256": ledger_file_sha256,
+            "final_ledger_sha256": final_ledger_sha256,
+            "negative_case_count": negative_cases.len(),
+            "detected_negative_case_count": detected_negative_case_count
+        }
+    });
+    let ledger_report_sha256 = json_sha256(&ledger_report);
+    let ledger_report_write_gate = serde_json::to_vec_pretty(&ledger_report)
+        .map(|bytes| fs::write(&ledger_report_path, bytes).is_ok())
+        .unwrap_or(false);
+    let ledger_report_readback: Value = fs::read(&ledger_report_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let source_contract_gate = contract_is(
+        &imported_headless_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+    ) && str_at(&imported_reducer_state, "state_schema")
+        == "openra_order_stream_reducer_state_v1_json"
+        && str_at(&replay_summary, "adapter_schema") == "openra_replay_summary_adapter_v1_json"
+        && str_at(&imported_headless_comparison, "comparison_schema")
+            == "openra_imported_headless_comparison_harness_v1_json";
+    let source_green_gate = bool_at(&imported_headless_evidence, "green")
+        && bool_at(
+            &imported_headless_evidence,
+            "openra_imported_headless_comparison_harness_gate",
+        )
+        && imported_headless_summary_write_gate;
+    let decoded_stream_gate = record_parse_gate
+        && records.len() >= 20
+        && decoded_stream_sha256.len() == 64
+        && decoded_stream_sha256
+            == str_ptr(
+                &imported_headless_evidence,
+                "/comparison_summary/decoded_stream_sha256",
+            )
+        && records.iter().enumerate().all(|(index, record)| {
+            record.get("record_schema").and_then(Value::as_str)
+                == Some("openra_order_stream_record_v1")
+                && record.get("sequence").and_then(Value::as_u64) == Some(index as u64)
+        });
+    let snapshot_gate = snapshot_parse_gate
+        && snapshots.len() >= 6
+        && snapshots.iter().all(|snapshot| {
+            snapshot.get("snapshot_schema").and_then(Value::as_str)
+                == Some("openra_order_reducer_snapshot_v1")
+        })
+        && snapshots
+            .last()
+            .and_then(|snapshot| snapshot.get("match_result_state"))
+            .and_then(Value::as_str)
+            .is_some_and(|state| state.contains("Multi2"));
+    let headless_alignment_gate = str_ptr(&replay_summary, "/headless/mode")
+        == "owned_replay_checkpoint_reducer_no_render_no_wgpu"
+        && replay_summary
+            .pointer("/headless/wgpu_required")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && u64_ptr(&replay_summary, "/headless/rendered_frame_count") == 0
+        && u64_ptr(&replay_summary, "/outcome/final_tick") == final_frame
+        && str_ptr(&replay_summary, "/outcome/winner") == "Multi2"
+        && str_ptr(&replay_summary, "/outcome/winner")
+            == str_ptr(&imported_reducer_state, "/winner")
+        && str_ptr(&replay_summary, "/outcome/final_match_result_state")
+            == str_ptr(&imported_reducer_state, "/final_match_result_state")
+        && str_ptr(
+            &imported_headless_evidence,
+            "/comparison_summary/source_replay_sha256",
+        )
+        .len()
+            == 64
+        && imported_headless_comparison
+            .pointer("/summary/mismatch_count")
+            .and_then(Value::as_u64)
+            == Some(0);
+    let ledger_file_gate = ledger_write_gate
+        && ledger_validation_gate
+        && ledger_file_sha256.len() == 64
+        && Path::new(&ledger_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 2_000)
+            .unwrap_or(false);
+    let ledger_report_gate = ledger_report_write_gate
+        && ledger_report_readback.is_object()
+        && str_at(&ledger_report_readback, "ledger_schema")
+            == "openra_imported_replay_audit_ledger_v1_json"
+        && ledger_report_sha256.len() == 64
+        && Path::new(&ledger_report_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 1_000)
+            .unwrap_or(false);
+    let negative_corpus_gate = negative_corpus_write_gate
+        && negative_cases.len() >= 7
+        && detected_negative_case_count == negative_cases.len()
+        && negative_corpus_sha256.len() == 64
+        && Path::new(&negative_corpus_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false);
+    let compatibility_boundary_gate =
+        bool_at(
+            &imported_headless_evidence,
+            "bevy_openra_imported_headless_comparison_harness_claimed",
+        ) && bool_at(
+            &imported_headless_evidence,
+            "bevy_openra_order_payload_decoder_claimed",
+        ) && !bool_at(
+            &imported_headless_evidence,
+            "bevy_openra_native_order_payload_decoder_claimed",
+        ) && !bool_at(
+            &imported_headless_evidence,
+            "bevy_openra_binary_replay_compatible",
+        ) && !bool_at(
+            &imported_headless_evidence,
+            "bevy_openra_network_order_stream_claimed",
+        ) && !bool_at(
+            &imported_headless_evidence,
+            "bevy_openra_runtime_parity_claimed",
+        ) && !bool_at(&imported_headless_evidence, "bevy_openra_parity_claimed")
+            && !bool_at(&imported_headless_evidence, "public_launch_ready");
+    let openra_imported_replay_audit_ledger_gate = source_contract_gate
+        && source_green_gate
+        && decoded_stream_gate
+        && snapshot_gate
+        && headless_alignment_gate
+        && ledger_file_gate
+        && ledger_report_gate
+        && negative_corpus_gate
+        && compatibility_boundary_gate;
+    let green = openra_imported_replay_audit_ledger_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "ledger_path": ledger_path,
+        "ledger_file_sha256": ledger_file_sha256,
+        "ledger_report_path": ledger_report_path,
+        "ledger_report_sha256": ledger_report_sha256,
+        "final_ledger_sha256": final_ledger_sha256,
+        "negative_corpus_path": negative_corpus_path,
+        "negative_corpus_sha256": negative_corpus_sha256,
+        "adapter_state": "bevy_owned_openra_imported_replay_hash_ledger_not_openra_runtime_parity",
+        "source_contracts": {
+            "openra_imported_headless_comparison_harness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+            "openra_imported_replay_reducer": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REDUCER_CONTRACT,
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": ledger_report.get("sources").cloned().unwrap_or(Value::Null),
+        "ledger_summary": ledger_report.get("summary").cloned().unwrap_or(Value::Null),
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "imported_headless_summary_write_gate": imported_headless_summary_write_gate,
+        "record_parse_gate": record_parse_gate,
+        "decoded_stream_gate": decoded_stream_gate,
+        "snapshot_parse_gate": snapshot_parse_gate,
+        "snapshot_gate": snapshot_gate,
+        "headless_alignment_gate": headless_alignment_gate,
+        "ledger_validation_gate": ledger_validation_gate,
+        "ledger_file_gate": ledger_file_gate,
+        "ledger_report_gate": ledger_report_gate,
+        "negative_corpus_gate": negative_corpus_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "openra_imported_replay_audit_ledger_gate": openra_imported_replay_audit_ledger_gate,
+        "bevy_openra_imported_replay_audit_ledger_claimed": true,
+        "bevy_openra_imported_headless_comparison_harness_claimed": true,
+        "bevy_openra_imported_replay_reducer_claimed": true,
+        "bevy_openra_order_payload_codec_claimed": true,
+        "bevy_openra_order_payload_decoder_claimed": true,
+        "bevy_openra_native_order_payload_decoder_claimed": false,
+        "bevy_openra_replay_envelope_importer_claimed": true,
+        "bevy_openra_replay_summary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA imported replay audit ledger evidence builds a cumulative hash ledger over decoded imported replay records, reducer snapshots, and the headless summary alignment. It proves dropped entries, previous-hash breaks, payload tampering, frame regression, final-ledger mismatch, decoded-stream mismatch, and winner mismatch are detected while claiming only Trillionnium-owned local auditability; OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA imported replay audit ledger evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

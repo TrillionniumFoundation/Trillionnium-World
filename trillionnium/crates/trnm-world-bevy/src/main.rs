@@ -1412,6 +1412,24 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-openra-imported-replay-audit-ledger"
+                | "--classic-rts-openra-imported-replay-audit-ledger"
+        )
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-imported-replay-audit-ledger",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(
+                preview_dir
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-openra-order-replay-reducer" | "--classic-rts-openra-order-replay-reducer"
         )
     ) {
