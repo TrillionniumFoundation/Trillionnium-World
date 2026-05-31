@@ -282,6 +282,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CO
     "trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_IMPORTER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_replay_importer_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_order_payload_decoder_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REDUCER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_imported_replay_reducer_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT: &str =
@@ -38801,9 +38803,7 @@ pub fn native_classic_rts_openra_replay_importer_evidence_json(preview_dir: &str
 }
 
 #[cfg(not(target_os = "android"))]
-pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
-    preview_dir: &str,
-) -> String {
+pub fn native_classic_rts_openra_order_payload_decoder_evidence_json(preview_dir: &str) -> String {
     let _ = fs::create_dir_all(preview_dir);
     let preview_path = |name: &str| {
         Path::new(preview_dir)
@@ -38812,21 +38812,16 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
             .into_owned()
     };
     let importer_dir = preview_path("openra-replay-importer");
-    let baseline_reducer_dir = preview_path("openra-order-replay-reducer");
-    let reducer_path = preview_path("openra-imported-replay-reducer.json");
-    let snapshot_path = preview_path("openra-imported-replay-snapshots.jsonl");
-    let comparison_path = preview_path("openra-imported-replay-reducer-comparison.json");
-    let negative_corpus_path = preview_path("openra-imported-replay-reducer-negative-corpus.json");
+    let payload_codec_path = preview_path("openra-order-payload-codec.bin");
+    let decoded_stream_path = preview_path("openra-order-payload-decoded-stream.jsonl");
+    let decoder_path = preview_path("openra-order-payload-decoder.json");
+    let manifest_path = preview_path("openra-order-payload-decoder-manifest.json");
+    let negative_corpus_path = preview_path("openra-order-payload-decoder-negative-corpus.json");
 
     let importer_evidence: Value = serde_json::from_str(
         &native_classic_rts_openra_replay_importer_evidence_json(&importer_dir),
     )
     .expect("OpenRA replay importer evidence parses");
-    let baseline_reducer_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_order_replay_reducer_evidence_json(&baseline_reducer_dir),
-    )
-    .expect("OpenRA order replay reducer evidence parses");
-
     let imported_stream_path = importer_evidence
         .get("imported_stream_path")
         .and_then(Value::as_str)
@@ -38839,6 +38834,734 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
         .to_string();
     let importer_report_path = importer_evidence
         .get("importer_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let stream_bytes = fs::read(&imported_stream_path).unwrap_or_default();
+    let stream_text = String::from_utf8(stream_bytes.clone()).unwrap_or_default();
+    let source_stream_sha256 = if stream_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&stream_bytes)
+    };
+    let imported_metadata: Value = fs::read(&imported_metadata_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let importer_report: Value = fs::read(&importer_report_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("order payload decoder value serializes"))
+    };
+    let records_to_stream = |records: &[Value]| {
+        records
+            .iter()
+            .map(|record| {
+                serde_json::to_string(record).expect("decoded order payload record serializes")
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n"
+    };
+    let write_u16 = |bytes: &mut Vec<u8>, value: u16| {
+        bytes.extend_from_slice(&value.to_le_bytes());
+    };
+    let write_u32 = |bytes: &mut Vec<u8>, value: u32| {
+        bytes.extend_from_slice(&value.to_le_bytes());
+    };
+    let read_u16 = |bytes: &[u8], offset: usize| -> Option<u16> {
+        let slice = bytes.get(offset..offset + 2)?;
+        Some(u16::from_le_bytes(slice.try_into().ok()?))
+    };
+    let read_u32 = |bytes: &[u8], offset: usize| -> Option<u32> {
+        let slice = bytes.get(offset..offset + 4)?;
+        Some(u32::from_le_bytes(slice.try_into().ok()?))
+    };
+    let order_tag = |order: &str| match order {
+        "StartGame" => 1u16,
+        "SyncFrame" => 2,
+        "BotOrder" => 3,
+        "TerminalProbe" => 4,
+        "GameOver" => 5,
+        "ReplayOutcome" => 6,
+        "Winner" => 7,
+        "Losers" => 8,
+        "Outcome" => 9,
+        _ => 0,
+    };
+    let order_from_tag = |tag: u16| match tag {
+        1 => Some("StartGame"),
+        2 => Some("SyncFrame"),
+        3 => Some("BotOrder"),
+        4 => Some("TerminalProbe"),
+        5 => Some("GameOver"),
+        6 => Some("ReplayOutcome"),
+        7 => Some("Winner"),
+        8 => Some("Losers"),
+        9 => Some("Outcome"),
+        _ => None,
+    };
+    let source_kind_tag = |source_kind: &str| match source_kind {
+        "start_game" => 1u16,
+        "checkpoint" => 2,
+        "event" | "combat_event" => 3,
+        "derived_outcome" => 4,
+        _ => 0,
+    };
+    let source_kind_from_tag = |tag: u16| match tag {
+        1 => Some("start_game"),
+        2 => Some("checkpoint"),
+        3 => Some("event"),
+        4 => Some("derived_outcome"),
+        0 => Some(""),
+        _ => None,
+    };
+
+    let mut record_parse_gate = true;
+    let mut source_records = Vec::new();
+    for line in stream_text.lines().filter(|line| !line.trim().is_empty()) {
+        match serde_json::from_str::<Value>(line) {
+            Ok(record) => source_records.push(record),
+            Err(_) => record_parse_gate = false,
+        }
+    }
+
+    let encode_payload_codec = |records: &[Value]| -> Vec<u8> {
+        let source_stream = records_to_stream(records);
+        let source_sha256 = sha256_hex(source_stream.as_bytes());
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"TRNMOPR1");
+        write_u16(&mut bytes, 1);
+        write_u32(&mut bytes, records.len() as u32);
+        bytes.extend_from_slice(source_sha256.as_bytes());
+        for record in records {
+            let sequence = record.get("sequence").and_then(Value::as_u64).unwrap_or(0) as u32;
+            let frame = record.get("frame").and_then(Value::as_u64).unwrap_or(0) as u32;
+            let order = record
+                .get("order")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let source_kind = record
+                .get("source_kind")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let payload_bytes =
+                serde_json::to_vec(record).expect("OpenRA-style order payload serializes");
+            let payload_sha256 = sha256_hex(&payload_bytes);
+            write_u32(&mut bytes, sequence);
+            write_u32(&mut bytes, frame);
+            write_u16(&mut bytes, order_tag(order));
+            write_u16(&mut bytes, source_kind_tag(source_kind));
+            write_u32(&mut bytes, payload_bytes.len() as u32);
+            bytes.extend_from_slice(payload_sha256.as_bytes());
+            bytes.extend_from_slice(&payload_bytes);
+        }
+        bytes
+    };
+
+    let decode_payload_codec = |bytes: &[u8]| -> Result<(Vec<Value>, String), String> {
+        const HEADER_LEN: usize = 8 + 2 + 4 + 64;
+        if bytes.len() < HEADER_LEN {
+            return Err("payload_codec_too_short".to_string());
+        }
+        if bytes.get(0..8) != Some(&b"TRNMOPR1"[..]) {
+            return Err("payload_codec_magic_invalid".to_string());
+        }
+        if read_u16(bytes, 8) != Some(1) {
+            return Err("payload_codec_version_unsupported".to_string());
+        }
+        let expected_record_count = read_u32(bytes, 10)
+            .ok_or_else(|| "payload_codec_record_count_missing".to_string())?
+            as usize;
+        let expected_stream_sha256 = std::str::from_utf8(
+            bytes
+                .get(14..78)
+                .ok_or_else(|| "payload_codec_stream_sha_missing".to_string())?,
+        )
+        .map_err(|_| "payload_codec_stream_sha_invalid".to_string())?
+        .to_string();
+        if expected_stream_sha256.len() != 64
+            || !expected_stream_sha256
+                .as_bytes()
+                .iter()
+                .all(u8::is_ascii_hexdigit)
+        {
+            return Err("payload_codec_stream_sha_invalid".to_string());
+        }
+        let mut offset = HEADER_LEN;
+        let mut previous_frame = 0u64;
+        let mut records = Vec::with_capacity(expected_record_count);
+        for index in 0..expected_record_count {
+            if offset + 16 + 64 > bytes.len() {
+                return Err("payload_codec_record_header_truncated".to_string());
+            }
+            let sequence = read_u32(bytes, offset)
+                .ok_or_else(|| "payload_codec_sequence_missing".to_string())?
+                as u64;
+            let frame = read_u32(bytes, offset + 4)
+                .ok_or_else(|| "payload_codec_frame_missing".to_string())?
+                as u64;
+            let encoded_order_tag = read_u16(bytes, offset + 8)
+                .ok_or_else(|| "payload_codec_order_tag_missing".to_string())?;
+            let encoded_source_kind_tag = read_u16(bytes, offset + 10)
+                .ok_or_else(|| "payload_codec_source_kind_tag_missing".to_string())?;
+            let payload_len = read_u32(bytes, offset + 12)
+                .ok_or_else(|| "payload_codec_payload_length_missing".to_string())?
+                as usize;
+            let payload_sha_start = offset + 16;
+            let payload_sha_end = payload_sha_start + 64;
+            let payload_start = payload_sha_end;
+            let payload_end = payload_start
+                .checked_add(payload_len)
+                .ok_or_else(|| "payload_codec_payload_length_overflow".to_string())?;
+            if payload_end > bytes.len() {
+                return Err("payload_codec_payload_overrun".to_string());
+            }
+            let payload_sha256 = std::str::from_utf8(&bytes[payload_sha_start..payload_sha_end])
+                .map_err(|_| "payload_codec_payload_sha_invalid".to_string())?;
+            if payload_sha256.len() != 64
+                || !payload_sha256.as_bytes().iter().all(u8::is_ascii_hexdigit)
+            {
+                return Err("payload_codec_payload_sha_invalid".to_string());
+            }
+            let payload_bytes = &bytes[payload_start..payload_end];
+            let actual_payload_sha256 = sha256_hex(payload_bytes);
+            if actual_payload_sha256 != payload_sha256 {
+                return Err("payload_codec_payload_sha_mismatch".to_string());
+            }
+            let record: Value = serde_json::from_slice(payload_bytes)
+                .map_err(|_| "payload_codec_payload_json_invalid".to_string())?;
+            if record.get("record_schema").and_then(Value::as_str)
+                != Some("openra_order_stream_record_v1")
+            {
+                return Err("payload_codec_record_schema_invalid".to_string());
+            }
+            if sequence != index as u64
+                || record.get("sequence").and_then(Value::as_u64) != Some(index as u64)
+            {
+                return Err("payload_codec_sequence_mismatch".to_string());
+            }
+            if frame < previous_frame {
+                return Err("payload_codec_frame_regression".to_string());
+            }
+            previous_frame = frame;
+            if record.get("frame").and_then(Value::as_u64) != Some(frame) {
+                return Err("payload_codec_frame_mismatch".to_string());
+            }
+            let order = record
+                .get("order")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let decoded_order = order_from_tag(encoded_order_tag)
+                .ok_or_else(|| "payload_codec_order_tag_unknown".to_string())?;
+            if decoded_order != order {
+                return Err("payload_codec_order_tag_mismatch".to_string());
+            }
+            let source_kind = record
+                .get("source_kind")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let decoded_source_kind = source_kind_from_tag(encoded_source_kind_tag)
+                .ok_or_else(|| "payload_codec_source_kind_tag_unknown".to_string())?;
+            if decoded_source_kind != source_kind {
+                return Err("payload_codec_source_kind_tag_mismatch".to_string());
+            }
+            let payload = record.get("payload").unwrap_or(&Value::Null);
+            let expected_payload_sha256 = json_sha256(payload);
+            if record.get("payload_sha256").and_then(Value::as_str)
+                != Some(expected_payload_sha256.as_str())
+            {
+                return Err("payload_codec_record_payload_sha_mismatch".to_string());
+            }
+            records.push(record);
+            offset = payload_end;
+        }
+        if offset != bytes.len() {
+            return Err("payload_codec_trailing_bytes".to_string());
+        }
+        let decoded_stream = records_to_stream(&records);
+        let decoded_stream_sha256 = sha256_hex(decoded_stream.as_bytes());
+        if decoded_stream_sha256 != expected_stream_sha256 {
+            return Err("payload_codec_stream_sha_mismatch".to_string());
+        }
+        Ok((records, decoded_stream_sha256))
+    };
+
+    let payload_codec_bytes = encode_payload_codec(&source_records);
+    let payload_codec_sha256 = sha256_hex(&payload_codec_bytes);
+    let payload_codec_write_gate = fs::write(&payload_codec_path, &payload_codec_bytes).is_ok();
+    let decoded_payload_codec = decode_payload_codec(&payload_codec_bytes);
+    let valid_payload_decode_gate = decoded_payload_codec.is_ok();
+    let (decoded_records, decoded_stream_sha256) =
+        decoded_payload_codec.unwrap_or_else(|_| (Vec::new(), String::new()));
+    let decoded_stream = records_to_stream(&decoded_records);
+    let decoded_stream_write_gate =
+        fs::write(&decoded_stream_path, decoded_stream.as_bytes()).is_ok();
+
+    let final_frame = decoded_records
+        .iter()
+        .filter_map(|record| record.get("frame").and_then(Value::as_u64))
+        .max()
+        .unwrap_or(0);
+    let winner = imported_metadata
+        .get("winner")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let vocabulary_count = imported_metadata
+        .get("vocabulary_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let source_replay_sha256 = str_at(&imported_metadata, "source_replay_sha256");
+    let manifest = json!({
+        "manifest_schema": "openra_order_payload_decoder_manifest_v1_json",
+        "codec_schema": "openra_order_payload_codec_v1_bin",
+        "decoder_schema": "openra_order_payload_decoder_v1_json",
+        "magic": "TRNMOPR1",
+        "codec_version": 1,
+        "source_stream_schema": str_at(&imported_metadata, "source_stream_schema"),
+        "source_record_schema": str_at(&imported_metadata, "source_record_schema"),
+        "source_stream_sha256": source_stream_sha256,
+        "decoded_stream_sha256": decoded_stream_sha256,
+        "payload_codec_sha256": payload_codec_sha256,
+        "record_count": decoded_records.len(),
+        "payload_record_layout": [
+            "sequence_u32_le",
+            "frame_u32_le",
+            "order_tag_u16_le",
+            "source_kind_tag_u16_le",
+            "record_payload_len_u32_le",
+            "record_payload_sha256_ascii64",
+            "record_payload_json_bytes"
+        ],
+        "order_tag_map": {
+            "StartGame": 1,
+            "SyncFrame": 2,
+            "BotOrder": 3,
+            "TerminalProbe": 4,
+            "GameOver": 5,
+            "ReplayOutcome": 6,
+            "Winner": 7,
+            "Losers": 8,
+            "Outcome": 9
+        },
+        "source_kind_tag_map": {
+            "start_game": 1,
+            "checkpoint": 2,
+            "event": 3,
+            "derived_outcome": 4
+        },
+        "compatibility": {
+            "openra_style_order_payload_codec": true,
+            "openra_style_order_payload_decoder": true,
+            "openra_native_order_payload_decoder_claimed": false,
+            "openra_binary_replay_compatible": false,
+            "openra_network_order_stream_claimed": false,
+            "openra_runtime_parity_claimed": false
+        }
+    });
+    let manifest_sha256 = json_sha256(&manifest);
+    let manifest_write_gate = serde_json::to_vec_pretty(&manifest)
+        .map(|bytes| fs::write(&manifest_path, bytes).is_ok())
+        .unwrap_or(false);
+
+    let mut negative_inputs: Vec<(&str, &str, Vec<u8>)> = Vec::new();
+    let mut bad_magic = payload_codec_bytes.clone();
+    if let Some(first) = bad_magic.first_mut() {
+        *first = b'X';
+    }
+    negative_inputs.push(("bad_magic", "payload_codec_magic_invalid", bad_magic));
+    let mut bad_version = payload_codec_bytes.clone();
+    bad_version[8..10].copy_from_slice(&2u16.to_le_bytes());
+    negative_inputs.push((
+        "unsupported_version",
+        "payload_codec_version_unsupported",
+        bad_version,
+    ));
+    negative_inputs.push((
+        "truncated_header",
+        "payload_codec_too_short",
+        payload_codec_bytes
+            .get(0..12)
+            .unwrap_or(&payload_codec_bytes)
+            .to_vec(),
+    ));
+    let mut payload_overrun = payload_codec_bytes.clone();
+    if payload_overrun.len() >= 94 {
+        payload_overrun[90..94].copy_from_slice(&500_000u32.to_le_bytes());
+    }
+    negative_inputs.push((
+        "payload_length_overrun",
+        "payload_codec_payload_overrun",
+        payload_overrun,
+    ));
+    let mut sequence_mismatch = source_records.clone();
+    if let Some(record) = sequence_mismatch.get_mut(1) {
+        record["sequence"] = json!(99);
+    }
+    negative_inputs.push((
+        "sequence_mismatch",
+        "payload_codec_sequence_mismatch",
+        encode_payload_codec(&sequence_mismatch),
+    ));
+    let mut frame_regression = source_records.clone();
+    if let Some(record) = frame_regression.last_mut() {
+        record["frame"] = json!(1);
+    }
+    negative_inputs.push((
+        "frame_regression",
+        "payload_codec_frame_regression",
+        encode_payload_codec(&frame_regression),
+    ));
+    let mut order_tag_mismatch = payload_codec_bytes.clone();
+    if order_tag_mismatch.len() >= 88 {
+        order_tag_mismatch[86..88].copy_from_slice(&2u16.to_le_bytes());
+    }
+    negative_inputs.push((
+        "order_tag_mismatch",
+        "payload_codec_order_tag_mismatch",
+        order_tag_mismatch,
+    ));
+    let mut payload_sha_mismatch = payload_codec_bytes.clone();
+    if payload_sha_mismatch.len() >= 158 {
+        payload_sha_mismatch[94..158]
+            .copy_from_slice(b"0000000000000000000000000000000000000000000000000000000000000000");
+    }
+    negative_inputs.push((
+        "payload_sha_mismatch",
+        "payload_codec_payload_sha_mismatch",
+        payload_sha_mismatch,
+    ));
+
+    let mut negative_cases = Vec::new();
+    for (case_name, expected_error, bytes) in negative_inputs {
+        match decode_payload_codec(&bytes) {
+            Ok(_) => negative_cases.push(json!({
+                "case": case_name,
+                "expected_error": expected_error,
+                "detected": false,
+                "actual_error": Value::Null
+            })),
+            Err(error) => negative_cases.push(json!({
+                "case": case_name,
+                "expected_error": expected_error,
+                "detected": error == expected_error,
+                "actual_error": error
+            })),
+        }
+    }
+    let detected_negative_case_count = negative_cases
+        .iter()
+        .filter(|case| case.get("detected").and_then(Value::as_bool) == Some(true))
+        .count();
+    let negative_corpus_sha256 = json_sha256(&Value::Array(negative_cases.clone()));
+    let negative_corpus_write_gate =
+        serde_json::to_vec_pretty(&Value::Array(negative_cases.clone()))
+            .map(|bytes| fs::write(&negative_corpus_path, bytes).is_ok())
+            .unwrap_or(false);
+
+    let decoder_report = json!({
+        "decoder_schema": "openra_order_payload_decoder_v1_json",
+        "payload_codec_path": payload_codec_path,
+        "decoded_stream_path": decoded_stream_path,
+        "manifest_path": manifest_path,
+        "negative_corpus_path": negative_corpus_path,
+        "source_importer_path": importer_report_path,
+        "source_metadata_path": imported_metadata_path,
+        "summary": {
+            "source_record_count": source_records.len(),
+            "decoded_record_count": decoded_records.len(),
+            "source_stream_sha256": source_stream_sha256,
+            "decoded_stream_sha256": decoded_stream_sha256,
+            "payload_codec_sha256": payload_codec_sha256,
+            "manifest_sha256": manifest_sha256,
+            "source_replay_sha256": source_replay_sha256,
+            "vocabulary_count": vocabulary_count,
+            "final_frame": final_frame,
+            "winner": winner,
+            "negative_case_count": negative_cases.len(),
+            "detected_negative_case_count": detected_negative_case_count
+        }
+    });
+    let decoder_sha256 = json_sha256(&decoder_report);
+    let decoder_write_gate = serde_json::to_vec_pretty(&decoder_report)
+        .map(|bytes| fs::write(&decoder_path, bytes).is_ok())
+        .unwrap_or(false);
+
+    let source_contract_gate = contract_is(
+        &importer_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_IMPORTER_CONTRACT,
+    ) && importer_report
+        .get("importer_schema")
+        .and_then(Value::as_str)
+        == Some("openra_replay_envelope_importer_v1_json")
+        && imported_metadata
+            .get("metadata_schema")
+            .and_then(Value::as_str)
+            == Some("openra_replay_envelope_metadata_v1_json")
+        && imported_metadata
+            .get("source_stream_schema")
+            .and_then(Value::as_str)
+            == Some("openra_order_stream_fixture_v1_jsonl")
+        && imported_metadata
+            .get("source_record_schema")
+            .and_then(Value::as_str)
+            == Some("openra_order_stream_record_v1");
+    let source_green_gate = bool_at(&importer_evidence, "green")
+        && bool_at(&importer_evidence, "openra_replay_importer_gate");
+    let source_stream_parse_gate = record_parse_gate
+        && source_records.len() >= 20
+        && source_records.iter().enumerate().all(|(index, record)| {
+            record.get("sequence").and_then(Value::as_u64) == Some(index as u64)
+                && record.get("record_schema").and_then(Value::as_str)
+                    == Some("openra_order_stream_record_v1")
+        })
+        && source_records.windows(2).all(|window| {
+            window[0].get("frame").and_then(Value::as_u64).unwrap_or(0)
+                <= window[1].get("frame").and_then(Value::as_u64).unwrap_or(0)
+        })
+        && source_records.iter().all(|record| {
+            let payload = record.get("payload").unwrap_or(&Value::Null);
+            record
+                .get("payload_sha256")
+                .and_then(Value::as_str)
+                .is_some_and(|actual| actual == json_sha256(payload))
+        });
+    let payload_codec_file_gate = payload_codec_write_gate
+        && valid_payload_decode_gate
+        && payload_codec_sha256.len() == 64
+        && Path::new(&payload_codec_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 2_000)
+            .unwrap_or(false);
+    let manifest_gate = manifest_write_gate
+        && manifest_sha256.len() == 64
+        && manifest.get("manifest_schema").and_then(Value::as_str)
+            == Some("openra_order_payload_decoder_manifest_v1_json")
+        && manifest
+            .pointer("/compatibility/openra_style_order_payload_codec")
+            .and_then(Value::as_bool)
+            == Some(true)
+        && manifest
+            .pointer("/compatibility/openra_native_order_payload_decoder_claimed")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let decoded_stream_gate = decoded_stream_write_gate
+        && decoded_records == source_records
+        && decoded_stream_sha256 == source_stream_sha256
+        && decoded_stream_sha256 == str_at(&imported_metadata, "source_stream_sha256")
+        && decoded_stream_sha256
+            == importer_evidence
+                .pointer("/importer_summary/imported_stream_sha256")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+        && decoded_records.len() == source_records.len()
+        && decoded_records.len() >= 20
+        && final_frame >= 3000;
+    let decoder_file_gate = decoder_write_gate
+        && decoder_sha256.len() == 64
+        && Path::new(&decoder_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 1_000)
+            .unwrap_or(false);
+    let negative_corpus_gate = negative_corpus_write_gate
+        && negative_cases.len() >= 8
+        && detected_negative_case_count == negative_cases.len()
+        && negative_corpus_sha256.len() == 64
+        && Path::new(&negative_corpus_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false);
+    let compatibility_boundary_gate =
+        bool_at(
+            &importer_evidence,
+            "bevy_openra_replay_envelope_importer_claimed",
+        ) && !bool_at(&importer_evidence, "bevy_openra_binary_replay_compatible")
+            && !bool_at(
+                &importer_evidence,
+                "bevy_openra_network_order_stream_claimed",
+            )
+            && !bool_at(&importer_evidence, "bevy_openra_runtime_parity_claimed")
+            && !bool_at(&importer_evidence, "public_launch_ready")
+            && imported_metadata
+                .pointer("/compatibility/openra_outer_replay_envelope_imported")
+                .and_then(Value::as_bool)
+                == Some(true)
+            && imported_metadata
+                .pointer("/compatibility/openra_order_payload_decoder_claimed")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && manifest
+                .pointer("/compatibility/openra_style_order_payload_decoder")
+                .and_then(Value::as_bool)
+                == Some(true)
+            && manifest
+                .pointer("/compatibility/openra_native_order_payload_decoder_claimed")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && manifest
+                .pointer("/compatibility/openra_binary_replay_compatible")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && manifest
+                .pointer("/compatibility/openra_network_order_stream_claimed")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && manifest
+                .pointer("/compatibility/openra_runtime_parity_claimed")
+                .and_then(Value::as_bool)
+                == Some(false);
+    let openra_order_payload_decoder_gate = source_contract_gate
+        && source_green_gate
+        && source_stream_parse_gate
+        && payload_codec_file_gate
+        && manifest_gate
+        && decoded_stream_gate
+        && decoder_file_gate
+        && negative_corpus_gate
+        && compatibility_boundary_gate;
+    let green = openra_order_payload_decoder_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "payload_codec_path": payload_codec_path,
+        "payload_codec_sha256": payload_codec_sha256,
+        "decoded_stream_path": decoded_stream_path,
+        "decoded_stream_sha256": decoded_stream_sha256,
+        "decoder_path": decoder_path,
+        "decoder_sha256": decoder_sha256,
+        "manifest_path": manifest_path,
+        "manifest_sha256": manifest_sha256,
+        "negative_corpus_path": negative_corpus_path,
+        "negative_corpus_sha256": negative_corpus_sha256,
+        "adapter_state": "bevy_owned_openra_style_order_payload_codec_decoder_not_native_orderio",
+        "source_contracts": {
+            "openra_replay_importer": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_IMPORTER_CONTRACT
+        },
+        "source_paths": {
+            "openra_replay_importer": importer_dir,
+            "imported_stream": imported_stream_path,
+            "imported_metadata": imported_metadata_path,
+            "importer_report": importer_report_path
+        },
+        "decoder_summary": {
+            "decoder_schema": "openra_order_payload_decoder_v1_json",
+            "codec_schema": "openra_order_payload_codec_v1_bin",
+            "source_stream_schema": str_at(&imported_metadata, "source_stream_schema"),
+            "record_schema": str_at(&imported_metadata, "source_record_schema"),
+            "source_record_count": source_records.len(),
+            "decoded_record_count": decoded_records.len(),
+            "source_stream_sha256": source_stream_sha256,
+            "decoded_stream_sha256": decoded_stream_sha256,
+            "payload_codec_sha256": payload_codec_sha256,
+            "source_replay_sha256": source_replay_sha256,
+            "vocabulary_count": vocabulary_count,
+            "final_frame": final_frame,
+            "winner": winner,
+            "negative_case_count": negative_cases.len(),
+            "detected_negative_case_count": detected_negative_case_count
+        },
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "record_parse_gate": record_parse_gate,
+        "source_stream_parse_gate": source_stream_parse_gate,
+        "valid_payload_decode_gate": valid_payload_decode_gate,
+        "payload_codec_file_gate": payload_codec_file_gate,
+        "manifest_gate": manifest_gate,
+        "decoded_stream_gate": decoded_stream_gate,
+        "decoder_file_gate": decoder_file_gate,
+        "negative_corpus_gate": negative_corpus_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "openra_order_payload_decoder_gate": openra_order_payload_decoder_gate,
+        "bevy_openra_order_payload_codec_claimed": true,
+        "bevy_openra_order_payload_decoder_claimed": true,
+        "bevy_openra_native_order_payload_decoder_claimed": false,
+        "bevy_openra_replay_envelope_importer_claimed": true,
+        "bevy_openra_replay_metadata_reader_claimed": true,
+        "bevy_openra_order_serializer_fixture_claimed": true,
+        "bevy_openra_command_vocabulary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA order payload decoder evidence wraps the importer-produced JSON order payloads in a local OpenRA-style binary payload codec, decodes them back to the imported JSONL stream, verifies order/source tags and payload hashes, and validates a negative corpus. It claims only a Trillionnium-owned OpenRA-style payload codec/decoder bridge; native OpenRA OrderIO payload decoding, full OpenRA binary replay compatibility, network order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA order payload decoder evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let payload_decoder_dir = preview_path("openra-order-payload-decoder");
+    let baseline_reducer_dir = preview_path("openra-order-replay-reducer");
+    let reducer_path = preview_path("openra-imported-replay-reducer.json");
+    let snapshot_path = preview_path("openra-imported-replay-snapshots.jsonl");
+    let comparison_path = preview_path("openra-imported-replay-reducer-comparison.json");
+    let negative_corpus_path = preview_path("openra-imported-replay-reducer-negative-corpus.json");
+
+    let payload_decoder_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_order_payload_decoder_evidence_json(&payload_decoder_dir),
+    )
+    .expect("OpenRA order payload decoder evidence parses");
+    let baseline_reducer_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_order_replay_reducer_evidence_json(&baseline_reducer_dir),
+    )
+    .expect("OpenRA order replay reducer evidence parses");
+
+    let imported_stream_path = payload_decoder_evidence
+        .get("decoded_stream_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let imported_metadata_path = payload_decoder_evidence
+        .pointer("/source_paths/imported_metadata")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let payload_decoder_report_path = payload_decoder_evidence
+        .get("decoder_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let payload_decoder_manifest_path = payload_decoder_evidence
+        .get("manifest_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let importer_report_path = payload_decoder_evidence
+        .pointer("/source_paths/importer_report")
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string();
@@ -38861,6 +39584,14 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
     };
     let stream_text = String::from_utf8(stream_bytes.clone()).unwrap_or_default();
     let imported_metadata: Value = fs::read(&imported_metadata_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let payload_decoder_report: Value = fs::read(&payload_decoder_report_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let payload_decoder_manifest: Value = fs::read(&payload_decoder_manifest_path)
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or(Value::Null);
@@ -39488,15 +40219,23 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
             .unwrap_or(false);
 
     let source_contract_gate = contract_is(
-        &importer_evidence,
-        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_IMPORTER_CONTRACT,
+        &payload_decoder_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
     ) && contract_is(
         &baseline_reducer_evidence,
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT,
-    ) && importer_report
-        .get("importer_schema")
+    ) && payload_decoder_report
+        .get("decoder_schema")
         .and_then(Value::as_str)
-        == Some("openra_replay_envelope_importer_v1_json")
+        == Some("openra_order_payload_decoder_v1_json")
+        && payload_decoder_manifest
+            .get("manifest_schema")
+            .and_then(Value::as_str)
+            == Some("openra_order_payload_decoder_manifest_v1_json")
+        && importer_report
+            .get("importer_schema")
+            .and_then(Value::as_str)
+            == Some("openra_replay_envelope_importer_v1_json")
         && imported_metadata
             .get("metadata_schema")
             .and_then(Value::as_str)
@@ -39509,23 +40248,26 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
             .get("source_record_schema")
             .and_then(Value::as_str)
             == Some("openra_order_stream_record_v1");
-    let source_green_gate = bool_at(&importer_evidence, "green")
-        && bool_at(&importer_evidence, "openra_replay_importer_gate")
+    let source_green_gate = bool_at(&payload_decoder_evidence, "green")
+        && bool_at(
+            &payload_decoder_evidence,
+            "openra_order_payload_decoder_gate",
+        )
         && bool_at(&baseline_reducer_evidence, "green")
         && bool_at(
             &baseline_reducer_evidence,
             "openra_order_replay_reducer_gate",
         );
     let metadata_stream_sha256 = str_at(&imported_metadata, "source_stream_sha256");
-    let importer_stream_sha256 = importer_evidence
-        .pointer("/importer_summary/imported_stream_sha256")
+    let decoder_stream_sha256 = payload_decoder_evidence
+        .pointer("/decoder_summary/decoded_stream_sha256")
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string();
     let imported_stream_input_gate = !imported_stream_path.is_empty()
         && stream_sha256.len() == 64
         && stream_sha256 == metadata_stream_sha256
-        && stream_sha256 == importer_stream_sha256
+        && stream_sha256 == decoder_stream_sha256
         && imported_metadata
             .get("source_record_count")
             .and_then(Value::as_u64)
@@ -39605,47 +40347,62 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
             .metadata()
             .map(|metadata| metadata.len() > 300)
             .unwrap_or(false);
-    let compatibility_boundary_gate = bool_at(
-        &importer_evidence,
-        "bevy_openra_replay_envelope_importer_claimed",
-    ) && bool_at(
-        &baseline_reducer_evidence,
-        "bevy_openra_order_replay_reducer_claimed",
-    ) && !bool_at(
-        &importer_evidence,
-        "bevy_openra_binary_replay_compatible",
-    ) && !bool_at(
-        &importer_evidence,
-        "bevy_openra_order_payload_decoder_claimed",
-    ) && !bool_at(
-        &importer_evidence,
-        "bevy_openra_network_order_stream_claimed",
-    ) && !bool_at(
-        &importer_evidence,
-        "bevy_openra_runtime_parity_claimed",
-    ) && !bool_at(
-        &baseline_reducer_evidence,
-        "bevy_openra_binary_replay_compatible",
-    ) && !bool_at(
-        &baseline_reducer_evidence,
-        "bevy_openra_network_order_stream_claimed",
-    ) && !bool_at(
-        &baseline_reducer_evidence,
-        "bevy_openra_runtime_parity_claimed",
-    ) && !bool_at(&importer_evidence, "public_launch_ready")
-        && !bool_at(&baseline_reducer_evidence, "public_launch_ready")
-        && imported_metadata
-            .pointer("/compatibility/openra_outer_replay_envelope_imported")
-            .and_then(Value::as_bool)
-            == Some(true)
-        && imported_metadata
-            .pointer("/compatibility/openra_order_payload_decoder_claimed")
-            .and_then(Value::as_bool)
-            == Some(false)
-        && imported_metadata
-            .pointer("/compatibility/openra_runtime_parity_claimed")
-            .and_then(Value::as_bool)
-            == Some(false);
+    let compatibility_boundary_gate =
+        bool_at(
+            &payload_decoder_evidence,
+            "bevy_openra_order_payload_decoder_claimed",
+        ) && bool_at(
+            &payload_decoder_evidence,
+            "bevy_openra_order_payload_codec_claimed",
+        ) && !bool_at(
+            &payload_decoder_evidence,
+            "bevy_openra_native_order_payload_decoder_claimed",
+        ) && bool_at(
+            &payload_decoder_evidence,
+            "bevy_openra_replay_envelope_importer_claimed",
+        ) && bool_at(
+            &baseline_reducer_evidence,
+            "bevy_openra_order_replay_reducer_claimed",
+        ) && !bool_at(
+            &payload_decoder_evidence,
+            "bevy_openra_binary_replay_compatible",
+        ) && !bool_at(
+            &payload_decoder_evidence,
+            "bevy_openra_network_order_stream_claimed",
+        ) && !bool_at(
+            &payload_decoder_evidence,
+            "bevy_openra_runtime_parity_claimed",
+        ) && !bool_at(
+            &baseline_reducer_evidence,
+            "bevy_openra_binary_replay_compatible",
+        ) && !bool_at(
+            &baseline_reducer_evidence,
+            "bevy_openra_network_order_stream_claimed",
+        ) && !bool_at(
+            &baseline_reducer_evidence,
+            "bevy_openra_runtime_parity_claimed",
+        ) && !bool_at(&payload_decoder_evidence, "public_launch_ready")
+            && !bool_at(&baseline_reducer_evidence, "public_launch_ready")
+            && imported_metadata
+                .pointer("/compatibility/openra_outer_replay_envelope_imported")
+                .and_then(Value::as_bool)
+                == Some(true)
+            && imported_metadata
+                .pointer("/compatibility/openra_order_payload_decoder_claimed")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && payload_decoder_manifest
+                .pointer("/compatibility/openra_style_order_payload_decoder")
+                .and_then(Value::as_bool)
+                == Some(true)
+            && payload_decoder_manifest
+                .pointer("/compatibility/openra_native_order_payload_decoder_claimed")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && imported_metadata
+                .pointer("/compatibility/openra_runtime_parity_claimed")
+                .and_then(Value::as_bool)
+                == Some(false);
     let openra_imported_replay_reducer_gate = source_contract_gate
         && source_green_gate
         && imported_stream_input_gate
@@ -39670,16 +40427,19 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
         "comparison_sha256": comparison_sha256,
         "negative_corpus_path": negative_corpus_path,
         "negative_corpus_sha256": negative_corpus_sha256,
-        "adapter_state": "bevy_owned_openra_imported_stream_replayed_by_rust_reducer",
+        "adapter_state": "bevy_owned_openra_decoded_payload_stream_replayed_by_rust_reducer",
         "source_contracts": {
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
             "openra_replay_importer": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_IMPORTER_CONTRACT,
             "openra_order_replay_reducer": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT
         },
         "source_paths": {
-            "openra_replay_importer": importer_dir,
+            "openra_order_payload_decoder": payload_decoder_dir,
             "openra_order_replay_reducer": baseline_reducer_dir,
-            "imported_stream": imported_stream_path,
+            "decoded_stream": imported_stream_path,
             "imported_metadata": imported_metadata_path,
+            "payload_decoder_report": payload_decoder_report_path,
+            "payload_decoder_manifest": payload_decoder_manifest_path,
             "importer_report": importer_report_path,
             "baseline_reducer": baseline_reducer_path,
             "baseline_snapshots": baseline_snapshot_path
@@ -39688,6 +40448,7 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
             "stream_schema": str_at(&imported_metadata, "source_stream_schema"),
             "record_schema": str_at(&imported_metadata, "source_record_schema"),
             "imported_stream_sha256": stream_sha256,
+            "decoded_stream_sha256": stream_sha256,
             "source_replay_sha256": str_at(&imported_metadata, "source_replay_sha256"),
             "record_count": records.len(),
             "snapshot_count": reducer_snapshots.len(),
@@ -39723,13 +40484,15 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
         "compatibility_boundary_gate": compatibility_boundary_gate,
         "openra_imported_replay_reducer_gate": openra_imported_replay_reducer_gate,
         "bevy_openra_imported_replay_reducer_claimed": true,
+        "bevy_openra_order_payload_codec_claimed": true,
+        "bevy_openra_order_payload_decoder_claimed": true,
+        "bevy_openra_native_order_payload_decoder_claimed": false,
         "bevy_openra_replay_envelope_importer_claimed": true,
         "bevy_openra_replay_metadata_reader_claimed": true,
         "bevy_openra_order_replay_reducer_claimed": true,
         "bevy_openra_order_serializer_fixture_claimed": true,
         "bevy_openra_command_vocabulary_adapter_claimed": true,
         "bevy_openra_binary_replay_compatible": false,
-        "bevy_openra_order_payload_decoder_claimed": false,
         "bevy_openra_order_serializer_claimed": false,
         "bevy_openra_network_order_stream_claimed": false,
         "bevy_openra_replay_file_claimed": false,
@@ -39740,7 +40503,7 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
         "public_launch_ready": false,
         "cex_runtime_player_client_allowed": false,
         "wgpu_required": false,
-        "source_of_truth": "Classic RTS OpenRA imported replay reducer evidence replays the JSONL stream imported from the OpenRA-inspired .orarep outer envelope through the Rust order reducer, compares it against the serializer-backed reducer, and validates a negative corpus. It claims only importer-to-reducer continuity over the Trillionnium-owned OpenRA-style stream; full OpenRA binary replay compatibility, native OpenRA order payload decoding, network order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
+        "source_of_truth": "Classic RTS OpenRA imported replay reducer evidence replays the JSONL stream decoded from the local OpenRA-style order payload codec through the Rust order reducer, compares it against the serializer-backed reducer, and validates a negative corpus. It claims only importer-to-payload-decoder-to-reducer continuity over the Trillionnium-owned OpenRA-style stream; full OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA imported replay reducer evidence serializes")
 }

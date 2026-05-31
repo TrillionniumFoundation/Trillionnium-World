@@ -8,8 +8,10 @@ REDUCER="$PREVIEW_DIR/openra-imported-replay-reducer.json"
 SNAPSHOTS="$PREVIEW_DIR/openra-imported-replay-snapshots.jsonl"
 COMPARISON="$PREVIEW_DIR/openra-imported-replay-reducer-comparison.json"
 NEGATIVE_CORPUS="$PREVIEW_DIR/openra-imported-replay-reducer-negative-corpus.json"
-IMPORTED_STREAM="$PREVIEW_DIR/openra-replay-importer/openra-replay-imported-order-stream.jsonl"
-IMPORTER="$PREVIEW_DIR/openra-replay-importer/openra-replay-importer.json"
+IMPORTED_STREAM="$PREVIEW_DIR/openra-order-payload-decoder/openra-order-payload-decoded-stream.jsonl"
+PAYLOAD_DECODER="$PREVIEW_DIR/openra-order-payload-decoder/openra-order-payload-decoder.json"
+PAYLOAD_MANIFEST="$PREVIEW_DIR/openra-order-payload-decoder/openra-order-payload-decoder-manifest.json"
+IMPORTER="$PREVIEW_DIR/openra-order-payload-decoder/openra-replay-importer/openra-replay-importer.json"
 BASELINE_REDUCER="$PREVIEW_DIR/openra-order-replay-reducer/openra-order-replay-reducer.json"
 BASELINE_SNAPSHOTS="$PREVIEW_DIR/openra-order-replay-reducer/openra-order-replay-snapshots.jsonl"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
@@ -22,7 +24,8 @@ mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_imported_replay_reducer_v1"
   and .green == true
-  and .adapter_state == "bevy_owned_openra_imported_stream_replayed_by_rust_reducer"
+  and .adapter_state == "bevy_owned_openra_decoded_payload_stream_replayed_by_rust_reducer"
+  and .source_contracts.openra_order_payload_decoder == "trillionnium_world_bevy_classic_rts_openra_order_payload_decoder_v1"
   and .source_contracts.openra_replay_importer == "trillionnium_world_bevy_classic_rts_openra_replay_importer_v1"
   and .source_contracts.openra_order_replay_reducer == "trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1"
   and (.reducer_state_sha256 | type == "string" and length == 64)
@@ -32,6 +35,7 @@ jq -e '
   and .imported_reducer_summary.stream_schema == "openra_order_stream_fixture_v1_jsonl"
   and .imported_reducer_summary.record_schema == "openra_order_stream_record_v1"
   and (.imported_reducer_summary.imported_stream_sha256 | type == "string" and length == 64)
+  and .imported_reducer_summary.decoded_stream_sha256 == .imported_reducer_summary.imported_stream_sha256
   and (.imported_reducer_summary.source_replay_sha256 | type == "string" and length == 64)
   and .imported_reducer_summary.record_count >= 20
   and .imported_reducer_summary.snapshot_count >= 6
@@ -66,10 +70,12 @@ jq -e '
   and .compatibility_boundary_gate == true
   and .openra_imported_replay_reducer_gate == true
   and .bevy_openra_imported_replay_reducer_claimed == true
+  and .bevy_openra_order_payload_codec_claimed == true
+  and .bevy_openra_order_payload_decoder_claimed == true
+  and .bevy_openra_native_order_payload_decoder_claimed == false
   and .bevy_openra_replay_envelope_importer_claimed == true
   and .bevy_openra_order_replay_reducer_claimed == true
   and .bevy_openra_binary_replay_compatible == false
-  and .bevy_openra_order_payload_decoder_claimed == false
   and .bevy_openra_order_serializer_claimed == false
   and .bevy_openra_network_order_stream_claimed == false
   and .bevy_openra_replay_file_claimed == false
@@ -141,6 +147,21 @@ jq -e '
   and (map(.case) | index("stream_sha_mismatch") != null)
 ' "$NEGATIVE_CORPUS" >/dev/null
 
+jq -e '
+  .decoder_schema == "openra_order_payload_decoder_v1_json"
+  and .summary.decoded_record_count >= 20
+  and .summary.decoded_stream_sha256 == .summary.source_stream_sha256
+  and .summary.detected_negative_case_count == .summary.negative_case_count
+' "$PAYLOAD_DECODER" >/dev/null
+
+jq -e '
+  .manifest_schema == "openra_order_payload_decoder_manifest_v1_json"
+  and .codec_schema == "openra_order_payload_codec_v1_bin"
+  and .compatibility.openra_style_order_payload_decoder == true
+  and .compatibility.openra_native_order_payload_decoder_claimed == false
+  and .compatibility.openra_binary_replay_compatible == false
+' "$PAYLOAD_MANIFEST" >/dev/null
+
 jq -s -e '
   length >= 20
   and (to_entries | all(.[]; .value.sequence == .key))
@@ -154,6 +175,8 @@ jq -s -e '
 cmp -s "$REDUCER" "$BASELINE_REDUCER"
 cmp -s "$SNAPSHOTS" "$BASELINE_SNAPSHOTS"
 test -s "$IMPORTER"
+test -s "$PAYLOAD_DECODER"
+test -s "$PAYLOAD_MANIFEST"
 test -s "$BASELINE_REDUCER"
 test -s "$BASELINE_SNAPSHOTS"
 test -s "$REDUCER"

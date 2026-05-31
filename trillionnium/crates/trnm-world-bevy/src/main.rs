@@ -1358,6 +1358,24 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-openra-order-payload-decoder"
+                | "--classic-rts-openra-order-payload-decoder"
+        )
+    ) {
+        let preview_dir = args.get(1).map(String::as_str).unwrap_or(
+            "../acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-payload-decoder",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_openra_order_payload_decoder_evidence_json(
+                preview_dir
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-openra-imported-replay-reducer"
                 | "--classic-rts-openra-imported-replay-reducer"
         )
