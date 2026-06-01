@@ -441,6 +441,8 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 
 继续追加第五十五组 RTS local-obstruction-recovery gate：`scripts/check_trillionnium_world_bevy_classic_rts_local_obstruction_recovery.sh` 把“编队执行可信”推进到“局部堵路恢复也可信”。实际 `classic_draw_scene` 必须按 local obstruction recovery stage 画出 detect_block、hold_queue、side_step、gap_claim、flow_resume 五类反馈，包括阻挡检测、后排排队、侧步让缝、空隙认领和不丢命令的恢复流动；`live_input_gate`、`detect_block_gate`、`hold_queue_gate`、`side_step_gate`、`gap_claim_gate`、`flow_resume_gate`、`scene_renderer_gate` 与 `original_art_policy_gate` 保证堵路恢复来自 accepted Bevy native RTS move/control actions、runtime blocked/disperse/slot/route state 和原创低配 renderer，不复制外部 RTS UI/光标/模型/文本资产。
 
+补齐 classic RTS production art / asset / UI skin 三组本机证据：`scripts/check_trillionnium_world_bevy_classic_rts_production_art_replication.sh` 要求实际 `classic_draw_scene` 呈现原创 guard/worker/creep/structure/environment/FX 的 sprite、轮廓、动作帧、材质提示和 live runtime 绑定，不把外部 RTS IP 的模型、命名或 UI 复制进来；`scripts/check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh` 把这些 production art 切成 texture-atlas 家族、frame、UV rect、runtime binding lane 和 source preview；`scripts/check_trillionnium_world_bevy_classic_rts_production_ui_skin.sh` 再把 atlas 绑定到 HUD chrome、command grid、小地图 bezel、unit card、tooltip panel、feedback markers、hotkey strip、status bars 八个 UI surface。三组 gate 均纳入 `scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh` 与 release-review CI，只证明 host-side Bevy 原创素材/界面皮肤链路，不声明 production-ready UI、Android S5 真机、GPU upload 或 public-launch ready。
+
 Go 条件：
 
 - 中端 Android 30 FPS。
