@@ -96,6 +96,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_minute_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_art_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
@@ -190,6 +191,7 @@ jq -n \
   --slurpfile rts_depth_readability "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.json" \
   --slurpfile rts_first_minute_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-minute-readiness.json" \
   --slurpfile rts_map_ui_modeling_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness.json" \
+  --slurpfile rts_production_art_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.json" \
   --slurpfile rts_campaign_outcome_ui_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
@@ -290,6 +292,7 @@ jq -n \
       and ok($rts_depth_readability)
       and ok($rts_first_minute_readiness)
       and ok($rts_map_ui_modeling_readiness)
+      and ok($rts_production_art_replication)
       and ok($rts_campaign_outcome_ui_readiness)
       and ok($rts_combat_readability_pressure_readiness)
       and ok($rts_playtest_observability_readiness)
@@ -602,6 +605,7 @@ jq -n \
       classic_rts_depth_readability_green: ok($rts_depth_readability),
       classic_rts_first_minute_readiness_green: ok($rts_first_minute_readiness),
       classic_rts_map_ui_modeling_readiness_green: ok($rts_map_ui_modeling_readiness),
+      classic_rts_production_art_replication_green: ok($rts_production_art_replication),
       classic_rts_campaign_outcome_ui_readiness_green: ok($rts_campaign_outcome_ui_readiness),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
@@ -2685,6 +2689,8 @@ jq -n \
       classic_rts_first_minute_readiness_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-minute-readiness.ppm",
       classic_rts_map_ui_modeling_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness.json",
       classic_rts_map_ui_modeling_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness/",
+      classic_rts_production_art_replication: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.json",
+      classic_rts_production_art_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.ppm",
       classic_rts_campaign_outcome_ui_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json",
       classic_rts_campaign_outcome_ui_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness/",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
@@ -2791,6 +2797,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_depth_readability_green == true
   and .checks.classic_rts_first_minute_readiness_green == true
   and .checks.classic_rts_map_ui_modeling_readiness_green == true
+  and .checks.classic_rts_production_art_replication_green == true
   and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.classic_rts_playtest_observability_readiness_green == true

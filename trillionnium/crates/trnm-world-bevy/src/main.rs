@@ -67,6 +67,25 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-production-art-replication"
+                | "--classic-rts-production-art-replication"
+                | "production-art-replication"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_production_art_replication_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-first-contact-basin-spec"
                 | "--classic-rts-first-contact-basin-spec"
                 | "first-contact-basin-spec"

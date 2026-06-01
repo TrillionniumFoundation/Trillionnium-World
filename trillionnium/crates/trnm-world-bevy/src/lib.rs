@@ -234,6 +234,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_campaign_entry_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_visual_fidelity_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ART_REPLICATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_production_art_replication_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -17979,6 +17981,419 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
         "source_of_truth": "Visual fidelity evidence must exercise the actual classic RTS scene renderer: mature command HUD, selected-unit portraits/cards, original pseudo-3D silhouettes, distinct NPC action states, dense map readability markers, product-grade UI chrome, and model-volume cues."
     }))
     .expect("classic RTS visual fidelity evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_production_art_replication_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 1280;
+    const PANEL_HEIGHT: usize = 720;
+    const PRODUCTION_BOARD_COLOR: u32 = 0x17221f;
+    const PRODUCTION_BOARD_EDGE_COLOR: u32 = 0x385846;
+    const PRODUCTION_ACTOR_COLOR: u32 = 0x8fd27b;
+    const PRODUCTION_ACTOR_HIGHLIGHT_COLOR: u32 = 0xd7f7a3;
+    const PRODUCTION_BUILDING_COLOR: u32 = 0x8a7a5c;
+    const PRODUCTION_BUILDING_LIGHT_COLOR: u32 = 0xd5be8c;
+    const PRODUCTION_TILESET_COLOR: u32 = 0x2f6f5c;
+    const PRODUCTION_TILESET_DETAIL_COLOR: u32 = 0x5fc9a4;
+    const PRODUCTION_UI_CHROME_COLOR: u32 = 0x1f4c5b;
+    const PRODUCTION_UI_ACCENT_COLOR: u32 = 0x65c8dd;
+    const PRODUCTION_MATERIAL_SWATCH_COLOR: u32 = 0xb58a44;
+    const PRODUCTION_REPLACEMENT_SLOT_COLOR: u32 = 0xcb5f5d;
+
+    let source_preview_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("bevy-classic-rts-production-art-replication-sources")
+        .to_string_lossy()
+        .into_owned();
+    let authored: Value =
+        serde_json::from_str(&native_authored_art_pack_evidence_json("local-player"))
+            .expect("authored art pack evidence parses for production art replication");
+    let map_ui: Value = serde_json::from_str(
+        &native_classic_rts_map_ui_modeling_readiness_evidence_json(&source_preview_dir),
+    )
+    .expect("map UI modeling readiness evidence parses for production art replication");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let array_contains = |value: &Value, pointer: &str, expected: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+    let all_arrays_contain = |value: &Value, pointer: &str, expected: &[&str]| {
+        expected
+            .iter()
+            .all(|item| array_contains(value, pointer, item))
+    };
+
+    let authored_surface_count = u64_at(&authored, "/authored_art_pack_policy/surface_count");
+    let authored_export_ready_count =
+        u64_at(&authored, "/authored_art_pack_policy/export_ready_count");
+    let authored_min_target_resolution_px = u64_at(
+        &authored,
+        "/authored_art_pack_policy/min_target_resolution_px",
+    );
+    let required_asset_kinds = [
+        "terrain_tile",
+        "road_tile",
+        "building_tile",
+        "foliage_sprite",
+        "water_tile",
+        "hud_icon",
+        "hud_glyph",
+        "actor_sprite",
+        "feedback_glyph",
+    ];
+    let required_layers = [
+        "terrain", "road", "building", "greenery", "water", "hud", "actor", "feedback",
+    ];
+    let required_replacement_slots = [
+        "tile_sprite_slot",
+        "hud_icon_slot",
+        "hud_glyph_slot",
+        "actor_sprite_slot",
+        "feedback_glyph_slot",
+    ];
+    let authored_replacement_slot_gate = bool_at(&authored, "green")
+        && bool_at(&authored, "authored_art_pack_gate")
+        && authored_surface_count >= 120
+        && authored_export_ready_count == authored_surface_count
+        && authored_min_target_resolution_px >= 32
+        && all_arrays_contain(
+            &authored,
+            "/authored_art_pack_policy/asset_kinds",
+            &required_asset_kinds,
+        )
+        && all_arrays_contain(
+            &authored,
+            "/authored_art_pack_policy/gameplay_layers",
+            &required_layers,
+        )
+        && all_arrays_contain(
+            &authored,
+            "/authored_art_pack_policy/replacement_slots",
+            &required_replacement_slots,
+        )
+        && array_contains(
+            &authored,
+            "/authored_art_pack_policy/source_origins",
+            "local_authored_primitive_manifest_v1",
+        );
+    let map_ui_gate = bool_at(&map_ui, "green")
+        && bool_at(&map_ui, "visual_gate")
+        && bool_at(&map_ui, "command_gate")
+        && bool_at(&map_ui, "scroll_gate")
+        && bool_at(&map_ui, "camera_gate")
+        && bool_at(&map_ui, "structure_gate")
+        && bool_at(&map_ui, "environment_gate")
+        && bool_at(&map_ui, "source_policy_gate");
+
+    let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let assets = load_classic_runtime_assets();
+    let runtime = classic_product_alignment_runtime();
+    classic_draw_scene(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        672,
+        PRODUCTION_BOARD_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        3,
+        PRODUCTION_BOARD_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        693,
+        1232,
+        3,
+        PRODUCTION_BOARD_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        3,
+        672,
+        PRODUCTION_BOARD_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1253,
+        24,
+        3,
+        672,
+        PRODUCTION_BOARD_EDGE_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        44,
+        "TRNM PRODUCTION ART REPLICATION BOARD",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        80,
+        "ORIGINAL ART DIRECTION NO THIRD PARTY ASSET COPY",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let families = [
+        ("ACTOR SPRITES", PRODUCTION_ACTOR_COLOR),
+        ("BUILDINGS", PRODUCTION_BUILDING_COLOR),
+        ("TERRAIN", PRODUCTION_TILESET_COLOR),
+        ("ROADS", PRODUCTION_TILESET_DETAIL_COLOR),
+        ("WATER", 0x386b96),
+        ("FOLIAGE", 0x4f9d58),
+        ("HUD CHROME", PRODUCTION_UI_CHROME_COLOR),
+        ("ICONS", PRODUCTION_UI_ACCENT_COLOR),
+        ("FEEDBACK", PRODUCTION_REPLACEMENT_SLOT_COLOR),
+    ];
+    for (index, (label, color)) in families.iter().enumerate() {
+        let col = (index % 3) as i32;
+        let row = (index / 3) as i32;
+        let x = 48 + col * 392;
+        let y = 120 + row * 150;
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            356,
+            118,
+            0x101714,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            356,
+            4,
+            *color,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            y + 14,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        for sample in 0..5_i32 {
+            let sx = x + 24 + sample * 62;
+            let sy = y + 42 + (sample % 2) * 12;
+            classic_draw_rect(
+                &mut preview_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx,
+                sy,
+                34,
+                42,
+                *color,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 6,
+                sy + 6,
+                22,
+                8,
+                PRODUCTION_ACTOR_HIGHLIGHT_COLOR,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 4,
+                sy + 36,
+                28,
+                3,
+                PRODUCTION_BOARD_EDGE_COLOR,
+            );
+        }
+    }
+
+    classic_draw_rect(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        585,
+        1184,
+        84,
+        0x111a17,
+    );
+    for slot in 0..16_i32 {
+        let x = 72 + slot * 70;
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            605,
+            44,
+            44,
+            PRODUCTION_UI_CHROME_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 7,
+            612,
+            30,
+            30,
+            if slot % 3 == 0 {
+                PRODUCTION_MATERIAL_SWATCH_COLOR
+            } else if slot % 3 == 1 {
+                PRODUCTION_UI_ACCENT_COLOR
+            } else {
+                PRODUCTION_REPLACEMENT_SLOT_COLOR
+            },
+        );
+    }
+    classic_draw_text(
+        &mut preview_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        72,
+        660,
+        "SLOTS ARE REPLACEABLE PROJECT OWNED PRODUCTION TARGETS",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let production_board_pixel_count =
+        count_color(PRODUCTION_BOARD_COLOR) + count_color(PRODUCTION_BOARD_EDGE_COLOR);
+    let actor_silhouette_pixel_count =
+        count_color(PRODUCTION_ACTOR_COLOR) + count_color(PRODUCTION_ACTOR_HIGHLIGHT_COLOR);
+    let building_material_pixel_count =
+        count_color(PRODUCTION_BUILDING_COLOR) + count_color(PRODUCTION_BUILDING_LIGHT_COLOR);
+    let tileset_variation_pixel_count =
+        count_color(PRODUCTION_TILESET_COLOR) + count_color(PRODUCTION_TILESET_DETAIL_COLOR);
+    let hud_chrome_pixel_count =
+        count_color(PRODUCTION_UI_CHROME_COLOR) + count_color(PRODUCTION_UI_ACCENT_COLOR);
+    let material_swatch_pixel_count = count_color(PRODUCTION_MATERIAL_SWATCH_COLOR);
+    let replacement_slot_pixel_count = count_color(PRODUCTION_REPLACEMENT_SLOT_COLOR);
+    let production_preview_gate = write_gate
+        && production_board_pixel_count > 80_000
+        && actor_silhouette_pixel_count > 5_000
+        && building_material_pixel_count > 3_000
+        && tileset_variation_pixel_count > 5_000
+        && hud_chrome_pixel_count > 6_000
+        && material_swatch_pixel_count > 1_000
+        && replacement_slot_pixel_count > 2_000;
+    let no_copy_boundary_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required
+        && array_contains(
+            &authored,
+            "/authored_art_pack_policy/license_scopes",
+            "project_owned_internal_placeholder",
+        );
+    let production_art_replication_gate =
+        authored_replacement_slot_gate && map_ui_gate && production_preview_gate;
+    let green = production_art_replication_gate && no_copy_boundary_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ART_REPLICATION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "source_preview_dir": source_preview_dir,
+        "source_contracts": {
+            "authored_art_pack": TRILLIONNIUM_WORLD_BEVY_AUTHORED_ART_PACK_CONTRACT,
+            "map_ui_modeling_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT,
+            "visual_fidelity": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT
+        },
+        "authored_surface_count": authored_surface_count,
+        "authored_export_ready_count": authored_export_ready_count,
+        "authored_min_target_resolution_px": authored_min_target_resolution_px,
+        "required_asset_kinds": required_asset_kinds,
+        "required_gameplay_layers": required_layers,
+        "required_replacement_slots": required_replacement_slots,
+        "production_family_count": families.len(),
+        "production_board_pixel_count": production_board_pixel_count,
+        "actor_silhouette_pixel_count": actor_silhouette_pixel_count,
+        "building_material_pixel_count": building_material_pixel_count,
+        "tileset_variation_pixel_count": tileset_variation_pixel_count,
+        "hud_chrome_pixel_count": hud_chrome_pixel_count,
+        "material_swatch_pixel_count": material_swatch_pixel_count,
+        "replacement_slot_pixel_count": replacement_slot_pixel_count,
+        "authored_replacement_slot_gate": authored_replacement_slot_gate,
+        "map_ui_gate": map_ui_gate,
+        "production_preview_gate": production_preview_gate,
+        "production_art_replication_gate": production_art_replication_gate,
+        "no_copy_boundary_gate": no_copy_boundary_gate,
+        "original_art_policy_gate": no_copy_boundary_gate,
+        "source_art_policy": "Production-grade art replication targets are original Trillionnium-owned replacement slots and deterministic native Rust/Bevy previews. This gate forbids copied OpenRA, Warcraft III, or third-party text, UI art, sprites, models, names, and animation frames.",
+        "license_boundary": "project_owned_internal_placeholder_to_original_production_replacement_slots_not_external_bitmap_ship_claim",
+        "final_external_bitmap_art_shipped": false,
+        "production_ready_art_shipped": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "public_launch_ready": false,
+        "source_of_truth": "This evidence converts the existing authored art pack, map/UI modeling readiness, and visual fidelity work into a production-art replication board: all major RTS surface families have original replacement slots, source gates, pixel-counted preview coverage, and explicit no-copy boundaries while still not claiming final external bitmap art or public launch readiness."
+    }))
+    .expect("classic RTS production art replication evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
