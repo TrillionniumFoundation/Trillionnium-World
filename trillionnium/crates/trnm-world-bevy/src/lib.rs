@@ -294,6 +294,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIF
     "trillionnium_world_bevy_classic_rts_openra_imported_replay_repro_manifest_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_openra_imported_replay_artifact_bundle_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_imported_replay_review_capsule_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_HEADLESS_COMPARISON_HARNESS_CONTRACT: &str =
@@ -42952,6 +42954,606 @@ pub fn native_classic_rts_openra_imported_replay_artifact_bundle_evidence_json(
         "source_of_truth": "Classic RTS OpenRA imported replay artifact bundle evidence indexes the reproducible imported replay artifacts by artifact id, expected schema, byte length, and sha256. It validates primary/rerun audit ledgers and negative corpora stay paired while detecting missing artifacts, sha tampering, repro diff mismatches, source-gate flips, and public-launch boundary flips; it claims only Trillionnium-owned local artifact-bundle reviewability, not OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, or public launch readiness."
     }))
     .expect("classic RTS OpenRA imported replay artifact bundle evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_imported_replay_review_capsule_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let bundle_dir = preview_path("openra-imported-replay-artifact-bundle");
+    let bundle_summary_path = preview_path("openra-imported-replay-artifact-bundle-summary.json");
+    let review_capsule_path = preview_path("openra-imported-replay-review-capsule.json");
+    let negative_corpus_path =
+        preview_path("openra-imported-replay-review-capsule-negative-corpus.json");
+
+    let bundle_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_artifact_bundle_evidence_json(&bundle_dir),
+    )
+    .expect("OpenRA imported replay artifact bundle evidence parses");
+    let bundle_summary_write_gate = serde_json::to_vec_pretty(&bundle_evidence)
+        .map(|bytes| fs::write(&bundle_summary_path, bytes).is_ok())
+        .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let str_ptr = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let u64_ptr =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let read_json = |path: &str| -> Value {
+        fs::read(path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or(Value::Null)
+    };
+    let file_sha256 = |path: &str| -> String {
+        fs::read(path)
+            .map(|bytes| sha256_hex(&bytes))
+            .unwrap_or_default()
+    };
+    let file_len = |path: &str| -> u64 {
+        Path::new(path)
+            .metadata()
+            .map(|metadata| metadata.len())
+            .unwrap_or(0)
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("review capsule payload serializes"))
+    };
+
+    let bundle_path = str_at(&bundle_evidence, "bundle_path");
+    let bundle_negative_path = str_at(&bundle_evidence, "negative_corpus_path");
+    let bundle_manifest = read_json(&bundle_path);
+    let bundle_negative_corpus = read_json(&bundle_negative_path);
+    let bundle_artifacts = bundle_manifest
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let artifact_ids = bundle_artifacts
+        .iter()
+        .filter_map(|artifact| {
+            artifact
+                .get("artifact_id")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .collect::<Vec<_>>();
+    let artifact_by_id = |artifact_id: &str| {
+        bundle_artifacts
+            .iter()
+            .find(|artifact| {
+                artifact.get("artifact_id").and_then(Value::as_str) == Some(artifact_id)
+            })
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+    let artifact_sha = |artifact_id: &str| {
+        artifact_by_id(artifact_id)
+            .get("sha256")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+
+    let review_items = bundle_artifacts
+        .iter()
+        .map(|artifact| {
+            let artifact_id = str_at(artifact, "artifact_id");
+            let review_class = match artifact_id.as_str() {
+                "repro_summary" | "repro_manifest" | "repro_diff" => "reproducibility",
+                "repro_negative_corpus" | "primary_negative_corpus"
+                | "rerun_negative_corpus" => "negative_fixture",
+                "primary_audit_summary" | "rerun_audit_summary" | "primary_audit_report"
+                | "rerun_audit_report" | "primary_ledger" | "rerun_ledger" => "audit_ledger",
+                "primary_imported_headless_summary" | "rerun_imported_headless_summary" => {
+                    "imported_headless_comparison"
+                }
+                _ => "unknown",
+            };
+            let path = str_at(artifact, "path");
+            json!({
+                "item_id": artifact_id,
+                "review_class": review_class,
+                "path": path,
+                "expected_schema": artifact.get("expected_schema").cloned().unwrap_or(Value::Null),
+                "sha256": artifact.get("sha256").cloned().unwrap_or(Value::Null),
+                "byte_len": artifact.get("byte_len").cloned().unwrap_or(Value::Null),
+                "jsonl_line_count": artifact.get("jsonl_line_count").cloned().unwrap_or(Value::Null),
+                "schema_gate": artifact.get("schema_gate").cloned().unwrap_or(Value::Bool(false)),
+                "present": Path::new(&path).metadata().is_ok(),
+                "required_for_review": true
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let checklist = vec![
+        json!({
+            "check_id": "source_bundle_green",
+            "passed": bool_at(&bundle_evidence, "green")
+                && bool_at(&bundle_evidence, "openra_imported_replay_artifact_bundle_gate")
+        }),
+        json!({
+            "check_id": "artifact_integrity_index_green",
+            "passed": bool_at(&bundle_evidence, "artifact_index_gate")
+                && bool_at(&bundle_evidence, "bundle_validation_gate")
+                && bool_at(&bundle_evidence, "bundle_file_gate")
+        }),
+        json!({
+            "check_id": "primary_rerun_artifacts_paired",
+            "passed": bool_at(&bundle_evidence, "paired_artifact_gate")
+                && str_ptr(&bundle_evidence, "/bundle_summary/primary_ledger_file_sha256")
+                    == str_ptr(&bundle_evidence, "/bundle_summary/rerun_ledger_file_sha256")
+                && str_ptr(&bundle_evidence, "/bundle_summary/primary_final_ledger_sha256")
+                    == str_ptr(&bundle_evidence, "/bundle_summary/rerun_final_ledger_sha256")
+        }),
+        json!({
+            "check_id": "negative_corpus_detected",
+            "passed": bool_at(&bundle_evidence, "negative_corpus_gate")
+                && u64_ptr(&bundle_evidence, "/bundle_summary/detected_negative_case_count")
+                    == u64_ptr(&bundle_evidence, "/bundle_summary/negative_case_count")
+        }),
+        json!({
+            "check_id": "openra_scope_boundaries_unclaimed",
+            "passed": bool_at(&bundle_evidence, "compatibility_boundary_gate")
+                && !bool_at(&bundle_evidence, "bevy_openra_binary_replay_compatible")
+                && !bool_at(&bundle_evidence, "bevy_openra_native_order_payload_decoder_claimed")
+                && !bool_at(&bundle_evidence, "bevy_openra_network_order_stream_claimed")
+                && !bool_at(&bundle_evidence, "bevy_openra_runtime_parity_claimed")
+                && !bool_at(&bundle_evidence, "bevy_openra_parity_claimed")
+                && !bool_at(&bundle_evidence, "public_launch_ready")
+        }),
+    ];
+    let checklist_passed_count = checklist
+        .iter()
+        .filter(|check| check.get("passed").and_then(Value::as_bool) == Some(true))
+        .count();
+
+    let required_review_item_ids = [
+        "repro_summary",
+        "repro_manifest",
+        "repro_diff",
+        "repro_negative_corpus",
+        "primary_audit_summary",
+        "rerun_audit_summary",
+        "primary_audit_report",
+        "rerun_audit_report",
+        "primary_ledger",
+        "rerun_ledger",
+        "primary_negative_corpus",
+        "rerun_negative_corpus",
+        "primary_imported_headless_summary",
+        "rerun_imported_headless_summary",
+    ];
+    let review_item_has = |candidate_items: &[Value], item_id: &str| {
+        candidate_items.iter().any(|item| {
+            item.get("item_id").and_then(Value::as_str) == Some(item_id)
+                && item.get("required_for_review").and_then(Value::as_bool) == Some(true)
+        })
+    };
+    let validate_capsule = |candidate_source: &Value,
+                            candidate_bundle: &Value,
+                            candidate_items: &[Value],
+                            candidate_checklist: &[Value]|
+     -> Result<(), String> {
+        if !contract_is(
+            candidate_source,
+            TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT,
+        ) || !bool_at(candidate_source, "green")
+            || !bool_at(
+                candidate_source,
+                "openra_imported_replay_artifact_bundle_gate",
+            )
+        {
+            return Err("source_bundle_gate_mismatch".to_string());
+        }
+        if str_at(candidate_bundle, "bundle_schema")
+            != "openra_imported_replay_artifact_bundle_v1_json"
+        {
+            return Err("bundle_schema_mismatch".to_string());
+        }
+        if u64_ptr(candidate_bundle, "/summary/artifact_count") < 14
+            || u64_ptr(candidate_bundle, "/summary/artifact_count")
+                != u64_ptr(candidate_bundle, "/summary/verified_artifact_count")
+            || u64_ptr(candidate_bundle, "/summary/detected_negative_case_count")
+                != u64_ptr(candidate_bundle, "/summary/negative_case_count")
+            || str_ptr(candidate_bundle, "/summary/winner") != "Multi2"
+        {
+            return Err("bundle_summary_mismatch".to_string());
+        }
+        for required_id in required_review_item_ids {
+            if !review_item_has(candidate_items, required_id) {
+                return Err("review_item_missing".to_string());
+            }
+        }
+        for item in candidate_items {
+            if item.get("schema_gate").and_then(Value::as_bool) != Some(true)
+                || item.get("present").and_then(Value::as_bool) != Some(true)
+            {
+                return Err("review_item_schema_mismatch".to_string());
+            }
+            let path = item.get("path").and_then(Value::as_str).unwrap_or_default();
+            let expected_sha = item
+                .get("sha256")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            if expected_sha.len() != 64 {
+                return Err("review_item_sha_missing".to_string());
+            }
+            let bytes = fs::read(path).map_err(|_| "review_item_missing".to_string())?;
+            if sha256_hex(&bytes) != expected_sha {
+                return Err("review_item_sha_mismatch".to_string());
+            }
+            if item.get("byte_len").and_then(Value::as_u64).unwrap_or(0) == 0 {
+                return Err("review_item_empty".to_string());
+            }
+        }
+        if candidate_checklist.is_empty()
+            || !candidate_checklist.iter().all(|check| {
+                check.get("passed").and_then(Value::as_bool) == Some(true)
+                    && check
+                        .get("check_id")
+                        .and_then(Value::as_str)
+                        .is_some_and(|check_id| !check_id.is_empty())
+            })
+        {
+            return Err("review_checklist_mismatch".to_string());
+        }
+        if bool_at(candidate_source, "public_launch_ready")
+            || bool_at(candidate_source, "bevy_openra_binary_replay_compatible")
+            || bool_at(
+                candidate_source,
+                "bevy_openra_native_order_payload_decoder_claimed",
+            )
+            || bool_at(candidate_source, "bevy_openra_network_order_stream_claimed")
+            || bool_at(candidate_source, "bevy_openra_runtime_parity_claimed")
+            || bool_at(candidate_source, "bevy_openra_parity_claimed")
+        {
+            return Err("compatibility_boundary_mismatch".to_string());
+        }
+        Ok(())
+    };
+
+    let review_item_gate = review_items.len() >= required_review_item_ids.len()
+        && required_review_item_ids
+            .iter()
+            .all(|item_id| review_item_has(&review_items, item_id))
+        && review_items.iter().all(|item| {
+            item.get("schema_gate").and_then(Value::as_bool) == Some(true)
+                && item.get("present").and_then(Value::as_bool) == Some(true)
+                && item
+                    .get("sha256")
+                    .and_then(Value::as_str)
+                    .is_some_and(|sha| sha.len() == 64)
+                && item.get("byte_len").and_then(Value::as_u64).unwrap_or(0) > 0
+        });
+    let source_contract_gate = contract_is(
+        &bundle_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT,
+    ) && str_ptr(
+        &bundle_evidence,
+        "/source_contracts/openra_imported_replay_repro_manifest",
+    )
+        == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT
+        && str_ptr(
+            &bundle_evidence,
+            "/source_contracts/openra_imported_replay_audit_ledger",
+        ) == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT;
+    let source_bundle_gate = bool_at(&bundle_evidence, "green")
+        && bool_at(
+            &bundle_evidence,
+            "openra_imported_replay_artifact_bundle_gate",
+        )
+        && bundle_summary_write_gate;
+    let bundle_manifest_gate = str_at(&bundle_manifest, "bundle_schema")
+        == "openra_imported_replay_artifact_bundle_v1_json"
+        && u64_ptr(&bundle_manifest, "/summary/artifact_count") >= 14
+        && u64_ptr(&bundle_manifest, "/summary/artifact_count")
+            == u64_ptr(&bundle_manifest, "/summary/verified_artifact_count")
+        && u64_ptr(&bundle_manifest, "/summary/detected_negative_case_count")
+            == u64_ptr(&bundle_manifest, "/summary/negative_case_count")
+        && str_ptr(&bundle_manifest, "/summary/source_replay_sha256").len() == 64
+        && str_ptr(&bundle_manifest, "/summary/decoded_stream_sha256").len() == 64
+        && str_ptr(&bundle_manifest, "/summary/primary_ledger_file_sha256")
+            == str_ptr(&bundle_manifest, "/summary/rerun_ledger_file_sha256")
+        && artifact_sha("primary_ledger") == artifact_sha("rerun_ledger");
+    let negative_source_gate = bundle_negative_corpus.as_array().is_some_and(|cases| {
+        cases.len() >= 5
+            && cases
+                .iter()
+                .all(|case| case.get("detected").and_then(Value::as_bool) == Some(true))
+    });
+    let checklist_gate = checklist_passed_count == checklist.len() && checklist.len() >= 5;
+    let compatibility_boundary_gate = !bool_at(&bundle_evidence, "public_launch_ready")
+        && !bool_at(&bundle_evidence, "bevy_openra_binary_replay_compatible")
+        && !bool_at(
+            &bundle_evidence,
+            "bevy_openra_native_order_payload_decoder_claimed",
+        )
+        && !bool_at(&bundle_evidence, "bevy_openra_network_order_stream_claimed")
+        && !bool_at(&bundle_evidence, "bevy_openra_runtime_parity_claimed")
+        && !bool_at(&bundle_evidence, "bevy_openra_parity_claimed");
+    let capsule_validation_gate = validate_capsule(
+        &bundle_evidence,
+        &bundle_manifest,
+        &review_items,
+        &checklist,
+    )
+    .is_ok();
+
+    let capsule_manifest = json!({
+        "review_capsule_schema": "openra_imported_replay_review_capsule_v1_json",
+        "source_contracts": {
+            "openra_imported_replay_artifact_bundle": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT,
+            "openra_imported_replay_repro_manifest": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT,
+            "openra_imported_replay_audit_ledger": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+            "openra_imported_headless_comparison_harness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": {
+            "openra_imported_replay_artifact_bundle": bundle_dir,
+            "artifact_bundle_summary": bundle_summary_path,
+            "artifact_bundle_manifest": bundle_path,
+            "artifact_bundle_negative_corpus": bundle_negative_path
+        },
+        "review_summary": {
+            "review_item_count": review_items.len(),
+            "required_review_item_count": required_review_item_ids.len(),
+            "checklist_count": checklist.len(),
+            "checklist_passed_count": checklist_passed_count,
+            "artifact_count": u64_ptr(&bundle_evidence, "/bundle_summary/artifact_count"),
+            "verified_artifact_count": u64_ptr(&bundle_evidence, "/bundle_summary/verified_artifact_count"),
+            "ledger_entry_count": u64_ptr(&bundle_evidence, "/bundle_summary/ledger_entry_count"),
+            "decoded_record_count": u64_ptr(&bundle_evidence, "/bundle_summary/decoded_record_count"),
+            "snapshot_count": u64_ptr(&bundle_evidence, "/bundle_summary/snapshot_count"),
+            "final_frame": u64_ptr(&bundle_evidence, "/bundle_summary/final_frame"),
+            "winner": str_ptr(&bundle_evidence, "/bundle_summary/winner"),
+            "source_replay_sha256": str_ptr(&bundle_evidence, "/bundle_summary/source_replay_sha256"),
+            "decoded_stream_sha256": str_ptr(&bundle_evidence, "/bundle_summary/decoded_stream_sha256"),
+            "primary_final_ledger_sha256": str_ptr(&bundle_evidence, "/bundle_summary/primary_final_ledger_sha256"),
+            "rerun_final_ledger_sha256": str_ptr(&bundle_evidence, "/bundle_summary/rerun_final_ledger_sha256"),
+            "primary_ledger_file_sha256": str_ptr(&bundle_evidence, "/bundle_summary/primary_ledger_file_sha256"),
+            "rerun_ledger_file_sha256": str_ptr(&bundle_evidence, "/bundle_summary/rerun_ledger_file_sha256"),
+            "bundle_sha256": str_at(&bundle_evidence, "bundle_sha256"),
+            "bundle_file_sha256": file_sha256(&bundle_path),
+            "bundle_negative_corpus_sha256": str_at(&bundle_evidence, "negative_corpus_sha256"),
+            "artifact_ids": artifact_ids
+        },
+        "review_items": review_items,
+        "review_checklist": checklist,
+        "boundary_claims": {
+            "bevy_openra_binary_replay_compatible": false,
+            "bevy_openra_native_order_payload_decoder_claimed": false,
+            "bevy_openra_network_order_stream_claimed": false,
+            "bevy_openra_runtime_parity_claimed": false,
+            "bevy_openra_parity_claimed": false,
+            "android_s5_real_device_claimed": false,
+            "public_launch_ready": false
+        }
+    });
+    let capsule_sha256 = json_sha256(&capsule_manifest);
+    let capsule_write_gate = serde_json::to_vec_pretty(&capsule_manifest)
+        .map(|bytes| fs::write(&review_capsule_path, bytes).is_ok())
+        .unwrap_or(false);
+    let capsule_readback = read_json(&review_capsule_path);
+    let capsule_file_gate = capsule_write_gate
+        && str_at(&capsule_readback, "review_capsule_schema")
+            == "openra_imported_replay_review_capsule_v1_json"
+        && u64_ptr(&capsule_readback, "/review_summary/review_item_count")
+            >= required_review_item_ids.len() as u64
+        && u64_ptr(&capsule_readback, "/review_summary/checklist_count")
+            == u64_ptr(&capsule_readback, "/review_summary/checklist_passed_count")
+        && capsule_sha256.len() == 64
+        && file_len(&review_capsule_path) > 2_000;
+
+    let mut negative_inputs: Vec<(&str, &str, Value, Value, Vec<Value>, Vec<Value>)> = Vec::new();
+    let mut missing_item = review_items.clone();
+    missing_item
+        .retain(|item| item.get("item_id").and_then(Value::as_str) != Some("primary_ledger"));
+    negative_inputs.push((
+        "missing_primary_ledger_review_item",
+        "review_item_missing",
+        bundle_evidence.clone(),
+        bundle_manifest.clone(),
+        missing_item,
+        checklist.clone(),
+    ));
+    let mut sha_tamper_items = review_items.clone();
+    if let Some(item) = sha_tamper_items.first_mut() {
+        item["sha256"] = json!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    }
+    negative_inputs.push((
+        "review_item_sha_tamper",
+        "review_item_sha_mismatch",
+        bundle_evidence.clone(),
+        bundle_manifest.clone(),
+        sha_tamper_items,
+        checklist.clone(),
+    ));
+    let mut source_green_flip = bundle_evidence.clone();
+    source_green_flip["green"] = json!(false);
+    negative_inputs.push((
+        "source_bundle_green_flip",
+        "source_bundle_gate_mismatch",
+        source_green_flip,
+        bundle_manifest.clone(),
+        review_items.clone(),
+        checklist.clone(),
+    ));
+    let mut bundle_count_mismatch = bundle_manifest.clone();
+    bundle_count_mismatch["summary"]["artifact_count"] = json!(13);
+    negative_inputs.push((
+        "bundle_artifact_count_mismatch",
+        "bundle_summary_mismatch",
+        bundle_evidence.clone(),
+        bundle_count_mismatch,
+        review_items.clone(),
+        checklist.clone(),
+    ));
+    let mut checklist_failure = checklist.clone();
+    if let Some(check) = checklist_failure.first_mut() {
+        check["passed"] = json!(false);
+    }
+    negative_inputs.push((
+        "review_checklist_failure",
+        "review_checklist_mismatch",
+        bundle_evidence.clone(),
+        bundle_manifest.clone(),
+        review_items.clone(),
+        checklist_failure,
+    ));
+    let mut public_launch_flip = bundle_evidence.clone();
+    public_launch_flip["public_launch_ready"] = json!(true);
+    negative_inputs.push((
+        "public_launch_boundary_flip",
+        "compatibility_boundary_mismatch",
+        public_launch_flip,
+        bundle_manifest.clone(),
+        review_items.clone(),
+        checklist.clone(),
+    ));
+
+    let negative_cases = negative_inputs
+        .into_iter()
+        .map(
+            |(
+                case_name,
+                expected_error,
+                candidate_source,
+                candidate_bundle,
+                candidate_items,
+                candidate_checklist,
+            )| {
+                match validate_capsule(
+                    &candidate_source,
+                    &candidate_bundle,
+                    &candidate_items,
+                    &candidate_checklist,
+                ) {
+                    Ok(_) => json!({
+                        "case": case_name,
+                        "expected_error": expected_error,
+                        "detected": false,
+                        "actual_error": Value::Null
+                    }),
+                    Err(error) => json!({
+                        "case": case_name,
+                        "expected_error": expected_error,
+                        "detected": error == expected_error,
+                        "actual_error": error
+                    }),
+                }
+            },
+        )
+        .collect::<Vec<_>>();
+    let detected_negative_case_count = negative_cases
+        .iter()
+        .filter(|case| case.get("detected").and_then(Value::as_bool) == Some(true))
+        .count();
+    let negative_corpus_sha256 = json_sha256(&Value::Array(negative_cases.clone()));
+    let negative_corpus_write_gate =
+        serde_json::to_vec_pretty(&Value::Array(negative_cases.clone()))
+            .map(|bytes| fs::write(&negative_corpus_path, bytes).is_ok())
+            .unwrap_or(false);
+    let negative_corpus_gate = negative_corpus_write_gate
+        && negative_cases.len() >= 6
+        && detected_negative_case_count == negative_cases.len()
+        && negative_corpus_sha256.len() == 64
+        && file_len(&negative_corpus_path) > 500;
+
+    let openra_imported_replay_review_capsule_gate = source_contract_gate
+        && source_bundle_gate
+        && bundle_manifest_gate
+        && negative_source_gate
+        && review_item_gate
+        && checklist_gate
+        && capsule_validation_gate
+        && capsule_file_gate
+        && negative_corpus_gate
+        && compatibility_boundary_gate;
+    let green = openra_imported_replay_review_capsule_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "review_capsule_path": review_capsule_path,
+        "review_capsule_sha256": capsule_sha256,
+        "negative_corpus_path": negative_corpus_path,
+        "negative_corpus_sha256": negative_corpus_sha256,
+        "adapter_state": "bevy_owned_openra_imported_replay_review_capsule_not_openra_runtime_parity",
+        "source_contracts": {
+            "openra_imported_replay_artifact_bundle": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT,
+            "openra_imported_replay_repro_manifest": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT,
+            "openra_imported_replay_audit_ledger": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+            "openra_imported_headless_comparison_harness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": capsule_manifest.get("source_paths").cloned().unwrap_or(Value::Null),
+        "review_summary": capsule_manifest.get("review_summary").cloned().unwrap_or(Value::Null),
+        "source_contract_gate": source_contract_gate,
+        "source_bundle_gate": source_bundle_gate,
+        "bundle_summary_write_gate": bundle_summary_write_gate,
+        "bundle_manifest_gate": bundle_manifest_gate,
+        "negative_source_gate": negative_source_gate,
+        "review_item_gate": review_item_gate,
+        "checklist_gate": checklist_gate,
+        "capsule_validation_gate": capsule_validation_gate,
+        "capsule_file_gate": capsule_file_gate,
+        "negative_corpus_gate": negative_corpus_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "negative_case_count": negative_cases.len(),
+        "detected_negative_case_count": detected_negative_case_count,
+        "openra_imported_replay_review_capsule_gate": openra_imported_replay_review_capsule_gate,
+        "bevy_openra_imported_replay_review_capsule_claimed": true,
+        "bevy_openra_imported_replay_artifact_bundle_claimed": true,
+        "bevy_openra_imported_replay_repro_manifest_claimed": true,
+        "bevy_openra_imported_replay_audit_ledger_claimed": true,
+        "bevy_openra_imported_headless_comparison_harness_claimed": true,
+        "bevy_openra_imported_replay_reducer_claimed": true,
+        "bevy_openra_order_payload_codec_claimed": true,
+        "bevy_openra_order_payload_decoder_claimed": true,
+        "bevy_openra_native_order_payload_decoder_claimed": false,
+        "bevy_openra_replay_envelope_importer_claimed": true,
+        "bevy_openra_replay_summary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA imported replay review capsule evidence packages the artifact bundle, review checklist, artifact paths, sha256 values, and boundary claims into a release-review handoff capsule. It validates the capsule detects missing review items, sha tampering, source gate flips, bundle summary drift, checklist failure, and public-launch boundary flips while claiming only Trillionnium-owned local reviewability, not OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, or public launch readiness."
+    }))
+    .expect("classic RTS OpenRA imported replay review capsule evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
