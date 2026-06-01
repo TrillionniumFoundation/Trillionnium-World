@@ -298,6 +298,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_CAPS
     "trillionnium_world_bevy_classic_rts_openra_imported_replay_review_capsule_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_imported_replay_review_receipt_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_DIGEST_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_imported_replay_review_digest_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_HEADLESS_COMPARISON_HARNESS_CONTRACT: &str =
@@ -44205,6 +44207,610 @@ pub fn native_classic_rts_openra_imported_replay_review_receipt_evidence_json(
         "source_of_truth": "Classic RTS OpenRA imported replay review receipt evidence consumes the review capsule and emits a local audit receipt over capsule sha, required review items, checklist status, negative corpus detection, bundle/ledger identity, and explicit public-launch boundaries. It claims only Trillionnium-owned local review handoff evidence, not OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, or public launch readiness."
     }))
     .expect("classic RTS OpenRA imported replay review receipt evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_imported_replay_review_digest_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let receipt_dir = preview_path("openra-imported-replay-review-receipt");
+    let receipt_summary_path = preview_path("openra-imported-replay-review-receipt-summary.json");
+    let digest_path = preview_path("openra-imported-replay-review-digest.json");
+    let negative_corpus_path =
+        preview_path("openra-imported-replay-review-digest-negative-corpus.json");
+
+    let receipt_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_review_receipt_evidence_json(&receipt_dir),
+    )
+    .expect("OpenRA imported replay review receipt evidence parses");
+    let receipt_summary_write_gate = serde_json::to_vec_pretty(&receipt_evidence)
+        .map(|bytes| fs::write(&receipt_summary_path, bytes).is_ok())
+        .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let str_ptr = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let u64_ptr =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let read_json = |path: &str| -> Value {
+        fs::read(path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or(Value::Null)
+    };
+    let file_sha256 = |path: &str| -> String {
+        fs::read(path)
+            .map(|bytes| sha256_hex(&bytes))
+            .unwrap_or_default()
+    };
+    let file_len = |path: &str| -> u64 {
+        Path::new(path)
+            .metadata()
+            .map(|metadata| metadata.len())
+            .unwrap_or(0)
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("review digest payload serializes"))
+    };
+
+    let receipt_path = str_at(&receipt_evidence, "review_receipt_path");
+    let receipt_negative_path = str_at(&receipt_evidence, "negative_corpus_path");
+    let receipt_manifest = read_json(&receipt_path);
+    let receipt_negative_corpus = read_json(&receipt_negative_path);
+    let receipt_manifest_sha256 = json_sha256(&receipt_manifest);
+    let receipt_file_sha256 = file_sha256(&receipt_path);
+    let receipt_negative_file_sha256 = file_sha256(&receipt_negative_path);
+    let receipt_assertions = receipt_manifest
+        .get("receipt_assertions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let negative_source_detected = |cases: &Value| {
+        cases.as_array().is_some_and(|items| {
+            items.len() >= 7
+                && items
+                    .iter()
+                    .all(|case| case.get("detected").and_then(Value::as_bool) == Some(true))
+        })
+    };
+
+    let validate_digest = |candidate_source: &Value,
+                           candidate_receipt: &Value,
+                           candidate_negative: &Value|
+     -> Result<(), String> {
+        if !contract_is(
+            candidate_source,
+            TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_CONTRACT,
+        ) || !bool_at(candidate_source, "green")
+            || !bool_at(
+                candidate_source,
+                "openra_imported_replay_review_receipt_gate",
+            )
+        {
+            return Err("source_review_receipt_gate_mismatch".to_string());
+        }
+        if str_at(candidate_receipt, "review_receipt_schema")
+            != "openra_imported_replay_review_receipt_v1_json"
+        {
+            return Err("receipt_schema_mismatch".to_string());
+        }
+        if u64_ptr(candidate_receipt, "/receipt_summary/review_item_count") < 14
+            || u64_ptr(
+                candidate_receipt,
+                "/receipt_summary/required_review_item_count",
+            ) < 14
+            || u64_ptr(candidate_receipt, "/receipt_summary/checklist_count")
+                != u64_ptr(candidate_receipt, "/receipt_summary/checklist_passed_count")
+            || u64_ptr(
+                candidate_receipt,
+                "/receipt_summary/receipt_assertion_count",
+            ) != u64_ptr(
+                candidate_receipt,
+                "/receipt_summary/receipt_assertion_passed_count",
+            )
+            || u64_ptr(
+                candidate_receipt,
+                "/receipt_summary/receipt_assertion_count",
+            ) < 6
+            || u64_ptr(candidate_receipt, "/receipt_summary/artifact_count") < 14
+            || u64_ptr(candidate_receipt, "/receipt_summary/artifact_count")
+                != u64_ptr(
+                    candidate_receipt,
+                    "/receipt_summary/verified_artifact_count",
+                )
+            || u64_ptr(candidate_receipt, "/receipt_summary/ledger_entry_count") < 29
+            || u64_ptr(candidate_receipt, "/receipt_summary/decoded_record_count") < 20
+            || u64_ptr(candidate_receipt, "/receipt_summary/snapshot_count") < 6
+            || u64_ptr(candidate_receipt, "/receipt_summary/final_frame") < 3000
+            || str_ptr(candidate_receipt, "/receipt_summary/winner") != "Multi2"
+            || str_ptr(candidate_receipt, "/receipt_summary/source_replay_sha256").len() != 64
+            || str_ptr(candidate_receipt, "/receipt_summary/decoded_stream_sha256").len() != 64
+            || str_ptr(
+                candidate_receipt,
+                "/receipt_summary/primary_final_ledger_sha256",
+            ) != str_ptr(
+                candidate_receipt,
+                "/receipt_summary/rerun_final_ledger_sha256",
+            )
+            || str_ptr(
+                candidate_receipt,
+                "/receipt_summary/primary_ledger_file_sha256",
+            ) != str_ptr(
+                candidate_receipt,
+                "/receipt_summary/rerun_ledger_file_sha256",
+            )
+            || str_ptr(candidate_receipt, "/receipt_summary/review_capsule_sha256").len() != 64
+            || str_ptr(candidate_receipt, "/receipt_summary/artifact_bundle_sha256").len() != 64
+            || str_ptr(candidate_receipt, "/receipt_summary/handoff_state")
+                != "ready_for_local_review_not_public_launch"
+        {
+            return Err("receipt_summary_mismatch".to_string());
+        }
+        let assertions = candidate_receipt
+            .get("receipt_assertions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if assertions.len() < 6
+            || !assertions.iter().all(|assertion| {
+                assertion.get("passed").and_then(Value::as_bool) == Some(true)
+                    && assertion
+                        .get("assertion_id")
+                        .and_then(Value::as_str)
+                        .is_some_and(|id| !id.is_empty())
+            })
+        {
+            return Err("receipt_assertion_mismatch".to_string());
+        }
+        if !negative_source_detected(candidate_negative) {
+            return Err("negative_corpus_mismatch".to_string());
+        }
+        if bool_at(candidate_source, "public_launch_ready")
+            || bool_at(candidate_source, "bevy_openra_binary_replay_compatible")
+            || bool_at(
+                candidate_source,
+                "bevy_openra_native_order_payload_decoder_claimed",
+            )
+            || bool_at(candidate_source, "bevy_openra_network_order_stream_claimed")
+            || bool_at(candidate_source, "bevy_openra_runtime_parity_claimed")
+            || bool_at(candidate_source, "bevy_openra_parity_claimed")
+            || candidate_receipt
+                .pointer("/handoff_boundaries/public_launch_ready")
+                .and_then(Value::as_bool)
+                != Some(false)
+            || candidate_receipt
+                .pointer("/handoff_boundaries/bevy_openra_binary_replay_compatible")
+                .and_then(Value::as_bool)
+                != Some(false)
+            || candidate_receipt
+                .pointer("/handoff_boundaries/bevy_openra_runtime_parity_claimed")
+                .and_then(Value::as_bool)
+                != Some(false)
+        {
+            return Err("compatibility_boundary_mismatch".to_string());
+        }
+        Ok(())
+    };
+
+    let source_contract_gate = contract_is(
+        &receipt_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_CONTRACT,
+    ) && str_ptr(
+        &receipt_evidence,
+        "/source_contracts/openra_imported_replay_review_capsule",
+    )
+        == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_CONTRACT
+        && str_ptr(
+            &receipt_evidence,
+            "/source_contracts/openra_imported_replay_artifact_bundle",
+        ) == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT;
+    let source_review_receipt_gate = bool_at(&receipt_evidence, "green")
+        && bool_at(
+            &receipt_evidence,
+            "openra_imported_replay_review_receipt_gate",
+        )
+        && receipt_summary_write_gate;
+    let receipt_manifest_gate = str_at(&receipt_manifest, "review_receipt_schema")
+        == "openra_imported_replay_review_receipt_v1_json"
+        && receipt_manifest_sha256 == str_at(&receipt_evidence, "review_receipt_sha256")
+        && u64_ptr(&receipt_manifest, "/receipt_summary/review_item_count") >= 14
+        && u64_ptr(&receipt_manifest, "/receipt_summary/checklist_count")
+            == u64_ptr(&receipt_manifest, "/receipt_summary/checklist_passed_count")
+        && u64_ptr(
+            &receipt_manifest,
+            "/receipt_summary/receipt_assertion_count",
+        ) == u64_ptr(
+            &receipt_manifest,
+            "/receipt_summary/receipt_assertion_passed_count",
+        )
+        && u64_ptr(&receipt_manifest, "/receipt_summary/artifact_count")
+            == u64_ptr(
+                &receipt_manifest,
+                "/receipt_summary/verified_artifact_count",
+            )
+        && str_ptr(&receipt_manifest, "/receipt_summary/winner") == "Multi2"
+        && str_ptr(
+            &receipt_manifest,
+            "/receipt_summary/primary_final_ledger_sha256",
+        ) == str_ptr(
+            &receipt_manifest,
+            "/receipt_summary/rerun_final_ledger_sha256",
+        )
+        && str_ptr(
+            &receipt_manifest,
+            "/receipt_summary/primary_ledger_file_sha256",
+        ) == str_ptr(
+            &receipt_manifest,
+            "/receipt_summary/rerun_ledger_file_sha256",
+        );
+    let receipt_assertion_gate = receipt_assertions.len() >= 6
+        && receipt_assertions
+            .iter()
+            .all(|assertion| assertion.get("passed").and_then(Value::as_bool) == Some(true));
+    let negative_source_gate = negative_source_detected(&receipt_negative_corpus);
+    let compatibility_boundary_gate = !bool_at(&receipt_evidence, "public_launch_ready")
+        && !bool_at(&receipt_evidence, "bevy_openra_binary_replay_compatible")
+        && !bool_at(
+            &receipt_evidence,
+            "bevy_openra_native_order_payload_decoder_claimed",
+        )
+        && !bool_at(
+            &receipt_evidence,
+            "bevy_openra_network_order_stream_claimed",
+        )
+        && !bool_at(&receipt_evidence, "bevy_openra_runtime_parity_claimed")
+        && !bool_at(&receipt_evidence, "bevy_openra_parity_claimed")
+        && receipt_manifest
+            .pointer("/handoff_boundaries/public_launch_ready")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && receipt_manifest
+            .pointer("/handoff_boundaries/bevy_openra_runtime_parity_claimed")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let digest_validation_gate = validate_digest(
+        &receipt_evidence,
+        &receipt_manifest,
+        &receipt_negative_corpus,
+    )
+    .is_ok();
+
+    let digest_assertions = vec![
+        json!({
+            "assertion_id": "source_review_receipt_green",
+            "passed": source_contract_gate && source_review_receipt_gate
+        }),
+        json!({
+            "assertion_id": "receipt_hash_matches_manifest",
+            "passed": receipt_manifest_gate
+                && receipt_manifest_sha256 == str_at(&receipt_evidence, "review_receipt_sha256")
+                && receipt_file_sha256.len() == 64
+        }),
+        json!({
+            "assertion_id": "receipt_assertions_green",
+            "passed": receipt_assertion_gate
+        }),
+        json!({
+            "assertion_id": "review_digest_counts_stable",
+            "passed": u64_ptr(&receipt_manifest, "/receipt_summary/review_item_count") >= 14
+                && u64_ptr(&receipt_manifest, "/receipt_summary/artifact_count") >= 14
+                && u64_ptr(&receipt_manifest, "/receipt_summary/ledger_entry_count") >= 29
+                && str_ptr(&receipt_manifest, "/receipt_summary/winner") == "Multi2"
+        }),
+        json!({
+            "assertion_id": "negative_corpus_detected",
+            "passed": negative_source_gate
+        }),
+        json!({
+            "assertion_id": "compatibility_boundaries_unclaimed",
+            "passed": compatibility_boundary_gate
+        }),
+    ];
+    let digest_assertion_passed_count = digest_assertions
+        .iter()
+        .filter(|assertion| assertion.get("passed").and_then(Value::as_bool) == Some(true))
+        .count();
+    let digest_assertion_gate =
+        digest_assertion_passed_count == digest_assertions.len() && digest_assertions.len() >= 6;
+
+    let digest_manifest = json!({
+        "review_digest_schema": "openra_imported_replay_review_digest_v1_json",
+        "source_contracts": {
+            "openra_imported_replay_review_receipt": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_CONTRACT,
+            "openra_imported_replay_review_capsule": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_CONTRACT,
+            "openra_imported_replay_artifact_bundle": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT,
+            "openra_imported_replay_repro_manifest": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT,
+            "openra_imported_replay_audit_ledger": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+            "openra_imported_headless_comparison_harness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": {
+            "openra_imported_replay_review_receipt": receipt_dir,
+            "review_receipt_summary": receipt_summary_path,
+            "review_receipt_manifest": receipt_path,
+            "review_receipt_negative_corpus": receipt_negative_path,
+            "review_capsule_manifest": str_ptr(&receipt_manifest, "/source_paths/review_capsule_manifest"),
+            "artifact_bundle_manifest": str_ptr(&receipt_manifest, "/source_paths/artifact_bundle_manifest"),
+            "artifact_bundle_summary": str_ptr(&receipt_manifest, "/source_paths/artifact_bundle_summary"),
+            "artifact_bundle_negative_corpus": str_ptr(&receipt_manifest, "/source_paths/artifact_bundle_negative_corpus")
+        },
+        "digest_summary": {
+            "review_item_count": u64_ptr(&receipt_manifest, "/receipt_summary/review_item_count"),
+            "required_review_item_count": u64_ptr(&receipt_manifest, "/receipt_summary/required_review_item_count"),
+            "checklist_count": u64_ptr(&receipt_manifest, "/receipt_summary/checklist_count"),
+            "checklist_passed_count": u64_ptr(&receipt_manifest, "/receipt_summary/checklist_passed_count"),
+            "receipt_assertion_count": u64_ptr(&receipt_manifest, "/receipt_summary/receipt_assertion_count"),
+            "receipt_assertion_passed_count": u64_ptr(&receipt_manifest, "/receipt_summary/receipt_assertion_passed_count"),
+            "digest_assertion_count": digest_assertions.len(),
+            "digest_assertion_passed_count": digest_assertion_passed_count,
+            "artifact_count": u64_ptr(&receipt_manifest, "/receipt_summary/artifact_count"),
+            "verified_artifact_count": u64_ptr(&receipt_manifest, "/receipt_summary/verified_artifact_count"),
+            "ledger_entry_count": u64_ptr(&receipt_manifest, "/receipt_summary/ledger_entry_count"),
+            "decoded_record_count": u64_ptr(&receipt_manifest, "/receipt_summary/decoded_record_count"),
+            "snapshot_count": u64_ptr(&receipt_manifest, "/receipt_summary/snapshot_count"),
+            "final_frame": u64_ptr(&receipt_manifest, "/receipt_summary/final_frame"),
+            "winner": str_ptr(&receipt_manifest, "/receipt_summary/winner"),
+            "source_replay_sha256": str_ptr(&receipt_manifest, "/receipt_summary/source_replay_sha256"),
+            "decoded_stream_sha256": str_ptr(&receipt_manifest, "/receipt_summary/decoded_stream_sha256"),
+            "primary_final_ledger_sha256": str_ptr(&receipt_manifest, "/receipt_summary/primary_final_ledger_sha256"),
+            "rerun_final_ledger_sha256": str_ptr(&receipt_manifest, "/receipt_summary/rerun_final_ledger_sha256"),
+            "primary_ledger_file_sha256": str_ptr(&receipt_manifest, "/receipt_summary/primary_ledger_file_sha256"),
+            "rerun_ledger_file_sha256": str_ptr(&receipt_manifest, "/receipt_summary/rerun_ledger_file_sha256"),
+            "review_receipt_sha256": str_at(&receipt_evidence, "review_receipt_sha256"),
+            "review_receipt_manifest_sha256": receipt_manifest_sha256,
+            "review_receipt_file_sha256": receipt_file_sha256,
+            "review_receipt_negative_corpus_sha256": str_at(&receipt_evidence, "negative_corpus_sha256"),
+            "review_receipt_negative_corpus_file_sha256": receipt_negative_file_sha256,
+            "review_capsule_sha256": str_ptr(&receipt_manifest, "/receipt_summary/review_capsule_sha256"),
+            "artifact_bundle_sha256": str_ptr(&receipt_manifest, "/receipt_summary/artifact_bundle_sha256"),
+            "digest_state": "ready_for_local_review_digest_not_public_launch"
+        },
+        "digest_assertions": digest_assertions,
+        "digest_boundaries": {
+            "bevy_openra_binary_replay_compatible": false,
+            "bevy_openra_native_order_payload_decoder_claimed": false,
+            "bevy_openra_network_order_stream_claimed": false,
+            "bevy_openra_runtime_parity_claimed": false,
+            "bevy_openra_parity_claimed": false,
+            "android_s5_real_device_claimed": false,
+            "public_launch_ready": false
+        },
+        "reviewer_next_action": "use_openra_imported_replay_review_digest_as_local_triage_before_collecting_real_external_public_launch_evidence"
+    });
+    let digest_sha256 = json_sha256(&digest_manifest);
+    let digest_write_gate = serde_json::to_vec_pretty(&digest_manifest)
+        .map(|bytes| fs::write(&digest_path, bytes).is_ok())
+        .unwrap_or(false);
+    let digest_readback = read_json(&digest_path);
+    let digest_file_gate = digest_write_gate
+        && str_at(&digest_readback, "review_digest_schema")
+            == "openra_imported_replay_review_digest_v1_json"
+        && u64_ptr(&digest_readback, "/digest_summary/review_item_count") >= 14
+        && u64_ptr(&digest_readback, "/digest_summary/digest_assertion_count")
+            == u64_ptr(
+                &digest_readback,
+                "/digest_summary/digest_assertion_passed_count",
+            )
+        && digest_sha256.len() == 64
+        && file_len(&digest_path) > 2_000;
+
+    let mut negative_inputs: Vec<(&str, &str, Value, Value, Value)> = Vec::new();
+    let mut source_green_flip = receipt_evidence.clone();
+    source_green_flip["green"] = json!(false);
+    negative_inputs.push((
+        "source_review_receipt_green_flip",
+        "source_review_receipt_gate_mismatch",
+        source_green_flip,
+        receipt_manifest.clone(),
+        receipt_negative_corpus.clone(),
+    ));
+    let mut schema_tamper = receipt_manifest.clone();
+    schema_tamper["review_receipt_schema"] =
+        json!("openra_imported_replay_review_receipt_tampered");
+    negative_inputs.push((
+        "review_digest_receipt_schema_tamper",
+        "receipt_schema_mismatch",
+        receipt_evidence.clone(),
+        schema_tamper,
+        receipt_negative_corpus.clone(),
+    ));
+    let mut assertion_failure = receipt_manifest.clone();
+    if let Some(assertion) = assertion_failure
+        .get_mut("receipt_assertions")
+        .and_then(Value::as_array_mut)
+        .and_then(|assertions| assertions.first_mut())
+    {
+        assertion["passed"] = json!(false);
+    }
+    negative_inputs.push((
+        "review_digest_assertion_failure",
+        "receipt_assertion_mismatch",
+        receipt_evidence.clone(),
+        assertion_failure,
+        receipt_negative_corpus.clone(),
+    ));
+    let mut negative_detection_flip = receipt_negative_corpus.clone();
+    if let Some(case) = negative_detection_flip
+        .as_array_mut()
+        .and_then(|cases| cases.first_mut())
+    {
+        case["detected"] = json!(false);
+    }
+    negative_inputs.push((
+        "review_digest_negative_detection_flip",
+        "negative_corpus_mismatch",
+        receipt_evidence.clone(),
+        receipt_manifest.clone(),
+        negative_detection_flip,
+    ));
+    let mut count_drift = receipt_manifest.clone();
+    count_drift["receipt_summary"]["review_item_count"] = json!(1);
+    negative_inputs.push((
+        "review_digest_review_item_count_drift",
+        "receipt_summary_mismatch",
+        receipt_evidence.clone(),
+        count_drift,
+        receipt_negative_corpus.clone(),
+    ));
+    let mut winner_drift = receipt_manifest.clone();
+    winner_drift["receipt_summary"]["winner"] = json!("Rival");
+    negative_inputs.push((
+        "review_digest_winner_drift",
+        "receipt_summary_mismatch",
+        receipt_evidence.clone(),
+        winner_drift,
+        receipt_negative_corpus.clone(),
+    ));
+    let mut public_launch_flip = receipt_evidence.clone();
+    public_launch_flip["public_launch_ready"] = json!(true);
+    negative_inputs.push((
+        "review_digest_public_launch_boundary_flip",
+        "compatibility_boundary_mismatch",
+        public_launch_flip,
+        receipt_manifest.clone(),
+        receipt_negative_corpus.clone(),
+    ));
+
+    let negative_cases = negative_inputs
+        .into_iter()
+        .map(
+            |(
+                case_name,
+                expected_error,
+                candidate_source,
+                candidate_receipt,
+                candidate_negative,
+            )| {
+                match validate_digest(&candidate_source, &candidate_receipt, &candidate_negative) {
+                    Ok(_) => json!({
+                        "case": case_name,
+                        "expected_error": expected_error,
+                        "detected": false,
+                        "actual_error": Value::Null
+                    }),
+                    Err(error) => json!({
+                        "case": case_name,
+                        "expected_error": expected_error,
+                        "detected": error == expected_error,
+                        "actual_error": error
+                    }),
+                }
+            },
+        )
+        .collect::<Vec<_>>();
+    let detected_negative_case_count = negative_cases
+        .iter()
+        .filter(|case| case.get("detected").and_then(Value::as_bool) == Some(true))
+        .count();
+    let negative_corpus_sha256 = json_sha256(&Value::Array(negative_cases.clone()));
+    let negative_corpus_write_gate =
+        serde_json::to_vec_pretty(&Value::Array(negative_cases.clone()))
+            .map(|bytes| fs::write(&negative_corpus_path, bytes).is_ok())
+            .unwrap_or(false);
+    let negative_corpus_gate = negative_corpus_write_gate
+        && negative_cases.len() >= 7
+        && detected_negative_case_count == negative_cases.len()
+        && negative_corpus_sha256.len() == 64
+        && file_len(&negative_corpus_path) > 600;
+
+    let openra_imported_replay_review_digest_gate = source_contract_gate
+        && source_review_receipt_gate
+        && receipt_manifest_gate
+        && receipt_assertion_gate
+        && negative_source_gate
+        && digest_assertion_gate
+        && digest_validation_gate
+        && digest_file_gate
+        && negative_corpus_gate
+        && compatibility_boundary_gate;
+    let green = openra_imported_replay_review_digest_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_DIGEST_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "review_digest_path": digest_path,
+        "review_digest_sha256": digest_sha256,
+        "negative_corpus_path": negative_corpus_path,
+        "negative_corpus_sha256": negative_corpus_sha256,
+        "adapter_state": "bevy_owned_openra_imported_replay_review_digest_not_openra_runtime_parity",
+        "source_contracts": {
+            "openra_imported_replay_review_receipt": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_CONTRACT,
+            "openra_imported_replay_review_capsule": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_CONTRACT,
+            "openra_imported_replay_artifact_bundle": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT,
+            "openra_imported_replay_repro_manifest": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT,
+            "openra_imported_replay_audit_ledger": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+            "openra_imported_headless_comparison_harness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": digest_manifest.get("source_paths").cloned().unwrap_or(Value::Null),
+        "digest_summary": digest_manifest.get("digest_summary").cloned().unwrap_or(Value::Null),
+        "source_contract_gate": source_contract_gate,
+        "source_review_receipt_gate": source_review_receipt_gate,
+        "receipt_summary_write_gate": receipt_summary_write_gate,
+        "receipt_manifest_gate": receipt_manifest_gate,
+        "receipt_assertion_gate": receipt_assertion_gate,
+        "negative_source_gate": negative_source_gate,
+        "digest_assertion_gate": digest_assertion_gate,
+        "digest_validation_gate": digest_validation_gate,
+        "digest_file_gate": digest_file_gate,
+        "negative_corpus_gate": negative_corpus_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "negative_case_count": negative_cases.len(),
+        "detected_negative_case_count": detected_negative_case_count,
+        "openra_imported_replay_review_digest_gate": openra_imported_replay_review_digest_gate,
+        "bevy_openra_imported_replay_review_digest_claimed": true,
+        "bevy_openra_imported_replay_review_receipt_claimed": true,
+        "bevy_openra_imported_replay_review_capsule_claimed": true,
+        "bevy_openra_imported_replay_artifact_bundle_claimed": true,
+        "bevy_openra_imported_replay_repro_manifest_claimed": true,
+        "bevy_openra_imported_replay_audit_ledger_claimed": true,
+        "bevy_openra_imported_headless_comparison_harness_claimed": true,
+        "bevy_openra_imported_replay_reducer_claimed": true,
+        "bevy_openra_order_payload_codec_claimed": true,
+        "bevy_openra_order_payload_decoder_claimed": true,
+        "bevy_openra_native_order_payload_decoder_claimed": false,
+        "bevy_openra_replay_envelope_importer_claimed": true,
+        "bevy_openra_replay_summary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA imported replay review digest evidence consumes the local review receipt and emits a compact reviewer triage digest over receipt sha, assertion counts, review checklist status, negative corpus detection, bundle/ledger identity, and explicit public-launch boundaries. It claims only Trillionnium-owned local review digest evidence, not OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, or public launch readiness."
+    }))
+    .expect("classic RTS OpenRA imported replay review digest evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
