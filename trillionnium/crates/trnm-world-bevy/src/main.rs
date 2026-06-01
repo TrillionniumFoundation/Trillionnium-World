@@ -103,6 +103,23 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-production-ui-skin"
+                | "--classic-rts-production-ui-skin"
+                | "production-ui-skin"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_production_ui_skin_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-first-contact-basin-spec"
                 | "--classic-rts-first-contact-basin-spec"
                 | "first-contact-basin-spec"

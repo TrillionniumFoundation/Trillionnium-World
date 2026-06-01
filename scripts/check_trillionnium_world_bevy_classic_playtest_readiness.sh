@@ -98,6 +98,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_art_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_ui_skin.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
@@ -194,6 +195,7 @@ jq -n \
   --slurpfile rts_map_ui_modeling_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness.json" \
   --slurpfile rts_production_art_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.json" \
   --slurpfile rts_production_asset_atlas "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.json" \
+  --slurpfile rts_production_ui_skin "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.json" \
   --slurpfile rts_campaign_outcome_ui_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
@@ -296,6 +298,7 @@ jq -n \
       and ok($rts_map_ui_modeling_readiness)
       and ok($rts_production_art_replication)
       and ok($rts_production_asset_atlas)
+      and ok($rts_production_ui_skin)
       and ok($rts_campaign_outcome_ui_readiness)
       and ok($rts_combat_readability_pressure_readiness)
       and ok($rts_playtest_observability_readiness)
@@ -610,6 +613,7 @@ jq -n \
       classic_rts_map_ui_modeling_readiness_green: ok($rts_map_ui_modeling_readiness),
       classic_rts_production_art_replication_green: ok($rts_production_art_replication),
       classic_rts_production_asset_atlas_green: ok($rts_production_asset_atlas),
+      classic_rts_production_ui_skin_green: ok($rts_production_ui_skin),
       classic_rts_campaign_outcome_ui_readiness_green: ok($rts_campaign_outcome_ui_readiness),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
@@ -1674,6 +1678,16 @@ jq -n \
       rts_production_asset_atlas_board_pixel_count: $rts_production_asset_atlas[0].atlas_board_pixel_count,
       rts_production_asset_atlas_runtime_binding_lane_pixel_count: $rts_production_asset_atlas[0].runtime_binding_lane_pixel_count,
       rts_production_asset_atlas_uv_rect_pixel_count: $rts_production_asset_atlas[0].uv_rect_pixel_count,
+      rts_production_ui_skin_surface_count: $rts_production_ui_skin[0].ui_skin_surface_count,
+      rts_production_ui_skin_board_pixel_count: $rts_production_ui_skin[0].ui_skin_board_pixel_count,
+      rts_production_ui_skin_hud_chrome_pixel_count: $rts_production_ui_skin[0].hud_chrome_pixel_count,
+      rts_production_ui_skin_command_grid_pixel_count: $rts_production_ui_skin[0].command_grid_skin_pixel_count,
+      rts_production_ui_skin_minimap_bezel_pixel_count: $rts_production_ui_skin[0].minimap_bezel_pixel_count,
+      rts_production_ui_skin_unit_card_pixel_count: $rts_production_ui_skin[0].unit_card_skin_pixel_count,
+      rts_production_ui_skin_tooltip_pixel_count: $rts_production_ui_skin[0].tooltip_skin_pixel_count,
+      rts_production_ui_skin_feedback_marker_pixel_count: $rts_production_ui_skin[0].feedback_marker_pixel_count,
+      rts_production_ui_skin_hotkey_strip_pixel_count: $rts_production_ui_skin[0].hotkey_strip_pixel_count,
+      rts_production_ui_skin_status_bar_pixel_count: $rts_production_ui_skin[0].status_bar_skin_pixel_count,
       rts_command_affordance_drag_marquee_pixel_count: $rts_command_affordance[0].drag_marquee_pixel_count,
       rts_command_affordance_right_click_marker_pixel_count: $rts_command_affordance[0].right_click_marker_pixel_count,
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
@@ -2290,6 +2304,17 @@ jq -n \
       rts_production_asset_atlas_preview_gate: $rts_production_asset_atlas[0].production_asset_atlas_preview_gate,
       rts_production_asset_atlas_gate: $rts_production_asset_atlas[0].production_asset_atlas_gate,
       rts_production_asset_atlas_no_copy_boundary_gate: $rts_production_asset_atlas[0].no_copy_boundary_gate,
+      rts_production_ui_skin_asset_atlas_gate: $rts_production_ui_skin[0].asset_atlas_gate,
+      rts_production_ui_skin_command_surface_skin_gate: $rts_production_ui_skin[0].command_surface_skin_gate,
+      rts_production_ui_skin_selection_minimap_skin_gate: $rts_production_ui_skin[0].selection_minimap_skin_gate,
+      rts_production_ui_skin_unit_status_skin_gate: $rts_production_ui_skin[0].unit_status_skin_gate,
+      rts_production_ui_skin_command_feedback_skin_gate: $rts_production_ui_skin[0].command_feedback_skin_gate,
+      rts_production_ui_skin_tooltip_skin_gate: $rts_production_ui_skin[0].tooltip_skin_gate,
+      rts_production_ui_skin_hotkey_skin_gate: $rts_production_ui_skin[0].hotkey_skin_gate,
+      rts_production_ui_skin_preview_gate: $rts_production_ui_skin[0].production_ui_skin_preview_gate,
+      rts_production_ui_skin_source_preview_gate: $rts_production_ui_skin[0].source_preview_gate,
+      rts_production_ui_skin_no_copy_boundary_gate: $rts_production_ui_skin[0].no_copy_boundary_gate,
+      rts_production_ui_skin_gate: $rts_production_ui_skin[0].production_ui_skin_gate,
       rts_command_affordance_live_input_gate: $rts_command_affordance[0].live_command_affordance_input_gate,
       rts_command_affordance_drag_select_gate: $rts_command_affordance[0].drag_select_gate,
       rts_command_affordance_right_click_move_gate: $rts_command_affordance[0].right_click_move_gate,
@@ -2710,6 +2735,8 @@ jq -n \
       classic_rts_production_art_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.ppm",
       classic_rts_production_asset_atlas: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.json",
       classic_rts_production_asset_atlas_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.ppm",
+      classic_rts_production_ui_skin: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.json",
+      classic_rts_production_ui_skin_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.ppm",
       classic_rts_campaign_outcome_ui_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json",
       classic_rts_campaign_outcome_ui_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness/",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
@@ -2818,6 +2845,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_map_ui_modeling_readiness_green == true
   and .checks.classic_rts_production_art_replication_green == true
   and .checks.classic_rts_production_asset_atlas_green == true
+  and .checks.classic_rts_production_ui_skin_green == true
   and .headline.rts_production_asset_atlas_frame_count >= 32
   and .headline.rts_production_asset_atlas_sprite_binding_count >= 32
   and .headline.rts_production_asset_atlas_material_asset_count == 4
@@ -2825,6 +2853,16 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_production_asset_atlas_board_pixel_count > 80000
   and .headline.rts_production_asset_atlas_runtime_binding_lane_pixel_count > 8000
   and .headline.rts_production_asset_atlas_uv_rect_pixel_count > 6000
+  and .headline.rts_production_ui_skin_surface_count == 8
+  and .headline.rts_production_ui_skin_board_pixel_count > 80000
+  and .headline.rts_production_ui_skin_hud_chrome_pixel_count > 1000
+  and .headline.rts_production_ui_skin_command_grid_pixel_count > 1000
+  and .headline.rts_production_ui_skin_minimap_bezel_pixel_count > 1000
+  and .headline.rts_production_ui_skin_unit_card_pixel_count > 1000
+  and .headline.rts_production_ui_skin_tooltip_pixel_count > 1000
+  and .headline.rts_production_ui_skin_feedback_marker_pixel_count > 1000
+  and .headline.rts_production_ui_skin_hotkey_strip_pixel_count > 1000
+  and .headline.rts_production_ui_skin_status_bar_pixel_count > 1000
   and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.classic_rts_playtest_observability_readiness_green == true
@@ -4052,6 +4090,17 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_production_asset_atlas_preview_gate == true
   and .gates.rts_production_asset_atlas_gate == true
   and .gates.rts_production_asset_atlas_no_copy_boundary_gate == true
+  and .gates.rts_production_ui_skin_asset_atlas_gate == true
+  and .gates.rts_production_ui_skin_command_surface_skin_gate == true
+  and .gates.rts_production_ui_skin_selection_minimap_skin_gate == true
+  and .gates.rts_production_ui_skin_unit_status_skin_gate == true
+  and .gates.rts_production_ui_skin_command_feedback_skin_gate == true
+  and .gates.rts_production_ui_skin_tooltip_skin_gate == true
+  and .gates.rts_production_ui_skin_hotkey_skin_gate == true
+  and .gates.rts_production_ui_skin_preview_gate == true
+  and .gates.rts_production_ui_skin_source_preview_gate == true
+  and .gates.rts_production_ui_skin_no_copy_boundary_gate == true
+  and .gates.rts_production_ui_skin_gate == true
   and .gates.rts_command_affordance_live_input_gate == true
   and .gates.rts_command_affordance_drag_select_gate == true
   and .gates.rts_command_affordance_right_click_move_gate == true

@@ -238,6 +238,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ART_REPLICATION_CONTRAC
     "trillionnium_world_bevy_classic_rts_production_art_replication_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_production_asset_atlas_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_production_ui_skin_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -18938,6 +18940,598 @@ pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &st
         "source_of_truth": "This gate turns production art replication into a concrete native asset-atlas handoff: a previewed family atlas, generated sprite sheet, texture-atlas binding manifest, and Bevy runtime texture/material handle manifest must all agree before the release-review gate can pass."
     }))
     .expect("classic RTS production asset atlas evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 1280;
+    const PANEL_HEIGHT: usize = 768;
+    const BACKGROUND_COLOR: u32 = 0x070b0a;
+    const SKIN_BOARD_COLOR: u32 = 0x111916;
+    const SKIN_EDGE_COLOR: u32 = 0x6aa585;
+    const HUD_CHROME_COLOR: u32 = 0x27443d;
+    const COMMAND_GRID_COLOR: u32 = 0x5378a8;
+    const MINIMAP_BEZEL_COLOR: u32 = 0x4ca36e;
+    const UNIT_CARD_COLOR: u32 = 0xc09b56;
+    const TOOLTIP_PANEL_COLOR: u32 = 0x8c70c8;
+    const FEEDBACK_MARKER_COLOR: u32 = 0xd36a72;
+    const HOTKEY_STRIP_COLOR: u32 = 0xd0c46f;
+    const STATUS_BAR_COLOR: u32 = 0x67c6bd;
+    const SKIN_HIGHLIGHT_COLOR: u32 = 0xe7f4bb;
+    const SKIN_SHADOW_COLOR: u32 = 0x17231f;
+
+    let source_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("bevy-classic-rts-production-ui-skin-sources");
+    let _ = fs::create_dir_all(&source_dir);
+    let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
+    let asset_atlas_path = source_path("bevy-classic-rts-production-asset-atlas.ppm");
+    let command_surface_path = source_path("bevy-classic-rts-command-surface.ppm");
+    let selection_minimap_path = source_path("bevy-classic-rts-selection-minimap.ppm");
+    let unit_status_path = source_path("bevy-classic-rts-unit-status-portrait.ppm");
+    let selection_feedback_path = source_path("bevy-classic-rts-selection-command-feedback.ppm");
+    let ability_tooltip_path = source_path("bevy-classic-rts-ability-tooltip-telegraph.ppm");
+    let hotkey_feedback_path = source_path("bevy-classic-rts-control-group-hotkey-feedback.ppm");
+
+    let asset_atlas: Value = serde_json::from_str(
+        &native_classic_rts_production_asset_atlas_evidence_json(&asset_atlas_path),
+    )
+    .expect("production asset atlas evidence parses for production UI skin");
+    let command_surface: Value = serde_json::from_str(
+        &native_classic_rts_command_surface_evidence_json(&command_surface_path),
+    )
+    .expect("command surface evidence parses for production UI skin");
+    let selection_minimap: Value = serde_json::from_str(
+        &native_classic_rts_selection_minimap_evidence_json(&selection_minimap_path),
+    )
+    .expect("selection/minimap evidence parses for production UI skin");
+    let unit_status: Value = serde_json::from_str(
+        &native_classic_rts_unit_status_portrait_evidence_json(&unit_status_path),
+    )
+    .expect("unit status portrait evidence parses for production UI skin");
+    let selection_feedback: Value = serde_json::from_str(
+        &native_classic_rts_selection_command_feedback_evidence_json(&selection_feedback_path),
+    )
+    .expect("selection command feedback evidence parses for production UI skin");
+    let ability_tooltip: Value = serde_json::from_str(
+        &native_classic_rts_ability_tooltip_telegraph_evidence_json(&ability_tooltip_path),
+    )
+    .expect("ability tooltip telegraph evidence parses for production UI skin");
+    let hotkey_feedback: Value = serde_json::from_str(
+        &native_classic_rts_control_group_hotkey_feedback_evidence_json(&hotkey_feedback_path),
+    )
+    .expect("control group hotkey feedback evidence parses for production UI skin");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 10_000)
+                .unwrap_or(false)
+    };
+
+    let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        720,
+        SKIN_BOARD_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        4,
+        SKIN_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        740,
+        1232,
+        4,
+        SKIN_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        4,
+        720,
+        SKIN_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1252,
+        24,
+        4,
+        720,
+        SKIN_EDGE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        46,
+        "TRNM NATIVE PRODUCTION UI SKIN",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        84,
+        "HUD CHROME + COMMAND GRID + MINIMAP + PORTRAIT + TOOLTIP + HOTKEY FEEDBACK",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        106,
+        "SKIN SLOTS ARE PROJECT-OWNED RUST/BEVY REPLACEMENT TARGETS; NO COPIED RTS UI ART",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let skin_surfaces = [
+        (
+            "HUD CHROME",
+            HUD_CHROME_COLOR,
+            "hud_panel_chrome_slot",
+            "command_surface",
+        ),
+        (
+            "COMMAND GRID",
+            COMMAND_GRID_COLOR,
+            "command_button_skin_slot",
+            "command_surface",
+        ),
+        (
+            "MINIMAP BEZEL",
+            MINIMAP_BEZEL_COLOR,
+            "minimap_frame_slot",
+            "selection_minimap",
+        ),
+        (
+            "UNIT CARD",
+            UNIT_CARD_COLOR,
+            "portrait_card_slot",
+            "unit_status_portrait",
+        ),
+        (
+            "TOOLTIP PANEL",
+            TOOLTIP_PANEL_COLOR,
+            "tooltip_panel_slot",
+            "ability_tooltip_telegraph",
+        ),
+        (
+            "FEEDBACK MARKERS",
+            FEEDBACK_MARKER_COLOR,
+            "feedback_marker_slot",
+            "selection_command_feedback",
+        ),
+        (
+            "HOTKEY STRIP",
+            HOTKEY_STRIP_COLOR,
+            "hotkey_strip_slot",
+            "control_group_hotkey_feedback",
+        ),
+        (
+            "STATUS BARS",
+            STATUS_BAR_COLOR,
+            "status_bar_slot",
+            "unit_status_portrait",
+        ),
+    ];
+    for (index, (label, color, slot, source)) in skin_surfaces.iter().enumerate() {
+        let col = (index % 4) as i32;
+        let row = (index / 4) as i32;
+        let x = 48 + col * 300;
+        let y = 142 + row * 214;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            270,
+            176,
+            SKIN_SHADOW_COLOR,
+        );
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 270, 5, *color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y + 171,
+            270,
+            5,
+            *color,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            y + 16,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            y + 36,
+            slot,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            y + 56,
+            source,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        for sample in 0..6_i32 {
+            let sx = x + 18 + (sample % 3) * 74;
+            let sy = y + 84 + (sample / 3) * 42;
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx,
+                sy,
+                54,
+                24,
+                *color,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 5,
+                sy + 5,
+                44,
+                4,
+                SKIN_HIGHLIGHT_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 5,
+                sy + 15,
+                30,
+                3,
+                SKIN_EDGE_COLOR,
+            );
+        }
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        588,
+        1184,
+        110,
+        0x0d1512,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        608,
+        "UI SKIN HANDOFF STRIP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for slot in 0..24_i32 {
+        let x = 70 + slot * 46;
+        let y = 640;
+        let color = match slot % 8 {
+            0 => HUD_CHROME_COLOR,
+            1 => COMMAND_GRID_COLOR,
+            2 => MINIMAP_BEZEL_COLOR,
+            3 => UNIT_CARD_COLOR,
+            4 => TOOLTIP_PANEL_COLOR,
+            5 => FEEDBACK_MARKER_COLOR,
+            6 => HOTKEY_STRIP_COLOR,
+            _ => STATUS_BAR_COLOR,
+        };
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 32, 28, color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 4,
+            y + 5,
+            24,
+            5,
+            SKIN_HIGHLIGHT_COLOR,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 4,
+            y + 21,
+            20,
+            3,
+            SKIN_EDGE_COLOR,
+        );
+    }
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        684,
+        "ATLAS -> SKIN SLOTS -> RUNTIME COMMAND SURFACES; PUBLIC LAUNCH AND DEVICE CLAIMS REMAIN FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &pixels).is_ok();
+    let count_color =
+        |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let ui_skin_board_pixel_count = count_color(SKIN_BOARD_COLOR) + count_color(SKIN_EDGE_COLOR);
+    let hud_chrome_pixel_count = count_color(HUD_CHROME_COLOR);
+    let command_grid_skin_pixel_count = count_color(COMMAND_GRID_COLOR);
+    let minimap_bezel_pixel_count = count_color(MINIMAP_BEZEL_COLOR);
+    let unit_card_skin_pixel_count = count_color(UNIT_CARD_COLOR);
+    let tooltip_skin_pixel_count = count_color(TOOLTIP_PANEL_COLOR);
+    let feedback_marker_pixel_count = count_color(FEEDBACK_MARKER_COLOR);
+    let hotkey_strip_pixel_count = count_color(HOTKEY_STRIP_COLOR);
+    let status_bar_skin_pixel_count = count_color(STATUS_BAR_COLOR);
+    let skin_highlight_pixel_count = count_color(SKIN_HIGHLIGHT_COLOR);
+
+    let asset_atlas_gate = contract_is(
+        &asset_atlas,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_CONTRACT,
+    ) && bool_at(&asset_atlas, "green")
+        && bool_at(&asset_atlas, "production_asset_atlas_gate")
+        && bool_at(&asset_atlas, "runtime_texture_asset_gate")
+        && bool_at(&asset_atlas, "no_copy_boundary_gate")
+        && u64_at(&asset_atlas, "atlas_family_count") == 10
+        && u64_at(&asset_atlas, "hud_icon_pixel_count") > 2_000
+        && u64_at(&asset_atlas, "runtime_binding_lane_pixel_count") > 8_000;
+    let command_surface_skin_gate = contract_is(
+        &command_surface,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_SURFACE_CONTRACT,
+    ) && bool_at(&command_surface, "green")
+        && bool_at(&command_surface, "selection_surface_gate")
+        && bool_at(&command_surface, "command_grid_surface_gate")
+        && bool_at(&command_surface, "cooldown_disabled_surface_gate")
+        && bool_at(&command_surface, "target_queue_surface_gate")
+        && u64_at(&command_surface, "selection_frame_pixel_count") > 800
+        && u64_at(&command_surface, "ready_pixel_count") > 500
+        && u64_at(&command_surface, "queue_confirm_pixel_count") > 250;
+    let selection_minimap_skin_gate = contract_is(
+        &selection_minimap,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_MINIMAP_CONTRACT,
+    ) && bool_at(&selection_minimap, "green")
+        && bool_at(&selection_minimap, "selection_box_gate")
+        && bool_at(&selection_minimap, "control_group_gate")
+        && bool_at(&selection_minimap, "minimap_command_gate")
+        && bool_at(&selection_minimap, "split_route_gate")
+        && u64_at(&selection_minimap, "selection_box_pixel_count") > 160
+        && u64_at(&selection_minimap, "minimap_command_pixel_count") > 80;
+    let unit_status_skin_gate = contract_is(
+        &unit_status,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT,
+    ) && bool_at(&unit_status, "green")
+        && bool_at(&unit_status, "portrait_frame_gate")
+        && bool_at(&unit_status, "health_bar_gate")
+        && bool_at(&unit_status, "mana_bar_gate")
+        && bool_at(&unit_status, "xp_bar_gate")
+        && bool_at(&unit_status, "role_badge_gate")
+        && bool_at(&unit_status, "queue_badge_gate")
+        && u64_at(&unit_status, "portrait_frame_pixel_count") > 1_200;
+    let command_feedback_skin_gate = contract_is(
+        &selection_feedback,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+    ) && bool_at(&selection_feedback, "green")
+        && bool_at(&selection_feedback, "marquee_gate")
+        && bool_at(&selection_feedback, "confirm_gate")
+        && bool_at(&selection_feedback, "rally_gate")
+        && bool_at(&selection_feedback, "move_gate")
+        && bool_at(&selection_feedback, "attack_gate")
+        && bool_at(&selection_feedback, "error_gate")
+        && bool_at(&selection_feedback, "ack_gate")
+        && u64_at(&selection_feedback, "ack_pixel_count") > 240;
+    let tooltip_skin_gate = contract_is(
+        &ability_tooltip,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT,
+    ) && bool_at(&ability_tooltip, "green")
+        && bool_at(&ability_tooltip, "tooltip_gate")
+        && bool_at(&ability_tooltip, "range_gate")
+        && bool_at(&ability_tooltip, "windup_gate")
+        && bool_at(&ability_tooltip, "cooldown_gate")
+        && bool_at(&ability_tooltip, "queue_gate")
+        && bool_at(&ability_tooltip, "warning_gate")
+        && u64_at(&ability_tooltip, "accepted_input_count") == 6;
+    let hotkey_skin_gate = contract_is(
+        &hotkey_feedback,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_HOTKEY_FEEDBACK_CONTRACT,
+    ) && bool_at(&hotkey_feedback, "green")
+        && bool_at(&hotkey_feedback, "assign_gate")
+        && bool_at(&hotkey_feedback, "recall_gate")
+        && bool_at(&hotkey_feedback, "camera_gate")
+        && bool_at(&hotkey_feedback, "idle_gate")
+        && bool_at(&hotkey_feedback, "production_gate")
+        && bool_at(&hotkey_feedback, "ability_gate")
+        && u64_at(&hotkey_feedback, "accepted_input_count") == 6;
+    let production_ui_skin_preview_gate = write_gate
+        && ui_skin_board_pixel_count > 80_000
+        && hud_chrome_pixel_count > 1_000
+        && command_grid_skin_pixel_count > 1_000
+        && minimap_bezel_pixel_count > 1_000
+        && unit_card_skin_pixel_count > 1_000
+        && tooltip_skin_pixel_count > 1_000
+        && feedback_marker_pixel_count > 1_000
+        && hotkey_strip_pixel_count > 1_000
+        && status_bar_skin_pixel_count > 1_000
+        && skin_highlight_pixel_count > 3_000;
+    let source_preview_gate = [
+        &asset_atlas_path,
+        &command_surface_path,
+        &selection_minimap_path,
+        &unit_status_path,
+        &selection_feedback_path,
+        &ability_tooltip_path,
+        &hotkey_feedback_path,
+    ]
+    .iter()
+    .all(|path| file_ready(path));
+    let no_copy_boundary_gate = bool_at(&asset_atlas, "no_copy_boundary_gate")
+        && !bool_at(&asset_atlas, "warcraft_iii_asset_copied")
+        && !bool_at(&asset_atlas, "openra_asset_copied")
+        && !bool_at(&asset_atlas, "third_party_asset_copied")
+        && [
+            &command_surface,
+            &unit_status,
+            &selection_feedback,
+            &ability_tooltip,
+            &hotkey_feedback,
+        ]
+        .iter()
+        .all(|value| {
+            bool_at(value, "original_art_policy_gate")
+                && !bool_at(value, "warcraft_iii_asset_copied")
+                && !bool_at(value, "cex_runtime_player_client_allowed")
+                && !bool_at(value, "wgpu_required")
+        })
+        && !bool_at(&selection_minimap, "cex_runtime_player_client_allowed")
+        && !bool_at(&selection_minimap, "wgpu_required");
+    let production_ui_skin_gate = asset_atlas_gate
+        && command_surface_skin_gate
+        && selection_minimap_skin_gate
+        && unit_status_skin_gate
+        && command_feedback_skin_gate
+        && tooltip_skin_gate
+        && hotkey_skin_gate
+        && production_ui_skin_preview_gate
+        && source_preview_gate;
+    let green = production_ui_skin_gate && no_copy_boundary_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "source_dir": source_dir.to_string_lossy(),
+        "source_contracts": {
+            "production_asset_atlas": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_CONTRACT,
+            "command_surface": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_SURFACE_CONTRACT,
+            "selection_minimap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_MINIMAP_CONTRACT,
+            "unit_status_portrait": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT,
+            "selection_command_feedback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+            "ability_tooltip_telegraph": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT,
+            "control_group_hotkey_feedback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_GROUP_HOTKEY_FEEDBACK_CONTRACT
+        },
+        "source_paths": {
+            "production_asset_atlas": asset_atlas_path,
+            "command_surface": command_surface_path,
+            "selection_minimap": selection_minimap_path,
+            "unit_status_portrait": unit_status_path,
+            "selection_command_feedback": selection_feedback_path,
+            "ability_tooltip_telegraph": ability_tooltip_path,
+            "control_group_hotkey_feedback": hotkey_feedback_path
+        },
+        "ui_skin_surface_names": skin_surfaces.iter().map(|(label, _, _, _)| *label).collect::<Vec<_>>(),
+        "ui_skin_surface_count": skin_surfaces.len(),
+        "ui_skin_replacement_slots": skin_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
+        "ui_skin_source_surfaces": skin_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "asset_atlas_family_count": asset_atlas.get("atlas_family_count").cloned().unwrap_or(Value::Null),
+        "asset_atlas_frame_count": asset_atlas.get("atlas_frame_count").cloned().unwrap_or(Value::Null),
+        "asset_atlas_sprite_binding_count": asset_atlas.get("sprite_binding_count").cloned().unwrap_or(Value::Null),
+        "asset_atlas_hud_icon_pixel_count": asset_atlas.get("hud_icon_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_surface_selection_frame_pixel_count": command_surface.get("selection_frame_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_surface_ready_pixel_count": command_surface.get("ready_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_surface_queue_confirm_pixel_count": command_surface.get("queue_confirm_pixel_count").cloned().unwrap_or(Value::Null),
+        "selection_minimap_selection_box_pixel_count": selection_minimap.get("selection_box_pixel_count").cloned().unwrap_or(Value::Null),
+        "selection_minimap_minimap_command_pixel_count": selection_minimap.get("minimap_command_pixel_count").cloned().unwrap_or(Value::Null),
+        "unit_status_portrait_frame_pixel_count": unit_status.get("portrait_frame_pixel_count").cloned().unwrap_or(Value::Null),
+        "unit_status_health_bar_pixel_count": unit_status.get("health_bar_pixel_count").cloned().unwrap_or(Value::Null),
+        "selection_command_feedback_ack_pixel_count": selection_feedback.get("ack_pixel_count").cloned().unwrap_or(Value::Null),
+        "selection_command_feedback_error_pixel_count": selection_feedback.get("error_pixel_count").cloned().unwrap_or(Value::Null),
+        "ability_tooltip_tooltip_pixel_count": ability_tooltip.get("tooltip_pixel_count").cloned().unwrap_or(Value::Null),
+        "ability_tooltip_warning_pixel_count": ability_tooltip.get("warning_pixel_count").cloned().unwrap_or(Value::Null),
+        "hotkey_feedback_assign_pixel_count": hotkey_feedback.get("assign_pixel_count").cloned().unwrap_or(Value::Null),
+        "hotkey_feedback_ability_pixel_count": hotkey_feedback.get("ability_pixel_count").cloned().unwrap_or(Value::Null),
+        "ui_skin_board_pixel_count": ui_skin_board_pixel_count,
+        "hud_chrome_pixel_count": hud_chrome_pixel_count,
+        "command_grid_skin_pixel_count": command_grid_skin_pixel_count,
+        "minimap_bezel_pixel_count": minimap_bezel_pixel_count,
+        "unit_card_skin_pixel_count": unit_card_skin_pixel_count,
+        "tooltip_skin_pixel_count": tooltip_skin_pixel_count,
+        "feedback_marker_pixel_count": feedback_marker_pixel_count,
+        "hotkey_strip_pixel_count": hotkey_strip_pixel_count,
+        "status_bar_skin_pixel_count": status_bar_skin_pixel_count,
+        "skin_highlight_pixel_count": skin_highlight_pixel_count,
+        "asset_atlas_gate": asset_atlas_gate,
+        "command_surface_skin_gate": command_surface_skin_gate,
+        "selection_minimap_skin_gate": selection_minimap_skin_gate,
+        "unit_status_skin_gate": unit_status_skin_gate,
+        "command_feedback_skin_gate": command_feedback_skin_gate,
+        "tooltip_skin_gate": tooltip_skin_gate,
+        "hotkey_skin_gate": hotkey_skin_gate,
+        "production_ui_skin_preview_gate": production_ui_skin_preview_gate,
+        "source_preview_gate": source_preview_gate,
+        "no_copy_boundary_gate": no_copy_boundary_gate,
+        "production_ui_skin_gate": production_ui_skin_gate,
+        "source_art_policy": "Production UI skin is a deterministic Rust/Bevy handoff board for original Trillionnium HUD chrome, command buttons, minimap frame, unit card, tooltip panel, command feedback, hotkey strip, and status bar replacement slots. It consumes the production asset atlas and already-green gameplay UI surfaces while forbidding copied OpenRA, Warcraft III, or third-party RTS UI art.",
+        "license_boundary": "project_owned_internal_ui_skin_replacement_slots_not_screen_for_screen_openra_or_warcraft_copy_not_public_launch_ready",
+        "final_external_bitmap_art_shipped": false,
+        "production_ready_ui_shipped": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "public_launch_ready": false,
+        "android_s5_real_device_claimed": false,
+        "gpu_upload_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "source_of_truth": "This gate moves from production asset atlas readiness to actual native UI skin replacement slots by requiring the atlas, command surface, selection/minimap, unit status, selection feedback, ability tooltip, and hotkey feedback evidence to agree before the release-review gate can pass."
+    }))
+    .expect("classic RTS production UI skin evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
