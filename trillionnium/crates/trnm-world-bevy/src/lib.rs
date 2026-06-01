@@ -290,6 +290,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISO
     &str = "trillionnium_world_bevy_classic_rts_openra_imported_headless_comparison_harness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_imported_replay_audit_ledger_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_openra_imported_replay_repro_manifest_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_HEADLESS_COMPARISON_HARNESS_CONTRACT: &str =
@@ -41784,6 +41786,560 @@ pub fn native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(
         "source_of_truth": "Classic RTS OpenRA imported replay audit ledger evidence builds a cumulative hash ledger over decoded imported replay records, reducer snapshots, and the headless summary alignment. It proves dropped entries, previous-hash breaks, payload tampering, frame regression, final-ledger mismatch, decoded-stream mismatch, and winner mismatch are detected while claiming only Trillionnium-owned local auditability; OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
     }))
     .expect("classic RTS OpenRA imported replay audit ledger evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_openra_imported_replay_repro_manifest_evidence_json(
+    preview_dir: &str,
+) -> String {
+    let _ = fs::create_dir_all(preview_dir);
+    let preview_path = |name: &str| {
+        Path::new(preview_dir)
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    };
+    let primary_dir = preview_path("openra-imported-replay-audit-ledger-primary");
+    let rerun_dir = preview_path("openra-imported-replay-audit-ledger-rerun");
+    let primary_summary_path = preview_path("openra-imported-replay-audit-ledger-primary.json");
+    let rerun_summary_path = preview_path("openra-imported-replay-audit-ledger-rerun.json");
+    let diff_path = preview_path("openra-imported-replay-repro-diff.json");
+    let manifest_path = preview_path("openra-imported-replay-repro-manifest.json");
+    let negative_corpus_path =
+        preview_path("openra-imported-replay-repro-manifest-negative-corpus.json");
+
+    let primary_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(&primary_dir),
+    )
+    .expect("primary OpenRA imported replay audit ledger evidence parses");
+    let rerun_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(&rerun_dir),
+    )
+    .expect("rerun OpenRA imported replay audit ledger evidence parses");
+    let primary_summary_write_gate = serde_json::to_vec_pretty(&primary_evidence)
+        .map(|bytes| fs::write(&primary_summary_path, bytes).is_ok())
+        .unwrap_or(false);
+    let rerun_summary_write_gate = serde_json::to_vec_pretty(&rerun_evidence)
+        .map(|bytes| fs::write(&rerun_summary_path, bytes).is_ok())
+        .unwrap_or(false);
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let str_ptr = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let u64_ptr =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let json_sha256 = |value: &Value| {
+        sha256_hex(&serde_json::to_vec(value).expect("repro manifest payload serializes"))
+    };
+    let value_at = |value: &Value, key: &str| value.get(key).cloned().unwrap_or(Value::Null);
+    let value_ptr =
+        |value: &Value, pointer: &str| value.pointer(pointer).cloned().unwrap_or(Value::Null);
+    let stable_value_pairs = |left: &Value, right: &Value| -> Vec<(String, Value, Value)> {
+        vec![
+            (
+                "contract_version".to_string(),
+                value_at(left, "contract_version"),
+                value_at(right, "contract_version"),
+            ),
+            (
+                "green".to_string(),
+                value_at(left, "green"),
+                value_at(right, "green"),
+            ),
+            (
+                "openra_imported_replay_audit_ledger_gate".to_string(),
+                value_at(left, "openra_imported_replay_audit_ledger_gate"),
+                value_at(right, "openra_imported_replay_audit_ledger_gate"),
+            ),
+            (
+                "ledger_summary_entry_count".to_string(),
+                value_ptr(left, "/ledger_summary/entry_count"),
+                value_ptr(right, "/ledger_summary/entry_count"),
+            ),
+            (
+                "ledger_summary_decoded_record_count".to_string(),
+                value_ptr(left, "/ledger_summary/decoded_record_count"),
+                value_ptr(right, "/ledger_summary/decoded_record_count"),
+            ),
+            (
+                "ledger_summary_snapshot_count".to_string(),
+                value_ptr(left, "/ledger_summary/snapshot_count"),
+                value_ptr(right, "/ledger_summary/snapshot_count"),
+            ),
+            (
+                "ledger_summary_final_frame".to_string(),
+                value_ptr(left, "/ledger_summary/final_frame"),
+                value_ptr(right, "/ledger_summary/final_frame"),
+            ),
+            (
+                "ledger_summary_winner".to_string(),
+                value_ptr(left, "/ledger_summary/winner"),
+                value_ptr(right, "/ledger_summary/winner"),
+            ),
+            (
+                "ledger_summary_headless_mode".to_string(),
+                value_ptr(left, "/ledger_summary/headless_mode"),
+                value_ptr(right, "/ledger_summary/headless_mode"),
+            ),
+            (
+                "ledger_summary_source_replay_sha256".to_string(),
+                value_ptr(left, "/ledger_summary/source_replay_sha256"),
+                value_ptr(right, "/ledger_summary/source_replay_sha256"),
+            ),
+            (
+                "ledger_summary_decoded_stream_sha256".to_string(),
+                value_ptr(left, "/ledger_summary/decoded_stream_sha256"),
+                value_ptr(right, "/ledger_summary/decoded_stream_sha256"),
+            ),
+            (
+                "ledger_summary_ledger_file_sha256".to_string(),
+                value_ptr(left, "/ledger_summary/ledger_file_sha256"),
+                value_ptr(right, "/ledger_summary/ledger_file_sha256"),
+            ),
+            (
+                "ledger_summary_final_ledger_sha256".to_string(),
+                value_ptr(left, "/ledger_summary/final_ledger_sha256"),
+                value_ptr(right, "/ledger_summary/final_ledger_sha256"),
+            ),
+            (
+                "ledger_summary_negative_case_count".to_string(),
+                value_ptr(left, "/ledger_summary/negative_case_count"),
+                value_ptr(right, "/ledger_summary/negative_case_count"),
+            ),
+            (
+                "ledger_summary_detected_negative_case_count".to_string(),
+                value_ptr(left, "/ledger_summary/detected_negative_case_count"),
+                value_ptr(right, "/ledger_summary/detected_negative_case_count"),
+            ),
+            (
+                "top_level_ledger_file_sha256".to_string(),
+                value_at(left, "ledger_file_sha256"),
+                value_at(right, "ledger_file_sha256"),
+            ),
+            (
+                "top_level_final_ledger_sha256".to_string(),
+                value_at(left, "final_ledger_sha256"),
+                value_at(right, "final_ledger_sha256"),
+            ),
+            (
+                "top_level_negative_corpus_sha256".to_string(),
+                value_at(left, "negative_corpus_sha256"),
+                value_at(right, "negative_corpus_sha256"),
+            ),
+        ]
+    };
+
+    let primary_ledger_path = str_at(&primary_evidence, "ledger_path");
+    let rerun_ledger_path = str_at(&rerun_evidence, "ledger_path");
+    let primary_negative_path = str_at(&primary_evidence, "negative_corpus_path");
+    let rerun_negative_path = str_at(&rerun_evidence, "negative_corpus_path");
+    let primary_ledger_bytes = fs::read(&primary_ledger_path).unwrap_or_default();
+    let rerun_ledger_bytes = fs::read(&rerun_ledger_path).unwrap_or_default();
+    let primary_negative_bytes = fs::read(&primary_negative_path).unwrap_or_default();
+    let rerun_negative_bytes = fs::read(&rerun_negative_path).unwrap_or_default();
+    let primary_ledger_bytes_sha256 = if primary_ledger_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&primary_ledger_bytes)
+    };
+    let rerun_ledger_bytes_sha256 = if rerun_ledger_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&rerun_ledger_bytes)
+    };
+    let primary_negative_bytes_sha256 = if primary_negative_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&primary_negative_bytes)
+    };
+    let rerun_negative_bytes_sha256 = if rerun_negative_bytes.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&rerun_negative_bytes)
+    };
+    let primary_negative_value: Value = serde_json::from_slice(&primary_negative_bytes)
+        .ok()
+        .unwrap_or(Value::Null);
+    let rerun_negative_value: Value = serde_json::from_slice(&rerun_negative_bytes)
+        .ok()
+        .unwrap_or(Value::Null);
+    let primary_negative_semantic_sha256 = if primary_negative_value.is_array() {
+        json_sha256(&primary_negative_value)
+    } else {
+        String::new()
+    };
+    let rerun_negative_semantic_sha256 = if rerun_negative_value.is_array() {
+        json_sha256(&rerun_negative_value)
+    } else {
+        String::new()
+    };
+
+    let mut stable_pairs = stable_value_pairs(&primary_evidence, &rerun_evidence);
+    stable_pairs.extend([
+        (
+            "ledger_file_bytes_sha256".to_string(),
+            json!(primary_ledger_bytes_sha256),
+            json!(rerun_ledger_bytes_sha256),
+        ),
+        (
+            "ledger_file_bytes_len".to_string(),
+            json!(primary_ledger_bytes.len()),
+            json!(rerun_ledger_bytes.len()),
+        ),
+        (
+            "negative_corpus_bytes_sha256".to_string(),
+            json!(primary_negative_bytes_sha256),
+            json!(rerun_negative_bytes_sha256),
+        ),
+        (
+            "negative_corpus_bytes_len".to_string(),
+            json!(primary_negative_bytes.len()),
+            json!(rerun_negative_bytes.len()),
+        ),
+        (
+            "negative_corpus_semantic_sha256".to_string(),
+            json!(primary_negative_semantic_sha256),
+            json!(rerun_negative_semantic_sha256),
+        ),
+    ]);
+    let comparisons = stable_pairs
+        .iter()
+        .map(|(field, primary, rerun)| {
+            json!({
+                "field": field,
+                "primary": primary,
+                "rerun": rerun,
+                "matched": primary == rerun
+            })
+        })
+        .collect::<Vec<_>>();
+    let mismatches = stable_pairs
+        .iter()
+        .filter(|(_, primary, rerun)| primary != rerun)
+        .map(|(field, _, _)| field.clone())
+        .collect::<Vec<_>>();
+    let comparison_count = stable_pairs.len();
+    let mismatch_count = mismatches.len();
+    let aligned_count = comparison_count.saturating_sub(mismatch_count);
+
+    let mut negative_inputs: Vec<(&str, &str, Value)> = Vec::new();
+    let mut final_ledger_mismatch = rerun_evidence.clone();
+    final_ledger_mismatch["final_ledger_sha256"] =
+        json!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    negative_inputs.push((
+        "final_ledger_sha_mismatch",
+        "top_level_final_ledger_sha256",
+        final_ledger_mismatch,
+    ));
+    let mut decoded_stream_mismatch = rerun_evidence.clone();
+    if let Some(summary) = decoded_stream_mismatch.get_mut("ledger_summary") {
+        summary["decoded_stream_sha256"] =
+            json!("0000000000000000000000000000000000000000000000000000000000000000");
+    }
+    negative_inputs.push((
+        "decoded_stream_sha_mismatch",
+        "ledger_summary_decoded_stream_sha256",
+        decoded_stream_mismatch,
+    ));
+    let mut winner_mismatch = rerun_evidence.clone();
+    if let Some(summary) = winner_mismatch.get_mut("ledger_summary") {
+        summary["winner"] = json!("Multi1");
+    }
+    negative_inputs.push(("winner_mismatch", "ledger_summary_winner", winner_mismatch));
+    let mut negative_case_mismatch = rerun_evidence.clone();
+    if let Some(summary) = negative_case_mismatch.get_mut("ledger_summary") {
+        summary["detected_negative_case_count"] = json!(0);
+    }
+    negative_inputs.push((
+        "negative_case_detection_mismatch",
+        "ledger_summary_detected_negative_case_count",
+        negative_case_mismatch,
+    ));
+    let mut green_flag_mismatch = rerun_evidence.clone();
+    green_flag_mismatch["green"] = json!(false);
+    negative_inputs.push(("green_flag_mismatch", "green", green_flag_mismatch));
+
+    let mut negative_cases = Vec::new();
+    for (case_name, expected_mismatch, candidate) in negative_inputs {
+        let candidate_mismatches = stable_value_pairs(&primary_evidence, &candidate)
+            .into_iter()
+            .filter(|(_, primary, rerun)| primary != rerun)
+            .map(|(field, _, _)| field)
+            .collect::<Vec<_>>();
+        negative_cases.push(json!({
+            "case": case_name,
+            "expected_mismatch": expected_mismatch,
+            "detected": candidate_mismatches.iter().any(|field| field == expected_mismatch),
+            "actual_mismatches": candidate_mismatches
+        }));
+    }
+    let detected_negative_case_count = negative_cases
+        .iter()
+        .filter(|case| case.get("detected").and_then(Value::as_bool) == Some(true))
+        .count();
+    let negative_corpus_sha256 = json_sha256(&Value::Array(negative_cases.clone()));
+    let negative_corpus_write_gate =
+        serde_json::to_vec_pretty(&Value::Array(negative_cases.clone()))
+            .map(|bytes| fs::write(&negative_corpus_path, bytes).is_ok())
+            .unwrap_or(false);
+
+    let repro_diff = json!({
+        "diff_schema": "openra_imported_replay_repro_diff_v1_json",
+        "comparison_count": comparison_count,
+        "aligned_count": aligned_count,
+        "mismatch_count": mismatch_count,
+        "comparisons": comparisons,
+        "mismatches": mismatches
+    });
+    let repro_diff_sha256 = json_sha256(&repro_diff);
+    let diff_write_gate = serde_json::to_vec_pretty(&repro_diff)
+        .map(|bytes| fs::write(&diff_path, bytes).is_ok())
+        .unwrap_or(false);
+    let diff_readback: Value = fs::read(&diff_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let manifest = json!({
+        "manifest_schema": "openra_imported_replay_repro_manifest_v1_json",
+        "source_contracts": {
+            "openra_imported_replay_audit_ledger": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+            "openra_imported_headless_comparison_harness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": {
+            "primary_audit_ledger": primary_dir,
+            "rerun_audit_ledger": rerun_dir,
+            "primary_audit_summary": primary_summary_path,
+            "rerun_audit_summary": rerun_summary_path,
+            "primary_ledger": primary_ledger_path,
+            "rerun_ledger": rerun_ledger_path,
+            "primary_negative_corpus": primary_negative_path,
+            "rerun_negative_corpus": rerun_negative_path,
+            "diff": diff_path,
+            "negative_corpus": negative_corpus_path
+        },
+        "summary": {
+            "comparison_count": comparison_count,
+            "aligned_count": aligned_count,
+            "mismatch_count": mismatch_count,
+            "ledger_entry_count": value_ptr(&primary_evidence, "/ledger_summary/entry_count"),
+            "decoded_record_count": value_ptr(&primary_evidence, "/ledger_summary/decoded_record_count"),
+            "snapshot_count": value_ptr(&primary_evidence, "/ledger_summary/snapshot_count"),
+            "final_frame": value_ptr(&primary_evidence, "/ledger_summary/final_frame"),
+            "winner": value_ptr(&primary_evidence, "/ledger_summary/winner"),
+            "headless_mode": value_ptr(&primary_evidence, "/ledger_summary/headless_mode"),
+            "source_replay_sha256": value_ptr(&primary_evidence, "/ledger_summary/source_replay_sha256"),
+            "decoded_stream_sha256": value_ptr(&primary_evidence, "/ledger_summary/decoded_stream_sha256"),
+            "primary_ledger_file_sha256": str_at(&primary_evidence, "ledger_file_sha256"),
+            "rerun_ledger_file_sha256": str_at(&rerun_evidence, "ledger_file_sha256"),
+            "primary_final_ledger_sha256": str_at(&primary_evidence, "final_ledger_sha256"),
+            "rerun_final_ledger_sha256": str_at(&rerun_evidence, "final_ledger_sha256"),
+            "primary_negative_corpus_sha256": str_at(&primary_evidence, "negative_corpus_sha256"),
+            "rerun_negative_corpus_sha256": str_at(&rerun_evidence, "negative_corpus_sha256"),
+            "negative_case_count": negative_cases.len(),
+            "detected_negative_case_count": detected_negative_case_count
+        }
+    });
+    let manifest_sha256 = json_sha256(&manifest);
+    let manifest_write_gate = serde_json::to_vec_pretty(&manifest)
+        .map(|bytes| fs::write(&manifest_path, bytes).is_ok())
+        .unwrap_or(false);
+    let manifest_readback: Value = fs::read(&manifest_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+
+    let source_contract_gate = contract_is(
+        &primary_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+    ) && contract_is(
+        &rerun_evidence,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+    ) && str_ptr(
+        &primary_evidence,
+        "/source_contracts/openra_imported_headless_comparison_harness",
+    ) == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT
+        && str_ptr(
+            &primary_evidence,
+            "/source_contracts/openra_order_payload_decoder",
+        ) == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT
+        && str_ptr(
+            &rerun_evidence,
+            "/source_contracts/openra_imported_headless_comparison_harness",
+        ) == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT
+        && str_ptr(&rerun_evidence, "/source_contracts/openra_order_payload_decoder")
+            == TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT;
+    let source_green_gate = bool_at(&primary_evidence, "green")
+        && bool_at(&rerun_evidence, "green")
+        && bool_at(
+            &primary_evidence,
+            "openra_imported_replay_audit_ledger_gate",
+        )
+        && bool_at(&rerun_evidence, "openra_imported_replay_audit_ledger_gate")
+        && primary_summary_write_gate
+        && rerun_summary_write_gate;
+    let stable_summary_gate = mismatch_count == 0
+        && comparison_count >= 20
+        && aligned_count == comparison_count
+        && u64_ptr(&primary_evidence, "/ledger_summary/entry_count") >= 29
+        && u64_ptr(&primary_evidence, "/ledger_summary/decoded_record_count") >= 20
+        && u64_ptr(&primary_evidence, "/ledger_summary/snapshot_count") >= 6
+        && u64_ptr(&primary_evidence, "/ledger_summary/final_frame") >= 3000
+        && str_ptr(&primary_evidence, "/ledger_summary/winner") == "Multi2"
+        && str_ptr(&primary_evidence, "/ledger_summary/headless_mode")
+            == "owned_replay_checkpoint_reducer_no_render_no_wgpu"
+        && str_ptr(&primary_evidence, "/ledger_summary/source_replay_sha256").len() == 64
+        && str_ptr(&primary_evidence, "/ledger_summary/decoded_stream_sha256").len() == 64
+        && str_at(&primary_evidence, "final_ledger_sha256").len() == 64
+        && str_at(&primary_evidence, "final_ledger_sha256")
+            == str_at(&rerun_evidence, "final_ledger_sha256")
+        && str_at(&primary_evidence, "ledger_file_sha256")
+            == str_at(&rerun_evidence, "ledger_file_sha256")
+        && str_at(&primary_evidence, "negative_corpus_sha256")
+            == str_at(&rerun_evidence, "negative_corpus_sha256");
+    let artifact_read_gate = !primary_ledger_bytes.is_empty()
+        && primary_ledger_bytes.len() > 2_000
+        && primary_ledger_bytes == rerun_ledger_bytes
+        && !primary_negative_bytes.is_empty()
+        && primary_negative_bytes.len() > 500
+        && primary_negative_bytes == rerun_negative_bytes
+        && str_at(&primary_evidence, "ledger_file_sha256") == sha256_hex(&primary_ledger_bytes)
+        && str_at(&rerun_evidence, "ledger_file_sha256") == sha256_hex(&rerun_ledger_bytes)
+        && str_at(&primary_evidence, "negative_corpus_sha256") == primary_negative_semantic_sha256
+        && str_at(&rerun_evidence, "negative_corpus_sha256") == rerun_negative_semantic_sha256;
+    let diff_gate = diff_write_gate
+        && diff_readback.get("diff_schema").and_then(Value::as_str)
+            == Some("openra_imported_replay_repro_diff_v1_json")
+        && diff_readback
+            .get("comparison_count")
+            .and_then(Value::as_u64)
+            == Some(comparison_count as u64)
+        && diff_readback.get("mismatch_count").and_then(Value::as_u64) == Some(0)
+        && repro_diff_sha256.len() == 64
+        && Path::new(&diff_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 1_000)
+            .unwrap_or(false);
+    let manifest_gate = manifest_write_gate
+        && manifest_readback
+            .get("manifest_schema")
+            .and_then(Value::as_str)
+            == Some("openra_imported_replay_repro_manifest_v1_json")
+        && manifest_readback
+            .pointer("/summary/mismatch_count")
+            .and_then(Value::as_u64)
+            == Some(0)
+        && manifest_sha256.len() == 64
+        && Path::new(&manifest_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 1_000)
+            .unwrap_or(false);
+    let negative_corpus_gate = negative_corpus_write_gate
+        && negative_cases.len() >= 5
+        && detected_negative_case_count == negative_cases.len()
+        && negative_corpus_sha256.len() == 64
+        && Path::new(&negative_corpus_path)
+            .metadata()
+            .map(|metadata| metadata.len() > 500)
+            .unwrap_or(false);
+    let compatibility_boundary_for = |value: &Value| {
+        bool_at(value, "bevy_openra_imported_replay_audit_ledger_claimed")
+            && bool_at(
+                value,
+                "bevy_openra_imported_headless_comparison_harness_claimed",
+            )
+            && bool_at(value, "bevy_openra_order_payload_decoder_claimed")
+            && !bool_at(value, "bevy_openra_native_order_payload_decoder_claimed")
+            && !bool_at(value, "bevy_openra_binary_replay_compatible")
+            && !bool_at(value, "bevy_openra_network_order_stream_claimed")
+            && !bool_at(value, "bevy_openra_runtime_parity_claimed")
+            && !bool_at(value, "bevy_openra_parity_claimed")
+            && !bool_at(value, "public_launch_ready")
+    };
+    let compatibility_boundary_gate = compatibility_boundary_for(&primary_evidence)
+        && compatibility_boundary_for(&rerun_evidence);
+    let openra_imported_replay_repro_manifest_gate = source_contract_gate
+        && source_green_gate
+        && stable_summary_gate
+        && artifact_read_gate
+        && diff_gate
+        && manifest_gate
+        && negative_corpus_gate
+        && compatibility_boundary_gate;
+    let green = openra_imported_replay_repro_manifest_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT,
+        "green": green,
+        "preview_dir": preview_dir,
+        "manifest_path": manifest_path,
+        "manifest_sha256": manifest_sha256,
+        "diff_path": diff_path,
+        "diff_sha256": repro_diff_sha256,
+        "negative_corpus_path": negative_corpus_path,
+        "negative_corpus_sha256": negative_corpus_sha256,
+        "adapter_state": "bevy_owned_openra_imported_replay_repro_manifest_not_openra_runtime_parity",
+        "source_contracts": {
+            "openra_imported_replay_audit_ledger": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT,
+            "openra_imported_headless_comparison_harness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT,
+            "openra_imported_replay_reducer": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REDUCER_CONTRACT,
+            "openra_order_payload_decoder": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT,
+            "openra_replay_compat_adapter": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT
+        },
+        "source_paths": manifest.get("source_paths").cloned().unwrap_or(Value::Null),
+        "repro_summary": manifest.get("summary").cloned().unwrap_or(Value::Null),
+        "source_contract_gate": source_contract_gate,
+        "source_green_gate": source_green_gate,
+        "primary_summary_write_gate": primary_summary_write_gate,
+        "rerun_summary_write_gate": rerun_summary_write_gate,
+        "stable_summary_gate": stable_summary_gate,
+        "artifact_read_gate": artifact_read_gate,
+        "diff_gate": diff_gate,
+        "manifest_gate": manifest_gate,
+        "negative_corpus_gate": negative_corpus_gate,
+        "compatibility_boundary_gate": compatibility_boundary_gate,
+        "openra_imported_replay_repro_manifest_gate": openra_imported_replay_repro_manifest_gate,
+        "bevy_openra_imported_replay_repro_manifest_claimed": true,
+        "bevy_openra_imported_replay_audit_ledger_claimed": true,
+        "bevy_openra_imported_headless_comparison_harness_claimed": true,
+        "bevy_openra_imported_replay_reducer_claimed": true,
+        "bevy_openra_order_payload_codec_claimed": true,
+        "bevy_openra_order_payload_decoder_claimed": true,
+        "bevy_openra_native_order_payload_decoder_claimed": false,
+        "bevy_openra_replay_envelope_importer_claimed": true,
+        "bevy_openra_replay_summary_adapter_claimed": true,
+        "bevy_openra_binary_replay_compatible": false,
+        "bevy_openra_order_serializer_claimed": false,
+        "bevy_openra_network_order_stream_claimed": false,
+        "bevy_openra_replay_file_claimed": false,
+        "bevy_openra_headless_client_match_claimed": false,
+        "bevy_openra_runtime_parity_claimed": false,
+        "bevy_openra_parity_claimed": false,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "cex_runtime_player_client_allowed": false,
+        "wgpu_required": false,
+        "source_of_truth": "Classic RTS OpenRA imported replay repro manifest evidence reruns the imported replay audit ledger twice and compares path-independent stable summaries, ledger hashes, and negative-corpus hashes. It proves the imported replay ledger is reproducible across regeneration while claiming only Trillionnium-owned local reproducibility evidence; OpenRA binary replay compatibility, native OpenRA OrderIO payload decoding, network order streams, OpenRA runtime parity, and public launch readiness remain explicitly unclaimed."
+    }))
+    .expect("classic RTS OpenRA imported replay repro manifest evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
