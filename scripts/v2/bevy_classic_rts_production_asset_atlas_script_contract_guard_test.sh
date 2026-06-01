@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh"
+SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
+RELEASE_CI="$ROOT/scripts/check_trillionnium_world_release_review_ci_gate.sh"
+READINESS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
+
+test -x "$SCRIPT"
+
+required_script_lines=(
+  'classic-rts-production-asset-atlas'
+  'bevy-classic-rts-production-asset-atlas.json'
+  'bevy-classic-rts-production-asset-atlas.ppm'
+  'trillionnium_world_bevy_classic_rts_production_asset_atlas_v1'
+  'trillionnium_world_bevy_runtime_texture_asset_v1'
+  'production_asset_atlas_gate == true'
+  'runtime_texture_asset_gate == true'
+  'no_copy_boundary_gate == true'
+  'warcraft_iii_asset_copied == false'
+  'openra_asset_copied == false'
+  'third_party_asset_copied == false'
+  'final_external_bitmap_art_shipped == false'
+  'production_ready_art_shipped == false'
+  'gpu_upload_claimed == false'
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_GREEN'
+)
+
+for line in "${required_script_lines[@]}"; do
+  if ! grep -Fq "$line" "$SCRIPT"; then
+    echo "[FAIL] missing production asset atlas script line: $line" >&2
+    exit 1
+  fi
+done
+
+required_source_lines=(
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_CONTRACT'
+  'native_classic_rts_production_asset_atlas_evidence_json'
+  'TRNM NATIVE PRODUCTION ASSET ATLAS'
+  'native_runtime_texture_asset_evidence_json'
+  'runtime_texture_asset_gate'
+  'texture_atlas_binding_gate'
+  'production_asset_atlas_preview_gate'
+  'production_asset_atlas_gate'
+  'no_copy_boundary_gate'
+  'final_external_bitmap_art_shipped'
+  'production_ready_art_shipped'
+  'warcraft_iii_asset_copied'
+  'openra_asset_copied'
+  'third_party_asset_copied'
+  'original Trillionnium replacement slots'
+)
+
+for line in "${required_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+    echo "[FAIL] missing production asset atlas source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_readiness_lines=(
+  'check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh'
+  'rts_production_asset_atlas'
+  'classic_rts_production_asset_atlas_green'
+  'bevy-classic-rts-production-asset-atlas.json'
+)
+
+for line in "${required_readiness_lines[@]}"; do
+  if ! grep -Fq "$line" "$READINESS"; then
+    echo "[FAIL] missing production asset atlas readiness line: $line" >&2
+    exit 1
+  fi
+done
+
+required_ci_lines=(
+  'check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh'
+  'bevy_classic_rts_production_asset_atlas_script_contract_guard_test.sh'
+  'bevy_classic_rts_production_asset_atlas_gate'
+  'trillionnium_world_bevy_classic_rts_production_asset_atlas_v1'
+)
+
+for line in "${required_ci_lines[@]}"; do
+  if ! grep -Fq "$line" "$RELEASE_CI"; then
+    echo "[FAIL] missing production asset atlas release CI line: $line" >&2
+    exit 1
+  fi
+done
+
+echo "[PASS] classic RTS production asset atlas gate remains connected to Rust CLI, runtime texture asset evidence, playtest readiness, no-copy policy, and release-review CI"

@@ -236,6 +236,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_visual_fidelity_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ART_REPLICATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_production_art_replication_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_production_asset_atlas_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -18394,6 +18396,548 @@ pub fn native_classic_rts_production_art_replication_evidence_json(preview_path:
         "source_of_truth": "This evidence converts the existing authored art pack, map/UI modeling readiness, and visual fidelity work into a production-art replication board: all major RTS surface families have original replacement slots, source gates, pixel-counted preview coverage, and explicit no-copy boundaries while still not claiming final external bitmap art or public launch readiness."
     }))
     .expect("classic RTS production art replication evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_production_asset_atlas_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 1280;
+    const PANEL_HEIGHT: usize = 768;
+    const BACKGROUND_COLOR: u32 = 0x080c0b;
+    const ATLAS_BOARD_COLOR: u32 = 0x121d19;
+    const ATLAS_EDGE_COLOR: u32 = 0x52876e;
+    const TERRAIN_COLOR: u32 = 0x477b54;
+    const ROAD_COLOR: u32 = 0x806e4e;
+    const WATER_COLOR: u32 = 0x356d92;
+    const FOLIAGE_COLOR: u32 = 0x4aa15e;
+    const BUILDING_COLOR: u32 = 0xa4895a;
+    const PLAYER_UNIT_COLOR: u32 = 0x92d979;
+    const ENEMY_UNIT_COLOR: u32 = 0xd66a63;
+    const NEUTRAL_UNIT_COLOR: u32 = 0xcba85a;
+    const HUD_ICON_COLOR: u32 = 0x62c8dc;
+    const FEEDBACK_COLOR: u32 = 0xd177e8;
+    const BINDING_LANE_COLOR: u32 = 0x22312c;
+    const UV_RECT_COLOR: u32 = 0xe7f4bb;
+
+    let source_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("bevy-classic-rts-production-asset-atlas-sources");
+    let _ = fs::create_dir_all(&source_dir);
+    let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
+    let production_replication_preview =
+        source_path("bevy-classic-rts-production-art-replication.ppm");
+    let authored_atlas_path = source_path("bevy-authored-sprite-sheet.ppm");
+    let authored_manifest_path = source_path("bevy-authored-sprite-sheet-manifest.json");
+    let authored_binding_path = source_path("bevy-authored-texture-atlas-binding-manifest.json");
+    let authored_consumption_path = source_path("bevy-authored-material-consumption-manifest.json");
+    let authored_application_path = source_path("bevy-authored-material-application-manifest.json");
+    let runtime_asset_path = source_path("bevy-runtime-texture-asset-manifest.json");
+
+    let production_replication: Value = serde_json::from_str(
+        &native_classic_rts_production_art_replication_evidence_json(
+            &production_replication_preview,
+        ),
+    )
+    .expect("production art replication evidence parses for production asset atlas");
+    let sprite_sheet: Value =
+        serde_json::from_str(&native_authored_sprite_sheet_artifact_evidence_json(
+            "local-player",
+            &authored_atlas_path,
+            &authored_manifest_path,
+        ))
+        .expect("authored sprite sheet evidence parses for production asset atlas");
+    let texture_binding: Value =
+        serde_json::from_str(&native_authored_texture_atlas_binding_evidence_json(
+            "local-player",
+            &authored_atlas_path,
+            &authored_manifest_path,
+            &authored_binding_path,
+        ))
+        .expect("authored texture atlas binding evidence parses for production asset atlas");
+    let runtime_texture_asset: Value =
+        serde_json::from_str(&native_runtime_texture_asset_evidence_json(
+            "local-player",
+            &authored_atlas_path,
+            &authored_manifest_path,
+            &authored_binding_path,
+            &authored_consumption_path,
+            &authored_application_path,
+            &runtime_asset_path,
+        ))
+        .expect("runtime texture asset evidence parses for production asset atlas");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let pointer_bool_at = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    };
+    let u64_at =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let string_at = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let array_contains = |value: &Value, pointer: &str, expected: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+
+    let frame_count = u64_at(&runtime_texture_asset, "/frame_count");
+    let sprite_binding_count = u64_at(&runtime_texture_asset, "/sprite_binding_count");
+    let material_asset_count = u64_at(&runtime_texture_asset, "/material_asset_count");
+    let atlas_bytes = u64_at(&runtime_texture_asset, "/atlas_bytes");
+    let runtime_asset_bytes = u64_at(&runtime_texture_asset, "/runtime_asset_bytes");
+    let production_family_count = u64_at(&production_replication, "/production_family_count");
+    let authored_surface_count = u64_at(&production_replication, "/authored_surface_count");
+    let authored_export_ready_count =
+        u64_at(&production_replication, "/authored_export_ready_count");
+    let texture_scene_layers = ["map", "hud", "actor", "feedback"]
+        .iter()
+        .all(|layer| array_contains(&runtime_texture_asset, "/scene_layers", layer));
+    let texture_material_slots = [
+        "world_tile_material",
+        "hud_icon_material",
+        "actor_sprite_material",
+        "feedback_glyph_material",
+    ]
+    .iter()
+    .all(|slot| array_contains(&runtime_texture_asset, "/material_slots", slot));
+    let binding_runtime_targets = [
+        "map_tile_renderer",
+        "hud_renderer",
+        "actor_renderer",
+        "feedback_renderer",
+    ]
+    .iter()
+    .all(|target| array_contains(&texture_binding, "/runtime_targets", target));
+    let binding_replacement_slots = [
+        "tile_sprite_slot",
+        "hud_icon_slot",
+        "hud_glyph_slot",
+        "actor_sprite_slot",
+        "actor_shadow_slot",
+        "actor_badge_slot",
+        "feedback_glyph_slot",
+    ]
+    .iter()
+    .all(|slot| array_contains(&texture_binding, "/replacement_slots", slot));
+
+    let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        720,
+        ATLAS_BOARD_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        4,
+        ATLAS_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        740,
+        1232,
+        4,
+        ATLAS_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        4,
+        720,
+        ATLAS_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1252,
+        24,
+        4,
+        720,
+        ATLAS_EDGE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        46,
+        "TRNM NATIVE PRODUCTION ASSET ATLAS",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        84,
+        "SPRITE SHEET + TEXTURE ATLAS + RUNTIME MATERIAL BINDINGS",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        106,
+        "ORIGINAL PROJECT-OWNED REPLACEMENT TARGETS; NO OPENRA/WARCRAFT/THIRD-PARTY COPY",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let families = [
+        ("TERRAIN TILES", TERRAIN_COLOR, "tile_sprite_slot"),
+        ("ROAD TILES", ROAD_COLOR, "tile_sprite_slot"),
+        ("WATER TILES", WATER_COLOR, "tile_sprite_slot"),
+        ("FOLIAGE", FOLIAGE_COLOR, "tile_sprite_slot"),
+        ("BUILDINGS", BUILDING_COLOR, "tile_sprite_slot"),
+        ("PLAYER UNITS", PLAYER_UNIT_COLOR, "actor_sprite_slot"),
+        ("ENEMY UNITS", ENEMY_UNIT_COLOR, "actor_sprite_slot"),
+        ("NEUTRAL UNITS", NEUTRAL_UNIT_COLOR, "actor_badge_slot"),
+        ("HUD ICONS", HUD_ICON_COLOR, "hud_icon_slot"),
+        ("FEEDBACK VFX", FEEDBACK_COLOR, "feedback_glyph_slot"),
+    ];
+    for (index, (label, color, replacement_slot)) in families.iter().enumerate() {
+        let col = (index % 5) as i32;
+        let row = (index / 5) as i32;
+        let x = 48 + col * 238;
+        let y = 140 + row * 210;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            214,
+            178,
+            0x0d1412,
+        );
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 214, 4, *color);
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 14,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 34,
+            replacement_slot,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        for sample in 0..8_i32 {
+            let sx = x + 18 + (sample % 4) * 44;
+            let sy = y + 62 + (sample / 4) * 48;
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx,
+                sy,
+                32,
+                32,
+                *color,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 5,
+                sy + 5,
+                22,
+                7,
+                UV_RECT_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 4,
+                sy + 25,
+                24,
+                3,
+                ATLAS_EDGE_COLOR,
+            );
+        }
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 18,
+            y + 158,
+            178,
+            6,
+            BINDING_LANE_COLOR,
+        );
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        585,
+        1184,
+        112,
+        0x0e1714,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        604,
+        "RUNTIME ATLAS BINDING LANE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for slot in 0..32_i32 {
+        let x = 68 + (slot % 16) * 70;
+        let y = 632 + (slot / 16) * 28;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            48,
+            18,
+            BINDING_LANE_COLOR,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 4,
+            y + 4,
+            18,
+            10,
+            if slot % 4 == 0 {
+                TERRAIN_COLOR
+            } else if slot % 4 == 1 {
+                HUD_ICON_COLOR
+            } else if slot % 4 == 2 {
+                PLAYER_UNIT_COLOR
+            } else {
+                FEEDBACK_COLOR
+            },
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 27,
+            y + 4,
+            14,
+            10,
+            UV_RECT_COLOR,
+        );
+    }
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        686,
+        "HOST-SIDE BEVY IMAGE + TEXTUREATLASLAYOUT + MATERIAL HANDLES; GPU/DEVICE CLAIMS REMAIN FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &pixels).is_ok();
+    let count_color =
+        |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let atlas_board_pixel_count = count_color(ATLAS_BOARD_COLOR) + count_color(ATLAS_EDGE_COLOR);
+    let terrain_tile_pixel_count = count_color(TERRAIN_COLOR);
+    let road_tile_pixel_count = count_color(ROAD_COLOR);
+    let water_tile_pixel_count = count_color(WATER_COLOR);
+    let foliage_sprite_pixel_count = count_color(FOLIAGE_COLOR);
+    let building_sprite_pixel_count = count_color(BUILDING_COLOR);
+    let player_unit_sprite_pixel_count = count_color(PLAYER_UNIT_COLOR);
+    let enemy_unit_sprite_pixel_count = count_color(ENEMY_UNIT_COLOR);
+    let neutral_unit_sprite_pixel_count = count_color(NEUTRAL_UNIT_COLOR);
+    let hud_icon_pixel_count = count_color(HUD_ICON_COLOR);
+    let feedback_vfx_pixel_count = count_color(FEEDBACK_COLOR);
+    let runtime_binding_lane_pixel_count = count_color(BINDING_LANE_COLOR);
+    let uv_rect_pixel_count = count_color(UV_RECT_COLOR);
+
+    let production_art_replication_gate = bool_at(&production_replication, "green")
+        && bool_at(&production_replication, "production_art_replication_gate")
+        && bool_at(&production_replication, "no_copy_boundary_gate")
+        && production_family_count >= 9
+        && authored_surface_count >= 120
+        && authored_export_ready_count == authored_surface_count;
+    let sprite_sheet_gate = bool_at(&sprite_sheet, "green")
+        && bool_at(&sprite_sheet, "frame_count_gate")
+        && bool_at(&sprite_sheet, "frame_asset_kind_gate")
+        && bool_at(&sprite_sheet, "frame_layer_gate")
+        && bool_at(&sprite_sheet, "frame_slot_gate")
+        && u64_at(&sprite_sheet, "/frame_count") >= 32
+        && u64_at(&sprite_sheet, "/atlas_bytes") > 50_000;
+    let texture_atlas_binding_gate = bool_at(&texture_binding, "green")
+        && bool_at(&texture_binding, "binding_count_gate")
+        && bool_at(&texture_binding, "runtime_target_gate")
+        && bool_at(&texture_binding, "material_slot_gate")
+        && bool_at(&texture_binding, "replacement_slot_gate")
+        && binding_runtime_targets
+        && binding_replacement_slots;
+    let runtime_texture_asset_gate = bool_at(&runtime_texture_asset, "green")
+        && bool_at(&runtime_texture_asset, "runtime_image_descriptor_gate")
+        && bool_at(&runtime_texture_asset, "texture_atlas_layout_gate")
+        && bool_at(&runtime_texture_asset, "material_handle_gate")
+        && bool_at(&runtime_texture_asset, "sprite_binding_gate")
+        && bool_at(&runtime_texture_asset, "scene_layer_asset_gate")
+        && texture_scene_layers
+        && texture_material_slots
+        && frame_count >= 32
+        && sprite_binding_count >= 32
+        && material_asset_count == 4
+        && atlas_bytes > 50_000
+        && runtime_asset_bytes > 8_192
+        && !bool_at(&runtime_texture_asset, "gpu_upload_claimed")
+        && !bool_at(&runtime_texture_asset, "android_s5_real_device_claimed");
+    let production_asset_atlas_preview_gate = write_gate
+        && atlas_board_pixel_count > 80_000
+        && terrain_tile_pixel_count > 1_500
+        && road_tile_pixel_count > 1_500
+        && water_tile_pixel_count > 1_500
+        && foliage_sprite_pixel_count > 1_500
+        && building_sprite_pixel_count > 1_500
+        && player_unit_sprite_pixel_count > 1_500
+        && enemy_unit_sprite_pixel_count > 1_500
+        && neutral_unit_sprite_pixel_count > 1_500
+        && hud_icon_pixel_count > 2_000
+        && feedback_vfx_pixel_count > 1_500
+        && runtime_binding_lane_pixel_count > 8_000
+        && uv_rect_pixel_count > 6_000;
+    let no_copy_boundary_gate = bool_at(&production_replication, "no_copy_boundary_gate")
+        && !bool_at(&production_replication, "warcraft_iii_asset_copied")
+        && !bool_at(&production_replication, "openra_asset_copied")
+        && !bool_at(&production_replication, "third_party_asset_copied")
+        && string_at(&sprite_sheet, "/asset_boundary").contains("project_owned")
+        && string_at(&texture_binding, "/asset_boundary").contains("generated_local_ppm")
+        && string_at(&runtime_texture_asset, "/asset_boundary")
+            .contains("texture_atlas_handle_registration")
+        && !bool_at(&runtime_texture_asset, "gpu_upload_claimed")
+        && !bool_at(&runtime_texture_asset, "android_s5_real_device_claimed")
+        && !pointer_bool_at(
+            &runtime_texture_asset,
+            "/image_asset_descriptor/gpu_upload_claimed",
+        );
+    let production_asset_atlas_gate = production_art_replication_gate
+        && sprite_sheet_gate
+        && texture_atlas_binding_gate
+        && runtime_texture_asset_gate
+        && production_asset_atlas_preview_gate;
+    let green = production_asset_atlas_gate && no_copy_boundary_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "source_dir": source_dir.to_string_lossy(),
+        "source_contracts": {
+            "production_art_replication": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ART_REPLICATION_CONTRACT,
+            "authored_sprite_sheet": TRILLIONNIUM_WORLD_BEVY_AUTHORED_SPRITE_SHEET_ARTIFACT_CONTRACT,
+            "authored_texture_atlas_binding": TRILLIONNIUM_WORLD_BEVY_AUTHORED_TEXTURE_ATLAS_BINDING_CONTRACT,
+            "runtime_texture_asset": TRILLIONNIUM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_CONTRACT
+        },
+        "source_paths": {
+            "production_replication_preview": production_replication_preview,
+            "authored_atlas": authored_atlas_path,
+            "authored_manifest": authored_manifest_path,
+            "authored_binding": authored_binding_path,
+            "authored_consumption": authored_consumption_path,
+            "authored_application": authored_application_path,
+            "runtime_asset": runtime_asset_path
+        },
+        "production_family_count": production_family_count,
+        "authored_surface_count": authored_surface_count,
+        "authored_export_ready_count": authored_export_ready_count,
+        "atlas_frame_count": frame_count,
+        "sprite_binding_count": sprite_binding_count,
+        "material_asset_count": material_asset_count,
+        "atlas_bytes": atlas_bytes,
+        "runtime_asset_bytes": runtime_asset_bytes,
+        "runtime_scene_layers": sample_pointer_value(&runtime_texture_asset, "/scene_layers"),
+        "runtime_material_slots": sample_pointer_value(&runtime_texture_asset, "/material_slots"),
+        "binding_runtime_targets": sample_pointer_value(&texture_binding, "/runtime_targets"),
+        "binding_replacement_slots": sample_pointer_value(&texture_binding, "/replacement_slots"),
+        "atlas_family_names": families.iter().map(|(label, _, _)| *label).collect::<Vec<_>>(),
+        "atlas_family_count": families.len(),
+        "atlas_board_pixel_count": atlas_board_pixel_count,
+        "terrain_tile_pixel_count": terrain_tile_pixel_count,
+        "road_tile_pixel_count": road_tile_pixel_count,
+        "water_tile_pixel_count": water_tile_pixel_count,
+        "foliage_sprite_pixel_count": foliage_sprite_pixel_count,
+        "building_sprite_pixel_count": building_sprite_pixel_count,
+        "player_unit_sprite_pixel_count": player_unit_sprite_pixel_count,
+        "enemy_unit_sprite_pixel_count": enemy_unit_sprite_pixel_count,
+        "neutral_unit_sprite_pixel_count": neutral_unit_sprite_pixel_count,
+        "hud_icon_pixel_count": hud_icon_pixel_count,
+        "feedback_vfx_pixel_count": feedback_vfx_pixel_count,
+        "runtime_binding_lane_pixel_count": runtime_binding_lane_pixel_count,
+        "uv_rect_pixel_count": uv_rect_pixel_count,
+        "production_art_replication_gate": production_art_replication_gate,
+        "sprite_sheet_gate": sprite_sheet_gate,
+        "texture_atlas_binding_gate": texture_atlas_binding_gate,
+        "runtime_texture_asset_gate": runtime_texture_asset_gate,
+        "production_asset_atlas_preview_gate": production_asset_atlas_preview_gate,
+        "production_asset_atlas_gate": production_asset_atlas_gate,
+        "no_copy_boundary_gate": no_copy_boundary_gate,
+        "original_art_policy_gate": no_copy_boundary_gate,
+        "source_art_policy": "The production asset atlas is a deterministic Rust/Bevy evidence board for original Trillionnium replacement slots, generated sprite-sheet frames, texture-atlas UV bindings, and host-side runtime material handles. It forbids copied OpenRA, Warcraft III, and third-party art.",
+        "license_boundary": "project_owned_internal_placeholder_to_original_production_replacement_slots_not_final_external_bitmap_ship_claim",
+        "final_external_bitmap_art_shipped": false,
+        "production_ready_art_shipped": false,
+        "public_launch_ready": false,
+        "android_s5_real_device_claimed": false,
+        "gpu_upload_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "source_of_truth": "This gate turns production art replication into a concrete native asset-atlas handoff: a previewed family atlas, generated sprite sheet, texture-atlas binding manifest, and Bevy runtime texture/material handle manifest must all agree before the release-review gate can pass."
+    }))
+    .expect("classic RTS production asset atlas evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
