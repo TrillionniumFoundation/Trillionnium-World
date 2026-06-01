@@ -162,6 +162,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_imported_replay_repro_manifest.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_imported_replay_artifact_bundle.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_imported_replay_review_capsule.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_imported_replay_review_receipt.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_replay_reducer.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_headless_comparison_harness.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_action_executor.sh" \
@@ -314,6 +315,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_imported_replay_repro_manifest_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_imported_replay_artifact_bundle_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_imported_replay_review_capsule_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_openra_imported_replay_review_receipt_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_order_replay_reducer_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_headless_comparison_harness_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_bot_planner_action_executor_script_contract_guard_test.sh" \
@@ -442,6 +444,7 @@ run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_b
 # Bevy classic OpenRA imported replay repro manifest contract: trillionnium_world_bevy_classic_rts_openra_imported_replay_repro_manifest_v1
 # Bevy classic OpenRA imported replay artifact bundle contract: trillionnium_world_bevy_classic_rts_openra_imported_replay_artifact_bundle_v1
 # Bevy classic OpenRA imported replay review capsule contract: trillionnium_world_bevy_classic_rts_openra_imported_replay_review_capsule_v1
+# Bevy classic OpenRA imported replay review receipt contract: trillionnium_world_bevy_classic_rts_openra_imported_replay_review_receipt_v1
 # Bevy classic OpenRA order replay reducer contract: trillionnium_world_bevy_classic_rts_openra_order_replay_reducer_v1
 # Bevy classic OpenRA headless comparison harness contract: trillionnium_world_bevy_classic_rts_openra_headless_comparison_harness_v1
 # Bevy classic planner live autonomous bot loop contract: trillionnium_world_bevy_classic_rts_planner_live_autonomous_bot_loop_v1
@@ -614,6 +617,8 @@ run_check bevy_classic_rts_openra_imported_replay_artifact_bundle_contract_guard
 run_check bevy_classic_rts_openra_imported_replay_artifact_bundle_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_imported_replay_artifact_bundle.sh"
 run_check bevy_classic_rts_openra_imported_replay_review_capsule_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_imported_replay_review_capsule_script_contract_guard_test.sh"
 run_check bevy_classic_rts_openra_imported_replay_review_capsule_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_imported_replay_review_capsule.sh"
+run_check bevy_classic_rts_openra_imported_replay_review_receipt_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_imported_replay_review_receipt_script_contract_guard_test.sh"
+run_check bevy_classic_rts_openra_imported_replay_review_receipt_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_imported_replay_review_receipt.sh"
 run_check bevy_classic_rts_openra_order_replay_reducer_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_order_replay_reducer_script_contract_guard_test.sh"
 run_check bevy_classic_rts_openra_order_replay_reducer_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_replay_reducer.sh"
 run_check bevy_classic_rts_openra_headless_comparison_harness_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_headless_comparison_harness_script_contract_guard_test.sh"
