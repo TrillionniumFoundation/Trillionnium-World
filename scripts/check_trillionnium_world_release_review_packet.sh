@@ -187,6 +187,7 @@ artifact native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "
 artifact native_bevy_classic_playtest_readiness "Native/Bevy classic playtest readiness" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json" release_review_input
 artifact native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" release_review_input
 artifact native_bevy_classic_rts_full_screen_ui_replication "Native/Bevy classic RTS full screen/UI replication" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-screen-ui-replication.json" release_review_input
+artifact native_bevy_classic_rts_shell_meta_ui_replication "Native/Bevy classic RTS shell/meta UI replication" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-meta-ui-replication.json" release_review_input
 artifact native_bevy_classic_rts_production_desktop_review_packet "Native/Bevy classic RTS production desktop review packet" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-desktop-review-packet.json" release_review_input
 artifact cex_adapter_readiness "CEX production world adapter readiness" "$ROOT/acceptance/S3_repository_adapter/latest/cex-production-adapter-readiness.json" release_review_input
 artifact s5_real_device_evidence "S5 real-device evidence validation" "$ROOT/acceptance/S5_native_bevy_device/latest/s5-real-device-evidence-validation.json" release_review_input
