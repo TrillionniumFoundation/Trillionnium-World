@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
-
 packet_json="$TMP_DIR/release-review-packet.json"
 packet_md="$TMP_DIR/release-review-packet.md"
 packet_log="$TMP_DIR/release-review-packet.log"
 summary_json="$TMP_DIR/release-review-packet-integrity.json"
 artifacts_jsonl="$TMP_DIR/artifacts.jsonl"
-
 add_artifact_from_path() {
   local id="$1"
   local label="$2"
@@ -20,14 +17,12 @@ add_artifact_from_path() {
   local artifact_bytes
   local contract_version=""
   local status=""
-
   artifact_sha="$(sha256sum "$artifact_path" | awk '{print $1}')"
   artifact_bytes="$(wc -c <"$artifact_path" | tr -d ' ')"
   if [[ "$artifact_path" == *.json ]]; then
     contract_version="$(jq -r '.contract_version // empty' "$artifact_path" 2>/dev/null || true)"
     status="$(jq -r '.status // .overall_status // empty' "$artifact_path" 2>/dev/null || true)"
   fi
-
   jq -nc \
     --arg id "$id" \
     --arg label "$label" \
@@ -49,7 +44,6 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-
 for index in $(seq 1 52); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
@@ -57,7 +51,6 @@ for index in $(seq 1 52); do
     '{contract_version: "fixture_contract_v1", status: "fixture_green", payload: $id}' >"$artifact_path"
   add_artifact_from_path "fixture_${index}" "fixture_${index}" "$artifact_path" fixture
 done
-
 semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1",
@@ -65,7 +58,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -83,7 +76,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_semantic_fixture "Release review packet integrity semantic fixture" "$semantic_fixture_json" release_review_gate
-
 bot_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture_v1",
@@ -91,7 +83,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -114,7 +106,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$bot_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_bot_executor_semantic_fixture "Release review packet integrity bot executor semantic fixture" "$bot_semantic_fixture_json" release_review_gate
-
 bot_matrix_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture_v1",
@@ -122,7 +113,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -139,7 +130,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$bot_matrix_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_bot_executor_matrix_semantic_fixture "Release review packet integrity bot executor failure/recovery matrix semantic fixture" "$bot_matrix_semantic_fixture_json" release_review_gate
-
 bot_gap_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture_v1",
@@ -147,7 +137,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -169,7 +159,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$bot_gap_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_bot_gap_semantic_fixture "Release review packet integrity bot gap semantic fixture" "$bot_gap_semantic_fixture_json" release_review_gate
-
 control_loop_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-control-loop-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_control_loop_semantic_fixture_v1",
@@ -177,7 +166,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -193,7 +182,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$control_loop_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_control_loop_semantic_fixture "Release review packet integrity selection/minimap semantic fixture" "$control_loop_semantic_fixture_json" release_review_gate
-
 control_loop_json="$TMP_DIR/bevy-classic-rts-control-loop.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_rts_control_loop_v1",
@@ -243,12 +231,10 @@ jq -n '{
   wgpu_required: false
 }' >"$control_loop_json"
 add_artifact_from_path native_bevy_classic_rts_control_loop "Native/Bevy classic RTS control loop" "$control_loop_json" release_review_input
-
 control_loop_ppm="$TMP_DIR/bevy-classic-rts-control-loop.ppm"
 printf 'P3\n1280 360\n255\n' >"$control_loop_ppm"
 truncate -s 4000001 "$control_loop_ppm"
 add_artifact_from_path native_bevy_classic_rts_control_loop_ppm "Native/Bevy classic RTS control loop PPM" "$control_loop_ppm" release_review_visual_evidence
-
 selection_minimap_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-selection-minimap-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture_v1",
@@ -256,7 +242,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_selection_minimap_semantics",
@@ -272,7 +258,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$selection_minimap_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_selection_minimap_semantic_fixture "Release review packet integrity selection/minimap semantic fixture" "$selection_minimap_semantic_fixture_json" release_review_gate
-
 selection_minimap_json="$TMP_DIR/bevy-classic-rts-selection-minimap.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_rts_selection_minimap_v1",
@@ -309,14 +294,10 @@ jq -n '{
   wgpu_required: false
 }' >"$selection_minimap_json"
 add_artifact_from_path native_bevy_classic_rts_selection_minimap "Native/Bevy classic RTS selection/minimap" "$selection_minimap_json" release_review_input
-
 selection_minimap_ppm="$TMP_DIR/bevy-classic-rts-selection-minimap.ppm"
 printf 'P3\n1280 720\n255\n' >"$selection_minimap_ppm"
 truncate -s 8000001 "$selection_minimap_ppm"
 add_artifact_from_path native_bevy_classic_rts_selection_minimap_ppm "Native/Bevy classic RTS selection/minimap PPM" "$selection_minimap_ppm" release_review_visual_evidence
-
-
-
 build_lifecycle_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-build-lifecycle-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture_v1",
@@ -324,7 +305,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_build_lifecycle_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_build_lifecycle_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_build_lifecycle_semantics",
@@ -340,7 +321,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$build_lifecycle_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_build_lifecycle_semantic_fixture "Release review packet integrity build lifecycle semantic fixture" "$build_lifecycle_semantic_fixture_json" release_review_gate
-
 build_lifecycle_json="$TMP_DIR/bevy-classic-rts-build-lifecycle.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_rts_build_lifecycle_v1",
@@ -381,12 +361,10 @@ jq -n '{
   wgpu_required: false
 }' >"$build_lifecycle_json"
 add_artifact_from_path native_bevy_classic_rts_build_lifecycle "Native/Bevy classic RTS build lifecycle" "$build_lifecycle_json" release_review_input
-
 build_lifecycle_ppm="$TMP_DIR/bevy-classic-rts-build-lifecycle.ppm"
 printf 'P3\n640 360\n255\n' >"$build_lifecycle_ppm"
 truncate -s 1000001 "$build_lifecycle_ppm"
 add_artifact_from_path native_bevy_classic_rts_build_lifecycle_ppm "Native/Bevy classic RTS build lifecycle PPM" "$build_lifecycle_ppm" release_review_visual_evidence
-
 tech_tree_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-tech-tree-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture_v1",
@@ -394,7 +372,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_tech_tree_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_tech_tree_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_tech_tree_semantics",
@@ -410,7 +388,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$tech_tree_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_tech_tree_semantic_fixture "Release review packet integrity tech tree semantic fixture" "$tech_tree_semantic_fixture_json" release_review_gate
-
 tech_tree_json="$TMP_DIR/bevy-classic-rts-tech-tree.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_rts_tech_tree_v1",
@@ -449,12 +426,10 @@ jq -n '{
   wgpu_required: false
 }' >"$tech_tree_json"
 add_artifact_from_path native_bevy_classic_rts_tech_tree "Native/Bevy classic RTS tech tree" "$tech_tree_json" release_review_input
-
 tech_tree_ppm="$TMP_DIR/bevy-classic-rts-tech-tree.ppm"
 printf 'P3\n1280 1080\n255\n' >"$tech_tree_ppm"
 truncate -s 8000001 "$tech_tree_ppm"
 add_artifact_from_path native_bevy_classic_rts_tech_tree_ppm "Native/Bevy classic RTS tech tree PPM" "$tech_tree_ppm" release_review_visual_evidence
-
 projectile_ability_semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-projectile-ability-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture_v1",
@@ -462,7 +437,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_projectile_ability_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_projectile_ability_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 99,
+  fake_packet_artifact_count: 100,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: ["classic_rts_projectile_ability_semantics", "classic_rts_projectile_ability_ppm_semantics"],
   checksum_mismatch_failure_count: 0,
@@ -475,7 +450,6 @@ jq -n '{
   proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"
 }' >"$projectile_ability_semantic_fixture_json"
 add_artifact_from_path release_review_packet_integrity_projectile_ability_semantic_fixture "Release review packet integrity projectile/ability semantic fixture" "$projectile_ability_semantic_fixture_json" release_review_gate
-
 projectile_ability_json="$TMP_DIR/bevy-classic-rts-projectile-ability.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_rts_projectile_ability_v1",
@@ -516,12 +490,10 @@ jq -n '{
   wgpu_required: false
 }' >"$projectile_ability_json"
 add_artifact_from_path native_bevy_classic_rts_projectile_ability "Native/Bevy classic RTS projectile/ability" "$projectile_ability_json" release_review_input
-
 projectile_ability_ppm="$TMP_DIR/bevy-classic-rts-projectile-ability.ppm"
 printf 'P3\n641 360\n255\n' >"$projectile_ability_ppm"
 truncate -s 1000001 "$projectile_ability_ppm"
 add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Bevy classic RTS projectile/ability PPM" "$projectile_ability_ppm" release_review_visual_evidence
-
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" >"$TMP_DIR/first-minute-command-feedback-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_rejection_replay.sh" >"$TMP_DIR/first-minute-command-feedback-rejection-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_action_executor.sh" >"$TMP_DIR/bot-planner-action-executor.log"
@@ -532,7 +504,6 @@ add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Be
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$TMP_DIR/bot-adaptive-build-order-gap.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$TMP_DIR/bot-tactical-micro-gap.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >"$TMP_DIR/bot-map-intel-gap.log"
-
 native_dir="$ROOT/acceptance/S5_native_bevy_device/latest"
 add_artifact_from_path native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$native_dir/bevy-first-minute-command-feedback-replay.json" release_review_input
 add_artifact_from_path native_bevy_first_minute_command_feedback_source_recording "Native/Bevy first-minute command feedback source recording" "$native_dir/bevy-first-minute-command-feedback-source-recording.json" release_review_recording
@@ -542,7 +513,6 @@ add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_repla
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_source_recording "Native/Bevy first-minute command feedback rejection source recording" "$native_dir/bevy-first-minute-command-feedback-rejection-source-recording.json" release_review_recording
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_recording "Native/Bevy first-minute command feedback rejection recording" "$native_dir/bevy-first-minute-command-feedback-rejection-recording.json" release_review_recording
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay_ppm "Native/Bevy first-minute command feedback rejection replay PPM" "$native_dir/bevy-first-minute-command-feedback-rejection-replay.ppm" release_review_visual_evidence
-
 add_artifact_from_path native_bevy_bot_planner_action_executor "Native/Bevy bot planner action executor" "$native_dir/bevy-classic-rts-bot-planner-action-executor.json" release_review_input
 add_artifact_from_path native_bevy_bot_planner_action_executor_log "Native/Bevy bot planner action executor log" "$native_dir/bevy-classic-rts-bot-planner-action-executor/bot-planner-action-executor.actions.json" release_review_recording
 add_artifact_from_path native_bevy_bot_planner_action_executor_ppm "Native/Bevy bot planner action executor PPM" "$native_dir/bevy-classic-rts-bot-planner-action-executor/bot-planner-action-executor.ppm" release_review_visual_evidence
@@ -552,11 +522,9 @@ add_artifact_from_path native_bevy_bot_planner_executor_replay_determinism_ppm "
 add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation "Native/Bevy multi-match bot executor evaluation" "$native_dir/bevy-classic-rts-multi-match-bot-executor-evaluation.json" release_review_input
 add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_log "Native/Bevy multi-match bot executor evaluation log" "$native_dir/bevy-classic-rts-multi-match-bot-executor-evaluation/multi-match-bot-executor-evaluation.matches.json" release_review_recording
 add_artifact_from_path native_bevy_multi_match_bot_executor_evaluation_ppm "Native/Bevy multi-match bot executor evaluation PPM" "$native_dir/bevy-classic-rts-multi-match-bot-executor-evaluation/multi-match-bot-executor-evaluation.ppm" release_review_visual_evidence
-
 add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix "Native/Bevy bot executor failure recovery matrix" "$native_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix.json" release_review_input
 add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_log "Native/Bevy bot executor failure recovery matrix log" "$native_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix/bot-executor-failure-recovery-matrix.matrix.json" release_review_recording
 add_artifact_from_path native_bevy_bot_executor_failure_recovery_matrix_ppm "Native/Bevy bot executor failure recovery matrix PPM" "$native_dir/bevy-classic-rts-bot-executor-failure-recovery-matrix/bot-executor-failure-recovery-matrix.ppm" release_review_visual_evidence
-
 add_artifact_from_path native_bevy_bot_decision_state_gap "Native/Bevy bot decision-state gap" "$native_dir/bevy-classic-rts-bot-decision-state-gap.json" release_review_input
 add_artifact_from_path native_bevy_bot_decision_state_gap_ppm "Native/Bevy bot decision-state gap PPM" "$native_dir/bevy-classic-rts-bot-decision-state-gap.ppm" release_review_visual_evidence
 add_artifact_from_path native_bevy_bot_adaptive_build_order_gap "Native/Bevy bot adaptive build-order gap" "$native_dir/bevy-classic-rts-bot-adaptive-build-order-gap.json" release_review_input
@@ -565,6 +533,9 @@ add_artifact_from_path native_bevy_bot_tactical_micro_gap "Native/Bevy bot tacti
 add_artifact_from_path native_bevy_bot_tactical_micro_gap_ppm "Native/Bevy bot tactical micro gap PPM" "$native_dir/bevy-classic-rts-bot-tactical-micro-gap.ppm" release_review_visual_evidence
 add_artifact_from_path native_bevy_bot_map_intel_gap "Native/Bevy bot map intel gap" "$native_dir/bevy-classic-rts-bot-map-intel-gap.json" release_review_input
 add_artifact_from_path native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "$native_dir/bevy-classic-rts-bot-map-intel-gap.ppm" release_review_visual_evidence
+production_desktop_review_packet_json="$TMP_DIR/bevy-classic-rts-production-desktop-review-packet.json"
+jq -n '{contract_version: "trillionnium_world_bevy_classic_rts_production_desktop_review_packet_v1", status: "classic_rts_production_desktop_review_packet_green", green: true, source_contracts: {production_interaction_polish: "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1", desktop_playtest_review_packet: "trillionnium_world_bevy_desktop_playtest_review_packet_v1", desktop_real_machine_readiness: "trillionnium_world_bevy_desktop_real_machine_readiness_v1"}, gates: {production_interaction_polish_gate: true, desktop_playtest_review_packet_gate: true, desktop_real_machine_readiness_gate: true, keyboard_visual_review_gate: true, mouse_visual_review_gate: true, artifact_manifest_gate: true, production_to_desktop_review_gate: true, desktop_before_mobile_gate: true, android_s5_real_device_not_claimed_gate: true, public_launch_not_claimed_gate: true}, production_review_summary: {interaction_surface_count: 6, drag_select_skin_pixel_count: 9980, right_click_move_skin_pixel_count: 9980, attack_lock_skin_pixel_count: 9980, build_ghost_skin_pixel_count: 9980, queue_path_skin_pixel_count: 9700, scroll_minimap_skin_pixel_count: 9700}, desktop_review_summary: {screenshot_frame_count: 11, keyboard_event_count: 13, mouse_event_count: 15, mouse_slot_a_bytes: 41520}, artifact_manifest: [{label: "production_interaction_polish", path: "fixture", sha256: "fixture", bytes: 1}, {label: "production_interaction_polish_preview", path: "fixture", sha256: "fixture", bytes: 1}, {label: "desktop_playtest_review_packet", path: "fixture", sha256: "fixture", bytes: 1}, {label: "desktop_real_machine_readiness", path: "fixture", sha256: "fixture", bytes: 1}, {label: "live_window_screenshot_sequence", path: "fixture", sha256: "fixture", bytes: 1}, {label: "live_window_mouse_hit_test_sequence", path: "fixture", sha256: "fixture", bytes: 1}], no_credit_boundaries: {android_s5_real_device_claimed: false, public_launch_ready_claimed: false, production_ready_desktop_review_shipped: false, desktop_review_scope: "local_linux_desktop_x11_window_keyboard_mouse_with_production_interaction_polish"}}' >"$production_desktop_review_packet_json"
+add_artifact_from_path native_bevy_classic_rts_production_desktop_review_packet "Native/Bevy classic RTS production desktop review packet" "$production_desktop_review_packet_json" release_review_input
 
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \
@@ -578,7 +549,6 @@ jq -n \
     missing_artifacts: [],
     artifacts: $artifacts
   }' >"$packet_json"
-
 {
   printf '# Fixture Packet\n\n'
   printf '## Still Requires Real External Evidence\n\n'
@@ -586,7 +556,6 @@ jq -n \
   printf '## Boundary\n\n'
   printf -- '- Native/Bevy replay, action coach, HUD/debug layer, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
 } >"$packet_md"
-
 set +e
 TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$packet_json" \
 TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_MD="$packet_md" \
@@ -595,19 +564,16 @@ TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SUMMARY="$summary_json" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" --no-refresh >"$TMP_DIR/stdout.log" 2>"$TMP_DIR/stderr.log"
 status=$?
 set -e
-
 if [[ "$status" -eq 0 ]]; then
   echo "[FAIL] packet integrity projectile/ability semantic fixture unexpectedly passed" >&2
   cat "$TMP_DIR/stdout.log" >&2
   cat "$TMP_DIR/stderr.log" >&2
   exit 1
 fi
-
 if [[ ! -f "$summary_json" ]]; then
   echo "[FAIL] packet integrity projectile/ability semantic fixture did not write summary" >&2
   exit 1
 fi
-
 jq -e '
 	  .status == "release_review_packet_integrity_blocked"
 	  and .green == false
@@ -619,5 +585,4 @@ jq -e '
 	  and (([.failures[].detail] | index("contract_mismatch")) == null)
 	  and (([.failures[].detail] | index("status_mismatch")) == null)
 	' "$summary_json" >/dev/null
-
 echo "[PASS] release review packet integrity rejects semantically invalid classic RTS projectile/ability summary and PPM even when checksums match"
