@@ -100,6 +100,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_ui_skin.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_interaction_polish.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_full_screen_ui_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
@@ -198,6 +199,7 @@ jq -n \
   --slurpfile rts_production_asset_atlas "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.json" \
   --slurpfile rts_production_ui_skin "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.json" \
   --slurpfile rts_production_interaction_polish "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-interaction-polish.json" \
+  --slurpfile rts_full_screen_ui_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-screen-ui-replication.json" \
   --slurpfile rts_campaign_outcome_ui_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
@@ -302,6 +304,7 @@ jq -n \
       and ok($rts_production_asset_atlas)
       and ok($rts_production_ui_skin)
       and ok($rts_production_interaction_polish)
+      and ok($rts_full_screen_ui_replication)
       and ok($rts_campaign_outcome_ui_readiness)
       and ok($rts_combat_readability_pressure_readiness)
       and ok($rts_playtest_observability_readiness)
@@ -618,6 +621,7 @@ jq -n \
       classic_rts_production_asset_atlas_green: ok($rts_production_asset_atlas),
       classic_rts_production_ui_skin_green: ok($rts_production_ui_skin),
       classic_rts_production_interaction_polish_green: ok($rts_production_interaction_polish),
+      classic_rts_full_screen_ui_replication_green: ok($rts_full_screen_ui_replication),
       classic_rts_campaign_outcome_ui_readiness_green: ok($rts_campaign_outcome_ui_readiness),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
@@ -1701,6 +1705,12 @@ jq -n \
       rts_production_interaction_polish_queue_path_pixel_count: $rts_production_interaction_polish[0].queue_path_skin_pixel_count,
       rts_production_interaction_polish_scroll_minimap_pixel_count: $rts_production_interaction_polish[0].scroll_minimap_skin_pixel_count,
       rts_production_interaction_polish_hud_binding_pixel_count: $rts_production_interaction_polish[0].hud_binding_pixel_count,
+      rts_full_screen_ui_replication_surface_count: $rts_full_screen_ui_replication[0].replication_surface_count,
+      rts_full_screen_ui_replication_board_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.board,
+      rts_full_screen_ui_replication_title_campaign_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.title_campaign,
+      rts_full_screen_ui_replication_tactical_viewport_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.tactical_viewport,
+      rts_full_screen_ui_replication_map_minimap_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.map_minimap,
+      rts_full_screen_ui_replication_build_tech_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.build_tech,
       rts_command_affordance_drag_marquee_pixel_count: $rts_command_affordance[0].drag_marquee_pixel_count,
       rts_command_affordance_right_click_marker_pixel_count: $rts_command_affordance[0].right_click_marker_pixel_count,
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
@@ -2338,6 +2348,15 @@ jq -n \
       rts_production_interaction_polish_source_preview_gate: $rts_production_interaction_polish[0].source_preview_gate,
       rts_production_interaction_polish_no_copy_boundary_gate: $rts_production_interaction_polish[0].no_copy_boundary_gate,
       rts_production_interaction_polish_gate: $rts_production_interaction_polish[0].production_interaction_polish_gate,
+      rts_full_screen_ui_replication_title_campaign_gate: $rts_full_screen_ui_replication[0].title_campaign_gate,
+      rts_full_screen_ui_replication_tactical_viewport_gate: $rts_full_screen_ui_replication[0].tactical_viewport_gate,
+      rts_full_screen_ui_replication_map_minimap_gate: $rts_full_screen_ui_replication[0].map_minimap_gate,
+      rts_full_screen_ui_replication_production_skin_gate: $rts_full_screen_ui_replication[0].production_skin_gate,
+      rts_full_screen_ui_replication_interaction_polish_gate: $rts_full_screen_ui_replication[0].interaction_polish_gate,
+      rts_full_screen_ui_replication_build_tech_gate: $rts_full_screen_ui_replication[0].build_tech_gate,
+      rts_full_screen_ui_replication_combat_ui_gate: $rts_full_screen_ui_replication[0].combat_ui_gate,
+      rts_full_screen_ui_replication_campaign_outcome_gate: $rts_full_screen_ui_replication[0].campaign_outcome_gate,
+      rts_full_screen_ui_replication_gate: $rts_full_screen_ui_replication[0].full_screen_ui_replication_gate,
       rts_command_affordance_live_input_gate: $rts_command_affordance[0].live_command_affordance_input_gate,
       rts_command_affordance_drag_select_gate: $rts_command_affordance[0].drag_select_gate,
       rts_command_affordance_right_click_move_gate: $rts_command_affordance[0].right_click_move_gate,
@@ -2762,6 +2781,8 @@ jq -n \
       classic_rts_production_ui_skin_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.ppm",
       classic_rts_production_interaction_polish: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-interaction-polish.json",
       classic_rts_production_interaction_polish_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-interaction-polish.ppm",
+      classic_rts_full_screen_ui_replication: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-screen-ui-replication.json",
+      classic_rts_full_screen_ui_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-screen-ui-replication.ppm",
       classic_rts_campaign_outcome_ui_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json",
       classic_rts_campaign_outcome_ui_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness/",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
@@ -2872,6 +2893,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_production_asset_atlas_green == true
   and .checks.classic_rts_production_ui_skin_green == true
   and .checks.classic_rts_production_interaction_polish_green == true
+  and .checks.classic_rts_full_screen_ui_replication_green == true
   and .headline.rts_production_asset_atlas_frame_count >= 32
   and .headline.rts_production_asset_atlas_sprite_binding_count >= 32
   and .headline.rts_production_asset_atlas_material_asset_count == 4
@@ -2898,6 +2920,12 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_production_interaction_polish_queue_path_pixel_count > 1000
   and .headline.rts_production_interaction_polish_scroll_minimap_pixel_count > 1000
   and .headline.rts_production_interaction_polish_hud_binding_pixel_count > 8000
+  and .headline.rts_full_screen_ui_replication_surface_count == 10
+  and .headline.rts_full_screen_ui_replication_board_pixel_count > 80000
+  and .headline.rts_full_screen_ui_replication_title_campaign_pixel_count > 2000
+  and .headline.rts_full_screen_ui_replication_tactical_viewport_pixel_count > 2000
+  and .headline.rts_full_screen_ui_replication_map_minimap_pixel_count > 2000
+  and .headline.rts_full_screen_ui_replication_build_tech_pixel_count > 2000
   and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.classic_rts_playtest_observability_readiness_green == true

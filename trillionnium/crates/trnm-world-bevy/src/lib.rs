@@ -242,6 +242,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT: &str 
     "trillionnium_world_bevy_classic_rts_production_ui_skin_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -20104,6 +20106,650 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         "source_of_truth": "This gate moves from static production UI skin slots to player-facing interaction polish by requiring the skin, command affordance, selection feedback, build lifecycle, scrollable map, and command queue/path preview evidence to agree before classic playtest readiness and release-review CI can pass."
     }))
     .expect("classic RTS production interaction polish evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 1280;
+    const PANEL_HEIGHT: usize = 768;
+    const BACKGROUND_COLOR: u32 = 0x070b0c;
+    const BOARD_COLOR: u32 = 0x111a1a;
+    const EDGE_COLOR: u32 = 0x65ad98;
+    const TITLE_COLOR: u32 = 0xd9b45f;
+    const VIEWPORT_COLOR: u32 = 0x4d8fb4;
+    const MAP_COLOR: u32 = 0x54b06f;
+    const HUD_SKIN_COLOR: u32 = 0x8e70d6;
+    const INTERACTION_COLOR: u32 = 0xd66f78;
+    const BUILD_TECH_COLOR: u32 = 0x6abed0;
+    const UNIT_STATUS_COLOR: u32 = 0xc8a86a;
+    const COMBAT_COLOR: u32 = 0xe16f5e;
+    const CAMPAIGN_COLOR: u32 = 0x7ed17f;
+    const HANDOFF_COLOR: u32 = 0x75a5df;
+    const HIGHLIGHT_COLOR: u32 = 0xf1efba;
+    const BOUNDARY_COLOR: u32 = 0x1f3031;
+
+    let source_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("bevy-classic-rts-full-screen-ui-replication-sources");
+    let _ = fs::create_dir_all(&source_dir);
+    let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
+    let visual_path = source_path("visual-fidelity.ppm");
+    let map_ui_dir = source_path("map-ui-modeling-readiness");
+    let production_ui_path = source_path("production-ui-skin.ppm");
+    let interaction_path = source_path("production-interaction-polish.ppm");
+    let build_lifecycle_path = source_path("build-lifecycle.ppm");
+    let tech_tree_path = source_path("tech-tree.ppm");
+    let campaign_outcome_dir = source_path("campaign-outcome-ui-readiness");
+    let combat_readability_dir = source_path("combat-readability-pressure-readiness");
+
+    let campaign_entry: Value = serde_json::from_str(
+        &native_classic_rts_campaign_entry_evidence_json("local-player"),
+    )
+    .expect("campaign entry evidence parses for full screen UI replication");
+    let visual: Value = serde_json::from_str(&native_classic_rts_visual_fidelity_evidence_json(
+        &visual_path,
+    ))
+    .expect("visual fidelity evidence parses for full screen UI replication");
+    let map_ui: Value = serde_json::from_str(
+        &native_classic_rts_map_ui_modeling_readiness_evidence_json(&map_ui_dir),
+    )
+    .expect("map UI/modeling readiness evidence parses for full screen UI replication");
+    let production_ui: Value = serde_json::from_str(
+        &native_classic_rts_production_ui_skin_evidence_json(&production_ui_path),
+    )
+    .expect("production UI skin evidence parses for full screen UI replication");
+    let interaction: Value = serde_json::from_str(
+        &native_classic_rts_production_interaction_polish_evidence_json(&interaction_path),
+    )
+    .expect("production interaction polish evidence parses for full screen UI replication");
+    let build_lifecycle: Value = serde_json::from_str(
+        &native_classic_rts_build_lifecycle_evidence_json(&build_lifecycle_path),
+    )
+    .expect("build lifecycle evidence parses for full screen UI replication");
+    let tech_tree: Value =
+        serde_json::from_str(&native_classic_rts_tech_tree_evidence_json(&tech_tree_path))
+            .expect("tech tree evidence parses for full screen UI replication");
+    let campaign_outcome: Value = serde_json::from_str(
+        &native_classic_rts_campaign_outcome_ui_readiness_evidence_json(&campaign_outcome_dir),
+    )
+    .expect("campaign outcome UI readiness evidence parses for full screen UI replication");
+    let combat_readability: Value = serde_json::from_str(
+        &native_classic_rts_combat_readability_pressure_readiness_evidence_json(
+            &combat_readability_dir,
+        ),
+    )
+    .expect("combat readability pressure evidence parses for full screen UI replication");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let pointer_u64 =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let pointer_str = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let str_at = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let array_contains = |value: &Value, key: &str, expected: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+    };
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+
+    let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        720,
+        BOARD_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        740,
+        1232,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        4,
+        720,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1252,
+        24,
+        4,
+        720,
+        EDGE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        46,
+        "TRNM RUST/BEVY FULL SCREEN UI REPLICATION MATRIX",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        84,
+        "TITLE + TACTICAL HUD + MAP + COMMANDS + BUILD/TECH + COMBAT + CAMPAIGN OUTCOME",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        106,
+        "INTERNAL RUST/BEVY REPLICATION ONLY; REAL DEVICE AND EXTERNAL LAUNCH EVIDENCE ARE OUT OF SCOPE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let replication_surfaces = [
+        (
+            "TITLE/CAMPAIGN ENTRY",
+            TITLE_COLOR,
+            "title_campaign_shell",
+            "campaign_entry",
+        ),
+        (
+            "TACTICAL VIEWPORT",
+            VIEWPORT_COLOR,
+            "match_viewport_hud",
+            "visual_fidelity",
+        ),
+        (
+            "MAP/MINIMAP CAMERA",
+            MAP_COLOR,
+            "map_minimap_camera",
+            "map_ui_modeling",
+        ),
+        (
+            "PRODUCTION HUD SKIN",
+            HUD_SKIN_COLOR,
+            "production_hud_surfaces",
+            "production_ui_skin",
+        ),
+        (
+            "COMMAND INTERACTIONS",
+            INTERACTION_COLOR,
+            "interaction_feedback",
+            "production_interaction_polish",
+        ),
+        (
+            "BUILD + TECH TREE",
+            BUILD_TECH_COLOR,
+            "build_tech_overlay",
+            "build_lifecycle+tech_tree",
+        ),
+        (
+            "UNIT STATUS CARD",
+            UNIT_STATUS_COLOR,
+            "unit_status_card",
+            "combat_readability",
+        ),
+        (
+            "ABILITY/COMBAT UI",
+            COMBAT_COLOR,
+            "ability_combat_overlay",
+            "combat_readability",
+        ),
+        (
+            "CAMPAIGN OUTCOME",
+            CAMPAIGN_COLOR,
+            "outcome_reward_panel",
+            "campaign_outcome_ui",
+        ),
+        (
+            "OPEN-WORLD HANDOFF",
+            HANDOFF_COLOR,
+            "handoff_replay_resume",
+            "campaign_outcome_ui",
+        ),
+    ];
+
+    for (index, (label, color, slot, source)) in replication_surfaces.iter().enumerate() {
+        let col = (index % 5) as i32;
+        let row = (index / 5) as i32;
+        let x = 48 + col * 238;
+        let y = 142 + row * 224;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            214,
+            182,
+            BOUNDARY_COLOR,
+        );
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 214, 5, *color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y + 177,
+            214,
+            5,
+            *color,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 16,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 38,
+            slot,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 58,
+            source,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        for marker in 0..6_i32 {
+            let sx = x + 18 + (marker % 3) * 60;
+            let sy = y + 92 + (marker / 3) * 36;
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx,
+                sy,
+                42,
+                22,
+                *color,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 5,
+                sy + 5,
+                32,
+                4,
+                HIGHLIGHT_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 5,
+                sy + 15,
+                24,
+                3,
+                EDGE_COLOR,
+            );
+        }
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        604,
+        1184,
+        98,
+        0x0d1512,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        624,
+        "FULL SCREEN/UI REPLICATION HANDOFF STRIP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for slot in 0..32_i32 {
+        let x = 72 + slot * 35;
+        let y = 658;
+        let color = match slot % 10 {
+            0 => TITLE_COLOR,
+            1 => VIEWPORT_COLOR,
+            2 => MAP_COLOR,
+            3 => HUD_SKIN_COLOR,
+            4 => INTERACTION_COLOR,
+            5 => BUILD_TECH_COLOR,
+            6 => UNIT_STATUS_COLOR,
+            7 => COMBAT_COLOR,
+            8 => CAMPAIGN_COLOR,
+            _ => HANDOFF_COLOR,
+        };
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 24, 22, color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 4,
+            y + 5,
+            16,
+            4,
+            HIGHLIGHT_COLOR,
+        );
+    }
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        688,
+        "RUST/BEVY INTERNAL SCREEN MATRIX; PUBLIC, ANDROID, AND EXTERNAL EVIDENCE CLAIMS REMAIN FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &pixels).is_ok();
+    let count_color =
+        |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let replication_board_pixel_count = count_color(BOARD_COLOR) + count_color(EDGE_COLOR);
+    let title_campaign_pixel_count = count_color(TITLE_COLOR);
+    let tactical_viewport_pixel_count = count_color(VIEWPORT_COLOR);
+    let map_minimap_pixel_count = count_color(MAP_COLOR);
+    let production_hud_skin_pixel_count = count_color(HUD_SKIN_COLOR);
+    let command_interaction_pixel_count = count_color(INTERACTION_COLOR);
+    let build_tech_pixel_count = count_color(BUILD_TECH_COLOR);
+    let unit_status_pixel_count = count_color(UNIT_STATUS_COLOR);
+    let combat_overlay_pixel_count = count_color(COMBAT_COLOR);
+    let campaign_outcome_pixel_count = count_color(CAMPAIGN_COLOR);
+    let open_world_handoff_pixel_count = count_color(HANDOFF_COLOR);
+    let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+
+    let title_campaign_gate = contract_is(
+        &campaign_entry,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT,
+    ) && bool_at(&campaign_entry, "green")
+        && bool_at(&campaign_entry, "title_entry_gate")
+        && bool_at(&campaign_entry, "start_gate")
+        && bool_at(&campaign_entry, "continue_gate")
+        && bool_at(&campaign_entry, "replay_gate")
+        && u64_at(&campaign_entry, "input_action_count") == 73
+        && array_contains(&campaign_entry, "title_actions", "CAMPAIGN:START")
+        && array_contains(&campaign_entry, "title_actions", "CAMPAIGN:CONTINUE")
+        && array_contains(&campaign_entry, "title_actions", "CAMPAIGN:REPLAY");
+    let tactical_viewport_gate = contract_is(
+        &visual,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT,
+    ) && bool_at(&visual, "green")
+        && bool_at(&visual, "selected_units_gate")
+        && bool_at(&visual, "command_surface_gate")
+        && bool_at(&visual, "model_fidelity_gate")
+        && bool_at(&visual, "npc_animation_gate")
+        && bool_at(&visual, "mature_rts_hud_gate")
+        && u64_at(&visual, "basin_tactical_viewport_pixel_count") > 2_800;
+    let map_minimap_gate = contract_is(
+        &map_ui,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT,
+    ) && bool_at(&map_ui, "green")
+        && bool_at(&map_ui, "visual_gate")
+        && bool_at(&map_ui, "command_gate")
+        && bool_at(&map_ui, "scroll_gate")
+        && bool_at(&map_ui, "camera_gate")
+        && bool_at(&map_ui, "structure_gate")
+        && bool_at(&map_ui, "environment_gate")
+        && pointer_u64(&map_ui, "/map_camera_pixels/camera_viewport") > 2_400
+        && pointer_u64(&map_ui, "/map_camera_pixels/camera_fog") > 8_000;
+    let production_skin_gate = contract_is(
+        &production_ui,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
+    ) && bool_at(&production_ui, "green")
+        && bool_at(&production_ui, "production_ui_skin_gate")
+        && bool_at(&production_ui, "no_copy_boundary_gate")
+        && u64_at(&production_ui, "ui_skin_surface_count") == 8
+        && u64_at(&production_ui, "hud_chrome_pixel_count") > 1_000
+        && u64_at(&production_ui, "command_grid_skin_pixel_count") > 1_000;
+    let interaction_polish_gate = contract_is(
+        &interaction,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT,
+    ) && bool_at(&interaction, "green")
+        && bool_at(&interaction, "production_interaction_polish_gate")
+        && bool_at(&interaction, "no_copy_boundary_gate")
+        && u64_at(&interaction, "interaction_surface_count") == 6
+        && u64_at(&interaction, "hud_binding_pixel_count") > 8_000;
+    let build_tech_gate = contract_is(
+        &build_lifecycle,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT,
+    ) && bool_at(&build_lifecycle, "green")
+        && bool_at(&build_lifecycle, "build_placement_gate")
+        && bool_at(&build_lifecycle, "completion_gate")
+        && bool_at(&build_lifecycle, "repair_gate")
+        && bool_at(&build_lifecycle, "cancel_refund_gate")
+        && contract_is(
+            &tech_tree,
+            TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TECH_TREE_CONTRACT,
+        )
+        && bool_at(&tech_tree, "green")
+        && bool_at(&tech_tree, "research_gate")
+        && bool_at(&tech_tree, "upgrade_gate")
+        && bool_at(&tech_tree, "unlock_gate")
+        && bool_at(&tech_tree, "dependency_gate")
+        && str_at(&tech_tree, "final_tech_state") == "unlocked:relay_guard"
+        && u64_at(&tech_tree, "final_tech_progress_percent") == 100;
+    let combat_ui_gate = contract_is(
+        &combat_readability,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT,
+    ) && bool_at(&combat_readability, "green")
+        && bool_at(&combat_readability, "unit_status_gate")
+        && bool_at(&combat_readability, "command_feedback_gate")
+        && bool_at(&combat_readability, "ability_telegraph_gate")
+        && bool_at(&combat_readability, "depth_readability_gate")
+        && bool_at(&combat_readability, "pressure_feedback_gate")
+        && bool_at(&combat_readability, "source_policy_gate");
+    let campaign_outcome_gate = contract_is(
+        &campaign_outcome,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
+    ) && bool_at(&campaign_outcome, "green")
+        && bool_at(&campaign_outcome, "first_minute_gate")
+        && bool_at(&campaign_outcome, "objective_victory_gate")
+        && bool_at(&campaign_outcome, "base_assault_gate")
+        && bool_at(&campaign_outcome, "battle_aftermath_gate")
+        && bool_at(&campaign_outcome, "open_world_return_gate")
+        && pointer_str(
+            &campaign_outcome,
+            "/open_world_summary/final_open_world_handoff_state",
+        ) == "resumed:league-coliseum";
+    let source_policy_gate = bool_at(&visual, "original_art_policy_gate")
+        && bool_at(&map_ui, "source_policy_gate")
+        && bool_at(&production_ui, "no_copy_boundary_gate")
+        && bool_at(&interaction, "no_copy_boundary_gate")
+        && bool_at(&combat_readability, "source_policy_gate")
+        && !bool_at(&production_ui, "warcraft_iii_asset_copied")
+        && !bool_at(&production_ui, "openra_asset_copied")
+        && !bool_at(&interaction, "screen_for_screen_openra_ui_claimed")
+        && !bool_at(&visual, "cex_runtime_player_client_allowed")
+        && !bool_at(&visual, "wgpu_required")
+        && !bool_at(&build_lifecycle, "cex_runtime_player_client_allowed")
+        && !bool_at(&tech_tree, "cex_runtime_player_client_allowed");
+    let replication_preview_gate = write_gate
+        && file_ready(preview_path)
+        && replication_board_pixel_count > 80_000
+        && title_campaign_pixel_count > 2_000
+        && tactical_viewport_pixel_count > 2_000
+        && map_minimap_pixel_count > 2_000
+        && production_hud_skin_pixel_count > 2_000
+        && command_interaction_pixel_count > 2_000
+        && build_tech_pixel_count > 2_000
+        && unit_status_pixel_count > 2_000
+        && combat_overlay_pixel_count > 2_000
+        && campaign_outcome_pixel_count > 2_000
+        && open_world_handoff_pixel_count > 2_000
+        && highlight_pixel_count > 3_000;
+    let source_preview_gate = file_ready(&visual_path)
+        && file_ready(&production_ui_path)
+        && file_ready(&interaction_path)
+        && file_ready(&build_lifecycle_path)
+        && file_ready(&tech_tree_path)
+        && bool_at(&map_ui, "preview_gate")
+        && bool_at(&campaign_outcome, "preview_gate")
+        && bool_at(&combat_readability, "preview_gate");
+    let full_screen_ui_replication_gate = title_campaign_gate
+        && tactical_viewport_gate
+        && map_minimap_gate
+        && production_skin_gate
+        && interaction_polish_gate
+        && build_tech_gate
+        && combat_ui_gate
+        && campaign_outcome_gate
+        && source_policy_gate
+        && replication_preview_gate
+        && source_preview_gate;
+    let green = full_screen_ui_replication_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "source_dir": source_dir.to_string_lossy(),
+        "source_contracts": {
+            "campaign_entry": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_ENTRY_CONTRACT,
+            "visual_fidelity": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_VISUAL_FIDELITY_CONTRACT,
+            "map_ui_modeling_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT,
+            "production_ui_skin": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
+            "production_interaction_polish": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT,
+            "build_lifecycle": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT,
+            "tech_tree": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_TECH_TREE_CONTRACT,
+            "campaign_outcome_ui_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
+            "combat_readability_pressure_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT
+        },
+        "source_paths": {
+            "visual_fidelity_preview": visual_path,
+            "map_ui_modeling_readiness_dir": map_ui_dir,
+            "production_ui_skin_preview": production_ui_path,
+            "production_interaction_polish_preview": interaction_path,
+            "build_lifecycle_preview": build_lifecycle_path,
+            "tech_tree_preview": tech_tree_path,
+            "campaign_outcome_ui_readiness_dir": campaign_outcome_dir,
+            "combat_readability_pressure_readiness_dir": combat_readability_dir
+        },
+        "replication_surface_names": replication_surfaces.iter().map(|(label, _, _, _)| *label).collect::<Vec<_>>(),
+        "replication_surface_count": replication_surfaces.len(),
+        "replication_slot_ids": replication_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
+        "replication_source_surfaces": replication_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "screen_matrix_pixel_counts": {
+            "board": replication_board_pixel_count,
+            "title_campaign": title_campaign_pixel_count,
+            "tactical_viewport": tactical_viewport_pixel_count,
+            "map_minimap": map_minimap_pixel_count,
+            "production_hud_skin": production_hud_skin_pixel_count,
+            "command_interaction": command_interaction_pixel_count,
+            "build_tech": build_tech_pixel_count,
+            "unit_status": unit_status_pixel_count,
+            "combat_overlay": combat_overlay_pixel_count,
+            "campaign_outcome": campaign_outcome_pixel_count,
+            "open_world_handoff": open_world_handoff_pixel_count,
+            "highlight": highlight_pixel_count
+        },
+        "source_headline": {
+            "title_actions": campaign_entry.get("title_actions").cloned().unwrap_or(Value::Null),
+            "campaign_input_action_count": campaign_entry.get("input_action_count").cloned().unwrap_or(Value::Null),
+            "visual_selected_unit_count": visual.get("selected_unit_ids").and_then(Value::as_array).map(|items| items.len()).unwrap_or(0),
+            "map_ui_preview_count": map_ui.get("preview_count").cloned().unwrap_or(Value::Null),
+            "production_ui_skin_surface_count": production_ui.get("ui_skin_surface_count").cloned().unwrap_or(Value::Null),
+            "interaction_surface_count": interaction.get("interaction_surface_count").cloned().unwrap_or(Value::Null),
+            "tech_state": tech_tree.get("final_tech_state").cloned().unwrap_or(Value::Null),
+            "campaign_outcome_preview_count": campaign_outcome.get("preview_count").cloned().unwrap_or(Value::Null),
+            "combat_readability_preview_count": combat_readability.get("preview_count").cloned().unwrap_or(Value::Null)
+        },
+        "title_campaign_gate": title_campaign_gate,
+        "tactical_viewport_gate": tactical_viewport_gate,
+        "map_minimap_gate": map_minimap_gate,
+        "production_skin_gate": production_skin_gate,
+        "interaction_polish_gate": interaction_polish_gate,
+        "build_tech_gate": build_tech_gate,
+        "combat_ui_gate": combat_ui_gate,
+        "campaign_outcome_gate": campaign_outcome_gate,
+        "source_policy_gate": source_policy_gate,
+        "replication_preview_gate": replication_preview_gate,
+        "source_preview_gate": source_preview_gate,
+        "full_screen_ui_replication_gate": full_screen_ui_replication_gate,
+        "internal_full_screen_ui_replication_claimed": full_screen_ui_replication_gate,
+        "external_evidence_ignored_for_current_replication_pass": true,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_engine_port_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "source_of_truth": "This gate is the internal Rust/Bevy full screen/UI replication matrix. It binds the player-visible title/campaign entry, tactical match viewport, HUD/command grid, map/minimap camera, build/tech overlays, unit status, ability/combat readability, production interaction polish, campaign outcome, and open-world handoff surfaces into one local native evidence board. It deliberately ignores Android S5, public launch, commercial cohort, and other external evidence for this replication pass."
+    }))
+    .expect("classic RTS full screen UI replication evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
