@@ -20670,6 +20670,7 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT,
+        "status": "classic_rts_full_screen_ui_replication_green",
         "green": green,
         "preview_path": preview_path,
         "preview_format": "ppm_p3_rgb",
