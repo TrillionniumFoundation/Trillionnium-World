@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -147,7 +147,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -177,7 +177,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -256,7 +256,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_selection_minimap_semantics",
@@ -323,7 +323,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_build_lifecycle_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_build_lifecycle_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_build_lifecycle_semantics",
@@ -394,7 +394,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_tech_tree_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_tech_tree_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_tech_tree_semantics",
@@ -462,7 +462,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_projectile_ability_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_projectile_ability_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 102,
+  fake_packet_artifact_count: 103,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: ["classic_rts_projectile_ability_semantics", "classic_rts_projectile_ability_ppm_semantics"],
   checksum_mismatch_failure_count: 0,
@@ -757,6 +757,9 @@ add_artifact_from_path native_bevy_classic_rts_full_screen_ui_replication "Nativ
 shell_meta_ui_replication_json="$TMP_DIR/bevy-classic-rts-shell-meta-ui-replication.json"
 jq -n '{contract_version: "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1", status: "classic_rts_shell_meta_ui_replication_green", green: true, preview_width: 1280, preview_height: 768, preview_format: "ppm_p3_rgb", shell_meta_surface_count: 12, shell_meta_surface_names: ["TITLE / ACCOUNT", "CHARACTER CREATE", "SESSION SLOT MENU", "SAVE SLOT FILE", "SAVE / LOAD CONFIRM", "LOAD / RESUME CTA", "SESSION RECOVERY", "PAUSE / RESUME", "SETTINGS", "INPUT HUD", "BUTTON HIT TEST", "FIRST-MINUTE HANDOFF"], source_contracts: {account_title_flow: "trillionnium_world_bevy_account_title_flow_v1", character_create: "trillionnium_world_bevy_character_create_v1", first_minute_onboarding: "trillionnium_world_bevy_first_minute_onboarding_v1", full_screen_ui_replication: "trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1", input_telemetry_hud: "trillionnium_world_bevy_input_telemetry_hud_v1", pause_menu: "trillionnium_world_bevy_pause_menu_v1", session_load_resume: "trillionnium_world_bevy_session_load_resume_v1", session_recovery_ui: "trillionnium_world_bevy_session_recovery_ui_v1", session_save_slot: "trillionnium_world_bevy_session_save_slot_v1", session_slot_confirm: "trillionnium_world_bevy_session_slot_confirm_v1", session_slot_menu: "trillionnium_world_bevy_session_slot_menu_v1", settings_menu: "trillionnium_world_bevy_settings_menu_v1", title_menu: "trillionnium_world_bevy_title_menu_v1", visible_button_hit_test_map: "trillionnium_world_bevy_visible_button_hit_test_map_v1"}, shell_meta_pixel_counts: {account_title: 5872, board: 398212, button_hit_test: 5872, character_create: 5872, first_minute_handoff: 5872, highlight: 6336, input_hud: 5872, load_resume_cta: 5872, pause_resume: 5872, save_load_confirm: 5872, save_slot_file: 5872, session_recovery: 5872, session_slot_menu: 5872, settings: 5872}, full_screen_ui_replication_gate: true, account_title_gate: true, title_menu_gate: true, character_create_gate: true, session_slot_menu_gate: true, session_save_slot_gate: true, session_slot_confirm_gate: true, session_load_resume_gate: true, session_recovery_gate: true, pause_menu_gate: true, settings_menu_gate: true, input_hud_gate: true, visible_hit_test_gate: true, first_minute_onboarding_gate: true, source_preview_gate: true, shell_meta_preview_gate: true, shell_meta_ui_replication_gate: true, no_external_boundary_gate: true, internal_shell_meta_ui_replication_claimed: true, external_evidence_ignored_for_current_replication_pass: true, android_s5_real_device_claimed: false, public_launch_ready: false, screen_for_screen_openra_ui_claimed: false, openra_engine_port_claimed: false, warcraft_iii_asset_copied: false, openra_asset_copied: false, third_party_asset_copied: false}' >"$shell_meta_ui_replication_json"
 add_artifact_from_path native_bevy_classic_rts_shell_meta_ui_replication "Native/Bevy classic RTS shell/meta UI replication" "$shell_meta_ui_replication_json" release_review_input
+match_setup_ui_replication_json="$TMP_DIR/bevy-classic-rts-match-setup-ui-replication.json"
+jq -n '{contract_version: "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1", status: "classic_rts_match_setup_ui_replication_green", green: true, preview_width: 1280, preview_height: 768, preview_format: "ppm_p3_rgb", setup_surface_count: 10, setup_surface_names: ["CAMPAIGN ACTIONS", "MAP SELECT", "FACTION SELECT", "SPAWN SLOTS", "RESOURCE RULES", "BOT / DIFFICULTY", "VICTORY CONDITIONS", "MINIMAP PREVIEW", "START READY", "NO-EXTERNAL BOUNDARY"], source_contracts: {shell_meta_ui_replication: "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1", campaign_entry: "trillionnium_world_bevy_classic_rts_campaign_entry_v1", first_contact_basin_spec: "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1", map_ui_modeling_readiness: "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1", tech_tree: "trillionnium_world_bevy_classic_rts_tech_tree_v1"}, setup_pixel_counts: {board: 381079, map_select: 8340, faction_select: 8340, start_ready: 7876}, source_headline: {shell_meta_surface_count: 12, campaign_input_action_count: 73, map_id: "first_contact_basin", map_spawn_count: 4, map_actor_count: 39, map_ui_preview_count: 6, faction_id: "mirror_guard", tech_state: "unlocked:relay_guard"}, shell_meta_gate: true, campaign_entry_gate: true, map_spec_gate: true, map_ui_gate: true, faction_gate: true, no_external_boundary_gate: true, setup_preview_gate: true, source_preview_gate: true, match_setup_ui_replication_gate: true, internal_match_setup_ui_replication_claimed: true, external_evidence_ignored_for_current_replication_pass: true, android_s5_real_device_claimed: false, public_launch_ready: false, screen_for_screen_openra_ui_claimed: false, openra_engine_port_claimed: false, warcraft_iii_asset_copied: false, openra_asset_copied: false, third_party_asset_copied: false}' >"$match_setup_ui_replication_json"
+add_artifact_from_path native_bevy_classic_rts_match_setup_ui_replication "Native/Bevy classic RTS match setup UI replication" "$match_setup_ui_replication_json" release_review_input
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \
   '{
