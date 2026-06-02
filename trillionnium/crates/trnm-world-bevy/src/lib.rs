@@ -240,6 +240,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_ASSET_ATLAS_CONTRACT: &
     "trillionnium_world_bevy_classic_rts_production_asset_atlas_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_production_ui_skin_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -19532,6 +19534,576 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         "source_of_truth": "This gate moves from production asset atlas readiness to actual native UI skin replacement slots by requiring the atlas, command surface, selection/minimap, unit status, selection feedback, ability tooltip, and hotkey feedback evidence to agree before the release-review gate can pass."
     }))
     .expect("classic RTS production UI skin evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_production_interaction_polish_evidence_json(
+    preview_path: &str,
+) -> String {
+    const PANEL_WIDTH: usize = 1280;
+    const PANEL_HEIGHT: usize = 768;
+    const BACKGROUND_COLOR: u32 = 0x070b0a;
+    const POLISH_BOARD_COLOR: u32 = 0x101a17;
+    const POLISH_EDGE_COLOR: u32 = 0x73ab8c;
+    const DRAG_SELECT_COLOR: u32 = 0x66c8e8;
+    const RIGHT_CLICK_MOVE_COLOR: u32 = 0x80d67d;
+    const ATTACK_LOCK_COLOR: u32 = 0xde6b6b;
+    const BUILD_GHOST_COLOR: u32 = 0xd0b45f;
+    const QUEUE_PATH_COLOR: u32 = 0xb187dc;
+    const SCROLL_MINIMAP_COLOR: u32 = 0x5ed0bd;
+    const HUD_BINDING_COLOR: u32 = 0x2b3e38;
+    const POLISH_HIGHLIGHT_COLOR: u32 = 0xf0efb3;
+    const BLOCKED_STATE_COLOR: u32 = 0x9b4e63;
+
+    let source_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("bevy-classic-rts-production-interaction-polish-sources");
+    let _ = fs::create_dir_all(&source_dir);
+    let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
+    let ui_skin_path = source_path("bevy-classic-rts-production-ui-skin.ppm");
+    let command_affordance_path = source_path("bevy-classic-rts-command-affordance.ppm");
+    let selection_feedback_path = source_path("bevy-classic-rts-selection-command-feedback.ppm");
+    let build_lifecycle_path = source_path("bevy-classic-rts-build-lifecycle.ppm");
+    let scrollable_map_path = source_path("bevy-classic-rts-scrollable-map.ppm");
+    let command_queue_path = source_path("bevy-classic-rts-command-queue-path-preview.ppm");
+
+    let ui_skin: Value = serde_json::from_str(
+        &native_classic_rts_production_ui_skin_evidence_json(&ui_skin_path),
+    )
+    .expect("production UI skin evidence parses for production interaction polish");
+    let command_affordance: Value = serde_json::from_str(
+        &native_classic_rts_command_affordance_evidence_json(&command_affordance_path),
+    )
+    .expect("command affordance evidence parses for production interaction polish");
+    let selection_feedback: Value = serde_json::from_str(
+        &native_classic_rts_selection_command_feedback_evidence_json(&selection_feedback_path),
+    )
+    .expect("selection command feedback evidence parses for production interaction polish");
+    let build_lifecycle: Value = serde_json::from_str(
+        &native_classic_rts_build_lifecycle_evidence_json(&build_lifecycle_path),
+    )
+    .expect("build lifecycle evidence parses for production interaction polish");
+    let scrollable_map: Value = serde_json::from_str(
+        &native_classic_rts_scrollable_map_evidence_json(&scrollable_map_path),
+    )
+    .expect("scrollable map evidence parses for production interaction polish");
+    let command_queue_path_preview: Value = serde_json::from_str(
+        &native_classic_rts_command_queue_path_preview_evidence_json(&command_queue_path),
+    )
+    .expect("command queue path preview evidence parses for production interaction polish");
+
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let file_ready = |path: &str| {
+        fs::metadata(path)
+            .map(|metadata| metadata.is_file() && metadata.len() > 128)
+            .unwrap_or(false)
+    };
+
+    let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        720,
+        POLISH_BOARD_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        4,
+        POLISH_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        740,
+        1232,
+        4,
+        POLISH_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        4,
+        720,
+        POLISH_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1252,
+        24,
+        4,
+        720,
+        POLISH_EDGE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        46,
+        "TRNM PRODUCTION INTERACTION POLISH",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        84,
+        "UI SKIN + COMMAND FEEDBACK + BUILD GHOST + QUEUE PATH + SCROLL MAP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        106,
+        "PROJECT-OWNED RTS INTERACTION FEEDBACK; NO COPIED CURSORS, UI ART, OR OPENRA SCREEN CLAIM",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let interaction_surfaces = [
+        (
+            "DRAG SELECT",
+            DRAG_SELECT_COLOR,
+            "drag_marquee_skin_slot",
+            "command_affordance+selection_feedback",
+        ),
+        (
+            "RIGHT CLICK MOVE",
+            RIGHT_CLICK_MOVE_COLOR,
+            "right_click_marker_skin_slot",
+            "command_affordance",
+        ),
+        (
+            "ATTACK LOCK",
+            ATTACK_LOCK_COLOR,
+            "attack_cursor_skin_slot",
+            "command_affordance+selection_feedback",
+        ),
+        (
+            "BUILD GHOST",
+            BUILD_GHOST_COLOR,
+            "build_ghost_skin_slot",
+            "build_lifecycle",
+        ),
+        (
+            "QUEUE PATH",
+            QUEUE_PATH_COLOR,
+            "queued_path_skin_slot",
+            "command_queue_path_preview",
+        ),
+        (
+            "SCROLL MINIMAP",
+            SCROLL_MINIMAP_COLOR,
+            "scroll_minimap_skin_slot",
+            "scrollable_map",
+        ),
+    ];
+    for (index, (label, color, slot, source)) in interaction_surfaces.iter().enumerate() {
+        let col = (index % 3) as i32;
+        let row = (index / 3) as i32;
+        let x = 48 + col * 400;
+        let y = 142 + row * 206;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            356,
+            166,
+            0x0d1512,
+        );
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 356, 5, *color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y + 161,
+            356,
+            5,
+            *color,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            y + 16,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            y + 36,
+            slot,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            y + 56,
+            source,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        for step in 0..5_i32 {
+            let sx = x + 24 + step * 60;
+            let sy = y + 88 + (step % 2) * 22;
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx,
+                sy,
+                50,
+                24,
+                *color,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 5,
+                sy + 5,
+                40,
+                4,
+                POLISH_HIGHLIGHT_COLOR,
+            );
+            if step == 4 {
+                classic_draw_rect(
+                    &mut pixels,
+                    PANEL_WIDTH,
+                    PANEL_HEIGHT,
+                    sx + 7,
+                    sy + 16,
+                    36,
+                    5,
+                    BLOCKED_STATE_COLOR,
+                );
+            }
+        }
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        578,
+        1184,
+        120,
+        0x0d1512,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        600,
+        "PRODUCTION INTERACTION HANDOFF STRIP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for slot in 0..28_i32 {
+        let x = 70 + slot * 41;
+        let y = 634;
+        let color = match slot % 6 {
+            0 => DRAG_SELECT_COLOR,
+            1 => RIGHT_CLICK_MOVE_COLOR,
+            2 => ATTACK_LOCK_COLOR,
+            3 => BUILD_GHOST_COLOR,
+            4 => QUEUE_PATH_COLOR,
+            _ => SCROLL_MINIMAP_COLOR,
+        };
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            30,
+            24,
+            HUD_BINDING_COLOR,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 4,
+            y + 4,
+            22,
+            16,
+            color,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 6,
+            y + 7,
+            18,
+            4,
+            POLISH_HIGHLIGHT_COLOR,
+        );
+    }
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        680,
+        "SKINNED FEEDBACK BINDS INPUT REDUCERS TO VISIBLE RTS COMMAND STATES; DEVICE/PUBLIC-LAUNCH CLAIMS STAY FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &pixels).is_ok();
+    let count_color =
+        |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let interaction_board_pixel_count =
+        count_color(POLISH_BOARD_COLOR) + count_color(POLISH_EDGE_COLOR);
+    let drag_select_skin_pixel_count = count_color(DRAG_SELECT_COLOR);
+    let right_click_move_skin_pixel_count = count_color(RIGHT_CLICK_MOVE_COLOR);
+    let attack_lock_skin_pixel_count = count_color(ATTACK_LOCK_COLOR);
+    let build_ghost_skin_pixel_count = count_color(BUILD_GHOST_COLOR);
+    let queue_path_skin_pixel_count = count_color(QUEUE_PATH_COLOR);
+    let scroll_minimap_skin_pixel_count = count_color(SCROLL_MINIMAP_COLOR);
+    let hud_binding_pixel_count = count_color(HUD_BINDING_COLOR);
+    let polish_highlight_pixel_count = count_color(POLISH_HIGHLIGHT_COLOR);
+    let blocked_state_pixel_count = count_color(BLOCKED_STATE_COLOR);
+
+    let ui_skin_gate = contract_is(
+        &ui_skin,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
+    ) && bool_at(&ui_skin, "green")
+        && bool_at(&ui_skin, "production_ui_skin_gate")
+        && bool_at(&ui_skin, "no_copy_boundary_gate")
+        && u64_at(&ui_skin, "/ui_skin_surface_count") == 8
+        && u64_at(&ui_skin, "/feedback_marker_pixel_count") > 1_000
+        && u64_at(&ui_skin, "/hotkey_strip_pixel_count") > 1_000;
+    let command_affordance_gate = contract_is(
+        &command_affordance,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT,
+    ) && bool_at(&command_affordance, "green")
+        && bool_at(&command_affordance, "live_command_affordance_input_gate")
+        && bool_at(&command_affordance, "drag_select_gate")
+        && bool_at(&command_affordance, "right_click_move_gate")
+        && bool_at(&command_affordance, "attack_cursor_gate")
+        && bool_at(&command_affordance, "hotkey_ack_gate")
+        && u64_at(&command_affordance, "/drag_marquee_pixel_count") > 80
+        && u64_at(&command_affordance, "/right_click_marker_pixel_count") > 120
+        && u64_at(&command_affordance, "/attack_cursor_pixel_count") > 120;
+    let selection_feedback_gate = contract_is(
+        &selection_feedback,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+    ) && bool_at(&selection_feedback, "green")
+        && bool_at(&selection_feedback, "marquee_gate")
+        && bool_at(&selection_feedback, "confirm_gate")
+        && bool_at(&selection_feedback, "move_gate")
+        && bool_at(&selection_feedback, "attack_gate")
+        && bool_at(&selection_feedback, "error_gate")
+        && bool_at(&selection_feedback, "ack_gate")
+        && u64_at(&selection_feedback, "/ack_pixel_count") > 240;
+    let build_lifecycle_gate = contract_is(
+        &build_lifecycle,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT,
+    ) && bool_at(&build_lifecycle, "green")
+        && bool_at(&build_lifecycle, "live_build_lifecycle_input_gate")
+        && bool_at(&build_lifecycle, "build_placement_gate")
+        && bool_at(&build_lifecycle, "completion_gate")
+        && bool_at(&build_lifecycle, "repair_gate")
+        && bool_at(&build_lifecycle, "cancel_refund_gate")
+        && u64_at(&build_lifecycle, "/build_blueprint_pixel_count") > 40
+        && u64_at(&build_lifecycle, "/cancel_refund_pixel_count") > 40;
+    let scrollable_map_gate = contract_is(
+        &scrollable_map,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT,
+    ) && bool_at(&scrollable_map, "green")
+        && bool_at(&scrollable_map, "keyboard_pan_gate")
+        && bool_at(&scrollable_map, "edge_scroll_gate")
+        && bool_at(&scrollable_map, "drag_pan_gate")
+        && bool_at(&scrollable_map, "wheel_zoom_gate")
+        && bool_at(&scrollable_map, "minimap_jump_gate")
+        && bool_at(&scrollable_map, "boundary_clamp_gate")
+        && bool_at(&scrollable_map, "hud_fixed_gate")
+        && u64_at(&scrollable_map, "/minimap_pixel_count") > 600
+        && u64_at(&scrollable_map, "/drag_pixel_count") > 250;
+    let command_queue_path_gate = contract_is(
+        &command_queue_path_preview,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_QUEUE_PATH_PREVIEW_CONTRACT,
+    ) && bool_at(&command_queue_path_preview, "green")
+        && bool_at(&command_queue_path_preview, "queue_stack_gate")
+        && bool_at(&command_queue_path_preview, "shift_waypoint_gate")
+        && bool_at(&command_queue_path_preview, "rally_chain_gate")
+        && bool_at(&command_queue_path_preview, "attack_focus_gate")
+        && bool_at(&command_queue_path_preview, "build_reservation_gate")
+        && bool_at(&command_queue_path_preview, "cancel_repath_gate")
+        && u64_at(&command_queue_path_preview, "/queue_slot_pixel_count") > 1_200
+        && u64_at(&command_queue_path_preview, "/path_pixel_count") > 400;
+    let production_interaction_polish_preview_gate = write_gate
+        && interaction_board_pixel_count > 80_000
+        && drag_select_skin_pixel_count > 1_000
+        && right_click_move_skin_pixel_count > 1_000
+        && attack_lock_skin_pixel_count > 1_000
+        && build_ghost_skin_pixel_count > 1_000
+        && queue_path_skin_pixel_count > 1_000
+        && scroll_minimap_skin_pixel_count > 1_000
+        && hud_binding_pixel_count > 8_000
+        && polish_highlight_pixel_count > 3_000
+        && blocked_state_pixel_count > 600;
+    let source_preview_gate = [
+        &ui_skin_path,
+        &command_affordance_path,
+        &selection_feedback_path,
+        &build_lifecycle_path,
+        &scrollable_map_path,
+        &command_queue_path,
+    ]
+    .iter()
+    .all(|path| file_ready(path));
+    let no_copy_boundary_gate = bool_at(&ui_skin, "no_copy_boundary_gate")
+        && !bool_at(&ui_skin, "screen_for_screen_openra_ui_claimed")
+        && !bool_at(&ui_skin, "warcraft_iii_asset_copied")
+        && !bool_at(&ui_skin, "openra_asset_copied")
+        && !bool_at(&ui_skin, "third_party_asset_copied")
+        && [
+            &command_affordance,
+            &selection_feedback,
+            &scrollable_map,
+            &command_queue_path_preview,
+        ]
+        .iter()
+        .all(|value| {
+            bool_at(value, "original_art_policy_gate")
+                && !bool_at(value, "warcraft_iii_asset_copied")
+                && !bool_at(value, "cex_runtime_player_client_allowed")
+                && !bool_at(value, "wgpu_required")
+        })
+        && !bool_at(&build_lifecycle, "cex_runtime_player_client_allowed")
+        && !bool_at(&build_lifecycle, "wgpu_required");
+    let production_interaction_polish_gate = ui_skin_gate
+        && command_affordance_gate
+        && selection_feedback_gate
+        && build_lifecycle_gate
+        && scrollable_map_gate
+        && command_queue_path_gate
+        && production_interaction_polish_preview_gate
+        && source_preview_gate;
+    let green = production_interaction_polish_gate && no_copy_boundary_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT,
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "source_dir": source_dir.to_string_lossy(),
+        "source_contracts": {
+            "production_ui_skin": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
+            "command_affordance": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT,
+            "selection_command_feedback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+            "build_lifecycle": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BUILD_LIFECYCLE_CONTRACT,
+            "scrollable_map": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCROLLABLE_MAP_CONTRACT,
+            "command_queue_path_preview": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_QUEUE_PATH_PREVIEW_CONTRACT
+        },
+        "source_paths": {
+            "production_ui_skin": ui_skin_path,
+            "command_affordance": command_affordance_path,
+            "selection_command_feedback": selection_feedback_path,
+            "build_lifecycle": build_lifecycle_path,
+            "scrollable_map": scrollable_map_path,
+            "command_queue_path_preview": command_queue_path
+        },
+        "interaction_surface_names": interaction_surfaces.iter().map(|(label, _, _, _)| *label).collect::<Vec<_>>(),
+        "interaction_surface_count": interaction_surfaces.len(),
+        "interaction_replacement_slots": interaction_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
+        "interaction_source_surfaces": interaction_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "ui_skin_surface_count": ui_skin.get("ui_skin_surface_count").cloned().unwrap_or(Value::Null),
+        "ui_skin_feedback_marker_pixel_count": ui_skin.get("feedback_marker_pixel_count").cloned().unwrap_or(Value::Null),
+        "ui_skin_hotkey_strip_pixel_count": ui_skin.get("hotkey_strip_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_affordance_drag_marquee_pixel_count": command_affordance.get("drag_marquee_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_affordance_right_click_marker_pixel_count": command_affordance.get("right_click_marker_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_affordance_attack_cursor_pixel_count": command_affordance.get("attack_cursor_pixel_count").cloned().unwrap_or(Value::Null),
+        "selection_feedback_ack_pixel_count": selection_feedback.get("ack_pixel_count").cloned().unwrap_or(Value::Null),
+        "selection_feedback_error_pixel_count": selection_feedback.get("error_pixel_count").cloned().unwrap_or(Value::Null),
+        "build_lifecycle_blueprint_pixel_count": build_lifecycle.get("build_blueprint_pixel_count").cloned().unwrap_or(Value::Null),
+        "build_lifecycle_cancel_refund_pixel_count": build_lifecycle.get("cancel_refund_pixel_count").cloned().unwrap_or(Value::Null),
+        "scrollable_map_minimap_pixel_count": scrollable_map.get("minimap_pixel_count").cloned().unwrap_or(Value::Null),
+        "scrollable_map_drag_pixel_count": scrollable_map.get("drag_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_queue_slot_pixel_count": command_queue_path_preview.get("queue_slot_pixel_count").cloned().unwrap_or(Value::Null),
+        "command_queue_path_pixel_count": command_queue_path_preview.get("path_pixel_count").cloned().unwrap_or(Value::Null),
+        "interaction_board_pixel_count": interaction_board_pixel_count,
+        "drag_select_skin_pixel_count": drag_select_skin_pixel_count,
+        "right_click_move_skin_pixel_count": right_click_move_skin_pixel_count,
+        "attack_lock_skin_pixel_count": attack_lock_skin_pixel_count,
+        "build_ghost_skin_pixel_count": build_ghost_skin_pixel_count,
+        "queue_path_skin_pixel_count": queue_path_skin_pixel_count,
+        "scroll_minimap_skin_pixel_count": scroll_minimap_skin_pixel_count,
+        "hud_binding_pixel_count": hud_binding_pixel_count,
+        "polish_highlight_pixel_count": polish_highlight_pixel_count,
+        "blocked_state_pixel_count": blocked_state_pixel_count,
+        "ui_skin_gate": ui_skin_gate,
+        "command_affordance_gate": command_affordance_gate,
+        "selection_feedback_gate": selection_feedback_gate,
+        "build_lifecycle_gate": build_lifecycle_gate,
+        "scrollable_map_gate": scrollable_map_gate,
+        "command_queue_path_gate": command_queue_path_gate,
+        "production_interaction_polish_preview_gate": production_interaction_polish_preview_gate,
+        "source_preview_gate": source_preview_gate,
+        "no_copy_boundary_gate": no_copy_boundary_gate,
+        "production_interaction_polish_gate": production_interaction_polish_gate,
+        "source_art_policy": "Production interaction polish is a deterministic Rust/Bevy handoff board that applies the original Trillionnium production UI skin to drag selection, right-click movement, attack locks, build ghosts, queued paths, and scroll/minimap feedback. It consumes already-green native reducers and forbids copied Warcraft III, OpenRA, or third-party cursor/UI art.",
+        "license_boundary": "project_owned_internal_interaction_feedback_skin_slots_not_screen_for_screen_openra_or_warcraft_copy_not_public_launch_ready",
+        "final_external_bitmap_art_shipped": false,
+        "production_ready_interaction_ui_shipped": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "public_launch_ready": false,
+        "android_s5_real_device_claimed": false,
+        "gpu_upload_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "source_of_truth": "This gate moves from static production UI skin slots to player-facing interaction polish by requiring the skin, command affordance, selection feedback, build lifecycle, scrollable map, and command queue/path preview evidence to agree before classic playtest readiness and release-review CI can pass."
+    }))
+    .expect("classic RTS production interaction polish evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
