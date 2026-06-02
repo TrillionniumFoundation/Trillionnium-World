@@ -283,6 +283,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_full_screen_ui_replication_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_shell_meta_ui_replication_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_match_setup_ui_replication_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_campaign_outcome_ui_readiness_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_command_affordance_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_command_surface_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_structure_modeling_script_contract_guard_test.sh" \
@@ -553,6 +554,9 @@ run_check bevy_classic_rts_shell_meta_ui_replication_gate "$ROOT/scripts/check_t
 # Match setup UI replication contract: trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1
 run_check bevy_classic_rts_match_setup_ui_replication_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_match_setup_ui_replication_script_contract_guard_test.sh"
 run_check bevy_classic_rts_match_setup_ui_replication_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_match_setup_ui_replication.sh"
+# Campaign outcome UI readiness contract: trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1
+run_check bevy_classic_rts_campaign_outcome_ui_readiness_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_campaign_outcome_ui_readiness_script_contract_guard_test.sh"
+run_check bevy_classic_rts_campaign_outcome_ui_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness.sh"
 run_check bevy_classic_rts_command_affordance_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_command_affordance_script_contract_guard_test.sh"
 run_check bevy_classic_rts_command_affordance_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh"
 run_check bevy_classic_rts_command_surface_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_command_surface_script_contract_guard_test.sh"

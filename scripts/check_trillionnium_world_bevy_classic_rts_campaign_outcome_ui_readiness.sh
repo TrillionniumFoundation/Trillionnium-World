@@ -13,6 +13,7 @@ mkdir -p "$PREVIEW_DIR" "$(dirname "$SUMMARY")"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1"
+  and .status == "classic_rts_campaign_outcome_ui_readiness_green"
   and .green == true
   and .preview_count == 5
   and .source_contracts.first_minute_readiness == "trillionnium_world_bevy_classic_rts_first_minute_readiness_v1"
@@ -49,6 +50,12 @@ jq -e '
   and .open_world_summary.final_current_room_id == "league-coliseum"
   and .open_world_summary.final_map_scene == "arena_outdoor"
   and .open_world_summary.final_open_world_handoff_state == "resumed:league-coliseum"
+  and .internal_campaign_outcome_ui_readiness_claimed == true
+  and .external_evidence_ignored_for_current_outcome_pass == true
+  and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
 ' "$SUMMARY" >/dev/null
 
 test -s "$PREVIEW_DIR/first-minute-readiness.ppm"

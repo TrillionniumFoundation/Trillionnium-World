@@ -64373,6 +64373,7 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
+        "status": if green { "classic_rts_campaign_outcome_ui_readiness_green" } else { "classic_rts_campaign_outcome_ui_readiness_blocked" },
         "green": green,
         "preview_dir": preview_dir,
         "preview_count": 5,
@@ -64432,6 +64433,12 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
             "final_map_scene": open_world.get("final_map_scene").cloned().unwrap_or(Value::Null),
             "final_open_world_handoff_state": open_world.get("final_open_world_handoff_state").cloned().unwrap_or(Value::Null)
         },
+        "internal_campaign_outcome_ui_readiness_claimed": true,
+        "external_evidence_ignored_for_current_outcome_pass": true,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_engine_port_claimed": false,
         "source_of_truth": "The campaign outcome/UI readiness gate verifies the playable first-match loop as one Bevy-native chain: first-minute campaign entry, objective victory and defeat-risk reduction, base assault breach, battle aftermath rewards/next-action UI, and open-world route resume. It intentionally remains local native evidence and does not claim public-launch readiness or external OpenRA parity."
     }))
     .expect("classic RTS campaign outcome UI readiness evidence serializes")
