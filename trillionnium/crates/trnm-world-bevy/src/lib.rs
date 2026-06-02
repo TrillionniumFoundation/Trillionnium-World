@@ -244,6 +244,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONT
     "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SHELL_META_UI_REPLICATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -20751,6 +20753,728 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         "source_of_truth": "This gate is the internal Rust/Bevy full screen/UI replication matrix. It binds the player-visible title/campaign entry, tactical match viewport, HUD/command grid, map/minimap camera, build/tech overlays, unit status, ability/combat readability, production interaction polish, campaign outcome, and open-world handoff surfaces into one local native evidence board. It deliberately ignores Android S5, public launch, commercial cohort, and other external evidence for this replication pass."
     }))
     .expect("classic RTS full screen UI replication evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 1280;
+    const PANEL_HEIGHT: usize = 768;
+    const BACKGROUND_COLOR: u32 = 0x07090c;
+    const BOARD_COLOR: u32 = 0x11181d;
+    const EDGE_COLOR: u32 = 0x5fa6b3;
+    const ACCOUNT_COLOR: u32 = 0xd7a852;
+    const CREATE_COLOR: u32 = 0x74c486;
+    const SLOT_MENU_COLOR: u32 = 0x7896d6;
+    const SAVE_COLOR: u32 = 0xb98bd8;
+    const CONFIRM_COLOR: u32 = 0xd57575;
+    const LOAD_COLOR: u32 = 0x70bed0;
+    const RECOVERY_COLOR: u32 = 0xc6c069;
+    const PAUSE_COLOR: u32 = 0xe29459;
+    const SETTINGS_COLOR: u32 = 0x8fc878;
+    const INPUT_COLOR: u32 = 0x85c7d8;
+    const HIT_TEST_COLOR: u32 = 0xd48ba7;
+    const ONBOARDING_COLOR: u32 = 0x9ed47b;
+    const HIGHLIGHT_COLOR: u32 = 0xf4eac2;
+    const PANEL_COLOR: u32 = 0x1a252b;
+
+    let source_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("bevy-classic-rts-shell-meta-ui-replication-sources");
+    let _ = fs::create_dir_all(&source_dir);
+    let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
+    let full_screen_path = source_path("full-screen-ui-replication.ppm");
+    let save_slot_path = source_path("shell-meta-save-slot.json");
+    let slot_dir = native_action_session_slot_dir();
+    let _ = fs::create_dir_all(&slot_dir);
+
+    let full_screen: Value = serde_json::from_str(
+        &native_classic_rts_full_screen_ui_replication_evidence_json(&full_screen_path),
+    )
+    .expect("full screen UI replication evidence parses for shell/meta UI replication");
+    let account_title: Value =
+        serde_json::from_str(&native_account_title_flow_evidence_json("local-player"))
+            .expect("account title flow evidence parses for shell/meta UI replication");
+    let title_menu: Value =
+        serde_json::from_str(&native_title_menu_evidence_json("local-player", &slot_dir))
+            .expect("title menu evidence parses for shell/meta UI replication");
+    let character_create: Value = serde_json::from_str(&native_character_create_evidence_json(
+        "local-player",
+        &slot_dir,
+    ))
+    .expect("character create evidence parses for shell/meta UI replication");
+    let session_slot_menu: Value = serde_json::from_str(&native_session_slot_menu_evidence_json(
+        "local-player",
+        &slot_dir,
+    ))
+    .expect("session slot menu evidence parses for shell/meta UI replication");
+    let session_save_slot: Value = serde_json::from_str(&native_session_save_slot_evidence_json(
+        "local-player",
+        &save_slot_path,
+    ))
+    .expect("session save slot evidence parses for shell/meta UI replication");
+    let session_slot_confirm: Value = serde_json::from_str(
+        &native_session_slot_confirm_evidence_json("local-player", &slot_dir),
+    )
+    .expect("session slot confirm evidence parses for shell/meta UI replication");
+    let session_load_resume: Value = serde_json::from_str(
+        &native_session_load_resume_evidence_json("local-player", &slot_dir),
+    )
+    .expect("session load/resume evidence parses for shell/meta UI replication");
+    let session_recovery: Value =
+        serde_json::from_str(&native_session_recovery_ui_evidence_json("local-player"))
+            .expect("session recovery UI evidence parses for shell/meta UI replication");
+    let pause_menu: Value =
+        serde_json::from_str(&native_pause_menu_evidence_json("local-player", &slot_dir))
+            .expect("pause menu evidence parses for shell/meta UI replication");
+    let settings_menu: Value = serde_json::from_str(&native_settings_menu_evidence_json(
+        "local-player",
+        &slot_dir,
+    ))
+    .expect("settings menu evidence parses for shell/meta UI replication");
+    let input_hud: Value =
+        serde_json::from_str(&native_input_telemetry_hud_evidence_json("local-player"))
+            .expect("input telemetry HUD evidence parses for shell/meta UI replication");
+    let hit_test: Value = serde_json::from_str(&native_visible_button_hit_test_map_evidence_json())
+        .expect("visible button hit-test evidence parses for shell/meta UI replication");
+    let onboarding: Value = serde_json::from_str(&native_first_minute_onboarding_evidence_json(
+        "local-player",
+        &slot_dir,
+    ))
+    .expect("first-minute onboarding evidence parses for shell/meta UI replication");
+
+    let bool_at =
+        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let array_len = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .map(|items| items.len())
+            .unwrap_or(0)
+    };
+    let pointer_u64 =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let contract_is = |value: &Value, expected: &str| {
+        value.get("contract_version").and_then(Value::as_str) == Some(expected)
+    };
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 512)
+                .unwrap_or(false)
+    };
+
+    let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        720,
+        BOARD_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        740,
+        1232,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        4,
+        720,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1252,
+        24,
+        4,
+        720,
+        EDGE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        46,
+        "TRNM RUST/BEVY SHELL + META UI REPLICATION MATRIX",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        84,
+        "TITLE / ACCOUNT / CREATE / SLOTS / SAVE-LOAD / RECOVERY / PAUSE / SETTINGS / INPUT / HANDOFF",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        106,
+        "INTERNAL RUST/BEVY UI REPLICATION PASS; S5, PUBLIC, AND EXTERNAL EVIDENCE ARE NOT USED",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let shell_surfaces = [
+        (
+            "TITLE / ACCOUNT",
+            ACCOUNT_COLOR,
+            "account_title_flow",
+            "register_login_continue",
+        ),
+        (
+            "CHARACTER CREATE",
+            CREATE_COLOR,
+            "character_create",
+            "name_archetype_confirm",
+        ),
+        (
+            "SESSION SLOT MENU",
+            SLOT_MENU_COLOR,
+            "session_slot_menu",
+            "named_slots_a_b_c",
+        ),
+        (
+            "SAVE SLOT FILE",
+            SAVE_COLOR,
+            "save_slot_file",
+            "snapshot_round_trip",
+        ),
+        (
+            "SAVE / LOAD CONFIRM",
+            CONFIRM_COLOR,
+            "slot_confirm",
+            "overwrite_confirm_load",
+        ),
+        (
+            "LOAD / RESUME CTA",
+            LOAD_COLOR,
+            "load_resume_overlay",
+            "continue_required",
+        ),
+        (
+            "SESSION RECOVERY",
+            RECOVERY_COLOR,
+            "recovery_panel",
+            "telemetry_guard_restore",
+        ),
+        (
+            "PAUSE / RESUME",
+            PAUSE_COLOR,
+            "pause_menu",
+            "locked_resume_save_load",
+        ),
+        (
+            "SETTINGS",
+            SETTINGS_COLOR,
+            "settings_menu",
+            "volume_motion_input",
+        ),
+        (
+            "INPUT HUD",
+            INPUT_COLOR,
+            "input_telemetry_hud",
+            "recent_keyboard_summary",
+        ),
+        (
+            "BUTTON HIT TEST",
+            HIT_TEST_COLOR,
+            "hit_test_map",
+            "mouse_touch_centers",
+        ),
+        (
+            "FIRST-MINUTE HANDOFF",
+            ONBOARDING_COLOR,
+            "onboarding_handoff",
+            "create_to_resume_loop",
+        ),
+    ];
+
+    for (index, (label, color, slot, source)) in shell_surfaces.iter().enumerate() {
+        let col = (index % 4) as i32;
+        let row = (index / 4) as i32;
+        let x = 48 + col * 300;
+        let y = 142 + row * 150;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y,
+            270,
+            118,
+            PANEL_COLOR,
+        );
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 270, 5, *color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            y + 113,
+            270,
+            5,
+            *color,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 16,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 38,
+            slot,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            y + 58,
+            source,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        for marker in 0..5_i32 {
+            let sx = x + 18 + marker * 48;
+            let sy = y + 88;
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx,
+                sy,
+                34,
+                14,
+                *color,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                sx + 4,
+                sy + 4,
+                24,
+                3,
+                HIGHLIGHT_COLOR,
+            );
+        }
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        616,
+        1184,
+        86,
+        0x0d1418,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        636,
+        "SHELL/META UI + GAMEPLAY FULL-SCREEN SOURCE CHAIN",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for slot in 0..36_i32 {
+        let x = 72 + slot * 31;
+        let y = 668;
+        let color = match slot % 12 {
+            0 => ACCOUNT_COLOR,
+            1 => CREATE_COLOR,
+            2 => SLOT_MENU_COLOR,
+            3 => SAVE_COLOR,
+            4 => CONFIRM_COLOR,
+            5 => LOAD_COLOR,
+            6 => RECOVERY_COLOR,
+            7 => PAUSE_COLOR,
+            8 => SETTINGS_COLOR,
+            9 => INPUT_COLOR,
+            10 => HIT_TEST_COLOR,
+            _ => ONBOARDING_COLOR,
+        };
+        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 22, 20, color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 4,
+            y + 5,
+            14,
+            4,
+            HIGHLIGHT_COLOR,
+        );
+    }
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        694,
+        "NO REAL-DEVICE, PUBLIC-LAUNCH, OPENRA SCREEN-FOR-SCREEN, OR THIRD-PARTY ASSET CREDIT",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &pixels).is_ok();
+    let count_color =
+        |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let shell_board_pixel_count = count_color(BOARD_COLOR) + count_color(EDGE_COLOR);
+    let account_pixel_count = count_color(ACCOUNT_COLOR);
+    let create_pixel_count = count_color(CREATE_COLOR);
+    let slot_menu_pixel_count = count_color(SLOT_MENU_COLOR);
+    let save_slot_pixel_count = count_color(SAVE_COLOR);
+    let confirm_pixel_count = count_color(CONFIRM_COLOR);
+    let load_resume_pixel_count = count_color(LOAD_COLOR);
+    let recovery_pixel_count = count_color(RECOVERY_COLOR);
+    let pause_pixel_count = count_color(PAUSE_COLOR);
+    let settings_pixel_count = count_color(SETTINGS_COLOR);
+    let input_pixel_count = count_color(INPUT_COLOR);
+    let hit_test_pixel_count = count_color(HIT_TEST_COLOR);
+    let onboarding_pixel_count = count_color(ONBOARDING_COLOR);
+    let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+
+    let full_screen_ui_replication_gate = contract_is(
+        &full_screen,
+        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT,
+    ) && bool_at(&full_screen, "green")
+        && bool_at(&full_screen, "full_screen_ui_replication_gate")
+        && u64_at(&full_screen, "replication_surface_count") == 10;
+    let account_title_gate = contract_is(
+        &account_title,
+        TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_CONTRACT,
+    ) && bool_at(&account_title, "green")
+        && bool_at(&account_title, "register_gate")
+        && bool_at(&account_title, "login_gate")
+        && bool_at(&account_title, "continue_gate")
+        && bool_at(&account_title, "character_identity_gate")
+        && bool_at(&account_title, "account_identity_persistence_gate")
+        && bool_at(&account_title, "no_cex_gate")
+        && bool_at(&account_title, "session_account_session_bound");
+    let title_menu_gate = contract_is(&title_menu, TRILLIONNIUM_WORLD_BEVY_TITLE_MENU_CONTRACT)
+        && bool_at(&title_menu, "green")
+        && bool_at(&title_menu, "title_boot_gate")
+        && bool_at(&title_menu, "title_locked_input_gate")
+        && bool_at(&title_menu, "title_new_game_gate")
+        && bool_at(&title_menu, "character_confirm_gate")
+        && bool_at(&title_menu, "title_slot_save_gate")
+        && bool_at(&title_menu, "title_continue_resume_gate")
+        && bool_at(&title_menu, "title_load_resume_gate")
+        && !bool_at(&title_menu, "android_s5_real_device_claimed");
+    let character_create_gate = contract_is(
+        &character_create,
+        TRILLIONNIUM_WORLD_BEVY_CHARACTER_CREATE_CONTRACT,
+    ) && bool_at(&character_create, "green")
+        && bool_at(&character_create, "create_open_gate")
+        && bool_at(&character_create, "create_locked_input_gate")
+        && bool_at(&character_create, "create_choice_gate")
+        && bool_at(&character_create, "back_to_title_gate")
+        && bool_at(&character_create, "reopen_preserves_choices_gate")
+        && bool_at(&character_create, "confirm_create_gate")
+        && bool_at(&character_create, "save_created_character_gate");
+    let session_slot_menu_gate = contract_is(
+        &session_slot_menu,
+        TRILLIONNIUM_WORLD_BEVY_SESSION_SLOT_MENU_CONTRACT,
+    ) && bool_at(&session_slot_menu, "green")
+        && bool_at(&session_slot_menu, "visible_empty_slot_gate")
+        && bool_at(&session_slot_menu, "save_a_gate")
+        && bool_at(&session_slot_menu, "overwrite_a_gate")
+        && bool_at(&session_slot_menu, "empty_load_b_gate")
+        && bool_at(&session_slot_menu, "load_a_restore_gate")
+        && bool_at(&session_slot_menu, "slot_status_gate");
+    let session_save_slot_gate = contract_is(
+        &session_save_slot,
+        TRILLIONNIUM_WORLD_BEVY_SESSION_SAVE_SLOT_CONTRACT,
+    ) && bool_at(&session_save_slot, "green")
+        && bool_at(&session_save_slot, "slot_file_gate")
+        && bool_at(&session_save_slot, "slot_restore_gate")
+        && bool_at(&session_save_slot, "post_restore_guard_gate")
+        && bool_at(&session_save_slot, "slot_continue_gate")
+        && bool_at(&session_save_slot, "slot_hud_gate")
+        && u64_at(&session_save_slot, "slot_bytes") > 512
+        && file_ready(&save_slot_path);
+    let session_slot_confirm_gate = contract_is(
+        &session_slot_confirm,
+        TRILLIONNIUM_WORLD_BEVY_SESSION_SLOT_CONFIRM_CONTRACT,
+    ) && bool_at(&session_slot_confirm, "green")
+        && bool_at(&session_slot_confirm, "initial_selected_gate")
+        && bool_at(&session_slot_confirm, "selected_highlight_gate")
+        && bool_at(&session_slot_confirm, "empty_load_selected_gate")
+        && bool_at(&session_slot_confirm, "save_selected_gate")
+        && bool_at(&session_slot_confirm, "overwrite_prompt_gate")
+        && bool_at(&session_slot_confirm, "confirm_overwrite_gate")
+        && bool_at(&session_slot_confirm, "load_selected_restore_gate")
+        && bool_at(&session_slot_confirm, "continue_after_load_gate")
+        && bool_at(&session_slot_confirm, "slot_file_gate");
+    let session_load_resume_gate = contract_is(
+        &session_load_resume,
+        TRILLIONNIUM_WORLD_BEVY_SESSION_LOAD_RESUME_CONTRACT,
+    ) && bool_at(&session_load_resume, "green")
+        && bool_at(&session_load_resume, "save_selected_gate")
+        && bool_at(&session_load_resume, "load_resume_gate")
+        && bool_at(&session_load_resume, "locked_input_gate")
+        && bool_at(&session_load_resume, "continue_gate")
+        && bool_at(&session_load_resume, "final_hud_gate");
+    let session_recovery_gate = contract_is(
+        &session_recovery,
+        TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_UI_CONTRACT,
+    ) && bool_at(&session_recovery, "green")
+        && bool_at(&session_recovery, "panel_presence_gate")
+        && bool_at(&session_recovery, "recovered_status_gate")
+        && bool_at(&session_recovery, "continued_summary_gate")
+        && bool_at(&session_recovery, "guard_status_gate")
+        && bool_at(&session_recovery, "base_recovery_gate");
+    let pause_menu_gate = contract_is(&pause_menu, TRILLIONNIUM_WORLD_BEVY_PAUSE_MENU_CONTRACT)
+        && bool_at(&pause_menu, "green")
+        && bool_at(&pause_menu, "pause_open_gate")
+        && bool_at(&pause_menu, "paused_input_gate")
+        && bool_at(&pause_menu, "resume_gate")
+        && bool_at(&pause_menu, "paused_save_load_gate")
+        && bool_at(&pause_menu, "load_to_resume_gate")
+        && bool_at(&pause_menu, "resume_continue_gate")
+        && bool_at(&pause_menu, "final_hud_gate");
+    let settings_menu_gate = contract_is(
+        &settings_menu,
+        TRILLIONNIUM_WORLD_BEVY_SETTINGS_MENU_CONTRACT,
+    ) && bool_at(&settings_menu, "green")
+        && bool_at(&settings_menu, "pre_pause_settings_gate")
+        && bool_at(&settings_menu, "open_settings_gate")
+        && bool_at(&settings_menu, "adjust_settings_gate")
+        && bool_at(&settings_menu, "settings_save_gate")
+        && bool_at(&settings_menu, "settings_restore_gate")
+        && bool_at(&settings_menu, "resume_continue_gate")
+        && bool_at(&settings_menu, "final_hud_gate");
+    let input_hud_gate = contract_is(
+        &input_hud,
+        TRILLIONNIUM_WORLD_BEVY_INPUT_TELEMETRY_HUD_CONTRACT,
+    ) && bool_at(&input_hud, "green")
+        && bool_at(&input_hud, "hud_contract_gate")
+        && bool_at(&input_hud, "hud_recent_input_gate")
+        && bool_at(&input_hud, "sample_summary_gate")
+        && bool_at(&input_hud, "final_runtime_gate")
+        && pointer_u64(&input_hud, "/input_telemetry_summary/keyboard_events") >= 10;
+    let visible_hit_test_gate = contract_is(
+        &hit_test,
+        TRILLIONNIUM_WORLD_BEVY_VISIBLE_BUTTON_HIT_TEST_MAP_CONTRACT,
+    ) && bool_at(&hit_test, "green")
+        && bool_at(&hit_test, "window_size_gate")
+        && bool_at(&hit_test, "target_count_gate")
+        && bool_at(&hit_test, "target_sequence_gate")
+        && bool_at(&hit_test, "native_action_parse_gate")
+        && bool_at(&hit_test, "first_minute_touch_coverage_gate")
+        && array_len(&hit_test, "targets") == 10;
+    let first_minute_onboarding_gate = contract_is(
+        &onboarding,
+        TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_ONBOARDING_CONTRACT,
+    ) && bool_at(&onboarding, "green")
+        && bool_at(&onboarding, "create_gate")
+        && bool_at(&onboarding, "spawn_gate")
+        && bool_at(&onboarding, "mentor_talk_gate")
+        && bool_at(&onboarding, "training_gate")
+        && bool_at(&onboarding, "arena_move_gate")
+        && bool_at(&onboarding, "fight_gate")
+        && bool_at(&onboarding, "save_gate")
+        && bool_at(&onboarding, "title_continue_gate")
+        && bool_at(&onboarding, "restored_state_gate")
+        && bool_at(&onboarding, "input_path_gate");
+    let no_external_boundary_gate = !bool_at(&title_menu, "android_s5_real_device_claimed")
+        && !bool_at(&character_create, "android_s5_real_device_claimed")
+        && !bool_at(&session_slot_menu, "android_s5_real_device_claimed")
+        && !bool_at(&session_save_slot, "android_s5_real_device_claimed")
+        && !bool_at(&session_slot_confirm, "android_s5_real_device_claimed")
+        && !bool_at(&session_load_resume, "android_s5_real_device_claimed")
+        && !bool_at(&session_recovery, "android_s5_real_device_claimed")
+        && !bool_at(&pause_menu, "android_s5_real_device_claimed")
+        && !bool_at(&settings_menu, "android_s5_real_device_claimed")
+        && !bool_at(&input_hud, "android_s5_real_device_claimed")
+        && !bool_at(&hit_test, "android_s5_real_device_claimed")
+        && !bool_at(&onboarding, "android_s5_real_device_claimed")
+        && !bool_at(&full_screen, "android_s5_real_device_claimed")
+        && !bool_at(&full_screen, "public_launch_ready")
+        && !bool_at(&full_screen, "screen_for_screen_openra_ui_claimed")
+        && !bool_at(&full_screen, "openra_engine_port_claimed")
+        && !bool_at(&full_screen, "warcraft_iii_asset_copied")
+        && !bool_at(&full_screen, "openra_asset_copied")
+        && !bool_at(&full_screen, "third_party_asset_copied");
+    let shell_meta_preview_gate = write_gate
+        && Path::new(preview_path).exists()
+        && fs::metadata(preview_path)
+            .map(|metadata| metadata.len() > 100_000)
+            .unwrap_or(false)
+        && shell_board_pixel_count > 80_000
+        && account_pixel_count > 1_000
+        && create_pixel_count > 1_000
+        && slot_menu_pixel_count > 1_000
+        && save_slot_pixel_count > 1_000
+        && confirm_pixel_count > 1_000
+        && load_resume_pixel_count > 1_000
+        && recovery_pixel_count > 1_000
+        && pause_pixel_count > 1_000
+        && settings_pixel_count > 1_000
+        && input_pixel_count > 1_000
+        && hit_test_pixel_count > 1_000
+        && onboarding_pixel_count > 1_000
+        && highlight_pixel_count > 2_000;
+    let source_preview_gate = file_ready(&full_screen_path) && file_ready(&save_slot_path);
+    let shell_meta_ui_replication_gate = full_screen_ui_replication_gate
+        && account_title_gate
+        && title_menu_gate
+        && character_create_gate
+        && session_slot_menu_gate
+        && session_save_slot_gate
+        && session_slot_confirm_gate
+        && session_load_resume_gate
+        && session_recovery_gate
+        && pause_menu_gate
+        && settings_menu_gate
+        && input_hud_gate
+        && visible_hit_test_gate
+        && first_minute_onboarding_gate
+        && no_external_boundary_gate
+        && shell_meta_preview_gate
+        && source_preview_gate;
+    let green = shell_meta_ui_replication_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SHELL_META_UI_REPLICATION_CONTRACT,
+        "status": "classic_rts_shell_meta_ui_replication_green",
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PANEL_WIDTH,
+        "preview_height": PANEL_HEIGHT,
+        "source_dir": source_dir.to_string_lossy(),
+        "session_slot_dir": slot_dir,
+        "source_contracts": {
+            "full_screen_ui_replication": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT,
+            "account_title_flow": TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_CONTRACT,
+            "title_menu": TRILLIONNIUM_WORLD_BEVY_TITLE_MENU_CONTRACT,
+            "character_create": TRILLIONNIUM_WORLD_BEVY_CHARACTER_CREATE_CONTRACT,
+            "session_slot_menu": TRILLIONNIUM_WORLD_BEVY_SESSION_SLOT_MENU_CONTRACT,
+            "session_save_slot": TRILLIONNIUM_WORLD_BEVY_SESSION_SAVE_SLOT_CONTRACT,
+            "session_slot_confirm": TRILLIONNIUM_WORLD_BEVY_SESSION_SLOT_CONFIRM_CONTRACT,
+            "session_load_resume": TRILLIONNIUM_WORLD_BEVY_SESSION_LOAD_RESUME_CONTRACT,
+            "session_recovery_ui": TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_UI_CONTRACT,
+            "pause_menu": TRILLIONNIUM_WORLD_BEVY_PAUSE_MENU_CONTRACT,
+            "settings_menu": TRILLIONNIUM_WORLD_BEVY_SETTINGS_MENU_CONTRACT,
+            "input_telemetry_hud": TRILLIONNIUM_WORLD_BEVY_INPUT_TELEMETRY_HUD_CONTRACT,
+            "visible_button_hit_test_map": TRILLIONNIUM_WORLD_BEVY_VISIBLE_BUTTON_HIT_TEST_MAP_CONTRACT,
+            "first_minute_onboarding": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_ONBOARDING_CONTRACT
+        },
+        "source_paths": {
+            "full_screen_ui_replication_preview": full_screen_path,
+            "session_save_slot_snapshot": save_slot_path
+        },
+        "shell_meta_surface_names": shell_surfaces.iter().map(|(label, _, _, _)| *label).collect::<Vec<_>>(),
+        "shell_meta_surface_count": shell_surfaces.len(),
+        "shell_meta_slot_ids": shell_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
+        "shell_meta_source_surfaces": shell_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "shell_meta_pixel_counts": {
+            "board": shell_board_pixel_count,
+            "account_title": account_pixel_count,
+            "character_create": create_pixel_count,
+            "session_slot_menu": slot_menu_pixel_count,
+            "save_slot_file": save_slot_pixel_count,
+            "save_load_confirm": confirm_pixel_count,
+            "load_resume_cta": load_resume_pixel_count,
+            "session_recovery": recovery_pixel_count,
+            "pause_resume": pause_pixel_count,
+            "settings": settings_pixel_count,
+            "input_hud": input_pixel_count,
+            "button_hit_test": hit_test_pixel_count,
+            "first_minute_handoff": onboarding_pixel_count,
+            "highlight": highlight_pixel_count
+        },
+        "source_headline": {
+            "full_screen_surface_count": full_screen.get("replication_surface_count").cloned().unwrap_or(Value::Null),
+            "account_session_bound": account_title.get("session_account_session_bound").cloned().unwrap_or(Value::Null),
+            "title_slot_a_bytes": title_menu.get("slot_a_bytes").cloned().unwrap_or(Value::Null),
+            "character_name": character_create.pointer("/final_character/display_name").cloned().unwrap_or(Value::Null),
+            "slot_menu_target_count": array_len(&hit_test, "targets"),
+            "save_slot_bytes": session_save_slot.get("slot_bytes").cloned().unwrap_or(Value::Null),
+            "settings_volume": settings_menu.pointer("/after_continue_sample/runtime/session_settings_volume_level").cloned().unwrap_or(Value::Null),
+            "input_keyboard_events": input_hud.pointer("/input_telemetry_summary/keyboard_events").cloned().unwrap_or(Value::Null),
+            "onboarding_final_node": onboarding.pointer("/final_sample/current_node_id").cloned().unwrap_or(Value::Null)
+        },
+        "full_screen_ui_replication_gate": full_screen_ui_replication_gate,
+        "account_title_gate": account_title_gate,
+        "title_menu_gate": title_menu_gate,
+        "character_create_gate": character_create_gate,
+        "session_slot_menu_gate": session_slot_menu_gate,
+        "session_save_slot_gate": session_save_slot_gate,
+        "session_slot_confirm_gate": session_slot_confirm_gate,
+        "session_load_resume_gate": session_load_resume_gate,
+        "session_recovery_gate": session_recovery_gate,
+        "pause_menu_gate": pause_menu_gate,
+        "settings_menu_gate": settings_menu_gate,
+        "input_hud_gate": input_hud_gate,
+        "visible_hit_test_gate": visible_hit_test_gate,
+        "first_minute_onboarding_gate": first_minute_onboarding_gate,
+        "no_external_boundary_gate": no_external_boundary_gate,
+        "shell_meta_preview_gate": shell_meta_preview_gate,
+        "source_preview_gate": source_preview_gate,
+        "shell_meta_ui_replication_gate": shell_meta_ui_replication_gate,
+        "internal_shell_meta_ui_replication_claimed": shell_meta_ui_replication_gate,
+        "external_evidence_ignored_for_current_replication_pass": true,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_engine_port_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "source_of_truth": "This gate complements the full-screen gameplay UI matrix with a shell/meta UI replication matrix for the Rust/Bevy title, account, character creation, save/load slot, session recovery, pause, settings, input telemetry, button hit-test, and first-minute handoff surfaces. It intentionally ignores Android S5, public-launch, commercial cohort, and other external evidence for this replication pass."
+    }))
+    .expect("classic RTS shell/meta UI replication evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {

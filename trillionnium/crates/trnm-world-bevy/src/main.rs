@@ -158,6 +158,25 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-shell-meta-ui-replication"
+                | "--classic-rts-shell-meta-ui-replication"
+                | "shell-meta-ui-replication"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-meta-ui-replication.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_shell_meta_ui_replication_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-first-contact-basin-spec"
                 | "--classic-rts-first-contact-basin-spec"
                 | "first-contact-basin-spec"
