@@ -15,6 +15,7 @@ mkdir -p "$PREVIEW_DIR" "$(dirname "$SUMMARY")"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness_v1"
+  and .status == "classic_rts_combat_readability_pressure_readiness_green"
   and .green == true
   and .preview_count == 5
   and .source_contracts.unit_status_portrait == "trillionnium_world_bevy_classic_rts_unit_status_portrait_v1"
@@ -52,6 +53,15 @@ jq -e '
   and .pressure_summary.final_central_keep_state == "pressure_locked:central_keep"
   and (.pressure_summary.final_next_action_ids | index("press_central_keep") != null)
   and (.pressure_summary.final_next_action_ids | index("break_central_keep") != null)
+  and .internal_combat_readability_pressure_readiness_claimed == true
+  and .external_evidence_ignored_for_current_combat_readability_pass == true
+  and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
 ' "$SUMMARY" >/dev/null
 
 test -s "$PREVIEW_DIR/unit-status-portrait.ppm"

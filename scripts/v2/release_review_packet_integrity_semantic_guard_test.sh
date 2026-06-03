@@ -65,7 +65,7 @@ jq -n '{
   green: true,
   fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 4,
   expected_semantic_failure_names: [
     "first_minute_command_feedback_replay_semantics",
@@ -91,7 +91,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -122,7 +122,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -147,7 +147,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -177,7 +177,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -256,7 +256,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_selection_minimap_semantics",
@@ -323,7 +323,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_build_lifecycle_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_build_lifecycle_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_build_lifecycle_semantics",
@@ -394,7 +394,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_tech_tree_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_tech_tree_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_tech_tree_semantics",
@@ -462,7 +462,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_projectile_ability_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_projectile_ability_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 106,
+  fake_packet_artifact_count: 107,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: ["classic_rts_projectile_ability_semantics", "classic_rts_projectile_ability_ppm_semantics"],
   checksum_mismatch_failure_count: 0,
@@ -1232,6 +1232,42 @@ jq -n '{
   third_party_asset_copied: false
 }' >"$session_state_continuity_json"
 add_artifact_from_path native_bevy_classic_rts_session_state_continuity "Native/Bevy classic RTS session state continuity" "$session_state_continuity_json" release_review_input
+combat_readability_pressure_readiness_json="$TMP_DIR/bevy-classic-rts-combat-readability-pressure-readiness.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness_v1",
+  status: "classic_rts_combat_readability_pressure_readiness_green",
+  green: true,
+  preview_count: 5,
+  source_contracts: {
+    unit_status_portrait: "trillionnium_world_bevy_classic_rts_unit_status_portrait_v1",
+    selection_command_feedback: "trillionnium_world_bevy_classic_rts_selection_command_feedback_v1",
+    ability_tooltip_telegraph: "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1",
+    depth_readability: "trillionnium_world_bevy_classic_rts_depth_readability_v1",
+    central_keep_pressure: "trillionnium_world_bevy_classic_rts_central_keep_pressure_v1"
+  },
+  unit_status_gate: true,
+  command_feedback_gate: true,
+  ability_telegraph_gate: true,
+  depth_readability_gate: true,
+  pressure_feedback_gate: true,
+  source_policy_gate: true,
+  preview_gate: true,
+  unit_status_summary: {portrait_frame_pixel_count: 15339, health_bar_pixel_count: 2612, mana_bar_pixel_count: 2928, role_badge_pixel_count: 10934},
+  command_feedback_summary: {marquee_pixel_count: 4760, attack_pixel_count: 1805, error_pixel_count: 7010, ack_pixel_count: 6027},
+  ability_telegraph_summary: {accepted_input_count: 6, tooltip_pixel_count: 10466, range_pixel_count: 5036, warning_pixel_count: 6387},
+  depth_summary: {foreground_pixel_count: 11000, behind_pixel_count: 1859, building_mask_pixel_count: 2635, target_priority_pixel_count: 1512},
+  pressure_summary: {accepted_input_count: 40, final_defeat_risk_percent: 42, final_target_health_percent: 58, final_target_shield_percent: 24, final_central_keep_state: "pressure_locked:central_keep", final_next_action_ids: ["secure_expansion", "rebuild_forward_lodge", "scout_second_base", "enter_inner_lane", "press_central_keep", "break_central_keep"]},
+  internal_combat_readability_pressure_readiness_claimed: true,
+  external_evidence_ignored_for_current_combat_readability_pass: true,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$combat_readability_pressure_readiness_json"
+add_artifact_from_path native_bevy_classic_rts_combat_readability_pressure_readiness "Native/Bevy classic RTS combat readability/pressure readiness" "$combat_readability_pressure_readiness_json" release_review_input
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \
   '{

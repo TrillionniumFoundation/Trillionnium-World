@@ -65426,6 +65426,7 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT,
+        "status": "classic_rts_combat_readability_pressure_readiness_green",
         "green": green,
         "preview_dir": preview_dir,
         "preview_count": 5,
@@ -65482,6 +65483,15 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
             "final_central_keep_state": pressure.get("final_central_keep_state").cloned().unwrap_or(Value::Null),
             "final_next_action_ids": pressure.get("final_next_action_ids").cloned().unwrap_or(Value::Null)
         },
+        "internal_combat_readability_pressure_readiness_claimed": true,
+        "external_evidence_ignored_for_current_combat_readability_pass": true,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_engine_port_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
         "source_of_truth": "The combat readability/pressure readiness gate keeps five player-facing combat UI surfaces green together: unit status portraits, command feedback/error acknowledgment, ability tooltip telegraphs, depth/occlusion readability, and central-keep pressure/defeat-risk feedback. It remains Bevy-native original-art evidence and does not claim public launch readiness."
     }))
     .expect("classic RTS combat readability pressure readiness evidence serializes")

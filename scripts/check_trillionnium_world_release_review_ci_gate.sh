@@ -155,6 +155,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_locomotion_blend.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_transition.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_parity_bridge.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_owned_replay_file.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_headless_replay_playback.sh" \
@@ -323,6 +324,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_locomotion_blend_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_npc_transition_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_depth_readability_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_combat_readability_pressure_readiness_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_openra_parity_bridge_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_owned_replay_file_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_headless_replay_playback_script_contract_guard_test.sh" \
@@ -637,6 +639,9 @@ run_check bevy_classic_rts_npc_transition_contract_guard "$ROOT/scripts/v2/bevy_
 run_check bevy_classic_rts_npc_transition_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_npc_transition.sh"
 run_check bevy_classic_rts_depth_readability_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_depth_readability_script_contract_guard_test.sh"
 run_check bevy_classic_rts_depth_readability_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh"
+# Combat readability/pressure readiness contract: trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness_v1
+run_check bevy_classic_rts_combat_readability_pressure_readiness_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_combat_readability_pressure_readiness_script_contract_guard_test.sh"
+run_check bevy_classic_rts_combat_readability_pressure_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh"
 run_check bevy_classic_rts_openra_parity_bridge_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_parity_bridge_script_contract_guard_test.sh"
 run_check bevy_classic_rts_openra_parity_bridge_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_parity_bridge.sh"
 run_check bevy_classic_rts_owned_replay_file_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_owned_replay_file_script_contract_guard_test.sh"
