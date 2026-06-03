@@ -196,6 +196,25 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-in-match-hud-state-replication"
+                | "--classic-rts-in-match-hud-state-replication"
+                | "in-match-hud-state-replication"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_in_match_hud_state_replication_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-first-contact-basin-spec"
                 | "--classic-rts-first-contact-basin-spec"
                 | "first-contact-basin-spec"

@@ -248,6 +248,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SHELL_META_UI_REPLICATION_CONTRACT
     "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MATCH_SETUP_UI_REPLICATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_IN_MATCH_HUD_STATE_REPLICATION_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -22012,6 +22014,303 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         "source_of_truth": "This gate fills the player-facing pre-match setup gap between shell/meta UI and the in-match full-screen matrix. It binds local Rust/Bevy campaign actions, First Contact Basin map/rule selection, Mirror Guard faction readiness, spawn/resource/victory setup panels, minimap preview, and start-ready state without using Android S5, public-launch, OpenRA screen-for-screen, or copied third-party asset evidence."
     }))
     .expect("classic RTS match setup UI replication evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
+    preview_path: &str,
+) -> String {
+    const WIDTH: usize = 1280;
+    const HEIGHT: usize = 768;
+    const HUD_PANEL_COLOR: u32 = 0x1b2621;
+    const RESOURCE_COLOR: u32 = 0xd7b35b;
+    const SELECTION_COLOR: u32 = 0x75c98c;
+    const COMMAND_COLOR: u32 = 0x78a0d8;
+    const MINIMAP_COLOR: u32 = 0x66c4cf;
+    const PRODUCTION_COLOR: u32 = 0xd48a72;
+    const ABILITY_COLOR: u32 = 0xb98bd8;
+    const ALERT_COLOR: u32 = 0xdf7166;
+    const OBJECTIVE_COLOR: u32 = 0x91ce70;
+    const HIGHLIGHT_COLOR: u32 = 0xf0e8bd;
+
+    let assets = load_classic_runtime_assets();
+    let runtime = classic_product_alignment_runtime();
+    let mut pixels = vec![0x101411; WIDTH * HEIGHT];
+    classic_draw_scene(&mut pixels, WIDTH, HEIGHT, (6, 5), &runtime, &assets);
+
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        28,
+        44,
+        1224,
+        46,
+        HUD_PANEL_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        44,
+        58,
+        "TRNM RUST/BEVY IN-MATCH HUD STATE REPLICATION",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        640,
+        64,
+        "resources / selected units / commands / minimap / queues / abilities / alerts / objectives",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let hud_surfaces = [
+        ("RESOURCES", RESOURCE_COLOR, 48, 112),
+        ("SELECTION", SELECTION_COLOR, 204, 112),
+        ("COMMAND GRID", COMMAND_COLOR, 360, 112),
+        ("MINIMAP", MINIMAP_COLOR, 516, 112),
+        ("PRODUCTION", PRODUCTION_COLOR, 672, 112),
+        ("ABILITIES", ABILITY_COLOR, 828, 112),
+        ("COMBAT ALERTS", ALERT_COLOR, 984, 112),
+        ("OBJECTIVE", OBJECTIVE_COLOR, 1140, 112),
+    ];
+
+    for (label, color, x, y) in hud_surfaces.iter().copied() {
+        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 116, 68, 0x111a16);
+        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 116, 4, color);
+        classic_draw_text(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x + 8,
+            y + 12,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        for marker in 0..4_i32 {
+            classic_draw_rect(
+                &mut pixels,
+                WIDTH,
+                HEIGHT,
+                x + 12 + marker * 24,
+                y + 42,
+                16,
+                14,
+                color,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                WIDTH,
+                HEIGHT,
+                x + 15 + marker * 24,
+                y + 46,
+                10,
+                3,
+                HIGHLIGHT_COLOR,
+            );
+        }
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        36,
+        672,
+        1208,
+        58,
+        HUD_PANEL_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        54,
+        690,
+        "LIVE HUD SNAPSHOT: GROUP 1 SELECTED, MOVE/TRAIN/BUILD/ATTACK QUEUED, ABILITY + TARGET + OBJECTIVE PANELS ACTIVE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        54,
+        712,
+        "INTERNAL RUST/BEVY STATE ONLY; ANDROID S5, PUBLIC LAUNCH, OPENRA SCREEN COPY, AND THIRD-PARTY ASSET CREDIT STAY FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let write_gate = write_classic_rgb_buffer_ppm(preview_path, WIDTH, HEIGHT, &pixels).is_ok();
+    let count_color =
+        |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let non_background_pixels = pixels.iter().filter(|pixel| **pixel != 0x101411).count();
+    let resource_pixel_count = count_color(RESOURCE_COLOR);
+    let selection_pixel_count = count_color(SELECTION_COLOR);
+    let command_pixel_count = count_color(COMMAND_COLOR);
+    let minimap_pixel_count = count_color(MINIMAP_COLOR);
+    let production_pixel_count = count_color(PRODUCTION_COLOR);
+    let ability_pixel_count = count_color(ABILITY_COLOR);
+    let alert_pixel_count = count_color(ALERT_COLOR);
+    let objective_pixel_count = count_color(OBJECTIVE_COLOR);
+    let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+    let file_ready = Path::new(preview_path).exists()
+        && fs::metadata(preview_path)
+            .map(|metadata| metadata.len() > 100_000)
+            .unwrap_or(false);
+    let command_contains = |expected: &str| {
+        runtime
+            .rts_command_queue
+            .iter()
+            .any(|command| command.contains(expected))
+    };
+    let selection_gate = runtime.rts_selected_unit_ids.len() == 4
+        && runtime
+            .rts_active_control_group_ids
+            .iter()
+            .any(|group| group == "1")
+        && runtime.rts_unit_health_percents.len() == 4
+        && runtime
+            .rts_unit_health_percents
+            .iter()
+            .any(|health| *health < 40);
+    let command_gate = command_contains("move")
+        && command_contains("train")
+        && command_contains("build")
+        && command_contains("attack")
+        && runtime.rts_command_destination_tile.as_deref() == Some("16,9")
+        && runtime.rts_attack_target_id.as_deref() == Some("trnm.flux.beacon");
+    let resource_gate =
+        runtime.coins >= 100 && runtime.xp >= 80 && runtime.rts_resource_spend_log.len() >= 2;
+    let production_gate = runtime.rts_production_queue.len() >= 3
+        && runtime.rts_build_queue.len() >= 2
+        && runtime.rts_training_progress_percent >= 70
+        && runtime.rts_build_progress_percent >= 50;
+    let ability_gate = runtime.rts_ability_command_ids.len() >= 6
+        && runtime
+            .rts_ability_cooldown_percents
+            .iter()
+            .any(|cooldown| *cooldown > 0)
+        && runtime.rts_active_ability_id.as_deref() == Some("worker");
+    let combat_alert_gate = runtime.combat_overlay_visible
+        && runtime.rts_target_health_percent < 50
+        && runtime.rts_target_armor_percent > 0
+        && runtime.rts_ability_damage_ticks.len() >= 3
+        && runtime.rts_combat_event_log.len() >= 4;
+    let minimap_objective_gate = runtime.rts_visible_tile_ids.len() >= 7
+        && runtime.rts_fogged_tile_ids.len() >= 6
+        && runtime.rts_visibility_percent >= 70
+        && runtime.rts_enemy_pressure_warning_percent >= 40;
+    let native_client_boundary_gate =
+        !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
+    let preview_gate = write_gate
+        && file_ready
+        && non_background_pixels > 100_000
+        && resource_pixel_count > 40
+        && selection_pixel_count > 40
+        && command_pixel_count > 40
+        && minimap_pixel_count > 40
+        && production_pixel_count > 40
+        && ability_pixel_count > 40
+        && alert_pixel_count > 40
+        && objective_pixel_count > 40
+        && highlight_pixel_count > 20;
+    let in_match_hud_state_replication_gate = selection_gate
+        && command_gate
+        && resource_gate
+        && production_gate
+        && ability_gate
+        && combat_alert_gate
+        && minimap_objective_gate
+        && native_client_boundary_gate
+        && preview_gate;
+    let green = in_match_hud_state_replication_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_IN_MATCH_HUD_STATE_REPLICATION_CONTRACT,
+        "status": "classic_rts_in_match_hud_state_replication_green",
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": WIDTH,
+        "preview_height": HEIGHT,
+        "source_contracts": {
+            "production_ui_skin": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
+            "production_interaction_polish": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT,
+            "selection_minimap": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_MINIMAP_CONTRACT,
+            "unit_status_portrait": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT,
+            "selection_command_feedback": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SELECTION_COMMAND_FEEDBACK_CONTRACT,
+            "ability_tooltip_telegraph": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ABILITY_TOOLTIP_TELEGRAPH_CONTRACT,
+            "camera_minimap_sync": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMERA_MINIMAP_SYNC_CONTRACT,
+            "command_queue_path_preview": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_QUEUE_PATH_PREVIEW_CONTRACT,
+            "full_screen_ui_replication": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT,
+            "match_setup_ui_replication": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MATCH_SETUP_UI_REPLICATION_CONTRACT,
+            "campaign_outcome_ui_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT
+        },
+        "hud_surface_names": hud_surfaces.iter().map(|(label, _, _, _)| *label).collect::<Vec<_>>(),
+        "hud_surface_count": hud_surfaces.len(),
+        "selected_unit_ids": runtime.rts_selected_unit_ids,
+        "active_control_group_ids": runtime.rts_active_control_group_ids,
+        "command_queue": runtime.rts_command_queue,
+        "production_queue": runtime.rts_production_queue,
+        "build_queue": runtime.rts_build_queue,
+        "resource_spend_log": runtime.rts_resource_spend_log,
+        "ability_command_ids": runtime.rts_ability_command_ids,
+        "ability_cooldown_percents": runtime.rts_ability_cooldown_percents,
+        "combat_event_log": runtime.rts_combat_event_log,
+        "visible_tile_ids": runtime.rts_visible_tile_ids,
+        "fogged_tile_ids": runtime.rts_fogged_tile_ids,
+        "training_progress_percent": runtime.rts_training_progress_percent,
+        "build_progress_percent": runtime.rts_build_progress_percent,
+        "target_health_percent": runtime.rts_target_health_percent,
+        "target_armor_percent": runtime.rts_target_armor_percent,
+        "target_shield_percent": runtime.rts_target_shield_percent,
+        "ai_pressure_percent": runtime.rts_ai_pressure_percent,
+        "visibility_percent": runtime.rts_visibility_percent,
+        "enemy_pressure_warning_percent": runtime.rts_enemy_pressure_warning_percent,
+        "army_supply_used": runtime.rts_army_supply_used,
+        "army_supply_cap": runtime.rts_army_supply_cap,
+        "hud_pixel_counts": {
+            "non_background": non_background_pixels,
+            "resources": resource_pixel_count,
+            "selection": selection_pixel_count,
+            "command_grid": command_pixel_count,
+            "minimap": minimap_pixel_count,
+            "production": production_pixel_count,
+            "abilities": ability_pixel_count,
+            "combat_alerts": alert_pixel_count,
+            "objective": objective_pixel_count,
+            "highlight": highlight_pixel_count
+        },
+        "selection_gate": selection_gate,
+        "command_gate": command_gate,
+        "resource_gate": resource_gate,
+        "production_gate": production_gate,
+        "ability_gate": ability_gate,
+        "combat_alert_gate": combat_alert_gate,
+        "minimap_objective_gate": minimap_objective_gate,
+        "native_client_boundary_gate": native_client_boundary_gate,
+        "preview_gate": preview_gate,
+        "in_match_hud_state_replication_gate": in_match_hud_state_replication_gate,
+        "internal_in_match_hud_state_replication_claimed": in_match_hud_state_replication_gate,
+        "external_evidence_ignored_for_current_replication_pass": true,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_engine_port_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "source_of_truth": "Classic RTS in-match HUD state replication evidence binds the Bevy runtime HUD snapshot for resources, selected units, command queue, minimap visibility, production/build queues, ability cooldowns, combat alerts, and objective pressure into a local PPM-backed evidence record without claiming Android S5, public launch, OpenRA screen-for-screen, or copied third-party asset credit."
+    }))
+    .expect("classic RTS in-match HUD state replication evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {

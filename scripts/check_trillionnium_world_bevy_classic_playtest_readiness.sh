@@ -105,6 +105,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_match_setup_ui_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_ui_continuity.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_in_match_hud_state_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
@@ -207,6 +208,7 @@ jq -n \
   --slurpfile rts_match_setup_ui_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-match-setup-ui-replication.json" \
   --slurpfile rts_campaign_outcome_ui_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness.json" \
   --slurpfile rts_campaign_ui_continuity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-ui-continuity.json" \
+  --slurpfile rts_in_match_hud_state_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
@@ -315,6 +317,7 @@ jq -n \
       and ok($rts_match_setup_ui_replication)
       and ok($rts_campaign_outcome_ui_readiness)
       and ok($rts_campaign_ui_continuity)
+      and ok($rts_in_match_hud_state_replication)
       and ok($rts_combat_readability_pressure_readiness)
       and ok($rts_playtest_observability_readiness)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
@@ -635,6 +638,7 @@ jq -n \
       classic_rts_match_setup_ui_replication_green: ok($rts_match_setup_ui_replication),
       classic_rts_campaign_outcome_ui_readiness_green: ok($rts_campaign_outcome_ui_readiness),
       classic_rts_campaign_ui_continuity_green: ok($rts_campaign_ui_continuity),
+      classic_rts_in_match_hud_state_replication_green: ok($rts_in_match_hud_state_replication),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
@@ -1741,6 +1745,12 @@ jq -n \
       rts_campaign_ui_continuity_final_room_id: $rts_campaign_ui_continuity[0].final_current_room_id,
       rts_campaign_ui_continuity_restored_room_id: $rts_campaign_ui_continuity[0].restored_current_room_id,
       rts_campaign_ui_continuity_primary_action_label: $rts_campaign_ui_continuity[0].final_contextual_primary_action_label,
+      rts_in_match_hud_state_replication_surface_count: $rts_in_match_hud_state_replication[0].hud_surface_count,
+      rts_in_match_hud_state_replication_non_background_pixels: $rts_in_match_hud_state_replication[0].hud_pixel_counts.non_background,
+      rts_in_match_hud_state_replication_command_grid_pixel_count: $rts_in_match_hud_state_replication[0].hud_pixel_counts.command_grid,
+      rts_in_match_hud_state_replication_minimap_pixel_count: $rts_in_match_hud_state_replication[0].hud_pixel_counts.minimap,
+      rts_in_match_hud_state_replication_army_supply_used: $rts_in_match_hud_state_replication[0].army_supply_used,
+      rts_in_match_hud_state_replication_army_supply_cap: $rts_in_match_hud_state_replication[0].army_supply_cap,
       rts_command_affordance_drag_marquee_pixel_count: $rts_command_affordance[0].drag_marquee_pixel_count,
       rts_command_affordance_right_click_marker_pixel_count: $rts_command_affordance[0].right_click_marker_pixel_count,
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
@@ -2418,6 +2428,15 @@ jq -n \
       rts_campaign_ui_continuity_persistence_gate: $rts_campaign_ui_continuity[0].persistence_gate,
       rts_campaign_ui_continuity_render_readability_gate: $rts_campaign_ui_continuity[0].render_readability_gate,
       rts_campaign_ui_continuity_native_client_boundary_gate: $rts_campaign_ui_continuity[0].native_client_boundary_gate,
+      rts_in_match_hud_state_replication_selection_gate: $rts_in_match_hud_state_replication[0].selection_gate,
+      rts_in_match_hud_state_replication_command_gate: $rts_in_match_hud_state_replication[0].command_gate,
+      rts_in_match_hud_state_replication_resource_gate: $rts_in_match_hud_state_replication[0].resource_gate,
+      rts_in_match_hud_state_replication_production_gate: $rts_in_match_hud_state_replication[0].production_gate,
+      rts_in_match_hud_state_replication_ability_gate: $rts_in_match_hud_state_replication[0].ability_gate,
+      rts_in_match_hud_state_replication_combat_alert_gate: $rts_in_match_hud_state_replication[0].combat_alert_gate,
+      rts_in_match_hud_state_replication_minimap_objective_gate: $rts_in_match_hud_state_replication[0].minimap_objective_gate,
+      rts_in_match_hud_state_replication_native_client_boundary_gate: $rts_in_match_hud_state_replication[0].native_client_boundary_gate,
+      rts_in_match_hud_state_replication_gate: $rts_in_match_hud_state_replication[0].in_match_hud_state_replication_gate,
       rts_command_affordance_live_input_gate: $rts_command_affordance[0].live_command_affordance_input_gate,
       rts_command_affordance_drag_select_gate: $rts_command_affordance[0].drag_select_gate,
       rts_command_affordance_right_click_move_gate: $rts_command_affordance[0].right_click_move_gate,
@@ -2852,6 +2871,8 @@ jq -n \
       classic_rts_campaign_outcome_ui_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-outcome-ui-readiness/",
       classic_rts_campaign_ui_continuity: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-ui-continuity.json",
       classic_rts_campaign_ui_continuity_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-ui-continuity.ppm",
+      classic_rts_in_match_hud_state_replication: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.json",
+      classic_rts_in_match_hud_state_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.ppm",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
       classic_rts_combat_readability_pressure_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/",
       classic_rts_playtest_observability_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json",
@@ -2964,6 +2985,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_shell_meta_ui_replication_green == true
   and .checks.classic_rts_match_setup_ui_replication_green == true
   and .checks.classic_rts_campaign_ui_continuity_green == true
+  and .checks.classic_rts_in_match_hud_state_replication_green == true
   and .headline.rts_production_asset_atlas_frame_count >= 32
   and .headline.rts_production_asset_atlas_sprite_binding_count >= 32
   and .headline.rts_production_asset_atlas_material_asset_count == 4
@@ -3015,6 +3037,12 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_campaign_ui_continuity_final_room_id == "league-coliseum"
   and .headline.rts_campaign_ui_continuity_restored_room_id == "league-coliseum"
   and .headline.rts_campaign_ui_continuity_primary_action_label == "COMBAT:attack"
+  and .headline.rts_in_match_hud_state_replication_surface_count == 8
+  and .headline.rts_in_match_hud_state_replication_non_background_pixels > 100000
+  and .headline.rts_in_match_hud_state_replication_command_grid_pixel_count > 40
+  and .headline.rts_in_match_hud_state_replication_minimap_pixel_count > 40
+  and .headline.rts_in_match_hud_state_replication_army_supply_used == 9
+  and .headline.rts_in_match_hud_state_replication_army_supply_cap == 18
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.classic_rts_playtest_observability_readiness_green == true
   and .checks.client_boundary_green == true
@@ -4245,6 +4273,15 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_campaign_ui_continuity_persistence_gate == true
   and .gates.rts_campaign_ui_continuity_render_readability_gate == true
   and .gates.rts_campaign_ui_continuity_native_client_boundary_gate == true
+  and .gates.rts_in_match_hud_state_replication_selection_gate == true
+  and .gates.rts_in_match_hud_state_replication_command_gate == true
+  and .gates.rts_in_match_hud_state_replication_resource_gate == true
+  and .gates.rts_in_match_hud_state_replication_production_gate == true
+  and .gates.rts_in_match_hud_state_replication_ability_gate == true
+  and .gates.rts_in_match_hud_state_replication_combat_alert_gate == true
+  and .gates.rts_in_match_hud_state_replication_minimap_objective_gate == true
+  and .gates.rts_in_match_hud_state_replication_native_client_boundary_gate == true
+  and .gates.rts_in_match_hud_state_replication_gate == true
   and .gates.rts_visual_fidelity_mature_hud_gate == true
   and .gates.rts_visual_fidelity_selected_units_gate == true
   and .gates.rts_visual_fidelity_command_surface_gate == true
