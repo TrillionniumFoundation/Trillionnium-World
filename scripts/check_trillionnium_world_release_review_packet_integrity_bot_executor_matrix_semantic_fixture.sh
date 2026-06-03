@@ -24,7 +24,7 @@ jq -n \
     green: true,
     fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
     fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-    fake_packet_artifact_count: 104,
+    fake_packet_artifact_count: 105,
     expected_semantic_failure_count: 3,
     expected_semantic_failure_names: [
       "bot_executor_failure_recovery_matrix_semantics",
@@ -46,7 +46,7 @@ jq -e '
   .contract_version == "trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture_v1"
   and .status == "release_review_packet_integrity_bot_executor_matrix_semantic_fixture_green"
   and .green == true
-  and .fake_packet_artifact_count == 104
+  and .fake_packet_artifact_count == 105
   and .expected_semantic_failure_count == 3
   and .expected_semantic_failure_names == [
     "bot_executor_failure_recovery_matrix_semantics",
