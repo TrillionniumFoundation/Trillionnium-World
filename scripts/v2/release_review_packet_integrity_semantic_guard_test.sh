@@ -50,7 +50,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 50); do
+for index in $(seq 1 49); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -1327,6 +1327,56 @@ jq -n '
   }
 ' >"$live_window_screenshot_sequence_json"
 add_artifact_from_path native_bevy_live_window_screenshot_sequence "Native/Bevy live-window screenshot sequence" "$live_window_screenshot_sequence_json" release_review_input
+
+live_window_sampled_texture_correlation_json="$TMP_DIR/bevy-live-window-sampled-texture-correlation.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1",
+  status: "live_window_sampled_texture_correlation_green",
+  green: true,
+  sprite_texture_sampling_contract: "trillionnium_world_bevy_sprite_texture_sampling_v1",
+  live_window_texture_correlation_contract: "trillionnium_world_bevy_live_window_texture_correlation_v1",
+  gates: {
+    sprite_texture_sampling_gate: true,
+    live_window_texture_correlation_gate: true,
+    same_image_handle_gate: true,
+    same_texture_atlas_layout_gate: true,
+    same_runtime_manifest_hash_gate: true,
+    sampled_layer_count_gate: true,
+    sampled_material_slot_count_gate: true,
+    sampled_texture_nonblank_gate: true,
+    four_layer_sampled_live_correlation_gate: true,
+    boundary_gate: true
+  },
+  runtime_manifest_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  sampled_surface_count: 32,
+  texture_unique_rgba_color_count: 10,
+  live_frame_count: 11,
+  live_final_frame_colors_96x54: 3376,
+  image_asset_handle_id: "bevy_image_handle::trnm_world_authored_sprite_sheet_v1",
+  texture_atlas_layout_handle_id: "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1",
+  sampled_layer_counts: {map: 5, hud: 2, actor: 22, feedback: 3},
+  sampled_material_slot_counts: {world_tile_material: 5, hud_icon_material: 2, actor_sprite_material: 22, feedback_glyph_material: 3},
+  layer_correlations: [
+    {scene_layer: "actor", passes: true, sampled_surface_count: 22, sampled_texture_gate: true, live_window_texture_correlation_gate: true, live_pixel_sampled_colors: 5650, live_sprite_binding_count: 22, texture_atlas_indexes: [6, 7, 10, 11], material_slots: ["actor_sprite_material"]},
+    {scene_layer: "feedback", passes: true, sampled_surface_count: 3, sampled_texture_gate: true, live_window_texture_correlation_gate: true, live_pixel_sampled_colors: 1497, live_sprite_binding_count: 3, texture_atlas_indexes: [8, 18, 19], material_slots: ["feedback_glyph_material"]},
+    {scene_layer: "hud", passes: true, sampled_surface_count: 2, sampled_texture_gate: true, live_window_texture_correlation_gate: true, live_pixel_sampled_colors: 2389, live_sprite_binding_count: 2, texture_atlas_indexes: [5, 9], material_slots: ["hud_icon_material"]},
+    {scene_layer: "map", passes: true, sampled_surface_count: 5, sampled_texture_gate: true, live_window_texture_correlation_gate: true, live_pixel_sampled_colors: 6893, live_sprite_binding_count: 5, texture_atlas_indexes: [0, 1, 2, 3, 4], material_slots: ["world_tile_material"]}
+  ],
+  asset_boundary: "live_window_pixels_correlated_to_cpu_sampled_bevy_texture_atlas_not_gpu_upload_claim",
+  internal_live_window_sampled_texture_correlation_claimed: true,
+  external_evidence_ignored_for_current_sampled_texture_pass: true,
+  gpu_upload_claimed: false,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false,
+  live_osm_ingestion_claimed: false
+}' >"$live_window_sampled_texture_correlation_json"
+add_artifact_from_path native_bevy_live_window_sampled_texture_correlation "Native/Bevy live-window sampled texture correlation" "$live_window_sampled_texture_correlation_json" release_review_input
 
 classic_playtest_readiness_json="$TMP_DIR/bevy-classic-playtest-readiness.json"
 jq -n '{

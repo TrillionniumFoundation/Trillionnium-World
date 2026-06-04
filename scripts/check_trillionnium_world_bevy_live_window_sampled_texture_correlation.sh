@@ -104,6 +104,7 @@ gates = {
 
 summary = {
     "contract_version": "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1",
+    "status": "live_window_sampled_texture_correlation_green",
     "green": all(gates.values()),
     "sprite_texture_sampling_contract": "trillionnium_world_bevy_sprite_texture_sampling_v1",
     "live_window_texture_correlation_contract": "trillionnium_world_bevy_live_window_texture_correlation_v1",
@@ -122,8 +123,17 @@ summary = {
     "gates": gates,
     "asset_boundary": "live_window_pixels_correlated_to_cpu_sampled_bevy_texture_atlas_not_gpu_upload_claim",
     "source_of_truth": "This gate cross-checks CPU-side Bevy Image/TextureAtlasLayout atlas samples against the live-window texture correlation and layer pixel probes. It proves sampled Bevy atlas regions and live-window evidence share the same texture manifest and layer coverage; it does not claim completed GPU upload or Android S5 real-device rendering.",
+    "internal_live_window_sampled_texture_correlation_claimed": True,
+    "external_evidence_ignored_for_current_sampled_texture_pass": True,
     "gpu_upload_claimed": False,
     "android_s5_real_device_claimed": False,
+    "public_launch_ready": False,
+    "production_ready_ui_claimed": False,
+    "screen_for_screen_openra_ui_claimed": False,
+    "openra_engine_port_claimed": False,
+    "warcraft_iii_asset_copied": False,
+    "openra_asset_copied": False,
+    "third_party_asset_copied": False,
     "live_osm_ingestion_claimed": False,
 }
 summary_path.write_text(json.dumps(summary, indent=2))
@@ -131,6 +141,7 @@ PY
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1"
+  and .status == "live_window_sampled_texture_correlation_green"
   and .green == true
   and .sprite_texture_sampling_contract == "trillionnium_world_bevy_sprite_texture_sampling_v1"
   and .live_window_texture_correlation_contract == "trillionnium_world_bevy_live_window_texture_correlation_v1"
@@ -159,8 +170,17 @@ jq -e '
   and ([.layer_correlations[] | select(.scene_layer == "actor" and .passes == true and .sampled_surface_count >= 1 and .live_pixel_sampled_colors >= 3000)] | length) == 1
   and ([.layer_correlations[] | select(.scene_layer == "feedback" and .passes == true and .sampled_surface_count >= 1 and .live_pixel_sampled_colors >= 1000)] | length) == 1
   and .asset_boundary == "live_window_pixels_correlated_to_cpu_sampled_bevy_texture_atlas_not_gpu_upload_claim"
+  and .internal_live_window_sampled_texture_correlation_claimed == true
+  and .external_evidence_ignored_for_current_sampled_texture_pass == true
   and .gpu_upload_claimed == false
   and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
   and .live_osm_ingestion_claimed == false
 ' "$SUMMARY" >/dev/null
 
