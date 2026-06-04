@@ -9,6 +9,7 @@ MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 required_lines=(
   'trillionnium_world_bevy_player_ui_rescue_v1'
   'bevy-player-ui-rescue.json'
+  'player_ui_rescue_green'
   'player-ui-rescue'
   'PLAYER ROUTE |'
   'NEXT STEP:'
@@ -118,6 +119,14 @@ required_lines=(
   'feedback_banner_y > -100'
   'CHECKLIST") | not'
   'android_s5_real_device_claimed == false'
+  'external_evidence_ignored_for_current_player_ui_rescue_pass == true'
+  'public_launch_ready == false'
+  'production_ready_ui_claimed == false'
+  'screen_for_screen_openra_ui_claimed == false'
+  'openra_engine_port_claimed == false'
+  'warcraft_iii_asset_copied == false'
+  'openra_asset_copied == false'
+  'third_party_asset_copied == false'
 )
 
 for line in "${required_lines[@]}"; do

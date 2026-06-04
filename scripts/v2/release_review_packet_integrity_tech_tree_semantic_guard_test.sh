@@ -44,7 +44,7 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 45); do
+for index in $(seq 1 44); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -830,6 +830,152 @@ jq -n '{
 add_artifact_from_path native_bevy_player_hud_debug_layer "Native/Bevy player HUD/debug layer" "$player_hud_debug_layer_json" release_review_input
 
 
+player_ui_rescue_json="$TMP_DIR/bevy-player-ui-rescue.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_player_ui_rescue_v1",
+  status: "player_ui_rescue_green",
+  green: true,
+  player_status_gate: true,
+  route_panel_gate: true,
+  quest_panel_gate: true,
+  action_layer_gate: true,
+  debug_deprioritized_gate: true,
+  event_log_separation_gate: true,
+  button_wall_deprioritized_gate: true,
+  contextual_deck_layout_gate: true,
+  right_rail_summary_gate: true,
+  top_hud_density_gate: true,
+  toast_lane_gate: true,
+  visual_hierarchy_gate: true,
+  art_direction_gate: true,
+  scene_readability_gate: true,
+  sprite_asset_quality_gate: true,
+  map_model_visual_gate: true,
+  map_occlusion_gate: true,
+  ui_polish_gate: true,
+  tileset_polish_gate: true,
+  authored_art_pack_gate: true,
+  runtime_gate: true,
+  source_of_truth: "Bevy player UI rescue keeps the default player surface focused on route, next action, progress, and status while diagnostics remain in named debug layers.",
+  player_layer: {
+    character_status_text: "PLAYER HUD | HP 164/176 | Enemy 10 | XP 40 | Coins 10 | Room ARENA | Goal save slot A | Next SAVE:SELECTED | Gear Starter Gear | Title none",
+    room_panel_text: "PLAYER ROUTE | FIRST MINUTE HUD | NEXT BUTTON: SAVE:SELECTED | NEXT STEP: save slot A\nQUEST JOURNAL | TASK LOG / PROGRESS: [x]CREATE [x]TALK [x]TRAIN [x]ARENA [x]FIGHT [ ]SAVE [ ]CONTINUE\nSTATE: save slot A",
+    input_hint_text: "ACTION COACH | Enter/NumpadEnter -> SAVE:SELECTED\nPLAYER ACTIONS | READY: TITLE:OPEN, SAVE:SELECTED, COMBAT:attack\nDEV INPUT | GATES: 22 ready / 58 locked",
+    visible_quest_summary_text: "CURRENT OBJECTIVE | Reach the League Coliseum objective\nNEXT | SAVE:SELECTED - save slot A\nPROGRESS | 7/7 | REWARD 10c | gear ready",
+    visible_stats_summary_text: "STATS | HP 164/176 | XP 40 | COINS 10",
+    visible_bag_summary_text: "BAG | closed | items 1 equipped 0 drops 0\nAFFIX | locked | KEY bandit_sash locked",
+    visible_event_summary_text: "LAST | Reward equipped: Route Guard Staff ready\nINPUT | EQUIP ok enabled_after_reward_claim\nNEXT | SAVE:SELECTED",
+    primary_cta_text: "PRIMARY | Enter -> SAVE:SELECTED\nSHORTCUT | Enter | NEXT SAVE:SELECTED",
+    movement_hint_text: "Numpad / arrows / WASD",
+    feedback_banner_text: "TOAST OK | EQUIP | enabled_after_reward_claim",
+    feedback_banner_font_size: 8.5,
+    feedback_banner_y: -82
+  },
+  button_wall_policy: {
+    hidden_button_count: 34,
+    deprioritized_button_count: 75,
+    foreground_button_count: 18,
+    player_deck_visible_count: 27,
+    player_deck_hidden_count: 66
+  },
+  action_row_policy: {
+    active_action_row_count: 3,
+    active_action_row_ids: ["core_route_actions", "selected_slot_actions", "combat_bag_stat_actions"]
+  },
+  art_direction_policy: {
+    surface_count: 8,
+    surface_ids: ["map_focus_glow", "primary_cta_gold_glow", "action_deck_depth_shadow"],
+    palette_roles: ["warm_gold", "cyan_focus", "neutral_shadow"]
+  },
+  scene_readability_policy: {
+    surface_count: 6,
+    surface_ids: ["player_selection_ring", "enemy_threat_ring", "objective_route_arrow"],
+    focus_roles: ["player_identity", "combat_feedback"],
+    visible_actor_kinds: ["npc", "enemy", "drop"],
+    map_quality_surface_gate: true
+  },
+  sprite_asset_policy: {
+    surface_count: 31,
+    actor_kinds: ["player", "npc", "enemy", "drop", "feedback"],
+    asset_roles: ["player_body_layer", "actor_shadow", "combat_hit_feedback_marker"]
+  },
+  map_model_visual_policy: {
+    surface_count: 98,
+    building_count: 24,
+    road_count: 62,
+    greenery_count: 8,
+    terrain_count: 4,
+    layers: ["building", "road", "greenery", "terrain"],
+    visual_roles: ["building_mass", "walkable_road_path", "greenery_cluster", "terrain_zone_surface"]
+  },
+  map_occlusion_policy: {
+    surface_count: 5,
+    weighted_ratio: 0.055,
+    max_panel_area: 15600,
+    max_panel_alpha: 0.28,
+    map_roles: ["edge_dialogue_hint", "edge_scene_hint", "edge_step_hint", "edge_combat_hint", "bottom_story_summary"]
+  },
+  ui_polish_policy: {
+    surface_count: 12,
+    max_font_size: 18,
+    regions: ["top_hud", "right_rail", "action_deck", "movement_cluster", "primary_cta"],
+    typography_roles: ["hud_compact", "summary_card", "action_deck_container", "primary_cta"],
+    visual_priorities: ["primary", "secondary", "tertiary"]
+  },
+  tileset_polish_policy: {
+    surface_count: 116,
+    atlas_families: ["city_ground_tileset_v1", "hud_icon_tileset_v1"],
+    layers: ["terrain", "road", "building", "greenery", "water", "hud"],
+    asset_roles: ["primary_cta_glyph"],
+    detail_roles: ["cta_arrow_marker"]
+  },
+  authored_art_pack_policy: {
+    surface_count: 147,
+    asset_pack_ids: ["trnm_world_authored_art_pack_v1"],
+    asset_kinds: ["hud_icon", "actor_sprite", "terrain_tile"],
+    replacement_slots: ["tile_sprite_slot", "hud_icon_slot", "actor_sprite_slot"],
+    source_origins: ["local_authored_primitive_manifest_v1"],
+    license_scopes: ["project_owned_internal_placeholder"],
+    export_ready_count: 147
+  },
+  final_runtime: {
+    current_room_id: "league-coliseum",
+    objective_status: "first_playable_loop_complete",
+    coins: 10,
+    xp: 40,
+    player_hp: 164,
+    enemy_hp: 10,
+    reward_claimed: true,
+    equipment_ready: true,
+    session_selected_slot_id: "A",
+    completed_steps: ["complete_first_task", "equip_route_guard_staff"],
+    input_feedback_history: [
+      {accepted: false, action_label: "TRAIN"},
+      {accepted: false, action_label: "FIGHT"},
+      {accepted: true, action_label: "MOVE:north"},
+      {accepted: false, action_label: "LOOT:drop"},
+      {accepted: false, action_label: "EQUIP:bandit_sash"},
+      {accepted: true, action_label: "TALK"},
+      {accepted: true, action_label: "TRAIN"},
+      {accepted: true, action_label: "MOVE:north"},
+      {accepted: true, action_label: "FIGHT"},
+      {accepted: true, action_label: "COMPLETE"},
+      {accepted: true, action_label: "EQUIP"}
+    ],
+    contextual_action_labels: ["SAVE:SELECTED", "COMBAT:attack"]
+  },
+  external_evidence_ignored_for_current_player_ui_rescue_pass: true,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$player_ui_rescue_json"
+add_artifact_from_path native_bevy_player_ui_rescue "Native/Bevy player UI rescue" "$player_ui_rescue_json" release_review_input
+
 live_window_screenshot_sequence_json="$TMP_DIR/bevy-live-window-screenshot-sequence.json"
 jq -n '
   ["title", "create", "talk", "train", "training_room", "arena", "fight_result", "save_continue", "title_continue", "resume_continue", "complete"] as $frame_ids |
@@ -1133,7 +1279,7 @@ jq -n \
   printf '## Still Requires Real External Evidence\n\n'
   printf -- '- [ ] fixture blocker\n\n'
   printf '## Boundary\n\n'
-  printf -- '- Native/Bevy replay, action coach, HUD/debug layer, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
+  printf -- '- Native/Bevy replay, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
 } >"$packet_md"
 set +e
 TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$packet_json" \

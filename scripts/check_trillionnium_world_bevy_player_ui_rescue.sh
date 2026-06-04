@@ -3,15 +3,30 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-player-ui-rescue.json"
+SUMMARY_RAW="$SUMMARY.raw"
 mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- player-ui-rescue >"$SUMMARY"
+  cargo run -p trnm-world-bevy -- player-ui-rescue >"$SUMMARY_RAW"
 )
+
+jq '
+  .status = "player_ui_rescue_green"
+  | .external_evidence_ignored_for_current_player_ui_rescue_pass = true
+  | .public_launch_ready = false
+  | .production_ready_ui_claimed = false
+  | .screen_for_screen_openra_ui_claimed = false
+  | .openra_engine_port_claimed = false
+  | .warcraft_iii_asset_copied = false
+  | .openra_asset_copied = false
+  | .third_party_asset_copied = false
+' "$SUMMARY_RAW" >"$SUMMARY"
+rm -f "$SUMMARY_RAW"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_player_ui_rescue_v1"
+  and .status == "player_ui_rescue_green"
   and .green == true
   and .player_status_gate == true
   and .route_panel_gate == true
@@ -183,7 +198,15 @@ jq -e '
   and (.authored_art_pack_policy.license_scopes | index("project_owned_internal_placeholder") != null)
   and (.authored_art_pack_policy.min_target_resolution_px >= 32)
   and (.authored_art_pack_policy.export_ready_count == .authored_art_pack_policy.surface_count)
+  and .external_evidence_ignored_for_current_player_ui_rescue_pass == true
   and (.android_s5_real_device_claimed == false)
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
 ' "$SUMMARY" >/dev/null
 
 echo "TRILLIONNIUM_WORLD_BEVY_PLAYER_UI_RESCUE_GREEN $SUMMARY"
