@@ -50,7 +50,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 47); do
+for index in $(seq 1 46); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -1268,6 +1268,64 @@ jq -n '{
   third_party_asset_copied: false
 }' >"$combat_readability_pressure_readiness_json"
 add_artifact_from_path native_bevy_classic_rts_combat_readability_pressure_readiness "Native/Bevy classic RTS combat readability/pressure readiness" "$combat_readability_pressure_readiness_json" release_review_input
+
+action_coach_json="$TMP_DIR/bevy-action-coach.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_action_coach_v1",
+  status: "action_coach_green",
+  green: true,
+  coach_stage_gate: true,
+  enter_execution_gate: true,
+  final_next_gate: true,
+  input_hint_contract_gate: true,
+  coach_stage_checks: [
+    {stage: "initial", expected_action: "TALK", action_matches: true, clean_player_line: true, coach_line: "ACTION COACH | Enter/NumpadEnter -> TALK | Shortcut R / Enter | Goal Press R or TALK to meet the mentor | Room START"},
+    {stage: "after_Enter_TALK", expected_action: "TRAIN", action_matches: true, clean_player_line: true, coach_line: "ACTION COACH | Enter/NumpadEnter -> TRAIN | Shortcut T / Enter | Goal Press T or TRAIN to learn basic_unarmed | Room START"},
+    {stage: "after_Enter_TRAIN", expected_action: "MOVE:north", action_matches: true, clean_player_line: true, coach_line: "ACTION COACH | Enter/NumpadEnter -> MOVE:north | Shortcut W / Enter | Goal Move NORTH to enter the arena | Room START"},
+    {stage: "after_Enter_MOVE:north", expected_action: "FIGHT", action_matches: true, clean_player_line: true, coach_line: "ACTION COACH | Enter/NumpadEnter -> FIGHT | Shortcut F or Space / Enter | Goal Press F or FIGHT to resolve the first combat | Room ARENA"}
+  ],
+  enter_execution_checks: [
+    {index: 0, key: "Enter", expected_action: "TALK", actual_action: "TALK", matches: true, accepted: true},
+    {index: 1, key: "Enter", expected_action: "TRAIN", actual_action: "TRAIN", matches: true, accepted: true},
+    {index: 2, key: "Enter", expected_action: "MOVE:north", actual_action: "MOVE:north", matches: true, accepted: true}
+  ],
+  keyboard_events: [
+    {key: "Enter", action: "TALK", accepted: true, input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"},
+    {key: "Enter", action: "TRAIN", accepted: true, input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"},
+    {key: "Enter", action: "MOVE:north", accepted: true, input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"}
+  ],
+  samples: [
+    {input_hint_text: "ACTION COACH | Enter/NumpadEnter -> TALK"},
+    {input_hint_text: "ACTION COACH | Enter/NumpadEnter -> TRAIN"},
+    {input_hint_text: "ACTION COACH | Enter/NumpadEnter -> MOVE:north"},
+    {input_hint_text: "ACTION COACH | Enter/NumpadEnter -> FIGHT"}
+  ],
+  final_runtime: {
+    current_room_id: "league-coliseum",
+    objective_status: "arrived_at_objective",
+    completed_steps: ["boot", "talk_to_mentor", "npc_dialogue_opened", "train_basic_unarmed", "enter_training_room", "walk_grid_step_recorded", "arrive_at_first_objective", "exit_training_room_to_arena_route"],
+    input_feedback_history: [
+      {accepted: true, action_label: "TALK", input_source: "keyboard", room_id: "mirror-city-square"},
+      {accepted: true, action_label: "TRAIN", input_source: "keyboard", room_id: "mirror-city-square"},
+      {accepted: true, action_label: "MOVE:north", input_source: "keyboard", room_id: "league-coliseum"}
+    ],
+    contextual_action_history: ["contextual_deck:mirror-city-square:TALK", "contextual_deck:mirror-city-square:TRAIN", "contextual_deck:mirror-city-square:TASK:task-fixture-first-route", "contextual_deck:league-coliseum:COMBAT:attack"],
+    xp: 10,
+    tutorial_step: "resolve_first_combat",
+    visited_rooms: ["mirror-city-square", "league-coliseum"]
+  },
+  source_of_truth: "ACTION COACH text is derived from the same focused action path that Enter/NumpadEnter executes",
+  android_s5_real_device_claimed: false,
+  external_evidence_ignored_for_current_action_coach_pass: true,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$action_coach_json"
+add_artifact_from_path native_bevy_action_coach "Native/Bevy action coach" "$action_coach_json" release_review_input
 
 live_window_screenshot_sequence_json="$TMP_DIR/bevy-live-window-screenshot-sequence.json"
 jq -n '
