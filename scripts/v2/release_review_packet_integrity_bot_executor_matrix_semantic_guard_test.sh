@@ -50,7 +50,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 52); do
+for index in $(seq 1 51); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -952,6 +952,61 @@ jq -n '{
   third_party_asset_copied: false
 }' >"$combat_readability_pressure_readiness_json"
 add_artifact_from_path native_bevy_classic_rts_combat_readability_pressure_readiness "Native/Bevy classic RTS combat readability/pressure readiness" "$combat_readability_pressure_readiness_json" release_review_input
+
+classic_playtest_readiness_json="$TMP_DIR/bevy-classic-playtest-readiness.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_playtest_readiness_v1",
+  status: "classic_playtest_readiness_green",
+  green: true,
+  checks: {
+    classic_rts_full_screen_ui_replication_green: true,
+    classic_rts_shell_meta_ui_replication_green: true,
+    classic_rts_match_setup_ui_replication_green: true,
+    classic_rts_campaign_outcome_ui_readiness_green: true,
+    classic_rts_campaign_ui_continuity_green: true,
+    classic_rts_in_match_hud_state_replication_green: true,
+    classic_rts_session_state_continuity_green: true,
+    classic_rts_combat_readability_pressure_readiness_green: true,
+    classic_rts_playtest_observability_readiness_green: true,
+    client_boundary_green: true,
+    playtest_runner_status_green: true,
+    playtest_launcher_green: true
+  },
+  gates: {
+    rts_full_screen_ui_replication_gate: true,
+    rts_shell_meta_ui_replication_gate: true,
+    rts_match_setup_ui_replication_gate: true,
+    rts_in_match_hud_state_replication_gate: true,
+    rts_session_state_continuity_gate: true
+  },
+  headline: {
+    rts_full_screen_ui_replication_surface_count: 10,
+    rts_shell_meta_ui_replication_surface_count: 12,
+    rts_match_setup_ui_replication_surface_count: 10,
+    rts_in_match_hud_state_replication_surface_count: 8,
+    rts_in_match_hud_state_replication_command_grid_pixel_count: 1240,
+    rts_session_state_continuity_surface_count: 8,
+    rts_session_state_continuity_slot_a_bytes: 46253,
+    rts_session_state_continuity_final_objective_status: "first_playable_loop_complete",
+    rts_session_state_continuity_open_world_state: "resumed:league-coliseum",
+    rts_central_keep_pressure_accepted_input_count: 40,
+    rts_central_keep_pressure_state: "pressure_locked:central_keep",
+    rts_unit_status_portrait_frame_pixel_count: 15339,
+    rts_ability_tooltip_telegraph_tooltip_pixel_count: 10466,
+    rts_depth_readability_foreground_pixel_count: 11000
+  },
+  internal_classic_playtest_readiness_claimed: true,
+  external_evidence_ignored_for_current_playtest_pass: true,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$classic_playtest_readiness_json"
+add_artifact_from_path native_bevy_classic_playtest_readiness "Native/Bevy classic playtest readiness" "$classic_playtest_readiness_json" release_review_input
 jq -n \
   --argjson artifacts "$(jq -s '.' "$artifacts_jsonl")" \
   '{

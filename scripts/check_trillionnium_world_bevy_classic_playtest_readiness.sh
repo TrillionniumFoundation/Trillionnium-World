@@ -223,6 +223,7 @@ jq -n \
   def ok($x): ($x[0].green == true);
   {
     contract_version: "trillionnium_world_bevy_classic_playtest_readiness_v1",
+    status: "classic_playtest_readiness_green",
     green: (
       ok($manifest)
       and ok($animation)
@@ -2903,7 +2904,17 @@ jq -n \
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
       playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json"
     },
-    source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership or wgpu/Bevy renderer performance."
+    internal_classic_playtest_readiness_claimed: true,
+    external_evidence_ignored_for_current_playtest_pass: true,
+    android_s5_real_device_claimed: false,
+    public_launch_ready: false,
+    production_ready_ui_claimed: false,
+    screen_for_screen_openra_ui_claimed: false,
+    openra_engine_port_claimed: false,
+    warcraft_iii_asset_copied: false,
+    openra_asset_copied: false,
+    third_party_asset_copied: false,
+    source_of_truth: "Classic playtest readiness summarizes low-spec trnm-world-bevy evidence only; it does not claim CEX runtime ownership, production-ready UI, Android S5 real-device readiness, public launch readiness, OpenRA screen-for-screen UI, OpenRA engine port, or copied third-party assets."
   }
 # END_PLAYTEST_READINESS_SUMMARY_FILTER
 PLAYTEST_READINESS_SUMMARY_FILTER_BLOCK
@@ -2913,7 +2924,18 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
 : <<'PLAYTEST_READINESS_VALIDATION_FILTER_BLOCK'
 # BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER
   .contract_version == "trillionnium_world_bevy_classic_playtest_readiness_v1"
+  and .status == "classic_playtest_readiness_green"
   and .green == true
+  and .internal_classic_playtest_readiness_claimed == true
+  and .external_evidence_ignored_for_current_playtest_pass == true
+  and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
   and .checks.manifest_lint_green == true
   and .checks.animation_preview_green == true
   and .checks.animation_selector_green == true
