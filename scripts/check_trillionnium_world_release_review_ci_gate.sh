@@ -71,6 +71,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_s5_real_device_evidence.sh" \
   "$ROOT/scripts/check_trillionnium_world_halium_sidecar_runtime_dev_surface.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_action_coach.sh" \
+  "$ROOT/scripts/v2/player_hud_debug_layer_script_contract_guard_test.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_player_ui_rescue.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_account_client_boundary.sh" \
@@ -446,6 +447,8 @@ run_check halium_sidecar_runtime_dev_surface_unsafe_tar_fixture "$ROOT/scripts/v
 # Bevy action coach contract: trillionnium_world_bevy_action_coach_v1
 run_check bevy_action_coach_contract_guard "$ROOT/scripts/v2/action_coach_script_contract_guard_test.sh"
 run_check bevy_action_coach_gate "$ROOT/scripts/check_trillionnium_world_bevy_action_coach.sh"
+# Bevy player HUD/debug layer contract: trillionnium_world_bevy_player_hud_debug_layer_v1
+run_check bevy_player_hud_debug_layer_contract_guard "$ROOT/scripts/v2/player_hud_debug_layer_script_contract_guard_test.sh"
 run_check bevy_player_hud_debug_layer_gate "$ROOT/scripts/check_trillionnium_world_bevy_player_hud_debug_layer.sh"
 run_check bevy_player_ui_rescue_contract_guard "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh"
 run_check bevy_player_ui_rescue_gate "$ROOT/scripts/check_trillionnium_world_bevy_player_ui_rescue.sh"

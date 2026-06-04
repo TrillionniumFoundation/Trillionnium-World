@@ -44,7 +44,7 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 46); do
+for index in $(seq 1 45); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -761,6 +761,72 @@ jq -n '{
   third_party_asset_copied: false
 }' >"$action_coach_json"
 add_artifact_from_path native_bevy_action_coach "Native/Bevy action coach" "$action_coach_json" release_review_input
+
+
+player_hud_debug_layer_json="$TMP_DIR/bevy-player-hud-debug-layer.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_player_hud_debug_layer_v1",
+  status: "player_hud_debug_layer_green",
+  green: true,
+  player_hud_gate: true,
+  quest_layer_gate: true,
+  debug_layer_gate: true,
+  scene_debug_gate: true,
+  input_hint_gate: true,
+  panel_layer_gate: true,
+  runtime_gate: true,
+  player_layer: {
+    character_status_text: "PLAYER HUD | HP 164/176 | Enemy 10 | XP 40 | Coins 10 | Room ARENA | Goal save slot A | Next SAVE:SELECTED | Gear Starter Gear | Title none",
+    forbidden_debug_needles: ["INPUT SUMMARY", "DEBUG LAYER", "contract_version"],
+    panel_ids: ["top_character_status", "quest_objective_panel", "room_narrative_panel", "virtual_joystick", "right_action_buttons", "reward_toast", "feedback_banner"],
+    quest_panel_text: "PLAYER ROUTE | FIRST MINUTE HUD | NEXT BUTTON: SAVE:SELECTED | QUEST JOURNAL | TASK LOG / PROGRESS: [x]CREATE [x]TALK [x]TRAIN [x]ARENA [x]FIGHT [ ]SAVE [ ]CONTINUE | TASKS active: none | completed: task-fixture-first-route"
+  },
+  debug_layer: {
+    event_log_text: "DEBUG LAYER | input/runtime diagnostics\n> Reward equipped: Route Guard Staff ready\n> Combat hit: enemy HP 10, player HP 164\n\nINPUT\nINPUT SUMMARY total 11 accepted 7 blocked 4 keyboard 11 buttons 0",
+    input_hint_text: "ACTION COACH | Enter/NumpadEnter -> SAVE:SELECTED\nINPUT HUD | NEXT SAVE:SELECTED\nDEV INPUT\nGATES: 22 ready / 58 locked",
+    scene_state_text: "DEBUG LAYER | Scene arena_outdoor | Transition combat_overlay_return_to_map | Dialogue mentor_training_complete | Combat combat_returned_to_map | Step step_north | Frame 2",
+    panel_ids: ["event_log_panel", "npc_dialogue_choice_panel", "scene_transition_panel", "walk_animation_panel", "combat_scene_panel", "monochrome_stat_panel", "paper_skill_menu_overlay", "session_diagnostics"]
+  },
+  final_runtime: {
+    current_room_id: "league-coliseum",
+    objective_status: "first_playable_loop_complete",
+    coins: 10,
+    xp: 40,
+    player_hp: 164,
+    enemy_hp: 10,
+    reward_claimed: true,
+    equipment_ready: true,
+    session_selected_slot_id: "A",
+    completed_steps: ["boot", "talk_to_mentor", "train_basic_unarmed", "arrive_at_first_objective", "resolve_first_combat", "complete_first_task", "equip_route_guard_staff"],
+    visited_rooms: ["mirror-city-square", "league-coliseum"],
+    input_feedback_history: [
+      {accepted: false, action_label: "TRAIN"},
+      {accepted: false, action_label: "FIGHT"},
+      {accepted: true, action_label: "MOVE:north"},
+      {accepted: false, action_label: "LOOT:drop"},
+      {accepted: false, action_label: "EQUIP:bandit_sash"},
+      {accepted: true, action_label: "TALK"},
+      {accepted: true, action_label: "TRAIN"},
+      {accepted: true, action_label: "MOVE:north"},
+      {accepted: true, action_label: "FIGHT"},
+      {accepted: true, action_label: "COMPLETE"},
+      {accepted: true, action_label: "EQUIP"}
+    ],
+    contextual_action_labels: ["TITLE:OPEN", "ACCOUNT:REGISTER", "ACCOUNT:LOGIN", "ACCOUNT:CONTINUE", "ROOM:mirror-city-square", "ROOM:delivery-dock", "NPC:enemy-market-bandit", "COMBAT:attack", "COMBAT:defend", "COMBAT:potion", "COMBAT:escape", "COMPLETE", "BAG:open", "SAVE:SLOT", "SLOT:A", "SAVE:A", "SLOT:B", "SAVE:B", "SLOT:C", "SAVE:C", "SAVE:SELECTED", "PAUSE:MENU"]
+  },
+  source_of_truth: "Bevy runtime samples prove player-facing HUD text and engineering diagnostics render in separate named layers while Rust remains authoritative",
+  android_s5_real_device_claimed: false,
+  external_evidence_ignored_for_current_player_hud_pass: true,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$player_hud_debug_layer_json"
+add_artifact_from_path native_bevy_player_hud_debug_layer "Native/Bevy player HUD/debug layer" "$player_hud_debug_layer_json" release_review_input
+
 
 live_window_screenshot_sequence_json="$TMP_DIR/bevy-live-window-screenshot-sequence.json"
 jq -n '

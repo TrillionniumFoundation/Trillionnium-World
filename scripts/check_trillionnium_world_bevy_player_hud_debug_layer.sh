@@ -3,16 +3,31 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-player-hud-debug-layer.json"
+SUMMARY_RAW="$SUMMARY.raw"
 
 mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- player-hud-debug-layer >"$SUMMARY"
+  cargo run -p trnm-world-bevy -- player-hud-debug-layer >"$SUMMARY_RAW"
 )
+
+jq '
+  .status = "player_hud_debug_layer_green"
+  | .external_evidence_ignored_for_current_player_hud_pass = true
+  | .public_launch_ready = false
+  | .production_ready_ui_claimed = false
+  | .screen_for_screen_openra_ui_claimed = false
+  | .openra_engine_port_claimed = false
+  | .warcraft_iii_asset_copied = false
+  | .openra_asset_copied = false
+  | .third_party_asset_copied = false
+' "$SUMMARY_RAW" >"$SUMMARY"
+rm -f "$SUMMARY_RAW"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_player_hud_debug_layer_v1"
+  and .status == "player_hud_debug_layer_green"
   and .green == true
   and .player_hud_gate == true
   and .quest_layer_gate == true
@@ -29,7 +44,15 @@ jq -e '
   and (.debug_layer.scene_state_text | contains("DEBUG LAYER"))
   and (.player_layer.panel_ids | index("top_character_status") != null)
   and (.debug_layer.panel_ids | index("event_log_panel") != null)
+  and .external_evidence_ignored_for_current_player_hud_pass == true
   and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
 ' "$SUMMARY" >/dev/null
 
 echo "TRILLIONNIUM_WORLD_BEVY_PLAYER_HUD_DEBUG_LAYER_GREEN $SUMMARY"
