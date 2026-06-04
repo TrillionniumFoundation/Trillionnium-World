@@ -344,6 +344,7 @@ green = all([host_window_gate, key_count_gate, frame_count_gate, frame_sequence_
 
 evidence = {
     "contract_version": "trillionnium_world_bevy_live_window_screenshot_sequence_v1",
+    "status": "live_window_screenshot_sequence_green",
     "source_of_truth": "XTest Return key events drive the visible Bevy X11 window through the current NEXT action and xwd captures each post-action frame. Before launch, the gate loads the runtime texture asset manifest and passes its path/hash into the Bevy host process launch environment so screenshot evidence remains tied to the host-side texture handle chain.",
     "host_pid": host_pid,
     "window_id": hex(window_id),
@@ -394,8 +395,17 @@ evidence = {
     "runtime_texture_handle_gate": runtime_texture_handle_gate,
     "runtime_probe_sprite_binding_sample": runtime_probe_sprite_binding.get("sample", [])[:4],
     "green": green,
+    "internal_live_window_screenshot_sequence_claimed": True,
+    "external_evidence_ignored_for_current_live_window_pass": True,
     "gpu_upload_claimed": False,
     "android_s5_real_device_claimed": False,
+    "public_launch_ready": False,
+    "production_ready_ui_claimed": False,
+    "screen_for_screen_openra_ui_claimed": False,
+    "openra_engine_port_claimed": False,
+    "warcraft_iii_asset_copied": False,
+    "openra_asset_copied": False,
+    "third_party_asset_copied": False,
     "live_osm_ingestion_claimed": False,
 }
 summary_path.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
@@ -403,6 +413,7 @@ PY
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_live_window_screenshot_sequence_v1"
+  and .status == "live_window_screenshot_sequence_green"
   and .green == true
   and .host_window_gate == true
   and .key_count_gate == true
@@ -438,6 +449,15 @@ jq -e '
   and .slot_a_bytes > 512
   and .gpu_upload_claimed == false
   and .android_s5_real_device_claimed == false
+  and .internal_live_window_screenshot_sequence_claimed == true
+  and .external_evidence_ignored_for_current_live_window_pass == true
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
   and .live_osm_ingestion_claimed == false
   and .actual_frame_ids == [
     "title",

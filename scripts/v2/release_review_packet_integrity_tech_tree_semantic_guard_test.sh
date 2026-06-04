@@ -44,7 +44,7 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 51); do
+for index in $(seq 1 50); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -705,6 +705,65 @@ jq -n '{
   third_party_asset_copied: false
 }' >"$combat_readability_pressure_readiness_json"
 add_artifact_from_path native_bevy_classic_rts_combat_readability_pressure_readiness "Native/Bevy classic RTS combat readability/pressure readiness" "$combat_readability_pressure_readiness_json" release_review_input
+
+live_window_screenshot_sequence_json="$TMP_DIR/bevy-live-window-screenshot-sequence.json"
+jq -n '
+  ["title", "create", "talk", "train", "training_room", "arena", "fight_result", "save_continue", "title_continue", "resume_continue", "complete"] as $frame_ids |
+  ["TITLE:NEW", "CREATE:CONFIRM", "TALK", "TRAIN", "MOVE:north", "FIGHT", "SAVE:SELECTED", "TITLE:OPEN", "TITLE:CONTINUE", "CONTINUE:SESSION"] as $action_labels |
+  {
+    contract_version: "trillionnium_world_bevy_live_window_screenshot_sequence_v1",
+    status: "live_window_screenshot_sequence_green",
+    green: true,
+    host_window_gate: true,
+    key_count_gate: true,
+    frame_count_gate: true,
+    frame_sequence_gate: true,
+    screenshot_nonblank_gate: true,
+    frame_change_gate: true,
+    slot_write_gate: true,
+    contact_sheet_gate: true,
+    final_frame_gate: true,
+    runtime_texture_asset_contract: "trillionnium_world_bevy_runtime_texture_asset_v1",
+    runtime_texture_asset_gate: true,
+    runtime_texture_manifest_file_gate: true,
+    runtime_texture_manifest_hash_gate: true,
+    runtime_texture_launch_env_gate: true,
+    runtime_texture_handle_gate: true,
+    runtime_probe_contract: "trillionnium_world_bevy_runtime_probe_v1",
+    runtime_texture_sprite_asset_binding_contract: "trillionnium_world_bevy_sprite_asset_binding_v1",
+    runtime_texture_sprite_asset_binding_gate: true,
+    runtime_texture_sprite_bound_surface_count: 32,
+    runtime_texture_sprite_scene_layers: ["actor", "map", "hud", "feedback"],
+    runtime_texture_sprite_material_slots: ["hud_icon_material", "world_tile_material", "actor_sprite_material", "feedback_glyph_material"],
+    runtime_texture_manifest_bytes: 16384,
+    runtime_texture_manifest_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    runtime_texture_image_asset_handle_id: "bevy_image_handle::trnm_world_authored_sprite_sheet_v1",
+    runtime_texture_atlas_layout_handle_id: "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1",
+    slot_a_bytes: 44443,
+    contact_sheet_colors: 12606,
+    contact_sheet_size: [560, 1228],
+    final_frame_bytes: 159694,
+    expected_frame_ids: $frame_ids,
+    actual_frame_ids: $frame_ids,
+    actions: [$action_labels[] | {action_label: .}],
+    key_events: [range(0; 10) | {key: "Return"}],
+    frames: [$frame_ids[] as $frame_id | {frame_id: $frame_id, nonblank: true, size: [960, 540], colors_96x54: 3200, diff_mean_from_previous: (if $frame_id == "title" then null else 1.0 end), diff_bbox_from_previous: (if $frame_id == "title" then null else [0, 0, 960, 540] end)}],
+    focus_event: {method: "XRaiseWindow+XSetInputFocus"},
+    internal_live_window_screenshot_sequence_claimed: true,
+    external_evidence_ignored_for_current_live_window_pass: true,
+    gpu_upload_claimed: false,
+    android_s5_real_device_claimed: false,
+    public_launch_ready: false,
+    production_ready_ui_claimed: false,
+    screen_for_screen_openra_ui_claimed: false,
+    openra_engine_port_claimed: false,
+    warcraft_iii_asset_copied: false,
+    openra_asset_copied: false,
+    third_party_asset_copied: false,
+    live_osm_ingestion_claimed: false
+  }
+' >"$live_window_screenshot_sequence_json"
+add_artifact_from_path native_bevy_live_window_screenshot_sequence "Native/Bevy live-window screenshot sequence" "$live_window_screenshot_sequence_json" release_review_input
 
 classic_playtest_readiness_json="$TMP_DIR/bevy-classic-playtest-readiness.json"
 jq -n '{
