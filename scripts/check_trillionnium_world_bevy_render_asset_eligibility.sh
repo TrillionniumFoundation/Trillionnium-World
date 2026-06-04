@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 EVIDENCE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest"
 SUMMARY="$EVIDENCE_DIR/bevy-render-asset-eligibility.json"
+SUMMARY_RAW="$EVIDENCE_DIR/bevy-render-asset-eligibility.raw.json"
 RUNTIME_SUMMARY="$EVIDENCE_DIR/bevy-runtime-texture-asset.json"
 RUNTIME_MANIFEST="$EVIDENCE_DIR/bevy-runtime-texture-asset-manifest.json"
 SAMPLED_LIVE_CORRELATION="$EVIDENCE_DIR/bevy-live-window-sampled-texture-correlation.json"
@@ -16,11 +17,25 @@ test -s "$SAMPLED_LIVE_CORRELATION"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- render-asset-eligibility "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" "$SAMPLED_LIVE_CORRELATION" >"$SUMMARY"
+  cargo run -p trnm-world-bevy -- render-asset-eligibility "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" "$SAMPLED_LIVE_CORRELATION" >"$SUMMARY_RAW"
 )
+
+jq '
+  .status = "render_asset_eligibility_green"
+  | .external_evidence_ignored_for_current_render_asset_pass = true
+  | .public_launch_ready = false
+  | .production_ready_ui_claimed = false
+  | .screen_for_screen_openra_ui_claimed = false
+  | .openra_engine_port_claimed = false
+  | .warcraft_iii_asset_copied = false
+  | .openra_asset_copied = false
+  | .third_party_asset_copied = false
+' "$SUMMARY_RAW" >"$SUMMARY"
+rm -f "$SUMMARY_RAW"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_render_asset_eligibility_v1"
+  and .status == "render_asset_eligibility_green"
   and .green == true
   and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
   and .sprite_texture_sampling_contract == "trillionnium_world_bevy_sprite_texture_sampling_v1"
@@ -58,9 +73,17 @@ jq -e '
   and .sprite_render_references_sample[0].render_asset_reference_gate == true
   and .asset_boundary == "bevy_image_render_asset_usage_eligible_not_render_world_extraction_or_gpu_upload_claim"
   and .host_side_render_asset_eligibility_claimed == true
+  and .external_evidence_ignored_for_current_render_asset_pass == true
   and .render_world_extraction_completed_claimed == false
   and .gpu_upload_claimed == false
   and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
   and .live_osm_ingestion_claimed == false
 ' "$SUMMARY" >/dev/null
 

@@ -8,6 +8,7 @@ MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 
 required_lines=(
   'trillionnium_world_bevy_render_asset_eligibility_v1'
+  'render_asset_eligibility_green'
   'bevy-render-asset-eligibility.json'
   'render-asset-eligibility'
   'runtime-texture-render-eligibility'
@@ -20,9 +21,15 @@ required_lines=(
   'atlas_layout_render_eligibility_gate'
   'sprite_render_reference_gate'
   'render_world_extraction_completed_claimed'
+  'external_evidence_ignored_for_current_render_asset_pass'
   'bevy_image_render_asset_usage_eligible_not_render_world_extraction_or_gpu_upload_claim'
   'gpu_upload_claimed == false'
   'android_s5_real_device_claimed == false'
+  'public_launch_ready == false'
+  'production_ready_ui_claimed == false'
+  'screen_for_screen_openra_ui_claimed == false'
+  'openra_engine_port_claimed == false'
+  'third_party_asset_copied == false'
   'live_osm_ingestion_claimed == false'
 )
 
