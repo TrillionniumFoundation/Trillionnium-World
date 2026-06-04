@@ -50,7 +50,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 48); do
+for index in $(seq 1 47); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -976,6 +976,69 @@ jq -n '
   }
 ' >"$live_window_screenshot_sequence_json"
 add_artifact_from_path native_bevy_live_window_screenshot_sequence "Native/Bevy live-window screenshot sequence" "$live_window_screenshot_sequence_json" release_review_input
+
+sprite_texture_sampling_json="$TMP_DIR/bevy-sprite-texture-sampling.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_sprite_texture_sampling_v1",
+  status: "sprite_texture_sampling_green",
+  green: true,
+  runtime_texture_asset_contract: "trillionnium_world_bevy_runtime_texture_asset_v1",
+  runtime_texture_manifest_probe_contract: "trillionnium_world_bevy_runtime_texture_manifest_probe_v1",
+  asset_store_registration_contract: "trillionnium_world_bevy_asset_store_registration_v1",
+  sprite_asset_binding_contract: "trillionnium_world_bevy_sprite_asset_binding_v1",
+  runtime_summary_gate: true,
+  asset_store_registration_gate: true,
+  sprite_asset_binding_gate: true,
+  image_asset_resolve_gate: true,
+  texture_atlas_layout_asset_resolve_gate: true,
+  texture_atlas_rect_resolve_gate: true,
+  texture_sample_nonblank_gate: true,
+  four_layer_texture_sampling_gate: true,
+  global_unique_texture_color_gate: true,
+  boundary_gate: true,
+  runtime_manifest_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  asset_store_registration: {
+    green: true,
+    asset_store_registered_gate: true,
+    bevy_image_store_registration_gate: true,
+    texture_atlas_layout_store_registration_gate: true,
+    image_asset_handle_id: "bevy_image_handle::trnm_world_authored_sprite_sheet_v1",
+    texture_atlas_layout_handle_id: "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1",
+    render_world_asset_usage_requested: true
+  },
+  sprite_binding_lookup: {green: true, binding_count: 32},
+  scene_layers: ["map", "hud", "actor", "feedback"],
+  material_slots: ["world_tile_material", "hud_icon_material", "actor_sprite_material", "feedback_glyph_material"],
+  sampled_layer_counts: {map: 5, hud: 2, actor: 22, feedback: 3},
+  sampled_material_slot_counts: {world_tile_material: 5, hud_icon_material: 2, actor_sprite_material: 22, feedback_glyph_material: 3},
+  sampled_surface_count: 32,
+  texture_unique_rgba_color_count: 10,
+  sampled_surfaces_sample: [
+    {scene_layer: "actor", material_slot: "actor_sprite_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 0 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 0 }"},
+    {scene_layer: "actor", material_slot: "actor_sprite_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 1 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 1 }"},
+    {scene_layer: "map", material_slot: "world_tile_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 2 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 2 }"},
+    {scene_layer: "hud", material_slot: "hud_icon_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 3 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 3 }"},
+    {scene_layer: "feedback", material_slot: "feedback_glyph_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 4 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 4 }"},
+    {scene_layer: "map", material_slot: "world_tile_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 5 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 5 }"},
+    {scene_layer: "actor", material_slot: "actor_sprite_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 6 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 6 }"},
+    {scene_layer: "actor", material_slot: "actor_sprite_material", image_asset_resolve_gate: true, texture_atlas_layout_asset_resolve_gate: true, texture_atlas_rect_resolve_gate: true, texture_sample_nonblank_gate: true, sample_count: 9, alpha_nonzero_sample_count: 9, texture_rect: {width: 32, height: 32}, sprite_image_asset_id_debug: "AssetId<Image>{ index: 7 }", sprite_texture_atlas_layout_asset_id_debug: "AssetId<TextureAtlasLayout>{ index: 7 }"}
+  ],
+  host_log_line: "TRNM_WORLD_BEVY_SPRITE_TEXTURE_SAMPLING green=true sampled_surfaces=32 unique_rgba_colors=10",
+  asset_boundary: "bevy_assets_image_texture_atlas_cpu_sampling_not_gpu_upload_claim",
+  host_side_cpu_texture_sampling_claimed: true,
+  external_evidence_ignored_for_current_sprite_texture_pass: true,
+  gpu_upload_claimed: false,
+  android_s5_real_device_claimed: false,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false,
+  live_osm_ingestion_claimed: false
+}' >"$sprite_texture_sampling_json"
+add_artifact_from_path native_bevy_sprite_texture_sampling "Native/Bevy sprite texture sampling" "$sprite_texture_sampling_json" release_review_input
 
 live_window_sampled_texture_correlation_json="$TMP_DIR/bevy-live-window-sampled-texture-correlation.json"
 jq -n '{

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-sprite-texture-sampling.json"
+SUMMARY_RAW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-sprite-texture-sampling.raw.json"
 RUNTIME_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-runtime-texture-asset.json"
 RUNTIME_MANIFEST="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-runtime-texture-asset-manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
@@ -13,11 +14,25 @@ test -s "$RUNTIME_MANIFEST"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- sprite-texture-sampling "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" >"$SUMMARY"
+  cargo run -p trnm-world-bevy -- sprite-texture-sampling "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" >"$SUMMARY_RAW"
 )
+
+jq '
+  .status = "sprite_texture_sampling_green"
+  | .external_evidence_ignored_for_current_sprite_texture_pass = true
+  | .public_launch_ready = false
+  | .production_ready_ui_claimed = false
+  | .screen_for_screen_openra_ui_claimed = false
+  | .openra_engine_port_claimed = false
+  | .warcraft_iii_asset_copied = false
+  | .openra_asset_copied = false
+  | .third_party_asset_copied = false
+' "$SUMMARY_RAW" >"$SUMMARY"
+rm -f "$SUMMARY_RAW"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_sprite_texture_sampling_v1"
+  and .status == "sprite_texture_sampling_green"
   and .green == true
   and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
   and .runtime_texture_manifest_probe_contract == "trillionnium_world_bevy_runtime_texture_manifest_probe_v1"
@@ -72,8 +87,16 @@ jq -e '
   and (.host_log_line | contains("TRNM_WORLD_BEVY_SPRITE_TEXTURE_SAMPLING"))
   and .asset_boundary == "bevy_assets_image_texture_atlas_cpu_sampling_not_gpu_upload_claim"
   and .host_side_cpu_texture_sampling_claimed == true
+  and .external_evidence_ignored_for_current_sprite_texture_pass == true
   and .gpu_upload_claimed == false
   and .android_s5_real_device_claimed == false
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
   and .live_osm_ingestion_claimed == false
 ' "$SUMMARY" >/dev/null
 

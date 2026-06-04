@@ -8,6 +8,7 @@ MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 
 required_lines=(
   'trillionnium_world_bevy_sprite_texture_sampling_v1'
+  'sprite_texture_sampling_green'
   'bevy-sprite-texture-sampling.json'
   'sprite-texture-sampling'
   'runtime-texture-sprite-sampling'
@@ -29,8 +30,14 @@ required_lines=(
   'sampled_surface_count >= 24'
   'TRNM_WORLD_BEVY_SPRITE_TEXTURE_SAMPLING'
   'bevy_assets_image_texture_atlas_cpu_sampling_not_gpu_upload_claim'
+  'external_evidence_ignored_for_current_sprite_texture_pass'
   'gpu_upload_claimed == false'
   'android_s5_real_device_claimed == false'
+  'public_launch_ready == false'
+  'production_ready_ui_claimed == false'
+  'screen_for_screen_openra_ui_claimed == false'
+  'openra_engine_port_claimed == false'
+  'third_party_asset_copied == false'
   'live_osm_ingestion_claimed == false'
 )
 
