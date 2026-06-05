@@ -298,7 +298,7 @@ jq -n \
   printf '\n## Still Requires Real External Evidence\n\n'
   jq -r 'if (.blocked_items | length) == 0 then "- [x] No public-launch blockers remain." else .blocked_items[] | "- [ ] \(.label): \(.needed)" end' "$PACKET_JSON"
   printf '\n## Boundary\n\n'
-  printf -- '- Native/Bevy keyboard replay, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
+  printf -- '- Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
   printf -- '- CEX adapter readiness proves the current CEX incubator exports the Trillionnium world runtime adapter contract; it is not a substitute for real external public-launch evidence.\n'
   printf -- '- Public launch operator handoff is a checksum-bound collection checklist; it does not grant public-launch credit without real external evidence.\n'
   printf -- '- The checkpoint manifest groups the current dirty working tree for review; it does not stage, commit, or publish anything.\n'

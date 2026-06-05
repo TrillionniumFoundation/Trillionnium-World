@@ -49,7 +49,7 @@ jq -n \
   printf '## Still Requires Real External Evidence\n\n'
   printf -- '- [ ] fixture blocker\n\n'
   printf '## Boundary\n\n'
-  printf -- '- Native/Bevy keyboard replay, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
+  printf -- '- Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
 } >"$packet_md"
 
 printf '{"contract_version":"fixture_contract_v2","status":"fixture_red","payload":"artifact_1 drifted"}\n' >"$TMP_DIR/artifact_1.json"

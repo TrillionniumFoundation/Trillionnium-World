@@ -78,6 +78,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_account_title_flow.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh" \
+  "$ROOT/scripts/v2/bevy_classic_animation_evidence_script_contract_guard_test.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_selector.sh" \
   "$ROOT/scripts/v2/bevy_classic_player_motion_probe_script_contract_guard_test.sh" \
@@ -254,6 +255,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_unsafe_tar_fixture_test.sh" \
   "$ROOT/scripts/v2/keyboard_replay_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_animation_evidence_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_player_motion_probe_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_title_flow_script_contract_guard_test.sh" \
@@ -495,6 +497,7 @@ run_check bevy_account_title_flow_gate "$ROOT/scripts/check_trillionnium_world_b
 # Bevy classic bot gap foundation contracts: trillionnium_world_bevy_classic_rts_bot_decision_state_gap_v1 / trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap_v1 / trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap_v1 / trillionnium_world_bevy_classic_rts_bot_map_intel_gap_v1
 run_check bevy_classic_asset_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_pack.sh"
 run_check bevy_classic_manifest_lint_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh"
+run_check bevy_classic_animation_evidence_contract_guard "$ROOT/scripts/v2/bevy_classic_animation_evidence_script_contract_guard_test.sh"
 run_check bevy_classic_animation_preview_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh"
 run_check bevy_classic_animation_selector_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_selector.sh"
 run_check bevy_classic_player_motion_probe_contract_guard "$ROOT/scripts/v2/bevy_classic_player_motion_probe_script_contract_guard_test.sh"

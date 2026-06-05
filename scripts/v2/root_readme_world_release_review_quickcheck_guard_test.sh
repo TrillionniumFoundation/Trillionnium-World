@@ -41,7 +41,7 @@ required_lines=(
   'acceptance/S6_public_launch/latest/public-launch-operator-handoff.json'
   'checksum-binding the six collection actions, templates, validator commands, bundle template, and negative fixtures'
   'grouping the current dirty working tree into review/commit slices without staging, committing, or claiming public-launch evidence'
-  'Native/Bevy keyboard replay, action coach, player HUD/debug layer, player UI rescue, live-window screenshot evidence, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, CEX adapter readiness'
+  'Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, player HUD/debug layer, player UI rescue, live-window screenshot evidence, sprite texture sampling, sampled texture live-window correlation, render asset eligibility, CEX adapter readiness'
   'It does not claim GPU upload, render-world extraction completion, Android S5 real-device readiness, or external public-launch readiness.'
 )
 

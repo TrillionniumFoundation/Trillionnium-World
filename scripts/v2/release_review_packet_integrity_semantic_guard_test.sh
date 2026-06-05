@@ -50,7 +50,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 41); do
+for index in $(seq 1 38); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -1328,6 +1328,89 @@ jq -n '{
 }' >"$keyboard_replay_json"
 add_artifact_from_path native_bevy_keyboard_replay "Native/Bevy keyboard replay" "$keyboard_replay_json" release_review_input
 
+classic_animation_preview_json="$TMP_DIR/bevy-classic-animation-preview.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_animation_preview_v1",
+  status: "classic_animation_preview_green",
+  green: true,
+  preview_format: "ppm_p3_rgb",
+  preview_width: 640,
+  preview_height: 448,
+  preview_bytes: 2596553,
+  clip_count: 4,
+  rendered_clip_count: 4,
+  rendered_frame_slot_count: 15,
+  unique_color_count: 35,
+  non_background_pixels: 80421,
+  label_pixel_count: 2062,
+  loaded_from_manifest: true,
+  atlas_parse_gate: true,
+  clip_count_gate: true,
+  action_coverage_gate: true,
+  fps_gate: true,
+  all_clip_refs_valid: true,
+  rendered_clip_gate: true,
+  preview_sheet_gate: true,
+  label_gate: true,
+  source_of_truth: "Classic animation preview expands manifest actor clips into visible sprite strips through the same PPM atlas blitter used by the low-spec playtest renderer.",
+  clip_summaries: [
+    {actor_id: "player", action: "walk", clip_id: "player_cardinal_walk_cycle", fps: 8, frame_count: 8, frame_ids: ["actor_player_walk_south_1", "actor_player_walk_south_2", "actor_player_walk_north_1", "actor_player_walk_north_2", "actor_player_walk_east_1", "actor_player_walk_east_2", "actor_player_walk_west_1", "actor_player_walk_west_2"], refs_valid: true, visible_pixels: 592},
+    {actor_id: "mentor", action: "talk", clip_id: "mentor_talk_cycle", fps: 4, frame_count: 2, frame_ids: ["actor_mentor_idle", "actor_mentor_talk"], refs_valid: true, visible_pixels: 151},
+    {actor_id: "enemy", action: "attack", clip_id: "enemy_attack_cycle", fps: 6, frame_count: 3, frame_ids: ["actor_enemy_idle", "actor_enemy_attack", "actor_enemy_hit"], refs_valid: true, visible_pixels: 230},
+    {actor_id: "enemy", action: "hit", clip_id: "enemy_hit_recover", fps: 5, frame_count: 2, frame_ids: ["actor_enemy_hit", "actor_enemy_idle"], refs_valid: true, visible_pixels: 156}
+  ],
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false,
+  android_s5_real_device_claimed: false,
+  external_evidence_ignored_for_current_animation_preview_pass: true,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$classic_animation_preview_json"
+add_artifact_from_path native_bevy_classic_animation_preview "Native/Bevy classic animation preview" "$classic_animation_preview_json" release_review_input
+classic_animation_preview_ppm="$TMP_DIR/bevy-classic-animation-preview.ppm"
+printf 'P3\n640 448\n255\n' >"$classic_animation_preview_ppm"
+truncate -s 100001 "$classic_animation_preview_ppm"
+add_artifact_from_path native_bevy_classic_animation_preview_ppm "Native/Bevy classic animation preview PPM" "$classic_animation_preview_ppm" release_review_visual_evidence
+classic_animation_selector_json="$TMP_DIR/bevy-classic-animation-selector.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_animation_selector_v1",
+  status: "classic_animation_selector_green",
+  green: true,
+  case_count: 6,
+  loaded_from_manifest: true,
+  atlas_parse_gate: true,
+  selector_case_gate: true,
+  selected_frame_manifest_gate: true,
+  animation_transition_gate: true,
+  source_of_truth: "Classic animation selector evidence locks runtime state-to-frame decisions for dialogue, combat, damage, and marker pulse inside trnm-world-bevy.",
+  cases: [
+    {case_id: "mentor_idle", landmark_id: "mentor", selected_frame_id: "actor_mentor_idle", expected_frame_id: "actor_mentor_idle"},
+    {case_id: "mentor_dialogue_talk", landmark_id: "mentor", selected_frame_id: "actor_mentor_talk", expected_frame_id: "actor_mentor_talk"},
+    {case_id: "enemy_idle", landmark_id: "enemy", selected_frame_id: "actor_enemy_idle", expected_frame_id: "actor_enemy_idle"},
+    {case_id: "enemy_combat_attack", landmark_id: "enemy", selected_frame_id: "actor_enemy_attack", expected_frame_id: "actor_enemy_attack"},
+    {case_id: "enemy_combat_hit", landmark_id: "enemy", selected_frame_id: "actor_enemy_hit", expected_frame_id: "actor_enemy_hit"},
+    {case_id: "objective_marker_pulse", landmark_id: "objective_gate", selected_frame_id: "marker_interaction", expected_frame_id: "marker_interaction"}
+  ],
+  selected_frames: ["actor_enemy_attack", "actor_enemy_hit", "marker_interaction", "actor_enemy_idle", "actor_mentor_idle", "actor_mentor_talk"],
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false,
+  android_s5_real_device_claimed: false,
+  external_evidence_ignored_for_current_animation_selector_pass: true,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$classic_animation_selector_json"
+add_artifact_from_path native_bevy_classic_animation_selector "Native/Bevy classic animation selector" "$classic_animation_selector_json" release_review_input
+
 classic_player_motion_probe_json="$TMP_DIR/bevy-classic-player-motion-probe.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_classic_player_motion_probe_v1",
@@ -1964,7 +2047,7 @@ jq -n \
   printf '## Still Requires Real External Evidence\n\n'
   printf -- '- [ ] fixture blocker\n\n'
   printf '## Boundary\n\n'
-  printf -- '- Native/Bevy keyboard replay, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
+  printf -- '- Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
 } >"$packet_md"
 
 set +e

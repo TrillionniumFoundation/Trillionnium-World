@@ -209,7 +209,7 @@ GENERATED_AT="$(jq -r '.generated_at' "$STATUS_JSON")"
   printf '\n## Still Requires Real External Evidence\n\n'
   jq -r 'if (.blocked_items | length) == 0 then "- [x] No public-launch blockers remain." else .blocked_items[] | "- [ ] \(.label): \(.needed)" end' "$STATUS_JSON"
   printf '\n## Boundary\n\n'
-  printf -- '- Native/Bevy keyboard replay, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
+  printf -- '- Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
   printf -- '- CEX adapter readiness is incubator runtime adapter evidence, not real external public-launch evidence.\n'
   printf -- '- Public launch remains blocked until the external evidence above is attached.\n'
 } >"$STATUS_MD"
