@@ -19,7 +19,7 @@ required_lines=(
   'cex_adapter_readiness'
   'CEX production world adapter readiness'
   'host_side_texture_sampling_correlation_and_render_asset_eligibility_not_gpu_upload_or_android_real_device'
-  'Native/Bevy keyboard replay, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.'
+  'Native/Bevy keyboard replay, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.'
   'CJK/input'
   'weak-network'
   'APK resource/signature'

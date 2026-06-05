@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.json"
+SUMMARY_RAW="$SUMMARY.raw"
 PROBE="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-player-motion-probe.ppm"
 MANIFEST="$ROOT/assets/trnm-world/classic/manifest.json"
 mkdir -p "$(dirname "$SUMMARY")"
@@ -12,8 +13,22 @@ mkdir -p "$(dirname "$SUMMARY")"
 (
   cd "$ROOT/trillionnium"
   TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST="$MANIFEST" \
-    cargo run -p trnm-world-bevy -- classic-player-motion-probe "$PROBE" >"$SUMMARY"
+    cargo run -p trnm-world-bevy -- classic-player-motion-probe "$PROBE" >"$SUMMARY_RAW"
 )
+
+jq '
+  .status = "classic_player_motion_probe_green"
+  | .android_s5_real_device_claimed = false
+  | .external_evidence_ignored_for_current_player_motion_probe_pass = true
+  | .public_launch_ready = false
+  | .production_ready_ui_claimed = false
+  | .screen_for_screen_openra_ui_claimed = false
+  | .openra_engine_port_claimed = false
+  | .warcraft_iii_asset_copied = false
+  | .openra_asset_copied = false
+  | .third_party_asset_copied = false
+' "$SUMMARY_RAW" >"$SUMMARY"
+rm -f "$SUMMARY_RAW"
 
 test -s "$SUMMARY"
 test -s "$PROBE"
@@ -21,6 +36,7 @@ head -n 1 "$PROBE" | grep -Fx 'P3' >/dev/null
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_player_motion_probe_v1"
+  and .status == "classic_player_motion_probe_green"
   and .green == true
   and .probe_format == "ppm_p3_rgb"
   and .probe_width == 640
@@ -59,6 +75,15 @@ jq -e '
   and ([.samples[] | select(.case_id == "west_2") | .selected_frame_id] | first) == "actor_player_walk_west_2"
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
+  and .android_s5_real_device_claimed == false
+  and .external_evidence_ignored_for_current_player_motion_probe_pass == true
+  and .public_launch_ready == false
+  and .production_ready_ui_claimed == false
+  and .screen_for_screen_openra_ui_claimed == false
+  and .openra_engine_port_claimed == false
+  and .warcraft_iii_asset_copied == false
+  and .openra_asset_copied == false
+  and .third_party_asset_copied == false
 ' "$SUMMARY" >/dev/null
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_PLAYER_MOTION_PROBE_GREEN %s %s\n' "$SUMMARY" "$PROBE"

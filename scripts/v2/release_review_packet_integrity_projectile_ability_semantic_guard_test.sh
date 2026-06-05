@@ -44,7 +44,7 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 43); do
+for index in $(seq 1 41); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -763,6 +763,67 @@ jq -n '{
 }' >"$keyboard_replay_json"
 add_artifact_from_path native_bevy_keyboard_replay "Native/Bevy keyboard replay" "$keyboard_replay_json" release_review_input
 
+classic_player_motion_probe_json="$TMP_DIR/bevy-classic-player-motion-probe.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_classic_player_motion_probe_v1",
+  status: "classic_player_motion_probe_green",
+  green: true,
+  probe_format: "ppm_p3_rgb",
+  probe_width: 640,
+  probe_height: 192,
+  probe_bytes: 1119395,
+  sample_count: 8,
+  accepted_input_count: 8,
+  unique_color_count: 17,
+  non_background_pixels: 45334,
+  label_pixel_count: 2940,
+  loaded_from_manifest: true,
+  atlas_parse_gate: true,
+  accepted_input_gate: true,
+  direction_coverage_gate: true,
+  frame_match_gate: true,
+  manifest_frame_gate: true,
+  sheet_gate: true,
+  label_gate: true,
+  source_of_truth: "Classic player motion probe drives real NativeControlAction::Move inputs through apply_live_native_action, then proves runtime direction/walk-cycle state selects the expected low-spec player sprite frames.",
+  selected_frame_ids: [
+    "actor_player_walk_west_1",
+    "actor_player_walk_east_1",
+    "actor_player_walk_east_2",
+    "actor_player_walk_west_2",
+    "actor_player_walk_north_1",
+    "actor_player_walk_south_2",
+    "actor_player_walk_south_1",
+    "actor_player_walk_north_2"
+  ],
+  samples: [
+    {case_id: "north_1", direction: "north", expected_frame_id: "actor_player_walk_north_1", selected_frame_id: "actor_player_walk_north_1", accepted_local_input: true, frame_match: true, last_action: "local_move:north", last_result: "local_map_step_before_training"},
+    {case_id: "north_2", direction: "north", expected_frame_id: "actor_player_walk_north_2", selected_frame_id: "actor_player_walk_north_2", accepted_local_input: true, frame_match: true, last_action: "local_move:north", last_result: "local_map_step_before_training"},
+    {case_id: "east_1", direction: "east", expected_frame_id: "actor_player_walk_east_1", selected_frame_id: "actor_player_walk_east_1", accepted_local_input: true, frame_match: true, last_action: "local_move:east", last_result: "local_map_step_before_training"},
+    {case_id: "east_2", direction: "east", expected_frame_id: "actor_player_walk_east_2", selected_frame_id: "actor_player_walk_east_2", accepted_local_input: true, frame_match: true, last_action: "local_move:east", last_result: "local_map_step_before_training"},
+    {case_id: "south_1", direction: "south", expected_frame_id: "actor_player_walk_south_1", selected_frame_id: "actor_player_walk_south_1", accepted_local_input: true, frame_match: true, last_action: "local_move:south", last_result: "local_map_step_before_training"},
+    {case_id: "south_2", direction: "south", expected_frame_id: "actor_player_walk_south_2", selected_frame_id: "actor_player_walk_south_2", accepted_local_input: true, frame_match: true, last_action: "local_move:south", last_result: "local_map_step_before_training"},
+    {case_id: "west_1", direction: "west", expected_frame_id: "actor_player_walk_west_1", selected_frame_id: "actor_player_walk_west_1", accepted_local_input: true, frame_match: true, last_action: "local_move:west", last_result: "local_map_step_before_training"},
+    {case_id: "west_2", direction: "west", expected_frame_id: "actor_player_walk_west_2", selected_frame_id: "actor_player_walk_west_2", accepted_local_input: true, frame_match: true, last_action: "local_move:west", last_result: "local_map_step_before_training"}
+  ],
+  cex_runtime_player_client_allowed: false,
+  wgpu_required: false,
+  android_s5_real_device_claimed: false,
+  external_evidence_ignored_for_current_player_motion_probe_pass: true,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$classic_player_motion_probe_json"
+add_artifact_from_path native_bevy_classic_player_motion_probe "Native/Bevy classic player motion probe" "$classic_player_motion_probe_json" release_review_input
+classic_player_motion_probe_ppm="$TMP_DIR/bevy-classic-player-motion-probe.ppm"
+printf 'P3\n640 192\n255\n' >"$classic_player_motion_probe_ppm"
+truncate -s 100001 "$classic_player_motion_probe_ppm"
+add_artifact_from_path native_bevy_classic_player_motion_probe_ppm "Native/Bevy classic player motion probe PPM" "$classic_player_motion_probe_ppm" release_review_visual_evidence
+
 
 action_coach_json="$TMP_DIR/bevy-action-coach.json"
 jq -n '{
@@ -1337,7 +1398,7 @@ jq -n \
   printf '## Still Requires Real External Evidence\n\n'
   printf -- '- [ ] fixture blocker\n\n'
   printf '## Boundary\n\n'
-  printf -- '- Native/Bevy keyboard replay, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
+  printf -- '- Native/Bevy keyboard replay, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
 } >"$packet_md"
 set +e
 TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$packet_json" \
