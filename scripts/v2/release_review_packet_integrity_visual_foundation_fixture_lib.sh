@@ -477,6 +477,140 @@ add_playtest_runner_packet_fixtures() {
         cex_path_gate: true
       },
       source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic renderer manifest; CEX paths are explicitly rejected."
-    }' >"$playtest_runner_json"
+  }' >"$playtest_runner_json"
   add_artifact_from_path native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$playtest_runner_json" release_review_input
+}
+
+add_map_modeling_packet_fixtures() {
+  local map_modeling_json="$TMP_DIR/map-modeling-gate.json"
+  jq -n '{
+    contract_version: "trillionnium_world_map_modeling_gate_v1",
+    status: "fixture_map_modeling_gate_green_with_public_data_blockers",
+    fixture_only: true,
+    provider_mode: "fixture",
+    source_of_truth: "trnm_world_map_provider_fixture_modeling",
+    live_ingestion_enabled: false,
+    runtime_clients_fetch_public_osm_directly: false,
+    public_network_ready: false,
+    layer_counts: {
+      buildings: 24,
+      roads: 62,
+      greenery: 8,
+      terrain: 4
+    },
+    gates: {
+      building_modeling_gate: true,
+      road_modeling_gate: true,
+      greenery_modeling_gate: true,
+      terrain_modeling_gate: true,
+      no_live_ingestion_gate: true,
+      all_layers_modeled: true
+    },
+    modeling_layers: {
+      buildings: [
+        {
+          asset_class: "building_mass_from_map_pack_node",
+          model_id: "building:mirror-city-square",
+          source_node_id: "mirror-city-square",
+          node_kind: "hub_square",
+          collision_role: "walkable_boundary_and_occlusion_hint",
+          roof_profile: "low_poly_city_roof",
+          footprint: {contract: "fixture_grid_footprint_from_world_node_lat_lng_e7", half_extent_tiles: 2},
+          gameplay_anchor_tags: ["talk", "notice_board", "hub_square"]
+        },
+        {
+          asset_class: "building_mass_from_map_pack_node",
+          model_id: "building:league-coliseum",
+          source_node_id: "league-coliseum",
+          node_kind: "arena_gate",
+          collision_role: "walkable_boundary_and_occlusion_hint",
+          roof_profile: "gatehouse_roof",
+          footprint: {contract: "fixture_grid_footprint_from_world_node_lat_lng_e7", half_extent_tiles: 1},
+          gameplay_anchor_tags: ["arena", "ranking", "arena_gate"]
+        },
+        {
+          asset_class: "building_mass_from_map_pack_node",
+          model_id: "building:survey-tower",
+          source_node_id: "survey-tower",
+          node_kind: "survey_tower",
+          collision_role: "walkable_boundary_and_occlusion_hint",
+          roof_profile: "watch_tower_roof",
+          footprint: {contract: "fixture_grid_footprint_from_world_node_lat_lng_e7", half_extent_tiles: 1},
+          gameplay_anchor_tags: ["terrain", "survey", "blocked_path"]
+        }
+      ],
+      roads: [
+        {
+          asset_class: "road_path_from_map_pack_edge",
+          model_id: "road:001:mirror-city-square:agent-dormitory",
+          navigation_role: "walkable_route_graph",
+          road_class: "street_lane",
+          material_hint: "packed_earth_street",
+          path_polyline: [{x: 0, y: 0}, {x: -1, y: 0}],
+          source_edge: {from: "mirror-city-square", to: "agent-dormitory", direction: "west"}
+        },
+        {
+          asset_class: "road_path_from_map_pack_edge",
+          model_id: "road:053:survey-tower:guild-vault",
+          navigation_role: "walkable_route_graph",
+          road_class: "path_lane",
+          material_hint: "stone_path",
+          path_polyline: [{x: 2, y: 5}, {x: 2, y: -1}],
+          source_edge: {from: "survey-tower", to: "guild-vault", direction: "south"}
+        }
+      ],
+      greenery: [
+        {
+          asset_class: "greenery_cluster_from_map_pack_tags",
+          model_id: "greenery:mirror-city-planter",
+          source_tag: "plaza_greenery",
+          foliage_role: "readability_breakup"
+        }
+      ],
+      terrain: [
+        {
+          zone_id: "terrain:mirror-city-paved-lowland",
+          terrain_kind: "paved_urban_plaza",
+          mesh_role: "ground_surface",
+          elevation_band: "lowland",
+          walkability: "high"
+        },
+        {
+          zone_id: "terrain:river-cistern-wetland",
+          terrain_kind: "water_edge_buffer",
+          mesh_role: "water_and_bank_surface",
+          elevation_band: "lowland_water",
+          walkability: "partial"
+        },
+        {
+          zone_id: "terrain:survey-tower-ridge",
+          terrain_kind: "survey_ridge_blocked_path",
+          mesh_role: "height_hint_and_blocked_path_surface",
+          elevation_band: "raised_ridge",
+          walkability: "gated"
+        }
+      ]
+    },
+    modeling_policy: {
+      building_source: "map_pack_nodes_to_low_poly_footprints",
+      road_source: "map_pack_edges_to_walkable_route_graph",
+      greenery_source: "map_pack_tags_to_foliage_clusters",
+      terrain_source: "authored_zone_meshes_bound_to_map_pack_node_groups",
+      renderer_authority: "native_bevy_visualization_only_world_state_remains_rust_authoritative",
+      production_data_rule: "real map modeling credit must consume signed production map_pack artifacts, not direct runtime Overpass or Geofabrik calls"
+    },
+    public_network_blocking_reason: "building/road/greenery/terrain modeling is proven on deterministic fixture map_pack only; production credit still requires approved real map-pack source, cache policy, attribution screenshots, sensitive POI/geofence review, and operator signoff",
+    required_next_evidence: [
+      "approved_production_map_source",
+      "signed_production_map_pack_manifest",
+      "building_footprint_derivation_report",
+      "road_graph_derivation_report",
+      "greenery_landuse_derivation_report",
+      "terrain_mesh_derivation_report",
+      "visible_attribution_screenshots",
+      "sensitive_poi_and_geofence_review",
+      "operator_signoff"
+    ]
+  }' >"$map_modeling_json"
+  add_artifact_from_path map_modeling_gate "Map modeling gate" "$map_modeling_json" release_review_input
 }

@@ -335,7 +335,7 @@ Dropbox v0.4 的 Bevy、QUIC、H3、Cell、map_pack、AOI、mobile release 进�
 - 不满足时继续 fixture-only。
 - 当前 Trillionnium 主仓已提供 `scripts/check_trillionnium_world_map_pack_gate.sh`，能对 fixture map_pack 生成 unsigned manifest、Ed25519 dev signature、attribution evidence、sensitive POI report 和 S4 summary；这只解除 fixture signed manifest 缺口，不等同于生产公网地图包准入。
 - 当前 Trillionnium 主仓新增 production map-pack route：`docs/development/trillionnium-world-production-map-pack-adr-v1.md` 与 `scripts/check_trillionnium_world_production_map_pack_route.sh` 覆盖 key rotation/revocation、attribution screenshot plan、takedown/rollback drill；它的 `production_map_pack_route_green` 仍不等同于 `production_map_pack_public_ready_green`。
-- 当前 Trillionnium 主仓新增 `scripts/check_trillionnium_world_map_modeling_gate.sh`，在 fixture map_pack 上派生 buildings / roads / greenery / terrain 四类模型并写入 `acceptance/S4_map_pack_gate/latest/map-modeling-gate.json`；它证明建模管线存在，但仍明确 `fixture_only=true`、`live_ingestion_enabled=false`、`runtime_clients_fetch_public_osm_directly=false`。
+- 当前 Trillionnium 主仓新增 `scripts/check_trillionnium_world_map_modeling_gate.sh`，在 fixture map_pack 上派生 buildings / roads / greenery / terrain 四类模型并写入 `acceptance/S4_map_pack_gate/latest/map-modeling-gate.json`；它证明建模管线存在，但仍明确 `fixture_only=true`、`live_ingestion_enabled=false`、`runtime_clients_fetch_public_osm_directly=false`。该 artifact 现在也由 packet integrity 的 `map_modeling_gate_semantics` 直接校验 fixture map_pack modeling layers、no-live-ingestion 边界和 production/public evidence blockers。
 
 ### S5 — Native/Bevy Mobile Gate（当前引擎路径）
 
