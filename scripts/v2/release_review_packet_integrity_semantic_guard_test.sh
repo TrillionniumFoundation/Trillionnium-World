@@ -52,7 +52,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 32); do
+for index in $(seq 1 28); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -61,6 +61,7 @@ for index in $(seq 1 32); do
 done
 
 add_visual_foundation_packet_fixtures
+add_modeling_foundation_packet_fixtures
 
 semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
 jq -n '{
