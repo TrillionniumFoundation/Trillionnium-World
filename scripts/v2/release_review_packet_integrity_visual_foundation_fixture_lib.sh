@@ -614,3 +614,53 @@ add_map_modeling_packet_fixtures() {
   }' >"$map_modeling_json"
   add_artifact_from_path map_modeling_gate "Map modeling gate" "$map_modeling_json" release_review_input
 }
+
+add_public_launch_blocker_consistency_packet_fixtures() {
+  local blocker_consistency_json="$TMP_DIR/public-launch-blocker-consistency.json"
+  jq -n '{
+    contract_version: "trillionnium_world_public_launch_blocker_consistency_v1",
+    status: "public_launch_blocker_consistency_green_with_public_launch_blockers",
+    source_of_truth: "trillionnium_world_public_launch_blocker_consistency",
+    public_launch_ready: false,
+    public_launch_claimed: false,
+    consistency_rule: "public_launch_readiness_blockers_must_match_evidence_intake_items_and_field_level_validator_statuses",
+    readiness: {
+      summary_path: "/fixture/public-launch-readiness.json",
+      refresh_log_path: "/fixture/public-launch-blocker-consistency-readiness.log"
+    },
+    intake: {
+      summary_path: "/fixture/public-launch-evidence-intake.json",
+      refresh_log_path: "/fixture/public-launch-blocker-consistency-intake.log"
+    },
+    known_blockers: [
+      "s5_real_device_matrix",
+      "production_map_pack_public_evidence",
+      "first_beta_cohort_evidence",
+      "commercial_launch_drill_evidence",
+      "multi_node_or_live_traffic_latency_evidence",
+      "public_network_live_exposure_evidence"
+    ],
+    unknown_readiness_blockers: [],
+    unknown_intake_blockers: [],
+    checks: [
+      {name: "readiness_summary_present", status: "ok", actual: "/fixture/public-launch-readiness.json"},
+      {name: "intake_summary_present", status: "ok", actual: "/fixture/public-launch-evidence-intake.json"},
+      {name: "unknown_readiness_blockers", status: "ok", actual: null},
+      {name: "unknown_intake_blockers", status: "ok", actual: null},
+      {name: "s5_real_device_matrix_validator_present", status: "ok", actual: "/fixture/s5-real-device-evidence-validation.json"},
+      {name: "s5_real_device_matrix_blocked_consistency", status: "ok", expected: "s5_real_device_evidence_green", actual: "blocked_missing_s5_real_device_evidence"},
+      {name: "production_map_pack_public_evidence_validator_present", status: "ok", actual: "/fixture/production-map-pack-public-evidence.json"},
+      {name: "production_map_pack_public_evidence_blocked_consistency", status: "ok", expected: "production_map_pack_public_ready_green", actual: "blocked_missing_production_map_pack_public_evidence"},
+      {name: "first_beta_cohort_evidence_validator_present", status: "ok", actual: "/fixture/cohort-commercial-evidence.json"},
+      {name: "first_beta_cohort_evidence_blocked_consistency", status: "ok", expected: "first_beta_cohort_evidence_green", actual: "blocked_missing_first_beta_cohort_evidence"},
+      {name: "commercial_launch_drill_evidence_validator_present", status: "ok", actual: "/fixture/cohort-commercial-evidence.json"},
+      {name: "commercial_launch_drill_evidence_blocked_consistency", status: "ok", expected: "commercial_launch_drill_evidence_green", actual: "blocked_missing_commercial_launch_drill_evidence"},
+      {name: "multi_node_or_live_traffic_latency_evidence_validator_present", status: "ok", actual: "/fixture/external-ops-evidence.json"},
+      {name: "multi_node_or_live_traffic_latency_evidence_blocked_consistency", status: "ok", expected: "multi_node_or_live_traffic_latency_green", actual: "blocked_missing_multi_node_or_live_traffic_latency_evidence"},
+      {name: "public_network_live_exposure_evidence_validator_present", status: "ok", actual: "/fixture/external-ops-evidence.json"},
+      {name: "public_network_live_exposure_evidence_blocked_consistency", status: "ok", expected: "public_network_deploy_green", actual: "blocked_missing_public_network_live_exposure_evidence"}
+    ],
+    failures: []
+  }' >"$blocker_consistency_json"
+  add_artifact_from_path public_launch_blocker_consistency "Public launch blocker consistency" "$blocker_consistency_json" release_review_gate
+}

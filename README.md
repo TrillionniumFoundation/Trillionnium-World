@@ -190,7 +190,7 @@ TRNM_TX_CLI=./trillionnium/target/debug/trnm-cli \
 # Prove a fake-green bundle manifest pointing at templates is rejected.
 ./scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh
 
-# Verify readiness blockers match intake items and field-level validator statuses.
+# Verify readiness blockers match intake items and field-level validator statuses; packet integrity binds this as public_launch_blocker_consistency_semantics.
 ./scripts/check_trillionnium_world_public_launch_blocker_consistency.sh
 
 # Build the production map-pack public evidence collection checklist.
