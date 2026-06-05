@@ -431,3 +431,52 @@ add_performance_budget_packet_fixtures() {
   }' >"$render_budget_json"
   add_artifact_from_path native_bevy_classic_render_budget "Native/Bevy classic render budget" "$render_budget_json" release_review_input
 }
+
+add_playtest_runner_packet_fixtures() {
+  local playtest_runner_json="$TMP_DIR/bevy-classic-playtest-runner-status.json"
+  jq -n \
+    --arg root "$ROOT" \
+    '{
+      contract_version: "trillionnium_world_bevy_classic_playtest_runner_status_v1",
+      status: "green",
+      green: true,
+      service: {
+        unit: "trillionnium-bevy-playtest.service",
+        active_state: "active",
+        sub_state: "running",
+        main_pid: 160672,
+        exec_main_status: "0"
+      },
+      runtime: {
+        expected_binary: ($root + "/target/release/trnm-world-bevy"),
+        expected_repo_root: $root,
+        expected_cwd: ($root + "/trillionnium"),
+        process_cwd: ($root + "/trillionnium"),
+        expected_manifest: ($root + "/assets/trnm-world/classic/manifest.json"),
+        expected_override_dir: ($root + "/assets/trnm-world/classic/art-pack-v1"),
+        manifest_sha256: "c628e35e2e44883be53d1de0d99a3cacb88d59bf02aabb3f1e24f165af5ede1f",
+        cmdline: [
+          ($root + "/target/release/trnm-world-bevy"),
+          "run"
+        ],
+        selected_environment: {
+          TRNM_WORLD_BEVY_LOW_SPEC: "1",
+          TRNM_WORLD_BEVY_CLASSIC_RENDERER: "1",
+          TRNM_WORLD_BEVY_CLASSIC_FPS: "30",
+          TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST: ($root + "/assets/trnm-world/classic/manifest.json"),
+          TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR: ($root + "/assets/trnm-world/classic/art-pack-v1")
+        }
+      },
+      gates: {
+        service_process_gate: true,
+        release_binary_gate: true,
+        classic_env_gate: true,
+        manifest_gate: true,
+        override_dir_gate: true,
+        workdir_gate: true,
+        cex_path_gate: true
+      },
+      source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic renderer manifest; CEX paths are explicitly rejected."
+    }' >"$playtest_runner_json"
+  add_artifact_from_path native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$playtest_runner_json" release_review_input
+}
