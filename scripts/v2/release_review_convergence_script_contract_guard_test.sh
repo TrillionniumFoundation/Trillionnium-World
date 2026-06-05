@@ -36,7 +36,7 @@ required_lines=(
   'trillionnium_world_bevy_live_window_sampled_texture_correlation_v1'
   'trillionnium_world_bevy_render_asset_eligibility_v1'
   'cex_adapter_readiness_ready'
-  'Native/Bevy replay, action coach, HUD/debug layer, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.'
+  'Native/Bevy keyboard replay, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.'
   'CEX adapter readiness is incubator runtime adapter evidence, not real external public-launch evidence.'
   'android_s5_real_device_claimed: false'
   'Green For Review'

@@ -99,6 +99,8 @@ required_lines=(
   'halium_sidecar_runtime_dev_surface_gate'
   'halium_sidecar_runtime_dev_surface_operator_payload_fixture'
   'halium_sidecar_runtime_dev_surface_unsafe_tar_fixture'
+  'keyboard_replay_script_contract_guard_test.sh'
+  'bevy_keyboard_replay_contract_guard'
   'check_trillionnium_world_bevy_action_coach.sh'
   'player_hud_debug_layer_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_player_hud_debug_layer.sh'

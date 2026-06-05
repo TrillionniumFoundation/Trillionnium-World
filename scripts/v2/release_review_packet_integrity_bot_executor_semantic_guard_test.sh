@@ -50,7 +50,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 44); do
+for index in $(seq 1 43); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -985,6 +985,66 @@ jq -n '{
 }' >"$combat_readability_pressure_readiness_json"
 add_artifact_from_path native_bevy_classic_rts_combat_readability_pressure_readiness "Native/Bevy classic RTS combat readability/pressure readiness" "$combat_readability_pressure_readiness_json" release_review_input
 
+keyboard_replay_json="$TMP_DIR/bevy-build-branch-title-route-all-branch-keyboard-replay.json"
+jq -n '{
+  contract_version: "trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay_v1",
+  status: "keyboard_replay_green",
+  build_branch_title_route_all_branch_keyboard_loop_contract: "trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_loop_v1",
+  green: true,
+  all_branch_keyboard_loop_contract_green: true,
+  branch_count: 3,
+  all_branch_replay_gate: true,
+  actor_id: "local-player",
+  source_of_truth: "Recorded all-branch title-route keyboard event sequences are replayed on fresh Bevy runtime apps through ButtonInput<KeyCode> and must reproduce the same event signatures plus final branch states.",
+  replayed_stat_ids: ["force", "agility", "craft"],
+  replay_results: {
+    force: {
+      green: true, stat_id: "force", title_id: "title-force-gate-warden", reward_item_id: "force-mastery-signet",
+      recorded_branch_green: true, recorded_sequence_parse_gate: true, recorded_sequence_path_gate: true,
+      recorded_sequence_count: 10, replay_event_count: 10, replay_sequence_signature_match: true, final_runtime_match: true,
+      recorded_sequence: [
+        {key: "Enter", stage: "equip_title"}, {key: "Enter", stage: "followup_route_1"}, {key: "NumpadEnter", stage: "followup_route_2"}, {key: "Enter", stage: "complete_followup"}, {key: "Enter", stage: "mastery_route_1"}, {key: "KeyJ", stage: "combat_prereq_1"}, {key: "KeyJ", stage: "combat_prereq_2"}, {key: "KeyJ", stage: "combat_prereq_3"}, {key: "KeyJ", stage: "combat_prereq_4"}, {key: "Enter", stage: "complete_mastery"}
+      ],
+      replay_events: [{signature_match: true, recorded_signature: {input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"}, replay_signature: {input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"}}],
+      expected_final_runtime: {current_room_id: "league-coliseum", combat_result_state: "victory", active_build_title_id: "title-force-gate-warden", active_build_title_effect: "arena_gate_reputation_anchor", route_director_task_id: "task-force-mastery-guard-trial", inventory_items: ["force-mastery-signet"], completed_task_ids: ["task-force-mastery-guard-trial"]},
+      replay_final_runtime: {current_room_id: "league-coliseum", combat_result_state: "victory", active_build_title_id: "title-force-gate-warden", active_build_title_effect: "arena_gate_reputation_anchor", route_director_task_id: "task-force-mastery-guard-trial", inventory_items: ["force-mastery-signet"], completed_task_ids: ["task-force-mastery-guard-trial"]}
+    },
+    agility: {
+      green: true, stat_id: "agility", title_id: "title-agility-relay-runner", reward_item_id: "agility-mastery-signet",
+      recorded_branch_green: true, recorded_sequence_parse_gate: true, recorded_sequence_path_gate: true,
+      recorded_sequence_count: 8, replay_event_count: 8, replay_sequence_signature_match: true, final_runtime_match: true,
+      recorded_sequence: [
+        {key: "Enter", stage: "equip_title"}, {key: "Enter", stage: "followup_route_1"}, {key: "NumpadEnter", stage: "followup_route_2"}, {key: "Enter", stage: "followup_route_3"}, {key: "Enter", stage: "complete_followup"}, {key: "Enter", stage: "mastery_route_1"}, {key: "NumpadEnter", stage: "mastery_route_2"}, {key: "Enter", stage: "complete_mastery"}
+      ],
+      replay_events: [{signature_match: true, recorded_signature: {input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"}, replay_signature: {input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"}}],
+      expected_final_runtime: {current_room_id: "mirror-city-square", combat_result_state: "not_started", active_build_title_id: "title-agility-relay-runner", active_build_title_effect: "relay_route_priority_anchor", route_director_task_id: "task-agility-mastery-shortcut-run", inventory_items: ["agility-mastery-signet"], completed_task_ids: ["task-agility-mastery-shortcut-run"]},
+      replay_final_runtime: {current_room_id: "mirror-city-square", combat_result_state: "not_started", active_build_title_id: "title-agility-relay-runner", active_build_title_effect: "relay_route_priority_anchor", route_director_task_id: "task-agility-mastery-shortcut-run", inventory_items: ["agility-mastery-signet"], completed_task_ids: ["task-agility-mastery-shortcut-run"]}
+    },
+    craft: {
+      green: true, stat_id: "craft", title_id: "title-craft-forge-master", reward_item_id: "craft-mastery-signet",
+      recorded_branch_green: true, recorded_sequence_parse_gate: true, recorded_sequence_path_gate: true,
+      recorded_sequence_count: 7, replay_event_count: 7, replay_sequence_signature_match: true, final_runtime_match: true,
+      recorded_sequence: [
+        {key: "Enter", stage: "equip_title"}, {key: "Enter", stage: "followup_route_1"}, {key: "NumpadEnter", stage: "followup_route_2"}, {key: "Enter", stage: "followup_route_3"}, {key: "Enter", stage: "complete_followup"}, {key: "Enter", stage: "mastery_route_1"}, {key: "Enter", stage: "complete_mastery"}
+      ],
+      replay_events: [{signature_match: true, recorded_signature: {input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"}, replay_signature: {input_path: "ButtonInput<KeyCode> -> handle_native_keyboard_input -> apply_live_native_action"}}],
+      expected_final_runtime: {current_room_id: "forge-workbench", combat_result_state: "not_started", active_build_title_id: "title-craft-forge-master", active_build_title_effect: "forge_client_trust_anchor", route_director_task_id: "task-craft-mastery-client-order", inventory_items: ["craft-mastery-signet"], completed_task_ids: ["task-craft-mastery-client-order"]},
+      replay_final_runtime: {current_room_id: "forge-workbench", combat_result_state: "not_started", active_build_title_id: "title-craft-forge-master", active_build_title_effect: "forge_client_trust_anchor", route_director_task_id: "task-craft-mastery-client-order", inventory_items: ["craft-mastery-signet"], completed_task_ids: ["task-craft-mastery-client-order"]}
+    }
+  },
+  android_s5_real_device_claimed: false,
+  external_evidence_ignored_for_current_keyboard_replay_pass: true,
+  public_launch_ready: false,
+  production_ready_ui_claimed: false,
+  screen_for_screen_openra_ui_claimed: false,
+  openra_engine_port_claimed: false,
+  warcraft_iii_asset_copied: false,
+  openra_asset_copied: false,
+  third_party_asset_copied: false
+}' >"$keyboard_replay_json"
+add_artifact_from_path native_bevy_keyboard_replay "Native/Bevy keyboard replay" "$keyboard_replay_json" release_review_input
+
+
 action_coach_json="$TMP_DIR/bevy-action-coach.json"
 jq -n '{
   contract_version: "trillionnium_world_bevy_action_coach_v1",
@@ -1057,14 +1117,14 @@ jq -n '{
   panel_layer_gate: true,
   runtime_gate: true,
   player_layer: {
-    character_status_text: "PLAYER HUD | HP 164/176 | Enemy 10 | XP 40 | Coins 10 | Room ARENA | Goal save slot A | Next SAVE:SELECTED | Gear Starter Gear | Title none",
+    character_status_text: "PLAYER HUD | HP 164/176 | Enemy 10 | XP 40 | Coins 10 | Room ARENA | Goal return to title | Next TITLE:OPEN | Gear Starter Gear | Title none",
     forbidden_debug_needles: ["INPUT SUMMARY", "DEBUG LAYER", "contract_version"],
     panel_ids: ["top_character_status", "quest_objective_panel", "room_narrative_panel", "virtual_joystick", "right_action_buttons", "reward_toast", "feedback_banner"],
-    quest_panel_text: "PLAYER ROUTE | FIRST MINUTE HUD | NEXT BUTTON: SAVE:SELECTED | QUEST JOURNAL | TASK LOG / PROGRESS: [x]CREATE [x]TALK [x]TRAIN [x]ARENA [x]FIGHT [ ]SAVE [ ]CONTINUE | TASKS active: none | completed: task-fixture-first-route"
+    quest_panel_text: "PLAYER ROUTE | FIRST MINUTE HUD | NEXT BUTTON: TITLE:OPEN | QUEST JOURNAL | TASK LOG / PROGRESS: [x]CREATE [x]TALK [x]TRAIN [x]ARENA [x]FIGHT [x]SAVE [ ]CONTINUE | TASKS active: none | completed: task-fixture-first-route"
   },
   debug_layer: {
     event_log_text: "DEBUG LAYER | input/runtime diagnostics\n> Reward equipped: Route Guard Staff ready\n> Combat hit: enemy HP 10, player HP 164\n\nINPUT\nINPUT SUMMARY total 11 accepted 7 blocked 4 keyboard 11 buttons 0",
-    input_hint_text: "ACTION COACH | Enter/NumpadEnter -> SAVE:SELECTED\nINPUT HUD | NEXT SAVE:SELECTED\nDEV INPUT\nGATES: 22 ready / 58 locked",
+    input_hint_text: "ACTION COACH | Enter/NumpadEnter -> TITLE:OPEN\nINPUT HUD | NEXT TITLE:OPEN\nDEV INPUT\nGATES: 24 ready / 56 locked",
     scene_state_text: "DEBUG LAYER | Scene arena_outdoor | Transition combat_overlay_return_to_map | Dialogue mentor_training_complete | Combat combat_returned_to_map | Step step_north | Frame 2",
     panel_ids: ["event_log_panel", "npc_dialogue_choice_panel", "scene_transition_panel", "walk_animation_panel", "combat_scene_panel", "monochrome_stat_panel", "paper_skill_menu_overlay", "session_diagnostics"]
   },
@@ -1137,14 +1197,14 @@ jq -n '{
   runtime_gate: true,
   source_of_truth: "Bevy player UI rescue keeps the default player surface focused on route, next action, progress, and status while diagnostics remain in named debug layers.",
   player_layer: {
-    character_status_text: "PLAYER HUD | HP 164/176 | Enemy 10 | XP 40 | Coins 10 | Room ARENA | Goal save slot A | Next SAVE:SELECTED | Gear Starter Gear | Title none",
-    room_panel_text: "PLAYER ROUTE | FIRST MINUTE HUD | NEXT BUTTON: SAVE:SELECTED | NEXT STEP: save slot A\nQUEST JOURNAL | TASK LOG / PROGRESS: [x]CREATE [x]TALK [x]TRAIN [x]ARENA [x]FIGHT [ ]SAVE [ ]CONTINUE\nSTATE: save slot A",
-    input_hint_text: "ACTION COACH | Enter/NumpadEnter -> SAVE:SELECTED\nPLAYER ACTIONS | READY: TITLE:OPEN, SAVE:SELECTED, COMBAT:attack\nDEV INPUT | GATES: 22 ready / 58 locked",
-    visible_quest_summary_text: "CURRENT OBJECTIVE | Reach the League Coliseum objective\nNEXT | SAVE:SELECTED - save slot A\nPROGRESS | 7/7 | REWARD 10c | gear ready",
+    character_status_text: "PLAYER HUD | HP 164/176 | Enemy 10 | XP 40 | Coins 10 | Room ARENA | Goal return to title | Next TITLE:OPEN | Gear Starter Gear | Title none",
+    room_panel_text: "PLAYER ROUTE | FIRST MINUTE HUD | NEXT BUTTON: TITLE:OPEN | NEXT STEP: return to title\nQUEST JOURNAL | TASK LOG / PROGRESS: [x]CREATE [x]TALK [x]TRAIN [x]ARENA [x]FIGHT [x]SAVE [ ]CONTINUE\nSTATE: return to title",
+    input_hint_text: "ACTION COACH | Enter/NumpadEnter -> TITLE:OPEN\nPLAYER ACTIONS | READY: TITLE:OPEN, SAVE:SELECTED, COMBAT:attack\nDEV INPUT | GATES: 24 ready / 56 locked",
+    visible_quest_summary_text: "CURRENT OBJECTIVE | Reach the League Coliseum objective\nNEXT | TITLE:OPEN - return to title\nPROGRESS | 7/7 | REWARD 10c | gear ready",
     visible_stats_summary_text: "STATS | HP 164/176 | XP 40 | COINS 10",
     visible_bag_summary_text: "BAG | closed | items 1 equipped 0 drops 0\nAFFIX | locked | KEY bandit_sash locked",
-    visible_event_summary_text: "LAST | Reward equipped: Route Guard Staff ready\nINPUT | EQUIP ok enabled_after_reward_claim\nNEXT | SAVE:SELECTED",
-    primary_cta_text: "PRIMARY | Enter -> SAVE:SELECTED\nSHORTCUT | Enter | NEXT SAVE:SELECTED",
+    visible_event_summary_text: "LAST | Reward equipped: Route Guard Staff ready\nINPUT | EQUIP ok enabled_after_reward_claim\nNEXT | TITLE:OPEN",
+    primary_cta_text: "PRIMARY | Enter -> TITLE:OPEN\nSHORTCUT | Enter | NEXT TITLE:OPEN",
     movement_hint_text: "Numpad / arrows / WASD",
     feedback_banner_text: "TOAST OK | EQUIP | enabled_after_reward_claim",
     feedback_banner_font_size: 8.5,
@@ -1241,7 +1301,7 @@ jq -n '{
       {accepted: true, action_label: "COMPLETE"},
       {accepted: true, action_label: "EQUIP"}
     ],
-    contextual_action_labels: ["SAVE:SELECTED", "COMBAT:attack"]
+    contextual_action_labels: ["TITLE:OPEN", "SAVE:SELECTED", "COMBAT:attack"]
   },
   external_evidence_ignored_for_current_player_ui_rescue_pass: true,
   android_s5_real_device_claimed: false,
@@ -1559,7 +1619,7 @@ jq -n \
   printf '## Still Requires Real External Evidence\n\n'
   printf -- '- [ ] fixture blocker\n\n'
   printf '## Boundary\n\n'
-  printf -- '- Native/Bevy replay, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
+  printf -- '- Native/Bevy keyboard replay, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
 } >"$packet_md"
 
 set +e

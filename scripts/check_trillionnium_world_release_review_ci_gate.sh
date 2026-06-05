@@ -251,6 +251,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_operator_payload_fixture_test.sh" \
   "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_unsafe_tar_fixture_test.sh" \
+  "$ROOT/scripts/v2/keyboard_replay_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/player_ui_rescue_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_client_boundary_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_account_title_flow_script_contract_guard_test.sh" \
@@ -444,6 +445,8 @@ run_check halium_sidecar_runtime_dev_surface_contract_guard "$ROOT/scripts/v2/ha
 run_check halium_sidecar_runtime_dev_surface_gate "$ROOT/scripts/check_trillionnium_world_halium_sidecar_runtime_dev_surface.sh"
 run_check halium_sidecar_runtime_dev_surface_operator_payload_fixture "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_operator_payload_fixture_test.sh"
 run_check halium_sidecar_runtime_dev_surface_unsafe_tar_fixture "$ROOT/scripts/v2/halium_sidecar_runtime_dev_surface_unsafe_tar_fixture_test.sh"
+# Bevy keyboard replay contract: trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay_v1
+run_check bevy_keyboard_replay_contract_guard "$ROOT/scripts/v2/keyboard_replay_script_contract_guard_test.sh"
 # Bevy action coach contract: trillionnium_world_bevy_action_coach_v1
 run_check bevy_action_coach_contract_guard "$ROOT/scripts/v2/action_coach_script_contract_guard_test.sh"
 run_check bevy_action_coach_gate "$ROOT/scripts/check_trillionnium_world_bevy_action_coach.sh"

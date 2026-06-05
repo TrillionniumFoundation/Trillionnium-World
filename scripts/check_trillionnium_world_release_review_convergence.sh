@@ -142,7 +142,7 @@ require_json release_review_quickcheck "$QUICKCHECK_JSON" '.contract_version == 
 require_json release_review_status_json "$STATUS_JSON" '.contract_version == "trillionnium_world_release_review_status_v1" and .status == "release_review_ready_public_launch_blocked" and .ready_for_release_review == true and .public_launch_ready == false and .android_s5_real_device_claimed == false and (.ready_items | length) >= 9 and (.ready_items | map(.id) | index("cex_adapter_readiness")) and (.blocked_items | length) == 6' "status checklist has expanded green review items including CEX adapter readiness and six external blockers"
 require_text release_review_status_markdown_green "$STATUS_MD" "Green For Review"
 require_text release_review_status_markdown_blockers "$STATUS_MD" "Still Requires Real External Evidence"
-require_text release_review_status_markdown_boundary "$STATUS_MD" "Native/Bevy replay, action coach, HUD/debug layer, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof."
+require_text release_review_status_markdown_boundary "$STATUS_MD" "Native/Bevy keyboard replay, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof."
 require_text release_review_status_markdown_cex_boundary "$STATUS_MD" "CEX adapter readiness is incubator runtime adapter evidence, not real external public-launch evidence."
 
 CHECKS_JSON="$(jq -s '.' "$CHECK_RESULTS")"
