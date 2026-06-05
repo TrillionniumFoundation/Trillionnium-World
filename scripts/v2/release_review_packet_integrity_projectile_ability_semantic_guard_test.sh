@@ -46,7 +46,7 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 28); do
+for index in $(seq 1 26); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -56,6 +56,7 @@ done
 
 add_visual_foundation_packet_fixtures
 add_modeling_foundation_packet_fixtures
+add_performance_budget_packet_fixtures
 
 semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
 jq -n '{

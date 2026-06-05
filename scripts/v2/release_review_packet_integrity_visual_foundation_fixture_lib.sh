@@ -358,3 +358,76 @@ add_modeling_foundation_packet_fixtures() {
   truncate -s 2000001 "$isometric_ppm"
   add_artifact_from_path native_bevy_classic_isometric_modeling_ppm "Native/Bevy classic isometric modeling PPM" "$isometric_ppm" release_review_visual_evidence
 }
+
+add_performance_budget_packet_fixtures() {
+  local input_frame_budget_json="$TMP_DIR/bevy-classic-input-frame-budget.json"
+  jq -n '{
+    contract_version: "trillionnium_world_bevy_classic_input_frame_budget_v1",
+    green: true,
+    loaded_from_manifest: true,
+    atlas_parse_gate: true,
+    accepted_input_gate: true,
+    direction_coverage_gate: true,
+    rendered_frame_gate: true,
+    selected_frame_manifest_gate: true,
+    response_p95_budget_gate: true,
+    response_max_budget_gate: true,
+    sample_count: 96,
+    accepted_input_count: 96,
+    accepted_directions: ["west", "east", "north", "south"],
+    input_path: "NativeControlAction::Move -> apply_live_native_action -> classic_draw_scene",
+    renderer_path: "classic_cpu_ppm_minifb_low_spec",
+    frame_width: 640,
+    frame_height: 360,
+    p50_micros: 6700,
+    p95_micros: 9700,
+    avg_micros: 7100,
+    max_micros: 11200,
+    p95_budget_micros: 20000,
+    max_budget_micros: 50000,
+    nonblank_samples: [104249, 104249, 104249, 104249],
+    selected_frame_ids: [
+      "actor_player_walk_north_1",
+      "actor_player_idle_west",
+      "actor_player_walk_east_2",
+      "actor_player_walk_south_1"
+    ],
+    samples: [
+      {accepted: true, direction: "north", elapsed_micros: 7100, last_action: "local_move:north", last_result: "local_map_step_before_training", nonblank_pixels: 104249, selected_frame_id: "actor_player_walk_north_1"},
+      {accepted: true, direction: "east", elapsed_micros: 7200, last_action: "local_move:east", last_result: "local_map_step_before_training", nonblank_pixels: 104249, selected_frame_id: "actor_player_walk_east_2"},
+      {accepted: true, direction: "south", elapsed_micros: 7300, last_action: "local_move:south", last_result: "local_map_step_before_training", nonblank_pixels: 104249, selected_frame_id: "actor_player_walk_south_1"},
+      {accepted: true, direction: "west", elapsed_micros: 7400, last_action: "local_move:west", last_result: "local_map_step_before_training", nonblank_pixels: 104249, selected_frame_id: "actor_player_idle_west"}
+    ],
+    source_of_truth: "Classic input-frame budget measures accepted movement input through apply_live_native_action plus the next low-spec classic_draw_scene frame, protecting keyboard responsiveness on the Bevy client path.",
+    cex_runtime_player_client_allowed: false,
+    wgpu_required: false
+  }' >"$input_frame_budget_json"
+  add_artifact_from_path native_bevy_classic_input_frame_budget "Native/Bevy classic input frame budget" "$input_frame_budget_json" release_review_input
+
+  local render_budget_json="$TMP_DIR/bevy-classic-render-budget.json"
+  jq -n '{
+    contract_version: "trillionnium_world_bevy_classic_render_budget_v1",
+    green: true,
+    loaded_from_manifest: true,
+    atlas_parse_gate: true,
+    frame_count_gate: true,
+    p95_budget_gate: true,
+    max_budget_gate: true,
+    nonblank_gate: true,
+    renderer_path: "classic_cpu_ppm_minifb_low_spec",
+    frame_width: 640,
+    frame_height: 360,
+    frame_count: 180,
+    p50_micros: 6400,
+    p95_micros: 7700,
+    avg_micros: 6500,
+    max_micros: 10100,
+    p95_budget_micros: 16000,
+    max_budget_micros: 40000,
+    nonblank_samples: [104232, 104252, 96505, 98087],
+    source_of_truth: "Classic render budget measures repeated low-spec classic_draw_scene CPU frames without Bevy/wgpu, protecting the X230 playtest path from renderer regressions.",
+    cex_runtime_player_client_allowed: false,
+    wgpu_required: false
+  }' >"$render_budget_json"
+  add_artifact_from_path native_bevy_classic_render_budget "Native/Bevy classic render budget" "$render_budget_json" release_review_input
+}
