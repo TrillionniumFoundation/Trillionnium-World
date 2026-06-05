@@ -85,6 +85,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_player_motion_probe.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_input_frame_budget.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_render_budget.sh" \
+  "$ROOT/scripts/v2/bevy_classic_visual_foundation_script_contract_guard_test.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_scene_preview.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh" \
@@ -505,6 +506,7 @@ run_check bevy_classic_player_motion_probe_gate "$ROOT/scripts/check_trillionniu
 run_check bevy_classic_input_frame_budget_contract_guard "$ROOT/scripts/v2/bevy_classic_input_frame_budget_script_contract_guard_test.sh"
 run_check bevy_classic_input_frame_budget_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_input_frame_budget.sh"
 run_check bevy_classic_render_budget_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_render_budget.sh"
+run_check bevy_classic_visual_foundation_contract_guard "$ROOT/scripts/v2/bevy_classic_visual_foundation_script_contract_guard_test.sh"
 run_check bevy_classic_scene_preview_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_scene_preview.sh"
 run_check bevy_classic_model_catalog_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_model_catalog.sh"
 run_check bevy_classic_renderer_probe_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_renderer_probe.sh"
