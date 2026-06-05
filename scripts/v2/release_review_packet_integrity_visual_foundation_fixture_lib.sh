@@ -481,6 +481,89 @@ add_playtest_runner_packet_fixtures() {
   add_artifact_from_path native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$playtest_runner_json" release_review_input
 }
 
+add_classic_playtest_launcher_packet_fixtures() {
+  local playtest_launcher_json="$TMP_DIR/bevy-classic-playtest-launcher.json"
+  jq -n \
+    --arg root "$ROOT" \
+    '{
+      contract_version: "trillionnium_world_bevy_classic_playtest_launcher_v1",
+      campaign_entry_contract: "trillionnium_world_bevy_classic_rts_campaign_entry_v1",
+      runner_status_contract: "trillionnium_world_bevy_classic_playtest_runner_status_v1",
+      title_menu_contract: "trillionnium_world_bevy_title_menu_v1",
+      state_snapshot_contract: "trillionnium_world_bevy_state_snapshot_v1",
+      status: "green",
+      green: true,
+      player_entry: {
+        title_actions: ["CAMPAIGN:START", "CAMPAIGN:CONTINUE", "CAMPAIGN:REPLAY"],
+        primary_start_action: "CAMPAIGN:START",
+        resume_action: "CAMPAIGN:CONTINUE",
+        replay_action: "CAMPAIGN:REPLAY",
+        followup_action_after_resume: "CONTINUE:SESSION",
+        input_path: "apply_live_native_action_with_source(classic_rts_campaign_entry_title_input)",
+        input_action_count: 73,
+        start_input_count: 73,
+        replay_input_count: 73,
+        campaign_slot_path: "target/trnm-world-bevy-session-slots/bevy-classic-rts-campaign-entry.snapshot.json",
+        campaign_slot_bytes: 71913,
+        final_current_room_id: "league-coliseum",
+        final_map_scene: "arena_outdoor",
+        final_open_world_handoff_state: "resumed:league-coliseum",
+        final_contextual_primary_action_label: "COMBAT:attack"
+      },
+      live_runner: {
+        service: {
+          unit: "trillionnium-bevy-playtest.service",
+          active_state: "active",
+          sub_state: "running",
+          main_pid: 160672,
+          exec_main_status: "0"
+        },
+        runtime: {
+          expected_binary: ($root + "/target/release/trnm-world-bevy"),
+          expected_repo_root: $root,
+          expected_cwd: ($root + "/trillionnium"),
+          process_cwd: ($root + "/trillionnium"),
+          expected_manifest: ($root + "/assets/trnm-world/classic/manifest.json"),
+          expected_override_dir: ($root + "/assets/trnm-world/classic/art-pack-v1"),
+          manifest_sha256: "c628e35e2e44883be53d1de0d99a3cacb88d59bf02aabb3f1e24f165af5ede1f",
+          cmdline: [($root + "/target/release/trnm-world-bevy"), "run"],
+          selected_environment: {
+            TRNM_WORLD_BEVY_LOW_SPEC: "1",
+            TRNM_WORLD_BEVY_CLASSIC_RENDERER: "1",
+            TRNM_WORLD_BEVY_CLASSIC_FPS: "30",
+            TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST: ($root + "/assets/trnm-world/classic/manifest.json"),
+            TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR: ($root + "/assets/trnm-world/classic/art-pack-v1")
+          }
+        }
+      },
+      gates: {
+        campaign_entry_gate: true,
+        runner_status_gate: true,
+        title_campaign_start_action_gate: true,
+        title_campaign_continue_action_gate: true,
+        title_campaign_replay_action_gate: true,
+        campaign_start_gate: true,
+        campaign_continue_gate: true,
+        campaign_continue_unlock_gate: true,
+        campaign_replay_gate: true,
+        campaign_slot_gate: true,
+        open_world_resume_gate: true,
+        player_command_gate: true,
+        service_process_gate: true,
+        release_binary_gate: true,
+        classic_env_gate: true,
+        manifest_gate: true,
+        override_dir_gate: true,
+        workdir_gate: true,
+        cex_path_gate: true,
+        player_launch_ready_gate: true
+      },
+      android_s5_real_device_claimed: false,
+      source_of_truth: "A player-ready classic playtest launcher must expose CAMPAIGN title actions, persist and restore the campaign slot, resume into the Bevy-owned open-world state, and run on the live release trnm-world-bevy service with no CEX runtime path."
+    }' >"$playtest_launcher_json"
+  add_artifact_from_path native_bevy_classic_playtest_launcher "Native/Bevy classic playtest launcher" "$playtest_launcher_json" release_review_input
+}
+
 add_map_modeling_packet_fixtures() {
   local map_modeling_json="$TMP_DIR/map-modeling-gate.json"
   jq -n '{
