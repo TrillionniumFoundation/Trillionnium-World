@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+VISUAL_FOUNDATION_FIXTURE_LIB="$ROOT/scripts/v2/release_review_packet_integrity_visual_foundation_fixture_lib.sh"
+source "$VISUAL_FOUNDATION_FIXTURE_LIB"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 packet_json="$TMP_DIR/release-review-packet.json"
@@ -44,13 +46,16 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 38); do
+for index in $(seq 1 32); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
     '{contract_version: "fixture_contract_v1", status: "fixture_green", payload: $id}' >"$artifact_path"
   add_artifact_from_path "fixture_${index}" "fixture_${index}" "$artifact_path" fixture
 done
+
+add_visual_foundation_packet_fixtures
+
 semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1",
