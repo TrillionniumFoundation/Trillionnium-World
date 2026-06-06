@@ -148,6 +148,80 @@ add_visual_foundation_packet_fixtures() {
   add_artifact_from_path native_bevy_classic_renderer_probe_ppm "Native/Bevy classic renderer probe PPM" "$renderer_probe_ppm" release_review_visual_evidence
 }
 
+add_live_window_mouse_hit_test_packet_fixtures() {
+  local mouse_hit_test_json="$TMP_DIR/bevy-live-window-mouse-hit-test-sequence.json"
+  jq -n '{
+    contract_version: "trillionnium_world_bevy_live_window_mouse_hit_test_sequence_v1",
+    status: "live_window_mouse_hit_test_sequence_green",
+    hit_test_map_contract: "trillionnium_world_bevy_visible_button_hit_test_map_v1",
+    source_of_truth: "XTest mouse button events click Bevy-exposed client hit centers on the visible X11 window and xwd captures each post-action frame",
+    green: true,
+    display: ":0",
+    window_id: "0xa00004",
+    host_pid: 160672,
+    slot_dir: "fixture-slots",
+    slot_a_path: "fixture-slots/bevy-session-slot-a.snapshot.json",
+    slot_a_bytes: 41520,
+    hit_map_path: "fixture-hit-map.json",
+    contact_sheet_path: "fixture-contact-sheet.png",
+    contact_sheet_size: [560, 1228],
+    contact_sheet_colors: 11972,
+    contact_sheet_mean: [44.22, 49.38, 38.44],
+    expected_frame_ids: ["title", "create", "talk", "train", "training_room", "arena", "fight_result", "save_continue", "title_continue", "resume_continue", "complete"],
+    actual_frame_ids: ["title", "create", "talk", "train", "training_room", "arena", "fight_result", "save_continue", "title_continue", "resume_continue", "complete"],
+    expected_action_labels: ["TITLE:NEW", "CREATE:CONFIRM", "TALK", "TRAIN", "MOVE:north", "FIGHT", "SAVE:SELECTED", "TITLE:OPEN", "TITLE:CONTINUE", "CONTINUE:SESSION"],
+    actions: [
+      {step_index: 1, step_id: "title_new", action_label: "TITLE:NEW", target_frame_id: "create", client_x: 390, client_y: 473, row_id: "title", source: "native_control_button"},
+      {step_index: 2, step_id: "character_confirm", action_label: "CREATE:CONFIRM", target_frame_id: "talk", client_x: 470, client_y: 473, row_id: "character_create", source: "native_control_button"},
+      {step_index: 3, step_id: "mentor_talk", action_label: "TALK", target_frame_id: "train", client_x: 332, client_y: 473, row_id: "core", source: "native_control_button"},
+      {step_index: 4, step_id: "mentor_train", action_label: "TRAIN", target_frame_id: "training_room", client_x: 444, client_y: 473, row_id: "core", source: "native_control_button"},
+      {step_index: 5, step_id: "move_north", action_label: "MOVE:north", target_frame_id: "arena", client_x: 137, client_y: 412, row_id: "movement", source: "text_adventure_key_button"},
+      {step_index: 6, step_id: "fight", action_label: "FIGHT", target_frame_id: "fight_result", client_x: 556, client_y: 473, row_id: "core", source: "native_control_button"},
+      {step_index: 7, step_id: "save_selected", action_label: "SAVE:SELECTED", target_frame_id: "save_continue", client_x: 513, client_y: 506, row_id: "selected_slot", source: "native_control_button"},
+      {step_index: 8, step_id: "title_open", action_label: "TITLE:OPEN", target_frame_id: "title_continue", client_x: 316, client_y: 473, row_id: "title", source: "native_control_button"},
+      {step_index: 9, step_id: "title_continue", action_label: "TITLE:CONTINUE", target_frame_id: "resume_continue", client_x: 474, client_y: 473, row_id: "title", source: "native_control_button"},
+      {step_index: 10, step_id: "continue_session", action_label: "CONTINUE:SESSION", target_frame_id: "complete", client_x: 390, client_y: 473, row_id: "selected_slot", source: "native_control_button"}
+    ],
+    focus_event: {method: "XRaiseWindow+XSetInputFocus", window_id: "0xa00004"},
+    mouse_events: [
+      {action_label: "TITLE:NEW", step_id: "title_new", target_frame_id: "create", attempt: 1, relative: [390, 473], absolute: [390, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "title"},
+      {action_label: "CREATE:CONFIRM", step_id: "character_confirm", target_frame_id: "talk", attempt: 1, relative: [470, 473], absolute: [470, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "character_create"},
+      {action_label: "TALK", step_id: "mentor_talk", target_frame_id: "train", attempt: 1, relative: [332, 473], absolute: [332, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "core"},
+      {action_label: "TRAIN", step_id: "mentor_train", target_frame_id: "training_room", attempt: 1, relative: [444, 473], absolute: [444, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "core"},
+      {action_label: "MOVE:north", step_id: "move_north", target_frame_id: "arena", attempt: 1, relative: [137, 412], absolute: [137, 412], window_origin: [0, 0], window_size: [960, 540], source: "text_adventure_key_button", row_id: "movement"},
+      {action_label: "FIGHT", step_id: "fight", target_frame_id: "fight_result", attempt: 1, relative: [556, 473], absolute: [556, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "core"},
+      {action_label: "SAVE:SELECTED", step_id: "save_selected", target_frame_id: "save_continue", attempt: 1, relative: [513, 506], absolute: [513, 506], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "selected_slot"},
+      {action_label: "TITLE:OPEN", step_id: "title_open", target_frame_id: "title_continue", attempt: 1, relative: [316, 473], absolute: [316, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "title"},
+      {action_label: "TITLE:CONTINUE", step_id: "title_continue", target_frame_id: "resume_continue", attempt: 1, relative: [474, 473], absolute: [474, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "title"},
+      {action_label: "CONTINUE:SESSION", step_id: "continue_session", target_frame_id: "complete", attempt: 1, relative: [390, 473], absolute: [390, 473], window_origin: [0, 0], window_size: [960, 540], source: "native_control_button", row_id: "selected_slot"}
+    ],
+    frames: [
+      {frame_index: 0, frame_id: "title", after_action: null, path: "00-title.png", size: [960, 540], mean: [53.63, 58.71, 43.68], colors_96x54: 3331, nonblank: true, diff_mean_from_previous: null, diff_bbox_from_previous: null},
+      {frame_index: 1, frame_id: "create", after_action: "TITLE:NEW", path: "01-create.png", size: [960, 540], mean: [53.24, 58.12, 43.51], colors_96x54: 3279, nonblank: true, diff_mean_from_previous: 2.32, diff_bbox_from_previous: [281, 391, 591, 529]},
+      {frame_index: 2, frame_id: "talk", after_action: "CREATE:CONFIRM", path: "02-talk.png", size: [960, 540], mean: [53.52, 58.43, 43.83], colors_96x54: 3318, nonblank: true, diff_mean_from_previous: 4.94, diff_bbox_from_previous: [55, 0, 927, 471]},
+      {frame_index: 3, frame_id: "train", after_action: "TALK", path: "03-train.png", size: [960, 540], mean: [53.61, 58.53, 43.92], colors_96x54: 3330, nonblank: true, diff_mean_from_previous: 2.28, diff_bbox_from_previous: [59, 4, 929, 465]},
+      {frame_index: 4, frame_id: "training_room", after_action: "TRAIN", path: "04-training_room.png", size: [960, 540], mean: [52.93, 58.53, 43.76], colors_96x54: 3328, nonblank: true, diff_mean_from_previous: 2.61, diff_bbox_from_previous: [69, 18, 855, 529]},
+      {frame_index: 5, frame_id: "arena", after_action: "MOVE:north", path: "05-arena.png", size: [960, 540], mean: [53.1, 58.2, 43.7], colors_96x54: 3301, nonblank: true, diff_mean_from_previous: 1.7, diff_bbox_from_previous: [63, 12, 900, 529]},
+      {frame_index: 6, frame_id: "fight_result", after_action: "FIGHT", path: "06-fight_result.png", size: [960, 540], mean: [53.9, 59.1, 44.1], colors_96x54: 3312, nonblank: true, diff_mean_from_previous: 3.2, diff_bbox_from_previous: [60, 0, 930, 529]},
+      {frame_index: 7, frame_id: "save_continue", after_action: "SAVE:SELECTED", path: "07-save_continue.png", size: [960, 540], mean: [52.8, 58.0, 43.2], colors_96x54: 3290, nonblank: true, diff_mean_from_previous: 2.0, diff_bbox_from_previous: [80, 30, 890, 529]},
+      {frame_index: 8, frame_id: "title_continue", after_action: "TITLE:OPEN", path: "08-title_continue.png", size: [960, 540], mean: [53.5, 58.5, 43.6], colors_96x54: 3320, nonblank: true, diff_mean_from_previous: 3.0, diff_bbox_from_previous: [50, 0, 930, 529]},
+      {frame_index: 9, frame_id: "resume_continue", after_action: "TITLE:CONTINUE", path: "09-resume_continue.png", size: [960, 540], mean: [53.0, 58.4, 43.4], colors_96x54: 3307, nonblank: true, diff_mean_from_previous: 2.1, diff_bbox_from_previous: [70, 15, 910, 529]},
+      {frame_index: 10, frame_id: "complete", after_action: "CONTINUE:SESSION", path: "10-complete.png", size: [960, 540], mean: [53.4, 58.7, 43.8], colors_96x54: 3333, nonblank: true, diff_mean_from_previous: 2.7, diff_bbox_from_previous: [65, 8, 920, 529]}
+    ],
+    hit_test_map_gate: true,
+    host_window_gate: true,
+    mouse_event_count_gate: true,
+    frame_count_gate: true,
+    frame_sequence_gate: true,
+    screenshot_nonblank_gate: true,
+    frame_change_gate: true,
+    slot_write_gate: true,
+    contact_sheet_gate: true,
+    android_s5_real_device_claimed: false
+  }' >"$mouse_hit_test_json"
+  add_artifact_from_path native_bevy_live_window_mouse_hit_test_sequence "Native/Bevy live-window mouse hit-test sequence" "$mouse_hit_test_json" release_review_input
+}
+
 add_modeling_foundation_packet_fixtures() {
   local asset_pack_json="$TMP_DIR/bevy-classic-asset-pack.json"
   jq -n '{

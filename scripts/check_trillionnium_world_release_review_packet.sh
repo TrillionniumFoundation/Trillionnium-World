@@ -128,6 +128,7 @@ artifact native_bevy_action_coach "Native/Bevy action coach" "$ROOT/acceptance/S
 artifact native_bevy_player_hud_debug_layer "Native/Bevy player HUD/debug layer" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-player-hud-debug-layer.json" release_review_input
 artifact native_bevy_player_ui_rescue "Native/Bevy player UI rescue" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-player-ui-rescue.json" release_review_input
 artifact native_bevy_live_window_screenshot_sequence "Native/Bevy live-window screenshot sequence" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-screenshot-sequence.json" release_review_input
+artifact native_bevy_live_window_mouse_hit_test_sequence "Native/Bevy live-window mouse hit-test sequence" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-mouse-hit-test-sequence.json" release_review_input
 artifact native_bevy_sprite_texture_sampling "Native/Bevy sprite texture sampling" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-sprite-texture-sampling.json" release_review_input
 artifact native_bevy_live_window_sampled_texture_correlation "Native/Bevy live-window sampled texture correlation" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-sampled-texture-correlation.json" release_review_input
 artifact native_bevy_render_asset_eligibility "Native/Bevy render asset eligibility" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-render-asset-eligibility.json" release_review_input
