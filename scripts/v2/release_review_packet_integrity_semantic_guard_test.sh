@@ -52,7 +52,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 23); do
+for index in $(seq 1 22); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -68,6 +68,7 @@ add_classic_playtest_launcher_packet_fixtures
 add_campaign_ui_continuity_packet_fixtures
 add_map_modeling_packet_fixtures
 add_public_launch_blocker_consistency_packet_fixtures
+add_release_signoff_summary_packet_fixtures semantic_invalid
 add_live_window_mouse_hit_test_packet_fixtures
 
 semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
@@ -75,11 +76,12 @@ jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1",
   status: "release_review_packet_integrity_semantic_fixture_green",
   green: true,
-  fixture_kind: "first_minute_command_feedback_semantic_negative_fixture",
-  fixture_rule: "packet_integrity_must_reject_semantically_invalid_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
+  fixture_kind: "release_signoff_and_first_minute_command_feedback_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_signoff_summary_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 111,
-  expected_semantic_failure_count: 4,
+  expected_semantic_failure_count: 5,
   expected_semantic_failure_names: [
+    "release_signoff_summary_semantics",
     "first_minute_command_feedback_replay_semantics",
     "first_minute_command_feedback_source_recording_semantics",
     "first_minute_command_feedback_recording_semantics",
@@ -2086,7 +2088,8 @@ fi
 jq -e '
   .status == "release_review_packet_integrity_blocked"
   and .green == false
-  and (.failures | length) == 4
+  and (.failures | length) == 5
+  and ([.failures[].name] | index("release_signoff_summary_semantics"))
   and ([.failures[].name] | index("first_minute_command_feedback_replay_semantics"))
   and ([.failures[].name] | index("first_minute_command_feedback_source_recording_semantics"))
   and ([.failures[].name] | index("first_minute_command_feedback_recording_semantics"))
@@ -2097,4 +2100,4 @@ jq -e '
   and (([.failures[].detail] | index("status_mismatch")) == null)
 ' "$summary_json" >/dev/null
 
-echo "[PASS] release review packet integrity rejects semantically invalid first-minute command feedback artifacts even when checksums match"
+echo "[PASS] release review packet integrity rejects semantically invalid release signoff and first-minute command feedback artifacts even when checksums match"

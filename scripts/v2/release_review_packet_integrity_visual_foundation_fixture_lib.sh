@@ -896,3 +896,206 @@ add_public_launch_blocker_consistency_packet_fixtures() {
   }' >"$blocker_consistency_json"
   add_artifact_from_path public_launch_blocker_consistency "Public launch blocker consistency" "$blocker_consistency_json" release_review_gate
 }
+
+add_release_signoff_summary_packet_fixtures() {
+  local mode="${1:-valid}"
+  local signoff_json="$TMP_DIR/release-signoff-summary.json"
+  local render_asset_ready=true
+  local render_asset_usage_gate=true
+  local render_asset_reference_count=32
+  local public_launch_consumes_render_asset=true
+  local summary_blockers_json='[]'
+
+  if [[ "$mode" == "semantic_invalid" ]]; then
+    render_asset_ready=false
+    render_asset_usage_gate=false
+    render_asset_reference_count=3
+    public_launch_consumes_render_asset=false
+    summary_blockers_json='["native_bevy_render_asset_eligibility_contract"]'
+  fi
+
+  jq -n \
+    --argjson render_asset_ready "$render_asset_ready" \
+    --argjson render_asset_usage_gate "$render_asset_usage_gate" \
+    --arg render_asset_reference_count "$render_asset_reference_count" \
+    --argjson public_launch_consumes_render_asset "$public_launch_consumes_render_asset" \
+    --argjson summary_blockers "$summary_blockers_json" \
+    '{
+      contract_version: "trillionnium_world_release_signoff_summary_v1",
+      status: "release_signoff_summary_ready_with_public_launch_blockers",
+      source_of_truth: "trillionnium_world_release_signoff_summary",
+      signoff_rule: "native_bevy_keyboard_replay_action_coach_player_hud_live_screenshot_texture_sampling_correlation_render_asset_eligibility_and_cex_adapter_readiness_must_be_green_and_public_launch_readiness_must_consume_local_playability_before_release_review",
+      public_launch_ready: false,
+      android_s5_real_device_claimed: false,
+      summary_blockers: $summary_blockers,
+      public_launch_blockers: [
+        "s5_real_device_matrix",
+        "production_map_pack_public_evidence",
+        "first_beta_cohort_evidence",
+        "commercial_launch_drill_evidence",
+        "multi_node_or_live_traffic_latency_evidence",
+        "public_network_live_exposure_evidence"
+      ],
+      gates: {
+        native_bevy_keyboard_replay: {
+          evidence_path: "/fixture/bevy-build-branch-title-route-all-branch-keyboard-replay.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay_v1",
+          green: true,
+          branch_count: 3,
+          ready_for_release_review: true,
+          proof_scope: "host_side_bevy_runtime_replay_not_android_real_device",
+          branches: {
+            force: {recorded_sequence_count: 10, final_objective_status: "build_mastery_challenge_completed:force:task-force-mastery-guard-trial", combat_result_state: "victory"},
+            agility: {recorded_sequence_count: 8, final_objective_status: "build_mastery_challenge_completed:agility:task-agility-mastery-shortcut-run"},
+            craft: {recorded_sequence_count: 7, final_objective_status: "build_mastery_challenge_completed:craft:task-craft-mastery-client-order"}
+          }
+        },
+        public_launch_consumes_replay: {
+          evidence_path: "/fixture/public-launch-readiness.json",
+          file_status: "present",
+          public_launch_status: "blocked_missing_public_launch_evidence",
+          ready: true
+        },
+        native_bevy_action_coach: {
+          evidence_path: "/fixture/bevy-action-coach.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_bevy_action_coach_v1",
+          green: true,
+          coach_stage_gate: true,
+          enter_execution_gate: true,
+          final_next_gate: true,
+          ready_for_release_review: true,
+          proof_scope: "host_side_bevy_runtime_guidance_not_android_real_device"
+        },
+        native_bevy_player_hud_debug_layer: {
+          evidence_path: "/fixture/bevy-player-hud-debug-layer.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_bevy_player_hud_debug_layer_v1",
+          green: true,
+          player_hud_gate: true,
+          debug_layer_gate: true,
+          ready_for_release_review: true,
+          proof_scope: "host_side_bevy_hud_layer_not_android_real_device"
+        },
+        native_bevy_live_window_screenshot_sequence: {
+          evidence_path: "/fixture/bevy-live-window-screenshot-sequence.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_bevy_live_window_screenshot_sequence_v1",
+          green: true,
+          frame_sequence_gate: true,
+          contact_sheet_gate: true,
+          actual_frame_count: 11,
+          ready_for_release_review: true,
+          proof_scope: "host_side_live_window_screenshot_sequence_not_android_real_device"
+        },
+        native_bevy_sprite_texture_sampling: {
+          evidence_path: "/fixture/bevy-sprite-texture-sampling.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_bevy_sprite_texture_sampling_v1",
+          green: true,
+          four_layer_texture_sampling_gate: true,
+          texture_sample_nonblank_gate: true,
+          sampled_surface_count: 32,
+          texture_unique_rgba_color_count: 10,
+          ready_for_release_review: true,
+          proof_scope: "host_side_cpu_texture_sampling_not_gpu_upload_or_android_real_device"
+        },
+        native_bevy_live_window_sampled_texture_correlation: {
+          evidence_path: "/fixture/bevy-live-window-sampled-texture-correlation.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1",
+          green: true,
+          four_layer_sampled_live_correlation_gate: true,
+          live_frame_count: 11,
+          live_final_frame_colors_96x54: 3376,
+          ready_for_release_review: true,
+          proof_scope: "host_side_sampled_texture_to_live_window_correlation_not_android_real_device"
+        },
+        native_bevy_render_asset_eligibility: {
+          evidence_path: "/fixture/bevy-render-asset-eligibility.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_bevy_render_asset_eligibility_v1",
+          green: $render_asset_ready,
+          render_asset_usage_gate: $render_asset_usage_gate,
+          image_descriptor_render_eligibility_gate: true,
+          atlas_layout_render_eligibility_gate: true,
+          sprite_render_reference_gate: true,
+          image_asset_usage_debug: "RenderAssetUsages(MAIN_WORLD | RENDER_WORLD)",
+          sprite_render_reference_count: ($render_asset_reference_count | tonumber),
+          ready_for_release_review: $render_asset_ready,
+          proof_scope: "host_side_render_asset_eligibility_not_render_world_extraction_or_gpu_upload"
+        },
+        cex_adapter_readiness: {
+          evidence_path: "/fixture/cex-production-adapter-readiness.json",
+          file_status: "present",
+          contract_version: "trillionnium_world_cex_adapter_readiness_gate_v1",
+          green: true,
+          status: "cex_adapter_readiness_green",
+          source_contract_version: "cex_trillionnium_world_production_adapter_v1",
+          protocol_contract: "trillionnium_world_runtime_adapter_v1",
+          domain_contract: "trillionnium_world_domain_v1",
+          route_record_total: 7236,
+          world_node_count: 24,
+          ready_for_release_review: true,
+          proof_scope: "cex_incubator_runtime_adapter_json_evidence_not_public_launch_external_evidence"
+        },
+        public_launch_consumes_local_playability: {
+          evidence_path: "/fixture/public-launch-readiness.json",
+          file_status: "present",
+          public_launch_status: "blocked_missing_public_launch_evidence",
+          action_coach: true,
+          player_hud_debug_layer: true,
+          live_window_screenshot_sequence: true,
+          sprite_texture_sampling: true,
+          live_window_sampled_texture_correlation: true,
+          render_asset_eligibility: $public_launch_consumes_render_asset,
+          ready: $public_launch_consumes_render_asset
+        },
+        s5_real_device_matrix: {
+          evidence_path: "/fixture/s5-device-evidence.json",
+          file_status: "present",
+          status: "blocked_no_connected_android_device",
+          ready: false,
+          required_before_public_launch_ready: true
+        },
+        release_latency: {
+          evidence_path: "/fixture/release-latency-drill.json",
+          file_status: "present",
+          status: "local_release_latency_drill_green",
+          ready: true,
+          local_drill_is_not_multi_node_or_live_traffic: true
+        },
+        release_rollback_backup: {
+          evidence_path: "/fixture/release-rollback-backup-drill.json",
+          file_status: "present",
+          status: "release_rollback_backup_drill_green",
+          ready: true
+        },
+        public_deploy: {
+          evidence_path: "/fixture/public-network-deploy-evidence.json",
+          file_status: "present",
+          status: "local_public_deploy_drill_green",
+          ready: true,
+          local_drill_is_not_public_network_exposure: true
+        }
+      },
+      reviewer_shortlist: [
+        "native_bevy_keyboard_replay",
+        "native_bevy_action_coach",
+        "native_bevy_player_hud_debug_layer",
+        "native_bevy_live_window_screenshot_sequence",
+        "native_bevy_sprite_texture_sampling",
+        "native_bevy_live_window_sampled_texture_correlation",
+        "native_bevy_render_asset_eligibility",
+        "cex_adapter_readiness",
+        "public_launch_consumes_replay",
+        "public_launch_consumes_local_playability",
+        "s5_real_device_matrix",
+        "release_latency",
+        "release_rollback_backup",
+        "public_deploy"
+      ]
+    }' >"$signoff_json"
+  add_artifact_from_path release_signoff_summary "Release signoff summary" "$signoff_json" release_review_input
+}
