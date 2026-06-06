@@ -1099,3 +1099,69 @@ add_release_signoff_summary_packet_fixtures() {
     }' >"$signoff_json"
   add_artifact_from_path release_signoff_summary "Release signoff summary" "$signoff_json" release_review_input
 }
+
+add_release_review_quickcheck_packet_fixtures() {
+  local mode="${1:-valid}"
+  local quickcheck_json="$TMP_DIR/release-review-quickcheck.json"
+  local render_asset_ready=true
+  local consumes_local_playability=true
+  local signoff_summary_blockers_json='[]'
+
+  if [[ "$mode" == "semantic_invalid" ]]; then
+    render_asset_ready=false
+    consumes_local_playability=false
+    signoff_summary_blockers_json='["native_bevy_render_asset_eligibility_contract"]'
+  fi
+
+  jq -n \
+    --argjson render_asset_ready "$render_asset_ready" \
+    --argjson consumes_local_playability "$consumes_local_playability" \
+    --argjson signoff_summary_blockers "$signoff_summary_blockers_json" \
+    '{
+      contract_version: "trillionnium_world_release_review_quickcheck_v1",
+      status: "release_review_quickcheck_green_with_public_launch_blockers",
+      source_of_truth: "trillionnium_world_release_review_quickcheck",
+      quickcheck_rule: "refresh_public_launch_readiness_then_release_signoff_summary_and_fail_only_when_native_bevy_local_playability_texture_sampling_render_asset_eligibility_cex_adapter_readiness_or_consumption_is_broken_unless_require_ready_is_set",
+      ready_for_release_review: true,
+      public_launch_ready: false,
+      android_s5_real_device_claimed: false,
+      refreshed_evidence: {
+        public_launch_readiness: {
+          summary_path: "/fixture/public-launch-readiness.json",
+          log_path: "/fixture/release-review-public-launch-readiness.log",
+          status: "blocked_missing_public_launch_evidence"
+        },
+        release_signoff_summary: {
+          summary_path: "/fixture/release-signoff-summary.json",
+          log_path: "/fixture/release-review-signoff-summary.log",
+          status: "release_signoff_summary_ready_with_public_launch_blockers"
+        }
+      },
+      gates: {
+        native_bevy_keyboard_replay_ready: true,
+        public_launch_consumes_replay: true,
+        native_bevy_action_coach_ready: true,
+        native_bevy_player_hud_debug_layer_ready: true,
+        native_bevy_live_window_screenshot_sequence_ready: true,
+        native_bevy_sprite_texture_sampling_ready: true,
+        native_bevy_live_window_sampled_texture_correlation_ready: true,
+        native_bevy_render_asset_eligibility_ready: $render_asset_ready,
+        cex_adapter_readiness_ready: true,
+        public_launch_consumes_local_playability: $consumes_local_playability,
+        s5_real_device_ready: false,
+        release_latency_ready: true,
+        release_rollback_backup_ready: true,
+        public_deploy_ready: true
+      },
+      signoff_summary_blockers: $signoff_summary_blockers,
+      public_launch_blockers: [
+        "s5_real_device_matrix",
+        "production_map_pack_public_evidence",
+        "first_beta_cohort_evidence",
+        "commercial_launch_drill_evidence",
+        "multi_node_or_live_traffic_latency_evidence",
+        "public_network_live_exposure_evidence"
+      ]
+    }' >"$quickcheck_json"
+  add_artifact_from_path release_review_quickcheck "Release review quickcheck" "$quickcheck_json" release_review_input
+}
