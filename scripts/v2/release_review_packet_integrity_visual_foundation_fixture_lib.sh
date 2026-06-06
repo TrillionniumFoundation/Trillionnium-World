@@ -564,6 +564,81 @@ add_classic_playtest_launcher_packet_fixtures() {
   add_artifact_from_path native_bevy_classic_playtest_launcher "Native/Bevy classic playtest launcher" "$playtest_launcher_json" release_review_input
 }
 
+add_campaign_ui_continuity_packet_fixtures() {
+  local campaign_ui_continuity_json="$TMP_DIR/bevy-classic-rts-campaign-ui-continuity.json"
+  jq -n '{
+    contract_version: "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1",
+    green: true,
+    campaign_handoff_contract: "trillionnium_world_bevy_classic_rts_campaign_handoff_v1",
+    campaign_handoff_green: true,
+    preview_width: 1920,
+    preview_height: 1080,
+    preview_format: "ppm_p3_rgb",
+    capture_frame_count: 16,
+    final_current_room_id: "league-coliseum",
+    final_map_scene: "arena_outdoor",
+    final_route_director_task_id: "task-fixture-first-route",
+    final_route_director_next_room_id: null,
+    final_open_world_handoff_state: "resumed:league-coliseum",
+    final_contextual_primary_action_label: "COMBAT:attack",
+    final_contextual_action_labels: ["TITLE:OPEN", "ACCOUNT:REGISTER", "ACCOUNT:LOGIN", "ACCOUNT:CONTINUE", "ROOM:mirror-city-square", "ROOM:delivery-dock", "NPC:enemy-market-bandit", "COMBAT:attack", "COMBAT:defend", "COMBAT:potion", "COMBAT:escape", "BAG:open", "STAT:force", "STAT:agility", "STAT:craft", "SAVE:SLOT", "SLOT:A", "SAVE:A", "SLOT:B", "SAVE:B", "SLOT:C", "SAVE:C", "SAVE:SELECTED", "PAUSE:MENU"],
+    final_active_task_ids: ["task-fixture-first-route"],
+    final_objective_status: "open_world_after_action_ready",
+    restored_current_room_id: "league-coliseum",
+    restored_map_scene: "arena_outdoor",
+    restored_open_world_handoff_state: "resumed:league-coliseum",
+    restored_route_director_task_id: "task-fixture-first-route",
+    restored_route_director_next_room_id: null,
+    restored_contextual_action_labels: ["TITLE:OPEN", "ACCOUNT:REGISTER", "ACCOUNT:LOGIN", "ACCOUNT:CONTINUE", "ROOM:mirror-city-square", "ROOM:delivery-dock", "NPC:enemy-market-bandit", "COMBAT:attack", "COMBAT:defend", "COMBAT:potion", "COMBAT:escape", "BAG:open", "STAT:force", "STAT:agility", "STAT:craft", "SAVE:SLOT", "SLOT:A", "SAVE:A", "SLOT:B", "SAVE:B", "SLOT:C", "SAVE:C", "SAVE:SELECTED", "PAUSE:MENU"],
+    restored_active_task_ids: ["task-fixture-first-route"],
+    milestones: {
+      aftermath_seen: true,
+      army_rally_seen: true,
+      base_assault_seen: true,
+      breach_seen: true,
+      commander_seen: true,
+      creep_camp_seen: true,
+      enemy_pressure_seen: true,
+      expansion_seen: true,
+      inner_seen: true,
+      keep_pressure_seen: true,
+      keep_victory_seen: true,
+      objective_victory_seen: true,
+      open_world_seen: true,
+      recon_seen: true,
+      restoration_seen: true,
+      tier_two_seen: true
+    },
+    non_background_pixels: 2073600,
+    victory_pixel_count: 1702,
+    expansion_pixel_count: 20311,
+    breach_pixel_count: 4574,
+    keep_pixel_count: 729,
+    restoration_pixel_count: 1593,
+    open_world_pixel_count: 1088,
+    handoff_green_gate: true,
+    preview_resolution_gate: true,
+    live_input_gate: true,
+    milestone_gate: true,
+    map_ui_state_gate: true,
+    restored_ui_state_gate: true,
+    persistence_gate: true,
+    render_readability_gate: true,
+    native_client_boundary_gate: true,
+    android_s5_real_device_claimed: false,
+    public_launch_ready: false,
+    screen_for_screen_openra_ui_claimed: false,
+    openra_engine_port_claimed: false,
+    source_of_truth: "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently."
+  }' >"$campaign_ui_continuity_json"
+  add_artifact_from_path native_bevy_classic_rts_campaign_ui_continuity "Native/Bevy classic RTS campaign UI continuity" "$campaign_ui_continuity_json" release_review_input
+
+  local campaign_ui_continuity_ppm="$TMP_DIR/bevy-classic-rts-campaign-ui-continuity.ppm"
+  printf 'P3\n1920 1080\n255\n' >"$campaign_ui_continuity_ppm"
+  truncate -s 20000001 "$campaign_ui_continuity_ppm"
+  add_artifact_from_path native_bevy_classic_rts_campaign_ui_continuity_ppm "Native/Bevy classic RTS campaign UI continuity PPM" "$campaign_ui_continuity_ppm" release_review_visual_evidence
+}
+
 add_map_modeling_packet_fixtures() {
   local map_modeling_json="$TMP_DIR/map-modeling-gate.json"
   jq -n '{
