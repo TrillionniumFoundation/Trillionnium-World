@@ -52,7 +52,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 19); do
+for index in $(seq 1 18); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -68,6 +68,7 @@ add_classic_playtest_launcher_packet_fixtures
 add_campaign_ui_continuity_packet_fixtures
 add_map_modeling_packet_fixtures
 add_public_launch_blocker_consistency_packet_fixtures
+add_cex_adapter_readiness_packet_fixtures
 add_release_signoff_summary_packet_fixtures
 add_release_review_quickcheck_packet_fixtures
 add_release_review_status_packet_fixtures
@@ -79,15 +80,16 @@ jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1",
   status: "release_review_packet_integrity_semantic_fixture_green",
   green: true,
-  fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_and_first_minute_command_feedback_semantic_negative_fixture",
-  fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
+  fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 111,
-  expected_semantic_failure_count: 8,
+  expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
     "release_review_quickcheck_semantics",
     "release_signoff_summary_semantics",
+    "cex_adapter_readiness_semantics",
     "first_minute_command_feedback_replay_semantics",
     "first_minute_command_feedback_source_recording_semantics",
     "first_minute_command_feedback_recording_semantics",

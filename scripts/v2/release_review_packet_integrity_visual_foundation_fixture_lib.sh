@@ -897,6 +897,72 @@ add_public_launch_blocker_consistency_packet_fixtures() {
   add_artifact_from_path public_launch_blocker_consistency "Public launch blocker consistency" "$blocker_consistency_json" release_review_gate
 }
 
+add_cex_adapter_readiness_packet_fixtures() {
+  local mode="${1:-valid}"
+  local cex_adapter_json="$TMP_DIR/cex-production-adapter-readiness.json"
+  local protocol_contract="trillionnium_world_runtime_adapter_v1"
+  local route_record_total=7236
+  local adapters_ok=true
+  local counts_ok=true
+
+  if [[ "$mode" == "semantic_invalid" ]]; then
+    protocol_contract="cex_runtime_adapter_protocol_drift"
+    route_record_total=0
+    adapters_ok=false
+    counts_ok=false
+  fi
+
+  jq -n \
+    --arg protocol_contract "$protocol_contract" \
+    --argjson route_record_total "$route_record_total" \
+    --argjson adapters_ok "$adapters_ok" \
+    --argjson counts_ok "$counts_ok" \
+    '{
+      contract_version: "trillionnium_world_cex_adapter_readiness_gate_v1",
+      status: "cex_adapter_readiness_green",
+      green: true,
+      source_of_truth: "trillionnium_world_cex_adapter_readiness_gate",
+      cex_import_rule: "trillionnium_world_crates_do_not_import_cex_service_internals; cex_runtime_exports_json_evidence_for_trillionnium_release_review",
+      raw_evidence_path: "/fixture/cex-production-adapter-readiness.raw.json",
+      input: {
+        evidence_path: "",
+        url: "",
+        fetch_status: "cached_raw_evidence",
+        fetch_detail: "/fixture/cex-production-adapter-readiness.raw.json"
+      },
+      observed: {
+        contract_version: "cex_trillionnium_world_production_adapter_v1",
+        protocol_contract: $protocol_contract,
+        domain_contract: "trillionnium_world_domain_v1",
+        status: "cex_production_adapter_bridge_ready",
+        cutover_status: "cex_production_impls_connected_to_standalone_traits",
+        cex_dependency_status: "consumer_entry_api_depends_on_trnm_world_api_without_trnm_world_importing_cex",
+        status_count: 6,
+        route_record_total: $route_record_total,
+        world_node_count: 24,
+        repository_source: "cex_league_repository_normalized_world_tables",
+        ledger_reserve_source: "cex_world_contract_and_tactics_ledger_settlement",
+        metric_source: "cex_consumer_entry_metrics_projection"
+      },
+      checks: {
+        contract_ok: true,
+        protocol_ok: ($protocol_contract == "trillionnium_world_runtime_adapter_v1"),
+        domain_ok: true,
+        status_ok: true,
+        cutover_ok: true,
+        dependency_ok: true,
+        adapters_ok: $adapters_ok,
+        roles_ok: true,
+        repository_ok: true,
+        ledger_ok: true,
+        evidence_ok: true,
+        metric_ok: true,
+        counts_ok: $counts_ok
+      }
+    }' >"$cex_adapter_json"
+  add_artifact_from_path cex_adapter_readiness "CEX production world adapter readiness" "$cex_adapter_json" release_review_input
+}
+
 add_release_signoff_summary_packet_fixtures() {
   local mode="${1:-valid}"
   local signoff_json="$TMP_DIR/release-signoff-summary.json"

@@ -22,15 +22,16 @@ jq -n \
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_release_review_packet_integrity_semantic_fixture",
     green: true,
-    fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_and_first_minute_command_feedback_semantic_negative_fixture",
-    fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
+    fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
+    fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
     fake_packet_artifact_count: 111,
-    expected_semantic_failure_count: 8,
+    expected_semantic_failure_count: 9,
     expected_semantic_failure_names: [
       "release_review_convergence_semantics",
       "release_review_status_semantics",
       "release_review_quickcheck_semantics",
       "release_signoff_summary_semantics",
+      "cex_adapter_readiness_semantics",
       "first_minute_command_feedback_replay_semantics",
       "first_minute_command_feedback_source_recording_semantics",
       "first_minute_command_feedback_recording_semantics",
@@ -52,12 +53,13 @@ jq -e '
   and .status == "release_review_packet_integrity_semantic_fixture_green"
   and .green == true
   and .fake_packet_artifact_count == 111
-  and .expected_semantic_failure_count == 8
+  and .expected_semantic_failure_count == 9
   and .expected_semantic_failure_names == [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
     "release_review_quickcheck_semantics",
     "release_signoff_summary_semantics",
+    "cex_adapter_readiness_semantics",
     "first_minute_command_feedback_replay_semantics",
     "first_minute_command_feedback_source_recording_semantics",
     "first_minute_command_feedback_recording_semantics",
