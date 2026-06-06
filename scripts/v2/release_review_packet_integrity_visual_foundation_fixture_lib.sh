@@ -1165,3 +1165,90 @@ add_release_review_quickcheck_packet_fixtures() {
     }' >"$quickcheck_json"
   add_artifact_from_path release_review_quickcheck "Release review quickcheck" "$quickcheck_json" release_review_input
 }
+
+add_release_review_status_packet_fixtures() {
+  local mode="${1:-valid}"
+  local status_json="$TMP_DIR/release-review-status.json"
+  local public_launch_ready=false
+  local android_s5_real_device_claimed=false
+  local ready_items_json='[
+    {"id":"native_bevy_keyboard_replay","label":"Native/Bevy keyboard replay","ready":true,"evidence_path":"/fixture/bevy-build-branch-title-route-all-branch-keyboard-replay.json","detail":"force=10, agility=8, craft=7; force combat=victory"},
+    {"id":"native_bevy_action_coach","label":"Native/Bevy action coach","ready":true,"evidence_path":"/fixture/bevy-action-coach.json","detail":"coach_stage=true, enter_execution=true, final_next=true"},
+    {"id":"native_bevy_player_hud_debug_layer","label":"Native/Bevy player HUD/debug layer","ready":true,"evidence_path":"/fixture/bevy-player-hud-debug-layer.json","detail":"player_hud=true, debug_layer=true"},
+    {"id":"native_bevy_live_window_screenshot_sequence","label":"Native/Bevy live-window screenshot sequence","ready":true,"evidence_path":"/fixture/bevy-live-window-screenshot-sequence.json","detail":"frames=11, sequence=true, contact_sheet=true"},
+    {"id":"native_bevy_sprite_texture_sampling","label":"Native/Bevy sprite texture sampling","ready":true,"evidence_path":"/fixture/bevy-sprite-texture-sampling.json","detail":"sampled_surfaces=32, unique_rgba=10, four_layer=true"},
+    {"id":"native_bevy_live_window_sampled_texture_correlation","label":"Native/Bevy sampled texture live-window correlation","ready":true,"evidence_path":"/fixture/bevy-live-window-sampled-texture-correlation.json","detail":"live_frames=11, final_frame_colors=3376, four_layer=true"},
+    {"id":"native_bevy_render_asset_eligibility","label":"Native/Bevy render asset eligibility","ready":true,"evidence_path":"/fixture/bevy-render-asset-eligibility.json","detail":"usage=RenderAssetUsages(MAIN_WORLD | RENDER_WORLD), sprite_refs=32, render_usage=true"},
+    {"id":"cex_adapter_readiness","label":"CEX production world adapter readiness","ready":true,"evidence_path":"/fixture/cex-production-adapter-readiness.json","detail":"routes=7236, nodes=24, protocol=trillionnium_world_runtime_adapter_v1"},
+    {"id":"public_launch_consumes_replay","label":"Public launch consumes replay gate","ready":true,"evidence_path":"/fixture/public-launch-readiness.json","detail":"blocked_missing_public_launch_evidence"},
+    {"id":"public_launch_consumes_local_playability","label":"Public launch consumes local playability gates","ready":true,"evidence_path":"/fixture/public-launch-readiness.json","detail":"blocked_missing_public_launch_evidence"},
+    {"id":"release_latency_local_drill","label":"Release latency local drill","ready":true,"evidence_path":"/fixture/release-latency-drill.json","detail":"local_release_latency_drill_green"},
+    {"id":"release_rollback_backup_drill","label":"Release rollback/backup drill","ready":true,"evidence_path":"/fixture/release-rollback-backup-drill.json","detail":"release_rollback_backup_drill_green"},
+    {"id":"public_deploy_local_drill","label":"Public deploy local drill","ready":true,"evidence_path":"/fixture/public-network-deploy-evidence.json","detail":"local_public_deploy_drill_green"}
+  ]'
+
+  if [[ "$mode" == "semantic_invalid" ]]; then
+    public_launch_ready=true
+    android_s5_real_device_claimed=true
+    ready_items_json='[
+      {"id":"native_bevy_keyboard_replay","label":"Native/Bevy keyboard replay","ready":true,"evidence_path":"/fixture/bevy-build-branch-title-route-all-branch-keyboard-replay.json","detail":"force=10, agility=8, craft=7; force combat=victory"}
+    ]'
+  fi
+
+  jq -n \
+    --argjson public_launch_ready "$public_launch_ready" \
+    --argjson android_s5_real_device_claimed "$android_s5_real_device_claimed" \
+    --argjson ready_items "$ready_items_json" \
+    '{
+      contract_version: "trillionnium_world_release_review_status_v1",
+      status: "release_review_ready_public_launch_blocked",
+      source_of_truth: "trillionnium_world_release_review_status",
+      quickcheck_summary: "/fixture/release-review-quickcheck.json",
+      signoff_summary: "/fixture/release-signoff-summary.json",
+      quickcheck_log: "/fixture/release-review-status-quickcheck.log",
+      markdown_path: "/fixture/release-review-status.md",
+      ready_for_release_review: true,
+      public_launch_ready: $public_launch_ready,
+      android_s5_real_device_claimed: $android_s5_real_device_claimed,
+      boundary: {
+        native_bevy_replay_scope: "host_side_bevy_runtime_replay_not_android_real_device",
+        native_bevy_texture_render_scope: "host_side_texture_sampling_correlation_and_render_asset_eligibility_not_gpu_upload_or_android_real_device",
+        public_launch_claim: "blocked_until_real_external_evidence_is_attached"
+      },
+      ready_items: $ready_items,
+      blocked_items: [
+        {
+          id: "s5_real_device_matrix",
+          label: "S5 Android real-device matrix",
+          needed: "Connect an Android device and collect launch, screenshot, gfxinfo/frame, CJK/input, lifecycle, weak-network, APK resource/signature, and crash-free logcat evidence."
+        },
+        {
+          id: "production_map_pack_public_evidence",
+          label: "Production map-pack public evidence",
+          needed: "Provide production/public map-pack ready evidence, not only the local route or fixture-signed manifest."
+        },
+        {
+          id: "first_beta_cohort_evidence",
+          label: "First beta cohort evidence",
+          needed: "Attach real 5-10 participant cohort evidence with status first_beta_cohort_evidence_green."
+        },
+        {
+          id: "commercial_launch_drill_evidence",
+          label: "Commercial launch drill evidence",
+          needed: "Attach real or sanitized payment, refund, support, legal, operator, and traffic drill evidence."
+        },
+        {
+          id: "multi_node_or_live_traffic_latency_evidence",
+          label: "Multi-node or live-traffic latency evidence",
+          needed: "Provide multi-node release latency or live public traffic latency evidence; local latency drill is not enough."
+        },
+        {
+          id: "public_network_live_exposure_evidence",
+          label: "Public network live exposure evidence",
+          needed: "Provide approved host, domain/TLS, monitoring, backup, rollback, and public URL probe evidence."
+        }
+      ],
+      reviewer_next_action: "collect_real_external_public_launch_evidence"
+    }' >"$status_json"
+  add_artifact_from_path release_review_status_json "Release review status JSON" "$status_json" release_review_checklist
+}
