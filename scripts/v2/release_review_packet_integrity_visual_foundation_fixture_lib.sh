@@ -1252,3 +1252,84 @@ add_release_review_status_packet_fixtures() {
     }' >"$status_json"
   add_artifact_from_path release_review_status_json "Release review status JSON" "$status_json" release_review_checklist
 }
+
+add_release_review_convergence_packet_fixtures() {
+  local mode="${1:-valid}"
+  local convergence_json="$TMP_DIR/release-review-convergence.json"
+  local public_launch_ready=false
+  local android_s5_real_device_claimed=false
+  local checks_json='[
+    {"name":"cex_adapter_readiness_refresh","status":"ok","path":"/fixture/release-review-convergence-cex-adapter-readiness.log","detail":"refreshed"},
+    {"name":"release_review_status_refresh","status":"ok","path":"/fixture/release-review-convergence-status.log","detail":"refreshed"},
+    {"name":"quickcheck_script","status":"ok","path":"/fixture/check_trillionnium_world_release_review_quickcheck.sh","detail":"executable"},
+    {"name":"status_script","status":"ok","path":"/fixture/check_trillionnium_world_release_review_status.sh","detail":"executable"},
+    {"name":"convergence_script","status":"ok","path":"/fixture/check_trillionnium_world_release_review_convergence.sh","detail":"executable"},
+    {"name":"cex_adapter_readiness_script","status":"ok","path":"/fixture/check_trillionnium_world_cex_adapter_readiness.sh","detail":"executable"},
+    {"name":"readme_guard","status":"ok","path":"/fixture/root_readme_world_release_review_quickcheck_guard_test.sh","detail":"executable"},
+    {"name":"status_guard","status":"ok","path":"/fixture/release_review_status_script_contract_guard_test.sh","detail":"executable"},
+    {"name":"doc_README_md_quickcheck","status":"ok","path":"/fixture/README.md","detail":"contains: check_trillionnium_world_release_review_quickcheck.sh"},
+    {"name":"doc_README_md_status","status":"ok","path":"/fixture/README.md","detail":"contains: check_trillionnium_world_release_review_status.sh"},
+    {"name":"doc_README_md_convergence","status":"ok","path":"/fixture/README.md","detail":"contains: check_trillionnium_world_release_review_convergence.sh"},
+    {"name":"doc_trillionnium_world_unified_development_doc_v1_md_quickcheck","status":"ok","path":"/fixture/trillionnium-world-unified-development-doc-v1.md","detail":"contains: check_trillionnium_world_release_review_quickcheck.sh"},
+    {"name":"doc_trillionnium_world_unified_development_doc_v1_md_status","status":"ok","path":"/fixture/trillionnium-world-unified-development-doc-v1.md","detail":"contains: check_trillionnium_world_release_review_status.sh"},
+    {"name":"doc_trillionnium_world_unified_development_doc_v1_md_convergence","status":"ok","path":"/fixture/trillionnium-world-unified-development-doc-v1.md","detail":"contains: check_trillionnium_world_release_review_convergence.sh"},
+    {"name":"doc_trillionnium_world_cex_full_split_plan_v1_md_quickcheck","status":"ok","path":"/fixture/trillionnium-world-cex-full-split-plan-v1.md","detail":"contains: check_trillionnium_world_release_review_quickcheck.sh"},
+    {"name":"doc_trillionnium_world_cex_full_split_plan_v1_md_status","status":"ok","path":"/fixture/trillionnium-world-cex-full-split-plan-v1.md","detail":"contains: check_trillionnium_world_release_review_status.sh"},
+    {"name":"doc_trillionnium_world_cex_full_split_plan_v1_md_convergence","status":"ok","path":"/fixture/trillionnium-world-cex-full-split-plan-v1.md","detail":"contains: check_trillionnium_world_release_review_convergence.sh"},
+    {"name":"doc_trillionnium_world_dev_environment_v1_md_quickcheck","status":"ok","path":"/fixture/trillionnium-world-dev-environment-v1.md","detail":"contains: check_trillionnium_world_release_review_quickcheck.sh"},
+    {"name":"doc_trillionnium_world_dev_environment_v1_md_status","status":"ok","path":"/fixture/trillionnium-world-dev-environment-v1.md","detail":"contains: check_trillionnium_world_release_review_status.sh"},
+    {"name":"doc_trillionnium_world_dev_environment_v1_md_convergence","status":"ok","path":"/fixture/trillionnium-world-dev-environment-v1.md","detail":"contains: check_trillionnium_world_release_review_convergence.sh"},
+    {"name":"workflow_readme_guard","status":"ok","path":"/fixture/trnm-gate-quick-check.yml","detail":"contains: root_readme_world_release_review_quickcheck_guard_test.sh"},
+    {"name":"workflow_status_guard","status":"ok","path":"/fixture/trnm-gate-quick-check.yml","detail":"contains: release_review_status_script_contract_guard_test.sh"},
+    {"name":"native_bevy_keyboard_replay","status":"ok","path":"/fixture/bevy-build-branch-title-route-all-branch-keyboard-replay.json","detail":"contract green, 3 branches, keyboard replay counts, force combat victory"},
+    {"name":"native_bevy_action_coach","status":"ok","path":"/fixture/bevy-action-coach.json","detail":"action coach contract green with Android S5 no-claim boundary"},
+    {"name":"native_bevy_player_hud_debug_layer","status":"ok","path":"/fixture/bevy-player-hud-debug-layer.json","detail":"player HUD/debug layer contract green with Android S5 no-claim boundary"},
+    {"name":"native_bevy_live_window_screenshot_sequence","status":"ok","path":"/fixture/bevy-live-window-screenshot-sequence.json","detail":"live-window screenshot sequence contract green with Android S5 no-claim boundary"},
+    {"name":"native_bevy_sprite_texture_sampling","status":"ok","path":"/fixture/bevy-sprite-texture-sampling.json","detail":"sprite texture sampling contract green with host-side CPU sampling boundary"},
+    {"name":"native_bevy_live_window_sampled_texture_correlation","status":"ok","path":"/fixture/bevy-live-window-sampled-texture-correlation.json","detail":"sampled texture live-window correlation contract green with Android S5 no-claim boundary"},
+    {"name":"native_bevy_render_asset_eligibility","status":"ok","path":"/fixture/bevy-render-asset-eligibility.json","detail":"render asset eligibility contract green without claiming extraction/GPU/Android"},
+    {"name":"cex_adapter_readiness","status":"ok","path":"/fixture/cex-production-adapter-readiness.json","detail":"CEX production adapter readiness evidence green without importing CEX internals"},
+    {"name":"public_launch_consumes_replay","status":"ok","path":"/fixture/public-launch-readiness.json","detail":"native replay gate consumed; replay contract is not a blocker"},
+    {"name":"public_launch_consumes_local_playability","status":"ok","path":"/fixture/public-launch-readiness.json","detail":"action coach, player HUD, live screenshot, texture sampling, sampled correlation, and render eligibility gates consumed; local playability contracts are not blockers"},
+    {"name":"release_signoff_summary","status":"ok","path":"/fixture/release-signoff-summary.json","detail":"signoff summary keeps local Bevy playability, texture sampling, render eligibility, CEX adapter readiness ready; public-launch consumed; Android S5 unclaimed"},
+    {"name":"release_review_quickcheck","status":"ok","path":"/fixture/release-review-quickcheck.json","detail":"quickcheck green for review with public-launch blockers, CEX adapter readiness, and local Bevy texture/render playability gates"},
+    {"name":"release_review_status_json","status":"ok","path":"/fixture/release-review-status.json","detail":"status checklist has expanded green review items including CEX adapter readiness and six external blockers"},
+    {"name":"release_review_status_markdown_green","status":"ok","path":"/fixture/release-review-status.md","detail":"contains: Green For Review"},
+    {"name":"release_review_status_markdown_blockers","status":"ok","path":"/fixture/release-review-status.md","detail":"contains: Still Requires Real External Evidence"},
+    {"name":"release_review_status_markdown_boundary","status":"ok","path":"/fixture/release-review-status.md","detail":"contains: Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof."},
+    {"name":"release_review_status_markdown_cex_boundary","status":"ok","path":"/fixture/release-review-status.md","detail":"contains: CEX adapter readiness is incubator runtime adapter evidence, not real external public-launch evidence."}
+  ]'
+
+  if [[ "$mode" == "semantic_invalid" ]]; then
+    public_launch_ready=true
+    android_s5_real_device_claimed=true
+    checks_json='[
+      {"name":"release_review_status_refresh","status":"ok","path":"/fixture/release-review-convergence-status.log","detail":"refreshed"}
+    ]'
+  fi
+
+  jq -n \
+    --argjson public_launch_ready "$public_launch_ready" \
+    --argjson android_s5_real_device_claimed "$android_s5_real_device_claimed" \
+    --argjson checks "$checks_json" \
+    '{
+      contract_version: "trillionnium_world_release_review_convergence_v1",
+      status: "release_review_convergence_green_with_public_launch_blockers",
+      source_of_truth: "trillionnium_world_release_review_convergence",
+      green: true,
+      ready_for_release_review: true,
+      public_launch_ready: $public_launch_ready,
+      android_s5_real_device_claimed: $android_s5_real_device_claimed,
+      proof_scope: "host_side_bevy_runtime_replay_not_android_real_device",
+      refreshed_status: {
+        json_path: "/fixture/release-review-status.json",
+        markdown_path: "/fixture/release-review-status.md",
+        log_path: "/fixture/release-review-convergence-status.log"
+      },
+      convergence_rule: "release_review_status_must_refresh_and_scripts_docs_workflow_guards_evidence_outputs_must_remain_connected",
+      checks: $checks,
+      failures: [],
+      reviewer_next_action: "collect_real_external_public_launch_evidence"
+    }' >"$convergence_json"
+  add_artifact_from_path release_review_convergence "Release review convergence" "$convergence_json" release_review_gate
+}

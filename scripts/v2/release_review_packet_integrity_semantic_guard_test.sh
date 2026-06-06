@@ -52,7 +52,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 20); do
+for index in $(seq 1 19); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -71,6 +71,7 @@ add_public_launch_blocker_consistency_packet_fixtures
 add_release_signoff_summary_packet_fixtures semantic_invalid
 add_release_review_quickcheck_packet_fixtures semantic_invalid
 add_release_review_status_packet_fixtures semantic_invalid
+add_release_review_convergence_packet_fixtures semantic_invalid
 add_live_window_mouse_hit_test_packet_fixtures
 
 semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
@@ -78,11 +79,12 @@ jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1",
   status: "release_review_packet_integrity_semantic_fixture_green",
   green: true,
-  fixture_kind: "release_review_status_quickcheck_release_signoff_and_first_minute_command_feedback_semantic_negative_fixture",
-  fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_status_quickcheck_release_signoff_summary_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
+  fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_and_first_minute_command_feedback_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 111,
-  expected_semantic_failure_count: 7,
+  expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
+    "release_review_convergence_semantics",
     "release_review_status_semantics",
     "release_review_quickcheck_semantics",
     "release_signoff_summary_semantics",
@@ -2092,7 +2094,8 @@ fi
 jq -e '
   .status == "release_review_packet_integrity_blocked"
   and .green == false
-  and (.failures | length) == 7
+  and (.failures | length) == 8
+  and ([.failures[].name] | index("release_review_convergence_semantics"))
   and ([.failures[].name] | index("release_review_status_semantics"))
   and ([.failures[].name] | index("release_review_quickcheck_semantics"))
   and ([.failures[].name] | index("release_signoff_summary_semantics"))
@@ -2106,4 +2109,4 @@ jq -e '
   and (([.failures[].detail] | index("status_mismatch")) == null)
 ' "$summary_json" >/dev/null
 
-echo "[PASS] release review packet integrity rejects semantically invalid release review status, quickcheck, release signoff, and first-minute command feedback artifacts even when checksums match"
+echo "[PASS] release review packet integrity rejects semantically invalid release review convergence, status, quickcheck, release signoff, and first-minute command feedback artifacts even when checksums match"
