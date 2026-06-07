@@ -279,6 +279,8 @@ required_lines=(
   'check_trillionnium_world_public_launch_blocker_consistency.sh'
   'public_launch_evidence_kit'
   'public-launch-evidence-kit.json'
+  'public_launch_evidence_kit_markdown'
+  'public-launch-evidence-kit.md'
   'check_trillionnium_world_public_launch_evidence_kit.sh'
   'public_launch_operator_handoff'
   'public-launch-operator-handoff.json'

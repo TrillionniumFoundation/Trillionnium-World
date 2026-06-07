@@ -219,6 +219,7 @@ artifact cohort_commercial_evidence_collection "Cohort/commercial evidence colle
 artifact external_ops_evidence_collection "External ops evidence collection" "$ACCEPTANCE_DIR/external-ops-evidence-collection.json" release_review_collection
 artifact public_launch_blocker_consistency "Public launch blocker consistency" "$ACCEPTANCE_DIR/public-launch-blocker-consistency.json" release_review_gate
 artifact public_launch_evidence_kit "Public launch evidence kit" "$ACCEPTANCE_DIR/public-launch-evidence-kit.json" release_review_gate
+artifact public_launch_evidence_kit_markdown "Public launch evidence kit Markdown" "$ACCEPTANCE_DIR/public-launch-evidence-kit.md" release_review_gate
 artifact public_launch_operator_handoff "Public launch operator handoff" "$ACCEPTANCE_DIR/public-launch-operator-handoff.json" release_review_operator_handoff
 artifact public_launch_operator_handoff_markdown "Public launch operator handoff Markdown" "$ACCEPTANCE_DIR/public-launch-operator-handoff.md" release_review_operator_handoff
 artifact public_launch_template_negative_fixtures "Public launch template negative fixtures" "$ACCEPTANCE_DIR/public-launch-template-negative-fixtures.json" release_review_gate

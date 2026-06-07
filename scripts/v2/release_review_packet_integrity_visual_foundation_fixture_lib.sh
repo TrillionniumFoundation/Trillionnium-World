@@ -1122,6 +1122,61 @@ add_public_launch_blocker_consistency_packet_fixtures() {
   add_artifact_from_path public_launch_blocker_consistency "Public launch blocker consistency" "$blocker_consistency_json" release_review_gate
 }
 
+add_public_launch_evidence_kit_packet_fixtures() {
+  local evidence_kit_json="$TMP_DIR/public-launch-evidence-kit.json"
+  jq -n '{
+    contract_version: "trillionnium_world_public_launch_evidence_kit_v1",
+    status: "public_launch_evidence_kit_ready_for_operator_collection",
+    source_of_truth: "trillionnium_world_public_launch_evidence_kit",
+    green: true,
+    public_launch_ready: false,
+    public_launch_claimed: false,
+    android_s5_real_device_claimed: false,
+    live_map_ingestion_performed: false,
+    live_public_exposure_performed: false,
+    kit_rule: "operator_templates_must_exist_and_must_not_claim_green_until_real_external_evidence_passes_field_validators",
+    markdown_path: "/fixture/public-launch-evidence-kit.md",
+    intake_summary: "/fixture/public-launch-evidence-intake.json",
+    needs_collection_count: 6,
+    evidence_items: [
+      {id: "s5_android_real_device_matrix", blocker_id: "s5_real_device_matrix", evidence_env_var: "ANDROID_SERIAL", accepted_status: "s5_real_device_evidence_green", current_status: "blocked_missing_s5_real_device_evidence", template_status: "template_requires_real_s5_device_evidence", template_ok: true, collection_command: "ANDROID_SERIAL=<device-serial> scripts/check_trillionnium_world_s5_device_evidence.sh --require-device", validator_command: "TRILLIONNIUM_WORLD_S5_REAL_DEVICE_EVIDENCE_PATH=<real-s5-evidence.json> scripts/check_trillionnium_world_s5_real_device_evidence.sh --require-ready", template_public_launch_credit: false},
+      {id: "production_map_pack_public_evidence", blocker_id: "production_map_pack_public_evidence", evidence_env_var: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH", accepted_status: "production_map_pack_public_ready_green", current_status: "blocked_missing_production_map_pack_public_evidence", template_status: "template_requires_real_public_map_pack_evidence", template_ok: true, collection_command: "scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh", validator_command: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH=<real-map-pack-evidence.json> scripts/check_trillionnium_world_production_map_pack_public_evidence.sh --require-ready", template_public_launch_credit: false},
+      {id: "first_beta_cohort_evidence", blocker_id: "first_beta_cohort_evidence", evidence_env_var: "TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH", accepted_status: "first_beta_cohort_evidence_green", current_status: "blocked_missing_first_beta_cohort_evidence", template_status: "template_requires_real_participants", template_ok: true, collection_command: "scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh", validator_command: "TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH=<real-cohort.json> scripts/check_trillionnium_world_cohort_commercial_evidence.sh --require-ready", template_public_launch_credit: false},
+      {id: "commercial_launch_drill_evidence", blocker_id: "commercial_launch_drill_evidence", evidence_env_var: "TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH", accepted_status: "commercial_launch_drill_evidence_green", current_status: "blocked_missing_commercial_launch_drill_evidence", template_status: "template_requires_real_drill", template_ok: true, collection_command: "scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh", validator_command: "TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH=<real-commercial-drill.json> scripts/check_trillionnium_world_cohort_commercial_evidence.sh --require-ready", template_public_launch_credit: false},
+      {id: "multi_node_or_live_traffic_latency_evidence", blocker_id: "multi_node_or_live_traffic_latency_evidence", evidence_env_var: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH", accepted_status: "multi_node_or_live_traffic_latency_green", current_status: "blocked_missing_multi_node_or_live_traffic_latency_evidence", template_status: "template_requires_multi_node_or_live_traffic_latency", template_ok: true, collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", validator_command: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH=<real-latency.json> scripts/check_trillionnium_world_external_ops_evidence.sh --require-ready", template_public_launch_credit: false},
+      {id: "public_network_live_exposure_evidence", blocker_id: "public_network_live_exposure_evidence", evidence_env_var: "TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH", accepted_status: "public_network_deploy_green", current_status: "blocked_missing_public_network_live_exposure_evidence", template_status: "template_requires_public_network_deploy", template_ok: true, collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", validator_command: "TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH=<real-public-deploy.json> scripts/check_trillionnium_world_external_ops_evidence.sh --require-ready", template_public_launch_credit: false}
+    ],
+    template_failures: [],
+    reviewer_next_action: "collect_real_external_public_launch_evidence_using_templates"
+  }' >"$evidence_kit_json"
+  add_artifact_from_path public_launch_evidence_kit "Public launch evidence kit" "$evidence_kit_json" release_review_gate
+
+  local evidence_kit_md="$TMP_DIR/public-launch-evidence-kit.md"
+  {
+    printf '# Trillionnium World Public Launch Evidence Kit\n\n'
+    printf -- '- status: public_launch_evidence_kit_ready_for_operator_collection\n'
+    printf -- '- public_launch_ready: false\n'
+    printf -- '- public_launch_claimed: false\n'
+    printf -- '- android_s5_real_device_claimed: false\n\n'
+    printf '## Evidence Templates\n\n'
+    printf -- '- s5_android_real_device_matrix: /fixture/s5-device-evidence.template.json\n'
+    printf -- '  - env: ANDROID_SERIAL\n'
+    printf -- '  - accepted_status: s5_real_device_evidence_green\n'
+    printf -- '  - current_status: blocked_missing_s5_real_device_evidence\n'
+    printf -- '  - validator: TRILLIONNIUM_WORLD_S5_REAL_DEVICE_EVIDENCE_PATH=<real-s5-evidence.json> scripts/check_trillionnium_world_s5_real_device_evidence.sh --require-ready\n'
+    printf -- '- production_map_pack_public_evidence: /fixture/production-map-pack-public-evidence.template.json\n'
+    printf -- '  - env: TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH\n'
+    printf -- '  - accepted_status: production_map_pack_public_ready_green\n'
+    printf -- '  - current_status: blocked_missing_production_map_pack_public_evidence\n'
+    printf -- '- public_network_live_exposure_evidence: /fixture/public-network-deploy-evidence.template.json\n'
+    printf -- '  - accepted_status: public_network_deploy_green\n\n'
+    printf '## Boundary\n\n'
+    printf -- '- Templates are collection scaffolding only and carry no public-launch credit.\n'
+    printf -- '- Public launch stays blocked until each real evidence file passes its field-level validator.\n'
+  } >"$evidence_kit_md"
+  add_artifact_from_path public_launch_evidence_kit_markdown "Public launch evidence kit Markdown" "$evidence_kit_md" release_review_gate
+}
+
 add_public_launch_operator_handoff_packet_fixtures() {
   local operator_handoff_json="$TMP_DIR/public-launch-operator-handoff.json"
   jq -n '
