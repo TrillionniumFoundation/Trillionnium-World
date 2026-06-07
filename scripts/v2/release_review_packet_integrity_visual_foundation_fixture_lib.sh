@@ -1570,6 +1570,7 @@ add_release_review_quickcheck_packet_fixtures() {
 add_release_review_status_packet_fixtures() {
   local mode="${1:-valid}"
   local status_json="$TMP_DIR/release-review-status.json"
+  local status_md="$TMP_DIR/release-review-status.md"
   local public_launch_ready=false
   local android_s5_real_device_claimed=false
   local ready_items_json='[
@@ -1651,7 +1652,53 @@ add_release_review_status_packet_fixtures() {
       ],
       reviewer_next_action: "collect_real_external_public_launch_evidence"
     }' >"$status_json"
+
+  if [[ "$mode" == "semantic_invalid" ]]; then
+    printf '# Broken Release Review Status\n\nThis fixture intentionally omits the required review checklist and public-launch boundary.\n' >"$status_md"
+  else
+    cat >"$status_md" <<'MARKDOWN'
+# Trillionnium World Release Review Status
+
+- status: `release_review_ready_public_launch_blocked`
+- ready_for_release_review: `true`
+- public_launch_ready: `false`
+- android_s5_real_device_claimed: `false`
+
+## Green For Review
+
+- [x] Native/Bevy keyboard replay: force=10, agility=8, craft=7; force combat=victory
+- [x] Native/Bevy action coach: coach_stage=true, enter_execution=true, final_next=true
+- [x] Native/Bevy player HUD/debug layer: player_hud=true, debug_layer=true
+- [x] Native/Bevy live-window screenshot sequence: frames=11, sequence=true, contact_sheet=true
+- [x] Native/Bevy sprite texture sampling: sampled_surfaces=32, unique_rgba=10, four_layer=true
+- [x] Native/Bevy sampled texture live-window correlation: live_frames=11, final_frame_colors=3376, four_layer=true
+- [x] Native/Bevy render asset eligibility: usage=RenderAssetUsages(MAIN_WORLD | RENDER_WORLD), sprite_refs=32, render_usage=true
+- [x] CEX production world adapter readiness: routes=7236, nodes=24, protocol=trillionnium_world_runtime_adapter_v1
+- [x] Public launch consumes replay gate: blocked_missing_public_launch_evidence
+- [x] Public launch consumes local playability gates: blocked_missing_public_launch_evidence
+- [x] Release latency local drill: local_release_latency_drill_green
+- [x] Release rollback/backup drill: release_rollback_backup_drill_green
+- [x] Public deploy local drill: local_public_deploy_drill_green
+
+## Still Requires Real External Evidence
+
+- [ ] S5 Android real-device matrix: Connect an Android device and collect launch, screenshot, gfxinfo/frame, CJK/input, lifecycle, weak-network, APK resource/signature, and crash-free logcat evidence.
+- [ ] Production map-pack public evidence: Provide production/public map-pack ready evidence, not only the local route or fixture-signed manifest.
+- [ ] First beta cohort evidence: Attach real 5-10 participant cohort evidence with status first_beta_cohort_evidence_green.
+- [ ] Commercial launch drill evidence: Attach real or sanitized payment, refund, support, legal, operator, and traffic drill evidence.
+- [ ] Multi-node or live-traffic latency evidence: Provide multi-node release latency or live public traffic latency evidence; local latency drill is not enough.
+- [ ] Public network live exposure evidence: Provide approved host, domain/TLS, monitoring, backup, rollback, and public URL probe evidence.
+
+## Boundary
+
+- Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.
+- CEX adapter readiness is incubator runtime adapter evidence, not real external public-launch evidence.
+- Public launch remains blocked until the external evidence above is attached.
+MARKDOWN
+  fi
+
   add_artifact_from_path release_review_status_json "Release review status JSON" "$status_json" release_review_checklist
+  add_artifact_from_path release_review_status_markdown "Release review status Markdown" "$status_md" release_review_checklist
 }
 
 add_release_review_convergence_packet_fixtures() {

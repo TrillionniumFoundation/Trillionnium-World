@@ -46,7 +46,7 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 17); do
+for index in $(seq 1 16); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -80,10 +80,11 @@ jq -n '{
   fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 117,
-  expected_semantic_failure_count: 9,
+  expected_semantic_failure_count: 10,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
+    "release_review_status_markdown_semantics",
     "release_review_quickcheck_semantics",
     "release_signoff_summary_semantics",
     "cex_adapter_readiness_semantics",
