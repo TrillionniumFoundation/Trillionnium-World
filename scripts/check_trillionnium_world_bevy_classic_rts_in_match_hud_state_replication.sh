@@ -29,6 +29,13 @@ jq -e '
   and .source_contracts.full_screen_ui_replication == "trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1"
   and .source_contracts.match_setup_ui_replication == "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1"
   and .source_contracts.campaign_outcome_ui_readiness == "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1"
+  and .runtime_screen_mode == "player_runtime_in_match_hud_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.tactical_viewport == "single in-match First Contact Basin tactical viewport"
+  and .runtime_screen_layout.top_resource_strip == "top resources, supply, and pressure readout"
+  and .runtime_screen_layout.right_production_ability_rail == "production, build, ability, cooldown, and alert panels"
+  and .runtime_screen_layout.bottom_command_grid == "move/train/build/attack command grid and queue"
   and .hud_surface_count == 8
   and (.hud_surface_names | index("RESOURCES") != null)
   and (.hud_surface_names | index("SELECTION") != null)
@@ -80,6 +87,7 @@ jq -e '
   and .minimap_objective_gate == true
   and .native_client_boundary_gate == true
   and .preview_gate == true
+  and .runtime_screen_gate == true
   and .in_match_hud_state_replication_gate == true
   and .internal_in_match_hud_state_replication_claimed == true
   and .external_evidence_ignored_for_current_replication_pass == true

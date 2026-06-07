@@ -26,6 +26,13 @@ jq -e '
   and .source_contracts.in_match_hud_state_replication == "trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1"
   and .source_contracts.campaign_outcome_ui_readiness == "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1"
   and .source_contracts.campaign_ui_continuity == "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1"
+  and .runtime_screen_mode == "player_runtime_session_resume_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.resume_chain_lane == "single visible save/load/continue chain from match setup into restored play"
+  and .runtime_screen_layout.slot_resume_controls == "selected Slot A write, load lock, and continue unlock controls"
+  and .runtime_screen_layout.hud_restore_panel == "restored in-match resources, selection, command, minimap, and objective state"
+  and .runtime_screen_layout.outcome_resume_panel == "campaign outcome rewards and open-world league-coliseum route resume"
   and .state_continuity_surface_count == 8
   and (.state_continuity_surface_names | index("MATCH SETUP SNAPSHOT") != null)
   and (.state_continuity_surface_names | index("SESSION SLOT WRITE") != null)
@@ -54,6 +61,9 @@ jq -e '
   and .state_continuity_pixel_counts.recovery_ui_guard > 100
   and .state_continuity_pixel_counts.highlight > 200
   and .source_headline.shell_meta_surface_count == 12
+  and .source_headline.shell_meta_runtime_screen_mode == "player_runtime_shell_meta_screen"
+  and .source_headline.match_setup_runtime_screen_mode == "player_runtime_match_setup_screen"
+  and .source_headline.hud_runtime_screen_mode == "player_runtime_in_match_hud_screen"
   and .source_headline.confirmed_slot_a_bytes > 512
   and .source_headline.load_resume_slot_a_bytes > 512
   and .source_headline.load_resume_final_objective_status == "first_playable_loop_complete"
@@ -74,6 +84,7 @@ jq -e '
   and .native_client_boundary_gate == true
   and .preview_gate == true
   and .source_preview_gate == true
+  and .runtime_screen_gate == true
   and .session_state_continuity_gate == true
   and .internal_session_state_continuity_claimed == true
   and .external_evidence_ignored_for_current_replication_pass == true

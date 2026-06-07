@@ -23091,15 +23091,17 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
         && alert_pixel_count > 40
         && objective_pixel_count > 40
         && highlight_pixel_count > 20;
-    let in_match_hud_state_replication_gate = selection_gate
+    let runtime_screen_gate = preview_gate
+        && selection_gate
         && command_gate
         && resource_gate
         && production_gate
         && ability_gate
         && combat_alert_gate
-        && minimap_objective_gate
+        && minimap_objective_gate;
+    let in_match_hud_state_replication_gate = runtime_screen_gate
         && native_client_boundary_gate
-        && preview_gate;
+        && !assets.manifest.cex_runtime_player_client_allowed;
     let green = in_match_hud_state_replication_gate;
 
     serde_json::to_string_pretty(&json!({
@@ -23122,6 +23124,18 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
             "full_screen_ui_replication": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT,
             "match_setup_ui_replication": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MATCH_SETUP_UI_REPLICATION_CONTRACT,
             "campaign_outcome_ui_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT
+        },
+        "runtime_screen_mode": "player_runtime_in_match_hud_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "tactical_viewport": "single in-match First Contact Basin tactical viewport",
+            "top_resource_strip": "top resources, supply, and pressure readout",
+            "left_selection_panel": "selected group 1 unit and health card stack",
+            "right_production_ability_rail": "production, build, ability, cooldown, and alert panels",
+            "minimap_panel": "live minimap, fog, visibility, and objective pressure panel",
+            "bottom_command_grid": "move/train/build/attack command grid and queue",
+            "objective_alert_lane": "bottom objective, combat alert, and no-external boundary lane"
         },
         "hud_surface_names": hud_surfaces.iter().map(|(label, _, _, _)| *label).collect::<Vec<_>>(),
         "hud_surface_count": hud_surfaces.len(),
@@ -23167,6 +23181,7 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
         "minimap_objective_gate": minimap_objective_gate,
         "native_client_boundary_gate": native_client_boundary_gate,
         "preview_gate": preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "in_match_hud_state_replication_gate": in_match_hud_state_replication_gate,
         "internal_in_match_hud_state_replication_claimed": in_match_hud_state_replication_gate,
         "external_evidence_ignored_for_current_replication_pass": true,
@@ -23478,6 +23493,8 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         &shell_meta,
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SHELL_META_UI_REPLICATION_CONTRACT,
     ) && bool_at(&shell_meta, "green")
+        && bool_at(&shell_meta, "runtime_screen_gate")
+        && !bool_at(&shell_meta, "evidence_board_only")
         && bool_at(&shell_meta, "session_slot_confirm_gate")
         && bool_at(&shell_meta, "session_load_resume_gate")
         && bool_at(&shell_meta, "session_recovery_gate")
@@ -23515,6 +23532,8 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MATCH_SETUP_UI_REPLICATION_CONTRACT,
     ) && bool_at(&match_setup, "green")
         && bool_at(&match_setup, "match_setup_ui_replication_gate")
+        && bool_at(&match_setup, "runtime_screen_gate")
+        && !bool_at(&match_setup, "evidence_board_only")
         && bool_at(&match_setup, "shell_meta_gate")
         && bool_at(&match_setup, "faction_gate")
         && bool_at(&match_setup, "no_external_boundary_gate");
@@ -23523,6 +23542,8 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_IN_MATCH_HUD_STATE_REPLICATION_CONTRACT,
     ) && bool_at(&hud, "green")
         && bool_at(&hud, "in_match_hud_state_replication_gate")
+        && bool_at(&hud, "runtime_screen_gate")
+        && !bool_at(&hud, "evidence_board_only")
         && bool_at(&hud, "selection_gate")
         && bool_at(&hud, "command_gate")
         && bool_at(&hud, "production_gate")
@@ -23600,10 +23621,8 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         && hud_restore_gate
         && campaign_outcome_gate
         && campaign_continuity_gate;
-    let session_state_continuity_gate = state_continuity_chain_gate
-        && native_client_boundary_gate
-        && preview_gate
-        && source_preview_gate;
+    let runtime_screen_gate = state_continuity_chain_gate && preview_gate && source_preview_gate;
+    let session_state_continuity_gate = runtime_screen_gate && native_client_boundary_gate;
     let green = session_state_continuity_gate;
 
     serde_json::to_string_pretty(&json!({
@@ -23625,6 +23644,17 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
             "in_match_hud_state_replication": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_IN_MATCH_HUD_STATE_REPLICATION_CONTRACT,
             "campaign_outcome_ui_readiness": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
             "campaign_ui_continuity": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT
+        },
+        "runtime_screen_mode": "player_runtime_session_resume_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "resume_chain_lane": "single visible save/load/continue chain from match setup into restored play",
+            "pre_match_snapshot": "match setup map/faction/rules snapshot",
+            "slot_resume_controls": "selected Slot A write, load lock, and continue unlock controls",
+            "hud_restore_panel": "restored in-match resources, selection, command, minimap, and objective state",
+            "outcome_resume_panel": "campaign outcome rewards and open-world league-coliseum route resume",
+            "recovery_guard_panel": "session recovery and no-external boundary guard"
         },
         "source_paths": {
             "shell_meta_ui_replication_preview": shell_meta_path,
@@ -23662,6 +23692,9 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         },
         "source_headline": {
             "shell_meta_surface_count": shell_meta.get("shell_meta_surface_count").cloned().unwrap_or(Value::Null),
+            "shell_meta_runtime_screen_mode": shell_meta.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "match_setup_runtime_screen_mode": match_setup.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "hud_runtime_screen_mode": hud.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
             "confirmed_slot_a_bytes": session_slot_confirm.get("confirmed_slot_a_bytes").cloned().unwrap_or(Value::Null),
             "load_resume_slot_a_bytes": session_load_resume.get("slot_a_bytes").cloned().unwrap_or(Value::Null),
             "load_resume_final_objective_status": session_load_resume.pointer("/final_runtime/objective_status").cloned().unwrap_or(Value::Null),
@@ -23683,6 +23716,7 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         "native_client_boundary_gate": native_client_boundary_gate,
         "preview_gate": preview_gate,
         "source_preview_gate": source_preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "session_state_continuity_gate": session_state_continuity_gate,
         "internal_session_state_continuity_claimed": session_state_continuity_gate,
         "external_evidence_ignored_for_current_replication_pass": true,
@@ -23693,7 +23727,7 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "Classic RTS session state continuity evidence binds the Rust/Bevy pre-match setup, selected save slot write/confirm, load-resume lock, continue unlock, restored in-match HUD state, campaign outcome rewards, and open-world resume into a single local native evidence board. It keeps Android S5, public launch, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
+        "source_of_truth": "Classic RTS session state continuity evidence binds the Rust/Bevy pre-match setup, selected save slot write/confirm, load-resume lock, continue unlock, restored in-match HUD state, campaign outcome rewards, and open-world resume into a single local native runtime resume screen. It keeps Android S5, public launch, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
     }))
     .expect("classic RTS session state continuity evidence serializes")
 }
