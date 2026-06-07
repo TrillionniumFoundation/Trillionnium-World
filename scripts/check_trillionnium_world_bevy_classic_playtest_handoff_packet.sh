@@ -53,6 +53,7 @@ jq -n \
   def ok($x): ($x[0].green == true);
   {
     contract_version: "trillionnium_world_bevy_classic_playtest_handoff_packet_v1",
+    status: "classic_playtest_handoff_packet_green",
     green: (
       ok($handoff)
       and ok($readiness)
@@ -103,6 +104,7 @@ jq -n \
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_playtest_handoff_packet_v1"
+  and .status == "classic_playtest_handoff_packet_green"
   and .green == true
   and .source_contracts.playtest_handoff_readiness == "trillionnium_world_bevy_classic_playtest_handoff_readiness_v1"
   and .source_contracts.playtest_readiness == "trillionnium_world_bevy_classic_playtest_readiness_v1"

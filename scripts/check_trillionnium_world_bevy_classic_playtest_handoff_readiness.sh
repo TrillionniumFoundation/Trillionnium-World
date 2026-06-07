@@ -22,6 +22,7 @@ jq -n \
   def runner_gate($name): ($runner[0].gates[$name] == true);
   {
     contract_version: "trillionnium_world_bevy_classic_playtest_handoff_readiness_v1",
+    status: "classic_playtest_handoff_readiness_green",
     green: (
       ok($readiness)
       and ok($launcher)
@@ -128,6 +129,7 @@ jq -n \
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_playtest_handoff_readiness_v1"
+  and .status == "classic_playtest_handoff_readiness_green"
   and .green == true
   and .source_contracts.playtest_readiness == "trillionnium_world_bevy_classic_playtest_readiness_v1"
   and .source_contracts.playtest_launcher == "trillionnium_world_bevy_classic_playtest_launcher_v1"

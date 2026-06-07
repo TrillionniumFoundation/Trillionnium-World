@@ -45,6 +45,7 @@ BOT_DECISION_STATE_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-decision-s
 BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adaptive-build-order-gap.log"
 BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
 BOT_MAP_INTEL_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-map-intel-gap.log"
+PLAYTEST_HANDOFF_PACKET_LOG="$ACCEPTANCE_DIR/release-review-packet-playtest-handoff-packet.log"
 ARTIFACTS_FILE="$(mktemp)"
 trap 'rm -f "$ARTIFACTS_FILE"' EXIT
 
@@ -80,6 +81,7 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >"$BOT_MAP_INTEL_GAP_LOG"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh" >"$PLAYTEST_HANDOFF_PACKET_LOG"
 
 artifact() {
   local id="$1"
@@ -192,6 +194,8 @@ artifact native_bevy_bot_map_intel_gap_ppm "Native/Bevy bot map intel gap PPM" "
 artifact native_bevy_classic_playtest_readiness "Native/Bevy classic playtest readiness" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json" release_review_input
 artifact native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json" release_review_input
 artifact native_bevy_classic_playtest_launcher "Native/Bevy classic playtest launcher" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json" release_review_input
+artifact native_bevy_classic_playtest_handoff_readiness "Native/Bevy classic playtest handoff readiness" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-readiness.json" release_review_input
+artifact native_bevy_classic_playtest_handoff_packet "Native/Bevy classic playtest handoff packet" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-packet.json" release_review_input
 artifact native_bevy_classic_rts_full_screen_ui_replication "Native/Bevy classic RTS full screen/UI replication" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-screen-ui-replication.json" release_review_input
 artifact native_bevy_classic_rts_shell_meta_ui_replication "Native/Bevy classic RTS shell/meta UI replication" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-meta-ui-replication.json" release_review_input
 artifact native_bevy_classic_rts_match_setup_ui_replication "Native/Bevy classic RTS match setup UI replication" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-match-setup-ui-replication.json" release_review_input

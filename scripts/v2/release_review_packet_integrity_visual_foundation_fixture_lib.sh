@@ -695,6 +695,147 @@ add_classic_playtest_launcher_packet_fixtures() {
   add_artifact_from_path native_bevy_classic_playtest_launcher "Native/Bevy classic playtest launcher" "$playtest_launcher_json" release_review_input
 }
 
+add_classic_playtest_handoff_packet_fixtures() {
+  local playtest_handoff_readiness_json="$TMP_DIR/bevy-classic-playtest-handoff-readiness.json"
+  jq -n \
+    --arg root "$ROOT" \
+    '{
+      contract_version: "trillionnium_world_bevy_classic_playtest_handoff_readiness_v1",
+      status: "classic_playtest_handoff_readiness_green",
+      green: true,
+      source_contracts: {
+        playtest_readiness: "trillionnium_world_bevy_classic_playtest_readiness_v1",
+        playtest_launcher: "trillionnium_world_bevy_classic_playtest_launcher_v1",
+        playtest_runner_status: "trillionnium_world_bevy_classic_playtest_runner_status_v1",
+        playtest_observability_readiness: "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
+      },
+      handoff_summary: {
+        playtest_readiness_green: true,
+        launcher_green: true,
+        runner_green: true,
+        observability_green: true,
+        runner_service: "trillionnium-bevy-playtest.service",
+        runner_main_pid: 160672,
+        runner_binary: ($root + "/target/release/trnm-world-bevy"),
+        runner_process_cwd: ($root + "/trillionnium"),
+        campaign_slot_bytes: 71913,
+        title_actions: ["CAMPAIGN:START", "CAMPAIGN:CONTINUE", "CAMPAIGN:REPLAY"],
+        resume_room_id: "league-coliseum",
+        resume_map_scene: "arena_outdoor",
+        resume_handoff_state: "resumed:league-coliseum",
+        resume_primary_action: "COMBAT:attack",
+        observability_preview_count: 4,
+        replay_elapsed_seconds: 61,
+        endurance_elapsed_seconds: 128,
+        endurance_peak_active_units: 32
+      },
+      gates: {
+        playtest_readiness_gate: true,
+        launcher_gate: true,
+        runner_gate: true,
+        observability_gate: true,
+        first_minute_gate: true,
+        map_ui_modeling_gate: true,
+        campaign_outcome_ui_gate: true,
+        combat_readability_pressure_gate: true,
+        playtest_observability_gate: true,
+        client_boundary_gate: true,
+        campaign_handoff_resume_gate: true,
+        campaign_handoff_snapshot_gate: true,
+        runner_service_process_gate: true,
+        runner_release_binary_gate: true,
+        runner_classic_env_gate: true,
+        runner_manifest_gate: true,
+        runner_override_dir_gate: true,
+        runner_workdir_gate: true,
+        runner_cex_path_gate: true,
+        launcher_player_launch_ready_gate: true,
+        launcher_campaign_slot_gate: true,
+        launcher_open_world_resume_gate: true,
+        launcher_player_command_gate: true,
+        launcher_cex_path_gate: true,
+        public_launch_not_claimed_gate: true,
+        android_s5_real_device_not_claimed_gate: true
+      },
+      evidence_paths: {
+        playtest_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json",
+        playtest_launcher: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json",
+        playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
+        playtest_observability_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json"
+      },
+      android_s5_real_device_claimed: false,
+      public_launch_ready_claimed: false,
+      source_of_truth: "Classic playtest handoff readiness is the local human-playtest handoff layer for trnm-world-bevy. It requires the full Bevy classic playtest readiness chain, a live release runner, a campaign launcher that resumes into the Bevy-owned open-world RTS handoff, and observability evidence. It does not claim S5 real-device evidence, public launch readiness, or OpenRA natural replay/headless parity."
+    }' >"$playtest_handoff_readiness_json"
+  add_artifact_from_path native_bevy_classic_playtest_handoff_readiness "Native/Bevy classic playtest handoff readiness" "$playtest_handoff_readiness_json" release_review_input
+
+  local playtest_handoff_packet_json="$TMP_DIR/bevy-classic-playtest-handoff-packet.json"
+  jq -n \
+    --argjson artifacts '[
+      {"label":"playtest_handoff_readiness","path":"acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-readiness.json","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bytes":4096},
+      {"label":"playtest_readiness","path":"acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","bytes":8192},
+      {"label":"playtest_launcher","path":"acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json","sha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","bytes":4096},
+      {"label":"playtest_runner_status","path":"acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json","sha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","bytes":2048},
+      {"label":"playtest_observability_readiness","path":"acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json","sha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","bytes":4096}
+    ]' \
+    '{
+      contract_version: "trillionnium_world_bevy_classic_playtest_handoff_packet_v1",
+      status: "classic_playtest_handoff_packet_green",
+      green: true,
+      source_contracts: {
+        playtest_handoff_readiness: "trillionnium_world_bevy_classic_playtest_handoff_readiness_v1",
+        playtest_readiness: "trillionnium_world_bevy_classic_playtest_readiness_v1",
+        playtest_launcher: "trillionnium_world_bevy_classic_playtest_launcher_v1",
+        playtest_runner_status: "trillionnium_world_bevy_classic_playtest_runner_status_v1",
+        playtest_observability_readiness: "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
+      },
+      handoff_summary: {
+        playtest_readiness_green: true,
+        launcher_green: true,
+        runner_green: true,
+        observability_green: true,
+        runner_service: "trillionnium-bevy-playtest.service",
+        runner_main_pid: 160672,
+        campaign_slot_bytes: 71913,
+        title_actions: ["CAMPAIGN:START", "CAMPAIGN:CONTINUE", "CAMPAIGN:REPLAY"],
+        resume_room_id: "league-coliseum",
+        resume_map_scene: "arena_outdoor",
+        resume_handoff_state: "resumed:league-coliseum",
+        resume_primary_action: "COMBAT:attack",
+        observability_preview_count: 4,
+        replay_elapsed_seconds: 61,
+        endurance_elapsed_seconds: 128,
+        endurance_peak_active_units: 32
+      },
+      gates: {
+        handoff_readiness_green: true,
+        playtest_readiness_green: true,
+        launcher_green: true,
+        runner_green: true,
+        observability_green: true,
+        public_launch_not_claimed_gate: true,
+        android_s5_real_device_not_claimed_gate: true,
+        artifact_count_gate: true,
+        artifact_sha_gate: true
+      },
+      run_commands: {
+        refresh_handoff: "./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_readiness.sh",
+        refresh_packet: "./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh",
+        inspect_runner: "systemctl --user status trillionnium-bevy-playtest.service",
+        launch_client: "./scripts/run_trillionnium_world_bevy_client.sh"
+      },
+      artifact_manifest: $artifacts,
+      no_credit_boundaries: {
+        public_launch_ready_claimed: false,
+        android_s5_real_device_claimed: false,
+        openra_natural_replay_or_headless_parity_claimed: false
+      },
+      markdown_path: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-packet.md",
+      source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
+    }' >"$playtest_handoff_packet_json"
+  add_artifact_from_path native_bevy_classic_playtest_handoff_packet "Native/Bevy classic playtest handoff packet" "$playtest_handoff_packet_json" release_review_input
+}
+
 add_campaign_ui_continuity_packet_fixtures() {
   local campaign_ui_continuity_json="$TMP_DIR/bevy-classic-rts-campaign-ui-continuity.json"
   jq -n '{
