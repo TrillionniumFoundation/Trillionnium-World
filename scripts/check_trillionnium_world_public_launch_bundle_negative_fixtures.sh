@@ -18,6 +18,7 @@ KIT_LOG="$ACCEPTANCE_DIR/public-launch-bundle-negative-fixtures-kit.log"
 BUNDLE_LOG="$ACCEPTANCE_DIR/public-launch-bundle-negative-fixtures-bundle.log"
 FAKE_BUNDLE="$TMP_DIR/fake-green-template-bundle.json"
 BUNDLE_SUMMARY="$TMP_DIR/fake-green-template-bundle-summary.json"
+BUNDLE_MARKDOWN="$TMP_DIR/fake-green-template-bundle-summary.md"
 
 "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" >"$KIT_LOG"
 
@@ -41,6 +42,7 @@ jq -n \
 set +e
 TRILLIONNIUM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_PATH="$FAKE_BUNDLE" \
 TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_SUMMARY="$BUNDLE_SUMMARY" \
+TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_MD="$BUNDLE_MARKDOWN" \
   "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh" --require-ready >"$BUNDLE_LOG" 2>&1
 EXIT_STATUS=$?
 set -e

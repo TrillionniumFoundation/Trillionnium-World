@@ -224,6 +224,7 @@ artifact public_launch_operator_handoff "Public launch operator handoff" "$ACCEP
 artifact public_launch_operator_handoff_markdown "Public launch operator handoff Markdown" "$ACCEPTANCE_DIR/public-launch-operator-handoff.md" release_review_operator_handoff
 artifact public_launch_template_negative_fixtures "Public launch template negative fixtures" "$ACCEPTANCE_DIR/public-launch-template-negative-fixtures.json" release_review_gate
 artifact public_launch_evidence_bundle "Public launch evidence bundle" "$ACCEPTANCE_DIR/public-launch-evidence-bundle.json" release_review_gate
+artifact public_launch_evidence_bundle_markdown "Public launch evidence bundle Markdown" "$ACCEPTANCE_DIR/public-launch-evidence-bundle.md" release_review_gate
 artifact public_launch_bundle_negative_fixtures "Public launch bundle negative fixtures" "$ACCEPTANCE_DIR/public-launch-bundle-negative-fixtures.json" release_review_gate
 artifact public_launch_status_only_fixture_guard "Public launch status-only fixture guard" "$ACCEPTANCE_DIR/public-launch-status-only-fixtures.json" release_review_gate
 artifact production_map_pack_public_evidence "Production map-pack public evidence" "$ROOT/acceptance/S4_map_pack_gate/latest/production-map-pack-public-evidence.json" release_review_input

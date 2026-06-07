@@ -1177,6 +1177,80 @@ add_public_launch_evidence_kit_packet_fixtures() {
   add_artifact_from_path public_launch_evidence_kit_markdown "Public launch evidence kit Markdown" "$evidence_kit_md" release_review_gate
 }
 
+add_public_launch_evidence_bundle_packet_fixtures() {
+  local evidence_bundle_json="$TMP_DIR/public-launch-evidence-bundle.json"
+  jq -n '{
+    contract_version: "trillionnium_world_public_launch_evidence_bundle_gate_v1",
+    status: "public_launch_evidence_bundle_ready_for_real_evidence",
+    source_of_truth: "trillionnium_world_public_launch_evidence_bundle_gate",
+    green: false,
+    public_launch_ready: false,
+    public_launch_claimed: false,
+    android_s5_real_device_claimed: false,
+    live_map_ingestion_performed_by_this_script: false,
+    live_public_exposure_performed_by_this_script: false,
+    bundle_rule: "single_manifest_must_point_to_real_external_evidence_that_passes_all_field_validators_before_public_launch_credit",
+    evidence_bundle: {
+      path: null,
+      file_status: "missing",
+      contract_version: "",
+      status: "",
+      metadata_ok: false,
+      signoff_ok: false
+    },
+    template: {
+      path: "/fixture/public-launch-evidence-bundle.template.json",
+      sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      public_launch_credit: false
+    },
+    markdown_path: "/fixture/public-launch-evidence-bundle.md",
+    evidence_kit_log: "/fixture/public-launch-evidence-bundle-kit.log",
+    evidence_items: [
+      {id: "s5_real_device", label: "S5 Android real-device evidence", green: false, evidence_path: null, file_status: "missing", evidence_env_var: "TRILLIONNIUM_WORLD_S5_REAL_DEVICE_EVIDENCE_PATH", validator_name: "s5_real_device", validator_summary: "/fixture/public-launch-evidence-bundle-s5-real-device.json", actual_status: "blocked_missing_s5_real_device_evidence", accepted_status: "s5_real_device_evidence_green"},
+      {id: "production_map_pack_public", label: "Production map-pack public evidence", green: false, evidence_path: null, file_status: "missing", evidence_env_var: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH", validator_name: "production_map_pack", validator_summary: "/fixture/public-launch-evidence-bundle-production-map-pack.json", actual_status: "blocked_missing_production_map_pack_public_evidence", accepted_status: "production_map_pack_public_ready_green"},
+      {id: "first_beta_cohort", label: "First beta cohort evidence", green: false, evidence_path: null, file_status: "missing", evidence_env_var: "TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH", validator_name: "cohort_commercial", validator_summary: "/fixture/public-launch-evidence-bundle-cohort-commercial.json", actual_status: "blocked_missing_first_beta_cohort_evidence", accepted_status: "first_beta_cohort_evidence_green"},
+      {id: "commercial_launch_drill", label: "Commercial launch drill evidence", green: false, evidence_path: null, file_status: "missing", evidence_env_var: "TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH", validator_name: "cohort_commercial", validator_summary: "/fixture/public-launch-evidence-bundle-cohort-commercial.json", actual_status: "blocked_missing_commercial_launch_drill_evidence", accepted_status: "commercial_launch_drill_evidence_green"},
+      {id: "multi_node_or_live_traffic_latency", label: "Multi-node or live-traffic latency evidence", green: false, evidence_path: null, file_status: "missing", evidence_env_var: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH", validator_name: "external_ops", validator_summary: "/fixture/public-launch-evidence-bundle-external-ops.json", actual_status: "blocked_missing_multi_node_or_live_traffic_latency_evidence", accepted_status: "multi_node_or_live_traffic_latency_green"},
+      {id: "public_network_deploy", label: "Public network deploy evidence", green: false, evidence_path: null, file_status: "missing", evidence_env_var: "TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH", validator_name: "external_ops", validator_summary: "/fixture/public-launch-evidence-bundle-external-ops.json", actual_status: "blocked_missing_public_network_live_exposure_evidence", accepted_status: "public_network_deploy_green"}
+    ],
+    item_failures: [
+      {id: "s5_real_device", actual_status: "blocked_missing_s5_real_device_evidence"},
+      {id: "production_map_pack_public", actual_status: "blocked_missing_production_map_pack_public_evidence"},
+      {id: "first_beta_cohort", actual_status: "blocked_missing_first_beta_cohort_evidence"},
+      {id: "commercial_launch_drill", actual_status: "blocked_missing_commercial_launch_drill_evidence"},
+      {id: "multi_node_or_live_traffic_latency", actual_status: "blocked_missing_multi_node_or_live_traffic_latency_evidence"},
+      {id: "public_network_deploy", actual_status: "blocked_missing_public_network_live_exposure_evidence"}
+    ],
+    validators: [
+      {name: "s5_real_device", log_path: "/fixture/public-launch-evidence-bundle-s5-real-device.log", exit_status: 1},
+      {name: "production_map_pack", log_path: "/fixture/public-launch-evidence-bundle-production-map-pack.log", exit_status: 1},
+      {name: "cohort_commercial", log_path: "/fixture/public-launch-evidence-bundle-cohort-commercial.log", exit_status: 1},
+      {name: "external_ops", log_path: "/fixture/public-launch-evidence-bundle-external-ops.log", exit_status: 1}
+    ]
+  }' >"$evidence_bundle_json"
+  add_artifact_from_path public_launch_evidence_bundle "Public launch evidence bundle" "$evidence_bundle_json" release_review_gate
+
+  local evidence_bundle_md="$TMP_DIR/public-launch-evidence-bundle.md"
+  {
+    printf '# Trillionnium World Public Launch Evidence Bundle\n\n'
+    printf -- '- status: public_launch_evidence_bundle_ready_for_real_evidence\n'
+    printf -- '- public_launch_ready: false\n'
+    printf -- '- bundle_path: missing\n'
+    printf -- '- template: /fixture/public-launch-evidence-bundle.template.json\n\n'
+    printf '## Evidence Items\n\n'
+    printf -- '- s5_real_device: blocked_missing_s5_real_device_evidence (accepted: s5_real_device_evidence_green)\n'
+    printf -- '- production_map_pack_public: blocked_missing_production_map_pack_public_evidence (accepted: production_map_pack_public_ready_green)\n'
+    printf -- '- first_beta_cohort: blocked_missing_first_beta_cohort_evidence (accepted: first_beta_cohort_evidence_green)\n'
+    printf -- '- commercial_launch_drill: blocked_missing_commercial_launch_drill_evidence (accepted: commercial_launch_drill_evidence_green)\n'
+    printf -- '- multi_node_or_live_traffic_latency: blocked_missing_multi_node_or_live_traffic_latency_evidence (accepted: multi_node_or_live_traffic_latency_green)\n'
+    printf -- '- public_network_deploy: blocked_missing_public_network_live_exposure_evidence (accepted: public_network_deploy_green)\n\n'
+    printf '## Boundary\n\n'
+    printf -- '- This script validates a manifest only; it does not collect real external evidence.\n'
+    printf -- '- Public launch credit requires the bundle status and all six field validators to be green.\n'
+  } >"$evidence_bundle_md"
+  add_artifact_from_path public_launch_evidence_bundle_markdown "Public launch evidence bundle Markdown" "$evidence_bundle_md" release_review_gate
+}
+
 add_public_launch_operator_handoff_packet_fixtures() {
   local operator_handoff_json="$TMP_DIR/public-launch-operator-handoff.json"
   jq -n '

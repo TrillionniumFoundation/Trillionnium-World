@@ -292,6 +292,8 @@ required_lines=(
   'check_trillionnium_world_public_launch_template_negative_fixtures.sh'
   'public_launch_evidence_bundle'
   'public-launch-evidence-bundle.json'
+  'public_launch_evidence_bundle_markdown'
+  'public-launch-evidence-bundle.md'
   'check_trillionnium_world_public_launch_evidence_bundle.sh'
   'public_launch_bundle_negative_fixtures'
   'public-launch-bundle-negative-fixtures.json'

@@ -24,7 +24,7 @@ jq -n \
     green: true,
     fixture_kind: "classic_rts_projectile_ability_semantic_negative_fixture",
     fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_projectile_ability_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-    fake_packet_artifact_count: 118,
+    fake_packet_artifact_count: 119,
     expected_semantic_failure_count: 2,
     expected_semantic_failure_names: [
       "classic_rts_projectile_ability_semantics",
@@ -45,7 +45,7 @@ jq -e '
   .contract_version == "trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture_v1"
   and .status == "release_review_packet_integrity_projectile_ability_semantic_fixture_green"
   and .green == true
-  and .fake_packet_artifact_count == 118
+  and .fake_packet_artifact_count == 119
   and .expected_semantic_failure_count == 2
   and .expected_semantic_failure_names == [
     "classic_rts_projectile_ability_semantics",
