@@ -1781,3 +1781,9 @@ add_release_review_convergence_packet_fixtures() {
     }' >"$convergence_json"
   add_artifact_from_path release_review_convergence "Release review convergence" "$convergence_json" release_review_gate
 }
+
+add_release_review_packet_convergence_log_packet_fixtures() {
+  local convergence_log="$TMP_DIR/release-review-packet-convergence.log"
+  printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_CONVERGENCE_GREEN_WITH_PUBLIC_LAUNCH_BLOCKERS /fixture/release-review-convergence.json\n' >"$convergence_log"
+  add_artifact_from_path release_review_packet_convergence_log "Release review packet convergence log" "$convergence_log" release_review_log
+}

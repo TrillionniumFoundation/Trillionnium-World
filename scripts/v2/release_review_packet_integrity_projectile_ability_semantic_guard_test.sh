@@ -46,7 +46,7 @@ add_artifact_from_path() {
       status: (if $status == "" then null else $status end)
     }' >>"$artifacts_jsonl"
 }
-for index in $(seq 1 16); do
+for index in $(seq 1 15); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -69,6 +69,7 @@ add_release_signoff_summary_packet_fixtures
 add_release_review_quickcheck_packet_fixtures
 add_release_review_status_packet_fixtures
 add_release_review_convergence_packet_fixtures
+add_release_review_packet_convergence_log_packet_fixtures
 add_live_window_mouse_hit_test_packet_fixtures
 add_camera_minimap_sync_packet_fixtures
 
