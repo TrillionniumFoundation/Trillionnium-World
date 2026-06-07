@@ -1072,6 +1072,41 @@ add_map_modeling_packet_fixtures() {
   add_artifact_from_path map_modeling_gate "Map modeling gate" "$map_modeling_json" release_review_input
 }
 
+add_public_launch_readiness_packet_fixtures() {
+  local readiness_json="$TMP_DIR/public-launch-readiness.json"
+  jq -n '{
+    contract_version: "trillionnium_world_public_launch_readiness_v1",
+    overall_status: "blocked_missing_public_launch_evidence",
+    source_of_truth: "trillionnium_world_public_launch_readiness_gate",
+    launch_rule: "do_not_claim_public_launch_ready_without_native_bevy_local_playability_texture_sampling_render_asset_eligibility_real_device_map_pack_cohort_commercial_multi_node_and_public_deploy_evidence",
+    blockers: ["s5_real_device_matrix", "production_map_pack_public_evidence", "first_beta_cohort_evidence", "commercial_launch_drill_evidence", "multi_node_or_live_traffic_latency_evidence", "public_network_live_exposure_evidence"],
+    gates: {
+      dev_runtime_repository: {evidence_path: "/fixture/dev-runtime-repository-smoke.json", status: "file_repository_persistence_green", required_status: "file_repository_persistence_green"},
+      standalone_browser_parity: {evidence_path: "/fixture/browser-parity.json", status: "standalone_browser_parity_green", file_status: "present", accepted_status: "standalone_browser_parity_green"},
+      repository_adapter_boundary: {evidence_path: "/fixture/repository-adapter-boundary.json", status: "repository_adapter_boundary_green", file_status: "present", accepted_status: "repository_adapter_boundary_green"},
+      release_rollback_backup: {evidence_path: "/fixture/release-rollback-backup-drill.json", status: "release_rollback_backup_drill_green", file_status: "present", accepted_status: "release_rollback_backup_drill_green"},
+      cohort_commercial_schema: {evidence_path: "/fixture/cohort-commercial-evidence-schema.json", status: "cohort_commercial_evidence_schema_green", file_status: "present", accepted_status: "cohort_commercial_evidence_schema_green"},
+      cohort_commercial_evidence: {evidence_path: "/fixture/cohort-commercial-evidence.json", status: "blocked_missing_cohort_commercial_real_evidence", file_status: "present", accepted_status: "cohort_commercial_evidence_green"},
+      external_ops_evidence: {evidence_path: "/fixture/external-ops-evidence.json", status: "blocked_missing_external_ops_real_evidence", file_status: "present", accepted_status: "external_ops_evidence_green"},
+      s5_real_device_matrix: {evidence_path: "/fixture/s5-device-evidence.json", status: "blocked_missing_s5_real_device_evidence", file_status: "present", validator_summary: "/fixture/s5-real-device-evidence-validation.json", validator_file_status: "present", required_status: "s5_real_device_evidence_green"},
+      native_bevy_keyboard_replay: {evidence_path: "/fixture/bevy-build-branch-title-route-all-branch-keyboard-replay.json", file_status: "present", contract_version: "trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay_v1", green: true, required_contract: "trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay_v1", required_green: true, proof_scope: "host_side_bevy_runtime_replay_not_android_real_device"},
+      native_bevy_action_coach: {evidence_path: "/fixture/bevy-action-coach.json", file_status: "present", contract_version: "trillionnium_world_bevy_action_coach_v1", green: true, required_contract: "trillionnium_world_bevy_action_coach_v1", required_green: true, proof_scope: "host_side_bevy_runtime_guidance_not_android_real_device"},
+      native_bevy_player_hud_debug_layer: {evidence_path: "/fixture/bevy-player-hud-debug-layer.json", file_status: "present", contract_version: "trillionnium_world_bevy_player_hud_debug_layer_v1", green: true, required_contract: "trillionnium_world_bevy_player_hud_debug_layer_v1", required_green: true, proof_scope: "host_side_bevy_hud_layer_not_android_real_device"},
+      native_bevy_live_window_screenshot_sequence: {evidence_path: "/fixture/bevy-live-window-screenshot-sequence.json", file_status: "present", contract_version: "trillionnium_world_bevy_live_window_screenshot_sequence_v1", green: true, frame_sequence_gate: true, contact_sheet_gate: true, required_contract: "trillionnium_world_bevy_live_window_screenshot_sequence_v1", required_green: true, proof_scope: "host_side_live_window_screenshot_sequence_not_android_real_device"},
+      native_bevy_sprite_texture_sampling: {evidence_path: "/fixture/bevy-sprite-texture-sampling.json", file_status: "present", contract_version: "trillionnium_world_bevy_sprite_texture_sampling_v1", green: true, four_layer_texture_sampling_gate: true, texture_sample_nonblank_gate: true, required_contract: "trillionnium_world_bevy_sprite_texture_sampling_v1", required_green: true, proof_scope: "host_side_cpu_texture_sampling_not_gpu_upload_or_android_real_device"},
+      native_bevy_live_window_sampled_texture_correlation: {evidence_path: "/fixture/bevy-live-window-sampled-texture-correlation.json", file_status: "present", contract_version: "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1", green: true, four_layer_sampled_live_correlation_gate: true, required_contract: "trillionnium_world_bevy_live_window_sampled_texture_correlation_v1", required_green: true, proof_scope: "host_side_sampled_texture_to_live_window_correlation_not_android_real_device"},
+      native_bevy_render_asset_eligibility: {evidence_path: "/fixture/bevy-render-asset-eligibility.json", file_status: "present", contract_version: "trillionnium_world_bevy_render_asset_eligibility_v1", green: true, render_asset_usage_gate: true, sprite_render_reference_gate: true, required_contract: "trillionnium_world_bevy_render_asset_eligibility_v1", required_green: true, proof_scope: "host_side_render_asset_eligibility_not_render_world_extraction_or_gpu_upload"},
+      signed_map_pack: {evidence_path: "/fixture/map_pack_manifest_signed.json", summary_path: "/fixture/map-pack-gate-summary.json", status: "fixture_signed_map_pack_gate_green", manifest_status: "present", required_status: "fixture_signed_map_pack_gate_green"},
+      production_map_pack: {evidence_path: "/fixture/production-map-pack-public-evidence.json", status: "blocked_missing_production_map_pack_public_evidence", file_status: "present", accepted_status: "production_map_pack_public_ready_green", local_route_status: "production_map_pack_route_green", evidence_contract: "trillionnium_world_production_map_pack_public_evidence_gate_v1", live_ingestion_allowed: false, runtime_clients_fetch_public_osm_directly: false},
+      first_beta_cohort: {evidence_path: "", status: "blocked_missing_first_beta_cohort_evidence", file_status: "missing", accepted_status: "first_beta_cohort_evidence_green", validator_summary: "/fixture/cohort-commercial-evidence.json"},
+      commercial_launch_drill: {evidence_path: "", status: "blocked_missing_commercial_launch_drill_evidence", file_status: "missing", accepted_status: "commercial_launch_drill_evidence_green", validator_summary: "/fixture/cohort-commercial-evidence.json"},
+      multi_node_or_live_traffic_latency: {evidence_path: "", status: "blocked_missing_multi_node_or_live_traffic_latency_evidence", file_status: "missing", accepted_status: "multi_node_or_live_traffic_latency_green", local_drill_status: "local_release_latency_drill_green", validator_summary: "/fixture/external-ops-evidence.json"},
+      public_network_deploy: {evidence_path: "", status: "blocked_missing_public_network_live_exposure_evidence", file_status: "missing", accepted_status: "public_network_deploy_green", local_drill_status: "local_public_deploy_drill_green", validator_summary: "/fixture/external-ops-evidence.json"}
+    }
+  }' >"$readiness_json"
+  add_artifact_from_path public_launch_readiness "Public launch readiness" "$readiness_json" release_review_input
+}
+
 add_public_launch_evidence_intake_packet_fixtures() {
   local evidence_intake_json="$TMP_DIR/public-launch-evidence-intake.json"
   jq -n '{
