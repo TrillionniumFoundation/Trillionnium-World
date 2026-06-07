@@ -1199,6 +1199,207 @@ add_public_launch_collection_packet_fixtures() {
   add_artifact_from_path external_ops_evidence_collection "External ops evidence collection" "$external_collection_json" release_review_collection
 }
 
+add_public_launch_validator_packet_fixtures() {
+  local production_evidence_json="$TMP_DIR/production-map-pack-public-evidence.json"
+  local cohort_evidence_json="$TMP_DIR/cohort-commercial-evidence.json"
+  local external_ops_evidence_json="$TMP_DIR/external-ops-evidence.json"
+
+  jq -n '{
+    contract_version: "trillionnium_world_production_map_pack_public_evidence_gate_v1",
+    status: "blocked_missing_production_map_pack_public_evidence",
+    generated_at: "2026-06-07T00:00:00Z",
+    source_of_truth: "trillionnium_world_production_map_pack_public_evidence_gate",
+    public_map_pack_ready: false,
+    accepted_status: "production_map_pack_public_ready_green",
+    live_ingestion_performed: false,
+    live_ingestion_allowed: false,
+    runtime_clients_fetch_public_osm_directly: false,
+    public_launch_credit: "only_when_status_is_production_map_pack_public_ready_green",
+    blockers: [
+      "production_map_pack_public_evidence_file",
+      "production_map_pack_public_contract",
+      "production_map_pack_public_status",
+      "approved_production_map_source",
+      "production_map_source_artifact",
+      "license_and_odbl_compliance",
+      "live_ingestion_must_remain_disabled",
+      "offline_cache_policy",
+      "cache_retention_refresh_policy",
+      "web_public_attribution_screenshot",
+      "native_bevy_android_attribution_screenshot",
+      "matrix_or_readonly_attribution_screenshot",
+      "sensitive_poi_filter",
+      "sensitive_poi_report_artifact",
+      "geofence_policy",
+      "geofence_policy_artifact",
+      "key_custody_rotation",
+      "key_rotation_runbook_artifact",
+      "public_distribution_revocation",
+      "public_distribution_package_artifact",
+      "revocation_probe_artifact",
+      "public_map_pack_rollback",
+      "public_map_pack_rollback_artifact",
+      "operator_signoff"
+    ],
+    operator_evidence: {path: "", file_status: "missing", contract_version: "", status: ""},
+    route_prerequisite: {evidence_path: "/fixture/production-map-pack-route.json", file_status: "present", status: "production_map_pack_route_green", accepted_status: "production_map_pack_route_green"},
+    schema: {
+      path: "/fixture/production-map-pack-public-evidence.schema.json",
+      sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      template_path: "/fixture/production-map-pack-public-evidence.template.json",
+      template_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    required_checks: {
+      approved_production_map_source: true,
+      production_map_source_artifact_status: "missing",
+      license_and_odbl_compliance: true,
+      live_ingestion_disabled: true,
+      offline_cache_policy: true,
+      cache_retention_refresh_policy: null,
+      direct_public_osm_client_fetch_forbidden: true,
+      web_public_attribution_status: "",
+      web_public_attribution_artifact_status: "missing",
+      native_bevy_android_attribution_status: "",
+      native_bevy_android_attribution_artifact_status: "missing",
+      matrix_or_readonly_attribution_status: "",
+      matrix_or_readonly_attribution_artifact_status: "missing",
+      sensitive_poi_filter_status: "",
+      sensitive_poi_report_artifact_status: "missing",
+      geofence_policy_status: "",
+      geofence_policy_artifact_status: "missing",
+      key_custody_status: "",
+      key_rotation_runbook_artifact_status: "missing",
+      distribution_revocation_status: "",
+      public_distribution_package_artifact_status: "missing",
+      revocation_probe_artifact_status: "missing",
+      rollback_status: "",
+      rollback_evidence_artifact_status: "missing"
+    }
+  }' >"$production_evidence_json"
+  add_artifact_from_path production_map_pack_public_evidence "Production map-pack public evidence" "$production_evidence_json" release_review_input
+
+  jq -n '{
+    contract_version: "trillionnium_world_cohort_commercial_evidence_gate_v1",
+    status: "blocked_missing_cohort_commercial_real_evidence",
+    generated_at: "2026-06-07T00:00:00Z",
+    source_of_truth: "trillionnium_world_cohort_commercial_evidence_gate",
+    public_launch_credit: "only_when_first_beta_and_commercial_statuses_are_green_after_field_validation",
+    schema: {
+      summary_path: "/fixture/cohort-commercial-evidence-schema.json",
+      refresh_log_path: "/fixture/cohort-commercial-evidence-schema-refresh.log"
+    },
+    first_beta: {
+      status: "blocked_missing_first_beta_cohort_evidence",
+      accepted_status: "first_beta_cohort_evidence_green",
+      operator_evidence: {path: null, file_status: "missing", contract_version: "", status: ""},
+      participant_count: 0,
+      participants_len: 0,
+      sessions_len: 0,
+      blockers: [
+        "first_beta_evidence_file",
+        "first_beta_contract",
+        "first_beta_status",
+        "participant_count_5_to_10",
+        "participants_match_count",
+        "session_count_covers_participants",
+        "real_participants_signoff",
+        "synthetic_cohort_rejected",
+        "first_beta_operator_signature"
+      ]
+    },
+    commercial_launch_drill: {
+      status: "blocked_missing_commercial_launch_drill_evidence",
+      accepted_status: "commercial_launch_drill_evidence_green",
+      operator_evidence: {path: null, file_status: "missing", contract_version: "", status: ""},
+      required_drills: [
+        {drill: "payment", status: "missing", evidence: null, green: false},
+        {drill: "refund", status: "missing", evidence: null, green: false},
+        {drill: "support", status: "missing", evidence: null, green: false},
+        {drill: "legal", status: "missing", evidence: null, green: false},
+        {drill: "operator", status: "missing", evidence: null, green: false},
+        {drill: "traffic", status: "missing", evidence: null, green: false}
+      ],
+      blockers: [
+        "commercial_evidence_file",
+        "commercial_contract",
+        "commercial_status",
+        "payment_drill_green_evidence",
+        "refund_drill_green_evidence",
+        "support_drill_green_evidence",
+        "legal_drill_green_evidence",
+        "operator_drill_green_evidence",
+        "traffic_drill_green_evidence",
+        "real_or_sanitized_commercial_signoff",
+        "synthetic_commercial_rejected",
+        "commercial_operator_signature"
+      ]
+    }
+  }' >"$cohort_evidence_json"
+  add_artifact_from_path cohort_commercial_evidence "Cohort/commercial evidence validation" "$cohort_evidence_json" release_review_input
+
+  jq -n '{
+    contract_version: "trillionnium_world_external_ops_evidence_gate_v1",
+    status: "blocked_missing_external_ops_real_evidence",
+    generated_at: "2026-06-07T00:00:00Z",
+    source_of_truth: "trillionnium_world_external_ops_evidence_gate",
+    public_launch_credit: "only_when_multi_node_or_live_traffic_and_public_network_deploy_statuses_are_green_after_field_validation",
+    local_drill_rule: "local_release_load_drill_only_not_multi_node_or_live_traffic",
+    live_public_exposure_performed_by_this_script: false,
+    multi_node_or_live_traffic_latency: {
+      status: "blocked_missing_multi_node_or_live_traffic_latency_evidence",
+      accepted_status: "multi_node_or_live_traffic_latency_green",
+      operator_evidence: {path: null, file_status: "missing", contract_version: "", status: ""},
+      local_drill: {path: "/fixture/release-latency-drill.json", file_status: "present", status: "local_release_latency_drill_green", public_launch_credit: false},
+      node_count: 0,
+      endpoint_count: 0,
+      public_url_probe_sample_count: 0,
+      blockers: [
+        "multi_node_latency_evidence_file",
+        "multi_node_latency_contract",
+        "multi_node_latency_status",
+        "multi_node_or_live_traffic_scope_confirmed",
+        "multi_node_count_or_live_traffic",
+        "latency_endpoint_count",
+        "public_url_probe_samples",
+        "p95_latency_budget",
+        "monitoring_timeseries_evidence",
+        "rollback_under_load",
+        "real_multi_node_or_live_traffic_signoff",
+        "synthetic_latency_rejected",
+        "latency_operator_signature"
+      ]
+    },
+    public_network_deploy: {
+      status: "blocked_missing_public_network_live_exposure_evidence",
+      accepted_status: "public_network_deploy_green",
+      operator_evidence: {path: null, file_status: "missing", contract_version: "", status: ""},
+      local_drill: {path: "/fixture/public-network-deploy-evidence.json", file_status: "present", status: "local_public_deploy_drill_green", public_launch_credit: false},
+      public_url_probe_sample_count: 0,
+      blockers: [
+        "public_network_deploy_evidence_file",
+        "public_network_deploy_contract",
+        "public_network_deploy_status",
+        "public_network_exposure_approved",
+        "host_domain_public_url",
+        "tls_certificate",
+        "public_url_probe_samples",
+        "public_url_health_probe",
+        "monitoring_alerts",
+        "backup_restore",
+        "public_deploy_rollback",
+        "public_exposure_signoff",
+        "synthetic_deploy_rejected",
+        "public_deploy_operator_signature"
+      ]
+    },
+    templates: {
+      multi_node_or_live_traffic_latency: "/fixture/multi-node-latency-evidence.template.json",
+      public_network_deploy: "/fixture/public-network-deploy-evidence.template.json"
+    }
+  }' >"$external_ops_evidence_json"
+  add_artifact_from_path external_ops_evidence "External ops evidence validation" "$external_ops_evidence_json" release_review_input
+}
+
 add_public_launch_evidence_intake_packet_fixtures() {
   local evidence_intake_json="$TMP_DIR/public-launch-evidence-intake.json"
   jq -n '{

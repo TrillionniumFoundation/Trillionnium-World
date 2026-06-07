@@ -52,7 +52,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 5); do
+for index in $(seq 1 2); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -70,6 +70,7 @@ add_campaign_ui_continuity_packet_fixtures
 add_map_modeling_packet_fixtures
 add_public_launch_readiness_packet_fixtures
 add_public_launch_collection_packet_fixtures
+add_public_launch_validator_packet_fixtures
 add_public_launch_evidence_intake_packet_fixtures
 add_public_launch_blocker_consistency_packet_fixtures
 add_public_launch_evidence_kit_packet_fixtures
