@@ -21,6 +21,8 @@ required_script_lines=(
   'trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1'
   'trillionnium_world_bevy_classic_rts_tech_tree_v1'
   'setup_surface_count == 10'
+  'runtime_screen_gate == true'
+  'evidence_board_only == false'
   'match_setup_ui_replication_gate == true'
   'external_evidence_ignored_for_current_replication_pass == true'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MATCH_SETUP_UI_REPLICATION_GREEN'
@@ -36,7 +38,7 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MATCH_SETUP_UI_REPLICATION_CONTRACT'
   'native_classic_rts_match_setup_ui_replication_evidence_json'
-  'TRNM RUST/BEVY MATCH SETUP UI REPLICATION MATRIX'
+  'TRNM RUST/BEVY MATCH SETUP RUNTIME SURFACE'
   'native_classic_rts_shell_meta_ui_replication_evidence_json'
   'native_classic_rts_campaign_entry_evidence_json'
   'native_classic_rts_first_contact_basin_spec_evidence_json'
@@ -53,6 +55,8 @@ required_source_lines=(
   'START READY'
   'NO-EXTERNAL BOUNDARY'
   'match_setup_ui_replication_gate'
+  'runtime_screen_gate'
+  'player_runtime_match_setup_screen'
   'external_evidence_ignored_for_current_replication_pass'
 )
 
@@ -91,4 +95,4 @@ for line in "${required_ci_lines[@]}"; do
   fi
 done
 
-echo "[PASS] classic RTS match setup UI replication gate remains connected to Rust CLI, pre-match setup sources, playtest readiness, release-review CI, and no-external-evidence boundaries"
+echo "[PASS] classic RTS match setup UI replication gate remains connected to Rust CLI, pre-match runtime screen sources, playtest readiness, release-review CI, and no-external-evidence boundaries"

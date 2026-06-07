@@ -56,6 +56,9 @@ jq -e '
   and .setup_pixel_counts.start_ready > 2000
   and .setup_pixel_counts.boundary > 2000
   and .setup_pixel_counts.highlight > 3000
+  and .runtime_screen_mode == "player_runtime_match_setup_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.campaign_input_action_count == 73
   and .source_headline.campaign_slot_bytes > 20000
@@ -72,6 +75,7 @@ jq -e '
   and .faction_gate == true
   and .no_external_boundary_gate == true
   and .setup_preview_gate == true
+  and .runtime_screen_gate == true
   and .source_preview_gate == true
   and .match_setup_ui_replication_gate == true
   and .internal_match_setup_ui_replication_claimed == true

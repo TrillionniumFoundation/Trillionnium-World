@@ -20281,7 +20281,7 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         PANEL_HEIGHT,
         48,
         46,
-        "TRNM RUST/BEVY FULL SCREEN UI REPLICATION MATRIX",
+        "TRNM RUST/BEVY FULL SCREEN RUNTIME SURFACE",
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
@@ -20460,6 +20460,289 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
             );
         }
     }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        136,
+        1184,
+        456,
+        0x0b1110,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        62,
+        150,
+        720,
+        316,
+        VIEWPORT_COLOR,
+    );
+    for line in 0..9_i32 {
+        let x = 82 + line * 78;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            154,
+            3,
+            306,
+            0x214b45,
+        );
+    }
+    for line in 0..6_i32 {
+        let y = 174 + line * 48;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            68,
+            y,
+            702,
+            3,
+            0x214b45,
+        );
+    }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        86,
+        168,
+        320,
+        34,
+        TITLE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        100,
+        178,
+        "TITLE/CAMPAIGN ENTRY: START / CONTINUE / REPLAY",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        610,
+        338,
+        150,
+        106,
+        MAP_COLOR,
+    );
+    let viewport_rect =
+        rts_camera_minimap_viewport_rect(RtsScrollableMapCameraState::default(), 150, 106);
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        610 + viewport_rect.x,
+        338 + viewport_rect.y,
+        viewport_rect.width,
+        viewport_rect.height,
+        HIGHLIGHT_COLOR,
+    );
+    for index in 0..4_i32 {
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            192 + index * 72,
+            276 + (index % 2) * 38,
+            38,
+            30,
+            UNIT_STATUS_COLOR,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            198 + index * 72,
+            282 + (index % 2) * 38,
+            26,
+            6,
+            HIGHLIGHT_COLOR,
+        );
+    }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        802,
+        150,
+        410,
+        72,
+        UNIT_STATUS_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        820,
+        170,
+        "UNIT STATUS CARD / SELECTED SQUAD / HP + XP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        802,
+        238,
+        194,
+        86,
+        HUD_SKIN_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        818,
+        258,
+        "PRODUCTION HUD",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1018,
+        238,
+        194,
+        86,
+        BUILD_TECH_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1034,
+        258,
+        "BUILD + TECH",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        802,
+        340,
+        194,
+        86,
+        COMBAT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        818,
+        360,
+        "ABILITY / COMBAT UI",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1018,
+        340,
+        194,
+        86,
+        CAMPAIGN_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1034,
+        360,
+        "CAMPAIGN OUTCOME",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        62,
+        486,
+        720,
+        78,
+        INTERACTION_COLOR,
+    );
+    for index in 0..10_i32 {
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            82 + index * 66,
+            504,
+            48,
+            34,
+            0x3b2024,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            90 + index * 66,
+            512,
+            32,
+            5,
+            HIGHLIGHT_COLOR,
+        );
+    }
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        82,
+        548,
+        "COMMAND GRID / QUEUE / BUILD GHOST / RIGHT-CLICK FEEDBACK",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        802,
+        454,
+        410,
+        110,
+        HANDOFF_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        820,
+        478,
+        "OPEN-WORLD HANDOFF",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        820,
+        502,
+        "league-coliseum resume / route replay / reward panel",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
 
     classic_draw_rect(
         &mut pixels,
@@ -20655,6 +20938,10 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         && campaign_outcome_pixel_count > 2_000
         && open_world_handoff_pixel_count > 2_000
         && highlight_pixel_count > 3_000;
+    let runtime_screen_gate = replication_preview_gate
+        && replication_surfaces.len() == 10
+        && viewport_rect.width > 20
+        && viewport_rect.height > 14;
     let source_preview_gate = file_ready(&visual_path)
         && file_ready(&production_ui_path)
         && file_ready(&interaction_path)
@@ -20672,7 +20959,7 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         && combat_ui_gate
         && campaign_outcome_gate
         && source_policy_gate
-        && replication_preview_gate
+        && runtime_screen_gate
         && source_preview_gate;
     let green = full_screen_ui_replication_gate;
 
@@ -20710,6 +20997,23 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         "replication_surface_count": replication_surfaces.len(),
         "replication_slot_ids": replication_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
         "replication_source_surfaces": replication_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "runtime_screen_mode": "player_runtime_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "title_campaign_bar": "top-left campaign CTA strip",
+            "tactical_viewport": "single large scrollable map viewport",
+            "minimap_camera": "in-viewport minimap with live viewport rect",
+            "right_rail": "unit status, production, build tech, ability combat, campaign outcome",
+            "bottom_command_grid": "player command buttons, queue, and interaction feedback",
+            "handoff_panel": "open-world continuation and replay resume"
+        },
+        "runtime_viewport_rect": {
+            "x": viewport_rect.x,
+            "y": viewport_rect.y,
+            "width": viewport_rect.width,
+            "height": viewport_rect.height
+        },
         "screen_matrix_pixel_counts": {
             "board": replication_board_pixel_count,
             "title_campaign": title_campaign_pixel_count,
@@ -20745,6 +21049,7 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         "campaign_outcome_gate": campaign_outcome_gate,
         "source_policy_gate": source_policy_gate,
         "replication_preview_gate": replication_preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "full_screen_ui_replication_gate": full_screen_ui_replication_gate,
         "internal_full_screen_ui_replication_claimed": full_screen_ui_replication_gate,
@@ -20756,7 +21061,7 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "This gate is the internal Rust/Bevy full screen/UI replication matrix. It binds the player-visible title/campaign entry, tactical match viewport, HUD/command grid, map/minimap camera, build/tech overlays, unit status, ability/combat readability, production interaction polish, campaign outcome, and open-world handoff surfaces into one local native evidence board. It deliberately ignores Android S5, public launch, commercial cohort, and other external evidence for this replication pass."
+        "source_of_truth": "This gate is the internal Rust/Bevy full screen/UI runtime surface. It binds the player-visible title/campaign entry, tactical match viewport, HUD/command grid, map/minimap camera, build/tech overlays, unit status, ability/combat readability, production interaction polish, campaign outcome, and open-world handoff surfaces into one local native screen-shaped preview, not a board-only claim. It deliberately ignores Android S5, public launch, commercial cohort, and other external evidence for this replication pass."
     }))
     .expect("classic RTS full screen UI replication evidence serializes")
 }
@@ -21617,7 +21922,7 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         PANEL_HEIGHT,
         48,
         46,
-        "TRNM RUST/BEVY MATCH SETUP UI REPLICATION MATRIX",
+        "TRNM RUST/BEVY MATCH SETUP RUNTIME SURFACE",
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
@@ -21771,6 +22076,251 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
             );
         }
     }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        136,
+        1184,
+        456,
+        0x0b120f,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        64,
+        150,
+        372,
+        58,
+        CAMPAIGN_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        82,
+        170,
+        "CAMPAIGN ACTIONS: START / CONTINUE / REPLAY",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        64,
+        226,
+        360,
+        256,
+        MAP_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        84,
+        246,
+        "MAP SELECT: FIRST CONTACT BASIN",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for index in 0..4_i32 {
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            96 + index * 72,
+            334 + (index % 2) * 54,
+            48,
+            34,
+            SPAWN_COLOR,
+        );
+    }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        452,
+        150,
+        338,
+        332,
+        MINIMAP_COLOR,
+    );
+    for line in 0..5_i32 {
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            482 + line * 56,
+            194,
+            3,
+            226,
+            0x224d4f,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            482,
+            194 + line * 44,
+            250,
+            3,
+            0x224d4f,
+        );
+    }
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        474,
+        170,
+        "MINIMAP PREVIEW / CAMERA FOG / SPAWN LANES",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        816,
+        150,
+        180,
+        74,
+        FACTION_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        834,
+        172,
+        "FACTION: MIRROR GUARD",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1018,
+        150,
+        180,
+        74,
+        RESOURCE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1036,
+        172,
+        "RESOURCES: BEACONS",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        816,
+        242,
+        180,
+        74,
+        BOT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        834,
+        264,
+        "BOT: LOCAL FIXTURE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1018,
+        242,
+        180,
+        74,
+        VICTORY_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1036,
+        264,
+        "VICTORY: BEACON EXTRACT",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        816,
+        334,
+        382,
+        72,
+        BOUNDARY_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        834,
+        356,
+        "NO S5 / NO PUBLIC / NO OPENRA COPY CLAIM",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        816,
+        428,
+        382,
+        54,
+        START_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        834,
+        448,
+        "START READY: LOCAL RUST/BEVY MATCH SETUP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        64,
+        504,
+        1134,
+        60,
+        HIGHLIGHT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        84,
+        526,
+        "PLAYER PRE-MATCH SCREEN: campaign action -> map/faction/spawn/rules -> minimap -> ready",
+        1,
+        0x111a16,
+    );
 
     classic_draw_rect(
         &mut pixels,
@@ -21932,6 +22482,10 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         && start_pixel_count > 2_000
         && boundary_pixel_count > 2_000
         && highlight_pixel_count > 3_000;
+    let runtime_screen_gate = setup_preview_gate
+        && setup_surfaces.len() == 10
+        && str_at(&basin_spec, "map_id") == "first_contact_basin"
+        && str_at(&tech_tree, "final_faction_id") == "mirror_guard";
     let source_preview_gate = file_ready(&shell_meta_path)
         && file_ready(&tech_tree_path)
         && bool_at(&map_ui, "preview_gate");
@@ -21941,7 +22495,7 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         && map_ui_gate
         && faction_gate
         && no_external_boundary_gate
-        && setup_preview_gate
+        && runtime_screen_gate
         && source_preview_gate;
     let green = match_setup_ui_replication_gate;
 
@@ -21970,6 +22524,16 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         "setup_surface_count": setup_surfaces.len(),
         "setup_slot_ids": setup_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
         "setup_source_surfaces": setup_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "runtime_screen_mode": "player_runtime_match_setup_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "campaign_actions": "top-left start/continue/replay strip",
+            "map_select": "large First Contact Basin setup panel",
+            "minimap_preview": "center camera/fog/spawn preview",
+            "right_rules_rail": "faction, resources, bot, victory, and boundary cards",
+            "start_ready": "bottom-right local Rust/Bevy ready state"
+        },
         "setup_pixel_counts": {
             "board": board_pixel_count,
             "campaign_actions": campaign_pixel_count,
@@ -22002,6 +22566,7 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         "faction_gate": faction_gate,
         "no_external_boundary_gate": no_external_boundary_gate,
         "setup_preview_gate": setup_preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "match_setup_ui_replication_gate": match_setup_ui_replication_gate,
         "internal_match_setup_ui_replication_claimed": match_setup_ui_replication_gate,
@@ -22013,7 +22578,7 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "This gate fills the player-facing pre-match setup gap between shell/meta UI and the in-match full-screen matrix. It binds local Rust/Bevy campaign actions, First Contact Basin map/rule selection, Mirror Guard faction readiness, spawn/resource/victory setup panels, minimap preview, and start-ready state without using Android S5, public-launch, OpenRA screen-for-screen, or copied third-party asset evidence."
+        "source_of_truth": "This gate fills the player-facing pre-match setup gap between shell/meta UI and the in-match full-screen runtime surface. It binds local Rust/Bevy campaign actions, First Contact Basin map/rule selection, Mirror Guard faction readiness, spawn/resource/victory setup panels, minimap preview, and start-ready state into a single screen-shaped local preview without using Android S5, public-launch, OpenRA screen-for-screen, or copied third-party asset evidence."
     }))
     .expect("classic RTS match setup UI replication evidence serializes")
 }

@@ -25,6 +25,8 @@ required_script_lines=(
   'trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1'
   'trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness_v1'
   'replication_surface_count == 10'
+  'runtime_screen_gate == true'
+  'evidence_board_only == false'
   'full_screen_ui_replication_gate == true'
   'external_evidence_ignored_for_current_replication_pass == true'
   'screen_for_screen_openra_ui_claimed == false'
@@ -41,7 +43,7 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_SCREEN_UI_REPLICATION_CONTRACT'
   'native_classic_rts_full_screen_ui_replication_evidence_json'
-  'TRNM RUST/BEVY FULL SCREEN UI REPLICATION MATRIX'
+  'TRNM RUST/BEVY FULL SCREEN RUNTIME SURFACE'
   'native_classic_rts_campaign_entry_evidence_json'
   'native_classic_rts_visual_fidelity_evidence_json'
   'native_classic_rts_map_ui_modeling_readiness_evidence_json'
@@ -62,6 +64,8 @@ required_source_lines=(
   'CAMPAIGN OUTCOME'
   'OPEN-WORLD HANDOFF'
   'full_screen_ui_replication_gate'
+  'runtime_screen_gate'
+  'player_runtime_screen'
   'external_evidence_ignored_for_current_replication_pass'
 )
 
@@ -100,4 +104,4 @@ for line in "${required_ci_lines[@]}"; do
   fi
 done
 
-echo "[PASS] classic RTS full screen/UI replication gate remains connected to Rust CLI, internal screen matrix sources, playtest readiness, release-review CI, and no-external-evidence boundaries"
+echo "[PASS] classic RTS full screen/UI replication gate remains connected to Rust CLI, internal runtime screen sources, playtest readiness, release-review CI, and no-external-evidence boundaries"

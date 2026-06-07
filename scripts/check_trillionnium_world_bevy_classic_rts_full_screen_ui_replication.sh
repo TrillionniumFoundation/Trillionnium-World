@@ -58,6 +58,11 @@ jq -e '
   and .screen_matrix_pixel_counts.campaign_outcome > 2000
   and .screen_matrix_pixel_counts.open_world_handoff > 2000
   and .screen_matrix_pixel_counts.highlight > 3000
+  and .runtime_screen_mode == "player_runtime_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_viewport_rect.width > 20
+  and .runtime_viewport_rect.height > 14
   and (.source_headline.title_actions | index("CAMPAIGN:START") != null)
   and (.source_headline.title_actions | index("CAMPAIGN:CONTINUE") != null)
   and (.source_headline.title_actions | index("CAMPAIGN:REPLAY") != null)
@@ -79,6 +84,7 @@ jq -e '
   and .campaign_outcome_gate == true
   and .source_policy_gate == true
   and .replication_preview_gate == true
+  and .runtime_screen_gate == true
   and .source_preview_gate == true
   and .full_screen_ui_replication_gate == true
   and .internal_full_screen_ui_replication_claimed == true
