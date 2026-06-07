@@ -213,6 +213,7 @@ artifact cex_adapter_readiness "CEX production world adapter readiness" "$ROOT/a
 artifact s5_real_device_evidence "S5 real-device evidence validation" "$ROOT/acceptance/S5_native_bevy_device/latest/s5-real-device-evidence-validation.json" release_review_input
 artifact public_launch_readiness "Public launch readiness" "$ACCEPTANCE_DIR/public-launch-readiness.json" release_review_input
 artifact public_launch_evidence_intake "Public launch evidence intake" "$ACCEPTANCE_DIR/public-launch-evidence-intake.json" release_review_input
+artifact public_launch_evidence_intake_markdown "Public launch evidence intake Markdown" "$ACCEPTANCE_DIR/public-launch-evidence-intake.md" release_review_input
 artifact production_map_pack_public_evidence_collection "Production map-pack public evidence collection" "$ROOT/acceptance/S4_map_pack_gate/latest/production-map-pack-public-evidence-collection.json" release_review_collection
 artifact map_modeling_gate "Map modeling gate" "$ROOT/acceptance/S4_map_pack_gate/latest/map-modeling-gate.json" release_review_input
 artifact cohort_commercial_evidence_collection "Cohort/commercial evidence collection" "$ACCEPTANCE_DIR/cohort-commercial-evidence-collection.json" release_review_collection
