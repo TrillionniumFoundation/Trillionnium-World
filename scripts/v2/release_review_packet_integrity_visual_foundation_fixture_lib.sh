@@ -1329,6 +1329,27 @@ add_public_launch_evidence_bundle_packet_fixtures() {
   add_artifact_from_path public_launch_evidence_bundle_markdown "Public launch evidence bundle Markdown" "$evidence_bundle_md" release_review_gate
 }
 
+add_public_launch_status_only_fixture_guard_packet_fixtures() {
+  local status_only_json="$TMP_DIR/public-launch-status-only-fixtures.json"
+  jq -n '{
+    contract_version: "trillionnium_world_public_launch_status_only_fixture_guard_v1",
+    status: "public_launch_status_only_fixture_guard_green",
+    source_of_truth: "trillionnium_world_public_launch_status_only_fixture_guard",
+    guard_rule: "status_only_green_fixtures_must_be_rejected_by_field_level_public_launch_evidence_validators",
+    fixture_dir: "/fixture/status-only",
+    result_count: 4,
+    failure_count: 0,
+    results: [
+      {name: "s5_status_only_fixture", exit_code: 1, summary_path: "/fixture/s5-summary.json", expected_status: "blocked_missing_s5_real_device_evidence", summary_status: "blocked_missing_s5_real_device_evidence", blocked_as_expected: true, blocker_present: true, stdout_path: "/fixture/s5.out", stderr_path: "/fixture/s5.err"},
+      {name: "production_map_pack_status_only_fixture", exit_code: 1, summary_path: "/fixture/map-summary.json", expected_status: "blocked_missing_production_map_pack_public_evidence", summary_status: "blocked_missing_production_map_pack_public_evidence", blocked_as_expected: true, blocker_present: true, stdout_path: "/fixture/map.out", stderr_path: "/fixture/map.err"},
+      {name: "cohort_commercial_status_only_fixture", exit_code: 1, summary_path: "/fixture/cohort-commercial-summary.json", expected_status: "blocked_missing_cohort_commercial_real_evidence", summary_status: "blocked_missing_cohort_commercial_real_evidence", blocked_as_expected: true, blocker_present: true, stdout_path: "/fixture/cohort-commercial.out", stderr_path: "/fixture/cohort-commercial.err"},
+      {name: "external_ops_status_only_fixture", exit_code: 1, summary_path: "/fixture/external-ops-summary.json", expected_status: "blocked_missing_external_ops_real_evidence", summary_status: "blocked_missing_external_ops_real_evidence", blocked_as_expected: true, blocker_present: true, stdout_path: "/fixture/external-ops.out", stderr_path: "/fixture/external-ops.err"}
+    ],
+    failures: []
+  }' >"$status_only_json"
+  add_artifact_from_path public_launch_status_only_fixture_guard "Public launch status-only fixture guard" "$status_only_json" release_review_gate
+}
+
 add_public_launch_operator_handoff_packet_fixtures() {
   local operator_handoff_json="$TMP_DIR/public-launch-operator-handoff.json"
   jq -n '
