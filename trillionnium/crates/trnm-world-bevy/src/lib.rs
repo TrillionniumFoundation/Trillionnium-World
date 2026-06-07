@@ -20898,7 +20898,9 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         && bool_at(&combat_readability, "ability_telegraph_gate")
         && bool_at(&combat_readability, "depth_readability_gate")
         && bool_at(&combat_readability, "pressure_feedback_gate")
-        && bool_at(&combat_readability, "source_policy_gate");
+        && bool_at(&combat_readability, "source_policy_gate")
+        && bool_at(&combat_readability, "runtime_screen_gate")
+        && !bool_at(&combat_readability, "evidence_board_only");
     let campaign_outcome_gate = contract_is(
         &campaign_outcome,
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
@@ -20908,6 +20910,8 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         && bool_at(&campaign_outcome, "base_assault_gate")
         && bool_at(&campaign_outcome, "battle_aftermath_gate")
         && bool_at(&campaign_outcome, "open_world_return_gate")
+        && bool_at(&campaign_outcome, "runtime_screen_gate")
+        && !bool_at(&campaign_outcome, "evidence_board_only")
         && pointer_str(
             &campaign_outcome,
             "/open_world_summary/final_open_world_handoff_state",
@@ -23562,6 +23566,8 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         && bool_at(&campaign_outcome, "base_assault_gate")
         && bool_at(&campaign_outcome, "battle_aftermath_gate")
         && bool_at(&campaign_outcome, "open_world_return_gate")
+        && bool_at(&campaign_outcome, "runtime_screen_gate")
+        && !bool_at(&campaign_outcome, "evidence_board_only")
         && pointer_str(
             &campaign_outcome,
             "/open_world_summary/final_open_world_handoff_state",
@@ -66081,13 +66087,15 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
     ]
     .iter()
     .all(|path| file_ready(path));
-    let green = first_minute_gate
+    let runtime_screen_gate = first_minute_gate
         && objective_victory_gate
         && base_assault_gate
         && battle_aftermath_gate
         && open_world_return_gate
         && native_boundary_gate
         && preview_gate;
+    let campaign_outcome_ui_readiness_gate = runtime_screen_gate;
+    let green = campaign_outcome_ui_readiness_gate;
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
@@ -66095,6 +66103,16 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         "green": green,
         "preview_dir": preview_dir,
         "preview_count": 5,
+        "runtime_screen_mode": "player_runtime_campaign_outcome_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "outcome_flow_lane": "title to victory to aftermath to open-world resume",
+            "objective_result_panel": "relay beacon extracted victory and defeat-risk summary",
+            "base_assault_panel": "enemy barracks breach resolution",
+            "aftermath_rewards_panel": "growth, rewards, and secure expansion next action",
+            "open_world_resume_panel": "league-coliseum arena_outdoor resume state"
+        },
         "preview_paths": {
             "first_minute_readiness": first_minute_path,
             "objective_victory_loop": victory_path,
@@ -66116,6 +66134,8 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         "open_world_return_gate": open_world_return_gate,
         "native_boundary_gate": native_boundary_gate,
         "preview_gate": preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
+        "campaign_outcome_ui_readiness_gate": campaign_outcome_ui_readiness_gate,
         "campaign_flow": [
             "TITLE campaign entry",
             "objective claim/extract victory",
@@ -66157,7 +66177,7 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         "public_launch_ready": false,
         "screen_for_screen_openra_ui_claimed": false,
         "openra_engine_port_claimed": false,
-        "source_of_truth": "The campaign outcome/UI readiness gate verifies the playable first-match loop as one Bevy-native chain: first-minute campaign entry, objective victory and defeat-risk reduction, base assault breach, battle aftermath rewards/next-action UI, and open-world route resume. It intentionally remains local native evidence and does not claim public-launch readiness or external OpenRA parity."
+        "source_of_truth": "The campaign outcome/UI readiness gate verifies the playable first-match loop as one Bevy-native player runtime outcome screen chain: first-minute campaign entry, objective victory and defeat-risk reduction, base assault breach, battle aftermath rewards/next-action UI, and open-world route resume. It intentionally remains local native evidence and does not claim public-launch readiness or external OpenRA parity."
     }))
     .expect("classic RTS campaign outcome UI readiness evidence serializes")
 }
@@ -66317,13 +66337,15 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
     ]
     .iter()
     .all(|path| file_ready(path));
-    let green = unit_status_gate
+    let runtime_screen_gate = unit_status_gate
         && command_feedback_gate
         && ability_telegraph_gate
         && depth_readability_gate
         && pressure_feedback_gate
         && source_policy_gate
         && preview_gate;
+    let combat_readability_pressure_readiness_gate = runtime_screen_gate;
+    let green = combat_readability_pressure_readiness_gate;
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_CONTRACT,
@@ -66331,6 +66353,16 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
         "green": green,
         "preview_dir": preview_dir,
         "preview_count": 5,
+        "runtime_screen_mode": "player_runtime_combat_pressure_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "unit_status_panel": "selected unit portrait, bars, role, and queue badges",
+            "command_feedback_lane": "marquee, attack, error, and acknowledgment feedback",
+            "ability_telegraph_panel": "tooltip, range, cooldown, queue, and warning overlays",
+            "depth_readability_view": "foreground, behind-building, mask, and target priority cues",
+            "pressure_panel": "central keep shield, guard, siege line, and defeat-risk feedback"
+        },
         "preview_paths": {
             "unit_status_portrait": unit_path,
             "selection_command_feedback": command_path,
@@ -66352,6 +66384,8 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
         "pressure_feedback_gate": pressure_feedback_gate,
         "source_policy_gate": source_policy_gate,
         "preview_gate": preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
+        "combat_readability_pressure_readiness_gate": combat_readability_pressure_readiness_gate,
         "unit_status_summary": {
             "portrait_frame_pixel_count": unit.get("portrait_frame_pixel_count").cloned().unwrap_or(Value::Null),
             "health_bar_pixel_count": unit.get("health_bar_pixel_count").cloned().unwrap_or(Value::Null),
@@ -66393,7 +66427,7 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "The combat readability/pressure readiness gate keeps five player-facing combat UI surfaces green together: unit status portraits, command feedback/error acknowledgment, ability tooltip telegraphs, depth/occlusion readability, and central-keep pressure/defeat-risk feedback. It remains Bevy-native original-art evidence and does not claim public launch readiness."
+        "source_of_truth": "The combat readability/pressure readiness gate keeps five player-facing combat runtime UI surfaces green together: unit status portraits, command feedback/error acknowledgment, ability tooltip telegraphs, depth/occlusion readability, and central-keep pressure/defeat-risk feedback. It remains Bevy-native original-art evidence and does not claim public launch readiness."
     }))
     .expect("classic RTS combat readability pressure readiness evidence serializes")
 }

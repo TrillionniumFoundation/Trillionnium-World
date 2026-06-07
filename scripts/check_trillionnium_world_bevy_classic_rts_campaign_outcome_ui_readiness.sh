@@ -16,6 +16,12 @@ jq -e '
   and .status == "classic_rts_campaign_outcome_ui_readiness_green"
   and .green == true
   and .preview_count == 5
+  and .runtime_screen_mode == "player_runtime_campaign_outcome_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.outcome_flow_lane == "title to victory to aftermath to open-world resume"
+  and .runtime_screen_layout.objective_result_panel == "relay beacon extracted victory and defeat-risk summary"
+  and .runtime_screen_layout.open_world_resume_panel == "league-coliseum arena_outdoor resume state"
   and .source_contracts.first_minute_readiness == "trillionnium_world_bevy_classic_rts_first_minute_readiness_v1"
   and .source_contracts.objective_victory_loop == "trillionnium_world_bevy_classic_rts_objective_victory_loop_v1"
   and .source_contracts.base_assault_resolution == "trillionnium_world_bevy_classic_rts_base_assault_resolution_v1"
@@ -28,6 +34,7 @@ jq -e '
   and .open_world_return_gate == true
   and .native_boundary_gate == true
   and .preview_gate == true
+  and .campaign_outcome_ui_readiness_gate == true
   and (.campaign_flow | index("TITLE campaign entry") != null)
   and (.campaign_flow | index("objective claim/extract victory") != null)
   and (.campaign_flow | index("battle aftermath rewards") != null)

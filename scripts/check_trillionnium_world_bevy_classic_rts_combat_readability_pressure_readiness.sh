@@ -18,6 +18,12 @@ jq -e '
   and .status == "classic_rts_combat_readability_pressure_readiness_green"
   and .green == true
   and .preview_count == 5
+  and .runtime_screen_mode == "player_runtime_combat_pressure_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.unit_status_panel == "selected unit portrait, bars, role, and queue badges"
+  and .runtime_screen_layout.command_feedback_lane == "marquee, attack, error, and acknowledgment feedback"
+  and .runtime_screen_layout.pressure_panel == "central keep shield, guard, siege line, and defeat-risk feedback"
   and .source_contracts.unit_status_portrait == "trillionnium_world_bevy_classic_rts_unit_status_portrait_v1"
   and .source_contracts.selection_command_feedback == "trillionnium_world_bevy_classic_rts_selection_command_feedback_v1"
   and .source_contracts.ability_tooltip_telegraph == "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1"
@@ -30,6 +36,7 @@ jq -e '
   and .pressure_feedback_gate == true
   and .source_policy_gate == true
   and .preview_gate == true
+  and .combat_readability_pressure_readiness_gate == true
   and .unit_status_summary.portrait_frame_pixel_count > 1200
   and .unit_status_summary.health_bar_pixel_count > 300
   and .unit_status_summary.mana_bar_pixel_count > 240
