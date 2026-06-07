@@ -19451,6 +19451,17 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         })
         && !bool_at(&selection_minimap, "cex_runtime_player_client_allowed")
         && !bool_at(&selection_minimap, "wgpu_required");
+    let runtime_screen_gate = production_ui_skin_preview_gate
+        && source_preview_gate
+        && skin_surfaces.len() == 8
+        && hud_chrome_pixel_count > 1_000
+        && command_grid_skin_pixel_count > 1_000
+        && minimap_bezel_pixel_count > 1_000
+        && unit_card_skin_pixel_count > 1_000
+        && tooltip_skin_pixel_count > 1_000
+        && feedback_marker_pixel_count > 1_000
+        && hotkey_strip_pixel_count > 1_000
+        && status_bar_skin_pixel_count > 1_000;
     let production_ui_skin_gate = asset_atlas_gate
         && command_surface_skin_gate
         && selection_minimap_skin_gate
@@ -19458,8 +19469,7 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         && command_feedback_skin_gate
         && tooltip_skin_gate
         && hotkey_skin_gate
-        && production_ui_skin_preview_gate
-        && source_preview_gate;
+        && runtime_screen_gate;
     let green = production_ui_skin_gate && no_copy_boundary_gate;
 
     serde_json::to_string_pretty(&json!({
@@ -19492,6 +19502,17 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         "ui_skin_surface_count": skin_surfaces.len(),
         "ui_skin_replacement_slots": skin_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
         "ui_skin_source_surfaces": skin_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "runtime_screen_mode": "player_runtime_production_hud_skin_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "hud_chrome": "bottom player HUD chrome and resource strip",
+            "command_grid": "bottom-right command button skin slots",
+            "minimap_bezel": "in-HUD minimap frame and route feedback bezel",
+            "unit_card": "selected unit portrait and status card",
+            "tooltip_feedback": "ability tooltip, warning panel, and command feedback markers",
+            "hotkey_status": "control-group hotkey strip plus health, mana, XP, and queue bars"
+        },
         "asset_atlas_family_count": asset_atlas.get("atlas_family_count").cloned().unwrap_or(Value::Null),
         "asset_atlas_frame_count": asset_atlas.get("atlas_frame_count").cloned().unwrap_or(Value::Null),
         "asset_atlas_sprite_binding_count": asset_atlas.get("sprite_binding_count").cloned().unwrap_or(Value::Null),
@@ -19527,10 +19548,11 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         "tooltip_skin_gate": tooltip_skin_gate,
         "hotkey_skin_gate": hotkey_skin_gate,
         "production_ui_skin_preview_gate": production_ui_skin_preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
         "production_ui_skin_gate": production_ui_skin_gate,
-        "source_art_policy": "Production UI skin is a deterministic Rust/Bevy handoff board for original Trillionnium HUD chrome, command buttons, minimap frame, unit card, tooltip panel, command feedback, hotkey strip, and status bar replacement slots. It consumes the production asset atlas and already-green gameplay UI surfaces while forbidding copied OpenRA, Warcraft III, or third-party RTS UI art.",
+        "source_art_policy": "Production UI skin is a deterministic Rust/Bevy runtime screen-shaped handoff for original Trillionnium HUD chrome, command buttons, minimap frame, unit card, tooltip panel, command feedback, hotkey strip, and status bar replacement slots. It consumes the production asset atlas and already-green gameplay UI surfaces while forbidding copied OpenRA, Warcraft III, or third-party RTS UI art.",
         "license_boundary": "project_owned_internal_ui_skin_replacement_slots_not_screen_for_screen_openra_or_warcraft_copy_not_public_launch_ready",
         "final_external_bitmap_art_shipped": false,
         "production_ready_ui_shipped": false,
@@ -19541,7 +19563,7 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "This gate moves from production asset atlas readiness to actual native UI skin replacement slots by requiring the atlas, command surface, selection/minimap, unit status, selection feedback, ability tooltip, and hotkey feedback evidence to agree before the release-review gate can pass."
+        "source_of_truth": "This gate moves from production asset atlas readiness to a player-facing native production HUD skin runtime screen by requiring the atlas, command surface, selection/minimap, unit status, selection feedback, ability tooltip, and hotkey feedback evidence to agree before the release-review gate can pass."
     }))
     .expect("classic RTS production UI skin evidence serializes")
 }
@@ -19924,6 +19946,8 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
     ) && bool_at(&ui_skin, "green")
         && bool_at(&ui_skin, "production_ui_skin_gate")
+        && bool_at(&ui_skin, "runtime_screen_gate")
+        && !bool_at(&ui_skin, "evidence_board_only")
         && bool_at(&ui_skin, "no_copy_boundary_gate")
         && u64_at(&ui_skin, "/ui_skin_surface_count") == 8
         && u64_at(&ui_skin, "/feedback_marker_pixel_count") > 1_000
@@ -20028,14 +20052,24 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         })
         && !bool_at(&build_lifecycle, "cex_runtime_player_client_allowed")
         && !bool_at(&build_lifecycle, "wgpu_required");
+    let runtime_screen_gate = production_interaction_polish_preview_gate
+        && source_preview_gate
+        && bool_at(&ui_skin, "runtime_screen_gate")
+        && !bool_at(&ui_skin, "evidence_board_only")
+        && interaction_surfaces.len() == 6
+        && drag_select_skin_pixel_count > 1_000
+        && right_click_move_skin_pixel_count > 1_000
+        && attack_lock_skin_pixel_count > 1_000
+        && build_ghost_skin_pixel_count > 1_000
+        && queue_path_skin_pixel_count > 1_000
+        && scroll_minimap_skin_pixel_count > 1_000;
     let production_interaction_polish_gate = ui_skin_gate
         && command_affordance_gate
         && selection_feedback_gate
         && build_lifecycle_gate
         && scrollable_map_gate
         && command_queue_path_gate
-        && production_interaction_polish_preview_gate
-        && source_preview_gate;
+        && runtime_screen_gate;
     let green = production_interaction_polish_gate && no_copy_boundary_gate;
 
     serde_json::to_string_pretty(&json!({
@@ -20066,6 +20100,20 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         "interaction_surface_count": interaction_surfaces.len(),
         "interaction_replacement_slots": interaction_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
         "interaction_source_surfaces": interaction_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "runtime_screen_mode": "player_runtime_command_interaction_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "drag_select": "visible marquee skin and selection feedback strip",
+            "right_click_move": "right-click move marker with command confirmation",
+            "attack_lock": "attack cursor lock, target warning, and error/ack feedback",
+            "build_ghost": "build placement ghost, completion, repair, cancel/refund feedback",
+            "queue_path": "queued waypoint path, rally chain, reservation, and cancel/repath strip",
+            "scroll_minimap": "edge-scroll, drag-pan, wheel zoom, minimap jump, and clamp feedback"
+        },
+        "ui_skin_runtime_screen_mode": ui_skin.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+        "ui_skin_runtime_screen_gate": ui_skin.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
+        "ui_skin_evidence_board_only": ui_skin.get("evidence_board_only").cloned().unwrap_or(Value::Null),
         "ui_skin_surface_count": ui_skin.get("ui_skin_surface_count").cloned().unwrap_or(Value::Null),
         "ui_skin_feedback_marker_pixel_count": ui_skin.get("feedback_marker_pixel_count").cloned().unwrap_or(Value::Null),
         "ui_skin_hotkey_strip_pixel_count": ui_skin.get("hotkey_strip_pixel_count").cloned().unwrap_or(Value::Null),
@@ -20097,10 +20145,11 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         "scrollable_map_gate": scrollable_map_gate,
         "command_queue_path_gate": command_queue_path_gate,
         "production_interaction_polish_preview_gate": production_interaction_polish_preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
         "production_interaction_polish_gate": production_interaction_polish_gate,
-        "source_art_policy": "Production interaction polish is a deterministic Rust/Bevy handoff board that applies the original Trillionnium production UI skin to drag selection, right-click movement, attack locks, build ghosts, queued paths, and scroll/minimap feedback. It consumes already-green native reducers and forbids copied Warcraft III, OpenRA, or third-party cursor/UI art.",
+        "source_art_policy": "Production interaction polish is a deterministic Rust/Bevy runtime screen-shaped handoff that applies the original Trillionnium production UI skin to drag selection, right-click movement, attack locks, build ghosts, queued paths, and scroll/minimap feedback. It consumes already-green native reducers and forbids copied Warcraft III, OpenRA, or third-party cursor/UI art.",
         "license_boundary": "project_owned_internal_interaction_feedback_skin_slots_not_screen_for_screen_openra_or_warcraft_copy_not_public_launch_ready",
         "final_external_bitmap_art_shipped": false,
         "production_ready_interaction_ui_shipped": false,
@@ -20111,7 +20160,7 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "This gate moves from static production UI skin slots to player-facing interaction polish by requiring the skin, command affordance, selection feedback, build lifecycle, scrollable map, and command queue/path preview evidence to agree before classic playtest readiness and release-review CI can pass."
+        "source_of_truth": "This gate moves from static production UI skin slots to a player-facing command interaction runtime screen by requiring the skin, command affordance, selection feedback, build lifecycle, scrollable map, and command queue/path preview evidence to agree before classic playtest readiness and release-review CI can pass."
     }))
     .expect("classic RTS production interaction polish evidence serializes")
 }
@@ -20858,6 +20907,10 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT,
     ) && bool_at(&production_ui, "green")
         && bool_at(&production_ui, "production_ui_skin_gate")
+        && bool_at(&production_ui, "runtime_screen_gate")
+        && !bool_at(&production_ui, "evidence_board_only")
+        && str_at(&production_ui, "runtime_screen_mode")
+            == "player_runtime_production_hud_skin_screen"
         && bool_at(&production_ui, "no_copy_boundary_gate")
         && u64_at(&production_ui, "ui_skin_surface_count") == 8
         && u64_at(&production_ui, "hud_chrome_pixel_count") > 1_000
@@ -20867,6 +20920,10 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT,
     ) && bool_at(&interaction, "green")
         && bool_at(&interaction, "production_interaction_polish_gate")
+        && bool_at(&interaction, "runtime_screen_gate")
+        && !bool_at(&interaction, "evidence_board_only")
+        && str_at(&interaction, "runtime_screen_mode")
+            == "player_runtime_command_interaction_screen"
         && bool_at(&interaction, "no_copy_boundary_gate")
         && u64_at(&interaction, "interaction_surface_count") == 6
         && u64_at(&interaction, "hud_binding_pixel_count") > 8_000;
@@ -21038,7 +21095,11 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
             "visual_selected_unit_count": visual.get("selected_unit_ids").and_then(Value::as_array).map(|items| items.len()).unwrap_or(0),
             "map_ui_preview_count": map_ui.get("preview_count").cloned().unwrap_or(Value::Null),
             "production_ui_skin_surface_count": production_ui.get("ui_skin_surface_count").cloned().unwrap_or(Value::Null),
+            "production_ui_runtime_screen_mode": production_ui.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "production_ui_runtime_screen_gate": production_ui.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
             "interaction_surface_count": interaction.get("interaction_surface_count").cloned().unwrap_or(Value::Null),
+            "interaction_runtime_screen_mode": interaction.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "interaction_runtime_screen_gate": interaction.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
             "tech_state": tech_tree.get("final_tech_state").cloned().unwrap_or(Value::Null),
             "campaign_outcome_preview_count": campaign_outcome.get("preview_count").cloned().unwrap_or(Value::Null),
             "combat_readability_preview_count": combat_readability.get("preview_count").cloned().unwrap_or(Value::Null)

@@ -62,6 +62,12 @@ jq -n \
   (
     $production.green == true
     and $production.production_interaction_polish_gate == true
+    and $production.runtime_screen_mode == "player_runtime_command_interaction_screen"
+    and $production.runtime_screen_gate == true
+    and $production.evidence_board_only == false
+    and $production.ui_skin_runtime_screen_mode == "player_runtime_production_hud_skin_screen"
+    and $production.ui_skin_runtime_screen_gate == true
+    and $production.ui_skin_evidence_board_only == false
     and $production.no_copy_boundary_gate == true
     and $production.interaction_surface_count == 6
     and ($production.interaction_surface_names | index("DRAG SELECT") != null)
@@ -152,6 +158,13 @@ jq -n \
     production_review_summary: {
       interaction_surface_count: $production.interaction_surface_count,
       interaction_surface_names: $production.interaction_surface_names,
+      runtime_screen_mode: $production.runtime_screen_mode,
+      runtime_screen_gate: $production.runtime_screen_gate,
+      evidence_board_only: $production.evidence_board_only,
+      runtime_screen_layout: $production.runtime_screen_layout,
+      ui_skin_runtime_screen_mode: $production.ui_skin_runtime_screen_mode,
+      ui_skin_runtime_screen_gate: $production.ui_skin_runtime_screen_gate,
+      ui_skin_evidence_board_only: $production.ui_skin_evidence_board_only,
       interaction_board_pixel_count: $production.interaction_board_pixel_count,
       drag_select_skin_pixel_count: $production.drag_select_skin_pixel_count,
       right_click_move_skin_pixel_count: $production.right_click_move_skin_pixel_count,
@@ -243,6 +256,14 @@ jq -e '
   and (.production_review_summary.interaction_surface_names | index("BUILD GHOST") != null)
   and (.production_review_summary.interaction_surface_names | index("QUEUE PATH") != null)
   and (.production_review_summary.interaction_surface_names | index("SCROLL MINIMAP") != null)
+  and .production_review_summary.runtime_screen_mode == "player_runtime_command_interaction_screen"
+  and .production_review_summary.runtime_screen_gate == true
+  and .production_review_summary.evidence_board_only == false
+  and .production_review_summary.runtime_screen_layout.drag_select == "visible marquee skin and selection feedback strip"
+  and .production_review_summary.runtime_screen_layout.queue_path == "queued waypoint path, rally chain, reservation, and cancel/repath strip"
+  and .production_review_summary.ui_skin_runtime_screen_mode == "player_runtime_production_hud_skin_screen"
+  and .production_review_summary.ui_skin_runtime_screen_gate == true
+  and .production_review_summary.ui_skin_evidence_board_only == false
   and .production_review_summary.interaction_board_pixel_count > 80000
   and .production_review_summary.drag_select_skin_pixel_count > 1000
   and .production_review_summary.right_click_move_skin_pixel_count > 1000

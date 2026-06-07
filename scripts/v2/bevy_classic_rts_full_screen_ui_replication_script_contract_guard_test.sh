@@ -27,6 +27,8 @@ required_script_lines=(
   'replication_surface_count == 10'
   'runtime_screen_gate == true'
   'evidence_board_only == false'
+  'production_ui_runtime_screen_mode == "player_runtime_production_hud_skin_screen"'
+  'interaction_runtime_screen_mode == "player_runtime_command_interaction_screen"'
   'full_screen_ui_replication_gate == true'
   'external_evidence_ignored_for_current_replication_pass == true'
   'screen_for_screen_openra_ui_claimed == false'
@@ -66,6 +68,8 @@ required_source_lines=(
   'full_screen_ui_replication_gate'
   'runtime_screen_gate'
   'player_runtime_screen'
+  'player_runtime_production_hud_skin_screen'
+  'player_runtime_command_interaction_screen'
   'external_evidence_ignored_for_current_replication_pass'
 )
 

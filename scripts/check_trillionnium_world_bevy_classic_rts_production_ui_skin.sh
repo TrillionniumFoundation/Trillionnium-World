@@ -40,6 +40,15 @@ jq -e '
   and (.ui_skin_replacement_slots | index("feedback_marker_slot") != null)
   and (.ui_skin_replacement_slots | index("hotkey_strip_slot") != null)
   and (.ui_skin_replacement_slots | index("status_bar_slot") != null)
+  and .runtime_screen_mode == "player_runtime_production_hud_skin_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.hud_chrome == "bottom player HUD chrome and resource strip"
+  and .runtime_screen_layout.command_grid == "bottom-right command button skin slots"
+  and .runtime_screen_layout.minimap_bezel == "in-HUD minimap frame and route feedback bezel"
+  and .runtime_screen_layout.unit_card == "selected unit portrait and status card"
+  and .runtime_screen_layout.tooltip_feedback == "ability tooltip, warning panel, and command feedback markers"
+  and .runtime_screen_layout.hotkey_status == "control-group hotkey strip plus health, mana, XP, and queue bars"
   and .asset_atlas_family_count == 10
   and .asset_atlas_frame_count >= 32
   and .asset_atlas_sprite_binding_count >= 32
@@ -75,6 +84,7 @@ jq -e '
   and .tooltip_skin_gate == true
   and .hotkey_skin_gate == true
   and .production_ui_skin_preview_gate == true
+  and .runtime_screen_gate == true
   and .source_preview_gate == true
   and .no_copy_boundary_gate == true
   and .production_ui_skin_gate == true

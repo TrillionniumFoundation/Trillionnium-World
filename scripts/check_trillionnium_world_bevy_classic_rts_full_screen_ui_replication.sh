@@ -70,7 +70,11 @@ jq -e '
   and .source_headline.visual_selected_unit_count >= 4
   and .source_headline.map_ui_preview_count == 6
   and .source_headline.production_ui_skin_surface_count == 8
+  and .source_headline.production_ui_runtime_screen_mode == "player_runtime_production_hud_skin_screen"
+  and .source_headline.production_ui_runtime_screen_gate == true
   and .source_headline.interaction_surface_count == 6
+  and .source_headline.interaction_runtime_screen_mode == "player_runtime_command_interaction_screen"
+  and .source_headline.interaction_runtime_screen_gate == true
   and .source_headline.tech_state == "unlocked:relay_guard"
   and .source_headline.campaign_outcome_preview_count == 5
   and .source_headline.combat_readability_preview_count == 5

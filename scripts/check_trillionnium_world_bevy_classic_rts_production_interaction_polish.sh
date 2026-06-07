@@ -35,6 +35,18 @@ jq -e '
   and (.interaction_replacement_slots | index("build_ghost_skin_slot") != null)
   and (.interaction_replacement_slots | index("queued_path_skin_slot") != null)
   and (.interaction_replacement_slots | index("scroll_minimap_skin_slot") != null)
+  and .runtime_screen_mode == "player_runtime_command_interaction_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.drag_select == "visible marquee skin and selection feedback strip"
+  and .runtime_screen_layout.right_click_move == "right-click move marker with command confirmation"
+  and .runtime_screen_layout.attack_lock == "attack cursor lock, target warning, and error/ack feedback"
+  and .runtime_screen_layout.build_ghost == "build placement ghost, completion, repair, cancel/refund feedback"
+  and .runtime_screen_layout.queue_path == "queued waypoint path, rally chain, reservation, and cancel/repath strip"
+  and .runtime_screen_layout.scroll_minimap == "edge-scroll, drag-pan, wheel zoom, minimap jump, and clamp feedback"
+  and .ui_skin_runtime_screen_mode == "player_runtime_production_hud_skin_screen"
+  and .ui_skin_runtime_screen_gate == true
+  and .ui_skin_evidence_board_only == false
   and .ui_skin_surface_count == 8
   and .ui_skin_feedback_marker_pixel_count > 1000
   and .ui_skin_hotkey_strip_pixel_count > 1000
@@ -66,6 +78,7 @@ jq -e '
   and .scrollable_map_gate == true
   and .command_queue_path_gate == true
   and .production_interaction_polish_preview_gate == true
+  and .runtime_screen_gate == true
   and .source_preview_gate == true
   and .no_copy_boundary_gate == true
   and .production_interaction_polish_gate == true
