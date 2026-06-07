@@ -834,6 +834,33 @@ add_classic_playtest_handoff_packet_fixtures() {
       source_of_truth: "Classic playtest handoff packet binds the local Bevy human-playtest handoff to checksummed evidence artifacts and replayable commands. It is a local host-side playtest packet only, not public launch, S5 real-device, or OpenRA natural replay/headless parity credit."
     }' >"$playtest_handoff_packet_json"
   add_artifact_from_path native_bevy_classic_playtest_handoff_packet "Native/Bevy classic playtest handoff packet" "$playtest_handoff_packet_json" release_review_input
+
+  local playtest_handoff_packet_md="$TMP_DIR/bevy-classic-playtest-handoff-packet.md"
+  {
+    printf '# Bevy Classic Playtest Handoff Packet\n\n'
+    printf -- '- Status: `true`\n'
+    printf -- '- Contract: `trillionnium_world_bevy_classic_playtest_handoff_packet_v1`\n'
+    printf -- '- Runner: `trillionnium-bevy-playtest.service` PID `160672`\n'
+    printf -- '- Resume: `league-coliseum` / `arena_outdoor` / `resumed:league-coliseum`\n'
+    printf -- '- Campaign slot bytes: `71913`\n'
+    printf -- '- Title actions: `CAMPAIGN:START, CAMPAIGN:CONTINUE, CAMPAIGN:REPLAY`\n\n'
+    printf '## Commands\n\n'
+    printf -- '- `refresh_handoff`: `./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_readiness.sh`\n'
+    printf -- '- `refresh_packet`: `./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh`\n'
+    printf -- '- `inspect_runner`: `systemctl --user status trillionnium-bevy-playtest.service`\n'
+    printf -- '- `launch_client`: `./scripts/run_trillionnium_world_bevy_client.sh`\n\n'
+    printf '## Evidence\n\n'
+    printf -- '- `playtest_handoff_readiness`: `acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-readiness.json` sha256 `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` bytes `4096`\n'
+    printf -- '- `playtest_readiness`: `acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json` sha256 `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb` bytes `8192`\n'
+    printf -- '- `playtest_launcher`: `acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-launcher.json` sha256 `cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc` bytes `4096`\n'
+    printf -- '- `playtest_runner_status`: `acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json` sha256 `dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd` bytes `2048`\n'
+    printf -- '- `playtest_observability_readiness`: `acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json` sha256 `eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee` bytes `4096`\n\n'
+    printf '## Boundaries\n\n'
+    printf -- '- Public launch ready: `false`\n'
+    printf -- '- Android S5 real device ready: `false`\n'
+    printf -- '- OpenRA natural replay/headless parity: `false`\n'
+  } >"$playtest_handoff_packet_md"
+  add_artifact_from_path native_bevy_classic_playtest_handoff_packet_markdown "Native/Bevy classic playtest handoff packet Markdown" "$playtest_handoff_packet_md" release_review_input
 }
 
 add_campaign_ui_continuity_packet_fixtures() {

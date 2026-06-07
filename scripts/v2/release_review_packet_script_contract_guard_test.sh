@@ -194,6 +194,8 @@ required_lines=(
   'bevy-classic-playtest-handoff-readiness.json'
   'native_bevy_classic_playtest_handoff_packet'
   'bevy-classic-playtest-handoff-packet.json'
+  'native_bevy_classic_playtest_handoff_packet_markdown'
+  'bevy-classic-playtest-handoff-packet.md'
   'native_bevy_classic_rts_full_screen_ui_replication'
   'Native/Bevy classic RTS full screen/UI replication'
   'bevy-classic-rts-full-screen-ui-replication.json'

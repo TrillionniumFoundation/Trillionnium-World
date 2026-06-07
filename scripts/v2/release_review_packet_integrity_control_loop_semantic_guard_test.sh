@@ -78,7 +78,7 @@ jq -n '{
   green: true,
   fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
@@ -108,7 +108,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_source_chain_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_source_chain_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 9,
   expected_semantic_failure_names: [
     "bot_planner_action_executor_semantics",
@@ -138,7 +138,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_executor_failure_recovery_matrix_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_executor_failure_recovery_matrix_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 3,
   expected_semantic_failure_names: [
     "bot_executor_failure_recovery_matrix_semantics",
@@ -162,7 +162,7 @@ jq -n '{
   green: true,
   fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 8,
   expected_semantic_failure_names: [
     "bot_decision_state_gap_semantics",
@@ -191,7 +191,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_control_loop_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_control_loop_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_control_loop_semantics",
@@ -267,7 +267,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_selection_minimap_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_selection_minimap_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_selection_minimap_semantics",
@@ -330,7 +330,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_build_lifecycle_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_build_lifecycle_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_build_lifecycle_semantics",
@@ -397,7 +397,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_tech_tree_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_tech_tree_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: [
     "classic_rts_tech_tree_semantics",
@@ -462,7 +462,7 @@ jq -n '{
   green: true,
   fixture_kind: "classic_rts_projectile_ability_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_classic_rts_projectile_ability_summary_and_ppm_even_when_sha_bytes_contract_and_status_match",
-  fake_packet_artifact_count: 115,
+  fake_packet_artifact_count: 116,
   expected_semantic_failure_count: 2,
   expected_semantic_failure_names: ["classic_rts_projectile_ability_semantics", "classic_rts_projectile_ability_ppm_semantics"],
   checksum_mismatch_failure_count: 0,
