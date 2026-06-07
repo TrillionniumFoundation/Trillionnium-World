@@ -52,7 +52,7 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
-for index in $(seq 1 10); do
+for index in $(seq 1 9); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
     --arg id "fixture_${index}" \
@@ -73,6 +73,7 @@ add_public_launch_blocker_consistency_packet_fixtures
 add_public_launch_evidence_kit_packet_fixtures
 add_public_launch_template_negative_fixtures_packet_fixtures
 add_public_launch_evidence_bundle_packet_fixtures
+add_public_launch_bundle_negative_fixtures_packet_fixtures
 add_public_launch_status_only_fixture_guard_packet_fixtures
 add_public_launch_operator_handoff_packet_fixtures
 add_cex_adapter_readiness_packet_fixtures semantic_invalid

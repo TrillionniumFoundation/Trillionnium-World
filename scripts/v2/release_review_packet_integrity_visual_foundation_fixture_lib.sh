@@ -1329,6 +1329,31 @@ add_public_launch_evidence_bundle_packet_fixtures() {
   add_artifact_from_path public_launch_evidence_bundle_markdown "Public launch evidence bundle Markdown" "$evidence_bundle_md" release_review_gate
 }
 
+add_public_launch_bundle_negative_fixtures_packet_fixtures() {
+  local bundle_negative_json="$TMP_DIR/public-launch-bundle-negative-fixtures.json"
+  jq -n '{
+    contract_version: "trillionnium_world_public_launch_bundle_negative_fixtures_v1",
+    status: "public_launch_bundle_negative_fixtures_green",
+    source_of_truth: "trillionnium_world_public_launch_bundle_negative_fixtures",
+    green: true,
+    public_launch_claimed: false,
+    android_s5_real_device_claimed: false,
+    live_map_ingestion_performed: false,
+    live_public_exposure_performed: false,
+    bundle_negative_rule: "fake_green_bundle_manifest_pointing_to_no_credit_templates_must_fail_require_ready",
+    fake_bundle_path: "/fixture/fake-green-template-bundle.json",
+    evidence_kit_log: "/fixture/public-launch-bundle-negative-fixtures-kit.log",
+    bundle_validation_summary: "/fixture/fake-green-template-bundle-summary.json",
+    bundle_validation_log: "/fixture/public-launch-bundle-negative-fixtures-bundle.log",
+    expected_status: "public_launch_evidence_bundle_blocked_invalid_real_evidence",
+    actual_status: "public_launch_evidence_bundle_blocked_invalid_real_evidence",
+    validator_exit_status: 1,
+    expected_item_failure_count: 6,
+    actual_item_failure_count: 6
+  }' >"$bundle_negative_json"
+  add_artifact_from_path public_launch_bundle_negative_fixtures "Public launch bundle negative fixtures" "$bundle_negative_json" release_review_gate
+}
+
 add_public_launch_template_negative_fixtures_packet_fixtures() {
   local template_negative_json="$TMP_DIR/public-launch-template-negative-fixtures.json"
   jq -n '{
