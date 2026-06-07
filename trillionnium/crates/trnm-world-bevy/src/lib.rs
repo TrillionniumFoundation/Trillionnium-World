@@ -21166,6 +21166,13 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
     };
     let pointer_u64 =
         |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
+    let pointer_str = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
     let contract_is = |value: &Value, expected: &str| {
         value.get("contract_version").and_then(Value::as_str) == Some(expected)
     };
@@ -21233,7 +21240,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         PANEL_HEIGHT,
         48,
         46,
-        "TRNM RUST/BEVY SHELL + META UI REPLICATION MATRIX",
+        "TRNM RUST/BEVY SHELL + META RUNTIME SURFACE",
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
@@ -21413,6 +21420,280 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
                 HIGHLIGHT_COLOR,
             );
         }
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        136,
+        1184,
+        456,
+        0x0b1118,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        64,
+        150,
+        520,
+        64,
+        ACCOUNT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        84,
+        170,
+        "ACCOUNT: local-player / LOGIN OK / CONTINUE SLOT A",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        604,
+        150,
+        190,
+        64,
+        CREATE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        622,
+        170,
+        "MIRA / CREATOR",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        814,
+        150,
+        384,
+        64,
+        LOAD_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        832,
+        170,
+        "LOAD / RESUME: league-coliseum handoff armed",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        64,
+        236,
+        342,
+        184,
+        SLOT_MENU_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        84,
+        258,
+        "SESSION SLOTS",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let slot_rows = [
+        ("A  Mira  saved  continue", SAVE_COLOR),
+        ("B  Empty  disabled", PANEL_COLOR),
+        ("C  Recovery snapshot", RECOVERY_COLOR),
+    ];
+    for (index, (label, color)) in slot_rows.iter().enumerate() {
+        let y = 292 + index as i32 * 38;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            88,
+            y,
+            274,
+            28,
+            *color,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            100,
+            y + 8,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        430,
+        236,
+        346,
+        184,
+        0x131d24,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        452,
+        258,
+        132,
+        54,
+        CONFIRM_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        466,
+        278,
+        "CONFIRM",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        604,
+        258,
+        132,
+        54,
+        SAVE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        622,
+        278,
+        "SAVE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        452,
+        334,
+        284,
+        48,
+        RECOVERY_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        466,
+        352,
+        "RECOVERY: guard restored, continue enabled",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        804,
+        236,
+        394,
+        184,
+        0x121b20,
+    );
+    let right_cards = [
+        ("PAUSE / RESUME", PAUSE_COLOR),
+        ("SETTINGS: volume 5", SETTINGS_COLOR),
+        ("INPUT HUD: keyboard telemetry", INPUT_COLOR),
+        ("BUTTON HIT TEST: 10 centers", HIT_TEST_COLOR),
+    ];
+    for (index, (label, color)) in right_cards.iter().enumerate() {
+        let y = 256 + index as i32 * 38;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            832,
+            y,
+            328,
+            26,
+            *color,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            846,
+            y + 8,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        64,
+        448,
+        1134,
+        116,
+        ONBOARDING_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        84,
+        470,
+        "FIRST-MINUTE HANDOFF: create -> talk -> train -> move -> fight -> save -> continue",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for step in 0..9_i32 {
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            94 + step * 116,
+            514,
+            70,
+            26,
+            HIGHLIGHT_COLOR,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            104 + step * 116,
+            522,
+            50,
+            5,
+            EDGE_COLOR,
+        );
     }
 
     classic_draw_rect(
@@ -21675,6 +21956,12 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         && hit_test_pixel_count > 1_000
         && onboarding_pixel_count > 1_000
         && highlight_pixel_count > 2_000;
+    let runtime_screen_gate = shell_meta_preview_gate
+        && shell_surfaces.len() == 12
+        && pointer_str(&character_create, "/final_character/display_name") == "Mira"
+        && pointer_str(&onboarding, "/final_sample/current_node_id") == "league-coliseum"
+        && array_len(&hit_test, "targets") == 10
+        && pointer_u64(&input_hud, "/input_telemetry_summary/keyboard_events") >= 10;
     let source_preview_gate = file_ready(&full_screen_path) && file_ready(&save_slot_path);
     let shell_meta_ui_replication_gate = full_screen_ui_replication_gate
         && account_title_gate
@@ -21692,6 +21979,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         && first_minute_onboarding_gate
         && no_external_boundary_gate
         && shell_meta_preview_gate
+        && runtime_screen_gate
         && source_preview_gate;
     let green = shell_meta_ui_replication_gate;
 
@@ -21729,6 +22017,17 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         "shell_meta_surface_count": shell_surfaces.len(),
         "shell_meta_slot_ids": shell_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
         "shell_meta_source_surfaces": shell_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "runtime_screen_mode": "player_runtime_shell_meta_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "account_title_bar": "top account/login/continue CTA strip",
+            "character_card": "active player character creation result",
+            "session_slot_panel": "visible save slots with selected slot A",
+            "save_load_confirm": "confirm/save/load recovery actions",
+            "right_meta_rail": "pause, settings, input HUD, and hit-test cards",
+            "first_minute_handoff": "bottom create-to-continue gameplay route"
+        },
         "shell_meta_pixel_counts": {
             "board": shell_board_pixel_count,
             "account_title": account_pixel_count,
@@ -21772,6 +22071,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         "first_minute_onboarding_gate": first_minute_onboarding_gate,
         "no_external_boundary_gate": no_external_boundary_gate,
         "shell_meta_preview_gate": shell_meta_preview_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "shell_meta_ui_replication_gate": shell_meta_ui_replication_gate,
         "internal_shell_meta_ui_replication_claimed": shell_meta_ui_replication_gate,
@@ -21783,7 +22083,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "This gate complements the full-screen gameplay UI matrix with a shell/meta UI replication matrix for the Rust/Bevy title, account, character creation, save/load slot, session recovery, pause, settings, input telemetry, button hit-test, and first-minute handoff surfaces. It intentionally ignores Android S5, public-launch, commercial cohort, and other external evidence for this replication pass."
+        "source_of_truth": "This gate complements the full-screen gameplay UI runtime surface with a shell/meta player runtime screen for the Rust/Bevy title, account, character creation, save/load slot, session recovery, pause, settings, input telemetry, button hit-test, and first-minute handoff surfaces. It intentionally ignores Android S5, public-launch, commercial cohort, and other external evidence for this replication pass."
     }))
     .expect("classic RTS shell/meta UI replication evidence serializes")
 }
@@ -22402,6 +22702,8 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SHELL_META_UI_REPLICATION_CONTRACT,
     ) && bool_at(&shell_meta, "green")
         && bool_at(&shell_meta, "shell_meta_ui_replication_gate")
+        && bool_at(&shell_meta, "runtime_screen_gate")
+        && !bool_at(&shell_meta, "evidence_board_only")
         && bool_at(&shell_meta, "no_external_boundary_gate")
         && u64_at(&shell_meta, "shell_meta_surface_count") == 12;
     let campaign_entry_gate = contract_is(
