@@ -282,6 +282,8 @@ required_lines=(
   'check_trillionnium_world_public_launch_evidence_kit.sh'
   'public_launch_operator_handoff'
   'public-launch-operator-handoff.json'
+  'public_launch_operator_handoff_markdown'
+  'public-launch-operator-handoff.md'
   'check_trillionnium_world_public_launch_operator_handoff.sh'
   'public_launch_template_negative_fixtures'
   'public-launch-template-negative-fixtures.json'

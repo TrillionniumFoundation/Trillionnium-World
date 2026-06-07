@@ -1122,6 +1122,116 @@ add_public_launch_blocker_consistency_packet_fixtures() {
   add_artifact_from_path public_launch_blocker_consistency "Public launch blocker consistency" "$blocker_consistency_json" release_review_gate
 }
 
+add_public_launch_operator_handoff_packet_fixtures() {
+  local operator_handoff_json="$TMP_DIR/public-launch-operator-handoff.json"
+  jq -n '
+    [
+      {id: "release_review_status_json"},
+      {id: "release_review_status_markdown"},
+      {id: "public_launch_evidence_intake_json"},
+      {id: "public_launch_evidence_intake_markdown"},
+      {id: "public_launch_evidence_kit_json"},
+      {id: "public_launch_evidence_kit_markdown"},
+      {id: "production_map_pack_public_collection_json"},
+      {id: "production_map_pack_public_collection_markdown"},
+      {id: "cohort_commercial_collection_json"},
+      {id: "cohort_commercial_collection_markdown"},
+      {id: "external_ops_collection_json"},
+      {id: "external_ops_collection_markdown"},
+      {id: "public_launch_blocker_consistency_json"},
+      {id: "public_launch_template_negative_fixtures_json"},
+      {id: "public_launch_evidence_bundle_json"},
+      {id: "public_launch_evidence_bundle_markdown"},
+      {id: "public_launch_evidence_bundle_template"},
+      {id: "public_launch_bundle_negative_fixtures_json"},
+      {id: "s5_real_device_template"},
+      {id: "production_map_pack_public_template"},
+      {id: "first_beta_cohort_template"},
+      {id: "commercial_launch_drill_template"},
+      {id: "multi_node_latency_template"},
+      {id: "public_network_deploy_template"}
+    ] as $artifact_ids |
+    {
+      contract_version: "trillionnium_world_public_launch_operator_handoff_v1",
+      status: "public_launch_operator_handoff_ready_with_external_blockers",
+      source_of_truth: "trillionnium_world_public_launch_operator_handoff",
+      green: true,
+      ready_for_release_review: true,
+      public_launch_ready: false,
+      public_launch_claimed: false,
+      android_s5_real_device_claimed: false,
+      live_map_ingestion_performed: false,
+      live_public_exposure_performed: false,
+      handoff_rule: "operator_handoff_collects_real_external_public_launch_evidence_without_claiming_public_launch_ready_or_android_s5_real_device_ready",
+      markdown_path: "/fixture/public-launch-operator-handoff.md",
+      evidence_bundle_template: "/fixture/public-launch-evidence-bundle.template.json",
+      needs_collection_count: 6,
+      known_blockers: [
+        "s5_real_device_matrix",
+        "production_map_pack_public_evidence",
+        "first_beta_cohort_evidence",
+        "commercial_launch_drill_evidence",
+        "multi_node_or_live_traffic_latency_evidence",
+        "public_network_live_exposure_evidence"
+      ],
+      blocked_items: [
+        {id: "s5_real_device_matrix"},
+        {id: "production_map_pack_public_evidence"},
+        {id: "first_beta_cohort_evidence"},
+        {id: "commercial_launch_drill_evidence"},
+        {id: "multi_node_or_live_traffic_latency_evidence"},
+        {id: "public_network_live_exposure_evidence"}
+      ],
+      operator_actions: [
+        {id: "s5_android_real_device_matrix", blocker_id: "s5_real_device_matrix", label: "S5 Android real-device matrix", evidence_env_var: "ANDROID_SERIAL", template_path: "/fixture/s5-device-evidence.template.json", template_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", collection_command: "ANDROID_SERIAL=<device-serial> scripts/check_trillionnium_world_s5_device_evidence.sh --require-device", validator_command: "TRILLIONNIUM_WORLD_S5_REAL_DEVICE_EVIDENCE_PATH=<real-s5-evidence.json> scripts/check_trillionnium_world_s5_real_device_evidence.sh --require-ready", accepted_status: "s5_real_device_evidence_green", current_status: "blocked_missing_s5_real_device_evidence", collection_requirement: "Attach a USB-debugging Android device and collect real screenshot/gfxinfo/logcat/lifecycle evidence.", template_public_launch_credit: false},
+        {id: "production_map_pack_public_evidence", blocker_id: "production_map_pack_public_evidence", label: "Production map-pack public evidence", evidence_env_var: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH", template_path: "/fixture/production-map-pack-public-evidence.template.json", template_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", collection_command: "scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh", validator_command: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH=<real-map-pack-evidence.json> scripts/check_trillionnium_world_production_map_pack_public_evidence.sh --require-ready", accepted_status: "production_map_pack_public_ready_green", current_status: "blocked_missing_production_map_pack_public_evidence", collection_requirement: "Collect approved source, ODbL/license, attribution, POI/geofence, distribution, rollback, and signoff evidence.", template_public_launch_credit: false},
+        {id: "first_beta_cohort_evidence", blocker_id: "first_beta_cohort_evidence", label: "First beta cohort evidence", evidence_env_var: "TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH", template_path: "/fixture/first-beta-cohort-evidence.template.json", template_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", collection_command: "scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh", validator_command: "TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH=<real-cohort.json> scripts/check_trillionnium_world_cohort_commercial_evidence.sh --require-ready", accepted_status: "first_beta_cohort_evidence_green", current_status: "blocked_missing_first_beta_cohort_evidence", collection_requirement: "Collect real 5-10 participant/session/feedback/signoff evidence.", template_public_launch_credit: false},
+        {id: "commercial_launch_drill_evidence", blocker_id: "commercial_launch_drill_evidence", label: "Commercial launch drill evidence", evidence_env_var: "TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH", template_path: "/fixture/commercial-launch-drill-evidence.template.json", template_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", collection_command: "scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh", validator_command: "TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH=<real-commercial-drill.json> scripts/check_trillionnium_world_cohort_commercial_evidence.sh --require-ready", accepted_status: "commercial_launch_drill_evidence_green", current_status: "blocked_missing_commercial_launch_drill_evidence", collection_requirement: "Collect payment, refund, support, legal, operator, traffic, and signoff evidence.", template_public_launch_credit: false},
+        {id: "multi_node_or_live_traffic_latency_evidence", blocker_id: "multi_node_or_live_traffic_latency_evidence", label: "Multi-node or live-traffic latency evidence", evidence_env_var: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH", template_path: "/fixture/multi-node-latency-evidence.template.json", template_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", validator_command: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH=<real-latency.json> scripts/check_trillionnium_world_external_ops_evidence.sh --require-ready", accepted_status: "multi_node_or_live_traffic_latency_green", current_status: "blocked_missing_multi_node_or_live_traffic_latency_evidence", collection_requirement: "Collect multi-node or live public traffic latency, monitoring, and rollback evidence.", template_public_launch_credit: false},
+        {id: "public_network_live_exposure_evidence", blocker_id: "public_network_live_exposure_evidence", label: "Public network live exposure evidence", evidence_env_var: "TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH", template_path: "/fixture/public-network-deploy-evidence.template.json", template_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh", validator_command: "TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH=<real-public-deploy.json> scripts/check_trillionnium_world_external_ops_evidence.sh --require-ready", accepted_status: "public_network_deploy_green", current_status: "blocked_missing_public_network_live_exposure_evidence", collection_requirement: "Collect approved public exposure, host, domain, TLS, probes, monitoring, backup, rollback, and signoff evidence.", template_public_launch_credit: false}
+      ],
+      handoff_artifacts: ($artifact_ids | map({
+        id: .id,
+        label: .id,
+        path: ("/fixture/" + .id + ".json"),
+        role: "operator_handoff_fixture",
+        file_status: "present",
+        sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        bytes: 128
+      })),
+      missing_artifacts: [],
+      failures: [],
+      reviewer_next_action: "collect_real_external_public_launch_evidence_using_operator_handoff"
+    }
+  ' >"$operator_handoff_json"
+  add_artifact_from_path public_launch_operator_handoff "Public launch operator handoff" "$operator_handoff_json" release_review_operator_handoff
+
+  local operator_handoff_md="$TMP_DIR/public-launch-operator-handoff.md"
+  {
+    printf '# Trillionnium World Public Launch Operator Handoff\n\n'
+    printf -- '- status: public_launch_operator_handoff_ready_with_external_blockers\n'
+    printf -- '- ready_for_release_review: true\n'
+    printf -- '- public_launch_ready: false\n'
+    printf -- '- public_launch_claimed: false\n'
+    printf -- '- android_s5_real_device_claimed: false\n\n'
+    printf '## Operator Collection Actions\n\n'
+    printf -- '- [ ] S5 Android real-device matrix (s5_real_device_evidence_green)\n'
+    printf -- '- [ ] Production map-pack public evidence (production_map_pack_public_ready_green)\n'
+    printf -- '- [ ] First beta cohort evidence (first_beta_cohort_evidence_green)\n'
+    printf -- '- [ ] Commercial launch drill evidence (commercial_launch_drill_evidence_green)\n'
+    printf -- '- [ ] Multi-node or live-traffic latency evidence (multi_node_or_live_traffic_latency_green)\n'
+    printf -- '- [ ] Public network live exposure evidence (public_network_deploy_green)\n\n'
+    printf '## Bundle Flow\n\n'
+    printf -- '- Run TRILLIONNIUM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_PATH=<real-bundle.json> scripts/check_trillionnium_world_public_launch_evidence_bundle.sh --require-ready.\n\n'
+    printf '## Handoff Artifacts\n\n'
+    printf -- '- public_launch_evidence_bundle_template: /fixture/public-launch-evidence-bundle.template.json (present, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)\n\n'
+    printf '## Boundary\n\n'
+    printf -- '- This handoff is an operator checklist and checksum manifest, not public-launch approval.\n'
+    printf -- '- No live map ingestion, public exposure, Android S5 claim, or public-launch readiness claim is made here.\n'
+  } >"$operator_handoff_md"
+  add_artifact_from_path public_launch_operator_handoff_markdown "Public launch operator handoff Markdown" "$operator_handoff_md" release_review_operator_handoff
+}
+
 add_cex_adapter_readiness_packet_fixtures() {
   local mode="${1:-valid}"
   local cex_adapter_json="$TMP_DIR/cex-production-adapter-readiness.json"
