@@ -1329,6 +1329,32 @@ add_public_launch_evidence_bundle_packet_fixtures() {
   add_artifact_from_path public_launch_evidence_bundle_markdown "Public launch evidence bundle Markdown" "$evidence_bundle_md" release_review_gate
 }
 
+add_public_launch_template_negative_fixtures_packet_fixtures() {
+  local template_negative_json="$TMP_DIR/public-launch-template-negative-fixtures.json"
+  jq -n '{
+    contract_version: "trillionnium_world_public_launch_template_negative_fixtures_v1",
+    status: "public_launch_template_negative_fixtures_green",
+    source_of_truth: "trillionnium_world_public_launch_template_negative_fixtures",
+    green: true,
+    public_launch_claimed: false,
+    android_s5_real_device_claimed: false,
+    live_map_ingestion_performed: false,
+    live_public_exposure_performed: false,
+    template_negative_rule: "no_credit_templates_must_fail_strict_field_validators_before_public_launch_handoff",
+    evidence_kit_log: "/fixture/public-launch-template-negative-fixtures-kit.log",
+    result_count: 4,
+    template_count: 6,
+    results: [
+      {name: "s5_real_device_template", validator: "check_trillionnium_world_s5_real_device_evidence", summary_path: "/fixture/s5-real-device-template-summary.json", expected_status: "blocked_missing_s5_real_device_evidence", actual_status: "blocked_missing_s5_real_device_evidence", template_paths: ["/fixture/s5-device-evidence.template.json"], exit_status: 1, rejected: true},
+      {name: "production_map_pack_template", validator: "check_trillionnium_world_production_map_pack_public_evidence", summary_path: "/fixture/production-map-pack-template-summary.json", expected_status: "blocked_missing_production_map_pack_public_evidence", actual_status: "blocked_missing_production_map_pack_public_evidence", template_paths: ["/fixture/production-map-pack-public-evidence.template.json"], exit_status: 1, rejected: true},
+      {name: "cohort_commercial_templates", validator: "check_trillionnium_world_cohort_commercial_evidence", summary_path: "/fixture/cohort-commercial-template-summary.json", expected_status: "blocked_missing_cohort_commercial_real_evidence", actual_status: "blocked_missing_cohort_commercial_real_evidence", template_paths: ["/fixture/first-beta-cohort-evidence.template.json", "/fixture/commercial-launch-drill-evidence.template.json"], exit_status: 1, rejected: true},
+      {name: "external_ops_templates", validator: "check_trillionnium_world_external_ops_evidence", summary_path: "/fixture/external-ops-template-summary.json", expected_status: "blocked_missing_external_ops_real_evidence", actual_status: "blocked_missing_external_ops_real_evidence", template_paths: ["/fixture/multi-node-latency-evidence.template.json", "/fixture/public-network-deploy-evidence.template.json"], exit_status: 1, rejected: true}
+    ],
+    failures: []
+  }' >"$template_negative_json"
+  add_artifact_from_path public_launch_template_negative_fixtures "Public launch template negative fixtures" "$template_negative_json" release_review_gate
+}
+
 add_public_launch_status_only_fixture_guard_packet_fixtures() {
   local status_only_json="$TMP_DIR/public-launch-status-only-fixtures.json"
   jq -n '{
