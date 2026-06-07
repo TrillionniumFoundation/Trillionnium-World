@@ -1400,6 +1400,83 @@ add_public_launch_validator_packet_fixtures() {
   add_artifact_from_path external_ops_evidence "External ops evidence validation" "$external_ops_evidence_json" release_review_input
 }
 
+add_public_launch_s5_real_device_validator_packet_fixtures() {
+  local s5_real_device_evidence_json="$TMP_DIR/s5-real-device-evidence-validation.json"
+
+  jq -n '{
+    contract_version: "trillionnium_world_s5_real_device_evidence_gate_v1",
+    status: "blocked_missing_s5_real_device_evidence",
+    generated_at: "2026-06-07T00:00:00Z",
+    source_of_truth: "trillionnium_world_s5_real_device_evidence_gate",
+    accepted_status: "s5_real_device_evidence_green",
+    android_s5_real_device_claimed: false,
+    host_side_replay_credit: false,
+    template: {
+      path: "/fixture/s5-device-evidence.template.json",
+      sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      status: "template_requires_real_s5_device_evidence",
+      public_launch_credit: false
+    },
+    operator_evidence: {
+      path: "/fixture/s5-device-evidence.json",
+      file_status: "present",
+      contract_version: "trillionnium_world_s5_native_bevy_device_evidence_v1",
+      overall_status: "blocked_no_connected_android_device"
+    },
+    native_lib: {
+      status: "android_native_cdylib_ready",
+      path: "/fixture/libtrnm_world_bevy.so",
+      symbols_evidence: "/fixture/native-lib-symbols.txt"
+    },
+    apk: {
+      status: "signed_debug_apk_ready",
+      path: "/fixture/trillionnium-world-bevy-debug.apk"
+    },
+    real_device_matrix: {
+      status: "blocked_no_connected_android_device",
+      device_serial: null,
+      adb_devices_evidence: "/fixture/adb-devices.txt",
+      screenshot_evidence: "",
+      gfxinfo_evidence: "",
+      logcat_evidence: "",
+      lifecycle_evidence: "",
+      locale_evidence: "",
+      input_method_evidence: "",
+      weak_network_evidence: "",
+      resource_pack_evidence: "/fixture/apk-package-evidence.txt",
+      cjk_display_input_gate: "requires_real_device_cjk_locale_input_evidence",
+      weak_network_gate: "requires_real_device_weak_network_run",
+      resource_pack_gate: "apk_signature_resource_pack_evidence_collected",
+      crash_free_gate: "not_run_no_device"
+    },
+    go_condition_matrix: {
+      cjk_display_input_gate: "requires_real_device_cjk_locale_input_evidence",
+      weak_network_gate: "requires_real_device_weak_network_run",
+      resource_pack_gate: "apk_signature_resource_pack_evidence_collected",
+      crash_free_gate: "not_run_no_device",
+      accepted_cjk_display_input_gate: "cjk_locale_input_snapshot_collected",
+      accepted_weak_network_gate: "real_device_weak_network_run",
+      accepted_resource_pack_gate: "apk_signature_resource_pack_evidence_collected"
+    },
+    blockers: [
+      "s5_overall_ready",
+      "real_device_evidence_collected",
+      "real_device_serial",
+      "real_device_screenshot",
+      "real_device_gfxinfo_or_frame_stats",
+      "real_device_logcat",
+      "real_device_lifecycle",
+      "real_device_cjk_locale",
+      "real_device_input_method",
+      "real_device_cjk_display_input",
+      "real_device_weak_network_evidence",
+      "real_device_weak_network",
+      "crash_free_logcat_window"
+    ]
+  }' >"$s5_real_device_evidence_json"
+  add_artifact_from_path s5_real_device_evidence "S5 real-device evidence validation" "$s5_real_device_evidence_json" release_review_input
+}
+
 add_public_launch_evidence_intake_packet_fixtures() {
   local evidence_intake_json="$TMP_DIR/public-launch-evidence-intake.json"
   jq -n '{
