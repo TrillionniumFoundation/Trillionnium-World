@@ -1107,6 +1107,98 @@ add_public_launch_readiness_packet_fixtures() {
   add_artifact_from_path public_launch_readiness "Public launch readiness" "$readiness_json" release_review_input
 }
 
+add_public_launch_collection_packet_fixtures() {
+  local production_collection_json="$TMP_DIR/production-map-pack-public-evidence-collection.json"
+  local cohort_collection_json="$TMP_DIR/cohort-commercial-evidence-collection.json"
+  local external_collection_json="$TMP_DIR/external-ops-evidence-collection.json"
+
+  jq -n '{
+    contract_version: "trillionnium_world_production_map_pack_public_evidence_collection_v1",
+    status: "production_map_pack_public_evidence_collection_ready",
+    source_of_truth: "trillionnium_world_production_map_pack_public_evidence_collection",
+    public_map_pack_ready: false,
+    public_launch_credit: false,
+    live_ingestion_performed: false,
+    live_ingestion_allowed: false,
+    runtime_clients_fetch_public_osm_directly: false,
+    collection_command: "scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh",
+    validation_command: "TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_EVIDENCE_PATH=<real-map-pack-evidence.json> scripts/check_trillionnium_world_production_map_pack_public_evidence.sh --require-ready",
+    route_prerequisite: {summary: "/fixture/production-map-pack-route.json", status: "production_map_pack_route_green", log: "/fixture/production-map-pack-public-evidence-collection-route.log", accepted_status: "production_map_pack_route_green"},
+    validator: {summary: "/fixture/production-map-pack-public-evidence.json", status: "blocked_missing_production_map_pack_public_evidence", log: "/fixture/production-map-pack-public-evidence-collection-validator.log", accepted_status: "production_map_pack_public_ready_green"},
+    template: {path: "/fixture/production-map-pack-public-evidence.template.json", sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", schema_path: "/fixture/production-map-pack-public-evidence.schema.json", schema_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", public_launch_credit: false},
+    required_evidence: [
+      {id: "approved_production_map_source"}, {id: "offline_cache_policy"}, {id: "web_public_attribution_screenshot"}, {id: "native_bevy_android_attribution_screenshot"}, {id: "matrix_or_readonly_attribution_screenshot"}, {id: "sensitive_poi_filter"}, {id: "geofence_policy"}, {id: "key_custody_rotation"}, {id: "public_distribution_revocation"}, {id: "public_map_pack_rollback"}, {id: "operator_signoff"}
+    ],
+    boundary: [
+      "This script creates a collection checklist only.",
+      "It does not perform live Overpass or Geofabrik ingestion.",
+      "It does not claim production_map_pack_public_ready_green.",
+      "Only the validator can grant public launch credit after real external artifacts are attached."
+    ],
+    reviewer_next_action: "fill_template_with_real_public_map_pack_evidence_then_run_validator"
+  }' >"$production_collection_json"
+  add_artifact_from_path production_map_pack_public_evidence_collection "Production map-pack public evidence collection" "$production_collection_json" release_review_collection
+
+  jq -n '{
+    contract_version: "trillionnium_world_cohort_commercial_evidence_collection_v1",
+    status: "cohort_commercial_evidence_collection_ready",
+    source_of_truth: "trillionnium_world_cohort_commercial_evidence_collection",
+    public_launch_credit: false,
+    first_beta_ready: false,
+    commercial_launch_drill_ready: false,
+    collection_command: "scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh",
+    validation_command: "TRILLIONNIUM_FIRST_BETA_COHORT_EVIDENCE_PATH=<real-cohort.json> TRILLIONNIUM_COMMERCIAL_LAUNCH_DRILL_EVIDENCE_PATH=<real-commercial-drill.json> scripts/check_trillionnium_world_cohort_commercial_evidence.sh --require-ready",
+    schema: {summary: "/fixture/cohort-commercial-evidence-schema.json", status: "cohort_commercial_evidence_schema_green", log: "/fixture/cohort-commercial-evidence-collection-schema.log"},
+    validator: {summary: "/fixture/cohort-commercial-evidence.json", log: "/fixture/cohort-commercial-evidence-collection-validator.log", first_beta_status: "blocked_missing_first_beta_cohort_evidence", commercial_launch_drill_status: "blocked_missing_commercial_launch_drill_evidence"},
+    templates: {
+      first_beta: {path: "/fixture/first-beta-cohort-evidence.template.json", sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", schema_path: "/fixture/first-beta-cohort-evidence.schema.json", schema_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", accepted_status: "first_beta_cohort_evidence_green", public_launch_credit: false},
+      commercial_launch_drill: {path: "/fixture/commercial-launch-drill-evidence.template.json", sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", schema_path: "/fixture/commercial-launch-drill-evidence.schema.json", schema_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", accepted_status: "commercial_launch_drill_evidence_green", public_launch_credit: false}
+    },
+    required_evidence: [
+      {id: "first_beta_participants"}, {id: "first_beta_sessions"}, {id: "first_beta_feedback_summary"}, {id: "first_beta_operator_signoff"}, {id: "commercial_payment_drill"}, {id: "commercial_refund_drill"}, {id: "commercial_support_drill"}, {id: "commercial_legal_drill"}, {id: "commercial_operator_drill"}, {id: "commercial_traffic_drill"}, {id: "commercial_operator_signoff"}
+    ],
+    privacy_boundary: [
+      "Use sanitized participant ids and evidence references.",
+      "Do not store private personal data in templates.",
+      "Templates and collection checklists carry no public-launch credit."
+    ],
+    reviewer_next_action: "collect_real_first_beta_and_commercial_drill_evidence_then_run_validator"
+  }' >"$cohort_collection_json"
+  add_artifact_from_path cohort_commercial_evidence_collection "Cohort/commercial evidence collection" "$cohort_collection_json" release_review_collection
+
+  jq -n '{
+    contract_version: "trillionnium_world_external_ops_evidence_collection_v1",
+    status: "external_ops_evidence_collection_ready",
+    source_of_truth: "trillionnium_world_external_ops_evidence_collection",
+    public_launch_credit: false,
+    multi_node_or_live_traffic_latency_ready: false,
+    public_network_deploy_ready: false,
+    live_public_exposure_performed: false,
+    collection_command: "scripts/check_trillionnium_world_external_ops_evidence_collection.sh",
+    validation_command: "TRILLIONNIUM_MULTI_NODE_LATENCY_EVIDENCE_PATH=<real-latency.json> TRILLIONNIUM_PUBLIC_NETWORK_DEPLOY_EVIDENCE_PATH=<real-public-deploy.json> scripts/check_trillionnium_world_external_ops_evidence.sh --require-ready",
+    validator: {summary: "/fixture/external-ops-evidence.json", log: "/fixture/external-ops-evidence-collection-validator.log", multi_node_or_live_traffic_latency_status: "blocked_missing_multi_node_or_live_traffic_latency_evidence", public_network_deploy_status: "blocked_missing_public_network_live_exposure_evidence"},
+    templates: {
+      multi_node_or_live_traffic_latency: {path: "/fixture/multi-node-latency-evidence.template.json", sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", accepted_status: "multi_node_or_live_traffic_latency_green", public_launch_credit: false},
+      public_network_deploy: {path: "/fixture/public-network-deploy-evidence.template.json", sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", accepted_status: "public_network_deploy_green", public_launch_credit: false}
+    },
+    local_drills: {
+      release_latency: {path: "/fixture/release-latency-drill.json", file_status: "present", status: "local_release_latency_drill_green", public_launch_credit: false},
+      public_deploy: {path: "/fixture/public-network-deploy-evidence.json", file_status: "present", status: "local_public_deploy_drill_green", public_launch_credit: false}
+    },
+    required_evidence: [
+      {id: "multi_node_or_live_traffic_scope"}, {id: "latency_endpoints"}, {id: "latency_public_url_probes"}, {id: "latency_p95_budget"}, {id: "monitoring_timeseries"}, {id: "rollback_under_load"}, {id: "latency_operator_signoff"}, {id: "public_exposure_approval"}, {id: "public_host_domain_tls"}, {id: "public_url_health_probes"}, {id: "public_monitoring_backup_rollback"}, {id: "public_exposure_operator_signoff"}
+    ],
+    boundary: [
+      "This script creates a collection checklist only.",
+      "It does not open a public network route.",
+      "It does not create live public traffic.",
+      "Local latency/deploy drills are useful but have no public-launch credit."
+    ],
+    reviewer_next_action: "collect_real_external_ops_evidence_then_run_validator"
+  }' >"$external_collection_json"
+  add_artifact_from_path external_ops_evidence_collection "External ops evidence collection" "$external_collection_json" release_review_collection
+}
+
 add_public_launch_evidence_intake_packet_fixtures() {
   local evidence_intake_json="$TMP_DIR/public-launch-evidence-intake.json"
   jq -n '{
