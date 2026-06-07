@@ -222,6 +222,63 @@ add_live_window_mouse_hit_test_packet_fixtures() {
   add_artifact_from_path native_bevy_live_window_mouse_hit_test_sequence "Native/Bevy live-window mouse hit-test sequence" "$mouse_hit_test_json" release_review_input
 }
 
+add_camera_minimap_sync_packet_fixtures() {
+  local camera_minimap_sync_json="$TMP_DIR/bevy-classic-rts-camera-minimap-sync.json"
+  jq -n '{
+    contract_version: "trillionnium_world_bevy_classic_rts_camera_minimap_sync_v1",
+    green: true,
+    preview_format: "ppm_p3_rgb",
+    preview_width: 1920,
+    preview_height: 720,
+    renderer_path: "classic_draw_scene+classic_draw_rts_camera_minimap_sync_overlay",
+    input_path: "apply_rts_scrollable_map_camera_input(classic_rts_camera_minimap_sync_input)",
+    runtime_path: "apply_rts_scrollable_map_camera_input+rts_camera_minimap_viewport_rect+rts_camera_minimap_revealed_tiles",
+    selection_follow_path: "rts_camera_minimap_selection_follow_step",
+    native_runtime_path: "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view+rts_camera_minimap_viewport_rect",
+    input_action_count: 6,
+    stage_summaries: [
+      {stage: "viewport_rect", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null},
+      {stage: "fog_reveal", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null},
+      {stage: "selection_follow", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: "mirror_captain"},
+      {stage: "control_group_recall", selected_unit_id: "field_engineer", control_group_id: "2", minimap_tile_id: null},
+      {stage: "route_projection", selected_unit_id: "signal_lancer", control_group_id: "2", minimap_tile_id: "minimap_route_target"},
+      {stage: "zoom_sync", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null}
+    ],
+    revealed_tile_union_count: 33,
+    viewport_pixel_count: 5579,
+    fog_pixel_count: 19452,
+    reveal_pixel_count: 2491,
+    selection_pixel_count: 7994,
+    route_pixel_count: 1458,
+    viewport_visual_gate: true,
+    fog_visual_gate: true,
+    reveal_visual_gate: true,
+    selection_visual_gate: true,
+    route_visual_gate: true,
+    stage_gate: true,
+    viewport_sync_gate: true,
+    fog_reveal_gate: true,
+    selection_follow_gate: true,
+    control_group_sync_gate: true,
+    route_projection_gate: true,
+    zoom_rect_sync_gate: true,
+    minimap_runtime_gate: true,
+    scene_renderer_gate: true,
+    original_art_policy_gate: true,
+    warcraft_iii_asset_copied: false,
+    cex_runtime_player_client_allowed: false,
+    wgpu_required: false,
+    android_s5_real_device_claimed: false,
+    public_launch_ready: false
+  }' >"$camera_minimap_sync_json"
+  add_artifact_from_path native_bevy_classic_rts_camera_minimap_sync "Native/Bevy classic RTS camera/minimap sync" "$camera_minimap_sync_json" release_review_input
+
+  local camera_minimap_sync_ppm="$TMP_DIR/bevy-classic-rts-camera-minimap-sync.ppm"
+  printf 'P3\n1920 720\n255\n' >"$camera_minimap_sync_ppm"
+  truncate -s 8000001 "$camera_minimap_sync_ppm"
+  add_artifact_from_path native_bevy_classic_rts_camera_minimap_sync_ppm "Native/Bevy classic RTS camera/minimap sync PPM" "$camera_minimap_sync_ppm" release_review_visual_evidence
+}
+
 add_modeling_foundation_packet_fixtures() {
   local asset_pack_json="$TMP_DIR/bevy-classic-asset-pack.json"
   jq -n '{

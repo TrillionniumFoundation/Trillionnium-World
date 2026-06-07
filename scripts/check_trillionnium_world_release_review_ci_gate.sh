@@ -37,6 +37,13 @@ run_check() {
   fi
 }
 
+refresh_bevy_playtest_runner_for_fast_gates() {
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user start trillionnium-bevy-playtest.service >/dev/null 2>&1 || true
+  fi
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh"
+}
+
 run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_release_review_quickcheck.sh" \
   "$ROOT/scripts/check_trillionnium_world_release_review_status.sh" \
@@ -765,6 +772,7 @@ run_check bevy_render_asset_eligibility_contract_guard "$ROOT/scripts/v2/render_
 run_check bevy_render_asset_eligibility_gate "$ROOT/scripts/check_trillionnium_world_bevy_render_asset_eligibility.sh"
 run_check bevy_live_window_screenshot_sequence_artifact jq -e '.contract_version == "trillionnium_world_bevy_live_window_screenshot_sequence_v1" and .green == true and .frame_sequence_gate == true and .contact_sheet_gate == true and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1" and .runtime_texture_manifest_hash_gate == true and .runtime_texture_launch_env_gate == true and .runtime_texture_handle_gate == true and .runtime_probe_contract == "trillionnium_world_bevy_runtime_probe_v1" and .runtime_texture_sprite_asset_binding_contract == "trillionnium_world_bevy_sprite_asset_binding_v1" and .runtime_texture_sprite_asset_binding_gate == true and .runtime_texture_sprite_bound_surface_count >= 24 and .runtime_texture_image_asset_handle_id == "bevy_image_handle::trnm_world_authored_sprite_sheet_v1" and .runtime_texture_atlas_layout_handle_id == "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1" and .gpu_upload_claimed == false and .android_s5_real_device_claimed == false and .live_osm_ingestion_claimed == false' "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-screenshot-sequence.json"
 run_check bevy_desktop_real_machine_readiness_contract_guard "$ROOT/scripts/v2/bevy_desktop_real_machine_readiness_script_contract_guard_test.sh"
+run_check bevy_classic_playtest_runner_status_desktop_fast_gate_refresh refresh_bevy_playtest_runner_for_fast_gates
 run_check bevy_desktop_real_machine_readiness_gate env TRNM_WORLD_DESKTOP_REAL_MACHINE_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_bevy_desktop_real_machine_readiness.sh"
 run_check bevy_desktop_playtest_review_packet_contract_guard "$ROOT/scripts/v2/bevy_desktop_playtest_review_packet_script_contract_guard_test.sh"
 run_check bevy_desktop_playtest_review_packet_gate env TRNM_WORLD_DESKTOP_PLAYTEST_REVIEW_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_bevy_desktop_playtest_review_packet.sh"
@@ -782,6 +790,7 @@ run_check ui_map_modeling_full_alignment_contract_guard "$ROOT/scripts/v2/ui_map
 run_check ui_map_modeling_full_alignment_gate env TRNM_WORLD_FULL_ALIGNMENT_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_ui_map_modeling_full_alignment.sh"
 run_check production_map_pack_public_evidence_artifact_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_artifact_guard_test.sh"
 run_check readme_release_review_guard "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh"
+run_check bevy_classic_playtest_runner_status_packet_integrity_refresh refresh_bevy_playtest_runner_for_fast_gates
 run_check packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh"
 run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
 run_check workflow_script_refs env \

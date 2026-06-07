@@ -40,6 +40,7 @@ BUILD_LIFECYCLE_LOG="$ACCEPTANCE_DIR/release-review-packet-build-lifecycle.log"
 TECH_TREE_LOG="$ACCEPTANCE_DIR/release-review-packet-tech-tree.log"
 PROJECTILE_ABILITY_LOG="$ACCEPTANCE_DIR/release-review-packet-projectile-ability.log"
 COMBAT_READABILITY_PRESSURE_READINESS_LOG="$ACCEPTANCE_DIR/release-review-packet-combat-readability-pressure-readiness.log"
+CAMERA_MINIMAP_SYNC_LOG="$ACCEPTANCE_DIR/release-review-packet-camera-minimap-sync.log"
 BOT_DECISION_STATE_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-decision-state-gap.log"
 BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adaptive-build-order-gap.log"
 BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
@@ -74,6 +75,7 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tech_tree.sh" >"$TECH_TREE_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_projectile_ability.sh" >"$PROJECTILE_ABILITY_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >"$COMBAT_READABILITY_PRESSURE_READINESS_LOG"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_camera_minimap_sync.sh" >"$CAMERA_MINIMAP_SYNC_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh" >"$BOT_DECISION_STATE_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
@@ -199,6 +201,8 @@ artifact native_bevy_classic_rts_campaign_ui_continuity_ppm "Native/Bevy classic
 artifact native_bevy_classic_rts_in_match_hud_state_replication "Native/Bevy classic RTS in-match HUD/state replication" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.json" release_review_input
 artifact native_bevy_classic_rts_session_state_continuity "Native/Bevy classic RTS session state continuity" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-session-state-continuity.json" release_review_input
 artifact native_bevy_classic_rts_combat_readability_pressure_readiness "Native/Bevy classic RTS combat readability/pressure readiness" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" release_review_input
+artifact native_bevy_classic_rts_camera_minimap_sync "Native/Bevy classic RTS camera/minimap sync" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-camera-minimap-sync.json" release_review_input
+artifact native_bevy_classic_rts_camera_minimap_sync_ppm "Native/Bevy classic RTS camera/minimap sync PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-camera-minimap-sync.ppm" release_review_visual_evidence
 artifact native_bevy_classic_rts_production_desktop_review_packet "Native/Bevy classic RTS production desktop review packet" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-desktop-review-packet.json" release_review_input
 artifact cex_adapter_readiness "CEX production world adapter readiness" "$ROOT/acceptance/S3_repository_adapter/latest/cex-production-adapter-readiness.json" release_review_input
 artifact s5_real_device_evidence "S5 real-device evidence validation" "$ROOT/acceptance/S5_native_bevy_device/latest/s5-real-device-evidence-validation.json" release_review_input

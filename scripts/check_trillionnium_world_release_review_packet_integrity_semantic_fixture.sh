@@ -24,7 +24,7 @@ jq -n \
     green: true,
     fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
     fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
-    fake_packet_artifact_count: 111,
+    fake_packet_artifact_count: 113,
     expected_semantic_failure_count: 9,
     expected_semantic_failure_names: [
       "release_review_convergence_semantics",
@@ -52,7 +52,7 @@ jq -e '
   .contract_version == "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1"
   and .status == "release_review_packet_integrity_semantic_fixture_green"
   and .green == true
-  and .fake_packet_artifact_count == 111
+  and .fake_packet_artifact_count == 113
   and .expected_semantic_failure_count == 9
   and .expected_semantic_failure_names == [
     "release_review_convergence_semantics",
