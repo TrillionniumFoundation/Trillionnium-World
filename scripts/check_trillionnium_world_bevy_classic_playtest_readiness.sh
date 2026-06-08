@@ -109,6 +109,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_session_state_continuity.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_continuous_player_flow.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_live_session_playthrough.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
@@ -215,6 +216,7 @@ jq -n \
   --slurpfile rts_session_state_continuity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-session-state-continuity.json" \
   --slurpfile rts_continuous_player_flow "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.json" \
   --slurpfile rts_live_session_playthrough "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-session-playthrough.json" \
+  --slurpfile rts_full_game_visual_ui_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
@@ -328,6 +330,7 @@ jq -n \
       and ok($rts_session_state_continuity)
       and ok($rts_continuous_player_flow)
       and ok($rts_live_session_playthrough)
+      and ok($rts_full_game_visual_ui_replication)
       and ok($rts_combat_readability_pressure_readiness)
       and ok($rts_playtest_observability_readiness)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
@@ -652,6 +655,7 @@ jq -n \
       classic_rts_session_state_continuity_green: ok($rts_session_state_continuity),
       classic_rts_continuous_player_flow_green: ok($rts_continuous_player_flow),
       classic_rts_live_session_playthrough_green: ok($rts_live_session_playthrough),
+      classic_rts_full_game_visual_ui_replication_green: ok($rts_full_game_visual_ui_replication),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
@@ -1791,6 +1795,16 @@ jq -n \
       rts_live_session_playthrough_final_objective_status: $rts_live_session_playthrough[0].final_state.objective_status,
       rts_live_session_playthrough_open_world_state: $rts_live_session_playthrough[0].final_state.open_world_handoff_state,
       rts_live_session_playthrough_resume_room_id: $rts_live_session_playthrough[0].final_state.open_world_resume_room_id,
+      rts_full_game_visual_ui_replication_surface_count: $rts_full_game_visual_ui_replication[0].coverage_surface_count,
+      rts_full_game_visual_ui_replication_non_background_pixels: $rts_full_game_visual_ui_replication[0].pixel_counts.non_background,
+      rts_full_game_visual_ui_replication_hud_chrome_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.hud_chrome,
+      rts_full_game_visual_ui_replication_command_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.command,
+      rts_full_game_visual_ui_replication_session_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.session,
+      rts_full_game_visual_ui_replication_outcome_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.outcome,
+      rts_full_game_visual_ui_replication_live_session_stage_count: $rts_full_game_visual_ui_replication[0].source_headline.live_session_stage_count,
+      rts_full_game_visual_ui_replication_live_session_accepted_input_count: $rts_full_game_visual_ui_replication[0].source_headline.live_session_accepted_input_count,
+      rts_full_game_visual_ui_replication_final_objective_status: $rts_full_game_visual_ui_replication[0].source_headline.live_session_final_objective_status,
+      rts_full_game_visual_ui_replication_open_world_state: $rts_full_game_visual_ui_replication[0].source_headline.live_session_open_world_state,
       rts_command_affordance_drag_marquee_pixel_count: $rts_command_affordance[0].drag_marquee_pixel_count,
       rts_command_affordance_right_click_marker_pixel_count: $rts_command_affordance[0].right_click_marker_pixel_count,
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
@@ -2506,6 +2520,14 @@ jq -n \
       rts_live_session_playthrough_same_process_trace_gate: $rts_live_session_playthrough[0].same_process_trace_gate,
       rts_live_session_playthrough_native_client_boundary_gate: $rts_live_session_playthrough[0].native_client_boundary_gate,
       rts_live_session_playthrough_gate: $rts_live_session_playthrough[0].live_session_playthrough_gate,
+      rts_full_game_visual_ui_replication_source_contract_gate: $rts_full_game_visual_ui_replication[0].source_contract_gate,
+      rts_full_game_visual_ui_replication_source_green_gate: $rts_full_game_visual_ui_replication[0].source_green_gate,
+      rts_full_game_visual_ui_replication_runtime_screen_chain_gate: $rts_full_game_visual_ui_replication[0].runtime_screen_chain_gate,
+      rts_full_game_visual_ui_replication_player_flow_gate: $rts_full_game_visual_ui_replication[0].player_flow_gate,
+      rts_full_game_visual_ui_replication_coverage_surface_gate: $rts_full_game_visual_ui_replication[0].coverage_surface_gate,
+      rts_full_game_visual_ui_replication_preview_gate: $rts_full_game_visual_ui_replication[0].preview_gate,
+      rts_full_game_visual_ui_replication_no_copy_boundary_gate: $rts_full_game_visual_ui_replication[0].no_copy_boundary_gate,
+      rts_full_game_visual_ui_replication_gate: $rts_full_game_visual_ui_replication[0].full_game_visual_ui_replication_gate,
       rts_command_affordance_live_input_gate: $rts_command_affordance[0].live_command_affordance_input_gate,
       rts_command_affordance_drag_select_gate: $rts_command_affordance[0].drag_select_gate,
       rts_command_affordance_right_click_move_gate: $rts_command_affordance[0].right_click_move_gate,
@@ -2949,6 +2971,8 @@ jq -n \
       classic_rts_live_session_playthrough: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-session-playthrough.json",
       classic_rts_live_session_playthrough_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-session-playthrough.ppm",
       classic_rts_live_session_playthrough_trace: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-session-playthrough.trace.json",
+      classic_rts_full_game_visual_ui_replication: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.json",
+      classic_rts_full_game_visual_ui_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.ppm",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
       classic_rts_combat_readability_pressure_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/",
       classic_rts_playtest_observability_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json",
@@ -3086,6 +3110,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_session_state_continuity_green == true
   and .checks.classic_rts_continuous_player_flow_green == true
   and .checks.classic_rts_live_session_playthrough_green == true
+  and .checks.classic_rts_full_game_visual_ui_replication_green == true
   and .headline.rts_production_asset_atlas_frame_count >= 32
   and .headline.rts_production_asset_atlas_sprite_binding_count >= 32
   and .headline.rts_production_asset_atlas_material_asset_count == 4
@@ -3170,6 +3195,16 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_session_playthrough_final_objective_status == "open_world_after_action_ready"
   and .headline.rts_live_session_playthrough_open_world_state == "resumed:league-coliseum"
   and .headline.rts_live_session_playthrough_resume_room_id == "league-coliseum"
+  and .headline.rts_full_game_visual_ui_replication_surface_count == 18
+  and .headline.rts_full_game_visual_ui_replication_non_background_pixels > 900000
+  and .headline.rts_full_game_visual_ui_replication_hud_chrome_pixel_count > 120000
+  and .headline.rts_full_game_visual_ui_replication_command_pixel_count > 20000
+  and .headline.rts_full_game_visual_ui_replication_session_pixel_count > 10000
+  and .headline.rts_full_game_visual_ui_replication_outcome_pixel_count > 10000
+  and .headline.rts_full_game_visual_ui_replication_live_session_stage_count == 6
+  and .headline.rts_full_game_visual_ui_replication_live_session_accepted_input_count >= 78
+  and .headline.rts_full_game_visual_ui_replication_final_objective_status == "open_world_after_action_ready"
+  and .headline.rts_full_game_visual_ui_replication_open_world_state == "resumed:league-coliseum"
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.classic_rts_playtest_observability_readiness_green == true
   and .checks.client_boundary_green == true
@@ -4438,6 +4473,14 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_session_playthrough_same_process_trace_gate == true
   and .gates.rts_live_session_playthrough_native_client_boundary_gate == true
   and .gates.rts_live_session_playthrough_gate == true
+  and .gates.rts_full_game_visual_ui_replication_source_contract_gate == true
+  and .gates.rts_full_game_visual_ui_replication_source_green_gate == true
+  and .gates.rts_full_game_visual_ui_replication_runtime_screen_chain_gate == true
+  and .gates.rts_full_game_visual_ui_replication_player_flow_gate == true
+  and .gates.rts_full_game_visual_ui_replication_coverage_surface_gate == true
+  and .gates.rts_full_game_visual_ui_replication_preview_gate == true
+  and .gates.rts_full_game_visual_ui_replication_no_copy_boundary_gate == true
+  and .gates.rts_full_game_visual_ui_replication_gate == true
   and .gates.rts_visual_fidelity_mature_hud_gate == true
   and .gates.rts_visual_fidelity_selected_units_gate == true
   and .gates.rts_visual_fidelity_command_surface_gate == true

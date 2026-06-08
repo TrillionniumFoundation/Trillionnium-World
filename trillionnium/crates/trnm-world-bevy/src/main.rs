@@ -270,6 +270,25 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-full-game-visual-ui-replication"
+                | "--classic-rts-full-game-visual-ui-replication"
+                | "full-game-visual-ui-replication"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_full_game_visual_ui_replication_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-first-contact-basin-spec"
                 | "--classic-rts-first-contact-basin-spec"
                 | "first-contact-basin-spec"

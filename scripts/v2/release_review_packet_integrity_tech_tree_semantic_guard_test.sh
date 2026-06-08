@@ -91,7 +91,7 @@ jq -n '{
   fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 120,
-  expected_semantic_failure_count: 14,
+  expected_semantic_failure_count: 15,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
@@ -106,7 +106,8 @@ jq -n '{
     "first_minute_command_feedback_rejection_replay_semantics",
     "first_minute_command_feedback_rejection_source_recording_semantics",
     "first_minute_command_feedback_rejection_recording_semantics",
-    "first_minute_command_feedback_rejection_replay_ppm_semantics"
+    "first_minute_command_feedback_rejection_replay_ppm_semantics",
+    "classic_playtest_readiness_full_game_visual_ui_replication_semantics"
   ],
   checksum_mismatch_failure_count: 0,
   bytes_mismatch_failure_count: 0,
@@ -1501,6 +1502,7 @@ jq -n '{
     classic_rts_in_match_hud_state_replication_green: true,
     classic_rts_session_state_continuity_green: true,
     classic_rts_continuous_player_flow_green: true,
+    classic_rts_full_game_visual_ui_replication_green: true,
     classic_rts_combat_readability_pressure_readiness_green: true,
     classic_rts_playtest_observability_readiness_green: true,
     client_boundary_green: true,
@@ -1521,7 +1523,15 @@ jq -n '{
     rts_continuous_player_flow_outcome_open_world_gate: true,
     rts_continuous_player_flow_chain_gate: true,
     rts_continuous_player_flow_native_client_boundary_gate: true,
-    rts_continuous_player_flow_gate: true
+    rts_continuous_player_flow_gate: true,
+    rts_full_game_visual_ui_replication_source_contract_gate: true,
+    rts_full_game_visual_ui_replication_source_green_gate: true,
+    rts_full_game_visual_ui_replication_runtime_screen_chain_gate: true,
+    rts_full_game_visual_ui_replication_player_flow_gate: true,
+    rts_full_game_visual_ui_replication_coverage_surface_gate: true,
+    rts_full_game_visual_ui_replication_preview_gate: true,
+    rts_full_game_visual_ui_replication_no_copy_boundary_gate: true,
+    rts_full_game_visual_ui_replication_gate: true
   },
   headline: {
     rts_full_screen_ui_replication_surface_count: 10,
@@ -1544,6 +1554,16 @@ jq -n '{
     rts_continuous_player_flow_final_objective_status: "first_playable_loop_complete",
     rts_continuous_player_flow_open_world_state: "resumed:league-coliseum",
     rts_continuous_player_flow_restored_room_id: "league-coliseum",
+    rts_full_game_visual_ui_replication_surface_count: 18,
+    rts_full_game_visual_ui_replication_non_background_pixels: 2073600,
+    rts_full_game_visual_ui_replication_hud_chrome_pixel_count: 276317,
+    rts_full_game_visual_ui_replication_command_pixel_count: 42590,
+    rts_full_game_visual_ui_replication_session_pixel_count: 39312,
+    rts_full_game_visual_ui_replication_outcome_pixel_count: 26546,
+    rts_full_game_visual_ui_replication_live_session_stage_count: 6,
+    rts_full_game_visual_ui_replication_live_session_accepted_input_count: 91,
+    rts_full_game_visual_ui_replication_final_objective_status: "open_world_after_action_ready",
+    rts_full_game_visual_ui_replication_open_world_state: "resumed:league-coliseum",
     rts_central_keep_pressure_accepted_input_count: 40,
     rts_central_keep_pressure_state: "pressure_locked:central_keep",
     rts_unit_status_portrait_frame_pixel_count: 15339,
@@ -1552,7 +1572,9 @@ jq -n '{
   },
   artifacts: {
     classic_rts_continuous_player_flow: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.json",
-    classic_rts_continuous_player_flow_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.ppm"
+    classic_rts_continuous_player_flow_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.ppm",
+    classic_rts_full_game_visual_ui_replication: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.json",
+    classic_rts_full_game_visual_ui_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.ppm"
   },
   internal_classic_playtest_readiness_claimed: true,
   external_evidence_ignored_for_current_playtest_pass: true,
