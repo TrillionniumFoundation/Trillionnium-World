@@ -234,6 +234,23 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-continuous-player-flow"
+                | "--classic-rts-continuous-player-flow"
+                | "continuous-player-flow"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_continuous_player_flow_evidence_json(preview_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-first-contact-basin-spec"
                 | "--classic-rts-first-contact-basin-spec"
                 | "first-contact-basin-spec"

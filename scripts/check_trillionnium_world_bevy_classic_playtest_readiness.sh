@@ -107,6 +107,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_ui_continuity.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_in_match_hud_state_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_session_state_continuity.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_continuous_player_flow.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
@@ -211,6 +212,7 @@ jq -n \
   --slurpfile rts_campaign_ui_continuity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-campaign-ui-continuity.json" \
   --slurpfile rts_in_match_hud_state_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.json" \
   --slurpfile rts_session_state_continuity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-session-state-continuity.json" \
+  --slurpfile rts_continuous_player_flow "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
@@ -322,6 +324,7 @@ jq -n \
       and ok($rts_campaign_ui_continuity)
       and ok($rts_in_match_hud_state_replication)
       and ok($rts_session_state_continuity)
+      and ok($rts_continuous_player_flow)
       and ok($rts_combat_readability_pressure_readiness)
       and ok($rts_playtest_observability_readiness)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
@@ -644,6 +647,7 @@ jq -n \
       classic_rts_campaign_ui_continuity_green: ok($rts_campaign_ui_continuity),
       classic_rts_in_match_hud_state_replication_green: ok($rts_in_match_hud_state_replication),
       classic_rts_session_state_continuity_green: ok($rts_session_state_continuity),
+      classic_rts_continuous_player_flow_green: ok($rts_continuous_player_flow),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
@@ -1762,6 +1766,17 @@ jq -n \
       rts_session_state_continuity_final_objective_status: $rts_session_state_continuity[0].source_headline.load_resume_final_objective_status,
       rts_session_state_continuity_open_world_state: $rts_session_state_continuity[0].source_headline.campaign_outcome_open_world_state,
       rts_session_state_continuity_restored_room_id: $rts_session_state_continuity[0].source_headline.campaign_continuity_restored_room_id,
+      rts_continuous_player_flow_step_count: $rts_continuous_player_flow[0].continuous_player_flow_step_count,
+      rts_continuous_player_flow_non_background_pixels: $rts_continuous_player_flow[0].flow_pixel_counts.non_background,
+      rts_continuous_player_flow_title_account_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.title_account,
+      rts_continuous_player_flow_match_setup_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.match_setup,
+      rts_continuous_player_flow_in_match_hud_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.in_match_hud,
+      rts_continuous_player_flow_command_feedback_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.command_feedback,
+      rts_continuous_player_flow_save_load_resume_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.save_load_resume,
+      rts_continuous_player_flow_outcome_open_world_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.outcome_open_world,
+      rts_continuous_player_flow_final_objective_status: $rts_continuous_player_flow[0].source_headline.session_final_objective_status,
+      rts_continuous_player_flow_open_world_state: $rts_continuous_player_flow[0].source_headline.session_open_world_state,
+      rts_continuous_player_flow_restored_room_id: $rts_continuous_player_flow[0].source_headline.campaign_continuity_restored_room_id,
       rts_command_affordance_drag_marquee_pixel_count: $rts_command_affordance[0].drag_marquee_pixel_count,
       rts_command_affordance_right_click_marker_pixel_count: $rts_command_affordance[0].right_click_marker_pixel_count,
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
@@ -2459,6 +2474,15 @@ jq -n \
       rts_session_state_continuity_chain_gate: $rts_session_state_continuity[0].state_continuity_chain_gate,
       rts_session_state_continuity_native_client_boundary_gate: $rts_session_state_continuity[0].native_client_boundary_gate,
       rts_session_state_continuity_gate: $rts_session_state_continuity[0].session_state_continuity_gate,
+      rts_continuous_player_flow_title_account_gate: $rts_continuous_player_flow[0].title_account_gate,
+      rts_continuous_player_flow_match_setup_gate: $rts_continuous_player_flow[0].match_setup_gate,
+      rts_continuous_player_flow_in_match_hud_gate: $rts_continuous_player_flow[0].in_match_hud_gate,
+      rts_continuous_player_flow_command_feedback_gate: $rts_continuous_player_flow[0].command_feedback_gate,
+      rts_continuous_player_flow_save_resume_gate: $rts_continuous_player_flow[0].save_resume_gate,
+      rts_continuous_player_flow_outcome_open_world_gate: $rts_continuous_player_flow[0].outcome_open_world_gate,
+      rts_continuous_player_flow_chain_gate: $rts_continuous_player_flow[0].continuous_player_flow_chain_gate,
+      rts_continuous_player_flow_native_client_boundary_gate: $rts_continuous_player_flow[0].native_client_boundary_gate,
+      rts_continuous_player_flow_gate: $rts_continuous_player_flow[0].continuous_player_flow_gate,
       rts_command_affordance_live_input_gate: $rts_command_affordance[0].live_command_affordance_input_gate,
       rts_command_affordance_drag_select_gate: $rts_command_affordance[0].drag_select_gate,
       rts_command_affordance_right_click_move_gate: $rts_command_affordance[0].right_click_move_gate,
@@ -2897,6 +2921,8 @@ jq -n \
       classic_rts_in_match_hud_state_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-in-match-hud-state-replication.ppm",
       classic_rts_session_state_continuity: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-session-state-continuity.json",
       classic_rts_session_state_continuity_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-session-state-continuity.ppm",
+      classic_rts_continuous_player_flow: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.json",
+      classic_rts_continuous_player_flow_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-continuous-player-flow.ppm",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
       classic_rts_combat_readability_pressure_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/",
       classic_rts_playtest_observability_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json",
@@ -3032,6 +3058,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_campaign_ui_continuity_green == true
   and .checks.classic_rts_in_match_hud_state_replication_green == true
   and .checks.classic_rts_session_state_continuity_green == true
+  and .checks.classic_rts_continuous_player_flow_green == true
   and .headline.rts_production_asset_atlas_frame_count >= 32
   and .headline.rts_production_asset_atlas_sprite_binding_count >= 32
   and .headline.rts_production_asset_atlas_material_asset_count == 4
@@ -3095,6 +3122,17 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_session_state_continuity_final_objective_status == "first_playable_loop_complete"
   and .headline.rts_session_state_continuity_open_world_state == "resumed:league-coliseum"
   and .headline.rts_session_state_continuity_restored_room_id == "league-coliseum"
+  and .headline.rts_continuous_player_flow_step_count == 6
+  and .headline.rts_continuous_player_flow_non_background_pixels > 250000
+  and .headline.rts_continuous_player_flow_title_account_pixel_count > 2000
+  and .headline.rts_continuous_player_flow_match_setup_pixel_count > 2000
+  and .headline.rts_continuous_player_flow_in_match_hud_pixel_count > 2000
+  and .headline.rts_continuous_player_flow_command_feedback_pixel_count > 2000
+  and .headline.rts_continuous_player_flow_save_load_resume_pixel_count > 2000
+  and .headline.rts_continuous_player_flow_outcome_open_world_pixel_count > 2000
+  and .headline.rts_continuous_player_flow_final_objective_status == "first_playable_loop_complete"
+  and .headline.rts_continuous_player_flow_open_world_state == "resumed:league-coliseum"
+  and .headline.rts_continuous_player_flow_restored_room_id == "league-coliseum"
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.classic_rts_playtest_observability_readiness_green == true
   and .checks.client_boundary_green == true
@@ -4345,6 +4383,15 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_session_state_continuity_chain_gate == true
   and .gates.rts_session_state_continuity_native_client_boundary_gate == true
   and .gates.rts_session_state_continuity_gate == true
+  and .gates.rts_continuous_player_flow_title_account_gate == true
+  and .gates.rts_continuous_player_flow_match_setup_gate == true
+  and .gates.rts_continuous_player_flow_in_match_hud_gate == true
+  and .gates.rts_continuous_player_flow_command_feedback_gate == true
+  and .gates.rts_continuous_player_flow_save_resume_gate == true
+  and .gates.rts_continuous_player_flow_outcome_open_world_gate == true
+  and .gates.rts_continuous_player_flow_chain_gate == true
+  and .gates.rts_continuous_player_flow_native_client_boundary_gate == true
+  and .gates.rts_continuous_player_flow_gate == true
   and .gates.rts_visual_fidelity_mature_hud_gate == true
   and .gates.rts_visual_fidelity_selected_units_gate == true
   and .gates.rts_visual_fidelity_command_surface_gate == true

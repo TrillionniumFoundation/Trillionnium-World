@@ -134,6 +134,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_campaign_ui_continuity.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_in_match_hud_state_replication.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_session_state_continuity.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_continuous_player_flow.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_surface.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_structure_modeling.sh" \
@@ -306,6 +307,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_campaign_ui_continuity_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_in_match_hud_state_replication_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_session_state_continuity_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_rts_continuous_player_flow_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_command_affordance_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_command_surface_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_structure_modeling_script_contract_guard_test.sh" \
@@ -599,6 +601,9 @@ run_check bevy_classic_rts_in_match_hud_state_replication_gate "$ROOT/scripts/ch
 # Session state continuity contract: trillionnium_world_bevy_classic_rts_session_state_continuity_v1
 run_check bevy_classic_rts_session_state_continuity_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_session_state_continuity_script_contract_guard_test.sh"
 run_check bevy_classic_rts_session_state_continuity_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_session_state_continuity.sh"
+# Continuous player flow contract: trillionnium_world_bevy_classic_rts_continuous_player_flow_v1
+run_check bevy_classic_rts_continuous_player_flow_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_continuous_player_flow_script_contract_guard_test.sh"
+run_check bevy_classic_rts_continuous_player_flow_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_continuous_player_flow.sh"
 run_check bevy_classic_rts_command_affordance_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_command_affordance_script_contract_guard_test.sh"
 run_check bevy_classic_rts_command_affordance_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_command_affordance.sh"
 run_check bevy_classic_rts_command_surface_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_command_surface_script_contract_guard_test.sh"
