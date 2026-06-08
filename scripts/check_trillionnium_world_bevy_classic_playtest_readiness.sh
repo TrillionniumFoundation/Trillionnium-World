@@ -111,6 +111,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_live_session_playthrough.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_screen_for_screen_ui_replication.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_engine_port_asset_parity.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
@@ -219,6 +220,7 @@ jq -n \
   --slurpfile rts_live_session_playthrough "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-session-playthrough.json" \
   --slurpfile rts_full_game_visual_ui_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.json" \
   --slurpfile rts_openra_screen_for_screen_ui_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-screen-for-screen-ui-replication.json" \
+  --slurpfile rts_openra_engine_port_asset_parity "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity.json" \
   --slurpfile rts_combat_readability_pressure_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json" \
   --slurpfile rts_playtest_observability_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json" \
   --slurpfile boundary "$ROOT/acceptance/S6_public_launch/latest/client-boundary-cleanliness.json" \
@@ -334,6 +336,7 @@ jq -n \
       and ok($rts_live_session_playthrough)
       and ok($rts_full_game_visual_ui_replication)
       and ok($rts_openra_screen_for_screen_ui_replication)
+      and ok($rts_openra_engine_port_asset_parity)
       and ok($rts_combat_readability_pressure_readiness)
       and ok($rts_playtest_observability_readiness)
       and (($boundary[0].green == true) or ($boundary[0].status == "green"))
@@ -660,6 +663,7 @@ jq -n \
       classic_rts_live_session_playthrough_green: ok($rts_live_session_playthrough),
       classic_rts_full_game_visual_ui_replication_green: ok($rts_full_game_visual_ui_replication),
       classic_rts_openra_screen_for_screen_ui_replication_green: ok($rts_openra_screen_for_screen_ui_replication),
+      classic_rts_openra_engine_port_asset_parity_green: ok($rts_openra_engine_port_asset_parity),
       classic_rts_combat_readability_pressure_readiness_green: ok($rts_combat_readability_pressure_readiness),
       classic_rts_playtest_observability_readiness_green: ok($rts_playtest_observability_readiness),
       client_boundary_green: (($boundary[0].green == true) or ($boundary[0].status == "green")),
@@ -1819,6 +1823,19 @@ jq -n \
       rts_openra_screen_for_screen_ui_replication_claimed: $rts_openra_screen_for_screen_ui_replication[0].openra_screen_for_screen_ui_replication_claimed,
       rts_openra_screen_for_screen_ui_replication_asset_parity_claimed: $rts_openra_screen_for_screen_ui_replication[0].openra_pixel_perfect_asset_parity_claimed,
       rts_openra_screen_for_screen_ui_replication_engine_port_claimed: $rts_openra_screen_for_screen_ui_replication[0].openra_engine_port_claimed,
+      rts_openra_engine_port_asset_parity_module_count: $rts_openra_engine_port_asset_parity[0].ported_engine_module_count,
+      rts_openra_engine_port_asset_parity_widget_root_count: $rts_openra_engine_port_asset_parity[0].openra_widget_root_count,
+      rts_openra_engine_port_asset_parity_screen_count: $rts_openra_engine_port_asset_parity[0].openra_chrome_screen_count,
+      rts_openra_engine_port_asset_parity_sample_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_count,
+      rts_openra_engine_port_asset_parity_sha_match_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_sha_match_count,
+      rts_openra_engine_port_asset_parity_pixel_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_pixel_count,
+      rts_openra_engine_port_asset_parity_visible_pixel_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_visible_pixel_count,
+      rts_openra_engine_port_asset_parity_pixel_mismatch_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.sample_pixel_mismatch_count,
+      rts_openra_engine_port_asset_parity_reference_render_mismatch_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.reference_render_pixel_mismatch_count,
+      rts_openra_engine_port_asset_parity_claimed: $rts_openra_engine_port_asset_parity[0].openra_engine_port_claimed,
+      rts_openra_engine_port_asset_parity_full_engine_claimed: $rts_openra_engine_port_asset_parity[0].openra_full_engine_port_claimed,
+      rts_openra_engine_port_asset_parity_asset_parity_claimed: $rts_openra_engine_port_asset_parity[0].openra_pixel_perfect_asset_parity_claimed,
+      rts_openra_engine_port_asset_parity_westwood_claimed: $rts_openra_engine_port_asset_parity[0].openra_westwood_pixel_perfect_asset_parity_claimed,
       rts_command_affordance_drag_marquee_pixel_count: $rts_command_affordance[0].drag_marquee_pixel_count,
       rts_command_affordance_right_click_marker_pixel_count: $rts_command_affordance[0].right_click_marker_pixel_count,
       rts_command_affordance_attack_cursor_pixel_count: $rts_command_affordance[0].attack_cursor_pixel_count,
@@ -2551,6 +2568,16 @@ jq -n \
       rts_openra_screen_for_screen_ui_replication_preview_gate: $rts_openra_screen_for_screen_ui_replication[0].preview_gate,
       rts_openra_screen_for_screen_ui_replication_no_asset_copy_boundary_gate: $rts_openra_screen_for_screen_ui_replication[0].no_asset_copy_boundary_gate,
       rts_openra_screen_for_screen_ui_replication_gate: $rts_openra_screen_for_screen_ui_replication[0].openra_screen_for_screen_ui_replication_gate,
+      rts_openra_engine_port_asset_parity_source_contract_gate: $rts_openra_engine_port_asset_parity[0].source_contract_gate,
+      rts_openra_engine_port_asset_parity_source_green_gate: $rts_openra_engine_port_asset_parity[0].source_green_gate,
+      rts_openra_engine_port_asset_parity_engine_module_gate: $rts_openra_engine_port_asset_parity[0].engine_module_gate,
+      rts_openra_engine_port_asset_parity_rules_mod_port_gate: $rts_openra_engine_port_asset_parity[0].rules_mod_port_gate,
+      rts_openra_engine_port_asset_parity_chrome_widget_port_gate: $rts_openra_engine_port_asset_parity[0].chrome_widget_port_gate,
+      rts_openra_engine_port_asset_parity_asset_loader_port_gate: $rts_openra_engine_port_asset_parity[0].asset_loader_port_gate,
+      rts_openra_engine_port_asset_parity_pixel_perfect_gate: $rts_openra_engine_port_asset_parity[0].pixel_perfect_asset_parity_gate,
+      rts_openra_engine_port_asset_parity_write_gate: $rts_openra_engine_port_asset_parity[0].write_gate,
+      rts_openra_engine_port_asset_parity_no_copy_boundary_gate: $rts_openra_engine_port_asset_parity[0].no_copy_boundary_gate,
+      rts_openra_engine_port_asset_parity_gate: $rts_openra_engine_port_asset_parity[0].openra_engine_port_asset_parity_gate,
       rts_command_affordance_live_input_gate: $rts_command_affordance[0].live_command_affordance_input_gate,
       rts_command_affordance_drag_select_gate: $rts_command_affordance[0].drag_select_gate,
       rts_command_affordance_right_click_move_gate: $rts_command_affordance[0].right_click_move_gate,
@@ -2998,6 +3025,8 @@ jq -n \
       classic_rts_full_game_visual_ui_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.ppm",
       classic_rts_openra_screen_for_screen_ui_replication: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-screen-for-screen-ui-replication.json",
       classic_rts_openra_screen_for_screen_ui_replication_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-screen-for-screen-ui-replication.ppm",
+      classic_rts_openra_engine_port_asset_parity: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity.json",
+      classic_rts_openra_engine_port_asset_parity_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity.ppm",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
       classic_rts_combat_readability_pressure_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/",
       classic_rts_playtest_observability_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json",
@@ -3137,6 +3166,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .checks.classic_rts_live_session_playthrough_green == true
   and .checks.classic_rts_full_game_visual_ui_replication_green == true
   and .checks.classic_rts_openra_screen_for_screen_ui_replication_green == true
+  and .checks.classic_rts_openra_engine_port_asset_parity_green == true
   and .headline.rts_production_asset_atlas_frame_count >= 32
   and .headline.rts_production_asset_atlas_sprite_binding_count >= 32
   and .headline.rts_production_asset_atlas_material_asset_count == 4
@@ -3241,6 +3271,19 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_openra_screen_for_screen_ui_replication_claimed == true
   and .headline.rts_openra_screen_for_screen_ui_replication_asset_parity_claimed == false
   and .headline.rts_openra_screen_for_screen_ui_replication_engine_port_claimed == false
+  and .headline.rts_openra_engine_port_asset_parity_module_count >= 10
+  and .headline.rts_openra_engine_port_asset_parity_widget_root_count == 4
+  and .headline.rts_openra_engine_port_asset_parity_screen_count == 8
+  and .headline.rts_openra_engine_port_asset_parity_sample_count == 12
+  and .headline.rts_openra_engine_port_asset_parity_sha_match_count == 12
+  and .headline.rts_openra_engine_port_asset_parity_pixel_count >= 3000
+  and .headline.rts_openra_engine_port_asset_parity_visible_pixel_count > 1000
+  and .headline.rts_openra_engine_port_asset_parity_pixel_mismatch_count == 0
+  and .headline.rts_openra_engine_port_asset_parity_reference_render_mismatch_count == 0
+  and .headline.rts_openra_engine_port_asset_parity_claimed == true
+  and .headline.rts_openra_engine_port_asset_parity_full_engine_claimed == false
+  and .headline.rts_openra_engine_port_asset_parity_asset_parity_claimed == true
+  and .headline.rts_openra_engine_port_asset_parity_westwood_claimed == false
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .checks.classic_rts_playtest_observability_readiness_green == true
   and .checks.client_boundary_green == true
@@ -4526,6 +4569,16 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_openra_screen_for_screen_ui_replication_preview_gate == true
   and .gates.rts_openra_screen_for_screen_ui_replication_no_asset_copy_boundary_gate == true
   and .gates.rts_openra_screen_for_screen_ui_replication_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_source_contract_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_source_green_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_engine_module_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_rules_mod_port_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_chrome_widget_port_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_asset_loader_port_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_pixel_perfect_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_write_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_no_copy_boundary_gate == true
+  and .gates.rts_openra_engine_port_asset_parity_gate == true
   and .gates.rts_visual_fidelity_mature_hud_gate == true
   and .gates.rts_visual_fidelity_selected_units_gate == true
   and .gates.rts_visual_fidelity_command_surface_gate == true

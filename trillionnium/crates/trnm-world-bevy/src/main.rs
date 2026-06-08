@@ -308,6 +308,25 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "classic-rts-openra-engine-port-asset-parity"
+                | "--classic-rts-openra-engine-port-asset-parity"
+                | "openra-engine-port-asset-parity"
+        )
+    ) {
+        let preview_path = args.get(1).map(String::as_str).unwrap_or(
+            "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity.ppm",
+        );
+        println!(
+            "{}",
+            trnm_world_bevy::native_classic_rts_openra_engine_port_asset_parity_evidence_json(
+                preview_path
+            )
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-first-contact-basin-spec"
                 | "--classic-rts-first-contact-basin-spec"
                 | "first-contact-basin-spec"
