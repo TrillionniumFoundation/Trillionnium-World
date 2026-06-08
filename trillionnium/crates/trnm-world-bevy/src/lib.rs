@@ -254,6 +254,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SESSION_STATE_CONTINUITY_CONTRACT:
     "trillionnium_world_bevy_classic_rts_session_state_continuity_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTINUOUS_PLAYER_FLOW_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_continuous_player_flow_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_live_session_playthrough_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_command_affordance_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_ACTION_CADENCE_CONTRACT: &str =
@@ -24368,6 +24370,577 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         "source_of_truth": "Classic RTS continuous player flow evidence binds already-green native Rust/Bevy title/account, match setup, in-match HUD, command interaction feedback, save/load resume, campaign outcome, and open-world continuity screens into one local runtime player-flow surface while keeping Android S5, public launch, production-ready UI, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
     }))
     .expect("classic RTS continuous player flow evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 800;
+    const PANEL_HEIGHT: usize = 300;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const PREVIEW_WIDTH: usize = PANEL_WIDTH * PREVIEW_COLUMNS;
+    const PREVIEW_HEIGHT: usize = PANEL_HEIGHT * PREVIEW_ROWS;
+    const BACKGROUND_COLOR: u32 = 0x0b0d0c;
+    const TITLE_COLOR: u32 = 0xd9b15f;
+    const MATCH_COLOR: u32 = 0x76c98f;
+    const HUD_COLOR: u32 = 0x72aee0;
+    const COMMAND_COLOR: u32 = 0xde776f;
+    const RESUME_COLOR: u32 = 0xb18ade;
+    const OUTCOME_COLOR: u32 = 0xd7d66c;
+
+    let trace_path = Path::new(preview_path)
+        .with_extension("trace.json")
+        .to_string_lossy()
+        .to_string();
+    let assets = load_classic_runtime_assets();
+    let mut world = native_bevy_playable_fixture();
+    let mut character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut gameplay_log = NativeGameplayLog::default();
+    let mut runtime = NativeFirstPlayableRuntime {
+        map_scene: "first_contact_basin".to_string(),
+        coins: 144,
+        xp: 88,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        session_selected_slot_id: "A".to_string(),
+        ..Default::default()
+    };
+    let mut preview_pixels = vec![BACKGROUND_COLOR; PREVIEW_WIDTH * PREVIEW_HEIGHT];
+    let mut frame_pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+    let mut trace_events = Vec::new();
+    let mut action_labels = Vec::new();
+    let mut top_level_action_count = 0_usize;
+    let mut top_level_accepted_action_count = 0_usize;
+
+    macro_rules! capture_stage {
+        (
+            $step_index:expr,
+            $step_id:expr,
+            $label:expr,
+            $color:expr,
+            $stage_action_count:expr,
+            $stage_accepted_action_count:expr,
+            $stage_feedback_delta:expr
+        ) => {{
+            frame_pixels.fill(BACKGROUND_COLOR);
+            classic_draw_scene(
+                &mut frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                (5, 5),
+                &runtime,
+                &assets,
+            );
+            let offset_x = (($step_index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+            let offset_y = (($step_index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+            classic_copy_pixels(
+                &mut preview_pixels,
+                PREVIEW_WIDTH,
+                PREVIEW_HEIGHT,
+                &frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                offset_x,
+                offset_y,
+            );
+            classic_draw_rect(
+                &mut preview_pixels,
+                PREVIEW_WIDTH,
+                PREVIEW_HEIGHT,
+                offset_x + 10,
+                offset_y + 10,
+                (PANEL_WIDTH as i32) - 20,
+                24,
+                $color,
+            );
+            classic_draw_text(
+                &mut preview_pixels,
+                PREVIEW_WIDTH,
+                PREVIEW_HEIGHT,
+                offset_x + 20,
+                offset_y + 17,
+                $label,
+                1,
+                CLASSIC_HUD_TEXT_COLOR,
+            );
+            classic_draw_text(
+                &mut preview_pixels,
+                PREVIEW_WIDTH,
+                PREVIEW_HEIGHT,
+                offset_x + 20,
+                offset_y + 42,
+                $step_id,
+                1,
+                CLASSIC_HUD_ACCENT_TEXT_COLOR,
+            );
+            classic_draw_text(
+                &mut preview_pixels,
+                PREVIEW_WIDTH,
+                PREVIEW_HEIGHT,
+                offset_x + 20,
+                offset_y + 264,
+                "single seed / same Rust process / no external public-launch credit",
+                1,
+                CLASSIC_HUD_MUTED_TEXT_COLOR,
+            );
+            stage_summaries.push(json!({
+                "step_index": $step_index + 1,
+                "step_id": $step_id,
+                "label": $label,
+                "stage_action_count": $stage_action_count,
+                "stage_accepted_action_count": $stage_accepted_action_count,
+                "stage_input_feedback_delta": $stage_feedback_delta,
+                "turn": gameplay_log.turn,
+                "last_action": gameplay_log.last_action.clone(),
+                "last_result": gameplay_log.last_result.clone(),
+                "current_room_id": runtime.current_room_id.clone(),
+                "map_scene": runtime.map_scene.clone(),
+                "objective_status": runtime.objective_status.clone(),
+                "match_result_state": runtime.rts_match_result_state.clone(),
+                "open_world_handoff_state": runtime.rts_open_world_handoff_state.clone(),
+                "selected_slot_id": runtime.session_selected_slot_id.clone(),
+                "resume_overlay_visible": runtime.session_resume_overlay_visible,
+                "input_feedback_event_count": runtime.input_feedback_history.len(),
+                "command_queue_len": runtime.rts_command_queue.len(),
+                "production_queue_len": runtime.rts_production_queue.len()
+            }));
+        }};
+    }
+
+    macro_rules! apply_first_playable_action {
+        ($action:expr, $source:expr) => {{
+            let action = $action;
+            let label = native_control_action_label(&action);
+            let before_turn = gameplay_log.turn;
+            let before_feedback_len = runtime.input_feedback_history.len();
+            apply_native_first_playable_action(
+                &mut world,
+                &mut character,
+                &mut gameplay_log,
+                &mut runtime,
+                "local-player",
+                action,
+            );
+            let feedback_slice = &runtime.input_feedback_history[before_feedback_len..];
+            let accepted_feedback_count = feedback_slice.iter().filter(|event| event.accepted).count();
+            let feedback_delta = feedback_slice.len();
+            let accepted = gameplay_log.turn > before_turn && gameplay_log.last_rejection.is_none();
+            top_level_action_count += 1;
+            if accepted {
+                top_level_accepted_action_count += 1;
+            }
+            action_labels.push(label.clone());
+            trace_events.push(json!({
+                "action_label": label,
+                "source": $source,
+                "accepted": accepted,
+                "turn": gameplay_log.turn,
+                "last_result": gameplay_log.last_result.clone(),
+                "last_rejection": gameplay_log.last_rejection.clone(),
+                "feedback_delta": feedback_delta,
+                "accepted_feedback_count": accepted_feedback_count,
+                "current_room_id": runtime.current_room_id.clone(),
+                "map_scene": runtime.map_scene.clone(),
+                "open_world_handoff_state": runtime.rts_open_world_handoff_state.clone()
+            }));
+            (accepted, feedback_delta, accepted_feedback_count)
+        }};
+    }
+
+    macro_rules! apply_live_session_action {
+        ($action:expr) => {{
+            let action = $action;
+            let label = native_control_action_label(&action);
+            let before_feedback_len = runtime.input_feedback_history.len();
+            apply_live_native_action_with_source(
+                &mut world,
+                &mut character,
+                &mut gameplay_log,
+                &mut runtime,
+                "local-player",
+                "classic_rts_live_session_playthrough_input",
+                action,
+            );
+            let feedback_slice = &runtime.input_feedback_history[before_feedback_len..];
+            let feedback_event_accepted = runtime
+                .input_feedback_history
+                .iter()
+                .rev()
+                .find(|event| {
+                    event.input_source == "classic_rts_live_session_playthrough_input"
+                        && event.action_label == label
+                })
+                .map(|event| event.accepted);
+            let feedback_delta = feedback_slice
+                .len()
+                .max(usize::from(feedback_event_accepted.is_some()));
+            let accepted = feedback_event_accepted.unwrap_or_else(|| {
+                gameplay_log.last_rejection.is_none() && !gameplay_log.last_action.starts_with("blocked:")
+            });
+            let accepted_feedback_count = usize::from(feedback_event_accepted.unwrap_or(false));
+            top_level_action_count += 1;
+            if accepted {
+                top_level_accepted_action_count += 1;
+            }
+            action_labels.push(label.clone());
+            trace_events.push(json!({
+                "action_label": label,
+                "source": "classic_rts_live_session_playthrough_input",
+                "accepted": accepted,
+                "turn": gameplay_log.turn,
+                "last_result": gameplay_log.last_result.clone(),
+                "last_rejection": gameplay_log.last_rejection.clone(),
+                "feedback_delta": feedback_delta,
+                "accepted_feedback_count": accepted_feedback_count,
+                "current_room_id": runtime.current_room_id.clone(),
+                "map_scene": runtime.map_scene.clone(),
+                "open_world_handoff_state": runtime.rts_open_world_handoff_state.clone()
+            }));
+            (accepted, feedback_delta, accepted_feedback_count)
+        }};
+    }
+
+    let mut stage_actions = 0_usize;
+    let mut stage_accepted = 0_usize;
+    let mut stage_feedback = 0_usize;
+    for outcome in [
+        apply_first_playable_action!(NativeControlAction::OpenTitleMenu, "title_account"),
+        apply_first_playable_action!(NativeControlAction::LoginAccountFromTitle, "title_account"),
+    ] {
+        stage_actions += 1;
+        stage_accepted += usize::from(outcome.0);
+        stage_feedback += outcome.1;
+    }
+    capture_stage!(
+        0,
+        "title_account",
+        "TITLE / ACCOUNT",
+        TITLE_COLOR,
+        stage_actions,
+        stage_accepted,
+        stage_feedback
+    );
+
+    let (match_accepted, match_feedback, match_accepted_feedback) =
+        apply_first_playable_action!(NativeControlAction::StartCampaignFromTitle, "match_setup");
+    let campaign_handoff_input_count = gameplay_log
+        .last_result
+        .split(':')
+        .nth(1)
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(match_accepted_feedback);
+    capture_stage!(
+        1,
+        "match_setup",
+        "MATCH SETUP / START",
+        MATCH_COLOR,
+        1,
+        usize::from(match_accepted),
+        match_feedback.max(campaign_handoff_input_count)
+    );
+
+    capture_stage!(2, "in_match_hud", "IN-MATCH HUD", HUD_COLOR, 0, 0, 0);
+
+    let mut live_command_feedback_delta = 0_usize;
+    let mut live_command_accepted_delta = 0_usize;
+    for outcome in [
+        apply_live_session_action!(NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string()
+        }),
+        apply_live_session_action!(NativeControlAction::RtsQueueProduction {
+            queue_id: "train:guard".to_string()
+        }),
+        apply_live_session_action!(NativeControlAction::RtsMoveCommand {
+            command_id: "7,4:diamond".to_string()
+        }),
+        apply_live_session_action!(NativeControlAction::RtsAttackCommand {
+            target_id: "arena_creep_attack".to_string()
+        }),
+        apply_live_session_action!(NativeControlAction::RtsAbilityCommand {
+            ability_id: "focus_fire".to_string()
+        }),
+    ] {
+        live_command_feedback_delta += outcome.1;
+        live_command_accepted_delta += outcome.2;
+    }
+    capture_stage!(
+        3,
+        "command_feedback",
+        "COMMAND FEEDBACK",
+        COMMAND_COLOR,
+        5,
+        live_command_accepted_delta,
+        live_command_feedback_delta
+    );
+
+    let mut save_resume_actions = 0_usize;
+    let mut save_resume_accepted = 0_usize;
+    let mut save_resume_feedback = 0_usize;
+    for outcome in [
+        apply_first_playable_action!(
+            NativeControlAction::SelectSlot {
+                slot_id: "A".to_string()
+            },
+            "save_load_resume"
+        ),
+        apply_first_playable_action!(NativeControlAction::SaveSelectedSlot, "save_load_resume"),
+    ] {
+        save_resume_actions += 1;
+        save_resume_accepted += usize::from(outcome.0);
+        save_resume_feedback += outcome.1;
+    }
+    if runtime.session_overwrite_pending_slot_id.is_some() {
+        let outcome = apply_first_playable_action!(
+            NativeControlAction::ConfirmOverwriteSlot,
+            "save_load_resume"
+        );
+        save_resume_actions += 1;
+        save_resume_accepted += usize::from(outcome.0);
+        save_resume_feedback += outcome.1;
+    }
+    for outcome in [
+        apply_first_playable_action!(NativeControlAction::LoadSelectedSlot, "save_load_resume"),
+        apply_first_playable_action!(NativeControlAction::ContinueAfterLoad, "save_load_resume"),
+    ] {
+        save_resume_actions += 1;
+        save_resume_accepted += usize::from(outcome.0);
+        save_resume_feedback += outcome.1;
+    }
+    capture_stage!(
+        4,
+        "save_load_resume",
+        "SAVE / LOAD / RESUME",
+        RESUME_COLOR,
+        save_resume_actions,
+        save_resume_accepted,
+        save_resume_feedback
+    );
+
+    capture_stage!(
+        5,
+        "outcome_open_world",
+        "OUTCOME / OPEN WORLD",
+        OUTCOME_COLOR,
+        0,
+        0,
+        0
+    );
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PREVIEW_WIDTH, PREVIEW_HEIGHT, &preview_pixels)
+            .is_ok();
+    let count_color = |color: u32| -> usize {
+        preview_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|pixel| **pixel != BACKGROUND_COLOR)
+        .count();
+    let title_pixel_count = count_color(TITLE_COLOR);
+    let match_pixel_count = count_color(MATCH_COLOR);
+    let hud_pixel_count = count_color(HUD_COLOR);
+    let command_pixel_count = count_color(COMMAND_COLOR);
+    let resume_pixel_count = count_color(RESUME_COLOR);
+    let outcome_pixel_count = count_color(OUTCOME_COLOR);
+    let slot_a_path = native_action_session_slot_path("A");
+    let slot_a_bytes = fs::metadata(&slot_a_path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
+    let accepted_input_count = top_level_accepted_action_count
+        + campaign_handoff_input_count
+        + live_command_accepted_delta;
+    let live_session_input_source_count = runtime
+        .input_feedback_history
+        .iter()
+        .filter(|event| event.input_source == "classic_rts_live_session_playthrough_input")
+        .count();
+    let command_queue_has_select = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "select_group_1");
+    let command_queue_has_move = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "move:7,4");
+    let command_queue_has_attack = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "attack:arena_creep_attack");
+    let command_queue_has_ability = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "ability:focus_fire");
+    let title_account_gate = runtime.session_account_auth_state == "signed_in"
+        && runtime.session_account_session_bound
+        && action_labels.iter().any(|label| label == "ACCOUNT:LOGIN");
+    let match_setup_gate = match_accepted
+        && campaign_handoff_input_count >= 70
+        && runtime
+            .session_title_history
+            .iter()
+            .any(|entry| entry == "campaign_start_from_title");
+    let in_match_hud_gate = runtime.current_room_id == "league-coliseum"
+        && runtime.map_scene.starts_with("arena_")
+        && runtime
+            .contextual_action_labels
+            .iter()
+            .any(|label| label == "COMBAT:attack");
+    let command_feedback_gate = live_command_accepted_delta == 5
+        && live_session_input_source_count == 5
+        && runtime.rts_control_group_id.as_deref() == Some("1")
+        && runtime
+            .rts_production_queue
+            .iter()
+            .any(|entry| entry == "train:guard")
+        && runtime.rts_attack_target_id.as_deref() == Some("arena_creep_attack")
+        && runtime.rts_active_ability_id.as_deref() == Some("focus_fire")
+        && command_queue_has_select
+        && command_queue_has_move
+        && command_queue_has_attack
+        && command_queue_has_ability;
+    let save_resume_gate = slot_a_bytes > 10_000
+        && runtime
+            .session_resume_history
+            .iter()
+            .any(|entry| entry == "session_resume_from:A")
+        && runtime
+            .session_resume_history
+            .iter()
+            .any(|entry| entry == "session_resume_continued:A")
+        && !runtime.session_resume_overlay_visible
+        && !runtime.session_resume_input_locked
+        && !runtime.session_continue_cta_visible;
+    let outcome_open_world_gate = runtime.objective_status == "open_world_after_action_ready"
+        && runtime.rts_open_world_handoff_state == "resumed:league-coliseum"
+        && runtime.rts_open_world_resume_room_id == "league-coliseum"
+        && runtime.route_director_next_room_id.is_none()
+        && runtime
+            .active_task_ids
+            .iter()
+            .any(|task| task == "task-fixture-first-route");
+    let preview_gate = write_gate
+        && non_background_pixels > 300_000
+        && title_pixel_count > 1_000
+        && match_pixel_count > 1_000
+        && hud_pixel_count > 1_000
+        && command_pixel_count > 1_000
+        && resume_pixel_count > 1_000
+        && outcome_pixel_count > 1_000;
+    let same_process_trace_gate = top_level_action_count >= 12
+        && top_level_action_count == top_level_accepted_action_count
+        && (stage_summaries.len() == 6)
+        && accepted_input_count >= 78;
+    let native_client_boundary_gate =
+        !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
+    let live_session_playthrough_gate = title_account_gate
+        && match_setup_gate
+        && in_match_hud_gate
+        && command_feedback_gate
+        && save_resume_gate
+        && outcome_open_world_gate
+        && same_process_trace_gate
+        && preview_gate
+        && native_client_boundary_gate;
+    let trace_json = json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_CONTRACT,
+        "trace_seed": "classic_rts_live_session_seed_v1",
+        "same_process_session_playthrough": true,
+        "input_path": "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)",
+        "action_labels": action_labels.clone(),
+        "trace_events": trace_events.clone(),
+        "stage_summaries": stage_summaries.clone(),
+        "top_level_action_count": top_level_action_count,
+        "top_level_accepted_action_count": top_level_accepted_action_count,
+        "accepted_input_count": accepted_input_count,
+        "campaign_handoff_input_count": campaign_handoff_input_count,
+        "live_command_input_count": live_command_accepted_delta,
+        "slot_a_path": slot_a_path.clone(),
+        "slot_a_bytes": slot_a_bytes,
+        "final_current_room_id": runtime.current_room_id.clone(),
+        "final_map_scene": runtime.map_scene.clone(),
+        "final_objective_status": runtime.objective_status.clone(),
+        "final_open_world_handoff_state": runtime.rts_open_world_handoff_state.clone(),
+        "final_open_world_resume_room_id": runtime.rts_open_world_resume_room_id.clone(),
+        "final_contextual_primary_action_label": runtime.contextual_primary_action_label.clone(),
+        "final_command_queue": runtime.rts_command_queue.clone(),
+        "final_production_queue": runtime.rts_production_queue.clone(),
+        "final_session_resume_history": runtime.session_resume_history.clone()
+    });
+    let trace_write_gate = serde_json::to_string_pretty(&trace_json)
+        .ok()
+        .and_then(|body| fs::write(&trace_path, body).ok())
+        .is_some();
+    let green = live_session_playthrough_gate && trace_write_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_CONTRACT,
+        "status": if green { "classic_rts_live_session_playthrough_green" } else { "classic_rts_live_session_playthrough_blocked" },
+        "green": green,
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PREVIEW_WIDTH,
+        "preview_height": PREVIEW_HEIGHT,
+        "trace_path": trace_path,
+        "trace_write_gate": trace_write_gate,
+        "trace_seed": "classic_rts_live_session_seed_v1",
+        "same_process_session_playthrough": true,
+        "input_path": "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)",
+        "stage_count": stage_summaries.len(),
+        "stage_ids": ["title_account", "match_setup", "in_match_hud", "command_feedback", "save_load_resume", "outcome_open_world"],
+        "stage_summaries": trace_json.get("stage_summaries").cloned().unwrap_or(Value::Null),
+        "top_level_action_count": top_level_action_count,
+        "top_level_accepted_action_count": top_level_accepted_action_count,
+        "accepted_input_count": accepted_input_count,
+        "campaign_handoff_input_count": campaign_handoff_input_count,
+        "live_command_input_count": live_command_accepted_delta,
+        "slot_a_path": trace_json.get("slot_a_path").cloned().unwrap_or(Value::Null),
+        "slot_a_bytes": slot_a_bytes,
+        "pixel_counts": {
+            "non_background": non_background_pixels,
+            "title_account": title_pixel_count,
+            "match_setup": match_pixel_count,
+            "in_match_hud": hud_pixel_count,
+            "command_feedback": command_pixel_count,
+            "save_load_resume": resume_pixel_count,
+            "outcome_open_world": outcome_pixel_count
+        },
+        "final_state": {
+            "current_room_id": trace_json.get("final_current_room_id").cloned().unwrap_or(Value::Null),
+            "map_scene": trace_json.get("final_map_scene").cloned().unwrap_or(Value::Null),
+            "objective_status": trace_json.get("final_objective_status").cloned().unwrap_or(Value::Null),
+            "open_world_handoff_state": trace_json.get("final_open_world_handoff_state").cloned().unwrap_or(Value::Null),
+            "open_world_resume_room_id": trace_json.get("final_open_world_resume_room_id").cloned().unwrap_or(Value::Null),
+            "contextual_primary_action_label": trace_json.get("final_contextual_primary_action_label").cloned().unwrap_or(Value::Null)
+        },
+        "title_account_gate": title_account_gate,
+        "match_setup_gate": match_setup_gate,
+        "in_match_hud_gate": in_match_hud_gate,
+        "command_feedback_gate": command_feedback_gate,
+        "save_resume_gate": save_resume_gate,
+        "outcome_open_world_gate": outcome_open_world_gate,
+        "same_process_trace_gate": same_process_trace_gate,
+        "preview_gate": preview_gate,
+        "native_client_boundary_gate": native_client_boundary_gate,
+        "live_session_playthrough_gate": live_session_playthrough_gate,
+        "internal_live_session_playthrough_claimed": live_session_playthrough_gate,
+        "external_evidence_ignored_for_current_playtest_pass": true,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "production_ready_ui_claimed": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_engine_port_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS live session playthrough evidence drives one local Rust/Bevy world/runtime through title/account, campaign start, in-match HUD, live command feedback, selected slot save/load/resume, and open-world outcome in the same process and fixed seed. It records the trace sidecar and PPM contact sheet while keeping Android S5, public launch, production-ready UI, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
+    }))
+    .expect("classic RTS live session playthrough evidence serializes")
 }
 
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
