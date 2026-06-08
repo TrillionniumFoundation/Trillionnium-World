@@ -97,7 +97,7 @@ jq -n '{
   fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 120,
-  expected_semantic_failure_count: 10,
+  expected_semantic_failure_count: 14,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
@@ -108,7 +108,11 @@ jq -n '{
     "first_minute_command_feedback_replay_semantics",
     "first_minute_command_feedback_source_recording_semantics",
     "first_minute_command_feedback_recording_semantics",
-    "first_minute_command_feedback_replay_ppm_semantics"
+    "first_minute_command_feedback_replay_ppm_semantics",
+    "first_minute_command_feedback_rejection_replay_semantics",
+    "first_minute_command_feedback_rejection_source_recording_semantics",
+    "first_minute_command_feedback_rejection_recording_semantics",
+    "first_minute_command_feedback_rejection_replay_ppm_semantics"
   ],
   checksum_mismatch_failure_count: 0,
   bytes_mismatch_failure_count: 0,
@@ -623,8 +627,8 @@ jq -n '{
   contract_version: "trillionnium_world_bevy_first_minute_command_feedback_rejection_replay_v1",
   green: true,
   command_input_action_count: 7,
-  accepted_command_input_count: 1,
-  blocked_command_input_count: 6,
+  accepted_command_input_count: 2,
+  blocked_command_input_count: 5,
   blocked_reasons: [
     "rts_group_selection_required",
     "rts_invalid_tile:bad-tile",
@@ -656,8 +660,8 @@ rejection_source_recording_json="$TMP_DIR/bevy-first-minute-command-feedback-rej
 jq -n '{
   contract_version: "trillionnium_world_bevy_first_minute_input_recording_v1",
   source_timeline_contract: "trillionnium_world_bevy_first_minute_interaction_timeline_v1",
-  source_timeline_green: true,
-  steps: [range(0; 10) | {action_label: ("STEP:" + (tostring))}],
+  source_timeline_green: false,
+  steps: [range(0; 9) | {action_label: ("STEP:" + (tostring))}],
   android_s5_real_device_claimed: false
 }' >"$rejection_source_recording_json"
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_source_recording "Native/Bevy first-minute command feedback rejection source recording" "$rejection_source_recording_json" release_review_recording
@@ -677,7 +681,7 @@ jq -n '{
     {action_label: "RTS:MOVE:bad-tile:line", expected_accepted: false, expected_reason: "rts_invalid_tile:bad-tile"},
     {action_label: "RTS:ATTACK:", expected_accepted: false, expected_reason: "rts_attack_target_required"},
     {action_label: "RTS:ABILITY:guard_break", expected_accepted: false, expected_reason: "rts_attack_required_before_ability"},
-    {action_label: "RTS:QUEUE:", expected_accepted: false, expected_reason: "rts_queue_id_required"},
+    {action_label: "RTS:QUEUE:", expected_accepted: false, expected_reason: "rts_queue_id_missing"},
     {action_label: "RTS:SELECT:", expected_accepted: false, expected_reason: "rts_group_id_required"}
   ],
   android_s5_real_device_claimed: false
@@ -685,7 +689,7 @@ jq -n '{
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_recording "Native/Bevy first-minute command feedback rejection recording" "$rejection_recording_json" release_review_recording
 
 rejection_ppm_path="$TMP_DIR/bevy-first-minute-command-feedback-rejection-replay.ppm"
-printf 'P3\n1280 720\n255\n' >"$rejection_ppm_path"
+printf 'P3\n1279 720\n255\n' >"$rejection_ppm_path"
 truncate -s 8000001 "$rejection_ppm_path"
 add_artifact_from_path native_bevy_first_minute_command_feedback_rejection_replay_ppm "Native/Bevy first-minute command feedback rejection replay PPM" "$rejection_ppm_path" release_review_visual_evidence
 
@@ -2144,7 +2148,7 @@ fi
 jq -e '
   .status == "release_review_packet_integrity_blocked"
   and .green == false
-  and (.failures | length) == 10
+  and (.failures | length) == 14
   and ([.failures[].name] | index("release_review_convergence_semantics"))
   and ([.failures[].name] | index("release_review_status_semantics"))
   and ([.failures[].name] | index("release_review_status_markdown_semantics"))
@@ -2155,6 +2159,10 @@ jq -e '
   and ([.failures[].name] | index("first_minute_command_feedback_source_recording_semantics"))
   and ([.failures[].name] | index("first_minute_command_feedback_recording_semantics"))
   and ([.failures[].name] | index("first_minute_command_feedback_replay_ppm_semantics"))
+  and ([.failures[].name] | index("first_minute_command_feedback_rejection_replay_semantics"))
+  and ([.failures[].name] | index("first_minute_command_feedback_rejection_source_recording_semantics"))
+  and ([.failures[].name] | index("first_minute_command_feedback_rejection_recording_semantics"))
+  and ([.failures[].name] | index("first_minute_command_feedback_rejection_replay_ppm_semantics"))
   and (([.failures[].detail] | index("sha256_mismatch")) == null)
   and (([.failures[].detail] | index("bytes_mismatch")) == null)
   and (([.failures[].detail] | index("contract_mismatch")) == null)

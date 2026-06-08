@@ -91,7 +91,7 @@ jq -n '{
   fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 120,
-  expected_semantic_failure_count: 10,
+  expected_semantic_failure_count: 14,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
@@ -102,7 +102,11 @@ jq -n '{
     "first_minute_command_feedback_replay_semantics",
     "first_minute_command_feedback_source_recording_semantics",
     "first_minute_command_feedback_recording_semantics",
-    "first_minute_command_feedback_replay_ppm_semantics"
+    "first_minute_command_feedback_replay_ppm_semantics",
+    "first_minute_command_feedback_rejection_replay_semantics",
+    "first_minute_command_feedback_rejection_source_recording_semantics",
+    "first_minute_command_feedback_rejection_recording_semantics",
+    "first_minute_command_feedback_rejection_replay_ppm_semantics"
   ],
   checksum_mismatch_failure_count: 0,
   bytes_mismatch_failure_count: 0,

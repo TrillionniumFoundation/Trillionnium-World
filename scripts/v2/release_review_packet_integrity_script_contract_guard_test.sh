@@ -662,7 +662,7 @@ required_lines=(
   'packet_integrity_semantic_fixture'
   'trillionnium_world_release_review_packet_integrity_semantic_fixture_v1'
   'fake_packet_artifact_count == 120'
-  'expected_semantic_failure_count == 10'
+  'expected_semantic_failure_count == 14'
   'release_review_convergence_semantics'
   'release_review_status_semantics'
   'release_review_status_markdown_semantics'
