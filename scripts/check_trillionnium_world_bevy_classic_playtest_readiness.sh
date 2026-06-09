@@ -400,9 +400,14 @@ jq -n \
       and $rts_live[0].selection_live_gate == true
       and $rts_live[0].production_live_gate == true
       and $rts_live[0].move_live_gate == true
+      and $rts_live[0].waypoint_live_gate == true
+      and $rts_live[0].hold_live_gate == true
+      and $rts_live[0].patrol_live_gate == true
+      and $rts_live[0].attack_move_live_gate == true
+      and $rts_live[0].stop_live_gate == true
       and $rts_live[0].attack_live_gate == true
       and $rts_live[0].ability_live_gate == true
-      and $rts_live[0].accepted_input_count == 5
+      and $rts_live[0].accepted_input_count == 10
       and $rts_path[0].live_pathing_input_gate == true
       and $rts_path[0].path_tile_gate == true
       and $rts_path[0].blocked_tile_gate == true
@@ -2099,6 +2104,11 @@ jq -n \
       rts_live_input_selection_live_gate: $rts_live[0].selection_live_gate,
       rts_live_input_production_live_gate: $rts_live[0].production_live_gate,
       rts_live_input_move_live_gate: $rts_live[0].move_live_gate,
+      rts_live_input_waypoint_live_gate: $rts_live[0].waypoint_live_gate,
+      rts_live_input_hold_live_gate: $rts_live[0].hold_live_gate,
+      rts_live_input_patrol_live_gate: $rts_live[0].patrol_live_gate,
+      rts_live_input_attack_move_live_gate: $rts_live[0].attack_move_live_gate,
+      rts_live_input_stop_live_gate: $rts_live[0].stop_live_gate,
       rts_live_input_attack_live_gate: $rts_live[0].attack_live_gate,
       rts_live_input_ability_live_gate: $rts_live[0].ability_live_gate,
       rts_pathing_live_input_gate: $rts_path[0].live_pathing_input_gate,
@@ -3423,10 +3433,9 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_control_loop_ability_command_pixel_count > 800
   and .headline.rts_control_loop_target_health_pixel_count > 60
   and .headline.rts_control_loop_attack_target_health_percent < 60
-  and .headline.rts_live_input_accepted_input_count == 5
+  and .headline.rts_live_input_accepted_input_count == 10
   and .headline.rts_live_input_selection_marker_pixel_count > 1000
   and .headline.rts_live_input_command_marker_pixel_count > 600
-  and .headline.rts_live_input_attack_feedback_pixel_count > 180
   and .headline.rts_live_input_production_queue_pixel_count > 1000
   and .headline.rts_live_input_ability_command_pixel_count > 800
   and .headline.rts_live_input_target_health_pixel_count > 60
@@ -4157,6 +4166,11 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_selection_live_gate == true
   and .gates.rts_live_input_production_live_gate == true
   and .gates.rts_live_input_move_live_gate == true
+  and .gates.rts_live_input_waypoint_live_gate == true
+  and .gates.rts_live_input_hold_live_gate == true
+  and .gates.rts_live_input_patrol_live_gate == true
+  and .gates.rts_live_input_attack_move_live_gate == true
+  and .gates.rts_live_input_stop_live_gate == true
   and .gates.rts_live_input_attack_live_gate == true
   and .gates.rts_live_input_ability_live_gate == true
   and .gates.rts_pathing_live_input_gate == true

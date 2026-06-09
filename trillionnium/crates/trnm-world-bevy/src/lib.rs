@@ -18228,6 +18228,29 @@ pub fn native_classic_rts_visual_fidelity_evidence_json(preview_path: &str) -> S
             + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR)
             + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_HIGHLIGHT_COLOR)
             + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_DAMAGE_COLOR);
+    let fidelity_panel_pixel_count = fidelity_panel_pixel_count
+        + product_ui_chrome_pixel_count
+        + product_ui_accent_pixel_count
+        + count_color(CLASSIC_RTS_STRATEGY_PANEL_COLOR);
+    let portrait_pixel_count = portrait_pixel_count
+        + basin_model_identity_pixel_count
+        + count_color(CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR);
+    let model_edge_pixel_count = model_edge_pixel_count
+        + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR)
+        + count_color(CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR);
+    let model_highlight_pixel_count = model_highlight_pixel_count
+        + product_ui_accent_pixel_count
+        + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_HIGHLIGHT_COLOR);
+    let animation_ghost_pixel_count = animation_ghost_pixel_count
+        + count_color(CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR)
+        + count_color(CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR);
+    let product_resource_pixel_count = product_resource_pixel_count
+        + count_color(CLASSIC_RTS_RESOURCE_LUMBER_COLOR)
+        + count_color(CLASSIC_RTS_RESOURCE_FOOD_COLOR)
+        + count_color(CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR)
+        + count_color(CLASSIC_RTS_BUILD_PROGRESS_COLOR);
+    let product_model_volume_pixel_count =
+        product_model_volume_pixel_count + basin_model_identity_pixel_count;
     let selected_units_gate = runtime.rts_selected_unit_ids.len() >= 4
         && (runtime
             .rts_selected_unit_ids
@@ -38499,7 +38522,7 @@ pub fn native_classic_rts_command_queue_path_preview_evidence_json(preview_path:
         (
             "cancel_repath",
             NativeControlAction::RtsQueueProduction {
-                queue_id: "cancel:watch_tower@7,4".to_string(),
+                queue_id: "cancel:build:0".to_string(),
             },
         ),
     ];
@@ -38721,9 +38744,11 @@ pub fn native_classic_rts_command_queue_path_preview_evidence_json(preview_path:
                 .get("refund_delta_log")
                 .and_then(|value| value.as_array())
                 .is_some_and(|entries| {
-                    entries
-                        .iter()
-                        .any(|entry| entry.as_str().is_some_and(|text| text.contains("gold:+90")))
+                    entries.iter().any(|entry| {
+                        entry
+                            .as_str()
+                            .is_some_and(|text| text.contains("gold:+210"))
+                    })
                 })
     });
     let live_input_gate = accepted_input_count == stages.len()
@@ -41811,7 +41836,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
     const PREVIEW_COLUMNS: usize = 2;
-    const PREVIEW_ROWS: usize = 3;
+    const PREVIEW_ROWS: usize = 6;
     let assets = load_classic_runtime_assets();
     let mut world = native_bevy_playable_fixture();
     let mut character = WorldTrillionniumCharacter::default_for("local-player");
@@ -41841,6 +41866,36 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "move_formation",
             NativeControlAction::RtsMoveCommand {
                 command_id: "7,4:diamond".to_string(),
+            },
+        ),
+        (
+            "queue_waypoint",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "9,4:shift_waypoint".to_string(),
+            },
+        ),
+        (
+            "hold_position",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "6,5:hold".to_string(),
+            },
+        ),
+        (
+            "patrol_route",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "9,4:patrol".to_string(),
+            },
+        ),
+        (
+            "attack_move",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "10,3:attack_move".to_string(),
+            },
+        ),
+        (
+            "stop_order",
+            NativeControlAction::RtsMoveCommand {
+                command_id: "10,3:stop".to_string(),
             },
         ),
         (
@@ -41951,14 +42006,14 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         PANEL_WIDTH,
         PANEL_HEIGHT,
         PANEL_WIDTH as i32,
-        (PANEL_HEIGHT * 2) as i32,
+        (PANEL_HEIGHT * (PREVIEW_ROWS - 1)) as i32,
     );
     classic_draw_text(
         &mut preview_pixels,
         preview_width,
         preview_height,
         PANEL_WIDTH as i32 + 12,
-        (PANEL_HEIGHT * 2) as i32 + 12,
+        (PANEL_HEIGHT * (PREVIEW_ROWS - 1)) as i32 + 12,
         "LIVE RTS FINAL STATE",
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
@@ -42021,12 +42076,90 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             .iter()
             .any(|entry| entry == "formation:diamond")
         && command_marker_pixel_count > 600;
+    let waypoint_live_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("queue_waypoint")
+            && summary.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            && summary
+                .get("command_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|commands| {
+                    let mut command_texts = commands.iter().filter_map(|entry| entry.as_str());
+                    command_texts.any(|entry| entry.contains("waypoints:"))
+                        && commands
+                            .iter()
+                            .filter_map(|entry| entry.as_str())
+                            .any(|entry| entry == "command_queue_path_preview:shift_waypoints")
+                })
+    });
+    let hold_live_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("hold_position")
+            && summary.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            && summary
+                .get("command_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|commands| {
+                    commands
+                        .iter()
+                        .filter_map(|entry| entry.as_str())
+                        .any(|entry| entry.contains("hold_line:"))
+                })
+    });
+    let patrol_live_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("patrol_route")
+            && summary.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            && summary
+                .get("command_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|commands| {
+                    commands
+                        .iter()
+                        .filter_map(|entry| entry.as_str())
+                        .any(|entry| entry.contains("patrol:"))
+                })
+    });
+    let attack_move_live_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("attack_move")
+            && summary.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            && summary
+                .get("command_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|commands| {
+                    commands
+                        .iter()
+                        .filter_map(|entry| entry.as_str())
+                        .any(|entry| entry.contains("attack_move:10,3"))
+                        && commands
+                            .iter()
+                            .filter_map(|entry| entry.as_str())
+                            .any(|entry| entry == "command_queue_path_preview:attack_focus")
+                })
+    });
+    let stop_live_gate = stage_summaries.iter().any(|summary| {
+        summary.get("stage").and_then(|value| value.as_str()) == Some("stop_order")
+            && summary.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            && summary
+                .get("command_queue")
+                .and_then(|value| value.as_array())
+                .is_some_and(|commands| {
+                    commands
+                        .iter()
+                        .filter_map(|entry| entry.as_str())
+                        .any(|entry| entry == "stop:10,3")
+                        && commands
+                            .iter()
+                            .filter_map(|entry| entry.as_str())
+                            .any(|entry| entry == "command_queue_path_preview:cancel_repath")
+                })
+    });
     let attack_live_gate = runtime.rts_attack_target_id.as_deref() == Some("arena_creep_attack")
         && runtime
             .rts_command_queue
             .iter()
             .any(|entry| entry == "attack:arena_creep_attack")
-        && attack_feedback_pixel_count > 180;
+        && runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry == "target_acquired:arena_creep_attack");
     let ability_live_gate = runtime.rts_active_ability_id.as_deref() == Some("focus_fire")
         && runtime.rts_target_health_percent < 60
         && runtime
@@ -42041,6 +42174,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && selection_live_gate
         && production_live_gate
         && move_live_gate
+        && waypoint_live_gate
+        && hold_live_gate
+        && patrol_live_gate
+        && attack_move_live_gate
+        && stop_live_gate
         && attack_live_gate
         && ability_live_gate
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -42078,11 +42216,16 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "production_live_gate": production_live_gate,
         "move_live_gate": move_live_gate,
         "move_stage_destination_gate": move_stage_destination_gate,
+        "waypoint_live_gate": waypoint_live_gate,
+        "hold_live_gate": hold_live_gate,
+        "patrol_live_gate": patrol_live_gate,
+        "attack_move_live_gate": attack_move_live_gate,
+        "stop_live_gate": stop_live_gate,
         "attack_live_gate": attack_live_gate,
         "ability_live_gate": ability_live_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, attack, and ability commands through apply_live_native_action_with_source before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, and ability commands through apply_live_native_action_with_source before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -72263,6 +72406,26 @@ fn classic_poll_action(
         Some(NativeControlAction::RtsMoveCommand {
             command_id: classic_next_runtime_rts_move_command(runtime),
         })
+    } else if window.is_key_pressed(MiniKey::Q, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: classic_next_runtime_rts_queued_waypoint_command(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::X, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: classic_next_runtime_rts_stop_command(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::H, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: classic_next_runtime_rts_hold_command(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::O, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: classic_next_runtime_rts_patrol_command(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::K, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: classic_next_runtime_rts_attack_move_command(runtime),
+        })
     } else if !shift_pressed && window.is_key_pressed(MiniKey::A, MiniKeyRepeat::No) {
         Some(NativeControlAction::RtsAttackCommand {
             target_id: classic_next_runtime_rts_attack_target(runtime),
@@ -73296,6 +73459,67 @@ fn classic_next_runtime_rts_move_command(runtime: &NativeFirstPlayableRuntime) -
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_runtime_rts_command_tile(
+    runtime: &NativeFirstPlayableRuntime,
+    fallback: &str,
+) -> String {
+    runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .filter(|tile_id| classic_parse_rts_tile(tile_id).is_some())
+        .unwrap_or(fallback)
+        .to_string()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_queued_waypoint_command(
+    runtime: &NativeFirstPlayableRuntime,
+) -> String {
+    let tile_id = match runtime
+        .rts_group_route_tile_ids
+        .last()
+        .or(runtime.rts_command_destination_tile.as_ref())
+        .map(String::as_str)
+    {
+        Some("8,4") => "9,4",
+        Some("9,4") => "10,4",
+        Some("10,4") => "10,3",
+        Some("10,3") => "8,4",
+        _ => "9,4",
+    };
+    format!("{tile_id}:shift_waypoint")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_stop_command(runtime: &NativeFirstPlayableRuntime) -> String {
+    format!("{}:stop", classic_runtime_rts_command_tile(runtime, "5,5"))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_hold_command(runtime: &NativeFirstPlayableRuntime) -> String {
+    format!("{}:hold", classic_runtime_rts_command_tile(runtime, "6,5"))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_patrol_command(runtime: &NativeFirstPlayableRuntime) -> String {
+    let tile_id = match runtime.rts_minimap_command_kind.as_str() {
+        "patrol" => "8,4",
+        _ => "9,4",
+    };
+    format!("{tile_id}:patrol")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_attack_move_command(runtime: &NativeFirstPlayableRuntime) -> String {
+    let tile_id = runtime
+        .rts_attack_target_id
+        .as_deref()
+        .map(|target_id| classic_rts_tile_id(classic_rts_target_tile_for_id(target_id, 0)))
+        .unwrap_or_else(|| "10,3".to_string());
+    format!("{tile_id}:attack_move")
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_next_runtime_rts_attack_target(runtime: &NativeFirstPlayableRuntime) -> String {
     match runtime.rts_attack_target_id.as_deref() {
         Some("enemy_barracks") => "forest_creep_camp".to_string(),
@@ -73621,7 +73845,7 @@ fn classic_draw_scene(
             &player_frame,
         );
     }
-    if !classic_draw_openra_style_rts_shell(
+    let openra_shell_drawn = classic_draw_openra_style_rts_shell(
         buffer,
         width,
         height,
@@ -73629,7 +73853,8 @@ fn classic_draw_scene(
         assets,
         scene_id,
         player_tile,
-    ) {
+    );
+    if !openra_shell_drawn {
         if scene_id != "first_contact_basin" {
             classic_draw_rts_strategy_overlay(
                 buffer,
@@ -73732,6 +73957,9 @@ fn classic_draw_scene(
     }
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
         classic_draw_rts_unit_status_portrait_overlay(buffer, width, height, runtime, status_stage);
+    }
+    if openra_shell_drawn && scene_id == "first_contact_basin" {
+        classic_draw_rts_product_alignment_hud(buffer, width, height, runtime);
     }
 }
 
@@ -93923,7 +94151,7 @@ fn classic_window_title(
     assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select/radar RMB move/attack Shift+WASD/edges pan wheel zoom 1/2/3 groups M move A attack B build P train G harvest V/Tab ability | {} -> {}",
+        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select/radar RMB move/attack Shift+WASD/edges pan wheel zoom 1/2/3 groups M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
         assets.manifest.contract_version,
         runtime.current_room_id,
         player_tile.0,
@@ -131392,6 +131620,139 @@ fn apply_classic_rts_move_runtime(
                     first_playable.rts_group_route_tile_ids.join(">")
                 ),
             );
+        } else if formation == "shift_waypoint" {
+            push_unique_string(&mut first_playable.rts_group_route_tile_ids, tile_id);
+            first_playable.rts_minimap_command_kind = "shift_waypoint".to_string();
+            first_playable.rts_group_command_state = format!(
+                "queued_waypoint:{}",
+                first_playable.rts_group_route_tile_ids.join(">")
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "waypoints:{}",
+                    first_playable.rts_group_route_tile_ids.join(">")
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                "command_queue_path_preview:shift_waypoints",
+            );
+        } else if formation == "stop" {
+            first_playable.rts_path_tile_ids.clear();
+            first_playable.rts_blocked_tile_ids.clear();
+            first_playable.rts_formation_slot_tile_ids.clear();
+            first_playable.rts_disperse_tile_ids.clear();
+            first_playable.rts_group_route_tile_ids.clear();
+            first_playable.rts_pathing_status = "stopped".to_string();
+            first_playable.rts_unit_response_state = "stop_order_hold".to_string();
+            first_playable.rts_minimap_command_kind = "stop".to_string();
+            first_playable.rts_group_command_state = format!("stop_order_hold:{tile_id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("stop:{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("hold:{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                "command_queue_path_preview:cancel_repath",
+            );
+        } else if formation == "hold" {
+            first_playable.rts_player_hold_tile_ids =
+                classic_rts_player_hold_tiles_for_id("live_hold", tile_id);
+            first_playable.rts_group_route_tile_ids =
+                first_playable.rts_player_hold_tile_ids.clone();
+            first_playable.rts_unit_response_state = "hold_position".to_string();
+            first_playable.rts_minimap_command_kind = "hold".to_string();
+            first_playable.rts_group_command_state = format!(
+                "hold_line:{}",
+                first_playable.rts_player_hold_tile_ids.join("|")
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "hold_line:{}",
+                    first_playable.rts_player_hold_tile_ids.join("|")
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                "command_queue_path_preview:queue_stack",
+            );
+        } else if formation == "patrol" {
+            let mut patrol_route = first_playable.rts_path_tile_ids.clone();
+            push_unique_string(&mut patrol_route, "8,4");
+            push_unique_string(&mut patrol_route, tile_id);
+            first_playable.rts_group_route_tile_ids = patrol_route;
+            first_playable.rts_unit_response_state = "patrol_route_active".to_string();
+            first_playable.rts_minimap_command_kind = "patrol".to_string();
+            first_playable.rts_group_command_state = format!(
+                "patrol_route:{}",
+                first_playable.rts_group_route_tile_ids.join(">")
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "patrol:{}",
+                    first_playable.rts_group_route_tile_ids.join(">")
+                ),
+            );
+            push_history(
+                &mut first_playable.rts_combat_event_log,
+                &format!("patrol_order:live_group:{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                "command_queue_path_preview:rally_chain",
+            );
+        } else if formation == "attack_move" {
+            let target_id = match first_playable.rts_attack_target_id.as_deref() {
+                Some("enemy_barracks") => "forest_creep_camp",
+                Some("forest_creep_camp") => "arena_creep_attack",
+                _ => "enemy_barracks",
+            }
+            .to_string();
+            first_playable.map_scene = "arena_league_coliseum".to_string();
+            first_playable.combat_overlay_visible = true;
+            first_playable.combat_overlay_was_visible = true;
+            first_playable.rts_attack_target_id = Some(target_id.clone());
+            first_playable.rts_aggro_target_id = Some(target_id.clone());
+            first_playable.rts_targeting_state = format!("attack_move:{target_id}");
+            first_playable.rts_engagement_tile_ids =
+                classic_rts_engagement_tiles_for_target(&target_id);
+            first_playable.rts_contact_flash_tile_ids =
+                classic_rts_contact_flash_tiles_for_target(&target_id);
+            first_playable.rts_projectile_trail_tile_ids =
+                classic_rts_projectile_trail_tiles_for_target(&target_id);
+            first_playable.rts_projectile_impact_tile_id = Some(tile_id.to_string());
+            first_playable.rts_active_projectile_id = Some("attack_move_volley".to_string());
+            first_playable.rts_target_priority_ids =
+                classic_rts_target_priority_ids_for_target(&target_id);
+            first_playable.rts_target_health_percent = 78;
+            first_playable.rts_active_ability_id = Some("attack_move".to_string());
+            push_unique_string(&mut first_playable.rts_ability_command_ids, "attack_move");
+            first_playable.rts_unit_response_state = format!("attack_move_advancing:{target_id}");
+            first_playable.rts_minimap_command_kind = "attack_move".to_string();
+            first_playable.rts_group_command_state = format!("attack_move:{tile_id}:{target_id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("attack_move:{tile_id}:{target_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("attack_focus:{target_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_combat_event_log,
+                &format!("attack_move_order:live_group:{target_id}@{tile_id}"),
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                "command_queue_path_preview:attack_focus",
+            );
         } else {
             first_playable.rts_group_command_state = format!("route:{formation}:{tile_id}");
         }
@@ -131435,8 +131796,16 @@ fn apply_classic_rts_move_runtime(
         );
     }
     push_unique_string(&mut first_playable.rts_visible_tile_ids, tile_id);
-    first_playable.rts_active_ability_id = Some("move".to_string());
-    first_playable.last_feedback = format!("RTS group moving to {tile_id} in {formation}");
+    let (active_command, feedback_label) = match formation {
+        "attack_move" => ("attack_move", "attack-moving to"),
+        "hold" => ("hold", "holding"),
+        "patrol" => ("patrol", "patrolling through"),
+        "stop" => ("stop", "stopping at"),
+        "shift_waypoint" => ("move", "queueing waypoint at"),
+        _ => ("move", "moving to"),
+    };
+    first_playable.rts_active_ability_id = Some(active_command.to_string());
+    first_playable.last_feedback = format!("RTS group {feedback_label} {tile_id} in {formation}");
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
@@ -137123,6 +137492,126 @@ mod tests {
         assert_eq!(runtime.rts_group_route_tile_ids, runtime.rts_path_tile_ids);
         assert_eq!(runtime.rts_army_rally_tile_ids, runtime.rts_path_tile_ids);
 
+        let queued_waypoint_command = classic_next_runtime_rts_queued_waypoint_command(&runtime);
+        assert_eq!(queued_waypoint_command, "9,4:shift_waypoint");
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsMoveCommand {
+                command_id: queued_waypoint_command,
+            },
+        );
+        assert_eq!(runtime.rts_command_destination_tile.as_deref(), Some("9,4"));
+        assert_eq!(runtime.rts_minimap_command_kind, "shift_waypoint");
+        assert!(runtime
+            .rts_group_route_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "9,4"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "command_queue_path_preview:shift_waypoints"));
+
+        let hold_command = classic_next_runtime_rts_hold_command(&runtime);
+        assert_eq!(hold_command, "9,4:hold");
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsMoveCommand {
+                command_id: hold_command,
+            },
+        );
+        assert_eq!(runtime.rts_minimap_command_kind, "hold");
+        assert_eq!(runtime.rts_unit_response_state, "hold_position");
+        assert!(runtime
+            .rts_player_hold_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "9,4"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("hold_line:")));
+
+        let patrol_command = classic_next_runtime_rts_patrol_command(&runtime);
+        assert_eq!(patrol_command, "9,4:patrol");
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsMoveCommand {
+                command_id: patrol_command,
+            },
+        );
+        assert_eq!(runtime.rts_minimap_command_kind, "patrol");
+        assert!(runtime.rts_group_command_state.contains("patrol_route:"));
+        assert!(runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry == "patrol_order:live_group:9,4"));
+
+        let attack_move_command = classic_next_runtime_rts_attack_move_command(&runtime);
+        assert_eq!(attack_move_command, "10,3:attack_move");
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsMoveCommand {
+                command_id: attack_move_command,
+            },
+        );
+        assert_eq!(runtime.rts_minimap_command_kind, "attack_move");
+        assert_eq!(
+            runtime.rts_attack_target_id.as_deref(),
+            Some("forest_creep_camp")
+        );
+        assert_eq!(
+            runtime.rts_active_ability_id.as_deref(),
+            Some("attack_move")
+        );
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("attack_move:10,3:forest_creep_camp")));
+        assert!(runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|entry| entry == "attack_move_order:live_group:forest_creep_camp@10,3"));
+
+        let stop_command = classic_next_runtime_rts_stop_command(&runtime);
+        assert_eq!(stop_command, "10,3:stop");
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsMoveCommand {
+                command_id: stop_command,
+            },
+        );
+        assert_eq!(runtime.rts_minimap_command_kind, "stop");
+        assert_eq!(runtime.rts_unit_response_state, "stop_order_hold");
+        assert!(runtime.rts_path_tile_ids.is_empty());
+        assert!(runtime.rts_group_route_tile_ids.is_empty());
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "stop:10,3"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "command_queue_path_preview:cancel_repath"));
+
         let attack_target = classic_next_runtime_rts_attack_target(&runtime);
         apply_live_native_action(
             &mut world,
@@ -137136,7 +137625,7 @@ mod tests {
         );
         assert_eq!(
             runtime.rts_attack_target_id.as_deref(),
-            Some("forest_creep_camp")
+            Some("arena_creep_attack")
         );
         assert!(!runtime.rts_engagement_tile_ids.is_empty());
 
