@@ -17,6 +17,9 @@ required_script_lines=(
   'classic-rts-openra-engine-port-asset-parity'
   'rust_reimplementation_of_openra_engine_foundation_owned_assets'
   'ported_engine_module_count >= 10'
+  'pixel_parity.coverage == "full_classic_asset_manifest_frame_set"'
+  'pixel_parity.sample_count == .asset_manifest.frame_count'
+  'pixel_parity.manifest_frame_match_count == .asset_manifest.frame_count'
   'pixel_parity.sample_pixel_mismatch_count == 0'
   'openra_engine_port_claimed == true'
   'openra_full_engine_port_claimed == false'
@@ -49,6 +52,9 @@ required_source_lines=(
   'openra_full_engine_port_claimed'
   'openra_pixel_perfect_asset_parity_claimed'
   'trillionnium_owned_openra_compatible_asset_pack'
+  'full_classic_asset_manifest_frame_set'
+  'manifest_frame_match_count'
+  'manifest_frame_ids'
   'openra_csharp_engine_code_copied'
 )
 

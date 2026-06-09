@@ -47,14 +47,24 @@ jq -e '
   and (.asset_manifest.manifest_sha256 | type == "string" and length == 64)
   and (.port_manifest_sha256 | type == "string" and length == 64)
   and .pixel_parity.scope == "trillionnium_owned_openra_compatible_asset_pack"
-  and .pixel_parity.sample_count == 12
-  and .pixel_parity.sample_sha_match_count == 12
-  and .pixel_parity.sample_pixel_count >= 3000
-  and .pixel_parity.sample_visible_pixel_count > 1000
+  and .pixel_parity.coverage == "full_classic_asset_manifest_frame_set"
+  and .pixel_parity.sample_count == .asset_manifest.frame_count
+  and .pixel_parity.manifest_frame_count == .asset_manifest.frame_count
+  and .pixel_parity.sample_sha_match_count == .asset_manifest.frame_count
+  and .pixel_parity.manifest_frame_match_count == .asset_manifest.frame_count
+  and .pixel_parity.sample_pixel_count == .pixel_parity.manifest_frame_pixel_count
+  and .pixel_parity.sample_pixel_count >= 11000
+  and .pixel_parity.sample_visible_pixel_count > 2500
   and .pixel_parity.sample_pixel_mismatch_count == 0
   and .pixel_parity.reference_render_pixel_mismatch_count == 0
-  and .pixel_parity.role_family_count >= 6
-  and (.pixel_parity.sample_reports | length) == 12
+  and .pixel_parity.role_family_count == .pixel_parity.manifest_role_family_count
+  and .pixel_parity.role_family_count >= 16
+  and (.pixel_parity.manifest_frame_ids | length) == .asset_manifest.frame_count
+  and ([.pixel_parity.manifest_frame_ids[]] | index("tile_grass_a") != null)
+  and ([.pixel_parity.manifest_frame_ids[]] | index("actor_player_idle_south") != null)
+  and ([.pixel_parity.manifest_frame_ids[]] | index("actor_enemy_attack") != null)
+  and ([.pixel_parity.manifest_frame_ids[]] | index("marker_interaction") != null)
+  and (.pixel_parity.sample_reports | length) == .asset_manifest.frame_count
   and (.pixel_parity.sample_reports | all(.available == true and .sha_match == true and .pixel_mismatch_count == 0 and (.source_rgb_sha256 | length) == 64 and (.rust_port_rgb_sha256 | length) == 64))
   and .source_contract_gate == true
   and .source_green_gate == true

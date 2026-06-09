@@ -26878,20 +26878,12 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "PAUSE_options_overlay",
         "POSTGAME_statistics",
     ];
-    let asset_sample_ids = [
-        "tile_grass_a",
-        "tile_road",
-        "tile_water",
-        "tile_tree",
-        "actor_player_idle_south",
-        "actor_player_walk_east_1",
-        "actor_mentor_idle",
-        "actor_enemy_attack",
-        "prop_training_dummy",
-        "prop_market_stall",
-        "prop_banner",
-        "marker_objective",
-    ];
+    let asset_sample_ids = assets
+        .manifest
+        .frames
+        .iter()
+        .map(|frame| frame.id.clone())
+        .collect::<Vec<_>>();
 
     let extract_frame = |frame_id: &str| -> Option<(ClassicAtlasFrame, Vec<u32>)> {
         let frame = assets.frame_by_id.get(frame_id)?.clone();
@@ -27026,18 +27018,18 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         total_visible_pixels += visible_pixels;
         roles.insert(frame.role.clone());
 
-        let col = (index % 4) as i32;
-        let row = (index / 4) as i32;
-        let x = 38 + col * 148;
-        let y = 84 + row * 180;
+        let col = (index % 7) as i32;
+        let row = (index / 7) as i32;
+        let x = 24 + col * 86;
+        let y = 72 + row * 86;
         classic_draw_rect(
             &mut reference_pixels,
             PANEL_W,
             PANEL_H,
             x - 12,
-            y - 18,
-            118,
-            132,
+            y - 14,
+            76,
+            74,
             PANEL_COLOR,
         );
         classic_draw_rect(
@@ -27045,9 +27037,9 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
             PANEL_W,
             PANEL_H,
             x - 12,
-            y - 18,
-            118,
-            132,
+            y - 14,
+            76,
+            74,
             PANEL_COLOR,
         );
         blit_pixels_scaled(
@@ -27059,7 +27051,7 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
             frame.h as usize,
             x,
             y,
-            4,
+            3,
         );
         blit_pixels_scaled(
             &mut rendered_pixels,
@@ -27070,15 +27062,15 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
             frame.h as usize,
             x,
             y,
-            4,
+            3,
         );
         classic_draw_text(
             &mut reference_pixels,
             PANEL_W,
             PANEL_H,
             x - 8,
-            y + 78,
-            &classic_catalog_text_label(frame_id, 15),
+            y + 52,
+            &classic_catalog_text_label(frame_id, 10),
             1,
             MUTED_COLOR,
         );
@@ -27087,8 +27079,8 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
             PANEL_W,
             PANEL_H,
             x - 8,
-            y + 78,
-            &classic_catalog_text_label(frame_id, 15),
+            y + 52,
+            &classic_catalog_text_label(frame_id, 10),
             1,
             MUTED_COLOR,
         );
@@ -27138,7 +27130,8 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "ported_engine_modules": engine_modules,
         "widget_roots": widget_roots,
         "chrome_screens": chrome_screens,
-        "asset_sample_ids": asset_sample_ids,
+        "asset_sample_ids": asset_sample_ids.clone(),
+        "asset_manifest_frame_ids": asset_sample_ids.clone(),
         "asset_manifest_contract": assets.manifest.contract_version,
         "asset_manifest_frame_count": assets.manifest.frames.len(),
         "asset_manifest_scene_count": assets.manifest.scenes.len(),
@@ -27160,6 +27153,19 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
     let asset_manifest_sha256 = sha256_hex(
         &serde_json::to_vec(&assets.manifest).expect("classic asset manifest serializes"),
     );
+    let manifest_frame_pixel_count = assets
+        .manifest
+        .frames
+        .iter()
+        .map(|frame| (frame.w * frame.h) as usize)
+        .sum::<usize>();
+    let manifest_role_family_count = assets
+        .manifest
+        .frames
+        .iter()
+        .map(|frame| frame.role.clone())
+        .collect::<HashSet<_>>()
+        .len();
 
     let mut preview_pixels = vec![BG_COLOR; WIDTH * HEIGHT];
     classic_draw_rect(
@@ -27287,7 +27293,7 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         560,
         910,
         &format!(
-            "ASSET SAMPLES {}  PIXELS {}  SHA MATCHES {}  SAMPLE DIFF {}  SHEET DIFF {}",
+            "MANIFEST FRAMES {}  PIXELS {}  SHA MATCHES {}  FRAME DIFF {}  SHEET DIFF {}",
             asset_sample_ids.len(),
             total_sample_pixels,
             sample_sha_match_count,
@@ -27303,7 +27309,11 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         HEIGHT,
         560,
         942,
-        "SCOPE: OPENRA-COMPATIBLE ENGINE FOUNDATION + TRILLIONNIUM-OWNED ASSET PARITY; FULL C# ENGINE/NETWORK/BINARY REPLAY STILL OUT OF THIS GATE",
+        &format!(
+            "SCOPE: OPENRA-COMPATIBLE ENGINE FOUNDATION + {}/{} TRILLIONNIUM-OWNED MANIFEST FRAME PARITY; FULL C# ENGINE/NETWORK/BINARY REPLAY STILL OUT",
+            sample_sha_match_count,
+            assets.manifest.frames.len()
+        ),
         1,
         MUTED_COLOR,
     );
@@ -27358,13 +27368,15 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         && assets.manifest.frames.len() >= 40
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
-    let pixel_perfect_asset_parity_gate = asset_sample_ids.len() == sample_reports.len()
-        && sample_sha_match_count == asset_sample_ids.len()
+    let pixel_perfect_asset_parity_gate = asset_sample_ids.len() == assets.manifest.frames.len()
+        && asset_sample_ids.len() == sample_reports.len()
+        && sample_sha_match_count == assets.manifest.frames.len()
         && pixel_mismatch_count == 0
         && reference_render_mismatch_count == 0
-        && total_sample_pixels >= 3_000
-        && total_visible_pixels > 1_000
-        && roles.len() >= 6;
+        && total_sample_pixels == manifest_frame_pixel_count
+        && total_visible_pixels > 2_500
+        && roles.len() == manifest_role_family_count
+        && manifest_role_family_count >= 16;
     let write_gate = reference_write_gate
         && rendered_write_gate
         && diff_write_gate
@@ -27446,6 +27458,7 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "port_manifest_sha256": port_manifest_sha256,
         "pixel_parity": {
             "scope": "trillionnium_owned_openra_compatible_asset_pack",
+            "coverage": "full_classic_asset_manifest_frame_set",
             "sample_count": asset_sample_ids.len(),
             "sample_sha_match_count": sample_sha_match_count,
             "sample_pixel_count": total_sample_pixels,
@@ -27453,6 +27466,11 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
             "sample_pixel_mismatch_count": pixel_mismatch_count,
             "reference_render_pixel_mismatch_count": reference_render_mismatch_count,
             "role_family_count": roles.len(),
+            "manifest_frame_count": assets.manifest.frames.len(),
+            "manifest_frame_match_count": sample_sha_match_count,
+            "manifest_frame_pixel_count": manifest_frame_pixel_count,
+            "manifest_role_family_count": manifest_role_family_count,
+            "manifest_frame_ids": asset_sample_ids.clone(),
             "sample_reports": sample_reports
         },
         "pixel_counts": {
@@ -27486,7 +27504,7 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "bevy_openra_network_order_stream_claimed": false,
         "android_s5_real_device_claimed": false,
         "public_launch_ready": false,
-        "source_of_truth": "This gate creates the first explicit OpenRA engine-port evidence for Trillionnium: Rust reimplements the OpenRA foundation surfaces for ModData, rules, actors, world ticks, orders, chrome/widget roots, sprite sequences, palette handling, asset loading, and owned replay reduction, then proves pixel-perfect parity over Trillionnium-owned OpenRA-compatible PPM assets with zero pixel and sha mismatches. It is not a full C# OpenRA engine port, does not claim binary replay/network parity, and does not copy OpenRA, Westwood, Warcraft III, or other third-party assets."
+        "source_of_truth": "This gate creates the explicit OpenRA engine-port evidence for Trillionnium: Rust reimplements the OpenRA foundation surfaces for ModData, rules, actors, world ticks, orders, chrome/widget roots, sprite sequences, palette handling, asset loading, and owned replay reduction, then proves pixel-perfect parity over every frame in the Trillionnium-owned OpenRA-compatible PPM asset manifest with zero pixel and sha mismatches. It is not a full C# OpenRA engine port, does not claim binary replay/network parity, and does not copy OpenRA, Westwood, Warcraft III, or other third-party assets."
     }))
     .expect("classic RTS OpenRA engine port asset parity evidence serializes")
 }
