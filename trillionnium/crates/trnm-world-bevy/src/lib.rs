@@ -72291,6 +72291,9 @@ fn classic_rts_sidebar_action_from_point(
         let x = layout.sidebar_x + 12 + (index % 2) as i32 * 116;
         let y = prod_y + 18 + (index / 2) as i32 * 34;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 56, 18) {
+            if matches!(button, MiniMouseButton::Right) {
+                return classic_rts_sidebar_cancel_action(runtime, index);
+            }
             return Some(NativeControlAction::RtsQueueProduction {
                 queue_id: classic_rts_production_slot_queue_id(runtime, index),
             });
@@ -72301,9 +72304,11 @@ fn classic_rts_sidebar_action_from_point(
         let x = layout.sidebar_x + 12 + (index % 4) as i32 * 58;
         let y = palette_y + 18 + (index / 4) as i32 * 46;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 46, 36) {
-            return Some(NativeControlAction::RtsQueueProduction {
-                queue_id: classic_rts_build_palette_queue_id(index),
-            });
+            let queue_id = classic_rts_build_palette_queue_id(index);
+            if matches!(button, MiniMouseButton::Right) {
+                return classic_rts_palette_cancel_action(runtime, &queue_id);
+            }
+            return Some(NativeControlAction::RtsQueueProduction { queue_id });
         }
     }
     None
@@ -72380,6 +72385,131 @@ fn classic_rts_build_palette_queue_id(index: usize) -> String {
     .copied()
     .unwrap_or("build:watch_tower@7,4")
     .to_string()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_sidebar_cancel_action(
+    runtime: &NativeFirstPlayableRuntime,
+    index: usize,
+) -> Option<NativeControlAction> {
+    if runtime.rts_production_queue.get(index).is_some() {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: format!("cancel:production:{index}"),
+        })
+    } else if index >= 2 && runtime.rts_build_queue.get(index - 2).is_some() {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: format!("cancel:build:{}", index - 2),
+        })
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_palette_cancel_action(
+    runtime: &NativeFirstPlayableRuntime,
+    queue_id: &str,
+) -> Option<NativeControlAction> {
+    if let Some(index) = runtime
+        .rts_build_queue
+        .iter()
+        .position(|entry| entry == queue_id)
+    {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: format!("cancel:build:{index}"),
+        })
+    } else if let Some(index) = runtime
+        .rts_production_queue
+        .iter()
+        .position(|entry| entry == queue_id)
+    {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: format!("cancel:production:{index}"),
+        })
+    } else if queue_id.starts_with("build:")
+        && runtime
+            .rts_building_blueprint_id
+            .as_deref()
+            .is_some_and(|id| queue_id.contains(id))
+    {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: "cancel:active_build".to_string(),
+        })
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_sidebar_slot_status_label(
+    runtime: &NativeFirstPlayableRuntime,
+    index: usize,
+    progress: u8,
+    queue_id: &str,
+) -> String {
+    if runtime.rts_production_queue.get(index).is_some() {
+        format!("Q{} {} R", index + 1, progress.min(100))
+    } else if index >= 2 && runtime.rts_build_queue.get(index - 2).is_some() {
+        format!("B{} {} R", index - 1, progress.min(100))
+    } else if classic_rts_queue_is_affordable(runtime, queue_id) {
+        "LMB ADD".to_string()
+    } else {
+        "LOCK".to_string()
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_palette_state_label(runtime: &NativeFirstPlayableRuntime, queue_id: &str) -> String {
+    if runtime
+        .rts_building_blueprint_id
+        .as_deref()
+        .is_some_and(|id| queue_id.contains(id))
+    {
+        "ACT".to_string()
+    } else if let Some(index) = runtime
+        .rts_build_queue
+        .iter()
+        .position(|entry| entry == queue_id)
+    {
+        format!("B Q{}", index + 1)
+    } else if let Some(index) = runtime
+        .rts_production_queue
+        .iter()
+        .position(|entry| entry == queue_id)
+    {
+        format!("P Q{}", index + 1)
+    } else if classic_rts_queue_is_affordable(runtime, queue_id) {
+        "RDY".to_string()
+    } else {
+        "LOCK".to_string()
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_sidebar_queue_summary(runtime: &NativeFirstPlayableRuntime) -> String {
+    let production = runtime
+        .rts_production_queue
+        .first()
+        .map(|queue| {
+            format!(
+                "{}@{}%",
+                queue.replace("train:", "").replace("upgrade:", "up:"),
+                runtime.rts_training_progress_percent.min(100)
+            )
+        })
+        .unwrap_or_else(|| "ready".to_string());
+    let build = runtime
+        .rts_build_queue
+        .first()
+        .map(|queue| {
+            format!(
+                "{}@{}%",
+                classic_rts_structure_id_from_queue(queue),
+                runtime.rts_build_progress_percent.min(100)
+            )
+        })
+        .unwrap_or_else(|| "ready".to_string());
+    format!("P:{production} B:{build}")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -93669,6 +93799,20 @@ fn classic_draw_openra_style_rts_shell(
             CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR
         };
         classic_draw_rect(buffer, width, height, x, y + 20, 56, 3, state_color);
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 2,
+            y + 25,
+            &classic_rts_sidebar_slot_status_label(runtime, index, progress, &queue_id),
+            1,
+            if !classic_rts_queue_is_affordable(runtime, &queue_id) {
+                CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
+            } else {
+                CLASSIC_HUD_MUTED_TEXT_COLOR
+            },
+        );
     }
 
     let palette_y = prod_y + 98;
@@ -93760,6 +93904,20 @@ fn classic_draw_openra_style_rts_shell(
                 CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
             },
         );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 6,
+            y + 37,
+            &classic_rts_palette_state_label(runtime, &queue_id),
+            1,
+            if affordable {
+                CLASSIC_HUD_MUTED_TEXT_COLOR
+            } else {
+                CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
+            },
+        );
     }
 
     let input_y = palette_y + 118;
@@ -93841,6 +93999,10 @@ fn classic_draw_openra_style_rts_shell(
                 .map(|id| classic_catalog_text_label(id, 14))
                 .unwrap_or_else(|| "NONE".to_string()),
             runtime.rts_building_progress_percent.min(100)
+        ),
+        format!(
+            "PROD {}",
+            classic_catalog_text_label(&classic_rts_sidebar_queue_summary(runtime), 24)
         ),
         format!(
             "CAM {} {}",
@@ -93982,6 +94144,10 @@ fn classic_draw_openra_style_rts_shell(
             .map(String::as_str)
             .unwrap_or("hold");
         let active = runtime.rts_active_ability_id.as_deref() == Some(ability);
+        let sent = runtime
+            .rts_command_queue
+            .iter()
+            .any(|order| order.contains(ability));
         classic_draw_rect(
             buffer,
             width,
@@ -93994,6 +94160,22 @@ fn classic_draw_openra_style_rts_shell(
                 CLASSIC_RTS_ACTIVE_ABILITY_COLOR
             } else {
                 CLASSIC_RTS_ABILITY_SLOT_COLOR
+            },
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            3,
+            38,
+            if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else if sent {
+                CLASSIC_ISO_COMMAND_MARKER_COLOR
+            } else {
+                CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR
             },
         );
         classic_draw_rect(
@@ -94016,6 +94198,22 @@ fn classic_draw_openra_style_rts_shell(
             &classic_catalog_text_label(ability, 5),
             1,
             CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 6,
+            y + 34,
+            36,
+            2,
+            if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else if sent {
+                CLASSIC_ISO_COMMAND_MARKER_COLOR
+            } else {
+                CLASSIC_HUD_MUTED_TEXT_COLOR
+            },
         );
     }
 
@@ -130067,12 +130265,107 @@ fn ensure_classic_rts_mirror_city_restoration_ready(
     }
 }
 
+fn classic_rts_queue_uses_production_lane(queue_id: &str) -> bool {
+    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id);
+    !queue_id.starts_with("build:")
+        && !queue_id.starts_with("cancel:")
+        && !queue_id.starts_with("complete:")
+        && !queue_id.starts_with("harvest:")
+        && !queue_id.starts_with("repair:")
+}
+
+fn apply_classic_rts_queue_cancel_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    cancel_id: &str,
+) {
+    let mut removed_queue: Option<String> = None;
+    if let Some(index) = cancel_id
+        .strip_prefix("production:")
+        .and_then(|index| index.parse::<usize>().ok())
+    {
+        if index < first_playable.rts_production_queue.len() {
+            removed_queue = Some(first_playable.rts_production_queue.remove(index));
+        }
+        first_playable.rts_training_progress_percent =
+            if first_playable.rts_production_queue.is_empty() {
+                100
+            } else {
+                8
+            };
+    } else if let Some(index) = cancel_id
+        .strip_prefix("build:")
+        .and_then(|index| index.parse::<usize>().ok())
+    {
+        if index < first_playable.rts_build_queue.len() {
+            removed_queue = Some(first_playable.rts_build_queue.remove(index));
+        }
+        refresh_classic_rts_build_preview_after_queue_cancel(first_playable);
+    } else if cancel_id == "active_build" {
+        if let Some(blueprint_id) = first_playable.rts_building_blueprint_id.take() {
+            removed_queue = Some(format!("build:{blueprint_id}"));
+        }
+        first_playable.rts_build_site_tile_ids.clear();
+        first_playable.rts_build_progress_percent = 0;
+        first_playable.rts_building_progress_percent = 0;
+    }
+
+    if let Some(removed_queue) = removed_queue {
+        remove_latest_classic_rts_resource_commit(first_playable, &removed_queue);
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("cancel:{removed_queue}"),
+        );
+        first_playable.last_feedback = format!("RTS queue canceled: {removed_queue}");
+    } else {
+        push_history(&mut first_playable.rts_command_queue, "cancel:empty_slot");
+        first_playable.last_feedback = "RTS queue cancel ignored: empty slot".to_string();
+    }
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
+fn refresh_classic_rts_build_preview_after_queue_cancel(
+    first_playable: &mut NativeFirstPlayableRuntime,
+) {
+    if let Some(next_queue) = first_playable.rts_build_queue.first() {
+        let (structure_id, tile_id) = classic_rts_build_parts(next_queue);
+        first_playable.rts_building_blueprint_id = Some(structure_id);
+        first_playable.rts_build_site_tile_ids = classic_rts_build_site_tiles(&tile_id);
+        first_playable.rts_command_destination_tile = Some(tile_id);
+        first_playable.rts_build_progress_percent =
+            first_playable.rts_build_progress_percent.max(8);
+        first_playable.rts_building_progress_percent =
+            first_playable.rts_building_progress_percent.max(8);
+    } else {
+        first_playable.rts_building_blueprint_id = None;
+        first_playable.rts_build_site_tile_ids.clear();
+        first_playable.rts_build_progress_percent = 0;
+        first_playable.rts_building_progress_percent = 0;
+    }
+}
+
+fn remove_latest_classic_rts_resource_commit(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    queue_id: &str,
+) {
+    if let Some(index) = first_playable
+        .rts_resource_spend_log
+        .iter()
+        .rposition(|entry| entry.starts_with("commit:") && entry.contains(queue_id))
+    {
+        first_playable.rts_resource_spend_log.remove(index);
+    }
+}
+
 fn apply_classic_rts_queue_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     queue_id: &str,
 ) {
     if first_playable.rts_control_group_id.is_none() {
         apply_classic_rts_select_group_runtime(first_playable, "1");
+    }
+    if let Some(cancel_id) = queue_id.strip_prefix("cancel:") {
+        apply_classic_rts_queue_cancel_runtime(first_playable, cancel_id);
+        return;
     }
     let queue_gold_cost = classic_rts_queue_gold_cost(queue_id);
     if queue_gold_cost > 0 {
@@ -130084,7 +130377,9 @@ fn apply_classic_rts_queue_runtime(
             ),
         );
     }
-    push_unique_string(&mut first_playable.rts_production_queue, queue_id);
+    if classic_rts_queue_uses_production_lane(queue_id) {
+        push_unique_string(&mut first_playable.rts_production_queue, queue_id);
+    }
     if let Some(objective_command) = queue_id.strip_prefix("objective:") {
         apply_classic_rts_objective_runtime(first_playable, objective_command);
     } else if let Some(recon_command) = queue_id.strip_prefix("recon:") {
@@ -130287,10 +130582,6 @@ fn apply_classic_rts_queue_runtime(
     first_playable.rts_training_progress_percent =
         first_playable.rts_training_progress_percent.max(64);
     first_playable.rts_build_progress_percent = first_playable.rts_build_progress_percent.max(38);
-    push_history(
-        &mut first_playable.rts_resource_spend_log,
-        "spent:140g:30l:guard",
-    );
     push_history(
         &mut first_playable.rts_command_queue,
         &format!("queue:{queue_id}"),
@@ -136154,6 +136445,51 @@ mod tests {
         assert!(tick_runtime.rts_build_queue.is_empty());
         assert!(tick_runtime.rts_building_blueprint_id.is_none());
         assert!(tick_runtime.rts_build_site_tile_ids.is_empty());
+
+        let mut cancel_runtime = classic_openra_style_skirmish_runtime();
+        cancel_runtime.rts_production_queue.clear();
+        cancel_runtime.rts_build_queue.clear();
+        cancel_runtime.rts_resource_spend_log.clear();
+        let build_commitment_before = classic_rts_resource_gold_commitment(&cancel_runtime);
+        apply_classic_rts_queue_runtime(&mut cancel_runtime, "build:watch_tower@7,4");
+        assert!(cancel_runtime
+            .rts_build_queue
+            .iter()
+            .any(|queue| queue == "build:watch_tower@7,4"));
+        assert!(!cancel_runtime
+            .rts_production_queue
+            .iter()
+            .any(|queue| queue == "build:watch_tower@7,4"));
+        assert_eq!(
+            classic_rts_resource_gold_commitment(&cancel_runtime)
+                .saturating_sub(build_commitment_before),
+            210,
+            "{:?}",
+            cancel_runtime.rts_resource_spend_log
+        );
+        apply_classic_rts_queue_cancel_runtime(&mut cancel_runtime, "build:0");
+        assert!(cancel_runtime.rts_build_queue.is_empty());
+        assert!(cancel_runtime.rts_building_blueprint_id.is_none());
+        assert_eq!(
+            classic_rts_resource_gold_commitment(&cancel_runtime),
+            build_commitment_before
+        );
+        assert!(cancel_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "cancel:build:watch_tower@7,4"));
+
+        apply_classic_rts_queue_runtime(&mut cancel_runtime, "train:worker");
+        assert!(cancel_runtime
+            .rts_production_queue
+            .iter()
+            .any(|queue| queue == "train:worker"));
+        apply_classic_rts_queue_cancel_runtime(&mut cancel_runtime, "production:0");
+        assert!(cancel_runtime.rts_production_queue.is_empty());
+        assert!(cancel_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "cancel:train:worker"));
     }
 
     #[test]
