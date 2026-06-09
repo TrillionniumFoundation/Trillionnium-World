@@ -72424,9 +72424,10 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 frame_tick % 12 == 0,
             );
         }
-        if let Some(action) =
+        if let Some(polled_action) =
             classic_poll_action(&window, &first_playable, width, height, &mut mouse_latch)
         {
+            let action = polled_action.action;
             let accepted = native_live_action_availability(&first_playable, &action).0;
             let move_direction = match &action {
                 NativeControlAction::Move { direction } => Some(direction.clone()),
@@ -72440,12 +72441,13 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 }
                 _ => None,
             };
-            let _ = apply_live_native_action(
+            let _ = apply_live_native_action_with_source(
                 &mut world,
                 &mut character,
                 &mut gameplay_log,
                 &mut first_playable,
                 actor_id,
+                polled_action.input_source,
                 action,
             );
             if accepted {
@@ -72519,114 +72521,178 @@ struct ClassicRuntimeMouseLatch {
 }
 
 #[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone)]
+struct ClassicPolledAction {
+    input_source: &'static str,
+    action: NativeControlAction,
+}
+
+#[cfg(not(target_os = "android"))]
+impl ClassicPolledAction {
+    fn new(input_source: &'static str, action: NativeControlAction) -> Self {
+        Self {
+            input_source,
+            action,
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_polled_keyboard_action(action: NativeControlAction) -> ClassicPolledAction {
+    let input_source = if matches!(
+        &action,
+        NativeControlAction::RtsSelectControlGroup { .. }
+            | NativeControlAction::RtsQueueProduction { .. }
+            | NativeControlAction::RtsMoveCommand { .. }
+            | NativeControlAction::RtsAttackCommand { .. }
+            | NativeControlAction::RtsAbilityCommand { .. }
+    ) {
+        "classic_rts_hotkey"
+    } else {
+        "keyboard"
+    };
+    ClassicPolledAction::new(input_source, action)
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_poll_action(
     window: &MiniWindow,
     runtime: &NativeFirstPlayableRuntime,
     width: usize,
     height: usize,
     mouse_latch: &mut ClassicRuntimeMouseLatch,
-) -> Option<NativeControlAction> {
+) -> Option<ClassicPolledAction> {
     let shift_pressed =
         window.is_key_down(MiniKey::LeftShift) || window.is_key_down(MiniKey::RightShift);
     if let Some(action) = classic_poll_mouse_action(window, runtime, width, height, mouse_latch) {
         Some(action)
     } else if window.is_key_pressed(MiniKey::Key1, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsSelectControlGroup {
-            group_id: "1".to_string(),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "1".to_string(),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::Key2, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsSelectControlGroup {
-            group_id: "2".to_string(),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "2".to_string(),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::Key3, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsSelectControlGroup {
-            group_id: "box:frontline".to_string(),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::M, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: classic_next_runtime_rts_move_command(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsMoveCommand {
+                command_id: classic_next_runtime_rts_move_command(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::Q, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: classic_next_runtime_rts_queued_waypoint_command(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsMoveCommand {
+                command_id: classic_next_runtime_rts_queued_waypoint_command(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::X, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: classic_next_runtime_rts_stop_command(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsMoveCommand {
+                command_id: classic_next_runtime_rts_stop_command(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::H, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: classic_next_runtime_rts_hold_command(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsMoveCommand {
+                command_id: classic_next_runtime_rts_hold_command(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::O, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: classic_next_runtime_rts_patrol_command(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsMoveCommand {
+                command_id: classic_next_runtime_rts_patrol_command(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::K, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: classic_next_runtime_rts_attack_move_command(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsMoveCommand {
+                command_id: classic_next_runtime_rts_attack_move_command(runtime),
+            },
+        ))
     } else if !shift_pressed && window.is_key_pressed(MiniKey::A, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsAttackCommand {
-            target_id: classic_next_runtime_rts_attack_target(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsAttackCommand {
+                target_id: classic_next_runtime_rts_attack_target(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::B, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: classic_next_runtime_rts_build_queue(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsQueueProduction {
+                queue_id: classic_next_runtime_rts_build_queue(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::P, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: classic_next_runtime_rts_train_queue(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsQueueProduction {
+                queue_id: classic_next_runtime_rts_train_queue(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::G, MiniKeyRepeat::No) {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: classic_next_runtime_rts_economy_queue(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsQueueProduction {
+                queue_id: classic_next_runtime_rts_economy_queue(runtime),
+            },
+        ))
     } else if window.is_key_pressed(MiniKey::V, MiniKeyRepeat::No)
         || window.is_key_pressed(MiniKey::Tab, MiniKeyRepeat::No)
     {
-        Some(NativeControlAction::RtsAbilityCommand {
-            ability_id: classic_next_runtime_rts_ability(runtime),
-        })
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::RtsAbilityCommand {
+                ability_id: classic_next_runtime_rts_ability(runtime),
+            },
+        ))
     } else if !shift_pressed
         && (window.is_key_pressed(MiniKey::Right, MiniKeyRepeat::Yes)
             || window.is_key_pressed(MiniKey::D, MiniKeyRepeat::Yes))
     {
-        Some(NativeControlAction::Move {
+        Some(classic_polled_keyboard_action(NativeControlAction::Move {
             direction: "east".to_string(),
-        })
+        }))
     } else if !shift_pressed && window.is_key_pressed(MiniKey::Left, MiniKeyRepeat::Yes) {
-        Some(NativeControlAction::Move {
+        Some(classic_polled_keyboard_action(NativeControlAction::Move {
             direction: "west".to_string(),
-        })
+        }))
     } else if !shift_pressed
         && (window.is_key_pressed(MiniKey::Up, MiniKeyRepeat::Yes)
             || window.is_key_pressed(MiniKey::W, MiniKeyRepeat::Yes))
     {
-        Some(NativeControlAction::Move {
+        Some(classic_polled_keyboard_action(NativeControlAction::Move {
             direction: "north".to_string(),
-        })
+        }))
     } else if !shift_pressed
         && (window.is_key_pressed(MiniKey::Down, MiniKeyRepeat::Yes)
             || window.is_key_pressed(MiniKey::S, MiniKeyRepeat::Yes))
     {
-        Some(NativeControlAction::Move {
+        Some(classic_polled_keyboard_action(NativeControlAction::Move {
             direction: "south".to_string(),
-        })
+        }))
     } else if window.is_key_pressed(MiniKey::R, MiniKeyRepeat::No) {
-        Some(NativeControlAction::Talk)
+        Some(classic_polled_keyboard_action(NativeControlAction::Talk))
     } else if window.is_key_pressed(MiniKey::T, MiniKeyRepeat::No) {
-        Some(NativeControlAction::Train)
+        Some(classic_polled_keyboard_action(NativeControlAction::Train))
     } else if window.is_key_pressed(MiniKey::F, MiniKeyRepeat::No)
         || window.is_key_pressed(MiniKey::Space, MiniKeyRepeat::No)
     {
-        Some(NativeControlAction::Fight)
+        Some(classic_polled_keyboard_action(NativeControlAction::Fight))
     } else if window.is_key_pressed(MiniKey::C, MiniKeyRepeat::No) {
-        Some(NativeControlAction::CompleteTask)
+        Some(classic_polled_keyboard_action(
+            NativeControlAction::CompleteTask,
+        ))
     } else if window.is_key_pressed(MiniKey::I, MiniKeyRepeat::No) {
-        Some(NativeControlAction::Equip)
+        Some(classic_polled_keyboard_action(NativeControlAction::Equip))
     } else if window.is_key_pressed(MiniKey::Enter, MiniKeyRepeat::No) {
-        player_action_coach_control_action(runtime)
+        player_action_coach_control_action(runtime).map(classic_polled_keyboard_action)
     } else {
         None
     }
@@ -72639,7 +72705,7 @@ fn classic_poll_mouse_action(
     width: usize,
     height: usize,
     mouse_latch: &mut ClassicRuntimeMouseLatch,
-) -> Option<NativeControlAction> {
+) -> Option<ClassicPolledAction> {
     let left_down = window.get_mouse_down(MiniMouseButton::Left);
     let right_down = window.get_mouse_down(MiniMouseButton::Right);
     let left_pressed = left_down && !mouse_latch.left_down;
@@ -72658,7 +72724,7 @@ fn classic_poll_mouse_action(
     }
     let action = if right_pressed {
         mouse_pos.and_then(|(x, y)| {
-            classic_rts_mouse_action_from_point(
+            classic_rts_mouse_action_with_source_from_point(
                 runtime,
                 width,
                 height,
@@ -72674,9 +72740,9 @@ fn classic_poll_mouse_action(
         mouse_latch.left_current = None;
         match (anchor, release) {
             (Some(start), Some(end)) if classic_rts_drag_distance_sq(start, end) >= 36 => {
-                classic_rts_drag_action_from_points(runtime, width, height, start, end)
+                classic_rts_drag_action_with_source_from_points(runtime, width, height, start, end)
             }
-            (_, Some((x, y))) => classic_rts_mouse_action_from_point(
+            (_, Some((x, y))) => classic_rts_mouse_action_with_source_from_point(
                 runtime,
                 width,
                 height,
@@ -72826,6 +72892,7 @@ fn classic_draw_live_mouse_drag_marquee(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn classic_rts_drag_action_from_points(
     runtime: &NativeFirstPlayableRuntime,
     width: usize,
@@ -72833,6 +72900,18 @@ fn classic_rts_drag_action_from_points(
     start: (i32, i32),
     end: (i32, i32),
 ) -> Option<NativeControlAction> {
+    classic_rts_drag_action_with_source_from_points(runtime, width, height, start, end)
+        .map(|polled| polled.action)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_drag_action_with_source_from_points(
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    start: (i32, i32),
+    end: (i32, i32),
+) -> Option<ClassicPolledAction> {
     let layout = classic_rts_shell_layout(width, height)?;
     if !classic_point_in_rect(
         start.0,
@@ -72871,7 +72950,10 @@ fn classic_rts_drag_action_from_points(
     if runtime.rts_group_command_state == group_id {
         return None;
     }
-    Some(NativeControlAction::RtsSelectControlGroup { group_id })
+    Some(ClassicPolledAction::new(
+        "classic_rts_mouse_drag",
+        NativeControlAction::RtsSelectControlGroup { group_id },
+    ))
 }
 
 #[cfg(not(target_os = "android"))]
@@ -72884,6 +72966,7 @@ fn classic_rts_drag_group_id(start_tile: (i32, i32), end_tile: (i32, i32)) -> St
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn classic_rts_mouse_action_from_point(
     runtime: &NativeFirstPlayableRuntime,
     width: usize,
@@ -72892,6 +72975,21 @@ fn classic_rts_mouse_action_from_point(
     mouse_y: i32,
     button: MiniMouseButton,
 ) -> Option<NativeControlAction> {
+    classic_rts_mouse_action_with_source_from_point(
+        runtime, width, height, mouse_x, mouse_y, button,
+    )
+    .map(|polled| polled.action)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_mouse_action_with_source_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_x: i32,
+    mouse_y: i32,
+    button: MiniMouseButton,
+) -> Option<ClassicPolledAction> {
     let layout = classic_rts_shell_layout(width, height)?;
 
     if classic_point_in_rect(
@@ -72911,11 +73009,12 @@ fn classic_rts_mouse_action_from_point(
             layout.radar_h,
         ));
         return match button {
-            MiniMouseButton::Left | MiniMouseButton::Right => {
-                Some(NativeControlAction::RtsMoveCommand {
+            MiniMouseButton::Left | MiniMouseButton::Right => Some(ClassicPolledAction::new(
+                "classic_rts_mouse_minimap",
+                NativeControlAction::RtsMoveCommand {
                     command_id: format!("minimap:{tile_id}:rally"),
-                })
-            }
+                },
+            )),
             MiniMouseButton::Middle => None,
         };
     }
@@ -72923,13 +73022,19 @@ fn classic_rts_mouse_action_from_point(
     if let Some(action) =
         classic_rts_sidebar_action_from_point(runtime, &layout, mouse_x, mouse_y, button)
     {
-        return Some(action);
+        return Some(ClassicPolledAction::new(
+            "classic_rts_mouse_sidebar",
+            action,
+        ));
     }
 
     if let Some(action) =
         classic_rts_bottom_action_from_point(runtime, &layout, mouse_x, mouse_y, button)
     {
-        return Some(action);
+        return Some(ClassicPolledAction::new(
+            "classic_rts_mouse_command_bar",
+            action,
+        ));
     }
 
     if classic_point_in_rect(
@@ -72941,12 +73046,18 @@ fn classic_rts_mouse_action_from_point(
         layout.bottom_h,
     ) {
         return match button {
-            MiniMouseButton::Left => Some(NativeControlAction::RtsSelectControlGroup {
-                group_id: "box:frontline".to_string(),
-            }),
-            MiniMouseButton::Right => Some(NativeControlAction::RtsAbilityCommand {
-                ability_id: classic_next_runtime_rts_ability(runtime),
-            }),
+            MiniMouseButton::Left => Some(ClassicPolledAction::new(
+                "classic_rts_mouse_bottom_panel",
+                NativeControlAction::RtsSelectControlGroup {
+                    group_id: "box:frontline".to_string(),
+                },
+            )),
+            MiniMouseButton::Right => Some(ClassicPolledAction::new(
+                "classic_rts_mouse_bottom_panel",
+                NativeControlAction::RtsAbilityCommand {
+                    ability_id: classic_next_runtime_rts_ability(runtime),
+                },
+            )),
             MiniMouseButton::Middle => None,
         };
     }
@@ -72960,14 +73071,20 @@ fn classic_rts_mouse_action_from_point(
         layout.viewport_h,
     ) {
         return match button {
-            MiniMouseButton::Left => Some(NativeControlAction::RtsSelectControlGroup {
-                group_id: "box:frontline".to_string(),
-            }),
+            MiniMouseButton::Left => Some(ClassicPolledAction::new(
+                "classic_rts_mouse_viewport",
+                NativeControlAction::RtsSelectControlGroup {
+                    group_id: "box:frontline".to_string(),
+                },
+            )),
             MiniMouseButton::Right => {
                 if mouse_x > layout.viewport_x + (layout.viewport_w * 2) / 3 {
-                    Some(NativeControlAction::RtsAttackCommand {
-                        target_id: classic_next_runtime_rts_attack_target(runtime),
-                    })
+                    Some(ClassicPolledAction::new(
+                        "classic_rts_mouse_viewport",
+                        NativeControlAction::RtsAttackCommand {
+                            target_id: classic_next_runtime_rts_attack_target(runtime),
+                        },
+                    ))
                 } else {
                     let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
                         mouse_x,
@@ -72977,9 +73094,12 @@ fn classic_rts_mouse_action_from_point(
                         layout.viewport_w,
                         layout.viewport_h,
                     ));
-                    Some(NativeControlAction::RtsMoveCommand {
-                        command_id: format!("{tile_id}:line"),
-                    })
+                    Some(ClassicPolledAction::new(
+                        "classic_rts_mouse_viewport",
+                        NativeControlAction::RtsMoveCommand {
+                            command_id: format!("{tile_id}:line"),
+                        },
+                    ))
                 }
             }
             MiniMouseButton::Middle => None,
@@ -108703,6 +108823,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 0,
             "step_name": "move_without_group_selection",
+            "input_source": "classic_rts_mouse_viewport",
             "action_label": "RTS:MOVE:18,31:line",
             "expected_accepted": false,
             "expected_reason": "rts_group_selection_required",
@@ -108711,6 +108832,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 1,
             "step_name": "select_group_26_setup",
+            "input_source": "classic_rts_hotkey",
             "action_label": "RTS:SELECT:26",
             "expected_accepted": true,
             "expected_reason": "enabled_rts_select_group:26",
@@ -108719,6 +108841,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 2,
             "step_name": "move_invalid_tile_after_selection",
+            "input_source": "classic_rts_mouse_viewport",
             "action_label": "RTS:MOVE:bad-tile:line",
             "expected_accepted": false,
             "expected_reason": "rts_invalid_tile:bad-tile",
@@ -108727,6 +108850,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 3,
             "step_name": "attack_without_target",
+            "input_source": "classic_rts_mouse_viewport",
             "action_label": "RTS:ATTACK:",
             "expected_accepted": false,
             "expected_reason": "rts_attack_target_required",
@@ -108735,6 +108859,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 4,
             "step_name": "ability_before_attack_target",
+            "input_source": "classic_rts_hotkey",
             "action_label": "RTS:ABILITY:guard_break",
             "expected_accepted": false,
             "expected_reason": "rts_attack_required_before_ability",
@@ -108743,6 +108868,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 5,
             "step_name": "queue_without_queue_id",
+            "input_source": "classic_rts_mouse_sidebar",
             "action_label": "RTS:QUEUE:",
             "expected_accepted": false,
             "expected_reason": "rts_queue_id_required",
@@ -108751,6 +108877,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 6,
             "step_name": "queue_unaffordable_build_after_selection",
+            "input_source": "classic_rts_mouse_sidebar",
             "action_label": "RTS:QUEUE:build:watch_tower@7,4",
             "expected_accepted": false,
             "expected_reason": "rts_queue_unaffordable:build:watch_tower@7,4",
@@ -108759,6 +108886,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         json!({
             "step_index": 7,
             "step_name": "select_without_group_id",
+            "input_source": "classic_rts_hotkey",
             "action_label": "RTS:SELECT:",
             "expected_accepted": false,
             "expected_reason": "rts_group_id_required",
@@ -108855,6 +108983,8 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
     let mut blocked_command_input_count = 0_usize;
     let mut blocked_action_labels = Vec::new();
     let mut blocked_reasons = Vec::new();
+    let mut blocked_feedback_source_labels = Vec::new();
+    let mut blocked_feedback_toast_labels = Vec::new();
 
     for (fallback_index, step) in parsed_rejection_steps.iter().enumerate() {
         let step_index = step
@@ -108869,6 +108999,10 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             .get("action_label")
             .and_then(|value| value.as_str())
             .unwrap_or_default();
+        let input_source = step
+            .get("input_source")
+            .and_then(|value| value.as_str())
+            .unwrap_or("first_minute_command_feedback_rejection_replay_input");
         let expected_accepted = step
             .get("expected_accepted")
             .and_then(|value| value.as_bool())
@@ -108889,7 +109023,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
                 &mut gameplay_log,
                 &mut runtime,
                 actor_id,
-                "first_minute_command_feedback_rejection_replay_input",
+                input_source,
                 action,
             );
         }
@@ -108911,6 +109045,13 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             blocked_command_input_count += 1;
             push_unique_string(&mut blocked_action_labels, action_label);
             push_unique_string(&mut blocked_reasons, &reason);
+            push_unique_string(
+                &mut blocked_feedback_source_labels,
+                classic_rts_input_source_player_label(input_source, action_label),
+            );
+            if let Some(event) = latest_feedback.as_ref() {
+                push_unique_string(&mut blocked_feedback_toast_labels, &event.feedback_text);
+            }
         }
         if let Some(event) = latest_feedback.as_ref() {
             input_sources.insert(event.input_source.clone());
@@ -108919,6 +109060,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         replay_steps.push(json!({
             "step_index": step_index,
             "step_name": step_name,
+            "input_source": input_source,
             "action_label": action_label,
             "parsed_action": parsed_action.is_some(),
             "accepted": accepted,
@@ -108947,6 +109089,27 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "rts_queue_unaffordable:build:watch_tower@7,4",
         "rts_group_id_required",
     ]);
+    let expected_input_sources = string_vec([
+        "classic_rts_mouse_viewport",
+        "classic_rts_hotkey",
+        "classic_rts_mouse_viewport",
+        "classic_rts_mouse_viewport",
+        "classic_rts_hotkey",
+        "classic_rts_mouse_sidebar",
+        "classic_rts_mouse_sidebar",
+        "classic_rts_hotkey",
+    ]);
+    let parsed_rejection_input_sources = parsed_rejection_steps
+        .iter()
+        .map(|step| {
+            step.get("input_source")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    let rejection_recording_input_source_gate =
+        parsed_rejection_input_sources == expected_input_sources;
     let command_queue_blocked_feedback_chips: Vec<String> = command_queue_after_rejections
         .iter()
         .filter(|entry| entry.starts_with("feedback:blocked:"))
@@ -109040,7 +109203,14 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         } else {
             render_runtime.rts_blocked_tile_ids = vec![(*tile_id).to_string()];
         }
-        render_runtime.last_feedback = format!("Input blocked: {reason}");
+        render_runtime.last_feedback = match *stage {
+            "group_selection_required" => "Input blocked: MAP MOVE LOCK SELECT UNITS",
+            "invalid_tile" => "Input blocked: MAP MOVE LOCK INVALID TILE",
+            "attack_target_required" => "Input blocked: MAP ATTACK LOCK PICK TARGET",
+            "history_preserved_after_rejections" => "Input blocked: HOTKEY SELECT LOCK GROUP ID",
+            _ => "Input blocked: COMMAND LOCK",
+        }
+        .to_string();
 
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -109194,6 +109364,25 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && command_queue_blocked_feedback_labels
             .iter()
             .all(|label| !label.contains("feedback") && !label.contains("rts_"));
+    let blocked_feedback_source_label_gate = rejection_recording_input_source_gate
+        && blocked_feedback_source_labels
+            .iter()
+            .any(|label| label == "MAP")
+        && blocked_feedback_source_labels
+            .iter()
+            .any(|label| label == "SIDEBAR")
+        && blocked_feedback_source_labels
+            .iter()
+            .any(|label| label == "HOTKEY")
+        && blocked_feedback_toast_labels
+            .iter()
+            .any(|label| label == "Input blocked: SIDEBAR QUEUE LOCK NEED 210G")
+        && blocked_feedback_toast_labels
+            .iter()
+            .any(|label| label == "Input blocked: HOTKEY SELECT LOCK GROUP ID")
+        && blocked_feedback_toast_labels
+            .iter()
+            .all(|label| !label.contains("feedback") && !label.contains("rts_"));
     let accepted_setup_input_gate = accepted_command_input_count == 1
         && replay_steps.iter().any(|step| {
             step.get("step_name").and_then(|value| value.as_str()) == Some("select_group_26_setup")
@@ -109289,6 +109478,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && blocked_feedback_gate
         && blocked_feedback_chip_gate
         && blocked_feedback_player_label_gate
+        && blocked_feedback_source_label_gate
         && accepted_setup_input_gate
         && blocked_history_non_pollution_gate
         && blocked_action_history_gate
@@ -109331,6 +109521,10 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "input_sources": input_sources,
         "action_labels": action_labels,
         "blocked_action_labels": blocked_action_labels,
+        "expected_input_sources": expected_input_sources,
+        "parsed_rejection_input_sources": parsed_rejection_input_sources,
+        "blocked_feedback_source_labels": blocked_feedback_source_labels,
+        "blocked_feedback_toast_labels": blocked_feedback_toast_labels,
         "expected_blocked_reasons": expected_blocked_reasons,
         "blocked_reasons": blocked_reasons,
         "input_telemetry_summary": input_telemetry_summary,
@@ -109382,6 +109576,8 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "blocked_feedback_gate": blocked_feedback_gate,
         "blocked_feedback_chip_gate": blocked_feedback_chip_gate,
         "blocked_feedback_player_label_gate": blocked_feedback_player_label_gate,
+        "blocked_feedback_source_label_gate": blocked_feedback_source_label_gate,
+        "rejection_recording_input_source_gate": rejection_recording_input_source_gate,
         "accepted_setup_input_gate": accepted_setup_input_gate,
         "blocked_step_non_pollution_gate": blocked_step_non_pollution_gate,
         "blocked_history_non_pollution_gate": blocked_history_non_pollution_gate,
@@ -126189,10 +126385,12 @@ pub fn apply_live_native_action_with_source(
             &mut first_playable.blocked_action_history,
             &format!("{label}:{}", availability.1),
         );
-        push_feedback_event(
-            first_playable,
-            &format!("Input blocked: {label} ({})", availability.1),
-        );
+        let feedback_text = if label.starts_with("RTS:") {
+            classic_rts_blocked_feedback_toast(input_source, &label, &availability.1)
+        } else {
+            format!("Input blocked: {label} ({})", availability.1)
+        };
+        push_feedback_event(first_playable, &feedback_text);
         if label.starts_with("RTS:")
             && classic_rts_should_emit_rejection_feedback_chip(input_source)
         {
@@ -131501,6 +131699,46 @@ fn classic_rts_rejection_feedback_chip(action_label: &str, reason: &str) -> Stri
         .unwrap_or("action")
         .to_ascii_lowercase();
     format!("feedback:blocked:{action_kind}:{reason}")
+}
+
+fn classic_rts_input_source_player_label(input_source: &str, action_label: &str) -> &'static str {
+    let normalized = input_source.to_ascii_lowercase();
+    if normalized.contains("mouse_sidebar") {
+        "SIDEBAR"
+    } else if normalized.contains("mouse_command_bar") {
+        "COMMAND BAR"
+    } else if normalized.contains("mouse_minimap") {
+        "MINIMAP"
+    } else if normalized.contains("mouse_bottom_panel") {
+        "BOTTOM PANEL"
+    } else if normalized.contains("mouse_viewport") {
+        "MAP"
+    } else if normalized.contains("mouse_drag") {
+        "DRAG"
+    } else if normalized.contains("hotkey") {
+        "HOTKEY"
+    } else if normalized.contains("keyboard") {
+        "KEYBOARD"
+    } else if action_label.starts_with("RTS:QUEUE") {
+        "SIDEBAR"
+    } else if action_label.starts_with("RTS:MOVE") || action_label.starts_with("RTS:ATTACK") {
+        "MAP"
+    } else {
+        "COMMAND"
+    }
+}
+
+fn classic_rts_blocked_feedback_toast(
+    input_source: &str,
+    action_label: &str,
+    reason: &str,
+) -> String {
+    let chip = classic_rts_rejection_feedback_chip(action_label, reason);
+    format!(
+        "Input blocked: {} {}",
+        classic_rts_input_source_player_label(input_source, action_label),
+        classic_rts_blocked_feedback_player_label(&chip)
+    )
 }
 
 fn classic_rts_should_emit_rejection_feedback_chip(input_source: &str) -> bool {
@@ -138280,6 +138518,10 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "feedback:blocked:move:rts_group_selection_required"));
+        assert_eq!(
+            rejection_runtime.last_feedback,
+            "Input blocked: MAP MOVE LOCK SELECT UNITS"
+        );
 
         let mut low_resource_runtime = classic_openra_style_skirmish_runtime();
         low_resource_runtime.rts_production_queue.clear();
@@ -138332,6 +138574,10 @@ mod tests {
             .iter()
             .any(|entry| entry
                 == "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"));
+        assert_eq!(
+            low_resource_runtime.last_feedback,
+            "Input blocked: SIDEBAR QUEUE LOCK NEED 210G"
+        );
         assert_eq!(
             classic_rts_blocked_feedback_player_label(
                 "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"

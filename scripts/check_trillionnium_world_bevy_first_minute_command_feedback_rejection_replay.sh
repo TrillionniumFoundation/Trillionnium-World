@@ -67,6 +67,20 @@ jq -e '
   and .blocked_reasons == .expected_blocked_reasons
   and .input_telemetry_summary.blocked_reasons == .expected_blocked_reasons
   and .input_telemetry_summary.blocked_events == 7
+  and .expected_input_sources == [
+    "classic_rts_mouse_viewport",
+    "classic_rts_hotkey",
+    "classic_rts_mouse_viewport",
+    "classic_rts_mouse_viewport",
+    "classic_rts_hotkey",
+    "classic_rts_mouse_sidebar",
+    "classic_rts_mouse_sidebar",
+    "classic_rts_hotkey"
+  ]
+  and .parsed_rejection_input_sources == .expected_input_sources
+  and (.input_sources | index("classic_rts_mouse_viewport") != null)
+  and (.input_sources | index("classic_rts_mouse_sidebar") != null)
+  and (.input_sources | index("classic_rts_hotkey") != null)
   and (.replay_steps | all(.parsed_action == true))
   and (.replay_steps | all(.accepted_match == true and .reason_match == true))
   and (.replay_steps | map(select(.accepted == false and .command_queue_changed == true)) | length) == 7
@@ -83,6 +97,13 @@ jq -e '
   and (.command_queue_blocked_feedback_labels | index("QUEUE LOCK PICK ITEM") != null)
   and (.command_queue_blocked_feedback_labels | index("QUEUE LOCK NEED 210G") != null)
   and (.command_queue_blocked_feedback_labels | all((contains("feedback") or contains("rts_")) | not))
+  and (.blocked_feedback_source_labels | index("MAP") != null)
+  and (.blocked_feedback_source_labels | index("SIDEBAR") != null)
+  and (.blocked_feedback_source_labels | index("HOTKEY") != null)
+  and (.blocked_feedback_toast_labels | index("Input blocked: MAP MOVE LOCK SELECT UNITS") != null)
+  and (.blocked_feedback_toast_labels | index("Input blocked: SIDEBAR QUEUE LOCK NEED 210G") != null)
+  and (.blocked_feedback_toast_labels | index("Input blocked: HOTKEY SELECT LOCK GROUP ID") != null)
+  and (.blocked_feedback_toast_labels | all((contains("feedback") or contains("rts_")) | not))
   and .blocked_feedback_chip_pixel_count > 240
   and (.stage_summaries | all(.frame_blocked_feedback_chip_pixel_count > 40))
   and (.stage_summaries | all(.renderer_path == "classic_draw_scene"))
@@ -128,6 +149,8 @@ jq -e '
   and .blocked_feedback_gate == true
   and .blocked_feedback_chip_gate == true
   and .blocked_feedback_player_label_gate == true
+  and .blocked_feedback_source_label_gate == true
+  and .rejection_recording_input_source_gate == true
   and .accepted_setup_input_gate == true
   and .blocked_step_non_pollution_gate == true
   and .blocked_history_non_pollution_gate == true
@@ -164,6 +187,16 @@ jq -e '
     "RTS:QUEUE:",
     "RTS:QUEUE:build:watch_tower@7,4",
     "RTS:SELECT:"
+  ]
+  and [.steps[].input_source] == [
+    "classic_rts_mouse_viewport",
+    "classic_rts_hotkey",
+    "classic_rts_mouse_viewport",
+    "classic_rts_mouse_viewport",
+    "classic_rts_hotkey",
+    "classic_rts_mouse_sidebar",
+    "classic_rts_mouse_sidebar",
+    "classic_rts_hotkey"
   ]
   and [.steps[] | select(.expected_accepted == false) | .expected_reason] == [
     "rts_group_selection_required",
