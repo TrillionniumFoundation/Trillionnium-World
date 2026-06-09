@@ -52,8 +52,15 @@ jq -e '
   and (.final_command_queue | index("command_queue_path_preview:rally_chain") != null)
   and (.final_command_queue | index("command_queue_path_preview:attack_focus") != null)
   and (.final_command_queue | index("command_queue_path_preview:cancel_repath") != null)
+  and (.final_command_queue | index("feedback:diamond@7,4") != null)
+  and (.final_command_queue | index("feedback:waypoint_queued@9,4") != null)
+  and (.final_command_queue | index("feedback:hold_position@6,5") != null)
+  and (.final_command_queue | index("feedback:patrol_route@9,4") != null)
+  and (.final_command_queue | any(startswith("feedback:attack_move@10,3:")))
+  and (.final_command_queue | index("feedback:stop_hold@10,3") != null)
   and (.final_command_queue | index("attack:arena_creep_attack") != null)
   and (.final_command_queue | index("ability:focus_fire") != null)
+  and .command_feedback_chip_count >= 6
   and (.final_production_queue | index("train:guard") != null)
   and .final_attack_target_id == "arena_creep_attack"
   and .final_active_ability_id == "focus_fire"
@@ -70,6 +77,7 @@ jq -e '
   and .stop_live_gate == true
   and .attack_live_gate == true
   and .ability_live_gate == true
+  and .command_feedback_chip_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

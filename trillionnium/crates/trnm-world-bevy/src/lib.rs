@@ -41977,6 +41977,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "accepted": accepted,
             "last_action": gameplay_log.last_action,
             "last_result": gameplay_log.last_result,
+            "last_feedback": runtime.last_feedback,
             "group_id": runtime.rts_control_group_id.clone(),
             "selected_unit_count": runtime.rts_selected_unit_ids.len(),
             "command_queue": runtime.rts_command_queue.clone(),
@@ -42043,6 +42044,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let production_queue_pixel_count = count_color(CLASSIC_RTS_PRODUCTION_SLOT_COLOR)
         + count_color(CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR)
         + count_color(CLASSIC_RTS_BUILD_PROGRESS_COLOR);
+    let command_feedback_chip_count = runtime
+        .rts_command_queue
+        .iter()
+        .filter(|entry| entry.starts_with("feedback:"))
+        .count();
     let live_input_gate = accepted_input_count == actions.len()
         && input_sources.len() == 1
         && input_sources.contains("classic_rts_live_input");
@@ -42168,6 +42174,31 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             .any(|entry| entry == "damage:28")
         && ability_command_pixel_count > 800
         && target_health_pixel_count > 60;
+    let command_feedback_chip_gate = command_feedback_chip_count >= 6
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:diamond@7,4")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:waypoint_queued@9,4")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:hold_position@6,5")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:patrol_route@9,4")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.starts_with("feedback:attack_move@10,3:"))
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:stop_hold@10,3");
     let green = write_gate
         && non_background_pixels > 300_000
         && live_input_gate
@@ -42181,6 +42212,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && stop_live_gate
         && attack_live_gate
         && ability_live_gate
+        && command_feedback_chip_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -42211,6 +42243,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "production_queue_pixel_count": production_queue_pixel_count,
         "ability_command_pixel_count": ability_command_pixel_count,
         "target_health_pixel_count": target_health_pixel_count,
+        "command_feedback_chip_count": command_feedback_chip_count,
         "live_input_gate": live_input_gate,
         "selection_live_gate": selection_live_gate,
         "production_live_gate": production_live_gate,
@@ -42223,6 +42256,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "stop_live_gate": stop_live_gate,
         "attack_live_gate": attack_live_gate,
         "ability_live_gate": ability_live_gate,
+        "command_feedback_chip_gate": command_feedback_chip_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
         "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, and ability commands through apply_live_native_action_with_source before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
@@ -131806,6 +131840,22 @@ fn apply_classic_rts_move_runtime(
     };
     first_playable.rts_active_ability_id = Some(active_command.to_string());
     first_playable.last_feedback = format!("RTS group {feedback_label} {tile_id} in {formation}");
+    let feedback_chip = match formation {
+        "attack_move" => format!(
+            "feedback:attack_move@{tile_id}:{}",
+            first_playable
+                .rts_attack_target_id
+                .as_deref()
+                .unwrap_or("unknown_target")
+        ),
+        "hold" => format!("feedback:hold_position@{tile_id}"),
+        "patrol" => format!("feedback:patrol_route@{tile_id}"),
+        "rally" => format!("feedback:rally_confirmed@{tile_id}"),
+        "shift_waypoint" => format!("feedback:waypoint_queued@{tile_id}"),
+        "stop" => format!("feedback:stop_hold@{tile_id}"),
+        _ => format!("feedback:{formation}@{tile_id}"),
+    };
+    push_history(&mut first_playable.rts_command_queue, &feedback_chip);
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
@@ -137491,6 +137541,10 @@ mod tests {
         assert_eq!(runtime.rts_minimap_command_kind, "rally");
         assert_eq!(runtime.rts_group_route_tile_ids, runtime.rts_path_tile_ids);
         assert_eq!(runtime.rts_army_rally_tile_ids, runtime.rts_path_tile_ids);
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:rally_confirmed@8,4"));
 
         let queued_waypoint_command = classic_next_runtime_rts_queued_waypoint_command(&runtime);
         assert_eq!(queued_waypoint_command, "9,4:shift_waypoint");
@@ -137514,6 +137568,10 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "command_queue_path_preview:shift_waypoints"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:waypoint_queued@9,4"));
 
         let hold_command = classic_next_runtime_rts_hold_command(&runtime);
         assert_eq!(hold_command, "9,4:hold");
@@ -137537,6 +137595,10 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry.starts_with("hold_line:")));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:hold_position@9,4"));
 
         let patrol_command = classic_next_runtime_rts_patrol_command(&runtime);
         assert_eq!(patrol_command, "9,4:patrol");
@@ -137556,6 +137618,10 @@ mod tests {
             .rts_combat_event_log
             .iter()
             .any(|entry| entry == "patrol_order:live_group:9,4"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:patrol_route@9,4"));
 
         let attack_move_command = classic_next_runtime_rts_attack_move_command(&runtime);
         assert_eq!(attack_move_command, "10,3:attack_move");
@@ -137586,6 +137652,10 @@ mod tests {
             .rts_combat_event_log
             .iter()
             .any(|entry| entry == "attack_move_order:live_group:forest_creep_camp@10,3"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:attack_move@10,3:forest_creep_camp"));
 
         let stop_command = classic_next_runtime_rts_stop_command(&runtime);
         assert_eq!(stop_command, "10,3:stop");
@@ -137611,6 +137681,10 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "command_queue_path_preview:cancel_repath"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:stop_hold@10,3"));
 
         let attack_target = classic_next_runtime_rts_attack_target(&runtime);
         apply_live_native_action(

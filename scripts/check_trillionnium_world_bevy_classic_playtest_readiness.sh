@@ -410,6 +410,7 @@ jq -n \
       and $rts_live[0].stop_live_gate == true
       and $rts_live[0].attack_live_gate == true
       and $rts_live[0].ability_live_gate == true
+      and $rts_live[0].command_feedback_chip_gate == true
       and $rts_live[0].accepted_input_count == 10
       and $rts_path[0].live_pathing_input_gate == true
       and $rts_path[0].path_tile_gate == true
@@ -812,6 +813,7 @@ jq -n \
       rts_live_input_ability_command_pixel_count: $rts_live[0].ability_command_pixel_count,
       rts_live_input_target_health_pixel_count: $rts_live[0].target_health_pixel_count,
       rts_live_input_target_health_percent: $rts_live[0].final_target_health_percent,
+      rts_live_input_command_feedback_chip_count: $rts_live[0].command_feedback_chip_count,
       rts_pathing_accepted_input_count: $rts_path[0].accepted_input_count,
       rts_pathing_path_tile_count: ($rts_path[0].path_tile_ids | length),
       rts_pathing_blocked_tile_count: ($rts_path[0].blocked_tile_ids | length),
@@ -2118,6 +2120,7 @@ jq -n \
       rts_live_input_stop_live_gate: $rts_live[0].stop_live_gate,
       rts_live_input_attack_live_gate: $rts_live[0].attack_live_gate,
       rts_live_input_ability_live_gate: $rts_live[0].ability_live_gate,
+      rts_live_input_command_feedback_chip_gate: $rts_live[0].command_feedback_chip_gate,
       rts_pathing_live_input_gate: $rts_path[0].live_pathing_input_gate,
       rts_pathing_path_tile_gate: $rts_path[0].path_tile_gate,
       rts_pathing_blocked_tile_gate: $rts_path[0].blocked_tile_gate,

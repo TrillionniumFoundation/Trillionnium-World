@@ -24,6 +24,11 @@ required_script_lines=(
   'RTS:MOVE:10,3:stop'
   'RTS:ATTACK:arena_creep_attack'
   'RTS:ABILITY:focus_fire'
+  'feedback:waypoint_queued@9,4'
+  'feedback:hold_position@6,5'
+  'feedback:patrol_route@9,4'
+  'feedback:attack_move@10,3:'
+  'feedback:stop_hold@10,3'
   'live_input_gate == true'
   'selection_live_gate == true'
   'production_live_gate == true'
@@ -35,6 +40,7 @@ required_script_lines=(
   'stop_live_gate == true'
   'attack_live_gate == true'
   'ability_live_gate == true'
+  'command_feedback_chip_gate == true'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -70,6 +76,8 @@ required_source_lines=(
   'stop_live_gate'
   'attack_live_gate'
   'ability_live_gate'
+  'command_feedback_chip_gate'
+  'command_feedback_chip_count'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -88,6 +96,8 @@ required_readiness_lines=(
   'rts_live_input_attack_move_live_gate'
   'rts_live_input_stop_live_gate'
   'rts_live_input_ability_live_gate'
+  'rts_live_input_command_feedback_chip_gate'
+  'rts_live_input_command_feedback_chip_count'
   'rts_live_input_accepted_input_count'
 )
 
