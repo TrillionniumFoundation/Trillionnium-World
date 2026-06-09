@@ -10,6 +10,7 @@ packet_md="$TMP_DIR/release-review-packet.md"
 packet_log="$TMP_DIR/release-review-packet.log"
 summary_json="$TMP_DIR/release-review-packet-integrity.json"
 artifacts_jsonl="$TMP_DIR/artifacts.jsonl"
+SOURCE_CHAIN_REFRESH="${TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SOURCE_CHAIN_REFRESH:-1}"
 add_artifact_from_path() {
   local id="$1"
   local label="$2"
@@ -545,6 +546,7 @@ projectile_ability_ppm="$TMP_DIR/bevy-classic-rts-projectile-ability.ppm"
 printf 'P3\n1280 1080\n255\n' >"$projectile_ability_ppm"
 truncate -s 8000001 "$projectile_ability_ppm"
 add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Bevy classic RTS projectile/ability PPM" "$projectile_ability_ppm" release_review_visual_evidence
+if [[ "$SOURCE_CHAIN_REFRESH" != "0" ]]; then
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" >"$TMP_DIR/first-minute-command-feedback-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_rejection_replay.sh" >"$TMP_DIR/first-minute-command-feedback-rejection-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_action_executor.sh" >"$TMP_DIR/bot-planner-action-executor.log"
@@ -555,6 +557,7 @@ add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Be
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$TMP_DIR/bot-adaptive-build-order-gap.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$TMP_DIR/bot-tactical-micro-gap.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >"$TMP_DIR/bot-map-intel-gap.log"
+fi
 native_dir="$ROOT/acceptance/S5_native_bevy_device/latest"
 add_artifact_from_path native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$native_dir/bevy-first-minute-command-feedback-replay.json" release_review_input
 add_artifact_from_path native_bevy_first_minute_command_feedback_source_recording "Native/Bevy first-minute command feedback source recording" "$native_dir/bevy-first-minute-command-feedback-source-recording.json" release_review_recording

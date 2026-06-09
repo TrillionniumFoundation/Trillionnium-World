@@ -12,6 +12,7 @@ packet_md="$TMP_DIR/release-review-packet.md"
 packet_log="$TMP_DIR/release-review-packet.log"
 summary_json="$TMP_DIR/release-review-packet-integrity.json"
 artifacts_jsonl="$TMP_DIR/artifacts.jsonl"
+SOURCE_CHAIN_REFRESH="${TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SOURCE_CHAIN_REFRESH:-1}"
 
 add_artifact_from_path() {
   local id="$1"
@@ -570,12 +571,14 @@ printf 'P3\n1280 1080\n255\n' >"$projectile_ability_ppm"
 truncate -s 8000001 "$projectile_ability_ppm"
 add_artifact_from_path native_bevy_classic_rts_projectile_ability_ppm "Native/Bevy classic RTS projectile/ability PPM" "$projectile_ability_ppm" release_review_visual_evidence
 
+if [[ "$SOURCE_CHAIN_REFRESH" != "0" ]]; then
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_replay.sh" >"$TMP_DIR/first-minute-command-feedback-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_first_minute_command_feedback_rejection_replay.sh" >"$TMP_DIR/first-minute-command-feedback-rejection-replay.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_action_executor.sh" >"$TMP_DIR/bot-planner-action-executor.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism.sh" >"$TMP_DIR/bot-planner-executor-replay-determinism.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation.sh" >"$TMP_DIR/multi-match-bot-executor-evaluation.log"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix.sh" >"$TMP_DIR/bot-executor-failure-recovery-matrix.log"
+fi
 
 first_minute_dir="$ROOT/acceptance/S5_native_bevy_device/latest"
 add_artifact_from_path native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$first_minute_dir/bevy-first-minute-command-feedback-replay.json" release_review_input
