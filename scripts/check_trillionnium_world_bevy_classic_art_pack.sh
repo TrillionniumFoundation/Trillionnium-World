@@ -7,10 +7,7 @@ PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-art-pack.ppm
 OVERRIDE_DIR="$ROOT/assets/trnm-world/classic/art-pack-v1"
 mkdir -p "$(dirname "$SUMMARY")" "$OVERRIDE_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-art-pack "$OVERRIDE_DIR" "$PREVIEW" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-art-pack "$OVERRIDE_DIR" "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_art_pack_v1"

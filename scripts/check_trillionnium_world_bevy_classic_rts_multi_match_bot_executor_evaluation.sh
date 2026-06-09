@@ -7,10 +7,7 @@ PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-mult
 EVALUATION_LOG="$PREVIEW_DIR/multi-match-bot-executor-evaluation.matches.json"
 mkdir -p "$(dirname "$SUMMARY")"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-multi-match-bot-executor-evaluation "$PREVIEW_DIR" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-multi-match-bot-executor-evaluation "$PREVIEW_DIR" >"$SUMMARY"
 
 jq -e '
   . as $root |

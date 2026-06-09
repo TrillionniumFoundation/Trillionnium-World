@@ -13,16 +13,12 @@ PREVIEW="$EVIDENCE_DIR/bevy-first-minute-command-feedback-rejection-replay.ppm"
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh" >/dev/null
 
-(
-  cd "$ROOT/trillionnium"
-  TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
-    CARGO_BUILD_JOBS=1 \
-    cargo run -p trnm-world-bevy -- first-minute-command-feedback-rejection-replay \
-      "$SLOT_DIR" \
-      "$FIRST_RECORDING" \
-      "$REJECTION_RECORDING" \
-      "$PREVIEW" >"$SUMMARY"
-)
+TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" first-minute-command-feedback-rejection-replay \
+    "$SLOT_DIR" \
+    "$FIRST_RECORDING" \
+    "$REJECTION_RECORDING" \
+    "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_first_minute_command_feedback_rejection_replay_v1"

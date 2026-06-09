@@ -46,10 +46,19 @@ BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adap
 BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
 BOT_MAP_INTEL_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-map-intel-gap.log"
 PLAYTEST_HANDOFF_PACKET_LOG="$ACCEPTANCE_DIR/release-review-packet-playtest-handoff-packet.log"
+WORLD_BEVY_RELEASE_BUILD_LOG="$ACCEPTANCE_DIR/release-review-packet-world-bevy-release-build.log"
 ARTIFACTS_FILE="$(mktemp)"
 trap 'rm -f "$ARTIFACTS_FILE"' EXIT
 
 mkdir -p "$ACCEPTANCE_DIR"
+
+if [[ "${TRNM_RELEASE_REVIEW_PACKET_USE_RELEASE_ARTIFACT_BIN:-1}" != "0" && -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" ]]; then
+  (
+    cd "$ROOT/trillionnium"
+    CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build --release -p trnm-world-bevy
+  ) >"$WORLD_BEVY_RELEASE_BUILD_LOG" 2>&1
+  export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"
+fi
 
 "$ROOT/scripts/check_trillionnium_world_release_review_convergence.sh" >"$CONVERGENCE_LOG"
 "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh" >"$INTAKE_LOG"
