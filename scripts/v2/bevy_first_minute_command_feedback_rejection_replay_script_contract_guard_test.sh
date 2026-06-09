@@ -19,6 +19,9 @@ required_script_lines=(
   '.blocked_command_input_count == 6'
   '.accepted_command_input_count == 1'
   '.blocked_history_non_pollution_gate == true'
+  '.blocked_feedback_chip_gate == true'
+  '.command_queue_blocked_feedback_chip_count == 6'
+  'feedback:blocked:move:rts_group_selection_required'
   '.command_queue_rejection_pollution_count == 0'
   '.cleared_active_stale_pixel_count == 0'
   'TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_REPLAY_GREEN'
@@ -47,6 +50,9 @@ required_source_lines=(
   'rts_attack_required_before_ability'
   'rts_queue_id_required'
   'rts_group_id_required'
+  'classic_rts_rejection_feedback_chip'
+  'command_queue_blocked_feedback_chips'
+  'executable_command_queue_after_rejections'
   'blocked_step_non_pollution_gate'
   'Original Trillionnium first-minute command feedback rejection replay HUD'
   'first-minute-command-feedback-rejection-replay'
@@ -74,4 +80,4 @@ for line in "${required_release_lines[@]}"; do
   fi
 done
 
-echo "[PASS] first-minute command feedback rejection replay remains connected to first-minute input replay, disk rejection recording, blocked live RTS input feedback, command-history non-pollution, classic_draw_scene, recent-3 history/prune capacity, no-stale-chip guard, CLI, release-review, and original art policy"
+echo "[PASS] first-minute command feedback rejection replay remains connected to first-minute input replay, disk rejection recording, visible blocked live RTS feedback chips, executable command-history non-pollution, classic_draw_scene, recent-3 history/prune capacity, no-stale-chip guard, CLI, release-review, and original art policy"

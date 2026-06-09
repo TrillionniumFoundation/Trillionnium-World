@@ -108722,6 +108722,8 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             .unwrap_or_default();
         action_labels.push(action_label.to_string());
         let command_queue_before_step = runtime.rts_command_queue.clone();
+        let executable_command_queue_before_step =
+            classic_rts_executable_command_queue_snapshot(&command_queue_before_step);
         let parsed_action = native_control_action_from_label(action_label);
         if let Some(action) = parsed_action.clone() {
             apply_live_native_action_with_source(
@@ -108735,6 +108737,8 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             );
         }
         let command_queue_after_step = runtime.rts_command_queue.clone();
+        let executable_command_queue_after_step =
+            classic_rts_executable_command_queue_snapshot(&command_queue_after_step);
         let latest_feedback = runtime.input_feedback_history.last().cloned();
         let accepted = latest_feedback.as_ref().is_some_and(|event| event.accepted);
         let reason = latest_feedback
@@ -108767,6 +108771,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             "expected_reason": expected_reason,
             "reason_match": reason == expected_reason,
             "command_queue_changed": command_queue_before_step != command_queue_after_step,
+            "executable_command_queue_changed": executable_command_queue_before_step != executable_command_queue_after_step,
             "command_queue_len_before": command_queue_before_step.len(),
             "command_queue_len_after": command_queue_after_step.len(),
             "latest_feedback": latest_feedback,
@@ -108958,6 +108963,16 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "rts_queue_id_required",
         "rts_group_id_required",
     ]);
+    let command_queue_blocked_feedback_chips: Vec<String> = command_queue_after_rejections
+        .iter()
+        .filter(|entry| entry.starts_with("feedback:blocked:"))
+        .cloned()
+        .collect();
+    let command_queue_blocked_feedback_chip_count = command_queue_blocked_feedback_chips.len();
+    let executable_command_queue_after_setup_input =
+        classic_rts_executable_command_queue_snapshot(&command_queue_after_setup_input);
+    let executable_command_queue_after_rejections =
+        classic_rts_executable_command_queue_snapshot(&command_queue_after_rejections);
     let command_action_parse_gate = parsed_rejection_steps.len() == 7
         && replay_steps
             .iter()
@@ -108971,6 +108986,30 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && blocked_action_labels.len() == 6
         && input_telemetry_summary.blocked_action_labels == blocked_action_labels
         && input_telemetry_summary.blocked_reasons == expected_blocked_reasons;
+    let blocked_feedback_chip_gate = command_queue_blocked_feedback_chip_count == 6
+        && expected_blocked_reasons.iter().all(|reason| {
+            command_queue_blocked_feedback_chips
+                .iter()
+                .any(|entry| entry.ends_with(reason))
+        })
+        && command_queue_blocked_feedback_chips
+            .iter()
+            .any(|entry| entry == "feedback:blocked:move:rts_group_selection_required")
+        && command_queue_blocked_feedback_chips
+            .iter()
+            .any(|entry| entry == "feedback:blocked:move:rts_invalid_tile:bad-tile")
+        && command_queue_blocked_feedback_chips
+            .iter()
+            .any(|entry| entry == "feedback:blocked:attack:rts_attack_target_required")
+        && command_queue_blocked_feedback_chips
+            .iter()
+            .any(|entry| entry == "feedback:blocked:ability:rts_attack_required_before_ability")
+        && command_queue_blocked_feedback_chips
+            .iter()
+            .any(|entry| entry == "feedback:blocked:queue:rts_queue_id_required")
+        && command_queue_blocked_feedback_chips
+            .iter()
+            .any(|entry| entry == "feedback:blocked:select:rts_group_id_required");
     let accepted_setup_input_gate = accepted_command_input_count == 1
         && replay_steps.iter().any(|step| {
             step.get("step_name").and_then(|value| value.as_str()) == Some("select_group_26_setup")
@@ -108982,10 +109021,15 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         .all(|step| {
             step.get("command_queue_changed")
                 .and_then(|value| value.as_bool())
-                == Some(false)
+                == Some(true)
+                && step
+                    .get("executable_command_queue_changed")
+                    .and_then(|value| value.as_bool())
+                    == Some(false)
         });
     let command_queue_rejection_pollution_count = command_queue_after_rejections
         .iter()
+        .filter(|entry| !entry.starts_with("feedback:blocked:"))
         .filter(|entry| {
             entry.contains("Input blocked")
                 || entry.starts_with("RTS:")
@@ -108994,7 +109038,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         })
         .count();
     let blocked_history_non_pollution_gate = blocked_step_non_pollution_gate
-        && command_queue_after_rejections == command_queue_after_setup_input
+        && executable_command_queue_after_rejections == executable_command_queue_after_setup_input
         && command_queue_rejection_pollution_count == 0;
     let blocked_action_history_gate = runtime.blocked_action_history.len() >= 6
         && expected_blocked_reasons.iter().all(|reason| {
@@ -109051,6 +109095,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && command_action_parse_gate
         && replay_expectation_gate
         && blocked_feedback_gate
+        && blocked_feedback_chip_gate
         && accepted_setup_input_gate
         && blocked_history_non_pollution_gate
         && blocked_action_history_gate
@@ -109116,6 +109161,10 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "command_queue_before_inputs": command_queue_before_inputs,
         "command_queue_after_setup_input": command_queue_after_setup_input,
         "command_queue_after_rejections": command_queue_after_rejections,
+        "executable_command_queue_after_setup_input": executable_command_queue_after_setup_input,
+        "executable_command_queue_after_rejections": executable_command_queue_after_rejections,
+        "command_queue_blocked_feedback_chips": command_queue_blocked_feedback_chips,
+        "command_queue_blocked_feedback_chip_count": command_queue_blocked_feedback_chip_count,
         "command_queue_rejection_pollution_count": command_queue_rejection_pollution_count,
         "blocked_action_history": runtime.blocked_action_history,
         "stale_group_25_visible": false,
@@ -109135,6 +109184,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "command_action_parse_gate": command_action_parse_gate,
         "replay_expectation_gate": replay_expectation_gate,
         "blocked_feedback_gate": blocked_feedback_gate,
+        "blocked_feedback_chip_gate": blocked_feedback_chip_gate,
         "accepted_setup_input_gate": accepted_setup_input_gate,
         "blocked_step_non_pollution_gate": blocked_step_non_pollution_gate,
         "blocked_history_non_pollution_gate": blocked_history_non_pollution_gate,
@@ -109151,7 +109201,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "source_art_policy": "Original Trillionnium first-minute command feedback rejection replay HUD; rejected RTS command markers, blocked-tile contact sheet, recent-3 history, and prune markers are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "First-minute command feedback rejection replay evidence writes and replays first-minute input, writes a rejection command recording, applies blocked RTS live inputs through apply_live_native_action_with_source, and proves blocked feedback does not mutate the preserved recent-3 command history before rendering classic_draw_scene frames."
+        "source_of_truth": "First-minute command feedback rejection replay evidence writes and replays first-minute input, writes a rejection command recording, applies blocked RTS live inputs through apply_live_native_action_with_source, and proves blocked feedback emits visible non-executable chips without mutating the preserved recent-3 command history before rendering classic_draw_scene frames."
     }))
     .expect("first-minute command feedback rejection replay evidence serializes")
 }
@@ -125945,6 +125995,14 @@ pub fn apply_live_native_action_with_source(
             first_playable,
             &format!("Input blocked: {label} ({})", availability.1),
         );
+        if label.starts_with("RTS:")
+            && classic_rts_should_emit_rejection_feedback_chip(input_source)
+        {
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &classic_rts_rejection_feedback_chip(&label, &availability.1),
+            );
+        }
         refresh_contextual_action_runtime(first_playable);
         record_input_feedback(first_playable, input_source, &label, false, &availability.1);
         return None;
@@ -131233,6 +131291,28 @@ fn classic_rts_queue_feedback_chip(queue_id: &str) -> String {
     } else {
         format!("feedback:queue_accepted:{queue_id}")
     }
+}
+
+fn classic_rts_rejection_feedback_chip(action_label: &str, reason: &str) -> String {
+    let action_kind = action_label
+        .strip_prefix("RTS:")
+        .and_then(|label| label.split(':').next())
+        .filter(|label| !label.trim().is_empty())
+        .unwrap_or("action")
+        .to_ascii_lowercase();
+    format!("feedback:blocked:{action_kind}:{reason}")
+}
+
+fn classic_rts_should_emit_rejection_feedback_chip(input_source: &str) -> bool {
+    !input_source.contains("bot_executor")
+}
+
+fn classic_rts_executable_command_queue_snapshot(queue: &[String]) -> Vec<String> {
+    queue
+        .iter()
+        .filter(|entry| !entry.starts_with("feedback:blocked:"))
+        .cloned()
+        .collect()
 }
 
 fn apply_classic_rts_cancel_visual_feedback(
@@ -137936,6 +138016,28 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "feedback:queue_cancelled:train:worker"));
+
+        let mut rejection_runtime = classic_openra_style_skirmish_runtime();
+        rejection_runtime.rts_control_group_id = None;
+        rejection_runtime.rts_selected_unit_ids.clear();
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut rejection_runtime,
+            actor_id,
+            NativeControlAction::RtsMoveCommand {
+                command_id: "18,31:line".to_string(),
+            },
+        );
+        assert!(rejection_runtime
+            .blocked_action_history
+            .iter()
+            .any(|entry| entry == "RTS:MOVE:18,31:line:rts_group_selection_required"));
+        assert!(rejection_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:blocked:move:rts_group_selection_required"));
 
         let mut demo_runtime = classic_openra_style_skirmish_runtime();
         apply_classic_rts_scripted_demo_runtime(&mut demo_runtime, "queue_cancel_refund");

@@ -67,8 +67,16 @@ jq -e '
   and .input_telemetry_summary.blocked_events == 6
   and (.replay_steps | all(.parsed_action == true))
   and (.replay_steps | all(.accepted_match == true and .reason_match == true))
-  and (.replay_steps | map(select(.accepted == false and .command_queue_changed == true)) | length) == 0
+  and (.replay_steps | map(select(.accepted == false and .command_queue_changed == true)) | length) == 6
+  and (.replay_steps | map(select(.accepted == false and .executable_command_queue_changed == true)) | length) == 0
   and (.replay_steps | map(select(.accepted == true)) | length) == 1
+  and .command_queue_blocked_feedback_chip_count == 6
+  and (.command_queue_blocked_feedback_chips | index("feedback:blocked:move:rts_group_selection_required") != null)
+  and (.command_queue_blocked_feedback_chips | index("feedback:blocked:move:rts_invalid_tile:bad-tile") != null)
+  and (.command_queue_blocked_feedback_chips | index("feedback:blocked:attack:rts_attack_target_required") != null)
+  and (.command_queue_blocked_feedback_chips | index("feedback:blocked:ability:rts_attack_required_before_ability") != null)
+  and (.command_queue_blocked_feedback_chips | index("feedback:blocked:queue:rts_queue_id_required") != null)
+  and (.command_queue_blocked_feedback_chips | index("feedback:blocked:select:rts_group_id_required") != null)
   and (.stage_summaries | all(.renderer_path == "classic_draw_scene"))
   and (.stage_summaries | all(.input_path == "apply_live_native_action_with_source(first_minute_command_feedback_rejection_replay_input)"))
   and (.stage_summaries | map(.stage) | index("group_selection_required") != null)
@@ -94,7 +102,7 @@ jq -e '
   and (.pruned_history_entries | map(.group_id) | index("25") != null)
   and (.pruned_history_entries | map(.group_id) | index("24") != null)
   and .command_queue_rejection_pollution_count == 0
-  and .command_queue_after_rejections == .command_queue_after_setup_input
+  and .executable_command_queue_after_rejections == .executable_command_queue_after_setup_input
   and .blocked_tile_pixel_count > 40
   and .history_frame_pixel_count > 800
   and .history_row_pixel_count > 8000
@@ -110,6 +118,7 @@ jq -e '
   and .command_action_parse_gate == true
   and .replay_expectation_gate == true
   and .blocked_feedback_gate == true
+  and .blocked_feedback_chip_gate == true
   and .accepted_setup_input_gate == true
   and .blocked_step_non_pollution_gate == true
   and .blocked_history_non_pollution_gate == true
