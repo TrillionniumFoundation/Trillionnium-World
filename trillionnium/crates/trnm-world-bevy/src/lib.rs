@@ -2226,6 +2226,14 @@ pub struct NativeFirstPlayableRuntime {
     #[serde(default)]
     pub rts_minimap_command_kind: String,
     #[serde(default)]
+    pub rts_camera_focus_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_camera_input_source: String,
+    #[serde(default)]
+    pub rts_camera_zoom_percent: u8,
+    #[serde(default)]
+    pub rts_camera_viewport_rect: Option<RtsCameraMinimapViewportRect>,
+    #[serde(default)]
     pub rts_group_route_tile_ids: Vec<String>,
     #[serde(default)]
     pub rts_group_command_state: String,
@@ -2763,6 +2771,10 @@ impl Default for NativeFirstPlayableRuntime {
             rts_active_control_group_ids: Vec::new(),
             rts_minimap_command_tile_id: None,
             rts_minimap_command_kind: String::new(),
+            rts_camera_focus_tile_id: None,
+            rts_camera_input_source: String::new(),
+            rts_camera_zoom_percent: 0,
+            rts_camera_viewport_rect: None,
             rts_group_route_tile_ids: Vec::new(),
             rts_group_command_state: String::new(),
             rts_completed_structure_ids: Vec::new(),
@@ -43118,8 +43130,16 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
             .iter()
             .any(|group_id| group_id == "2")
         && group_two_pixel_count > 20;
-    let minimap_command_gate = runtime.rts_minimap_command_tile_id.as_deref() == Some("9,2")
-        && runtime.rts_minimap_command_kind == "rally"
+    let minimap_command_stage_gate = stage_summaries.iter().any(|stage| {
+        stage.get("stage").and_then(Value::as_str) == Some("minimap_rally")
+            && stage.get("minimap_command_tile_id").and_then(Value::as_str) == Some("9,2")
+            && stage.get("minimap_command_kind").and_then(Value::as_str) == Some("rally")
+            && stage
+                .get("group_route_tile_ids")
+                .and_then(Value::as_array)
+                .is_some_and(|route| route.iter().any(|tile| tile.as_str() == Some("9,2")))
+    });
+    let minimap_command_gate = minimap_command_stage_gate
         && runtime
             .rts_command_queue
             .iter()
@@ -43219,7 +43239,7 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
             queue_id: "build:scout_tower@8,4".to_string(),
         },
         NativeControlAction::RtsQueueProduction {
-            queue_id: "cancel:scout_tower@8,4".to_string(),
+            queue_id: "cancel:build:1".to_string(),
         },
     ];
     let mut accepted_input_count = 0_usize;
@@ -43382,15 +43402,15 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
         && runtime
             .rts_refund_delta_log
             .iter()
-            .any(|entry| entry == "gold:+90")
-        && runtime
-            .rts_refund_delta_log
-            .iter()
-            .any(|entry| entry == "lumber:+30")
+            .any(|entry| entry == "gold:+180")
         && runtime
             .rts_command_queue
             .iter()
-            .any(|entry| entry == "refund:gold:+90|lumber:+30")
+            .any(|entry| entry == "cancel:build:scout_tower@8,4")
+        && runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "refund:scout_tower@8,4:gold:+180")
         && cancel_refund_pixel_count > 40;
     let green = write_gate
         && non_background_pixels > 120_000
@@ -72073,6 +72093,13 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         || native_bool_env_enabled_with_default("TRNM_WORLD_BEVY_CLASSIC_PAUSE_QUEUE_TICK", false);
     let assets = load_classic_runtime_assets();
     let mut player_tile = (5_i32, 4_i32);
+    let mut rts_camera_state = classic_rts_camera_state_for_focus_tile(player_tile, 1.0);
+    player_tile = classic_sync_live_camera_runtime(
+        &mut first_playable,
+        rts_camera_state,
+        "boot_viewport",
+        false,
+    );
     let mut buffer = vec![0_u32; width * height];
     let mut window = MiniWindow::new(
         "Trillionnium classic low spec renderer",
@@ -72103,6 +72130,17 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         .expect("classic low spec renderer presents first frame");
 
     while window.is_open() && !window.is_key_down(MiniKey::Escape) {
+        if let Some(camera_step) =
+            classic_poll_live_camera_step(&window, rts_camera_state, width, height, classic_fps)
+        {
+            rts_camera_state = camera_step.after;
+            player_tile = classic_sync_live_camera_runtime(
+                &mut first_playable,
+                rts_camera_state,
+                &camera_step.source,
+                frame_tick % 12 == 0,
+            );
+        }
         if let Some(action) =
             classic_poll_action(&window, &first_playable, width, height, &mut mouse_latch)
         {
@@ -72132,9 +72170,18 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                     classic_move_player(&mut player_tile, &direction, GRID_COLS, GRID_ROWS);
                 }
                 if let Some(tile) = rts_camera_sync_tile {
-                    player_tile = (
-                        tile.0.clamp(0, GRID_COLS - 1),
-                        tile.1.clamp(0, GRID_ROWS - 1),
+                    rts_camera_state = classic_rts_camera_state_for_focus_tile(
+                        (
+                            tile.0.clamp(0, GRID_COLS - 1),
+                            tile.1.clamp(0, GRID_ROWS - 1),
+                        ),
+                        rts_camera_state.zoom,
+                    );
+                    player_tile = classic_sync_live_camera_runtime(
+                        &mut first_playable,
+                        rts_camera_state,
+                        "minimap_click",
+                        true,
                     );
                 }
             }
@@ -72145,6 +72192,12 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 if scripted_demo_stage != Some(stage) {
                     first_playable = classic_openra_style_skirmish_runtime();
                     apply_classic_rts_scripted_demo_stage_runtime(&mut first_playable, stage);
+                    player_tile = classic_sync_live_camera_runtime(
+                        &mut first_playable,
+                        rts_camera_state,
+                        "scripted_demo_viewport",
+                        false,
+                    );
                     scripted_demo_stage = Some(stage);
                 }
             }
@@ -72190,6 +72243,8 @@ fn classic_poll_action(
     height: usize,
     mouse_latch: &mut ClassicRuntimeMouseLatch,
 ) -> Option<NativeControlAction> {
+    let shift_pressed =
+        window.is_key_down(MiniKey::LeftShift) || window.is_key_down(MiniKey::RightShift);
     if let Some(action) = classic_poll_mouse_action(window, runtime, width, height, mouse_latch) {
         Some(action)
     } else if window.is_key_pressed(MiniKey::Key1, MiniKeyRepeat::No) {
@@ -72208,7 +72263,7 @@ fn classic_poll_action(
         Some(NativeControlAction::RtsMoveCommand {
             command_id: classic_next_runtime_rts_move_command(runtime),
         })
-    } else if window.is_key_pressed(MiniKey::A, MiniKeyRepeat::No) {
+    } else if !shift_pressed && window.is_key_pressed(MiniKey::A, MiniKeyRepeat::No) {
         Some(NativeControlAction::RtsAttackCommand {
             target_id: classic_next_runtime_rts_attack_target(runtime),
         })
@@ -72230,24 +72285,27 @@ fn classic_poll_action(
         Some(NativeControlAction::RtsAbilityCommand {
             ability_id: classic_next_runtime_rts_ability(runtime),
         })
-    } else if window.is_key_pressed(MiniKey::Right, MiniKeyRepeat::Yes)
-        || window.is_key_pressed(MiniKey::D, MiniKeyRepeat::Yes)
+    } else if !shift_pressed
+        && (window.is_key_pressed(MiniKey::Right, MiniKeyRepeat::Yes)
+            || window.is_key_pressed(MiniKey::D, MiniKeyRepeat::Yes))
     {
         Some(NativeControlAction::Move {
             direction: "east".to_string(),
         })
-    } else if window.is_key_pressed(MiniKey::Left, MiniKeyRepeat::Yes) {
+    } else if !shift_pressed && window.is_key_pressed(MiniKey::Left, MiniKeyRepeat::Yes) {
         Some(NativeControlAction::Move {
             direction: "west".to_string(),
         })
-    } else if window.is_key_pressed(MiniKey::Up, MiniKeyRepeat::Yes)
-        || window.is_key_pressed(MiniKey::W, MiniKeyRepeat::Yes)
+    } else if !shift_pressed
+        && (window.is_key_pressed(MiniKey::Up, MiniKeyRepeat::Yes)
+            || window.is_key_pressed(MiniKey::W, MiniKeyRepeat::Yes))
     {
         Some(NativeControlAction::Move {
             direction: "north".to_string(),
         })
-    } else if window.is_key_pressed(MiniKey::Down, MiniKeyRepeat::Yes)
-        || window.is_key_pressed(MiniKey::S, MiniKeyRepeat::Yes)
+    } else if !shift_pressed
+        && (window.is_key_pressed(MiniKey::Down, MiniKeyRepeat::Yes)
+            || window.is_key_pressed(MiniKey::S, MiniKeyRepeat::Yes))
     {
         Some(NativeControlAction::Move {
             direction: "south".to_string(),
@@ -73312,6 +73370,126 @@ fn classic_direction_delta(direction: &str) -> (i32, i32) {
         "south-west" => (-1, 1),
         _ => (0, 0),
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_camera_state_for_focus_tile(
+    focus_tile: (i32, i32),
+    zoom: f32,
+) -> RtsScrollableMapCameraState {
+    let config = rts_scrollable_map_camera_config();
+    clamp_rts_scrollable_map_camera_state(
+        RtsScrollableMapCameraState {
+            center_x: (focus_tile.0.clamp(1, 13) - 5) as f32 * 72.0,
+            center_y: -((focus_tile.1.clamp(1, 8) - 5) as f32) * 48.0,
+            zoom,
+        },
+        config,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_sync_live_camera_runtime(
+    runtime: &mut NativeFirstPlayableRuntime,
+    camera_state: RtsScrollableMapCameraState,
+    input_source: &str,
+    record_history: bool,
+) -> (i32, i32) {
+    let focus_tile = rts_scrollable_map_camera_focus_tile(camera_state);
+    let focus_tile_id = classic_rts_tile_id(focus_tile);
+    runtime.rts_camera_focus_tile_id = Some(focus_tile_id.clone());
+    runtime.rts_camera_input_source = input_source.to_string();
+    runtime.rts_camera_zoom_percent =
+        ((camera_state.zoom * 100.0).round() as i32).clamp(0, 255) as u8;
+    runtime.rts_camera_viewport_rect =
+        Some(rts_camera_minimap_viewport_rect(camera_state, 117, 56));
+    runtime.rts_visible_tile_ids = rts_camera_minimap_revealed_tiles(focus_tile);
+    if record_history {
+        let camera_event = format!(
+            "camera:{}:focus:{}:zoom:{}",
+            input_source, focus_tile_id, runtime.rts_camera_zoom_percent
+        );
+        if runtime.rts_command_queue.last() != Some(&camera_event) {
+            push_history(&mut runtime.rts_command_queue, &camera_event);
+        }
+        runtime.last_feedback = format!(
+            "RTS camera {} focus {} zoom {}%",
+            input_source, focus_tile_id, runtime.rts_camera_zoom_percent
+        );
+        push_feedback_event(runtime, &runtime.last_feedback.clone());
+    }
+    focus_tile
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_poll_live_camera_step(
+    window: &MiniWindow,
+    camera_state: RtsScrollableMapCameraState,
+    width: usize,
+    height: usize,
+    fps: usize,
+) -> Option<RtsScrollableMapCameraStep> {
+    let config = rts_scrollable_map_camera_config();
+    let delta_seconds = (1.0 / fps.max(1) as f32).clamp(1.0 / 120.0, 1.0 / 12.0);
+    let shift_pressed =
+        window.is_key_down(MiniKey::LeftShift) || window.is_key_down(MiniKey::RightShift);
+    let mut pan_delta = Vec2::ZERO;
+    let mut source_parts = Vec::new();
+
+    if shift_pressed {
+        if window.is_key_down(MiniKey::Right) || window.is_key_down(MiniKey::D) {
+            pan_delta.x += config.keyboard_speed * delta_seconds;
+        }
+        if window.is_key_down(MiniKey::Left) || window.is_key_down(MiniKey::A) {
+            pan_delta.x -= config.keyboard_speed * delta_seconds;
+        }
+        if window.is_key_down(MiniKey::Up) || window.is_key_down(MiniKey::W) {
+            pan_delta.y += config.keyboard_speed * delta_seconds;
+        }
+        if window.is_key_down(MiniKey::Down) || window.is_key_down(MiniKey::S) {
+            pan_delta.y -= config.keyboard_speed * delta_seconds;
+        }
+        if pan_delta != Vec2::ZERO {
+            source_parts.push("shift_keyboard_pan");
+        }
+    }
+
+    if let Some((mouse_x, mouse_y)) = window.get_mouse_pos(MiniMouseMode::Discard) {
+        if mouse_x <= config.edge_band_pixels {
+            pan_delta.x -= config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        } else if mouse_x >= width as f32 - config.edge_band_pixels {
+            pan_delta.x += config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        }
+        if mouse_y <= config.edge_band_pixels {
+            pan_delta.y -= config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        } else if mouse_y >= height as f32 - config.edge_band_pixels {
+            pan_delta.y += config.edge_speed * delta_seconds;
+            source_parts.push("edge_scroll");
+        }
+    }
+
+    let zoom_delta = window
+        .get_scroll_wheel()
+        .map(|(_scroll_x, scroll_y)| scroll_y * config.wheel_zoom_step)
+        .unwrap_or(0.0);
+    if zoom_delta.abs() > f32::EPSILON {
+        source_parts.push("wheel_zoom");
+    }
+
+    if pan_delta == Vec2::ZERO && zoom_delta.abs() <= f32::EPSILON {
+        return None;
+    }
+    Some(apply_rts_scrollable_map_camera_input(
+        &source_parts.join("+"),
+        camera_state,
+        config,
+        pan_delta,
+        zoom_delta,
+        None,
+    ))
 }
 
 #[cfg(not(target_os = "android"))]
@@ -93745,11 +93923,16 @@ fn classic_window_title(
     assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium RTS atlas={} | room={} tile=({}, {}) xp={} | LMB select/radar RMB move/attack 1/2/3 groups M move A attack B build P train G harvest V/Tab ability | {} -> {}",
+        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select/radar RMB move/attack Shift+WASD/edges pan wheel zoom 1/2/3 groups M move A attack B build P train G harvest V/Tab ability | {} -> {}",
         assets.manifest.contract_version,
         runtime.current_room_id,
         player_tile.0,
         player_tile.1,
+        runtime
+            .rts_camera_focus_tile_id
+            .as_deref()
+            .unwrap_or("5,4"),
+        runtime.rts_camera_zoom_percent.max(1),
         runtime.xp,
         gameplay_log.last_action,
         gameplay_log.last_result
@@ -93994,7 +94177,12 @@ fn classic_draw_openra_style_rts_shell(
         height,
         viewport_x + 16,
         viewport_y + 14,
-        &format!("TACTICAL VIEW  {}", classic_tactical_status_label(runtime)),
+        &format!(
+            "TACTICAL VIEW  {}  CAM {} Z{}",
+            classic_tactical_status_label(runtime),
+            runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4"),
+            runtime.rts_camera_zoom_percent.max(1)
+        ),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -94092,6 +94280,58 @@ fn classic_draw_openra_style_rts_shell(
         9,
         CLASSIC_ISO_UNIT_PLAYER_COLOR,
     );
+    if let Some(viewport_rect) = runtime.rts_camera_viewport_rect {
+        let map_w = 117_i32;
+        let map_h = 56_i32;
+        let inner_x = radar_x + 4;
+        let inner_y = radar_y + 4;
+        let inner_w = (cell_w * 12).max(1);
+        let inner_h = (cell_h * 8).max(1);
+        let rect_x = inner_x + (viewport_rect.x * inner_w) / map_w;
+        let rect_y = inner_y + (viewport_rect.y * inner_h) / map_h;
+        let rect_w = ((viewport_rect.width * inner_w) / map_w).max(10);
+        let rect_h = ((viewport_rect.height * inner_h) / map_h).max(10);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            rect_x,
+            rect_y,
+            rect_w,
+            3,
+            CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            rect_x,
+            rect_y + rect_h - 2,
+            rect_w,
+            3,
+            CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            rect_x,
+            rect_y,
+            3,
+            rect_h,
+            CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            rect_x + rect_w - 2,
+            rect_y,
+            3,
+            rect_h,
+            CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+        );
+    }
     if let Some(destination_tile) = runtime
         .rts_command_destination_tile
         .as_deref()
@@ -94310,8 +94550,8 @@ fn classic_draw_openra_style_rts_shell(
         "RADAR CLICK RALLY",
         "SIDEBAR QUEUE/BUILD",
         "ORDER QUEUE REPLAY",
-        "1/2/3 SELECT GROUPS",
-        "M/A/B/P/G/V HOTKEYS",
+        "SHIFT+WASD/EDGES PAN",
+        "WHEEL ZOOM  M/A/B/P/G/V",
     ]
     .iter()
     .enumerate()
@@ -94381,17 +94621,15 @@ fn classic_draw_openra_style_rts_shell(
         format!(
             "CAM {} {}",
             runtime
-                .rts_minimap_command_tile_id
+                .rts_camera_focus_tile_id
                 .as_deref()
-                .unwrap_or_else(|| runtime
-                    .rts_command_destination_tile
-                    .as_deref()
-                    .unwrap_or("-")),
+                .or(runtime.rts_minimap_command_tile_id.as_deref())
+                .unwrap_or("-"),
             classic_catalog_text_label(
-                if runtime.rts_minimap_command_kind.is_empty() {
+                if runtime.rts_camera_input_source.is_empty() {
                     "viewport"
                 } else {
-                    &runtime.rts_minimap_command_kind
+                    &runtime.rts_camera_input_source
                 },
                 12
             )
@@ -136776,6 +137014,56 @@ mod tests {
                 group_id: "drag:2,2->6,4".to_string(),
             })
         );
+        let camera_start = classic_rts_camera_state_for_focus_tile((5, 4), 1.0);
+        assert_eq!(rts_scrollable_map_camera_focus_tile(camera_start), (5, 4));
+        let camera_step = apply_rts_scrollable_map_camera_input(
+            "shift_keyboard_pan",
+            camera_start,
+            rts_scrollable_map_camera_config(),
+            Vec2::new(84.0, 0.0),
+            0.24,
+            None,
+        );
+        assert_eq!(camera_step.source, "shift_keyboard_pan");
+        assert!(camera_step.after.zoom > camera_start.zoom);
+        let mut camera_runtime = classic_openra_style_skirmish_runtime();
+        let camera_focus = classic_sync_live_camera_runtime(
+            &mut camera_runtime,
+            camera_step.after,
+            &camera_step.source,
+            true,
+        );
+        assert_eq!(
+            camera_focus,
+            rts_scrollable_map_camera_focus_tile(camera_step.after)
+        );
+        let camera_focus_tile_id = classic_rts_tile_id(camera_focus);
+        assert_eq!(
+            camera_runtime.rts_camera_focus_tile_id.as_deref(),
+            Some(camera_focus_tile_id.as_str())
+        );
+        assert_eq!(camera_runtime.rts_camera_input_source, "shift_keyboard_pan");
+        assert!(camera_runtime.rts_camera_zoom_percent >= 120);
+        assert!(camera_runtime.rts_camera_viewport_rect.is_some());
+        assert!(camera_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.contains("camera:shift_keyboard_pan")));
+        let assets = load_classic_runtime_assets();
+        let mut camera_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut camera_pixels,
+            1280,
+            720,
+            camera_focus,
+            &camera_runtime,
+            &assets,
+        );
+        let live_camera_viewport_pixels = camera_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR)
+            .count();
+        assert!(live_camera_viewport_pixels > 40);
 
         apply_live_native_action(
             &mut world,
@@ -137129,6 +137417,70 @@ mod tests {
             classic_tactical_status_label(&sequence_runtime),
             "DEMO 5 WORKER QUEUE READY"
         );
+
+        let mut camera_runtime = classic_openra_style_skirmish_runtime();
+        let boot_camera = classic_rts_camera_state_for_focus_tile((5, 4), 1.0);
+        let boot_focus = classic_sync_live_camera_runtime(
+            &mut camera_runtime,
+            boot_camera,
+            "boot_viewport",
+            false,
+        );
+        let boot_rect = camera_runtime
+            .rts_camera_viewport_rect
+            .expect("boot camera writes minimap viewport");
+        assert_eq!(boot_focus, (5, 4));
+        assert_eq!(
+            camera_runtime.rts_camera_focus_tile_id.as_deref(),
+            Some("5,4")
+        );
+        assert_eq!(camera_runtime.rts_camera_zoom_percent, 100);
+        assert!(camera_runtime
+            .rts_visible_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "5,4"));
+
+        let camera_step = apply_rts_scrollable_map_camera_input(
+            "shift_keyboard_pan+wheel_zoom",
+            boot_camera,
+            rts_scrollable_map_camera_config(),
+            Vec2::new(144.0, -96.0),
+            0.35,
+            None,
+        );
+        let live_focus = classic_sync_live_camera_runtime(
+            &mut camera_runtime,
+            camera_step.after,
+            &camera_step.source,
+            true,
+        );
+        let live_rect = camera_runtime
+            .rts_camera_viewport_rect
+            .expect("live camera writes minimap viewport");
+        assert_eq!(live_focus, (7, 6));
+        assert_eq!(
+            camera_runtime.rts_camera_focus_tile_id.as_deref(),
+            Some("7,6")
+        );
+        assert_eq!(
+            camera_runtime.rts_camera_input_source,
+            "shift_keyboard_pan+wheel_zoom"
+        );
+        assert_eq!(camera_runtime.rts_camera_zoom_percent, 135);
+        assert!(live_rect.width < boot_rect.width);
+        assert!(live_rect.height < boot_rect.height);
+        assert!(camera_runtime
+            .rts_visible_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "7,6"));
+        assert!(camera_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "camera:shift_keyboard_pan+wheel_zoom:focus:7,6:zoom:135"));
+        assert!(camera_runtime
+            .feedback_events
+            .iter()
+            .any(|event| event.contains("focus 7,6 zoom 135%")));
     }
 
     #[test]

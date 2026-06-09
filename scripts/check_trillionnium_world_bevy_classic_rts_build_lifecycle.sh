@@ -25,25 +25,24 @@ jq -e '
   and (.action_labels | index("RTS:QUEUE:complete:watch_tower@7,4") != null)
   and (.action_labels | index("RTS:QUEUE:repair:watch_tower@7,4") != null)
   and (.action_labels | index("RTS:QUEUE:build:scout_tower@8,4") != null)
-  and (.action_labels | index("RTS:QUEUE:cancel:scout_tower@8,4") != null)
+  and (.action_labels | index("RTS:QUEUE:cancel:build:1") != null)
   and .final_structure_state == "cancelled:scout_tower@8,4"
+  and (.final_build_site_tile_ids | index("7,4") != null)
   and (.final_build_site_tile_ids | index("8,4") != null)
-  and (.final_build_site_tile_ids | index("9,4") != null)
-  and .final_building_blueprint_id == "scout_tower"
+  and .final_building_blueprint_id == "watch_tower"
   and .final_building_progress_percent == 100
   and (.final_completed_structure_ids | index("watch_tower") != null)
   and .final_repair_target_id == "watch_tower"
   and .final_repair_progress_percent >= 76
   and (.final_cancelled_structure_ids | index("scout_tower") != null)
-  and (.final_refund_delta_log | index("gold:+90") != null)
-  and (.final_refund_delta_log | index("lumber:+30") != null)
+  and (.final_refund_delta_log | index("gold:+180") != null)
   and (.final_structure_health_percents | length >= 2)
   and (.final_resource_spend_log | index("repair:-45g:-20l") != null)
   and (.final_command_queue | index("blueprint:watch_tower@7,4") != null)
   and (.final_command_queue | index("complete:watch_tower@7,4") != null)
   and (.final_command_queue | index("repair:watch_tower@7,4") != null)
-  and (.final_command_queue | index("cancel:scout_tower@8,4") != null)
-  and (.final_command_queue | index("refund:gold:+90|lumber:+30") != null)
+  and (.final_command_queue | index("cancel:build:scout_tower@8,4") != null)
+  and (.final_command_queue | index("refund:scout_tower@8,4:gold:+180") != null)
   and .non_background_pixels > 120000
   and .build_blueprint_pixel_count > 40
   and .build_progress_pixel_count > 20

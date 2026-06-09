@@ -33,8 +33,12 @@ jq -e '
   and (.final_control_group_assignments | index("2:square_guard_patrol|square_creep_wander") != null)
   and (.final_active_control_group_ids | index("1") != null)
   and (.final_active_control_group_ids | index("2") != null)
-  and .final_minimap_command_tile_id == "9,2"
-  and .final_minimap_command_kind == "rally"
+  and (.stage_summaries | any(.stage == "minimap_rally"
+      and .minimap_command_tile_id == "9,2"
+      and .minimap_command_kind == "rally"
+      and (.group_route_tile_ids | index("9,2") != null)))
+  and .final_minimap_command_tile_id == "6,5"
+  and .final_minimap_command_kind == "split"
   and (.final_group_route_tile_ids | length >= 4)
   and (.final_group_route_tile_ids | index("6,4") != null)
   and .final_group_command_state == "split_route:group_2"

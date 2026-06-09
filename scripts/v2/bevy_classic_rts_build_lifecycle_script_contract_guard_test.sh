@@ -16,7 +16,7 @@ required_script_lines=(
   'RTS:QUEUE:build:watch_tower@7,4'
   'RTS:QUEUE:complete:watch_tower@7,4'
   'RTS:QUEUE:repair:watch_tower@7,4'
-  'RTS:QUEUE:cancel:scout_tower@8,4'
+  'RTS:QUEUE:cancel:build:1'
   'build_placement_gate == true'
   'completion_gate == true'
   'repair_gate == true'
