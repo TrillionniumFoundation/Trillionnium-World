@@ -71730,6 +71730,12 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
     } else {
         classic_openra_style_skirmish_runtime()
     };
+    let scripted_demo_id = env::var("TRNM_WORLD_BEVY_CLASSIC_SCRIPTED_DEMO").ok();
+    if let Some(demo_id) = scripted_demo_id.as_deref() {
+        apply_classic_rts_scripted_demo_runtime(&mut first_playable, &demo_id);
+    }
+    let pause_classic_queue_tick = scripted_demo_id.as_deref() == Some("queue_cancel_refund")
+        || native_bool_env_enabled_with_default("TRNM_WORLD_BEVY_CLASSIC_PAUSE_QUEUE_TICK", false);
     let assets = load_classic_runtime_assets();
     let mut player_tile = (5_i32, 4_i32);
     let mut buffer = vec![0_u32; width * height];
@@ -71799,7 +71805,9 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
             }
         }
         frame_tick = frame_tick.wrapping_add(1);
-        classic_tick_openra_style_rts_runtime(&mut first_playable, frame_tick);
+        if !pause_classic_queue_tick {
+            classic_tick_openra_style_rts_runtime(&mut first_playable, frame_tick);
+        }
         classic_draw_scene(
             &mut buffer,
             width,
@@ -130371,6 +130379,33 @@ fn apply_classic_rts_cancel_visual_feedback(
     }
 }
 
+fn apply_classic_rts_scripted_demo_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    demo_id: &str,
+) {
+    if demo_id != "queue_cancel_refund" {
+        return;
+    }
+    first_playable.rts_production_queue.clear();
+    first_playable.rts_build_queue.clear();
+    first_playable.rts_resource_spend_log.clear();
+    first_playable.rts_command_queue.clear();
+    first_playable.rts_cancelled_structure_ids.clear();
+    first_playable.rts_refund_delta_log.clear();
+    first_playable.rts_army_rally_tile_ids.clear();
+    apply_classic_rts_select_group_runtime(first_playable, "1");
+    apply_classic_rts_move_runtime(first_playable, "8,4", "rally");
+    apply_classic_rts_queue_runtime(first_playable, "build:watch_tower@7,4");
+    apply_classic_rts_queue_cancel_runtime(first_playable, "build:0");
+    apply_classic_rts_queue_runtime(first_playable, "train:worker");
+    first_playable.rts_training_progress_percent = 0;
+    first_playable.rts_build_progress_percent = 0;
+    first_playable.rts_building_progress_percent = 0;
+    first_playable.last_feedback =
+        "RTS demo: queued worker, canceled tower, refund visible".to_string();
+    push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
 fn refresh_classic_rts_build_preview_after_queue_cancel(
     first_playable: &mut NativeFirstPlayableRuntime,
 ) {
@@ -130624,12 +130659,14 @@ fn apply_classic_rts_queue_runtime(
             "refund:gold:+90|lumber:+30",
         );
     }
-    if first_playable.rts_build_queue.is_empty() {
-        first_playable.rts_build_queue = string_vec(["build:scout_tower"]);
+    if classic_rts_queue_uses_production_lane(queue_id) {
+        first_playable.rts_training_progress_percent =
+            first_playable.rts_training_progress_percent.max(64);
     }
-    first_playable.rts_training_progress_percent =
-        first_playable.rts_training_progress_percent.max(64);
-    first_playable.rts_build_progress_percent = first_playable.rts_build_progress_percent.max(38);
+    if queue_id.starts_with("build:") {
+        first_playable.rts_build_progress_percent =
+            first_playable.rts_build_progress_percent.max(38);
+    }
     push_history(
         &mut first_playable.rts_command_queue,
         &format!("queue:{queue_id}"),
@@ -136558,6 +136595,30 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "cancel:train:worker"));
+
+        let mut demo_runtime = classic_openra_style_skirmish_runtime();
+        apply_classic_rts_scripted_demo_runtime(&mut demo_runtime, "queue_cancel_refund");
+        assert!(demo_runtime
+            .rts_production_queue
+            .iter()
+            .any(|queue| queue == "train:worker"));
+        assert_eq!(demo_runtime.rts_training_progress_percent, 0);
+        assert!(demo_runtime
+            .rts_cancelled_structure_ids
+            .iter()
+            .any(|structure_id| structure_id == "watch_tower"));
+        assert!(demo_runtime
+            .rts_refund_delta_log
+            .iter()
+            .any(|entry| entry == "gold:+210"));
+        assert_eq!(
+            demo_runtime.rts_minimap_command_tile_id.as_deref(),
+            Some("7,4")
+        );
+        assert!(demo_runtime
+            .rts_army_rally_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "8,4"));
     }
 
     #[test]
