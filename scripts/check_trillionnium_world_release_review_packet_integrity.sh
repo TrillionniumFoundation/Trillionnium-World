@@ -333,8 +333,9 @@ require_artifact_json_expr_when_packet_count_at_least openra_engine_port_asset_p
   and .write_gate == true
   and .no_copy_boundary_gate == true
   and .openra_engine_port_asset_parity_gate == true
-  and .openra_engine_port_foundation_claimed == true
-  and .openra_engine_port_claimed == true
+  and .openra_style_engine_foundation_claimed == true
+  and .openra_engine_port_foundation_claimed == false
+  and .openra_engine_port_claimed == false
   and .openra_full_engine_port_claimed == false
   and .openra_pixel_perfect_asset_parity_claimed == true
   and .openra_pixel_perfect_asset_parity_scope == "trillionnium_owned_openra_compatible_asset_pack"

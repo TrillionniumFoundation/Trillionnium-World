@@ -27489,8 +27489,9 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "write_gate": write_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
         "openra_engine_port_asset_parity_gate": openra_engine_port_asset_parity_gate,
-        "openra_engine_port_foundation_claimed": openra_engine_port_asset_parity_gate,
-        "openra_engine_port_claimed": openra_engine_port_asset_parity_gate,
+        "openra_style_engine_foundation_claimed": openra_engine_port_asset_parity_gate,
+        "openra_engine_port_foundation_claimed": false,
+        "openra_engine_port_claimed": false,
         "openra_full_engine_port_claimed": false,
         "openra_pixel_perfect_asset_parity_claimed": pixel_perfect_asset_parity_gate,
         "openra_pixel_perfect_asset_parity_scope": "trillionnium_owned_openra_compatible_asset_pack",
@@ -27504,7 +27505,7 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "bevy_openra_network_order_stream_claimed": false,
         "android_s5_real_device_claimed": false,
         "public_launch_ready": false,
-        "source_of_truth": "This gate creates the explicit OpenRA engine-port evidence for Trillionnium: Rust reimplements the OpenRA foundation surfaces for ModData, rules, actors, world ticks, orders, chrome/widget roots, sprite sequences, palette handling, asset loading, and owned replay reduction, then proves pixel-perfect parity over every frame in the Trillionnium-owned OpenRA-compatible PPM asset manifest with zero pixel and sha mismatches. It is not a full C# OpenRA engine port, does not claim binary replay/network parity, and does not copy OpenRA, Westwood, Warcraft III, or other third-party assets."
+        "source_of_truth": "This gate creates scoped OpenRA-style foundation evidence for Trillionnium: Rust implements owned analogues of ModData, rules, actors, world ticks, orders, chrome/widget roots, sprite sequences, palette handling, asset loading, and owned replay reduction, then proves pixel-perfect parity over every frame in the Trillionnium-owned OpenRA-compatible PPM asset manifest with zero pixel and sha mismatches. It is not a completed OpenRA engine port, does not claim OpenRA game-screen parity, binary replay/network parity, or copied OpenRA, Westwood, Warcraft III, or other third-party assets."
     }))
     .expect("classic RTS OpenRA engine port asset parity evidence serializes")
 }
@@ -71712,19 +71713,19 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
     };
     let product_alignment_start = native_bool_env_enabled_with_default(
         "TRNM_WORLD_BEVY_CLASSIC_PRODUCT_ALIGNMENT_START",
-        true,
+        false,
     );
     let (default_width, default_height) = if product_alignment_start {
         (960, 540)
     } else {
-        (640, 360)
+        (1280, 720)
     };
     let width = native_usize_env_or("TRNM_WORLD_BEVY_CLASSIC_WIDTH", default_width);
     let height = native_usize_env_or("TRNM_WORLD_BEVY_CLASSIC_HEIGHT", default_height);
     let mut first_playable = if product_alignment_start {
         classic_product_alignment_runtime()
     } else {
-        NativeFirstPlayableRuntime::default()
+        classic_openra_style_skirmish_runtime()
     };
     let assets = load_classic_runtime_assets();
     let mut player_tile = (5_i32, 4_i32);
@@ -71995,10 +71996,27 @@ fn classic_draw_scene(
             &player_frame,
         );
     }
-    if scene_id != "first_contact_basin" {
-        classic_draw_rts_strategy_overlay(buffer, width, height, runtime, scene_id, player_tile);
+    if !classic_draw_openra_style_rts_shell(
+        buffer,
+        width,
+        height,
+        runtime,
+        assets,
+        scene_id,
+        player_tile,
+    ) {
+        if scene_id != "first_contact_basin" {
+            classic_draw_rts_strategy_overlay(
+                buffer,
+                width,
+                height,
+                runtime,
+                scene_id,
+                player_tile,
+            );
+        }
+        classic_draw_rts_product_alignment_hud(buffer, width, height, runtime);
     }
-    classic_draw_rts_product_alignment_hud(buffer, width, height, runtime);
     if let Some(hotkey_stage) = classic_rts_control_group_hotkey_feedback_stage(Some(runtime)) {
         classic_draw_rts_control_group_hotkey_feedback_overlay(
             buffer,
@@ -87151,11 +87169,39 @@ fn classic_draw_isometric_scene(
     player_tile: (i32, i32),
     player_frame: &str,
 ) {
-    let origin_x = (width as i32 / 2).clamp(260, (width as i32 - 280).max(340));
-    let origin_y = if width >= 900 { 54 } else { 48 };
-    let tile_w = if width >= 900 { 56 } else { 50 };
-    let tile_h = if width >= 900 { 28 } else { 25 };
-    let scale = (assets.manifest.render_tile_size_px / assets.manifest.source_tile_size_px).max(1);
+    let origin_x = if width >= 1100 {
+        ((width as i32 - 290) / 2).clamp(360, 560)
+    } else {
+        (width as i32 / 2).clamp(260, (width as i32 - 280).max(340))
+    };
+    let origin_y = if width >= 1100 {
+        74
+    } else if width >= 900 {
+        54
+    } else {
+        48
+    };
+    let tile_w = if width >= 1100 {
+        72
+    } else if width >= 900 {
+        56
+    } else {
+        50
+    };
+    let tile_h = if width >= 1100 {
+        36
+    } else if width >= 900 {
+        28
+    } else {
+        25
+    };
+    let base_scale =
+        (assets.manifest.render_tile_size_px / assets.manifest.source_tile_size_px).max(1);
+    let scale = if width >= 1100 {
+        base_scale.max(2)
+    } else {
+        base_scale
+    };
 
     if let Some(scene) = scene {
         let mut entities = Vec::new();
@@ -92239,6 +92285,626 @@ fn classic_window_title(
         gameplay_log.last_action,
         gameplay_log.last_result
     )
+}
+
+fn classic_openra_style_skirmish_runtime() -> NativeFirstPlayableRuntime {
+    NativeFirstPlayableRuntime {
+        map_scene: "mirror_city_square".to_string(),
+        current_room_id: "mirror-city-square".to_string(),
+        coins: 620,
+        xp: 94,
+        facing_direction: "east".to_string(),
+        walk_cycle_frame: 1,
+        rts_control_group_id: Some("1".to_string()),
+        rts_selected_unit_ids: string_vec([
+            "player",
+            "square_guard_patrol",
+            "square_worker_carry",
+            "mirror_captain",
+            "square_scout_east",
+        ]),
+        rts_active_control_group_ids: string_vec(["1", "2", "3"]),
+        rts_command_queue: string_vec([
+            "select_group_1",
+            "move:7,4",
+            "attack:enemy_barracks",
+            "build:watch_tower",
+            "train:worker",
+        ]),
+        rts_command_destination_tile: Some("7,4".to_string()),
+        rts_attack_target_id: Some("enemy_barracks".to_string()),
+        rts_visible_tile_ids: string_vec([
+            "3,3", "4,3", "5,3", "6,3", "7,3", "4,4", "5,4", "6,4", "7,4", "8,4", "5,5", "6,5",
+            "7,5",
+        ]),
+        rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,0", "11,0", "0,7", "11,7"]),
+        rts_selection_box_tile_ids: string_vec(["4,4", "5,4", "6,5", "7,5"]),
+        rts_group_route_tile_ids: string_vec(["5,4", "6,4", "7,4"]),
+        rts_terrain_route_tile_ids: string_vec(["3,5", "4,5", "5,5", "6,5"]),
+        rts_revealed_enemy_structure_ids: string_vec([
+            "enemy_barracks",
+            "enemy_power",
+            "enemy_refinery",
+        ]),
+        rts_revealed_enemy_unit_ids: string_vec(["enemy_raider", "enemy_grunt", "enemy_scout"]),
+        rts_enemy_pressure_wave_unit_ids: string_vec(["enemy_wave_left", "enemy_wave_right"]),
+        rts_ai_pressure_tile_ids: string_vec(["9,3", "9,4", "10,4"]),
+        rts_player_defense_structure_ids: string_vec(["watch_tower", "relay_tower"]),
+        rts_army_rally_tile_ids: string_vec(["6,4", "7,4", "8,4"]),
+        rts_army_spawned_unit_ids: string_vec(["worker_01", "guard_01", "scout_01"]),
+        rts_production_queue: string_vec(["train:worker", "train:guard", "upgrade:signal_blade"]),
+        rts_build_queue: string_vec(["build:watch_tower", "build:relay"]),
+        rts_training_progress_percent: 68,
+        rts_build_progress_percent: 41,
+        rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "reserved:210g:60l:tower"]),
+        rts_unit_health_percents: vec![100, 92, 76, 68, 61],
+        rts_ability_command_ids: string_vec([
+            "move", "attack", "guard", "stop", "patrol", "deploy",
+        ]),
+        rts_ability_cooldown_percents: vec![0, 0, 22, 0, 36, 64],
+        rts_active_ability_id: Some("attack".to_string()),
+        rts_target_health_percent: 52,
+        rts_target_armor_percent: 28,
+        rts_target_shield_percent: 18,
+        rts_ability_damage_ticks: vec![16, 24, 32],
+        rts_ai_pressure_percent: 46,
+        rts_visibility_percent: 82,
+        rts_enemy_pressure_warning_percent: 33,
+        rts_army_supply_used: 12,
+        rts_army_supply_cap: 22,
+        rts_objective_capture_percent: 35,
+        rts_combat_event_log: string_vec(["attack:enemy_barracks", "guard:frontline", "rally:7,4"]),
+        last_feedback: "Skirmish command online: group 1 attack order queued".to_string(),
+        objective_status: "secure_forward_relay_and_break_enemy_base".to_string(),
+        ..Default::default()
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_openra_style_rts_shell(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
+    scene_id: &str,
+    player_tile: (i32, i32),
+) -> bool {
+    let rts_surface_active = runtime.rts_control_group_id.is_some()
+        || !runtime.rts_selected_unit_ids.is_empty()
+        || !runtime.rts_command_queue.is_empty();
+    if !rts_surface_active || width < 900 || height < 540 {
+        return false;
+    }
+
+    let width_i = width as i32;
+    let height_i = height as i32;
+    let sidebar_w = 264;
+    let bottom_h = 148;
+    let top_h = 34;
+    let sidebar_x = width_i - sidebar_w - 8;
+    let viewport_x = 8;
+    let viewport_y = top_h + 8;
+    let viewport_w = sidebar_x - viewport_x - 8;
+    let viewport_h = height_i - bottom_h - viewport_y - 8;
+    let bottom_y = height_i - bottom_h - 8;
+
+    classic_draw_rect(buffer, width, height, 0, 0, width_i, top_h, 0x101711);
+    classic_draw_rect(buffer, width, height, 0, top_h - 3, width_i, 3, 0x5d744f);
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        12,
+        10,
+        "TRNM RTS",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+
+    let gold = 620_u64.saturating_add(runtime.coins);
+    let power = 100_i32.saturating_sub((runtime.rts_ai_pressure_percent as i32 / 4).min(20));
+    let supply = format!(
+        "{}/{}",
+        runtime.rts_army_supply_used.max(1),
+        runtime
+            .rts_army_supply_cap
+            .max(runtime.rts_army_supply_used.max(1))
+    );
+    for (index, (label, value, color)) in [
+        ("CRED", gold.to_string(), CLASSIC_ISO_GOLD_COLOR),
+        (
+            "PWR",
+            format!("{}%", power.max(0)),
+            CLASSIC_RTS_VISIBILITY_BAR_COLOR,
+        ),
+        ("SUP", supply, CLASSIC_RTS_RESOURCE_FOOD_COLOR),
+        (
+            "VIS",
+            format!("{}%", runtime.rts_visibility_percent),
+            CLASSIC_RTS_MINIMAP_VISION_COLOR,
+        ),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let x = 120 + index as i32 * 132;
+        classic_draw_rect(buffer, width, height, x, 7, 10, 10, *color);
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 16,
+            8,
+            label,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 50,
+            8,
+            value,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        width_i - 260,
+        10,
+        "LOCAL SKIRMISH  OWNED ASSETS",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        viewport_x,
+        viewport_y,
+        viewport_w,
+        3,
+        CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        viewport_x,
+        viewport_y + viewport_h - 3,
+        viewport_w,
+        3,
+        classic_darken(CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR, 1, 3),
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        viewport_x,
+        viewport_y,
+        3,
+        viewport_h,
+        classic_darken(CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR, 1, 3),
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        viewport_x + viewport_w - 3,
+        viewport_y,
+        3,
+        viewport_h,
+        CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        viewport_x + 8,
+        viewport_y + 8,
+        214,
+        18,
+        0x0d1510,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        viewport_x + 16,
+        viewport_y + 14,
+        "TACTICAL VIEW  GROUP 1  ATTACK QUEUED",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_draw_panel_frame(
+        buffer,
+        width,
+        height,
+        sidebar_x,
+        viewport_y,
+        sidebar_w,
+        height_i - viewport_y - 8,
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        sidebar_x + 12,
+        viewport_y + 10,
+        "RADAR",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    let radar_x = sidebar_x + 12;
+    let radar_y = viewport_y + 28;
+    let radar_w = sidebar_w - 24;
+    let radar_h = 154;
+    classic_draw_rect(
+        buffer, width, height, radar_x, radar_y, radar_w, radar_h, 0x101913,
+    );
+    let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
+    let visible_tiles = classic_rts_visible_tiles(runtime, player_tile, &selected_units);
+    let cell_w = (radar_w - 8) / 12;
+    let cell_h = (radar_h - 8) / 8;
+    for row in 0..8 {
+        for col in 0..12 {
+            let tile_color = if (row + col) % 5 == 0 {
+                CLASSIC_RTS_MINIMAP_ROAD_COLOR
+            } else if row == 3 || col == 6 {
+                CLASSIC_RTS_MINIMAP_WATER_COLOR
+            } else {
+                CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
+            };
+            let x = radar_x + 4 + col * cell_w;
+            let y = radar_y + 4 + row * cell_h;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                cell_w - 1,
+                cell_h - 1,
+                tile_color,
+            );
+            if !visible_tiles.contains(&(col, row)) {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    x + 2,
+                    y + 2,
+                    cell_w - 4,
+                    cell_h - 4,
+                    0x0a0f0c,
+                );
+            }
+        }
+    }
+    for entity in &selected_units {
+        let x = radar_x + 4 + entity.tile.0.clamp(0, 11) * cell_w;
+        let y = radar_y + 4 + entity.tile.1.clamp(0, 7) * cell_h;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 2,
+            y + 2,
+            7,
+            7,
+            CLASSIC_ISO_CONTROL_GROUP_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        radar_x + 4 + player_tile.0.clamp(0, 11) * cell_w,
+        radar_y + 4 + player_tile.1.clamp(0, 7) * cell_h,
+        9,
+        9,
+        CLASSIC_ISO_UNIT_PLAYER_COLOR,
+    );
+    if let Some(destination_tile) = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+    {
+        let x = radar_x + 4 + destination_tile.0.clamp(0, 11) * cell_w;
+        let y = radar_y + 4 + destination_tile.1.clamp(0, 7) * cell_h;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x - 2,
+            y + 3,
+            13,
+            3,
+            CLASSIC_ISO_COMMAND_MARKER_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 3,
+            y - 2,
+            3,
+            13,
+            CLASSIC_ISO_COMMAND_MARKER_COLOR,
+        );
+    }
+
+    let prod_y = radar_y + radar_h + 16;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        sidebar_x + 12,
+        prod_y,
+        "PRODUCTION",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for index in 0..4 {
+        let x = sidebar_x + 12 + (index % 2) as i32 * 116;
+        let y = prod_y + 18 + (index / 2) as i32 * 34;
+        let label = runtime
+            .rts_production_queue
+            .get(index)
+            .or_else(|| runtime.rts_build_queue.get(index.saturating_sub(2)))
+            .map(String::as_str)
+            .unwrap_or("ready");
+        let progress = if index % 2 == 0 {
+            runtime.rts_training_progress_percent
+        } else {
+            runtime.rts_build_progress_percent
+        };
+        classic_draw_rts_queue_slot(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            label,
+            progress,
+            if index % 2 == 0 {
+                CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR
+            } else {
+                CLASSIC_RTS_BUILD_PROGRESS_COLOR
+            },
+        );
+    }
+
+    let palette_y = prod_y + 98;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        sidebar_x + 12,
+        palette_y,
+        "BUILD PALETTE",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for index in 0..8 {
+        let x = sidebar_x + 12 + (index % 4) as i32 * 58;
+        let y = palette_y + 18 + (index / 4) as i32 * 46;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            46,
+            36,
+            CLASSIC_RTS_ABILITY_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            46,
+            3,
+            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+        );
+        classic_draw_rect(buffer, width, height, x + 8, y + 8, 30, 14, 0x314532);
+        classic_draw_rect(buffer, width, height, x + 12, y + 5, 22, 4, 0x719566);
+        let label = ["PWR", "RAX", "REF", "TUR", "COM", "RAD", "WAL", "UPG"][index];
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 6,
+            y + 25,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    classic_draw_panel_frame(
+        buffer,
+        width,
+        height,
+        8,
+        bottom_y,
+        sidebar_x - 16,
+        bottom_h,
+        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        20,
+        bottom_y + 12,
+        "SELECTION",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for index in 0..selected_units.len().min(5) {
+        let x = 20 + index as i32 * 58;
+        let y = bottom_y + 30;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            48,
+            54,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+        let frame_id = match index {
+            0 => "actor_player_idle_south",
+            1 => "actor_mentor_idle",
+            2 => "actor_player_walk_east_1",
+            3 => "actor_enemy_idle",
+            _ => "prop_banner",
+        };
+        classic_blit_frame_scaled(buffer, width, height, assets, frame_id, x + 11, y + 8, 2);
+        let health = runtime
+            .rts_unit_health_percents
+            .get(index)
+            .copied()
+            .unwrap_or(80);
+        classic_draw_rect(buffer, width, height, x + 6, y + 45, 36, 4, 0x26331f);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 6,
+            y + 45,
+            (health.min(100) as i32 * 36) / 100,
+            4,
+            CLASSIC_RTS_UNIT_CARD_HEALTH_COLOR,
+        );
+    }
+    let group_id = runtime.rts_control_group_id.as_deref().unwrap_or("-");
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        20,
+        bottom_y + 94,
+        &format!("GROUP {group_id}  {} UNITS SELECTED", selected_units.len()),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        20,
+        bottom_y + 112,
+        &classic_catalog_text_label(&runtime.last_feedback, 62),
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
+    let command_x = 360;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        command_x,
+        bottom_y + 12,
+        "COMMANDS",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for index in 0..12 {
+        let x = command_x + (index % 6) as i32 * 58;
+        let y = bottom_y + 30 + (index / 6) as i32 * 46;
+        let ability = runtime
+            .rts_ability_command_ids
+            .get(index % runtime.rts_ability_command_ids.len().max(1))
+            .map(String::as_str)
+            .unwrap_or("hold");
+        let active = runtime.rts_active_ability_id.as_deref() == Some(ability);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            48,
+            38,
+            if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else {
+                CLASSIC_RTS_ABILITY_SLOT_COLOR
+            },
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 4,
+            y + 4,
+            40,
+            5,
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        );
+        classic_draw_rect(buffer, width, height, x + 8, y + 12, 32, 10, 0x263b2e);
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 6,
+            y + 27,
+            &classic_catalog_text_label(ability, 5),
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    let queue_x = command_x + 374;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        queue_x,
+        bottom_y + 12,
+        "ORDER QUEUE",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for (index, order) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+        let y = bottom_y + 32 + index as i32 * 18;
+        classic_draw_rect(buffer, width, height, queue_x, y, 220, 14, 0x111b14);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            queue_x,
+            y,
+            4,
+            14,
+            CLASSIC_ISO_COMMAND_MARKER_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            queue_x + 10,
+            y + 4,
+            &classic_catalog_text_label(&order.replace(':', " ").replace('_', " "), 32),
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+    true
 }
 
 fn seed_rendering_app_title_menu_state(app: &mut App) {
