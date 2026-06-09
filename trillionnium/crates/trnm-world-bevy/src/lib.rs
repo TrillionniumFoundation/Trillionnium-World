@@ -71769,6 +71769,14 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 NativeControlAction::Move { direction } => Some(direction.clone()),
                 _ => None,
             };
+            let rts_camera_sync_tile = match &action {
+                NativeControlAction::RtsMoveCommand { command_id }
+                    if command_id.starts_with("minimap:") =>
+                {
+                    classic_parse_rts_tile(classic_rts_move_command_parts(command_id).0)
+                }
+                _ => None,
+            };
             let _ = apply_live_native_action(
                 &mut world,
                 &mut character,
@@ -71781,6 +71789,12 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 if let Some(direction) = move_direction {
                     classic_move_player(&mut player_tile, &direction, GRID_COLS, GRID_ROWS);
                 }
+                if let Some(tile) = rts_camera_sync_tile {
+                    player_tile = (
+                        tile.0.clamp(0, GRID_COLS - 1),
+                        tile.1.clamp(0, GRID_ROWS - 1),
+                    );
+                }
             }
         }
         classic_draw_scene(
@@ -71791,6 +71805,7 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
             &first_playable,
             &assets,
         );
+        classic_draw_live_mouse_drag_marquee(&mut buffer, width, height, &mouse_latch);
         window.set_title(&classic_window_title(
             player_tile,
             &first_playable,
@@ -71808,6 +71823,8 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
 struct ClassicRuntimeMouseLatch {
     left_down: bool,
     right_down: bool,
+    left_anchor: Option<(i32, i32)>,
+    left_current: Option<(i32, i32)>,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -71910,41 +71927,79 @@ fn classic_poll_mouse_action(
     let left_down = window.get_mouse_down(MiniMouseButton::Left);
     let right_down = window.get_mouse_down(MiniMouseButton::Right);
     let left_pressed = left_down && !mouse_latch.left_down;
+    let left_released = !left_down && mouse_latch.left_down;
     let right_pressed = right_down && !mouse_latch.right_down;
-    let action = if left_pressed || right_pressed {
-        window
-            .get_mouse_pos(MiniMouseMode::Discard)
-            .and_then(|(x, y)| {
-                classic_rts_mouse_action_from_point(
-                    runtime,
-                    width,
-                    height,
-                    x as i32,
-                    y as i32,
-                    if left_pressed {
-                        MiniMouseButton::Left
-                    } else {
-                        MiniMouseButton::Right
-                    },
-                )
-            })
+    let mouse_pos = window
+        .get_mouse_pos(MiniMouseMode::Discard)
+        .map(|(x, y)| (x as i32, y as i32));
+    if left_pressed {
+        mouse_latch.left_anchor = mouse_pos;
+        mouse_latch.left_current = mouse_pos;
+    } else if left_down {
+        if let Some(pos) = mouse_pos {
+            mouse_latch.left_current = Some(pos);
+        }
+    }
+    let action = if right_pressed {
+        mouse_pos.and_then(|(x, y)| {
+            classic_rts_mouse_action_from_point(
+                runtime,
+                width,
+                height,
+                x,
+                y,
+                MiniMouseButton::Right,
+            )
+        })
+    } else if left_released {
+        let anchor = mouse_latch.left_anchor;
+        let release = mouse_pos.or(mouse_latch.left_current);
+        mouse_latch.left_anchor = None;
+        mouse_latch.left_current = None;
+        match (anchor, release) {
+            (Some(start), Some(end)) if classic_rts_drag_distance_sq(start, end) >= 36 => {
+                classic_rts_drag_action_from_points(runtime, width, height, start, end)
+            }
+            (_, Some((x, y))) => classic_rts_mouse_action_from_point(
+                runtime,
+                width,
+                height,
+                x,
+                y,
+                MiniMouseButton::Left,
+            ),
+            _ => None,
+        }
     } else {
         None
     };
+    if !left_down && !left_released {
+        mouse_latch.left_anchor = None;
+        mouse_latch.left_current = None;
+    }
     mouse_latch.left_down = left_down;
     mouse_latch.right_down = right_down;
     action
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_rts_mouse_action_from_point(
-    runtime: &NativeFirstPlayableRuntime,
-    width: usize,
-    height: usize,
-    mouse_x: i32,
-    mouse_y: i32,
-    button: MiniMouseButton,
-) -> Option<NativeControlAction> {
+#[derive(Debug, Clone, Copy)]
+struct ClassicRtsShellLayout {
+    sidebar_x: i32,
+    viewport_x: i32,
+    viewport_y: i32,
+    viewport_w: i32,
+    viewport_h: i32,
+    bottom_y: i32,
+    bottom_h: i32,
+    radar_x: i32,
+    radar_y: i32,
+    radar_w: i32,
+    radar_h: i32,
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_shell_layout(width: usize, height: usize) -> Option<ClassicRtsShellLayout> {
     if width < 900 || height < 540 {
         return None;
     }
@@ -71963,10 +72018,181 @@ fn classic_rts_mouse_action_from_point(
     let radar_y = viewport_y + 28;
     let radar_w = sidebar_w - 24;
     let radar_h = 154;
+    Some(ClassicRtsShellLayout {
+        sidebar_x,
+        viewport_x,
+        viewport_y,
+        viewport_w,
+        viewport_h,
+        bottom_y,
+        bottom_h,
+        radar_x,
+        radar_y,
+        radar_w,
+        radar_h,
+    })
+}
 
-    if classic_point_in_rect(mouse_x, mouse_y, radar_x, radar_y, radar_w, radar_h) {
+#[cfg(not(target_os = "android"))]
+fn classic_rts_drag_distance_sq(start: (i32, i32), end: (i32, i32)) -> i32 {
+    let dx = end.0 - start.0;
+    let dy = end.1 - start.1;
+    dx * dx + dy * dy
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_live_mouse_drag_marquee(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    mouse_latch: &ClassicRuntimeMouseLatch,
+) {
+    let (Some(start), Some(current)) = (mouse_latch.left_anchor, mouse_latch.left_current) else {
+        return;
+    };
+    if !mouse_latch.left_down || classic_rts_drag_distance_sq(start, current) < 36 {
+        return;
+    }
+    let x = start.0.min(current.0);
+    let y = start.1.min(current.1);
+    let w = (start.0 - current.0).abs().max(1);
+    let h = (start.1 - current.1).abs().max(1);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        w,
+        2,
+        CLASSIC_RTS_SELECTION_BOX_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y + h - 1,
+        w,
+        2,
+        CLASSIC_RTS_SELECTION_BOX_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        2,
+        h,
+        CLASSIC_RTS_SELECTION_BOX_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + w - 1,
+        y,
+        2,
+        h,
+        CLASSIC_RTS_SELECTION_BOX_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        x + 6,
+        y + 6,
+        "DRAG SELECT",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_drag_action_from_points(
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    start: (i32, i32),
+    end: (i32, i32),
+) -> Option<NativeControlAction> {
+    let layout = classic_rts_shell_layout(width, height)?;
+    if !classic_point_in_rect(
+        start.0,
+        start.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    ) || !classic_point_in_rect(
+        end.0,
+        end.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    ) {
+        return None;
+    }
+    let start_tile = classic_mouse_grid_tile(
+        start.0,
+        start.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    );
+    let end_tile = classic_mouse_grid_tile(
+        end.0,
+        end.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    );
+    let group_id = classic_rts_drag_group_id(start_tile, end_tile);
+    if runtime.rts_group_command_state == group_id {
+        return None;
+    }
+    Some(NativeControlAction::RtsSelectControlGroup { group_id })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_drag_group_id(start_tile: (i32, i32), end_tile: (i32, i32)) -> String {
+    format!(
+        "drag:{}->{}",
+        classic_rts_tile_id(start_tile),
+        classic_rts_tile_id(end_tile)
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_mouse_action_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_x: i32,
+    mouse_y: i32,
+    button: MiniMouseButton,
+) -> Option<NativeControlAction> {
+    let layout = classic_rts_shell_layout(width, height)?;
+
+    if classic_point_in_rect(
+        mouse_x,
+        mouse_y,
+        layout.radar_x,
+        layout.radar_y,
+        layout.radar_w,
+        layout.radar_h,
+    ) {
         let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
-            mouse_x, mouse_y, radar_x, radar_y, radar_w, radar_h,
+            mouse_x,
+            mouse_y,
+            layout.radar_x,
+            layout.radar_y,
+            layout.radar_w,
+            layout.radar_h,
         ));
         return match button {
             MiniMouseButton::Left | MiniMouseButton::Right => {
@@ -71978,7 +72204,26 @@ fn classic_rts_mouse_action_from_point(
         };
     }
 
-    if classic_point_in_rect(mouse_x, mouse_y, 8, bottom_y, sidebar_x - 16, bottom_h) {
+    if let Some(action) =
+        classic_rts_sidebar_action_from_point(runtime, &layout, mouse_x, mouse_y, button)
+    {
+        return Some(action);
+    }
+
+    if let Some(action) =
+        classic_rts_bottom_action_from_point(runtime, &layout, mouse_x, mouse_y, button)
+    {
+        return Some(action);
+    }
+
+    if classic_point_in_rect(
+        mouse_x,
+        mouse_y,
+        8,
+        layout.bottom_y,
+        layout.sidebar_x - 16,
+        layout.bottom_h,
+    ) {
         return match button {
             MiniMouseButton::Left => Some(NativeControlAction::RtsSelectControlGroup {
                 group_id: "box:frontline".to_string(),
@@ -71991,20 +72236,30 @@ fn classic_rts_mouse_action_from_point(
     }
 
     if classic_point_in_rect(
-        mouse_x, mouse_y, viewport_x, viewport_y, viewport_w, viewport_h,
+        mouse_x,
+        mouse_y,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
     ) {
         return match button {
             MiniMouseButton::Left => Some(NativeControlAction::RtsSelectControlGroup {
                 group_id: "box:frontline".to_string(),
             }),
             MiniMouseButton::Right => {
-                if mouse_x > viewport_x + (viewport_w * 2) / 3 {
+                if mouse_x > layout.viewport_x + (layout.viewport_w * 2) / 3 {
                     Some(NativeControlAction::RtsAttackCommand {
                         target_id: classic_next_runtime_rts_attack_target(runtime),
                     })
                 } else {
                     let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
-                        mouse_x, mouse_y, viewport_x, viewport_y, viewport_w, viewport_h,
+                        mouse_x,
+                        mouse_y,
+                        layout.viewport_x,
+                        layout.viewport_y,
+                        layout.viewport_w,
+                        layout.viewport_h,
                     ));
                     Some(NativeControlAction::RtsMoveCommand {
                         command_id: format!("{tile_id}:line"),
@@ -72015,6 +72270,158 @@ fn classic_rts_mouse_action_from_point(
         };
     }
     None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_sidebar_action_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    layout: &ClassicRtsShellLayout,
+    mouse_x: i32,
+    mouse_y: i32,
+    button: MiniMouseButton,
+) -> Option<NativeControlAction> {
+    if !matches!(button, MiniMouseButton::Left | MiniMouseButton::Right) {
+        return None;
+    }
+    let prod_y = layout.radar_y + layout.radar_h + 16;
+    for index in 0..4 {
+        let x = layout.sidebar_x + 12 + (index % 2) as i32 * 116;
+        let y = prod_y + 18 + (index / 2) as i32 * 34;
+        if classic_point_in_rect(mouse_x, mouse_y, x, y, 56, 18) {
+            return Some(NativeControlAction::RtsQueueProduction {
+                queue_id: classic_rts_production_slot_queue_id(runtime, index),
+            });
+        }
+    }
+    let palette_y = prod_y + 98;
+    for index in 0..8 {
+        let x = layout.sidebar_x + 12 + (index % 4) as i32 * 58;
+        let y = palette_y + 18 + (index / 4) as i32 * 46;
+        if classic_point_in_rect(mouse_x, mouse_y, x, y, 46, 36) {
+            return Some(NativeControlAction::RtsQueueProduction {
+                queue_id: classic_rts_build_palette_queue_id(index),
+            });
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_bottom_action_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    layout: &ClassicRtsShellLayout,
+    mouse_x: i32,
+    mouse_y: i32,
+    button: MiniMouseButton,
+) -> Option<NativeControlAction> {
+    if !matches!(button, MiniMouseButton::Left | MiniMouseButton::Right) {
+        return None;
+    }
+    let command_x = 360;
+    for index in 0..12 {
+        let x = command_x + (index % 6) as i32 * 58;
+        let y = layout.bottom_y + 30 + (index / 6) as i32 * 46;
+        if classic_point_in_rect(mouse_x, mouse_y, x, y, 48, 38) {
+            let ability = runtime
+                .rts_ability_command_ids
+                .get(index % runtime.rts_ability_command_ids.len().max(1))
+                .cloned()
+                .unwrap_or_else(|| "hold".to_string());
+            return Some(NativeControlAction::RtsAbilityCommand {
+                ability_id: ability,
+            });
+        }
+    }
+    let queue_x = command_x + 374;
+    for (index, order) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+        let y = layout.bottom_y + 32 + index as i32 * 18;
+        if classic_point_in_rect(mouse_x, mouse_y, queue_x, y, 220, 14) {
+            return classic_rts_action_from_order_entry(runtime, order);
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_production_slot_queue_id(
+    runtime: &NativeFirstPlayableRuntime,
+    index: usize,
+) -> String {
+    runtime
+        .rts_production_queue
+        .get(index)
+        .or_else(|| runtime.rts_build_queue.get(index.saturating_sub(2)))
+        .cloned()
+        .unwrap_or_else(|| {
+            if index % 2 == 0 {
+                classic_next_runtime_rts_train_queue(runtime)
+            } else {
+                classic_next_runtime_rts_build_queue(runtime)
+            }
+        })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_build_palette_queue_id(index: usize) -> String {
+    [
+        "build:power_node@5,3",
+        "build:training_hall@4,3",
+        "build:refinery@6,4",
+        "build:watch_tower@7,4",
+        "build:command_post@5,2",
+        "build:radar_spire@6,2",
+        "build:wall@8,4",
+        "upgrade:signal_blade",
+    ]
+    .get(index)
+    .copied()
+    .unwrap_or("build:watch_tower@7,4")
+    .to_string()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_action_from_order_entry(
+    runtime: &NativeFirstPlayableRuntime,
+    order: &str,
+) -> Option<NativeControlAction> {
+    let order = order.strip_prefix("queue:").unwrap_or(order);
+    if let Some(target_id) = order.strip_prefix("attack:") {
+        Some(NativeControlAction::RtsAttackCommand {
+            target_id: target_id.to_string(),
+        })
+    } else if let Some(tile_id) = order.strip_prefix("move:") {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: format!("{tile_id}:line"),
+        })
+    } else if order.starts_with("minimap:") {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: order.to_string(),
+        })
+    } else if let Some(ability_id) = order.strip_prefix("ability:") {
+        Some(NativeControlAction::RtsAbilityCommand {
+            ability_id: ability_id.to_string(),
+        })
+    } else if order.starts_with("build:")
+        || order.starts_with("train:")
+        || order.starts_with("upgrade:")
+        || order.starts_with("harvest:")
+        || order.starts_with("complete:")
+    {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: order.to_string(),
+        })
+    } else if order.starts_with("select_group_") {
+        Some(NativeControlAction::RtsSelectControlGroup {
+            group_id: order
+                .strip_prefix("select_group_")
+                .unwrap_or("1")
+                .to_string(),
+        })
+    } else {
+        Some(NativeControlAction::RtsAbilityCommand {
+            ability_id: classic_next_runtime_rts_ability(runtime),
+        })
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -93015,12 +93422,12 @@ fn classic_draw_openra_style_rts_shell(
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
     for (index, label) in [
-        "LMB SELECT  RMB ORDER",
+        "LMB CLICK/DRAG SELECT",
         "RADAR CLICK RALLY",
+        "SIDEBAR QUEUE/BUILD",
+        "ORDER QUEUE REPLAY",
         "1/2/3 SELECT GROUPS",
-        "M MOVE  A ATTACK",
-        "B BUILD  P TRAIN",
-        "G HARVEST  V/TAB ABIL",
+        "M/A/B/P/G/V HOTKEYS",
     ]
     .iter()
     .enumerate()
@@ -93082,6 +93489,24 @@ fn classic_draw_openra_style_rts_shell(
                 .map(|id| classic_catalog_text_label(id, 14))
                 .unwrap_or_else(|| "NONE".to_string()),
             runtime.rts_building_progress_percent.min(100)
+        ),
+        format!(
+            "CAM {} {}",
+            runtime
+                .rts_minimap_command_tile_id
+                .as_deref()
+                .unwrap_or_else(|| runtime
+                    .rts_command_destination_tile
+                    .as_deref()
+                    .unwrap_or("-")),
+            classic_catalog_text_label(
+                if runtime.rts_minimap_command_kind.is_empty() {
+                    "viewport"
+                } else {
+                    &runtime.rts_minimap_command_kind
+                },
+                12
+            )
         ),
     ];
     for (index, line) in state_lines.iter().enumerate() {
@@ -126298,6 +126723,51 @@ fn classic_rts_selection_box_tiles() -> Vec<String> {
     string_vec(["5,5", "6,5", "5,4", "6,4"])
 }
 
+fn classic_rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32))> {
+    let payload = group_id.strip_prefix("drag:")?;
+    let (start, end) = payload.split_once("->")?;
+    Some((classic_parse_rts_tile(start)?, classic_parse_rts_tile(end)?))
+}
+
+fn classic_rts_selection_box_tiles_between(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    let min_x = start.0.min(end.0).clamp(0, 11);
+    let max_x = start.0.max(end.0).clamp(0, 11);
+    let min_y = start.1.min(end.1).clamp(0, 7);
+    let max_y = start.1.max(end.1).clamp(0, 7);
+    let mut tiles = Vec::new();
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            tiles.push(classic_rts_tile_id((x, y)));
+        }
+    }
+    tiles
+}
+
+fn classic_rts_drag_selected_units(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    let min_x = start.0.min(end.0).clamp(0, 11);
+    let max_x = start.0.max(end.0).clamp(0, 11);
+    let min_y = start.1.min(end.1).clamp(0, 7);
+    let max_y = start.1.max(end.1).clamp(0, 7);
+    let mut selected = Vec::new();
+    for (unit_id, tile) in [
+        ("player", (5, 4)),
+        ("square_guard_front", (5, 4)),
+        ("square_guard_patrol", (7, 5)),
+        ("square_worker_carry", (4, 5)),
+        ("square_worker_harvest", (8, 5)),
+        ("square_creep_wander", (9, 4)),
+    ] {
+        if tile.0 >= min_x && tile.0 <= max_x && tile.1 >= min_y && tile.1 <= max_y {
+            push_unique_string(&mut selected, unit_id);
+        }
+    }
+    if selected.is_empty() {
+        classic_rts_default_group_units()
+    } else {
+        selected
+    }
+}
+
 fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {
     let command_payload = command_id.strip_prefix("minimap:").unwrap_or(command_id);
     let mut parts = command_payload.splitn(2, ':');
@@ -127268,7 +127738,8 @@ fn apply_classic_rts_select_group_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     group_id: &str,
 ) {
-    let normalized_group_id = if group_id == "box:frontline" {
+    let drag_selection = classic_rts_drag_selection_parts(group_id);
+    let normalized_group_id = if group_id == "box:frontline" || drag_selection.is_some() {
         "1"
     } else {
         group_id
@@ -127290,6 +127761,22 @@ fn apply_classic_rts_select_group_runtime(
             &mut first_playable.rts_command_queue,
             &format!(
                 "box_select:{}",
+                first_playable.rts_selection_box_tile_ids.join("|")
+            ),
+        );
+    } else if let Some((start, end)) = drag_selection {
+        first_playable.rts_selected_unit_ids = classic_rts_drag_selected_units(start, end);
+        first_playable.rts_selection_box_tile_ids =
+            classic_rts_selection_box_tiles_between(start, end);
+        push_unique_string(
+            &mut first_playable.rts_control_group_assignments,
+            &format!("1:drag:{}", first_playable.rts_selected_unit_ids.join("|")),
+        );
+        first_playable.rts_group_command_state = group_id.to_string();
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "drag_select:{}",
                 first_playable.rts_selection_box_tile_ids.join("|")
             ),
         );
@@ -127319,6 +127806,11 @@ fn apply_classic_rts_select_group_runtime(
     );
     first_playable.last_feedback = if group_id == "box:frontline" {
         "RTS box selected frontline into group 1".to_string()
+    } else if group_id.starts_with("drag:") {
+        format!(
+            "RTS drag selected {} units into group 1",
+            first_playable.rts_selected_unit_ids.len()
+        )
     } else {
         format!("RTS group {normalized_group_id} selected")
     };
@@ -135041,6 +135533,64 @@ mod tests {
                 command_id: "minimap:5,2:rally".to_string(),
             })
         );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                1028,
+                266,
+                MiniMouseButton::Left,
+            ),
+            Some(NativeControlAction::RtsQueueProduction {
+                queue_id: "train:worker".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                1200,
+                365,
+                MiniMouseButton::Left,
+            ),
+            Some(NativeControlAction::RtsQueueProduction {
+                queue_id: "build:watch_tower@7,4".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                424,
+                600,
+                MiniMouseButton::Left,
+            ),
+            Some(NativeControlAction::RtsAbilityCommand {
+                ability_id: "attack".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                740,
+                602,
+                MiniMouseButton::Left,
+            ),
+            Some(NativeControlAction::RtsQueueProduction {
+                queue_id: "train:worker".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_drag_action_from_points(&runtime, 1280, 720, (240, 180), (520, 350)),
+            Some(NativeControlAction::RtsSelectControlGroup {
+                group_id: "drag:2,2->6,4".to_string(),
+            })
+        );
 
         apply_live_native_action(
             &mut world,
@@ -135057,6 +135607,27 @@ mod tests {
             .rts_selected_unit_ids
             .iter()
             .any(|unit_id| unit_id == "square_creep_wander"));
+
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "drag:2,2->6,4".to_string(),
+            },
+        );
+        assert_eq!(runtime.rts_control_group_id.as_deref(), Some("1"));
+        assert!(runtime.rts_group_command_state.contains("drag:2,2->6,4"));
+        assert!(runtime
+            .rts_selection_box_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "5,4"));
+        assert!(runtime
+            .rts_selected_unit_ids
+            .iter()
+            .any(|unit_id| unit_id == "player"));
 
         let move_command = classic_next_runtime_rts_move_command(&runtime);
         apply_live_native_action(
