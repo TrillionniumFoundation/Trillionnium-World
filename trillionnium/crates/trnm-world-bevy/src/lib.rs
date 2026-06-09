@@ -87520,6 +87520,18 @@ fn classic_draw_iso_command_feedback(
                 CLASSIC_RTS_STRUCTURE_CANCEL_COLOR,
             );
         }
+        if !runtime.rts_refund_delta_log.is_empty() {
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                cancel_x - 22,
+                cancel_y + tile_h - 42,
+                "REFUND",
+                1,
+                CLASSIC_RTS_STRUCTURE_CANCEL_COLOR,
+            );
+        }
     }
     for structure_id in &runtime.rts_base_structure_ids {
         let base_tile = classic_rts_structure_tile_for_id(structure_id);
@@ -130311,6 +130323,7 @@ fn apply_classic_rts_queue_cancel_runtime(
 
     if let Some(removed_queue) = removed_queue {
         remove_latest_classic_rts_resource_commit(first_playable, &removed_queue);
+        apply_classic_rts_cancel_visual_feedback(first_playable, &removed_queue);
         push_history(
             &mut first_playable.rts_command_queue,
             &format!("cancel:{removed_queue}"),
@@ -130321,6 +130334,41 @@ fn apply_classic_rts_queue_cancel_runtime(
         first_playable.last_feedback = "RTS queue cancel ignored: empty slot".to_string();
     }
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
+fn apply_classic_rts_cancel_visual_feedback(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    removed_queue: &str,
+) {
+    let refund = classic_rts_queue_gold_cost(removed_queue);
+    if removed_queue.starts_with("build:") {
+        let (structure_id, tile_id) = classic_rts_build_parts(removed_queue);
+        push_unique_string(
+            &mut first_playable.rts_cancelled_structure_ids,
+            &structure_id,
+        );
+        first_playable.rts_command_destination_tile = Some(tile_id.clone());
+        first_playable.rts_minimap_command_tile_id = Some(tile_id.clone());
+        first_playable.rts_minimap_command_kind = "cancel_refund".to_string();
+        first_playable.rts_structure_state = format!("cancelled:{structure_id}@{tile_id}");
+        push_history(
+            &mut first_playable.rts_refund_delta_log,
+            &format!("gold:+{refund}"),
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("refund:{structure_id}@{tile_id}:gold:+{refund}"),
+        );
+    } else if refund > 0 {
+        push_history(
+            &mut first_playable.rts_refund_delta_log,
+            &format!("gold:+{refund}"),
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!("refund:{removed_queue}:gold:+{refund}"),
+        );
+    }
 }
 
 fn refresh_classic_rts_build_preview_after_queue_cancel(
@@ -130618,10 +130666,12 @@ fn apply_classic_rts_move_runtime(
         } else {
             "blocked_detour_spread".to_string()
         };
+        first_playable.rts_minimap_command_tile_id = Some(tile_id.to_string());
+        first_playable.rts_minimap_command_kind = formation.to_string();
+        first_playable.rts_group_route_tile_ids = first_playable.rts_path_tile_ids.clone();
         if formation == "rally" {
-            first_playable.rts_minimap_command_tile_id = Some(tile_id.to_string());
             first_playable.rts_minimap_command_kind = "rally".to_string();
-            first_playable.rts_group_route_tile_ids = first_playable.rts_path_tile_ids.clone();
+            first_playable.rts_army_rally_tile_ids = first_playable.rts_path_tile_ids.clone();
             first_playable.rts_group_command_state = format!("minimap_rally:{tile_id}");
             push_history(
                 &mut first_playable.rts_command_queue,
@@ -130638,6 +130688,8 @@ fn apply_classic_rts_move_runtime(
                     first_playable.rts_group_route_tile_ids.join(">")
                 ),
             );
+        } else {
+            first_playable.rts_group_command_state = format!("route:{formation}:{tile_id}");
         }
     }
     push_history(
@@ -136312,6 +136364,10 @@ mod tests {
             .rts_group_command_state
             .contains("minimap_rally:8,4"));
         assert!(!runtime.rts_path_tile_ids.is_empty());
+        assert_eq!(runtime.rts_minimap_command_tile_id.as_deref(), Some("8,4"));
+        assert_eq!(runtime.rts_minimap_command_kind, "rally");
+        assert_eq!(runtime.rts_group_route_tile_ids, runtime.rts_path_tile_ids);
+        assert_eq!(runtime.rts_army_rally_tile_ids, runtime.rts_path_tile_ids);
 
         let attack_target = classic_next_runtime_rts_attack_target(&runtime);
         apply_live_native_action(
@@ -136473,6 +136529,18 @@ mod tests {
         assert_eq!(
             classic_rts_resource_gold_commitment(&cancel_runtime),
             build_commitment_before
+        );
+        assert!(cancel_runtime
+            .rts_cancelled_structure_ids
+            .iter()
+            .any(|structure_id| structure_id == "watch_tower"));
+        assert!(cancel_runtime
+            .rts_refund_delta_log
+            .iter()
+            .any(|entry| entry == "gold:+210"));
+        assert_eq!(
+            cancel_runtime.rts_minimap_command_kind,
+            "cancel_refund".to_string()
         );
         assert!(cancel_runtime
             .rts_command_queue
