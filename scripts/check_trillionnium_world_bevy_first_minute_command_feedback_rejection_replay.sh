@@ -77,6 +77,8 @@ jq -e '
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:ability:rts_attack_required_before_ability") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:queue:rts_queue_id_required") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:select:rts_group_id_required") != null)
+  and .blocked_feedback_chip_pixel_count > 240
+  and (.stage_summaries | all(.frame_blocked_feedback_chip_pixel_count > 40))
   and (.stage_summaries | all(.renderer_path == "classic_draw_scene"))
   and (.stage_summaries | all(.input_path == "apply_live_native_action_with_source(first_minute_command_feedback_rejection_replay_input)"))
   and (.stage_summaries | map(.stage) | index("group_selection_required") != null)
@@ -129,6 +131,7 @@ jq -e '
   and .history_visual_gate == true
   and .history_prune_visual_gate == true
   and .rejection_visual_gate == true
+  and .blocked_feedback_chip_visual_gate == true
   and .original_art_policy_gate == true
   and .android_s5_real_device_claimed == false
   and .warcraft_iii_asset_copied == false

@@ -447,6 +447,7 @@ const CLASSIC_ISO_CONTROL_GROUP_COLOR: u32 = 0xb9f2ff;
 const CLASSIC_ISO_FORMATION_LINE_COLOR: u32 = 0xa4e86f;
 const CLASSIC_RTS_PATH_TILE_COLOR: u32 = 0x74c96b;
 const CLASSIC_RTS_BLOCKED_TILE_COLOR: u32 = 0xd6504d;
+const CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR: u32 = 0xff6262;
 const CLASSIC_RTS_FORMATION_SLOT_COLOR: u32 = 0xf4c95d;
 const CLASSIC_RTS_DISPERSION_SLOT_COLOR: u32 = 0xb7a6ff;
 const CLASSIC_RTS_ENGAGEMENT_RANGE_COLOR: u32 = 0xff9d4d;
@@ -16641,6 +16642,109 @@ fn classic_draw_rts_control_group_command_history_overlay(
             "CAP 3",
             1,
             CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_blocked_feedback_chip_visible(runtime: &NativeFirstPlayableRuntime) -> bool {
+    runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry.starts_with("feedback:blocked:"))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_blocked_feedback_chip_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    if width < 420 || height < 260 {
+        return;
+    }
+    let blocked_chips = runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .filter(|entry| entry.starts_with("feedback:blocked:"))
+        .take(4)
+        .collect::<Vec<_>>();
+    if blocked_chips.is_empty() {
+        return;
+    }
+
+    let panel_w = 244_i32.min(width as i32 - 24);
+    let panel_h = 26 + blocked_chips.len() as i32 * 18;
+    let panel_x = (width as i32 - panel_w - 12).max(12);
+    let panel_y = (height as i32 - panel_h - 18).max(48);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        panel_h,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        4,
+        CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 10,
+        "REJECTED COMMAND",
+        1,
+        CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR,
+    );
+    for (index, chip) in blocked_chips.iter().enumerate() {
+        let row_y = panel_y + 24 + index as i32 * 18;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 8,
+            row_y,
+            panel_w - 16,
+            14,
+            0x211514,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 8,
+            row_y,
+            5,
+            14,
+            CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR,
+        );
+        let label = chip
+            .strip_prefix("feedback:blocked:")
+            .unwrap_or(chip.as_str())
+            .replace(':', " ")
+            .replace('_', " ");
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 18,
+            row_y + 4,
+            &classic_catalog_text_label(&label, 30),
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
         );
     }
 }
@@ -73941,6 +74045,9 @@ fn classic_draw_scene(
     if classic_rts_control_group_command_history_visible(Some(runtime)) {
         classic_draw_rts_control_group_command_history_overlay(buffer, width, height, runtime);
     }
+    if classic_rts_blocked_feedback_chip_visible(runtime) {
+        classic_draw_rts_blocked_feedback_chip_overlay(buffer, width, height, runtime);
+    }
     if let Some(telegraph_stage) = classic_rts_ability_tooltip_telegraph_stage(Some(runtime)) {
         classic_draw_rts_ability_tooltip_telegraph_overlay(
             buffer,
@@ -95110,17 +95217,22 @@ fn classic_draw_openra_style_rts_shell(
     );
     for (index, order) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
         let y = bottom_y + 32 + index as i32 * 18;
-        classic_draw_rect(buffer, width, height, queue_x, y, 220, 14, 0x111b14);
+        let chip_color = classic_rts_order_queue_chip_color(order);
         classic_draw_rect(
             buffer,
             width,
             height,
             queue_x,
             y,
-            4,
+            220,
             14,
-            CLASSIC_ISO_COMMAND_MARKER_COLOR,
+            if order.starts_with("feedback:blocked:") {
+                0x211514
+            } else {
+                0x111b14
+            },
         );
+        classic_draw_rect(buffer, width, height, queue_x, y, 4, 14, chip_color);
         classic_draw_text(
             buffer,
             width,
@@ -95129,7 +95241,11 @@ fn classic_draw_openra_style_rts_shell(
             y + 4,
             &classic_catalog_text_label(&order.replace(':', " ").replace('_', " "), 32),
             1,
-            CLASSIC_HUD_TEXT_COLOR,
+            if order.starts_with("feedback:blocked:") {
+                CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
+            } else {
+                CLASSIC_HUD_TEXT_COLOR
+            },
         );
     }
     true
@@ -108781,6 +108897,24 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         command_queue_after_setup_input = command_queue_before_inputs.clone();
     }
     let input_telemetry_summary = native_input_telemetry_summary(&runtime);
+    let expected_blocked_reasons = string_vec([
+        "rts_group_selection_required",
+        "rts_invalid_tile:bad-tile",
+        "rts_attack_target_required",
+        "rts_attack_required_before_ability",
+        "rts_queue_id_required",
+        "rts_group_id_required",
+    ]);
+    let command_queue_blocked_feedback_chips: Vec<String> = command_queue_after_rejections
+        .iter()
+        .filter(|entry| entry.starts_with("feedback:blocked:"))
+        .cloned()
+        .collect();
+    let command_queue_blocked_feedback_chip_count = command_queue_blocked_feedback_chips.len();
+    let executable_command_queue_after_setup_input =
+        classic_rts_executable_command_queue_snapshot(&command_queue_after_setup_input);
+    let executable_command_queue_after_rejections =
+        classic_rts_executable_command_queue_snapshot(&command_queue_after_rejections);
 
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
@@ -108798,6 +108932,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
     let mut history_limit_pixel_count = 0_usize;
     let mut cleared_ready_pixel_count = 0_usize;
     let mut cleared_active_stale_pixel_count = 0_usize;
+    let mut blocked_feedback_chip_pixel_count = 0_usize;
     let visual_stages = [
         (
             "group_selection_required",
@@ -108827,6 +108962,9 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         ]);
         render_runtime.rts_ability_command_ids = string_vec(["move", "stop", "hold", "patrol"]);
         render_runtime.rts_command_queue = preserved_command_history_events.clone();
+        for chip in &command_queue_blocked_feedback_chips {
+            push_history(&mut render_runtime.rts_command_queue, chip);
+        }
         render_runtime.rts_group_command_state =
             format!("command_feedback_rejection:{stage}|control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded");
         render_runtime.rts_combat_event_log = string_vec([
@@ -108879,6 +109017,8 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         let frame_history_pruned_count =
             count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_PRUNED_COLOR);
         let frame_history_limit_count = count_frame_color(CLASSIC_RTS_COMMAND_HISTORY_LIMIT_COLOR);
+        let frame_blocked_feedback_chip_count =
+            count_frame_color(CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR);
         let frame_ready_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_READY_COLOR);
         let frame_active_stale_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR)
             + count_frame_color(CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR)
@@ -108894,6 +109034,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         history_retained_pixel_count += frame_history_retained_count;
         history_pruned_pixel_count += frame_history_pruned_count;
         history_limit_pixel_count += frame_history_limit_count;
+        blocked_feedback_chip_pixel_count += frame_blocked_feedback_chip_count;
         if *stage == "history_preserved_after_rejections" {
             cleared_ready_pixel_count = frame_ready_count;
             cleared_active_stale_pixel_count = frame_active_stale_count;
@@ -108947,6 +109088,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             "frame_history_retained_pixel_count": frame_history_retained_count,
             "frame_history_pruned_pixel_count": frame_history_pruned_count,
             "frame_history_limit_pixel_count": frame_history_limit_count,
+            "frame_blocked_feedback_chip_pixel_count": frame_blocked_feedback_chip_count,
             "frame_ready_pixel_count": frame_ready_count,
             "active_stale_signal_pixel_count": if *stage == "history_preserved_after_rejections" { frame_active_stale_count } else { 0 },
         }));
@@ -108955,24 +109097,6 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
 
-    let expected_blocked_reasons = string_vec([
-        "rts_group_selection_required",
-        "rts_invalid_tile:bad-tile",
-        "rts_attack_target_required",
-        "rts_attack_required_before_ability",
-        "rts_queue_id_required",
-        "rts_group_id_required",
-    ]);
-    let command_queue_blocked_feedback_chips: Vec<String> = command_queue_after_rejections
-        .iter()
-        .filter(|entry| entry.starts_with("feedback:blocked:"))
-        .cloned()
-        .collect();
-    let command_queue_blocked_feedback_chip_count = command_queue_blocked_feedback_chips.len();
-    let executable_command_queue_after_setup_input =
-        classic_rts_executable_command_queue_snapshot(&command_queue_after_setup_input);
-    let executable_command_queue_after_rejections =
-        classic_rts_executable_command_queue_snapshot(&command_queue_after_rejections);
     let command_action_parse_gate = parsed_rejection_steps.len() == 7
         && replay_steps
             .iter()
@@ -109087,6 +109211,14 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
                 .and_then(|value| value.as_str())
                 == Some("classic_draw_scene")
         });
+    let blocked_feedback_chip_visual_gate = blocked_feedback_chip_pixel_count > 240
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("frame_blocked_feedback_chip_pixel_count")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                > 40
+        });
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -109105,6 +109237,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && history_visual_gate
         && history_prune_visual_gate
         && rejection_visual_gate
+        && blocked_feedback_chip_visual_gate
         && write_gate
         && original_art_policy_gate;
 
@@ -109177,6 +109310,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "history_retained_pixel_count": history_retained_pixel_count,
         "history_pruned_pixel_count": history_pruned_pixel_count,
         "history_limit_pixel_count": history_limit_pixel_count,
+        "blocked_feedback_chip_pixel_count": blocked_feedback_chip_pixel_count,
         "cleared_ready_pixel_count": cleared_ready_pixel_count,
         "cleared_active_stale_pixel_count": cleared_active_stale_pixel_count,
         "first_minute_replay_gate": first_minute_replay_gate,
@@ -109195,6 +109329,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "history_visual_gate": history_visual_gate,
         "history_prune_visual_gate": history_prune_visual_gate,
         "rejection_visual_gate": rejection_visual_gate,
+        "blocked_feedback_chip_visual_gate": blocked_feedback_chip_visual_gate,
         "original_art_policy_gate": original_art_policy_gate,
         "android_s5_real_device_claimed": false,
         "warcraft_iii_asset_copied": false,
@@ -131313,6 +131448,18 @@ fn classic_rts_executable_command_queue_snapshot(queue: &[String]) -> Vec<String
         .filter(|entry| !entry.starts_with("feedback:blocked:"))
         .cloned()
         .collect()
+}
+
+fn classic_rts_order_queue_chip_color(order: &str) -> u32 {
+    if order.starts_with("feedback:blocked:") {
+        CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
+    } else if order.contains("cancel") {
+        CLASSIC_RTS_COMMAND_STRIP_CANCEL_COLOR
+    } else if order.starts_with("feedback:") {
+        CLASSIC_RTS_COMMAND_STRIP_QUEUE_COLOR
+    } else {
+        CLASSIC_ISO_COMMAND_MARKER_COLOR
+    }
 }
 
 fn apply_classic_rts_cancel_visual_feedback(
