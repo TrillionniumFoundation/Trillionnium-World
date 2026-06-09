@@ -14,7 +14,10 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitSettings;
 #[cfg(not(target_os = "android"))]
-use minifb::{Key as MiniKey, KeyRepeat as MiniKeyRepeat, Window as MiniWindow};
+use minifb::{
+    Key as MiniKey, KeyRepeat as MiniKeyRepeat, MouseButton as MiniMouseButton,
+    MouseMode as MiniMouseMode, Window as MiniWindow,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -71743,6 +71746,7 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         .filter(|fps| *fps > 0)
         .unwrap_or(30);
     window.set_target_fps(classic_fps);
+    let mut mouse_latch = ClassicRuntimeMouseLatch::default();
 
     classic_draw_scene(
         &mut buffer,
@@ -71757,7 +71761,9 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         .expect("classic low spec renderer presents first frame");
 
     while window.is_open() && !window.is_key_down(MiniKey::Escape) {
-        if let Some(action) = classic_poll_action(&window, &first_playable) {
+        if let Some(action) =
+            classic_poll_action(&window, &first_playable, width, height, &mut mouse_latch)
+        {
             let accepted = native_live_action_availability(&first_playable, &action).0;
             let move_direction = match &action {
                 NativeControlAction::Move { direction } => Some(direction.clone()),
@@ -71798,19 +71804,67 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
 }
 
 #[cfg(not(target_os = "android"))]
+#[derive(Debug, Default)]
+struct ClassicRuntimeMouseLatch {
+    left_down: bool,
+    right_down: bool,
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_poll_action(
     window: &MiniWindow,
     runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_latch: &mut ClassicRuntimeMouseLatch,
 ) -> Option<NativeControlAction> {
-    if window.is_key_pressed(MiniKey::Right, MiniKeyRepeat::Yes)
+    if let Some(action) = classic_poll_mouse_action(window, runtime, width, height, mouse_latch) {
+        Some(action)
+    } else if window.is_key_pressed(MiniKey::Key1, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsSelectControlGroup {
+            group_id: "1".to_string(),
+        })
+    } else if window.is_key_pressed(MiniKey::Key2, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsSelectControlGroup {
+            group_id: "2".to_string(),
+        })
+    } else if window.is_key_pressed(MiniKey::Key3, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsSelectControlGroup {
+            group_id: "box:frontline".to_string(),
+        })
+    } else if window.is_key_pressed(MiniKey::M, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsMoveCommand {
+            command_id: classic_next_runtime_rts_move_command(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::A, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsAttackCommand {
+            target_id: classic_next_runtime_rts_attack_target(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::B, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: classic_next_runtime_rts_build_queue(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::P, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: classic_next_runtime_rts_train_queue(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::G, MiniKeyRepeat::No) {
+        Some(NativeControlAction::RtsQueueProduction {
+            queue_id: classic_next_runtime_rts_economy_queue(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::V, MiniKeyRepeat::No)
+        || window.is_key_pressed(MiniKey::Tab, MiniKeyRepeat::No)
+    {
+        Some(NativeControlAction::RtsAbilityCommand {
+            ability_id: classic_next_runtime_rts_ability(runtime),
+        })
+    } else if window.is_key_pressed(MiniKey::Right, MiniKeyRepeat::Yes)
         || window.is_key_pressed(MiniKey::D, MiniKeyRepeat::Yes)
     {
         Some(NativeControlAction::Move {
             direction: "east".to_string(),
         })
-    } else if window.is_key_pressed(MiniKey::Left, MiniKeyRepeat::Yes)
-        || window.is_key_pressed(MiniKey::A, MiniKeyRepeat::Yes)
-    {
+    } else if window.is_key_pressed(MiniKey::Left, MiniKeyRepeat::Yes) {
         Some(NativeControlAction::Move {
             direction: "west".to_string(),
         })
@@ -71843,6 +71897,216 @@ fn classic_poll_action(
     } else {
         None
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_poll_mouse_action(
+    window: &MiniWindow,
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_latch: &mut ClassicRuntimeMouseLatch,
+) -> Option<NativeControlAction> {
+    let left_down = window.get_mouse_down(MiniMouseButton::Left);
+    let right_down = window.get_mouse_down(MiniMouseButton::Right);
+    let left_pressed = left_down && !mouse_latch.left_down;
+    let right_pressed = right_down && !mouse_latch.right_down;
+    let action = if left_pressed || right_pressed {
+        window
+            .get_mouse_pos(MiniMouseMode::Discard)
+            .and_then(|(x, y)| {
+                classic_rts_mouse_action_from_point(
+                    runtime,
+                    width,
+                    height,
+                    x as i32,
+                    y as i32,
+                    if left_pressed {
+                        MiniMouseButton::Left
+                    } else {
+                        MiniMouseButton::Right
+                    },
+                )
+            })
+    } else {
+        None
+    };
+    mouse_latch.left_down = left_down;
+    mouse_latch.right_down = right_down;
+    action
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_mouse_action_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_x: i32,
+    mouse_y: i32,
+    button: MiniMouseButton,
+) -> Option<NativeControlAction> {
+    if width < 900 || height < 540 {
+        return None;
+    }
+    let width_i = width as i32;
+    let height_i = height as i32;
+    let sidebar_w = 264;
+    let bottom_h = 148;
+    let top_h = 34;
+    let sidebar_x = width_i - sidebar_w - 8;
+    let viewport_x = 8;
+    let viewport_y = top_h + 8;
+    let viewport_w = sidebar_x - viewport_x - 8;
+    let viewport_h = height_i - bottom_h - viewport_y - 8;
+    let bottom_y = height_i - bottom_h - 8;
+    let radar_x = sidebar_x + 12;
+    let radar_y = viewport_y + 28;
+    let radar_w = sidebar_w - 24;
+    let radar_h = 154;
+
+    if classic_point_in_rect(mouse_x, mouse_y, radar_x, radar_y, radar_w, radar_h) {
+        let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
+            mouse_x, mouse_y, radar_x, radar_y, radar_w, radar_h,
+        ));
+        return match button {
+            MiniMouseButton::Left | MiniMouseButton::Right => {
+                Some(NativeControlAction::RtsMoveCommand {
+                    command_id: format!("minimap:{tile_id}:rally"),
+                })
+            }
+            MiniMouseButton::Middle => None,
+        };
+    }
+
+    if classic_point_in_rect(mouse_x, mouse_y, 8, bottom_y, sidebar_x - 16, bottom_h) {
+        return match button {
+            MiniMouseButton::Left => Some(NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            }),
+            MiniMouseButton::Right => Some(NativeControlAction::RtsAbilityCommand {
+                ability_id: classic_next_runtime_rts_ability(runtime),
+            }),
+            MiniMouseButton::Middle => None,
+        };
+    }
+
+    if classic_point_in_rect(
+        mouse_x, mouse_y, viewport_x, viewport_y, viewport_w, viewport_h,
+    ) {
+        return match button {
+            MiniMouseButton::Left => Some(NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            }),
+            MiniMouseButton::Right => {
+                if mouse_x > viewport_x + (viewport_w * 2) / 3 {
+                    Some(NativeControlAction::RtsAttackCommand {
+                        target_id: classic_next_runtime_rts_attack_target(runtime),
+                    })
+                } else {
+                    let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
+                        mouse_x, mouse_y, viewport_x, viewport_y, viewport_w, viewport_h,
+                    ));
+                    Some(NativeControlAction::RtsMoveCommand {
+                        command_id: format!("{tile_id}:line"),
+                    })
+                }
+            }
+            MiniMouseButton::Middle => None,
+        };
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_point_in_rect(
+    x: i32,
+    y: i32,
+    rect_x: i32,
+    rect_y: i32,
+    rect_w: i32,
+    rect_h: i32,
+) -> bool {
+    x >= rect_x && y >= rect_y && x < rect_x + rect_w && y < rect_y + rect_h
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_mouse_grid_tile(
+    x: i32,
+    y: i32,
+    rect_x: i32,
+    rect_y: i32,
+    rect_w: i32,
+    rect_h: i32,
+) -> (i32, i32) {
+    let col = (((x - rect_x).max(0) * 12) / rect_w.max(1)).clamp(0, 11);
+    let row = (((y - rect_y).max(0) * 8) / rect_h.max(1)).clamp(0, 7);
+    (col, row)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_move_command(runtime: &NativeFirstPlayableRuntime) -> String {
+    match runtime.rts_command_destination_tile.as_deref() {
+        Some("7,4") => "8,4:rally".to_string(),
+        Some("8,4") => "6,5:split".to_string(),
+        Some("6,5") => "9,2:wedge".to_string(),
+        Some("9,2") => "7,4:line".to_string(),
+        _ => "7,4:line".to_string(),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_attack_target(runtime: &NativeFirstPlayableRuntime) -> String {
+    match runtime.rts_attack_target_id.as_deref() {
+        Some("enemy_barracks") => "forest_creep_camp".to_string(),
+        Some("forest_creep_camp") => "arena_creep_attack".to_string(),
+        _ => "enemy_barracks".to_string(),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_build_queue(runtime: &NativeFirstPlayableRuntime) -> String {
+    match runtime.rts_building_blueprint_id.as_deref() {
+        Some("watch_tower") => "build:training_hall@4,3".to_string(),
+        Some("training_hall") => "build:signal_spire@6,3".to_string(),
+        Some("signal_spire") => "complete:signal_spire@6,3".to_string(),
+        _ => "build:watch_tower@7,4".to_string(),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_train_queue(runtime: &NativeFirstPlayableRuntime) -> String {
+    if runtime
+        .rts_production_queue
+        .iter()
+        .rev()
+        .any(|entry| entry.contains("guard"))
+    {
+        "train:scout".to_string()
+    } else {
+        "train:guard".to_string()
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_economy_queue(runtime: &NativeFirstPlayableRuntime) -> String {
+    if runtime.rts_economy_state.contains("gold_vein") {
+        "harvest:lumber_copse".to_string()
+    } else {
+        "harvest:gold_vein".to_string()
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_next_runtime_rts_ability(runtime: &NativeFirstPlayableRuntime) -> String {
+    let current = runtime.rts_active_ability_id.as_deref();
+    runtime
+        .rts_ability_command_ids
+        .iter()
+        .position(|ability| Some(ability.as_str()) == current)
+        .and_then(|index| runtime.rts_ability_command_ids.get(index + 1))
+        .or_else(|| runtime.rts_ability_command_ids.first())
+        .cloned()
+        .unwrap_or_else(|| "attack".to_string())
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92276,7 +92540,7 @@ fn classic_window_title(
     assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium classic atlas={} | room={} tile=({}, {}) xp={} | arrows/WASD move R talk T train F fight C complete I equip Enter next | {} -> {}",
+        "Trillionnium RTS atlas={} | room={} tile=({}, {}) xp={} | LMB select/radar RMB move/attack 1/2/3 groups M move A attack B build P train G harvest V/Tab ability | {} -> {}",
         assets.manifest.contract_version,
         runtime.current_room_id,
         player_tile.0,
@@ -92337,6 +92601,13 @@ fn classic_openra_style_skirmish_runtime() -> NativeFirstPlayableRuntime {
         rts_training_progress_percent: 68,
         rts_build_progress_percent: 41,
         rts_resource_spend_log: string_vec(["spent:140g:30l:guard", "reserved:210g:60l:tower"]),
+        rts_build_site_tile_ids: string_vec(["7,4", "7,5", "8,4"]),
+        rts_building_blueprint_id: Some("watch_tower".to_string()),
+        rts_building_progress_percent: 41,
+        rts_base_structure_ids: string_vec(["town_hall", "training_hall"]),
+        rts_completed_structure_ids: string_vec(["town_hall"]),
+        rts_structure_health_percents: vec![100, 82],
+        rts_economy_state: "harvesting:gold_vein".to_string(),
         rts_unit_health_percents: vec![100, 92, 76, 68, 61],
         rts_ability_command_ids: string_vec([
             "move", "attack", "guard", "stop", "patrol", "deploy",
@@ -92729,6 +93000,100 @@ fn classic_draw_openra_style_rts_shell(
             label,
             1,
             CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    let input_y = palette_y + 118;
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        sidebar_x + 12,
+        input_y,
+        "LIVE INPUT",
+        1,
+        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    );
+    for (index, label) in [
+        "LMB SELECT  RMB ORDER",
+        "RADAR CLICK RALLY",
+        "1/2/3 SELECT GROUPS",
+        "M MOVE  A ATTACK",
+        "B BUILD  P TRAIN",
+        "G HARVEST  V/TAB ABIL",
+    ]
+    .iter()
+    .enumerate()
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            sidebar_x + 12,
+            input_y + 18 + index as i32 * 17,
+            sidebar_w - 24,
+            14,
+            0x111b14,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            sidebar_x + 12,
+            input_y + 18 + index as i32 * 17,
+            4,
+            14,
+            if index == 0 {
+                CLASSIC_ISO_CONTROL_GROUP_COLOR
+            } else {
+                CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR
+            },
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            sidebar_x + 22,
+            input_y + 22 + index as i32 * 17,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+    let state_y = input_y + 132;
+    let state_lines = [
+        format!(
+            "ORDER {}",
+            classic_catalog_text_label(&runtime.rts_group_command_state, 24)
+        ),
+        format!(
+            "TARGET {}",
+            runtime
+                .rts_attack_target_id
+                .as_deref()
+                .map(|target| classic_catalog_text_label(target, 22))
+                .unwrap_or_else(|| "NONE".to_string())
+        ),
+        format!(
+            "BUILD {} {}",
+            runtime
+                .rts_building_blueprint_id
+                .as_deref()
+                .map(|id| classic_catalog_text_label(id, 14))
+                .unwrap_or_else(|| "NONE".to_string()),
+            runtime.rts_building_progress_percent.min(100)
+        ),
+    ];
+    for (index, line) in state_lines.iter().enumerate() {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            sidebar_x + 12,
+            state_y + index as i32 * 16,
+            line,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
         );
     }
 
@@ -134618,6 +134983,185 @@ mod tests {
             .any(|skill| skill == "basic_unarmed"));
         let log = app.world().resource::<NativeGameplayLog>();
         assert_eq!(log.last_result, "skill_training_recorded");
+    }
+
+    #[test]
+    fn classic_low_spec_rts_hotkeys_drive_visible_runtime_state() {
+        let actor_id = "local-player";
+        let mut world = native_bevy_playable_fixture();
+        let mut character = WorldTrillionniumCharacter::default_for(actor_id);
+        let mut log = NativeGameplayLog::default();
+        let mut runtime = classic_openra_style_skirmish_runtime();
+
+        assert_eq!(classic_next_runtime_rts_move_command(&runtime), "8,4:rally");
+        assert_eq!(
+            classic_next_runtime_rts_attack_target(&runtime),
+            "forest_creep_camp"
+        );
+        assert_eq!(
+            classic_next_runtime_rts_build_queue(&runtime),
+            "build:training_hall@4,3"
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                420,
+                240,
+                MiniMouseButton::Left,
+            ),
+            Some(NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                920,
+                240,
+                MiniMouseButton::Right,
+            ),
+            Some(NativeControlAction::RtsAttackCommand {
+                target_id: "forest_creep_camp".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                1120,
+                120,
+                MiniMouseButton::Right,
+            ),
+            Some(NativeControlAction::RtsMoveCommand {
+                command_id: "minimap:5,2:rally".to_string(),
+            })
+        );
+
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "2".to_string(),
+            },
+        );
+        assert_eq!(runtime.rts_control_group_id.as_deref(), Some("2"));
+        assert!(runtime
+            .rts_selected_unit_ids
+            .iter()
+            .any(|unit_id| unit_id == "square_creep_wander"));
+
+        let move_command = classic_next_runtime_rts_move_command(&runtime);
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsMoveCommand {
+                command_id: move_command,
+            },
+        );
+        assert_eq!(runtime.rts_command_destination_tile.as_deref(), Some("8,4"));
+        assert!(runtime
+            .rts_group_command_state
+            .contains("minimap_rally:8,4"));
+        assert!(!runtime.rts_path_tile_ids.is_empty());
+
+        let attack_target = classic_next_runtime_rts_attack_target(&runtime);
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsAttackCommand {
+                target_id: attack_target,
+            },
+        );
+        assert_eq!(
+            runtime.rts_attack_target_id.as_deref(),
+            Some("forest_creep_camp")
+        );
+        assert!(!runtime.rts_engagement_tile_ids.is_empty());
+
+        let build_queue = classic_next_runtime_rts_build_queue(&runtime);
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsQueueProduction {
+                queue_id: build_queue,
+            },
+        );
+        assert_eq!(
+            runtime.rts_building_blueprint_id.as_deref(),
+            Some("training_hall")
+        );
+        assert!(runtime
+            .rts_build_site_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "4,3"));
+
+        let train_queue = classic_next_runtime_rts_train_queue(&runtime);
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsQueueProduction {
+                queue_id: train_queue,
+            },
+        );
+        assert!(runtime
+            .rts_production_queue
+            .iter()
+            .any(|queue_id| queue_id == "train:scout"));
+
+        let economy_queue = classic_next_runtime_rts_economy_queue(&runtime);
+        let economy_node = economy_queue
+            .strip_prefix("harvest:")
+            .unwrap_or(economy_queue.as_str())
+            .to_string();
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsQueueProduction {
+                queue_id: economy_queue,
+            },
+        );
+        assert!(runtime
+            .rts_harvest_node_ids
+            .iter()
+            .any(|node_id| node_id == &economy_node));
+
+        let ability_id = classic_next_runtime_rts_ability(&runtime);
+        apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            NativeControlAction::RtsAbilityCommand { ability_id },
+        );
+        assert_eq!(runtime.rts_active_ability_id.as_deref(), Some("focus_fire"));
+        assert!(runtime
+            .rts_combat_event_log
+            .iter()
+            .any(|event| event.contains("focus_fire")));
     }
 
     #[test]
