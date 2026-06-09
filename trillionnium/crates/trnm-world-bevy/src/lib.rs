@@ -71731,10 +71731,18 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         classic_openra_style_skirmish_runtime()
     };
     let scripted_demo_id = env::var("TRNM_WORLD_BEVY_CLASSIC_SCRIPTED_DEMO").ok();
+    let mut scripted_demo_stage = None;
     if let Some(demo_id) = scripted_demo_id.as_deref() {
-        apply_classic_rts_scripted_demo_runtime(&mut first_playable, &demo_id);
+        if let Some(stage) = classic_rts_scripted_demo_stage_from_frame(demo_id, 0) {
+            apply_classic_rts_scripted_demo_stage_runtime(&mut first_playable, stage);
+            scripted_demo_stage = Some(stage);
+        } else {
+            apply_classic_rts_scripted_demo_runtime(&mut first_playable, &demo_id);
+        }
     }
-    let pause_classic_queue_tick = scripted_demo_id.as_deref() == Some("queue_cancel_refund")
+    let pause_classic_queue_tick = scripted_demo_id
+        .as_deref()
+        .is_some_and(classic_rts_scripted_demo_pauses_queue_tick)
         || native_bool_env_enabled_with_default("TRNM_WORLD_BEVY_CLASSIC_PAUSE_QUEUE_TICK", false);
     let assets = load_classic_runtime_assets();
     let mut player_tile = (5_i32, 4_i32);
@@ -71805,6 +71813,15 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
             }
         }
         frame_tick = frame_tick.wrapping_add(1);
+        if let Some(demo_id) = scripted_demo_id.as_deref() {
+            if let Some(stage) = classic_rts_scripted_demo_stage_from_frame(demo_id, frame_tick) {
+                if scripted_demo_stage != Some(stage) {
+                    first_playable = classic_openra_style_skirmish_runtime();
+                    apply_classic_rts_scripted_demo_stage_runtime(&mut first_playable, stage);
+                    scripted_demo_stage = Some(stage);
+                }
+            }
+        }
         if !pause_classic_queue_tick {
             classic_tick_openra_style_rts_runtime(&mut first_playable, frame_tick);
         }
@@ -130386,6 +130403,27 @@ fn apply_classic_rts_scripted_demo_runtime(
     if demo_id != "queue_cancel_refund" {
         return;
     }
+    apply_classic_rts_scripted_demo_stage_runtime(first_playable, 4);
+}
+
+fn classic_rts_scripted_demo_pauses_queue_tick(demo_id: &str) -> bool {
+    matches!(
+        demo_id,
+        "queue_cancel_refund" | "queue_cancel_refund_sequence"
+    )
+}
+
+fn classic_rts_scripted_demo_stage_from_frame(demo_id: &str, frame_tick: u64) -> Option<usize> {
+    match demo_id {
+        "queue_cancel_refund_sequence" => Some(((frame_tick / 60) % 5) as usize),
+        _ => None,
+    }
+}
+
+fn apply_classic_rts_scripted_demo_stage_runtime(
+    first_playable: &mut NativeFirstPlayableRuntime,
+    stage: usize,
+) {
     first_playable.rts_production_queue.clear();
     first_playable.rts_build_queue.clear();
     first_playable.rts_resource_spend_log.clear();
@@ -130393,16 +130431,48 @@ fn apply_classic_rts_scripted_demo_runtime(
     first_playable.rts_cancelled_structure_ids.clear();
     first_playable.rts_refund_delta_log.clear();
     first_playable.rts_army_rally_tile_ids.clear();
-    apply_classic_rts_select_group_runtime(first_playable, "1");
-    apply_classic_rts_move_runtime(first_playable, "8,4", "rally");
-    apply_classic_rts_queue_runtime(first_playable, "build:watch_tower@7,4");
-    apply_classic_rts_queue_cancel_runtime(first_playable, "build:0");
-    apply_classic_rts_queue_runtime(first_playable, "train:worker");
-    first_playable.rts_training_progress_percent = 0;
+    first_playable.rts_group_route_tile_ids.clear();
+    first_playable.rts_path_tile_ids.clear();
+    first_playable.rts_build_site_tile_ids.clear();
+    first_playable.rts_selected_unit_ids.clear();
+    first_playable.rts_selection_box_tile_ids.clear();
+    first_playable.rts_army_spawned_unit_ids.clear();
+    first_playable.rts_minimap_command_tile_id = None;
+    first_playable.rts_minimap_command_kind.clear();
+    first_playable.rts_command_destination_tile = None;
+    first_playable.rts_building_blueprint_id = None;
     first_playable.rts_build_progress_percent = 0;
     first_playable.rts_building_progress_percent = 0;
-    first_playable.last_feedback =
-        "RTS demo: queued worker, canceled tower, refund visible".to_string();
+    first_playable.rts_training_progress_percent = 0;
+
+    apply_classic_rts_select_group_runtime(first_playable, "box:frontline");
+    first_playable.rts_group_command_state = "demo_1_select_frontline".to_string();
+    first_playable.last_feedback = "RTS demo 1/5: drag-select control group".to_string();
+
+    if stage >= 1 {
+        apply_classic_rts_move_runtime(first_playable, "8,4", "rally");
+        first_playable.rts_group_command_state = "demo_2_rally_path_8_4".to_string();
+        first_playable.last_feedback = "RTS demo 2/5: rally path and minimap marker".to_string();
+    }
+    if stage >= 2 {
+        apply_classic_rts_queue_runtime(first_playable, "build:watch_tower@7,4");
+        first_playable.rts_build_progress_percent = 24;
+        first_playable.rts_building_progress_percent = 24;
+        first_playable.rts_group_command_state = "demo_3_queue_watch_tower".to_string();
+        first_playable.last_feedback = "RTS demo 3/5: queue watch tower footprint".to_string();
+    }
+    if stage >= 3 {
+        apply_classic_rts_queue_cancel_runtime(first_playable, "build:0");
+        first_playable.rts_group_command_state = "demo_4_cancel_refund".to_string();
+        first_playable.last_feedback = "RTS demo 4/5: cancel tower and refund gold".to_string();
+    }
+    if stage >= 4 {
+        apply_classic_rts_queue_runtime(first_playable, "train:worker");
+        first_playable.rts_training_progress_percent = 0;
+        first_playable.rts_group_command_state = "demo_5_worker_queue_ready".to_string();
+        first_playable.last_feedback =
+            "RTS demo 5/5: queued worker; canceled tower; refund visible".to_string();
+    }
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
 }
 
@@ -136619,6 +136689,69 @@ mod tests {
             .rts_army_rally_tile_ids
             .iter()
             .any(|tile_id| tile_id == "8,4"));
+
+        assert_eq!(
+            classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 0),
+            Some(0)
+        );
+        assert_eq!(
+            classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 60),
+            Some(1)
+        );
+        assert_eq!(
+            classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 240),
+            Some(4)
+        );
+        assert_eq!(
+            classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 300),
+            Some(0)
+        );
+        assert_eq!(
+            classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund", 60),
+            None
+        );
+        assert!(classic_rts_scripted_demo_pauses_queue_tick(
+            "queue_cancel_refund_sequence"
+        ));
+
+        let mut sequence_runtime = classic_openra_style_skirmish_runtime();
+        apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 0);
+        assert!(sequence_runtime.rts_selected_unit_ids.len() >= 3);
+        assert!(sequence_runtime.rts_production_queue.is_empty());
+        assert!(sequence_runtime.rts_build_queue.is_empty());
+        assert!(sequence_runtime.rts_command_destination_tile.is_none());
+
+        apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 2);
+        assert!(sequence_runtime
+            .rts_build_queue
+            .iter()
+            .any(|queue| queue == "build:watch_tower@7,4"));
+        assert_eq!(
+            sequence_runtime.rts_building_blueprint_id.as_deref(),
+            Some("watch_tower")
+        );
+        assert!(sequence_runtime
+            .rts_army_rally_tile_ids
+            .iter()
+            .any(|tile_id| tile_id == "8,4"));
+
+        apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 3);
+        assert!(sequence_runtime.rts_build_queue.is_empty());
+        assert!(sequence_runtime
+            .rts_refund_delta_log
+            .iter()
+            .any(|entry| entry == "gold:+210"));
+        assert!(sequence_runtime.rts_production_queue.is_empty());
+
+        apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 4);
+        assert!(sequence_runtime
+            .rts_production_queue
+            .iter()
+            .any(|queue| queue == "train:worker"));
+        assert!(sequence_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.contains("cancel:build:watch_tower@7,4")));
     }
 
     #[test]
