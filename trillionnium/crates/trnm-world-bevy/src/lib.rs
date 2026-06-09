@@ -71747,6 +71747,7 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         .unwrap_or(30);
     window.set_target_fps(classic_fps);
     let mut mouse_latch = ClassicRuntimeMouseLatch::default();
+    let mut frame_tick = 0_u64;
 
     classic_draw_scene(
         &mut buffer,
@@ -71797,6 +71798,8 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 }
             }
         }
+        frame_tick = frame_tick.wrapping_add(1);
+        classic_tick_openra_style_rts_runtime(&mut first_playable, frame_tick);
         classic_draw_scene(
             &mut buffer,
             width,
@@ -72495,6 +72498,130 @@ fn classic_rts_available_gold(runtime: &NativeFirstPlayableRuntime) -> u64 {
 #[cfg(not(target_os = "android"))]
 fn classic_rts_queue_is_affordable(runtime: &NativeFirstPlayableRuntime, queue_id: &str) -> bool {
     classic_rts_queue_gold_cost(queue_id) <= classic_rts_available_gold(runtime)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_tick_openra_style_rts_runtime(
+    runtime: &mut NativeFirstPlayableRuntime,
+    frame_tick: u64,
+) {
+    if frame_tick % 15 != 0 {
+        return;
+    }
+    if !runtime.rts_production_queue.is_empty() {
+        runtime.rts_training_progress_percent = runtime
+            .rts_training_progress_percent
+            .saturating_add(6)
+            .min(100);
+        if runtime.rts_training_progress_percent >= 100 {
+            let completed_queue = runtime.rts_production_queue.remove(0);
+            if let Some(upgrade_id) = completed_queue.strip_prefix("upgrade:") {
+                push_unique_string(&mut runtime.rts_completed_upgrade_ids, upgrade_id);
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    &format!("upgrade_complete:{upgrade_id}"),
+                );
+                runtime.rts_tech_state = format!("upgraded:{upgrade_id}");
+                runtime.last_feedback = format!("RTS upgrade complete: {upgrade_id}");
+            } else {
+                let spawned_unit_id = classic_rts_spawned_unit_id_from_queue(
+                    &completed_queue,
+                    runtime.rts_army_spawned_unit_ids.len(),
+                );
+                push_unique_string(&mut runtime.rts_army_spawned_unit_ids, &spawned_unit_id);
+                push_history(
+                    &mut runtime.rts_command_queue,
+                    &format!("production_complete:{completed_queue}->{spawned_unit_id}"),
+                );
+                push_history(
+                    &mut runtime.rts_combat_event_log,
+                    &format!("unit_ready:{spawned_unit_id}"),
+                );
+                runtime.last_feedback = format!("RTS production complete: {spawned_unit_id}");
+            }
+            runtime.rts_training_progress_percent = if runtime.rts_production_queue.is_empty() {
+                100
+            } else {
+                8
+            };
+            push_feedback_event(runtime, &runtime.last_feedback.clone());
+        }
+    }
+    if !runtime.rts_build_queue.is_empty() || runtime.rts_building_blueprint_id.is_some() {
+        runtime.rts_build_progress_percent = runtime
+            .rts_build_progress_percent
+            .saturating_add(5)
+            .min(100);
+        runtime.rts_building_progress_percent = runtime
+            .rts_building_progress_percent
+            .saturating_add(5)
+            .min(100);
+        if runtime.rts_build_progress_percent >= 100 || runtime.rts_building_progress_percent >= 100
+        {
+            let completed_queue = runtime
+                .rts_build_queue
+                .first()
+                .cloned()
+                .or_else(|| {
+                    runtime
+                        .rts_building_blueprint_id
+                        .as_deref()
+                        .map(|id| format!("build:{id}@7,4"))
+                })
+                .unwrap_or_else(|| "build:watch_tower@7,4".to_string());
+            if !runtime.rts_build_queue.is_empty() {
+                runtime.rts_build_queue.remove(0);
+            }
+            let structure_id = classic_rts_structure_id_from_queue(&completed_queue);
+            push_unique_string(&mut runtime.rts_completed_structure_ids, &structure_id);
+            push_unique_string(&mut runtime.rts_base_structure_ids, &structure_id);
+            runtime.rts_structure_health_percents.push(100);
+            runtime.rts_structure_state = format!("completed:{structure_id}");
+            push_history(
+                &mut runtime.rts_command_queue,
+                &format!("build_complete:{completed_queue}->{structure_id}"),
+            );
+            if let Some(next_queue) = runtime.rts_build_queue.first() {
+                let (next_structure_id, next_tile_id) = classic_rts_build_parts(next_queue);
+                runtime.rts_building_blueprint_id = Some(next_structure_id);
+                runtime.rts_build_site_tile_ids = classic_rts_build_site_tiles(&next_tile_id);
+            } else {
+                runtime.rts_building_blueprint_id = None;
+                runtime.rts_build_site_tile_ids.clear();
+            }
+            runtime.rts_build_progress_percent = if runtime.rts_build_queue.is_empty() {
+                100
+            } else {
+                10
+            };
+            runtime.rts_building_progress_percent = runtime.rts_build_progress_percent;
+            runtime.last_feedback = format!("RTS build complete: {structure_id}");
+            push_feedback_event(runtime, &runtime.last_feedback.clone());
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_spawned_unit_id_from_queue(queue_id: &str, existing_count: usize) -> String {
+    let unit_kind = queue_id
+        .strip_prefix("train:")
+        .unwrap_or(queue_id)
+        .split_once('@')
+        .map(|(unit_kind, _)| unit_kind)
+        .unwrap_or_else(|| queue_id.strip_prefix("upgrade:").unwrap_or("unit"));
+    format!("{}_{}", unit_kind.replace(':', "_"), existing_count + 1)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_structure_id_from_queue(queue_id: &str) -> String {
+    queue_id
+        .strip_prefix("build:")
+        .or_else(|| queue_id.strip_prefix("complete:"))
+        .unwrap_or(queue_id)
+        .split_once('@')
+        .map(|(structure_id, _)| structure_id)
+        .unwrap_or("watch_tower")
+        .to_string()
 }
 
 #[cfg(not(target_os = "android"))]
@@ -135984,6 +136111,49 @@ mod tests {
             .rts_combat_event_log
             .iter()
             .any(|event| event.contains("focus_fire")));
+
+        let mut tick_runtime = classic_openra_style_skirmish_runtime();
+        tick_runtime.rts_production_queue = string_vec(["train:worker"]);
+        tick_runtime.rts_training_progress_percent = 96;
+        classic_tick_openra_style_rts_runtime(&mut tick_runtime, 15);
+        assert!(tick_runtime.rts_production_queue.is_empty());
+        assert!(tick_runtime
+            .rts_army_spawned_unit_ids
+            .iter()
+            .any(|unit_id| unit_id.starts_with("worker_")));
+        assert!(tick_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.contains("production_complete:train:worker")));
+
+        tick_runtime.rts_production_queue = string_vec(["upgrade:signal_blade"]);
+        tick_runtime.rts_training_progress_percent = 96;
+        classic_tick_openra_style_rts_runtime(&mut tick_runtime, 30);
+        assert!(tick_runtime
+            .rts_completed_upgrade_ids
+            .iter()
+            .any(|upgrade_id| upgrade_id == "signal_blade"));
+        assert!(tick_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "upgrade_complete:signal_blade"));
+
+        tick_runtime.rts_build_queue = string_vec(["build:watch_tower@7,4"]);
+        tick_runtime.rts_building_blueprint_id = Some("watch_tower".to_string());
+        tick_runtime.rts_build_progress_percent = 96;
+        tick_runtime.rts_building_progress_percent = 96;
+        classic_tick_openra_style_rts_runtime(&mut tick_runtime, 30);
+        assert!(tick_runtime
+            .rts_completed_structure_ids
+            .iter()
+            .any(|structure_id| structure_id == "watch_tower"));
+        assert!(tick_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry.contains("build_complete:build:watch_tower@7,4")));
+        assert!(tick_runtime.rts_build_queue.is_empty());
+        assert!(tick_runtime.rts_building_blueprint_id.is_none());
+        assert!(tick_runtime.rts_build_site_tile_ids.is_empty());
     }
 
     #[test]
