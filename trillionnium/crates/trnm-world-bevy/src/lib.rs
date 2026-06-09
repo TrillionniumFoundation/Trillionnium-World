@@ -16731,11 +16731,7 @@ fn classic_draw_rts_blocked_feedback_chip_overlay(
             14,
             CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR,
         );
-        let label = chip
-            .strip_prefix("feedback:blocked:")
-            .unwrap_or(chip.as_str())
-            .replace(':', " ")
-            .replace('_', " ");
+        let label = classic_rts_blocked_feedback_player_label(chip);
         classic_draw_text(
             buffer,
             width,
@@ -95263,13 +95259,18 @@ fn classic_draw_openra_style_rts_shell(
             },
         );
         classic_draw_rect(buffer, width, height, queue_x, y, 4, 14, chip_color);
+        let order_label = if order.starts_with("feedback:blocked:") {
+            classic_rts_blocked_feedback_player_label(order)
+        } else {
+            order.replace(':', " ").replace('_', " ")
+        };
         classic_draw_text(
             buffer,
             width,
             height,
             queue_x + 10,
             y + 4,
-            &classic_catalog_text_label(&order.replace(':', " ").replace('_', " "), 32),
+            &classic_catalog_text_label(&order_label, 32),
             1,
             if order.starts_with("feedback:blocked:") {
                 CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
@@ -108951,6 +108952,10 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         .filter(|entry| entry.starts_with("feedback:blocked:"))
         .cloned()
         .collect();
+    let command_queue_blocked_feedback_labels: Vec<String> = command_queue_blocked_feedback_chips
+        .iter()
+        .map(|chip| classic_rts_blocked_feedback_player_label(chip))
+        .collect();
     let command_queue_blocked_feedback_chip_count = command_queue_blocked_feedback_chips.len();
     let executable_command_queue_after_setup_input =
         classic_rts_executable_command_queue_snapshot(&command_queue_after_setup_input);
@@ -109178,6 +109183,17 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && command_queue_blocked_feedback_chips
             .iter()
             .any(|entry| entry == "feedback:blocked:select:rts_group_id_required");
+    let blocked_feedback_player_label_gate = command_queue_blocked_feedback_labels.len()
+        == command_queue_blocked_feedback_chip_count
+        && command_queue_blocked_feedback_labels
+            .iter()
+            .any(|label| label == "QUEUE LOCK NEED 210G")
+        && command_queue_blocked_feedback_labels
+            .iter()
+            .any(|label| label == "QUEUE LOCK PICK ITEM")
+        && command_queue_blocked_feedback_labels
+            .iter()
+            .all(|label| !label.contains("feedback") && !label.contains("rts_"));
     let accepted_setup_input_gate = accepted_command_input_count == 1
         && replay_steps.iter().any(|step| {
             step.get("step_name").and_then(|value| value.as_str()) == Some("select_group_26_setup")
@@ -109272,6 +109288,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && replay_expectation_gate
         && blocked_feedback_gate
         && blocked_feedback_chip_gate
+        && blocked_feedback_player_label_gate
         && accepted_setup_input_gate
         && blocked_history_non_pollution_gate
         && blocked_action_history_gate
@@ -109341,6 +109358,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "executable_command_queue_after_setup_input": executable_command_queue_after_setup_input,
         "executable_command_queue_after_rejections": executable_command_queue_after_rejections,
         "command_queue_blocked_feedback_chips": command_queue_blocked_feedback_chips,
+        "command_queue_blocked_feedback_labels": command_queue_blocked_feedback_labels,
         "command_queue_blocked_feedback_chip_count": command_queue_blocked_feedback_chip_count,
         "command_queue_rejection_pollution_count": command_queue_rejection_pollution_count,
         "blocked_action_history": runtime.blocked_action_history,
@@ -109363,6 +109381,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "replay_expectation_gate": replay_expectation_gate,
         "blocked_feedback_gate": blocked_feedback_gate,
         "blocked_feedback_chip_gate": blocked_feedback_chip_gate,
+        "blocked_feedback_player_label_gate": blocked_feedback_player_label_gate,
         "accepted_setup_input_gate": accepted_setup_input_gate,
         "blocked_step_non_pollution_gate": blocked_step_non_pollution_gate,
         "blocked_history_non_pollution_gate": blocked_history_non_pollution_gate,
@@ -131496,6 +131515,36 @@ fn classic_rts_executable_command_queue_snapshot(queue: &[String]) -> Vec<String
         .collect()
 }
 
+fn classic_rts_blocked_feedback_player_label(chip: &str) -> String {
+    let blocked = chip.strip_prefix("feedback:blocked:").unwrap_or(chip);
+    if let Some(queue_id) = blocked.strip_prefix("queue:rts_queue_unaffordable:") {
+        return format!("QUEUE LOCK NEED {}G", classic_rts_queue_gold_cost(queue_id));
+    }
+    if blocked == "queue:rts_queue_id_required" {
+        return "QUEUE LOCK PICK ITEM".to_string();
+    }
+    if blocked == "select:rts_group_id_required" {
+        return "SELECT LOCK GROUP ID".to_string();
+    }
+    if blocked == "attack:rts_attack_target_required" {
+        return "ATTACK LOCK PICK TARGET".to_string();
+    }
+    if blocked == "ability:rts_attack_required_before_ability" {
+        return "ABILITY LOCK NEED TARGET".to_string();
+    }
+    if blocked == "move:rts_group_selection_required" {
+        return "MOVE LOCK SELECT UNITS".to_string();
+    }
+    if blocked.starts_with("move:rts_invalid_tile:") {
+        return "MOVE LOCK INVALID TILE".to_string();
+    }
+    blocked
+        .replace("rts_", "")
+        .replace(':', " ")
+        .replace('_', " ")
+        .to_ascii_uppercase()
+}
+
 fn classic_rts_order_queue_chip_color(order: &str) -> u32 {
     if order.starts_with("feedback:blocked:") {
         CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
@@ -138283,6 +138332,12 @@ mod tests {
             .iter()
             .any(|entry| entry
                 == "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"));
+        assert_eq!(
+            classic_rts_blocked_feedback_player_label(
+                "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"
+            ),
+            "QUEUE LOCK NEED 210G"
+        );
 
         let mut demo_runtime = classic_openra_style_skirmish_runtime();
         apply_classic_rts_scripted_demo_runtime(&mut demo_runtime, "queue_cancel_refund");

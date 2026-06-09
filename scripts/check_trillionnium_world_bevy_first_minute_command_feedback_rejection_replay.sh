@@ -80,6 +80,9 @@ jq -e '
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:queue:rts_queue_id_required") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:select:rts_group_id_required") != null)
+  and (.command_queue_blocked_feedback_labels | index("QUEUE LOCK PICK ITEM") != null)
+  and (.command_queue_blocked_feedback_labels | index("QUEUE LOCK NEED 210G") != null)
+  and (.command_queue_blocked_feedback_labels | all((contains("feedback") or contains("rts_")) | not))
   and .blocked_feedback_chip_pixel_count > 240
   and (.stage_summaries | all(.frame_blocked_feedback_chip_pixel_count > 40))
   and (.stage_summaries | all(.renderer_path == "classic_draw_scene"))
@@ -124,6 +127,7 @@ jq -e '
   and .replay_expectation_gate == true
   and .blocked_feedback_gate == true
   and .blocked_feedback_chip_gate == true
+  and .blocked_feedback_player_label_gate == true
   and .accepted_setup_input_gate == true
   and .blocked_step_non_pollution_gate == true
   and .blocked_history_non_pollution_gate == true
