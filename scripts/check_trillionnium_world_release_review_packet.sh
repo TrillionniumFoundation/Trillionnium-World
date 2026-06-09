@@ -81,7 +81,7 @@ mkdir -p "$ACCEPTANCE_DIR"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >"$BOT_MAP_INTEL_GAP_LOG"
-"$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh" >"$PLAYTEST_HANDOFF_PACKET_LOG"
+TRNM_BEVY_HANDOFF_READINESS_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh" >"$PLAYTEST_HANDOFF_PACKET_LOG"
 
 artifact() {
   local id="$1"

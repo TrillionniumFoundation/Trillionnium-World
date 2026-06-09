@@ -3,12 +3,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-handoff-readiness.json"
+REFRESH="${TRNM_BEVY_HANDOFF_READINESS_REFRESH:-1}"
 mkdir -p "$(dirname "$SUMMARY")"
 
+if [[ "$REFRESH" != "0" ]]; then
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" >/dev/null
+fi
 
 jq -n \
   --slurpfile readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json" \

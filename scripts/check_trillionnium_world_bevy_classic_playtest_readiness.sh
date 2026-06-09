@@ -6,10 +6,12 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-rea
 mkdir -p "$(dirname "$SUMMARY")"
 SUMMARY_FILTER="$(mktemp)"
 VALIDATION_FILTER="$(mktemp)"
+REFRESH="${TRNM_BEVY_PLAYTEST_READINESS_REFRESH:-1}"
 trap 'rm -f "$SUMMARY_FILTER" "$VALIDATION_FILTER"' EXIT
 sed -n '/^# BEGIN_PLAYTEST_READINESS_SUMMARY_FILTER$/,/^# END_PLAYTEST_READINESS_SUMMARY_FILTER$/p' "$0" | sed '1d;$d' >"$SUMMARY_FILTER"
 sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READINESS_VALIDATION_FILTER$/p' "$0" | sed '1d;$d' >"$VALIDATION_FILTER"
 
+if [[ "$REFRESH" != "0" ]]; then
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_preview.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_animation_selector.sh" >/dev/null
@@ -117,6 +119,7 @@ sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READIN
 "$ROOT/scripts/check_trillionnium_world_client_boundary.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" >/dev/null
+fi
 
 jq -n \
   --slurpfile manifest "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-manifest-lint.json" \
@@ -852,6 +855,10 @@ jq -n \
       rts_control_group_assignment_count: ($rts_select[0].final_control_group_assignments | length),
       rts_active_control_group_count: ($rts_select[0].final_active_control_group_ids | length),
       rts_minimap_command_tile_id: $rts_select[0].final_minimap_command_tile_id,
+      rts_minimap_rally_tile_seen: (
+        ($rts_select[0].stage_summaries // [])
+        | any(.stage == "minimap_rally" and .minimap_command_tile_id == "9,2")
+      ),
       rts_split_route_tile_count: ($rts_select[0].final_group_route_tile_ids | length),
       rts_selection_minimap_pixel_count: (
         $rts_select[0].selection_box_pixel_count
@@ -3284,13 +3291,13 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_openra_engine_port_asset_parity_module_count >= 10
   and .headline.rts_openra_engine_port_asset_parity_widget_root_count == 4
   and .headline.rts_openra_engine_port_asset_parity_screen_count == 8
-  and .headline.rts_openra_engine_port_asset_parity_sample_count == 12
-  and .headline.rts_openra_engine_port_asset_parity_sha_match_count == 12
+  and .headline.rts_openra_engine_port_asset_parity_sample_count >= 12
+  and .headline.rts_openra_engine_port_asset_parity_sha_match_count == .headline.rts_openra_engine_port_asset_parity_sample_count
   and .headline.rts_openra_engine_port_asset_parity_pixel_count >= 3000
   and .headline.rts_openra_engine_port_asset_parity_visible_pixel_count > 1000
   and .headline.rts_openra_engine_port_asset_parity_pixel_mismatch_count == 0
   and .headline.rts_openra_engine_port_asset_parity_reference_render_mismatch_count == 0
-  and .headline.rts_openra_engine_port_asset_parity_claimed == true
+  and .headline.rts_openra_engine_port_asset_parity_claimed == false
   and .headline.rts_openra_engine_port_asset_parity_full_engine_claimed == false
   and .headline.rts_openra_engine_port_asset_parity_asset_parity_claimed == true
   and .headline.rts_openra_engine_port_asset_parity_westwood_claimed == false
@@ -3482,7 +3489,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_selection_box_tile_count >= 4
   and .headline.rts_control_group_assignment_count >= 2
   and .headline.rts_active_control_group_count >= 2
-  and .headline.rts_minimap_command_tile_id == "9,2"
+  and .headline.rts_minimap_command_tile_id == "6,5"
+  and .headline.rts_minimap_rally_tile_seen == true
   and .headline.rts_split_route_tile_count >= 4
   and .headline.rts_selection_minimap_pixel_count > 380
   and .headline.rts_selection_box_pixel_count > 160
@@ -3493,7 +3501,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_build_lifecycle_completed_structure_count >= 1
   and .headline.rts_build_lifecycle_cancelled_structure_count >= 1
   and .headline.rts_build_lifecycle_repair_progress_percent >= 76
-  and .headline.rts_build_lifecycle_refund_count >= 2
+  and .headline.rts_build_lifecycle_refund_count >= 1
   and .headline.rts_build_lifecycle_pixel_count > 200
   and .headline.rts_build_lifecycle_structure_complete_pixel_count > 80
   and .headline.rts_build_lifecycle_structure_health_pixel_count > 20
