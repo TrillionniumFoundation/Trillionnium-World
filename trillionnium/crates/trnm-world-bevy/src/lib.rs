@@ -72424,6 +72424,173 @@ fn classic_rts_action_from_order_entry(
     }
 }
 
+fn classic_rts_queue_gold_cost(queue_id: &str) -> u64 {
+    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id);
+    let item_id = queue_id
+        .split_once('@')
+        .map(|(item_id, _)| item_id)
+        .unwrap_or(queue_id);
+    match item_id {
+        "train:worker" => 80,
+        "train:guard" => 140,
+        "train:scout" => 110,
+        "build:watch_tower" => 210,
+        "build:training_hall" => 260,
+        "build:signal_spire" => 320,
+        "build:power_node" => 160,
+        "build:refinery" => 240,
+        "build:command_post" => 300,
+        "build:radar_spire" => 220,
+        "build:wall" => 60,
+        "build:relay" | "build:scout_tower" => 180,
+        "upgrade:signal_blade" | "upgrade:training_hall" => 210,
+        "harvest:gold_vein" | "harvest:lumber_copse" => 0,
+        _ if item_id.starts_with("complete:") => 0,
+        _ if item_id.starts_with("cancel:") => 0,
+        _ if item_id.starts_with("repair:") => 45,
+        _ => 120,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_queue_cost_label(queue_id: &str) -> String {
+    let cost = classic_rts_queue_gold_cost(queue_id);
+    if cost == 0 {
+        "-".to_string()
+    } else {
+        cost.to_string()
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_log_gold_amount(entry: &str) -> u64 {
+    entry
+        .split(':')
+        .filter_map(|part| part.trim().strip_suffix('g'))
+        .filter_map(|amount| {
+            amount
+                .trim_start_matches(|value| value == '+' || value == '-')
+                .parse::<u64>()
+                .ok()
+        })
+        .sum()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_resource_gold_commitment(runtime: &NativeFirstPlayableRuntime) -> u64 {
+    runtime
+        .rts_resource_spend_log
+        .iter()
+        .map(|entry| classic_rts_log_gold_amount(entry))
+        .sum()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_available_gold(runtime: &NativeFirstPlayableRuntime) -> u64 {
+    let gross_gold = 620_u64.saturating_add(runtime.coins);
+    let commitment = classic_rts_resource_gold_commitment(runtime);
+    gross_gold.saturating_sub(commitment.min(gross_gold.saturating_sub(40)))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_queue_is_affordable(runtime: &NativeFirstPlayableRuntime, queue_id: &str) -> bool {
+    classic_rts_queue_gold_cost(queue_id) <= classic_rts_available_gold(runtime)
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_openra_style_build_placement_ghost(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    viewport_x: i32,
+    viewport_y: i32,
+    viewport_w: i32,
+    viewport_h: i32,
+) {
+    let Some(blueprint_id) = runtime.rts_building_blueprint_id.as_deref() else {
+        return;
+    };
+    let Some(primary_tile_id) = runtime.rts_build_site_tile_ids.first() else {
+        return;
+    };
+    let placement_queue_id = format!("build:{blueprint_id}@{primary_tile_id}");
+    let affordable = classic_rts_queue_is_affordable(runtime, &placement_queue_id);
+    let ghost_color = if affordable {
+        CLASSIC_RTS_BUILD_BLUEPRINT_COLOR
+    } else {
+        CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
+    };
+    let cell_w = ((viewport_w - 44).max(120)) / 12;
+    let cell_h = ((viewport_h - 74).max(80)) / 8;
+    let grid_x = viewport_x + 22;
+    let grid_y = viewport_y + 48;
+    for (index, tile_id) in runtime.rts_build_site_tile_ids.iter().enumerate() {
+        let Some(tile) = classic_parse_rts_tile(tile_id) else {
+            continue;
+        };
+        let center_x = grid_x + tile.0.clamp(0, 11) * cell_w + cell_w / 2;
+        let center_y = grid_y + tile.1.clamp(0, 7) * cell_h + cell_h / 2;
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            center_x,
+            center_y - cell_h / 3,
+            (cell_w / 2).clamp(28, 54),
+            (cell_h / 2).clamp(16, 30),
+            ghost_color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - cell_w / 4,
+            center_y + cell_h / 8,
+            cell_w / 2,
+            3,
+            if index == 0 {
+                CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR
+            } else {
+                ghost_color
+            },
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 2,
+            center_y - cell_h / 6,
+            4,
+            cell_h / 3,
+            ghost_color,
+        );
+    }
+    let panel_x = viewport_x + 238;
+    let panel_y = viewport_y + 8;
+    classic_draw_rect(buffer, width, height, panel_x, panel_y, 286, 20, 0x101913);
+    classic_draw_rect(buffer, width, height, panel_x, panel_y, 5, 20, ghost_color);
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 7,
+        &classic_catalog_text_label(
+            &format!(
+                "PLACEMENT {} {}C {}",
+                blueprint_id.replace('_', " "),
+                classic_rts_queue_gold_cost(&placement_queue_id),
+                if affordable { "READY" } else { "LOW CRED" }
+            ),
+            42,
+        ),
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+}
+
 #[cfg(not(target_os = "android"))]
 fn classic_point_in_rect(
     x: i32,
@@ -93080,7 +93247,7 @@ fn classic_draw_openra_style_rts_shell(
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
 
-    let gold = 620_u64.saturating_add(runtime.coins);
+    let gold = classic_rts_available_gold(runtime);
     let power = 100_i32.saturating_sub((runtime.rts_ai_pressure_percent as i32 / 4).min(20));
     let supply = format!(
         "{}/{}",
@@ -93199,6 +93366,9 @@ fn classic_draw_openra_style_rts_shell(
         "TACTICAL VIEW  GROUP 1  ATTACK QUEUED",
         1,
         CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_openra_style_build_placement_ghost(
+        buffer, width, height, runtime, viewport_x, viewport_y, viewport_w, viewport_h,
     );
 
     classic_draw_panel_frame(
@@ -93340,6 +93510,7 @@ fn classic_draw_openra_style_rts_shell(
             .or_else(|| runtime.rts_build_queue.get(index.saturating_sub(2)))
             .map(String::as_str)
             .unwrap_or("ready");
+        let queue_id = classic_rts_production_slot_queue_id(runtime, index);
         let progress = if index % 2 == 0 {
             runtime.rts_training_progress_percent
         } else {
@@ -93359,6 +93530,18 @@ fn classic_draw_openra_style_rts_shell(
                 CLASSIC_RTS_BUILD_PROGRESS_COLOR
             },
         );
+        let state_color = if !classic_rts_queue_is_affordable(runtime, &queue_id) {
+            CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
+        } else if runtime
+            .rts_command_queue
+            .iter()
+            .any(|order| order.contains(label))
+        {
+            CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR
+        } else {
+            CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR
+        };
+        classic_draw_rect(buffer, width, height, x, y + 20, 56, 3, state_color);
     }
 
     let palette_y = prod_y + 98;
@@ -93375,6 +93558,15 @@ fn classic_draw_openra_style_rts_shell(
     for index in 0..8 {
         let x = sidebar_x + 12 + (index % 4) as i32 * 58;
         let y = palette_y + 18 + (index / 4) as i32 * 46;
+        let queue_id = classic_rts_build_palette_queue_id(index);
+        let active = runtime
+            .rts_building_blueprint_id
+            .as_deref()
+            .is_some_and(|id| queue_id.contains(id));
+        let queued = runtime.rts_build_queue.iter().any(|entry| {
+            entry == &queue_id || queue_id.contains(entry.trim_start_matches("build:"))
+        });
+        let affordable = classic_rts_queue_is_affordable(runtime, &queue_id);
         classic_draw_rect(
             buffer,
             width,
@@ -93383,7 +93575,18 @@ fn classic_draw_openra_style_rts_shell(
             y,
             46,
             36,
-            CLASSIC_RTS_ABILITY_SLOT_COLOR,
+            if active {
+                classic_mix_color(
+                    CLASSIC_RTS_ABILITY_SLOT_COLOR,
+                    CLASSIC_RTS_BUILD_BLUEPRINT_COLOR,
+                    1,
+                    3,
+                )
+            } else if !affordable {
+                0x261f1f
+            } else {
+                CLASSIC_RTS_ABILITY_SLOT_COLOR
+            },
         );
         classic_draw_rect(
             buffer,
@@ -93393,7 +93596,15 @@ fn classic_draw_openra_style_rts_shell(
             y,
             46,
             3,
-            CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR,
+            if active {
+                CLASSIC_RTS_BUILD_BLUEPRINT_COLOR
+            } else if queued {
+                CLASSIC_RTS_BUILD_PROGRESS_COLOR
+            } else if !affordable {
+                CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
+            } else {
+                CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR
+            },
         );
         classic_draw_rect(buffer, width, height, x + 8, y + 8, 30, 14, 0x314532);
         classic_draw_rect(buffer, width, height, x + 12, y + 5, 22, 4, 0x719566);
@@ -93407,6 +93618,20 @@ fn classic_draw_openra_style_rts_shell(
             label,
             1,
             CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 8,
+            y + 15,
+            &classic_rts_queue_cost_label(&queue_id),
+            1,
+            if affordable {
+                CLASSIC_HUD_MUTED_TEXT_COLOR
+            } else {
+                CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR
+            },
         );
     }
 
@@ -93507,6 +93732,14 @@ fn classic_draw_openra_style_rts_shell(
                 },
                 12
             )
+        ),
+        format!(
+            "RES {}",
+            runtime
+                .rts_resource_spend_log
+                .last()
+                .map(|entry| classic_catalog_text_label(entry, 24))
+                .unwrap_or_else(|| "NONE".to_string())
         ),
     ];
     for (index, line) in state_lines.iter().enumerate() {
@@ -129714,6 +129947,16 @@ fn apply_classic_rts_queue_runtime(
     if first_playable.rts_control_group_id.is_none() {
         apply_classic_rts_select_group_runtime(first_playable, "1");
     }
+    let queue_gold_cost = classic_rts_queue_gold_cost(queue_id);
+    if queue_gold_cost > 0 {
+        push_history(
+            &mut first_playable.rts_resource_spend_log,
+            &format!(
+                "commit:{queue_gold_cost}g:{queue_id}:{}",
+                first_playable.rts_command_queue.len()
+            ),
+        );
+    }
     push_unique_string(&mut first_playable.rts_production_queue, queue_id);
     if let Some(objective_command) = queue_id.strip_prefix("objective:") {
         apply_classic_rts_objective_runtime(first_playable, objective_command);
@@ -135485,6 +135728,12 @@ mod tests {
         let mut log = NativeGameplayLog::default();
         let mut runtime = classic_openra_style_skirmish_runtime();
 
+        assert_eq!(classic_rts_queue_gold_cost("build:watch_tower@7,4"), 210);
+        assert_eq!(classic_rts_available_gold(&runtime), 890);
+        assert!(classic_rts_queue_is_affordable(
+            &runtime,
+            "build:watch_tower@7,4"
+        ));
         assert_eq!(classic_next_runtime_rts_move_command(&runtime), "8,4:rally");
         assert_eq!(
             classic_next_runtime_rts_attack_target(&runtime),
@@ -135664,6 +135913,7 @@ mod tests {
         assert!(!runtime.rts_engagement_tile_ids.is_empty());
 
         let build_queue = classic_next_runtime_rts_build_queue(&runtime);
+        let gold_before_build = classic_rts_available_gold(&runtime);
         apply_live_native_action(
             &mut world,
             &mut character,
@@ -135682,6 +135932,7 @@ mod tests {
             .rts_build_site_tile_ids
             .iter()
             .any(|tile_id| tile_id == "4,3"));
+        assert!(classic_rts_available_gold(&runtime) < gold_before_build);
 
         let train_queue = classic_next_runtime_rts_train_queue(&runtime);
         apply_live_native_action(
