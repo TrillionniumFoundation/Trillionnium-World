@@ -39,11 +39,11 @@ jq -e '
   and .rejection_recording_path == "'"$REJECTION_RECORDING"'"
   and .first_minute_recording_bytes > 512
   and .rejection_recording_bytes > 512
-  and .command_input_action_count == 7
+  and .command_input_action_count == 8
   and .accepted_command_input_count == 1
-  and .blocked_command_input_count == 6
-  and (.rejection_recording.steps | length) == 7
-  and (.replay_steps | length) == 7
+  and .blocked_command_input_count == 7
+  and (.rejection_recording.steps | length) == 8
+  and (.replay_steps | length) == 8
   and (.stage_summaries | length) == 4
   and [.rejection_recording.steps[].action_label] == [
     "RTS:MOVE:18,31:line",
@@ -52,6 +52,7 @@ jq -e '
     "RTS:ATTACK:",
     "RTS:ABILITY:guard_break",
     "RTS:QUEUE:",
+    "RTS:QUEUE:build:watch_tower@7,4",
     "RTS:SELECT:"
   ]
   and .expected_blocked_reasons == [
@@ -60,22 +61,24 @@ jq -e '
     "rts_attack_target_required",
     "rts_attack_required_before_ability",
     "rts_queue_id_required",
+    "rts_queue_unaffordable:build:watch_tower@7,4",
     "rts_group_id_required"
   ]
   and .blocked_reasons == .expected_blocked_reasons
   and .input_telemetry_summary.blocked_reasons == .expected_blocked_reasons
-  and .input_telemetry_summary.blocked_events == 6
+  and .input_telemetry_summary.blocked_events == 7
   and (.replay_steps | all(.parsed_action == true))
   and (.replay_steps | all(.accepted_match == true and .reason_match == true))
-  and (.replay_steps | map(select(.accepted == false and .command_queue_changed == true)) | length) == 6
+  and (.replay_steps | map(select(.accepted == false and .command_queue_changed == true)) | length) == 7
   and (.replay_steps | map(select(.accepted == false and .executable_command_queue_changed == true)) | length) == 0
   and (.replay_steps | map(select(.accepted == true)) | length) == 1
-  and .command_queue_blocked_feedback_chip_count == 6
+  and .command_queue_blocked_feedback_chip_count == 7
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:move:rts_group_selection_required") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:move:rts_invalid_tile:bad-tile") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:attack:rts_attack_target_required") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:ability:rts_attack_required_before_ability") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:queue:rts_queue_id_required") != null)
+  and (.command_queue_blocked_feedback_chips | index("feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4") != null)
   and (.command_queue_blocked_feedback_chips | index("feedback:blocked:select:rts_group_id_required") != null)
   and .blocked_feedback_chip_pixel_count > 240
   and (.stage_summaries | all(.frame_blocked_feedback_chip_pixel_count > 40))
@@ -147,7 +150,7 @@ jq -e '
   and .command_history_capacity == 3
   and .retained_history_group_ids == ["26", "27", "28"]
   and .pruned_history_group_ids == ["25", "24"]
-  and (.steps | length) == 7
+  and (.steps | length) == 8
   and [.steps[].action_label] == [
     "RTS:MOVE:18,31:line",
     "RTS:SELECT:26",
@@ -155,6 +158,7 @@ jq -e '
     "RTS:ATTACK:",
     "RTS:ABILITY:guard_break",
     "RTS:QUEUE:",
+    "RTS:QUEUE:build:watch_tower@7,4",
     "RTS:SELECT:"
   ]
   and [.steps[] | select(.expected_accepted == false) | .expected_reason] == [
@@ -163,6 +167,7 @@ jq -e '
     "rts_attack_target_required",
     "rts_attack_required_before_ability",
     "rts_queue_id_required",
+    "rts_queue_unaffordable:build:watch_tower@7,4",
     "rts_group_id_required"
   ]
   and .android_s5_real_device_claimed == false

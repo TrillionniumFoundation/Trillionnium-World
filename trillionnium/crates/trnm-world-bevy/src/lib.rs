@@ -73348,6 +73348,36 @@ fn classic_rts_queue_is_affordable(runtime: &NativeFirstPlayableRuntime, queue_i
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_queue_requires_affordability_check(queue_id: &str) -> bool {
+    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id).trim();
+    queue_id.starts_with("build:")
+        || queue_id.starts_with("train:")
+        || queue_id.starts_with("upgrade:")
+        || queue_id.starts_with("research:")
+        || queue_id.starts_with("repair:")
+}
+
+fn classic_rts_queue_unaffordable_reason(
+    runtime: &NativeFirstPlayableRuntime,
+    queue_id: &str,
+) -> Option<String> {
+    #[cfg(not(target_os = "android"))]
+    {
+        if classic_rts_queue_requires_affordability_check(queue_id)
+            && !classic_rts_queue_is_affordable(runtime, queue_id)
+        {
+            return Some(format!("rts_queue_unaffordable:{queue_id}"));
+        }
+    }
+    #[cfg(target_os = "android")]
+    {
+        let _ = runtime;
+        let _ = queue_id;
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_tick_openra_style_rts_runtime(
     runtime: &mut NativeFirstPlayableRuntime,
     frame_tick: u64,
@@ -108719,6 +108749,14 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         }),
         json!({
             "step_index": 6,
+            "step_name": "queue_unaffordable_build_after_selection",
+            "action_label": "RTS:QUEUE:build:watch_tower@7,4",
+            "expected_accepted": false,
+            "expected_reason": "rts_queue_unaffordable:build:watch_tower@7,4",
+            "preview_stage": null,
+        }),
+        json!({
+            "step_index": 7,
             "step_name": "select_without_group_id",
             "action_label": "RTS:SELECT:",
             "expected_accepted": false,
@@ -108778,7 +108816,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             .get("source_input_replay_green")
             .and_then(|value| value.as_bool())
             == Some(true)
-        && parsed_rejection_steps.len() == 7;
+        && parsed_rejection_steps.len() == 8;
 
     runtime.map_scene = "mirror_city_square".to_string();
     runtime.coins = 990;
@@ -108796,6 +108834,8 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
     runtime.rts_control_group_id = None;
     runtime.rts_selected_unit_ids.clear();
     runtime.rts_attack_target_id = None;
+    runtime.rts_resource_spend_log =
+        string_vec(["commit:1570g:first_minute_command_rejection_resource_pressure"]);
     runtime.rts_command_queue = preserved_command_history_events.clone();
     runtime.rts_group_command_state =
         "control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded"
@@ -108903,6 +108943,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         "rts_attack_target_required",
         "rts_attack_required_before_ability",
         "rts_queue_id_required",
+        "rts_queue_unaffordable:build:watch_tower@7,4",
         "rts_group_id_required",
     ]);
     let command_queue_blocked_feedback_chips: Vec<String> = command_queue_after_rejections
@@ -109097,7 +109138,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
 
-    let command_action_parse_gate = parsed_rejection_steps.len() == 7
+    let command_action_parse_gate = parsed_rejection_steps.len() == 8
         && replay_steps
             .iter()
             .all(|step| step.get("parsed_action").and_then(|value| value.as_bool()) == Some(true));
@@ -109105,12 +109146,12 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         step.get("accepted_match").and_then(|value| value.as_bool()) == Some(true)
             && step.get("reason_match").and_then(|value| value.as_bool()) == Some(true)
     });
-    let blocked_feedback_gate = blocked_command_input_count == 6
+    let blocked_feedback_gate = blocked_command_input_count == 7
         && blocked_reasons == expected_blocked_reasons
-        && blocked_action_labels.len() == 6
+        && blocked_action_labels.len() == 7
         && input_telemetry_summary.blocked_action_labels == blocked_action_labels
         && input_telemetry_summary.blocked_reasons == expected_blocked_reasons;
-    let blocked_feedback_chip_gate = command_queue_blocked_feedback_chip_count == 6
+    let blocked_feedback_chip_gate = command_queue_blocked_feedback_chip_count == 7
         && expected_blocked_reasons.iter().all(|reason| {
             command_queue_blocked_feedback_chips
                 .iter()
@@ -109131,6 +109172,9 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         && command_queue_blocked_feedback_chips
             .iter()
             .any(|entry| entry == "feedback:blocked:queue:rts_queue_id_required")
+        && command_queue_blocked_feedback_chips.iter().any(|entry| {
+            entry == "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"
+        })
         && command_queue_blocked_feedback_chips
             .iter()
             .any(|entry| entry == "feedback:blocked:select:rts_group_id_required");
@@ -109164,7 +109208,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
     let blocked_history_non_pollution_gate = blocked_step_non_pollution_gate
         && executable_command_queue_after_rejections == executable_command_queue_after_setup_input
         && command_queue_rejection_pollution_count == 0;
-    let blocked_action_history_gate = runtime.blocked_action_history.len() >= 6
+    let blocked_action_history_gate = runtime.blocked_action_history.len() >= 7
         && expected_blocked_reasons.iter().all(|reason| {
             runtime
                 .blocked_action_history
@@ -126415,6 +126459,8 @@ pub fn native_live_action_availability(
         NativeControlAction::RtsQueueProduction { queue_id } => {
             return if queue_id.trim().is_empty() {
                 (false, "rts_queue_id_required".to_string())
+            } else if let Some(reason) = classic_rts_queue_unaffordable_reason(runtime, queue_id) {
+                (false, reason)
             } else {
                 (true, format!("enabled_rts_queue:{queue_id}"))
             };
@@ -138185,6 +138231,58 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "feedback:blocked:move:rts_group_selection_required"));
+
+        let mut low_resource_runtime = classic_openra_style_skirmish_runtime();
+        low_resource_runtime.rts_production_queue.clear();
+        low_resource_runtime.rts_build_queue.clear();
+        low_resource_runtime.rts_resource_spend_log =
+            string_vec(["commit:1200g:prior_queue_pressure"]);
+        assert_eq!(classic_rts_available_gold(&low_resource_runtime), 40);
+        assert!(classic_rts_queue_requires_affordability_check(
+            "build:watch_tower@7,4"
+        ));
+        assert!(!classic_rts_queue_requires_affordability_check(
+            "objective:claim_relay"
+        ));
+        assert!(!classic_rts_queue_is_affordable(
+            &low_resource_runtime,
+            "build:watch_tower@7,4"
+        ));
+        let low_resource_availability = native_live_action_availability(
+            &low_resource_runtime,
+            &NativeControlAction::RtsQueueProduction {
+                queue_id: "build:watch_tower@7,4".to_string(),
+            },
+        );
+        assert_eq!(
+            low_resource_availability,
+            (
+                false,
+                "rts_queue_unaffordable:build:watch_tower@7,4".to_string()
+            )
+        );
+        let low_resource_response = apply_live_native_action(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut low_resource_runtime,
+            actor_id,
+            NativeControlAction::RtsQueueProduction {
+                queue_id: "build:watch_tower@7,4".to_string(),
+            },
+        );
+        assert!(low_resource_response.is_none());
+        assert!(low_resource_runtime.rts_build_queue.is_empty());
+        assert!(low_resource_runtime
+            .blocked_action_history
+            .iter()
+            .any(|entry| entry
+                == "RTS:QUEUE:build:watch_tower@7,4:rts_queue_unaffordable:build:watch_tower@7,4"));
+        assert!(low_resource_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry
+                == "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"));
 
         let mut demo_runtime = classic_openra_style_skirmish_runtime();
         apply_classic_rts_scripted_demo_runtime(&mut demo_runtime, "queue_cancel_refund");
