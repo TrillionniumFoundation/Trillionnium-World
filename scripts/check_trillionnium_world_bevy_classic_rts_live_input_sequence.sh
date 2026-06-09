@@ -53,6 +53,7 @@ jq -e '
   and (.final_command_queue | index("command_queue_path_preview:attack_focus") != null)
   and (.final_command_queue | index("command_queue_path_preview:cancel_repath") != null)
   and (.final_command_queue | index("feedback:diamond@7,4") != null)
+  and (.final_command_queue | index("feedback:train_queued:guard") != null)
   and (.final_command_queue | index("feedback:waypoint_queued@9,4") != null)
   and (.final_command_queue | index("feedback:hold_position@6,5") != null)
   and (.final_command_queue | index("feedback:patrol_route@9,4") != null)
@@ -69,6 +70,7 @@ jq -e '
   and .live_input_gate == true
   and .selection_live_gate == true
   and .production_live_gate == true
+  and .production_feedback_chip_gate == true
   and .move_live_gate == true
   and .waypoint_live_gate == true
   and .hold_live_gate == true

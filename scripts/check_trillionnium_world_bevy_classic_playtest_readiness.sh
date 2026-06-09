@@ -402,6 +402,7 @@ jq -n \
       and $rts_live[0].live_input_gate == true
       and $rts_live[0].selection_live_gate == true
       and $rts_live[0].production_live_gate == true
+      and $rts_live[0].production_feedback_chip_gate == true
       and $rts_live[0].move_live_gate == true
       and $rts_live[0].waypoint_live_gate == true
       and $rts_live[0].hold_live_gate == true
@@ -2112,6 +2113,7 @@ jq -n \
       rts_live_input_live_input_gate: $rts_live[0].live_input_gate,
       rts_live_input_selection_live_gate: $rts_live[0].selection_live_gate,
       rts_live_input_production_live_gate: $rts_live[0].production_live_gate,
+      rts_live_input_production_feedback_chip_gate: $rts_live[0].production_feedback_chip_gate,
       rts_live_input_move_live_gate: $rts_live[0].move_live_gate,
       rts_live_input_waypoint_live_gate: $rts_live[0].waypoint_live_gate,
       rts_live_input_hold_live_gate: $rts_live[0].hold_live_gate,

@@ -42064,6 +42064,10 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         .iter()
         .any(|entry| entry == "train:guard")
         && production_queue_pixel_count > 1_000;
+    let production_feedback_chip_gate = runtime
+        .rts_command_queue
+        .iter()
+        .any(|entry| entry == "feedback:train_queued:guard");
     let move_stage_destination_gate = stage_summaries.iter().any(|summary| {
         summary.get("stage").and_then(|value| value.as_str()) == Some("move_formation")
             && summary.get("accepted").and_then(|value| value.as_bool()) == Some(true)
@@ -42204,6 +42208,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && live_input_gate
         && selection_live_gate
         && production_live_gate
+        && production_feedback_chip_gate
         && move_live_gate
         && waypoint_live_gate
         && hold_live_gate
@@ -42247,6 +42252,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "live_input_gate": live_input_gate,
         "selection_live_gate": selection_live_gate,
         "production_live_gate": production_live_gate,
+        "production_feedback_chip_gate": production_feedback_chip_gate,
         "move_live_gate": move_live_gate,
         "move_stage_destination_gate": move_stage_destination_gate,
         "waypoint_live_gate": waypoint_live_gate,
@@ -131190,12 +131196,43 @@ fn apply_classic_rts_queue_cancel_runtime(
             &mut first_playable.rts_command_queue,
             &format!("cancel:{removed_queue}"),
         );
+        let cancel_feedback_chip = if removed_queue.starts_with("build:") {
+            let (structure_id, tile_id) = classic_rts_build_parts(&removed_queue);
+            format!("feedback:cancel_refund:{structure_id}@{tile_id}")
+        } else {
+            format!("feedback:queue_cancelled:{removed_queue}")
+        };
+        push_history(&mut first_playable.rts_command_queue, &cancel_feedback_chip);
         first_playable.last_feedback = format!("RTS queue canceled: {removed_queue}");
     } else {
         push_history(&mut first_playable.rts_command_queue, "cancel:empty_slot");
+        push_history(
+            &mut first_playable.rts_command_queue,
+            "feedback:cancel_ignored:empty_slot",
+        );
         first_playable.last_feedback = "RTS queue cancel ignored: empty slot".to_string();
     }
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
+}
+
+fn classic_rts_queue_feedback_chip(queue_id: &str) -> String {
+    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id);
+    if let Some(unit_id) = queue_id.strip_prefix("train:") {
+        format!("feedback:train_queued:{unit_id}")
+    } else if queue_id.starts_with("build:") {
+        let (structure_id, tile_id) = classic_rts_build_parts(queue_id);
+        format!("feedback:build_placed:{structure_id}@{tile_id}")
+    } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
+        format!("feedback:harvest_assigned:{node_id}")
+    } else if queue_id.starts_with("upgrade:") {
+        let (upgrade_id, source_id) = classic_rts_tech_parts(queue_id, "upgrade:", "training_hall");
+        format!("feedback:upgrade_queued:{upgrade_id}@{source_id}")
+    } else if queue_id.starts_with("research:") {
+        let (tech_id, source_id) = classic_rts_tech_parts(queue_id, "research:", "town_hall");
+        format!("feedback:research_queued:{tech_id}@{source_id}")
+    } else {
+        format!("feedback:queue_accepted:{queue_id}")
+    }
 }
 
 fn apply_classic_rts_cancel_visual_feedback(
@@ -131599,6 +131636,10 @@ fn apply_classic_rts_queue_runtime(
     push_history(
         &mut first_playable.rts_command_queue,
         &format!("queue:{queue_id}"),
+    );
+    push_history(
+        &mut first_playable.rts_command_queue,
+        &classic_rts_queue_feedback_chip(queue_id),
     );
     first_playable.last_feedback = format!("RTS production queued: {queue_id}");
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
@@ -137724,6 +137765,10 @@ mod tests {
             .iter()
             .any(|tile_id| tile_id == "4,3"));
         assert!(classic_rts_available_gold(&runtime) < gold_before_build);
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:build_placed:training_hall@4,3"));
 
         let train_queue = classic_next_runtime_rts_train_queue(&runtime);
         apply_live_native_action(
@@ -137740,6 +137785,10 @@ mod tests {
             .rts_production_queue
             .iter()
             .any(|queue_id| queue_id == "train:scout"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:train_queued:scout"));
 
         let economy_queue = classic_next_runtime_rts_economy_queue(&runtime);
         let economy_node = economy_queue
@@ -137760,6 +137809,10 @@ mod tests {
             .rts_harvest_node_ids
             .iter()
             .any(|node_id| node_id == &economy_node));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:harvest_assigned:gold_vein"));
 
         let ability_id = classic_next_runtime_rts_ability(&runtime);
         apply_live_native_action(
@@ -137863,6 +137916,10 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "cancel:build:watch_tower@7,4"));
+        assert!(cancel_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:cancel_refund:watch_tower@7,4"));
 
         apply_classic_rts_queue_runtime(&mut cancel_runtime, "train:worker");
         assert!(cancel_runtime
@@ -137875,6 +137932,10 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "cancel:train:worker"));
+        assert!(cancel_runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "feedback:queue_cancelled:train:worker"));
 
         let mut demo_runtime = classic_openra_style_skirmish_runtime();
         apply_classic_rts_scripted_demo_runtime(&mut demo_runtime, "queue_cancel_refund");
