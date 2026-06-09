@@ -163,6 +163,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTROL_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_control_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_INPUT_SEQUENCE_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_live_input_sequence_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCRIPTED_DEMO_REPLAY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_scripted_demo_replay_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PATHING_FORMATION_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_pathing_formation_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COLLISION_ENGAGEMENT_CONTRACT: &str =
@@ -17806,6 +17808,331 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         "source_of_truth": "The classic RTS control loop evidence renders multi-unit selection, control-group movement, formation lines, queued attack feedback, minimap, fog-of-war vision, resources, production queues, unit health cards, target health, ability cooldowns, and command panel through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS control loop evidence serializes")
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn native_classic_rts_scripted_demo_replay_evidence_json(preview_path: &str) -> String {
+    const PANEL_WIDTH: usize = 900;
+    const PANEL_HEIGHT: usize = 540;
+    const PREVIEW_COLUMNS: usize = 2;
+    const PREVIEW_ROWS: usize = 3;
+    const PREVIEW_WIDTH: usize = PANEL_WIDTH * PREVIEW_COLUMNS;
+    const PREVIEW_HEIGHT: usize = PANEL_HEIGHT * PREVIEW_ROWS;
+    const BACKGROUND_COLOR: u32 = 0x0b0d0c;
+
+    let assets = load_classic_runtime_assets();
+    let mut preview_pixels = vec![BACKGROUND_COLOR; PREVIEW_WIDTH * PREVIEW_HEIGHT];
+    let mut frame_pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    let mut stage_summaries = Vec::new();
+    let mut stage_ids = Vec::new();
+    let mut stage_status_labels = Vec::new();
+    let mut rendered_frame_count = 0_usize;
+    let mut selection_marker_pixel_count = 0_usize;
+    let mut command_marker_pixel_count = 0_usize;
+    let mut minimap_command_pixel_count = 0_usize;
+    let mut build_blueprint_pixel_count = 0_usize;
+    let mut cancel_refund_pixel_count = 0_usize;
+    let mut production_queue_pixel_count = 0_usize;
+    let mut stage_state_gates = Vec::new();
+
+    for stage in 0..5 {
+        let mut runtime = classic_openra_style_skirmish_runtime();
+        apply_classic_rts_scripted_demo_stage_runtime(&mut runtime, stage);
+        frame_pixels.fill(BACKGROUND_COLOR);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 4),
+            &runtime,
+            &assets,
+        );
+        let count_frame_color =
+            |color: u32| -> usize { frame_pixels.iter().filter(|pixel| **pixel == color).count() };
+        let frame_selection_count = count_frame_color(CLASSIC_ISO_CONTROL_GROUP_COLOR);
+        let frame_command_count = count_frame_color(CLASSIC_ISO_COMMAND_MARKER_COLOR);
+        let frame_minimap_count = count_frame_color(CLASSIC_RTS_MINIMAP_COMMAND_COLOR);
+        let frame_build_count = count_frame_color(CLASSIC_RTS_BUILD_BLUEPRINT_COLOR);
+        let frame_cancel_count = count_frame_color(CLASSIC_RTS_STRUCTURE_CANCEL_COLOR);
+        let frame_queue_count = count_frame_color(CLASSIC_RTS_PRODUCTION_SLOT_COLOR)
+            + count_frame_color(CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR)
+            + count_frame_color(CLASSIC_RTS_BUILD_PROGRESS_COLOR);
+        selection_marker_pixel_count += frame_selection_count;
+        command_marker_pixel_count += frame_command_count;
+        minimap_command_pixel_count += frame_minimap_count;
+        build_blueprint_pixel_count += frame_build_count;
+        cancel_refund_pixel_count += frame_cancel_count;
+        production_queue_pixel_count += frame_queue_count;
+
+        let stage_id = classic_rts_scripted_demo_stage_id(stage);
+        let status_label = classic_tactical_status_label(&runtime);
+        stage_ids.push(stage_id.to_string());
+        stage_status_labels.push(status_label.clone());
+        let stage_state_gate = match stage {
+            0 => {
+                runtime.rts_control_group_id.as_deref() == Some("1")
+                    && runtime.rts_selected_unit_ids.len() >= 3
+                    && runtime.rts_production_queue.is_empty()
+                    && runtime.rts_build_queue.is_empty()
+                    && runtime.rts_command_destination_tile.is_none()
+                    && runtime.rts_selection_box_tile_ids.len() >= 4
+                    && status_label == "DEMO 1 SELECT FRONTLINE"
+            }
+            1 => {
+                runtime.rts_command_destination_tile.as_deref() == Some("8,4")
+                    && runtime.rts_minimap_command_tile_id.as_deref() == Some("8,4")
+                    && runtime.rts_minimap_command_kind == "rally"
+                    && runtime
+                        .rts_army_rally_tile_ids
+                        .iter()
+                        .any(|tile| tile == "8,4")
+                    && runtime
+                        .rts_group_route_tile_ids
+                        .iter()
+                        .any(|tile| tile == "8,4")
+                    && status_label == "DEMO 2 RALLY PATH 8 4"
+            }
+            2 => {
+                runtime
+                    .rts_build_queue
+                    .iter()
+                    .any(|queue| queue == "build:watch_tower@7,4")
+                    && runtime.rts_building_blueprint_id.as_deref() == Some("watch_tower")
+                    && runtime
+                        .rts_build_site_tile_ids
+                        .iter()
+                        .any(|tile| tile == "7,4")
+                    && runtime.rts_building_progress_percent == 24
+                    && status_label == "DEMO 3 QUEUE WATCH TOWER"
+            }
+            3 => {
+                runtime.rts_build_queue.is_empty()
+                    && runtime
+                        .rts_cancelled_structure_ids
+                        .iter()
+                        .any(|structure| structure == "watch_tower")
+                    && runtime
+                        .rts_refund_delta_log
+                        .iter()
+                        .any(|entry| entry == "gold:+210")
+                    && runtime.rts_minimap_command_kind == "cancel_refund"
+                    && runtime.rts_production_queue.is_empty()
+                    && status_label == "DEMO 4 CANCEL REFUND"
+            }
+            4 => {
+                runtime
+                    .rts_production_queue
+                    .iter()
+                    .any(|queue| queue == "train:worker")
+                    && runtime
+                        .rts_cancelled_structure_ids
+                        .iter()
+                        .any(|structure| structure == "watch_tower")
+                    && runtime
+                        .rts_refund_delta_log
+                        .iter()
+                        .any(|entry| entry == "gold:+210")
+                    && runtime.rts_training_progress_percent == 0
+                    && runtime
+                        .rts_command_queue
+                        .iter()
+                        .any(|entry| entry.contains("cancel:build:watch_tower@7,4"))
+                    && status_label == "DEMO 5 WORKER QUEUE READY"
+            }
+            _ => false,
+        };
+        stage_state_gates.push(stage_state_gate);
+
+        let offset_x = ((stage % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
+        let offset_y = ((stage / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
+        classic_copy_pixels(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            &frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            offset_x,
+            offset_y,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            offset_x + 10,
+            offset_y + 10,
+            PANEL_WIDTH as i32 - 20,
+            26,
+            CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            offset_x + 18,
+            offset_y + 18,
+            &format!(
+                "{} {}",
+                classic_rts_scripted_demo_stage_title(stage),
+                stage + 1
+            ),
+            1,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            offset_x + 18,
+            offset_y + 38,
+            &format!("STATUS {}", status_label),
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            offset_x + 18,
+            offset_y + PANEL_HEIGHT as i32 - 22,
+            "local scripted replay / no OpenRA engine-port or public-launch claim",
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+        rendered_frame_count += 1;
+
+        stage_summaries.push(json!({
+            "stage_index": stage,
+            "stage_id": stage_id,
+            "stage_title": classic_rts_scripted_demo_stage_title(stage),
+            "group_command_state": runtime.rts_group_command_state,
+            "tactical_status_label": status_label,
+            "last_feedback": runtime.last_feedback,
+            "selected_unit_ids": runtime.rts_selected_unit_ids,
+            "selection_box_tile_ids": runtime.rts_selection_box_tile_ids,
+            "command_destination_tile": runtime.rts_command_destination_tile,
+            "minimap_command_tile_id": runtime.rts_minimap_command_tile_id,
+            "minimap_command_kind": runtime.rts_minimap_command_kind,
+            "group_route_tile_ids": runtime.rts_group_route_tile_ids,
+            "army_rally_tile_ids": runtime.rts_army_rally_tile_ids,
+            "build_queue": runtime.rts_build_queue,
+            "production_queue": runtime.rts_production_queue,
+            "build_site_tile_ids": runtime.rts_build_site_tile_ids,
+            "building_blueprint_id": runtime.rts_building_blueprint_id,
+            "building_progress_percent": runtime.rts_building_progress_percent,
+            "training_progress_percent": runtime.rts_training_progress_percent,
+            "cancelled_structure_ids": runtime.rts_cancelled_structure_ids,
+            "refund_delta_log": runtime.rts_refund_delta_log,
+            "command_queue": runtime.rts_command_queue,
+            "state_gate": stage_state_gate,
+            "frame_selection_marker_pixel_count": frame_selection_count,
+            "frame_command_marker_pixel_count": frame_command_count,
+            "frame_minimap_command_pixel_count": frame_minimap_count,
+            "frame_build_blueprint_pixel_count": frame_build_count,
+            "frame_cancel_refund_pixel_count": frame_cancel_count,
+            "frame_production_queue_pixel_count": frame_queue_count,
+            "renderer_path": "classic_draw_scene",
+            "input_path": "apply_classic_rts_scripted_demo_stage_runtime(queue_cancel_refund_sequence)",
+        }));
+    }
+
+    let write_gate =
+        write_classic_rgb_buffer_ppm(preview_path, PREVIEW_WIDTH, PREVIEW_HEIGHT, &preview_pixels)
+            .is_ok();
+    let non_background_pixels = preview_pixels
+        .iter()
+        .filter(|pixel| **pixel != BACKGROUND_COLOR)
+        .count();
+    let sequence_frame_gate = rendered_frame_count == 5
+        && stage_ids
+            == string_vec([
+                "drag_select_frontline",
+                "rally_path_minimap",
+                "watch_tower_footprint",
+                "cancel_refund",
+                "queued_worker_ready",
+            ])
+        && classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 0) == Some(0)
+        && classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 60)
+            == Some(1)
+        && classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 240)
+            == Some(4)
+        && classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 300)
+            == Some(0);
+    let scripted_runtime_gate = stage_state_gates.iter().all(|gate| *gate)
+        && classic_rts_scripted_demo_pauses_queue_tick("queue_cancel_refund_sequence")
+        && classic_rts_scripted_demo_stage_from_frame("queue_cancel_refund", 60).is_none();
+    let tactical_status_gate = stage_status_labels
+        == string_vec([
+            "DEMO 1 SELECT FRONTLINE",
+            "DEMO 2 RALLY PATH 8 4",
+            "DEMO 3 QUEUE WATCH TOWER",
+            "DEMO 4 CANCEL REFUND",
+            "DEMO 5 WORKER QUEUE READY",
+        ]);
+    let visual_feedback_gate = selection_marker_pixel_count > 200
+        && command_marker_pixel_count > 80
+        && minimap_command_pixel_count > 20
+        && build_blueprint_pixel_count > 20
+        && cancel_refund_pixel_count > 20
+        && production_queue_pixel_count > 1_000;
+    let preview_gate = write_gate && non_background_pixels > 500_000 && visual_feedback_gate;
+    let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
+        && !assets.manifest.cex_runtime_player_client_allowed
+        && !assets.manifest.wgpu_required;
+    let green = sequence_frame_gate
+        && scripted_runtime_gate
+        && tactical_status_gate
+        && preview_gate
+        && original_art_policy_gate;
+
+    serde_json::to_string_pretty(&json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SCRIPTED_DEMO_REPLAY_CONTRACT,
+        "status": if green { "classic_rts_scripted_demo_replay_green" } else { "classic_rts_scripted_demo_replay_blocked" },
+        "green": green,
+        "demo_id": "queue_cancel_refund_sequence",
+        "preview_path": preview_path,
+        "preview_format": "ppm_p3_rgb",
+        "preview_width": PREVIEW_WIDTH,
+        "preview_height": PREVIEW_HEIGHT,
+        "panel_width": PANEL_WIDTH,
+        "panel_height": PANEL_HEIGHT,
+        "write_gate": write_gate,
+        "rendered_frame_count": rendered_frame_count,
+        "stage_ids": stage_ids,
+        "stage_status_labels": stage_status_labels,
+        "stage_summaries": stage_summaries,
+        "pixel_counts": {
+            "non_background": non_background_pixels,
+            "selection_marker": selection_marker_pixel_count,
+            "command_marker": command_marker_pixel_count,
+            "minimap_command": minimap_command_pixel_count,
+            "build_blueprint": build_blueprint_pixel_count,
+            "cancel_refund": cancel_refund_pixel_count,
+            "production_queue": production_queue_pixel_count
+        },
+        "sequence_frame_gate": sequence_frame_gate,
+        "scripted_runtime_gate": scripted_runtime_gate,
+        "tactical_status_gate": tactical_status_gate,
+        "visual_feedback_gate": visual_feedback_gate,
+        "preview_gate": preview_gate,
+        "original_art_policy_gate": original_art_policy_gate,
+        "queue_tick_paused_for_screenshot_stability": true,
+        "internal_scripted_demo_replay_claimed": green,
+        "external_evidence_ignored_for_current_demo_pass": true,
+        "android_s5_real_device_claimed": false,
+        "public_launch_ready": false,
+        "production_ready_ui_claimed": false,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_engine_port_claimed": false,
+        "warcraft_iii_asset_copied": false,
+        "openra_asset_copied": false,
+        "third_party_asset_copied": false,
+        "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+        "wgpu_required": assets.manifest.wgpu_required,
+        "source_of_truth": "Classic RTS scripted demo replay evidence renders the same queue/cancel/refund sequence used by the visible local window through classic_draw_scene: drag selection, rally/minimap marker, watch-tower footprint, cancel/refund feedback, and queued-worker state. It is local original Trillionnium Rust/Bevy evidence only and does not claim OpenRA engine-port, copied-asset, Android S5, public-launch, or production-ready UI completion."
+    }))
+    .expect("classic RTS scripted demo replay evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -93401,6 +93728,16 @@ fn classic_draw_rect(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_tactical_status_label(runtime: &NativeFirstPlayableRuntime) -> String {
+    let status = if runtime.rts_group_command_state.is_empty() {
+        "GROUP 1  ATTACK QUEUED".to_string()
+    } else {
+        runtime.rts_group_command_state.replace('_', " ")
+    };
+    classic_catalog_text_label(&status, 40)
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_window_title(
     player_tile: (i32, i32),
     runtime: &NativeFirstPlayableRuntime,
@@ -93651,21 +93988,13 @@ fn classic_draw_openra_style_rts_shell(
         18,
         0x0d1510,
     );
-    let tactical_status = if runtime.rts_group_command_state.is_empty() {
-        "GROUP 1  ATTACK QUEUED".to_string()
-    } else {
-        runtime.rts_group_command_state.replace('_', " ")
-    };
     classic_draw_text(
         buffer,
         width,
         height,
         viewport_x + 16,
         viewport_y + 14,
-        &format!(
-            "TACTICAL VIEW  {}",
-            classic_catalog_text_label(&tactical_status, 40)
-        ),
+        &format!("TACTICAL VIEW  {}", classic_tactical_status_label(runtime)),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -130428,6 +130757,28 @@ fn classic_rts_scripted_demo_stage_from_frame(demo_id: &str, frame_tick: u64) ->
     }
 }
 
+fn classic_rts_scripted_demo_stage_id(stage: usize) -> &'static str {
+    match stage {
+        0 => "drag_select_frontline",
+        1 => "rally_path_minimap",
+        2 => "watch_tower_footprint",
+        3 => "cancel_refund",
+        4 => "queued_worker_ready",
+        _ => "unknown",
+    }
+}
+
+fn classic_rts_scripted_demo_stage_title(stage: usize) -> &'static str {
+    match stage {
+        0 => "DRAG SELECT",
+        1 => "RALLY / MINIMAP",
+        2 => "BUILD FOOTPRINT",
+        3 => "CANCEL / REFUND",
+        4 => "WORKER QUEUED",
+        _ => "UNKNOWN",
+    }
+}
+
 fn apply_classic_rts_scripted_demo_stage_runtime(
     first_playable: &mut NativeFirstPlayableRuntime,
     stage: usize,
@@ -136721,6 +137072,8 @@ mod tests {
         assert!(classic_rts_scripted_demo_pauses_queue_tick(
             "queue_cancel_refund_sequence"
         ));
+        assert_eq!(classic_rts_scripted_demo_stage_id(3), "cancel_refund");
+        assert_eq!(classic_rts_scripted_demo_stage_title(4), "WORKER QUEUED");
 
         let mut sequence_runtime = classic_openra_style_skirmish_runtime();
         apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 0);
@@ -136728,6 +137081,10 @@ mod tests {
         assert!(sequence_runtime.rts_production_queue.is_empty());
         assert!(sequence_runtime.rts_build_queue.is_empty());
         assert!(sequence_runtime.rts_command_destination_tile.is_none());
+        assert_eq!(
+            classic_tactical_status_label(&sequence_runtime),
+            "DEMO 1 SELECT FRONTLINE"
+        );
 
         apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 2);
         assert!(sequence_runtime
@@ -136742,6 +137099,10 @@ mod tests {
             .rts_army_rally_tile_ids
             .iter()
             .any(|tile_id| tile_id == "8,4"));
+        assert_eq!(
+            classic_tactical_status_label(&sequence_runtime),
+            "DEMO 3 QUEUE WATCH TOWER"
+        );
 
         apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 3);
         assert!(sequence_runtime.rts_build_queue.is_empty());
@@ -136750,6 +137111,10 @@ mod tests {
             .iter()
             .any(|entry| entry == "gold:+210"));
         assert!(sequence_runtime.rts_production_queue.is_empty());
+        assert_eq!(
+            classic_tactical_status_label(&sequence_runtime),
+            "DEMO 4 CANCEL REFUND"
+        );
 
         apply_classic_rts_scripted_demo_stage_runtime(&mut sequence_runtime, 4);
         assert!(sequence_runtime
@@ -136760,6 +137125,10 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry.contains("cancel:build:watch_tower@7,4")));
+        assert_eq!(
+            classic_tactical_status_label(&sequence_runtime),
+            "DEMO 5 WORKER QUEUE READY"
+        );
     }
 
     #[test]
