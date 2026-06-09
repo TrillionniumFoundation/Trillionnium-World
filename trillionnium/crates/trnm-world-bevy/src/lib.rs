@@ -93651,13 +93651,21 @@ fn classic_draw_openra_style_rts_shell(
         18,
         0x0d1510,
     );
+    let tactical_status = if runtime.rts_group_command_state.is_empty() {
+        "GROUP 1  ATTACK QUEUED".to_string()
+    } else {
+        runtime.rts_group_command_state.replace('_', " ")
+    };
     classic_draw_text(
         buffer,
         width,
         height,
         viewport_x + 16,
         viewport_y + 14,
-        "TACTICAL VIEW  GROUP 1  ATTACK QUEUED",
+        &format!(
+            "TACTICAL VIEW  {}",
+            classic_catalog_text_label(&tactical_status, 40)
+        ),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
