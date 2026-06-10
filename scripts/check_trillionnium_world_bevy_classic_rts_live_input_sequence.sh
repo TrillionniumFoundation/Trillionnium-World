@@ -139,6 +139,97 @@ jq -e '
     and (.command_queue | index("selection_clear:hostile:square_creep_wander@9,4") != null)
     and .command_stamp_player_label == "MAP SELECTION CLEARED HOSTILE"
   ))
+  and .right_click_target_attack_marker_pixel_count > 20
+  and .right_click_target_stamp_pixel_count > 80
+  and .right_click_target_selection_marker_pixel_count > 120
+  and .right_click_target_hover_sample.action_label == "RTS:ATTACK:square_creep_wander"
+  and .right_click_target_hover_sample.player_label == "MAP ATTACK READY SQUARE CREEP WANDER"
+  and .right_click_target_hover_sample.cursor_kind == "attack"
+  and .right_click_target_hover_sample.cursor_player_label == "MAP CURSOR ATTACK READY"
+  and .right_click_target_sample.accepted == true
+  and .right_click_target_sample.input_source == "classic_rts_mouse_viewport"
+  and .right_click_target_sample.stage == "drag_filter_then_right_click_hostile"
+  and .right_click_target_sample.tile_id == "9,4"
+  and .right_click_target_sample.action_label == "RTS:ATTACK:square_creep_wander"
+  and .right_click_target_sample.target_id == "square_creep_wander"
+  and .right_click_target_sample.command_destination_tile == "9,4"
+  and (.right_click_target_sample.selected_unit_ids | length == 5)
+  and (.right_click_target_sample.selected_unit_ids | index("square_creep_wander") == null)
+  and (.right_click_target_sample.target_priority_ids | index("square_creep_wander") != null)
+  and (.right_click_target_sample.target_priority_ids | index("forest_creep_camp") != null)
+  and (.right_click_target_sample.combat_event_log | index("target_acquired:square_creep_wander") != null)
+  and (.right_click_target_sample.command_queue | any(startswith("drag_select:")))
+  and (.right_click_target_sample.command_queue | index("attack:square_creep_wander") != null)
+  and .right_click_target_sample.command_stamp_tile_id == "9,4"
+  and .right_click_target_sample.command_stamp_target_id == "square_creep_wander"
+  and .right_click_target_sample.command_stamp_player_label == "MAP ATTACK SENT SQUARE CREEP WANDER"
+  and .right_click_target_attack_gate == true
+  and (.right_click_target_samples | length == 4)
+  and (.right_click_target_hover_samples | length == 4)
+  and .right_click_target_follow_stamp_pixel_count > 80
+  and .right_click_target_harvest_stamp_pixel_count > 80
+  and (.right_click_target_hover_samples | any(
+    .stage == "right_click_empty_move"
+    and .action_label == "RTS:MOVE:4,3:line"
+    and .player_label == "MAP MOVE READY 4,3"
+    and .cursor_kind == "move"
+  ))
+  and (.right_click_target_samples | any(
+    .stage == "right_click_empty_move"
+    and .accepted == true
+    and .action_label == "RTS:MOVE:4,3:line"
+    and .command_destination_tile == "4,3"
+    and .group_command_state == "route:line:4,3"
+    and (.command_queue | index("move:4,3") != null)
+    and (.command_queue | index("formation:line") != null)
+    and .command_stamp_kind == "move"
+    and .command_stamp_player_label == "MAP MOVE SENT 4,3"
+    and .command_stamp_pixel_count > 80
+  ))
+  and (.right_click_target_hover_samples | any(
+    .stage == "right_click_friendly_follow"
+    and .action_label == "RTS:MOVE:5,4:follow:player"
+    and .player_label == "MAP FOLLOW READY PLAYER"
+    and .cursor_kind == "follow"
+  ))
+  and (.right_click_target_samples | any(
+    .stage == "right_click_friendly_follow"
+    and .accepted == true
+    and .action_label == "RTS:MOVE:5,4:follow:player"
+    and .command_destination_tile == "5,4"
+    and .group_command_state == "follow:player@5,4"
+    and .unit_response_state == "following:player"
+    and (.command_queue | index("follow:player@5,4") != null)
+    and (.command_queue | index("feedback:follow@5,4:player") != null)
+    and .command_stamp_kind == "follow"
+    and .command_stamp_target_id == "player"
+    and .command_stamp_player_label == "MAP FOLLOW SENT PLAYER"
+  ))
+  and (.right_click_target_hover_samples | any(
+    .stage == "right_click_resource_harvest"
+    and .action_label == "RTS:QUEUE:harvest:gold_vein"
+    and .player_label == "MAP HARVEST READY GOLD VEIN"
+    and .cursor_kind == "harvest"
+  ))
+  and (.right_click_target_samples | any(
+    .stage == "right_click_resource_harvest"
+    and .accepted == true
+    and .action_label == "RTS:QUEUE:harvest:gold_vein"
+    and .command_destination_tile == "3,3"
+    and .minimap_command_kind == "harvest"
+    and .minimap_command_tile_id == "3,3"
+    and (.harvest_node_ids | index("gold_vein") != null)
+    and (.command_queue | index("harvest:gold_vein->town_hall") != null)
+    and (.command_queue | index("feedback:harvest_assigned:gold_vein") != null)
+    and .command_stamp_kind == "harvest"
+    and .command_stamp_tile_id == "3,3"
+    and .command_stamp_target_id == "gold_vein"
+    and .command_stamp_player_label == "MAP HARVEST SENT GOLD VEIN 3,3"
+  ))
+  and .right_click_target_move_gate == true
+  and .right_click_target_follow_gate == true
+  and .right_click_target_harvest_gate == true
+  and .right_click_target_semantics_gate == true
   and .unit_shift_select_marker_pixel_count > 80
   and .unit_shift_select_stamp_pixel_count > 80
   and (.unit_shift_select_samples | length == 3)

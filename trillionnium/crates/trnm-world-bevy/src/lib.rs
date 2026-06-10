@@ -42635,6 +42635,201 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         }
     }
 
+    let capture_right_click_target = |stage: &str,
+                                      mouse_x: i32,
+                                      mouse_y: i32,
+                                      tile_id: &str,
+                                      pre_drag: bool| {
+        let mut right_click_target_world = native_bevy_playable_fixture();
+        let mut right_click_target_character =
+            WorldTrillionniumCharacter::default_for("local-player");
+        let mut right_click_target_log = NativeGameplayLog::default();
+        let mut right_click_target_runtime = classic_openra_style_skirmish_runtime();
+        let mut right_click_target_sample = json!({
+            "stage": stage,
+            "input_source": "classic_rts_mouse_viewport",
+            "mouse_x": mouse_x,
+            "mouse_y": mouse_y,
+            "tile_id": tile_id,
+            "accepted": false,
+            "reason": "right_click_target_action_missing",
+        });
+        let mut right_click_target_hover_sample = json!({});
+        let mut right_click_target_attack_marker_pixel_count = 0_usize;
+        let mut right_click_target_stamp_pixel_count = 0_usize;
+        let mut right_click_target_selection_marker_pixel_count = 0_usize;
+
+        if pre_drag {
+            if let Some(polled) = classic_rts_drag_action_with_source_from_points(
+                &right_click_target_runtime,
+                1280,
+                720,
+                (240, 180),
+                (850, 430),
+            ) {
+                apply_live_native_action_with_source(
+                    &mut right_click_target_world,
+                    &mut right_click_target_character,
+                    &mut right_click_target_log,
+                    &mut right_click_target_runtime,
+                    "local-player",
+                    polled.input_source,
+                    polled.action,
+                );
+            }
+        }
+
+        if let Some(preview) = apply_classic_rts_hover_preview_runtime(
+            &mut right_click_target_runtime,
+            1280,
+            720,
+            mouse_x,
+            mouse_y,
+        ) {
+            right_click_target_hover_sample = json!({
+                "stage": stage,
+                "input_source": preview.input_source,
+                "mouse_x": mouse_x,
+                "mouse_y": mouse_y,
+                "tile_id": preview.tile_id,
+                "action_label": preview.action_label,
+                "player_label": preview.player_label,
+                "affordance": preview.affordance,
+                "cursor_kind": right_click_target_runtime.rts_cursor_kind.clone(),
+                "cursor_player_label": right_click_target_runtime.rts_cursor_player_label.clone(),
+                "accepted": preview.accepted,
+                "reason": preview.reason,
+            });
+        }
+
+        if let Some(polled) = classic_rts_mouse_action_with_source_from_point(
+            &right_click_target_runtime,
+            1280,
+            720,
+            mouse_x,
+            mouse_y,
+            MiniMouseButton::Right,
+        ) {
+            let input_source = polled.input_source;
+            let action_label = native_control_action_label(&polled.action);
+            apply_live_native_action_with_source(
+                &mut right_click_target_world,
+                &mut right_click_target_character,
+                &mut right_click_target_log,
+                &mut right_click_target_runtime,
+                "local-player",
+                polled.input_source,
+                polled.action,
+            );
+            let mut right_click_target_frame_pixels = vec![0x0b0d0c_u32; 1280 * 720];
+            classic_draw_scene(
+                &mut right_click_target_frame_pixels,
+                1280,
+                720,
+                (5, 5),
+                &right_click_target_runtime,
+                &assets,
+            );
+            right_click_target_attack_marker_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR)
+                .count();
+            right_click_target_stamp_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
+                .count();
+            right_click_target_selection_marker_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_ISO_CONTROL_GROUP_COLOR)
+                .count();
+            right_click_target_sample = json!({
+                "stage": stage,
+                "input_source": input_source,
+                "mouse_x": mouse_x,
+                "mouse_y": mouse_y,
+                "tile_id": tile_id,
+                "action_label": action_label,
+                "target_id": right_click_target_runtime.rts_attack_target_id.clone(),
+                "command_destination_tile": right_click_target_runtime.rts_command_destination_tile.clone(),
+                "selected_unit_ids": right_click_target_runtime.rts_selected_unit_ids.clone(),
+                "selection_tile_ids": right_click_target_runtime.rts_selection_box_tile_ids.clone(),
+                "group_command_state": right_click_target_runtime.rts_group_command_state.clone(),
+                "targeting_state": right_click_target_runtime.rts_targeting_state.clone(),
+                "target_priority_ids": right_click_target_runtime.rts_target_priority_ids.clone(),
+                "combat_event_log": right_click_target_runtime.rts_combat_event_log.clone(),
+                "command_queue": right_click_target_runtime.rts_command_queue.clone(),
+                "harvest_node_ids": right_click_target_runtime.rts_harvest_node_ids.clone(),
+                "worker_assignment_ids": right_click_target_runtime.rts_worker_assignment_ids.clone(),
+                "economy_state": right_click_target_runtime.rts_economy_state.clone(),
+                "minimap_command_kind": right_click_target_runtime.rts_minimap_command_kind.clone(),
+                "minimap_command_tile_id": right_click_target_runtime.rts_minimap_command_tile_id.clone(),
+                "unit_response_state": right_click_target_runtime.rts_unit_response_state.clone(),
+                "last_feedback": right_click_target_runtime.last_feedback.clone(),
+                "command_stamp_kind": right_click_target_runtime.rts_command_stamp_kind.clone(),
+                "command_stamp_tile_id": right_click_target_runtime.rts_command_stamp_tile_id.clone(),
+                "command_stamp_target_id": right_click_target_runtime.rts_command_stamp_target_id.clone(),
+                "command_stamp_player_label": right_click_target_runtime.rts_command_stamp_player_label.clone(),
+                "attack_marker_pixel_count": right_click_target_attack_marker_pixel_count,
+                "command_stamp_pixel_count": right_click_target_stamp_pixel_count,
+                "selection_marker_pixel_count": right_click_target_selection_marker_pixel_count,
+                "accepted": right_click_target_runtime
+                    .input_feedback_history
+                    .last()
+                    .is_some_and(|event| event.accepted),
+            });
+        }
+
+        (
+            right_click_target_sample,
+            right_click_target_hover_sample,
+            right_click_target_attack_marker_pixel_count,
+            right_click_target_stamp_pixel_count,
+            right_click_target_selection_marker_pixel_count,
+        )
+    };
+
+    let mut right_click_target_samples = Vec::new();
+    let mut right_click_target_hover_samples = Vec::new();
+    let mut right_click_target_sample = json!({
+        "accepted": false,
+        "reason": "right_click_target_action_missing",
+    });
+    let mut right_click_target_attack_marker_pixel_count = 0_usize;
+    let mut right_click_target_stamp_pixel_count = 0_usize;
+    let mut right_click_target_selection_marker_pixel_count = 0_usize;
+    let mut right_click_target_follow_stamp_pixel_count = 0_usize;
+    let mut right_click_target_harvest_stamp_pixel_count = 0_usize;
+    let mut right_click_target_hover_sample = json!({});
+
+    for (stage, mouse_x, mouse_y, tile_id, pre_drag) in [
+        ("right_click_empty_move", 420, 240, "4,3", false),
+        (
+            "drag_filter_then_right_click_hostile",
+            790,
+            330,
+            "9,4",
+            true,
+        ),
+        ("right_click_friendly_follow", 460, 330, "5,4", false),
+        ("right_click_resource_harvest", 300, 270, "3,3", false),
+    ] {
+        let (sample, hover_sample, attack_pixels, stamp_pixels, selection_pixels) =
+            capture_right_click_target(stage, mouse_x, mouse_y, tile_id, pre_drag);
+        if stage == "drag_filter_then_right_click_hostile" {
+            right_click_target_sample = sample.clone();
+            right_click_target_hover_sample = hover_sample.clone();
+            right_click_target_attack_marker_pixel_count = attack_pixels;
+            right_click_target_stamp_pixel_count = stamp_pixels;
+            right_click_target_selection_marker_pixel_count = selection_pixels;
+        } else if stage == "right_click_friendly_follow" {
+            right_click_target_follow_stamp_pixel_count = stamp_pixels;
+        } else if stage == "right_click_resource_harvest" {
+            right_click_target_harvest_stamp_pixel_count = stamp_pixels;
+        }
+        right_click_target_samples.push(sample);
+        right_click_target_hover_samples.push(hover_sample);
+    }
+
     let mut unit_shift_world = native_bevy_playable_fixture();
     let mut unit_shift_character = WorldTrillionniumCharacter::default_for("local-player");
     let mut unit_shift_log = NativeGameplayLog::default();
@@ -43558,6 +43753,252 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                     .and_then(|value| value.as_str())
                     == Some("MAP SELECTION CLEARED HOSTILE")
         });
+    let right_click_target_attack_gate = right_click_target_attack_marker_pixel_count > 20
+        && right_click_target_stamp_pixel_count > 80
+        && right_click_target_selection_marker_pixel_count > 120
+        && right_click_target_hover_sample
+            .get("action_label")
+            .and_then(|value| value.as_str())
+            == Some("RTS:ATTACK:square_creep_wander")
+        && right_click_target_hover_sample
+            .get("player_label")
+            .and_then(|value| value.as_str())
+            == Some("MAP ATTACK READY SQUARE CREEP WANDER")
+        && right_click_target_hover_sample
+            .get("cursor_kind")
+            .and_then(|value| value.as_str())
+            == Some("attack")
+        && right_click_target_hover_sample
+            .get("cursor_player_label")
+            .and_then(|value| value.as_str())
+            == Some("MAP CURSOR ATTACK READY")
+        && right_click_target_sample
+            .get("accepted")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && right_click_target_sample
+            .get("input_source")
+            .and_then(|value| value.as_str())
+            == Some("classic_rts_mouse_viewport")
+        && right_click_target_sample
+            .get("tile_id")
+            .and_then(|value| value.as_str())
+            == Some("9,4")
+        && right_click_target_sample
+            .get("action_label")
+            .and_then(|value| value.as_str())
+            == Some("RTS:ATTACK:square_creep_wander")
+        && right_click_target_sample
+            .get("target_id")
+            .and_then(|value| value.as_str())
+            == Some("square_creep_wander")
+        && right_click_target_sample
+            .get("command_destination_tile")
+            .and_then(|value| value.as_str())
+            == Some("9,4")
+        && right_click_target_sample
+            .get("selected_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| units.len() == 5)
+        && right_click_target_sample
+            .get("target_priority_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|targets| {
+                targets
+                    .iter()
+                    .any(|entry| entry.as_str() == Some("square_creep_wander"))
+                    && targets
+                        .iter()
+                        .any(|entry| entry.as_str() == Some("forest_creep_camp"))
+            })
+        && right_click_target_sample
+            .get("combat_event_log")
+            .and_then(|value| value.as_array())
+            .is_some_and(|events| {
+                events
+                    .iter()
+                    .any(|entry| entry.as_str() == Some("target_acquired:square_creep_wander"))
+            })
+        && right_click_target_sample
+            .get("command_queue")
+            .and_then(|value| value.as_array())
+            .is_some_and(|commands| {
+                commands
+                    .iter()
+                    .any(|entry| entry.as_str() == Some("attack:square_creep_wander"))
+                    && commands.iter().any(|entry| {
+                        entry
+                            .as_str()
+                            .is_some_and(|entry| entry.starts_with("drag_select:"))
+                    })
+            })
+        && right_click_target_sample
+            .get("command_stamp_tile_id")
+            .and_then(|value| value.as_str())
+            == Some("9,4")
+        && right_click_target_sample
+            .get("command_stamp_target_id")
+            .and_then(|value| value.as_str())
+            == Some("square_creep_wander")
+        && right_click_target_sample
+            .get("command_stamp_player_label")
+            .and_then(|value| value.as_str())
+            == Some("MAP ATTACK SENT SQUARE CREEP WANDER");
+    let right_click_target_hover_gate =
+        |stage: &str, action_label: &str, player_label: &str, cursor_kind: &str| {
+            right_click_target_hover_samples.iter().any(|sample| {
+                sample.get("stage").and_then(|value| value.as_str()) == Some(stage)
+                    && sample.get("action_label").and_then(|value| value.as_str())
+                        == Some(action_label)
+                    && sample.get("player_label").and_then(|value| value.as_str())
+                        == Some(player_label)
+                    && sample.get("cursor_kind").and_then(|value| value.as_str())
+                        == Some(cursor_kind)
+                    && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            })
+        };
+    let right_click_target_command_contains = |sample: &serde_json::Value, expected: &str| {
+        sample
+            .get("command_queue")
+            .and_then(|value| value.as_array())
+            .is_some_and(|commands| {
+                commands
+                    .iter()
+                    .any(|entry| entry.as_str() == Some(expected))
+            })
+    };
+    let right_click_target_array_contains =
+        |sample: &serde_json::Value, key: &str, expected: &str| {
+            sample
+                .get(key)
+                .and_then(|value| value.as_array())
+                .is_some_and(|entries| entries.iter().any(|entry| entry.as_str() == Some(expected)))
+        };
+    let right_click_target_move_gate = right_click_target_hover_gate(
+        "right_click_empty_move",
+        "RTS:MOVE:4,3:line",
+        "MAP MOVE READY 4,3",
+        "move",
+    ) && right_click_target_samples.iter().any(|sample| {
+        sample.get("stage").and_then(|value| value.as_str()) == Some("right_click_empty_move")
+            && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+            && sample.get("action_label").and_then(|value| value.as_str())
+                == Some("RTS:MOVE:4,3:line")
+            && sample
+                .get("command_destination_tile")
+                .and_then(|value| value.as_str())
+                == Some("4,3")
+            && sample
+                .get("group_command_state")
+                .and_then(|value| value.as_str())
+                == Some("route:line:4,3")
+            && right_click_target_command_contains(sample, "move:4,3")
+            && right_click_target_command_contains(sample, "formation:line")
+            && sample
+                .get("command_stamp_kind")
+                .and_then(|value| value.as_str())
+                == Some("move")
+            && sample
+                .get("command_stamp_player_label")
+                .and_then(|value| value.as_str())
+                == Some("MAP MOVE SENT 4,3")
+            && sample
+                .get("command_stamp_pixel_count")
+                .and_then(|value| value.as_u64())
+                .is_some_and(|pixels| pixels > 80)
+    });
+    let right_click_target_follow_gate = right_click_target_follow_stamp_pixel_count > 80
+        && right_click_target_hover_gate(
+            "right_click_friendly_follow",
+            "RTS:MOVE:5,4:follow:player",
+            "MAP FOLLOW READY PLAYER",
+            "follow",
+        )
+        && right_click_target_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("right_click_friendly_follow")
+                && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && sample.get("action_label").and_then(|value| value.as_str())
+                    == Some("RTS:MOVE:5,4:follow:player")
+                && sample
+                    .get("command_destination_tile")
+                    .and_then(|value| value.as_str())
+                    == Some("5,4")
+                && sample
+                    .get("group_command_state")
+                    .and_then(|value| value.as_str())
+                    == Some("follow:player@5,4")
+                && sample
+                    .get("unit_response_state")
+                    .and_then(|value| value.as_str())
+                    == Some("following:player")
+                && right_click_target_command_contains(sample, "follow:player@5,4")
+                && right_click_target_command_contains(sample, "feedback:follow@5,4:player")
+                && sample
+                    .get("command_stamp_kind")
+                    .and_then(|value| value.as_str())
+                    == Some("follow")
+                && sample
+                    .get("command_stamp_target_id")
+                    .and_then(|value| value.as_str())
+                    == Some("player")
+                && sample
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("MAP FOLLOW SENT PLAYER")
+        });
+    let right_click_target_harvest_gate = right_click_target_harvest_stamp_pixel_count > 80
+        && right_click_target_hover_gate(
+            "right_click_resource_harvest",
+            "RTS:QUEUE:harvest:gold_vein",
+            "MAP HARVEST READY GOLD VEIN",
+            "harvest",
+        )
+        && right_click_target_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("right_click_resource_harvest")
+                && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && sample.get("action_label").and_then(|value| value.as_str())
+                    == Some("RTS:QUEUE:harvest:gold_vein")
+                && sample
+                    .get("command_destination_tile")
+                    .and_then(|value| value.as_str())
+                    == Some("3,3")
+                && sample
+                    .get("minimap_command_kind")
+                    .and_then(|value| value.as_str())
+                    == Some("harvest")
+                && sample
+                    .get("minimap_command_tile_id")
+                    .and_then(|value| value.as_str())
+                    == Some("3,3")
+                && right_click_target_array_contains(sample, "harvest_node_ids", "gold_vein")
+                && right_click_target_command_contains(sample, "harvest:gold_vein->town_hall")
+                && right_click_target_command_contains(
+                    sample,
+                    "feedback:harvest_assigned:gold_vein",
+                )
+                && sample
+                    .get("command_stamp_kind")
+                    .and_then(|value| value.as_str())
+                    == Some("harvest")
+                && sample
+                    .get("command_stamp_tile_id")
+                    .and_then(|value| value.as_str())
+                    == Some("3,3")
+                && sample
+                    .get("command_stamp_target_id")
+                    .and_then(|value| value.as_str())
+                    == Some("gold_vein")
+                && sample
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("MAP HARVEST SENT GOLD VEIN 3,3")
+        });
+    let right_click_target_semantics_gate = right_click_target_attack_gate
+        && right_click_target_move_gate
+        && right_click_target_follow_gate
+        && right_click_target_harvest_gate;
     let unit_shift_select_gate = unit_shift_select_samples.len() == 3
         && unit_shift_select_marker_pixel_count > 80
         && unit_shift_select_stamp_pixel_count > 80
@@ -44046,6 +44487,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && drag_select_filter_gate
         && unit_click_select_gate
         && selection_clear_gate
+        && right_click_target_semantics_gate
         && unit_shift_select_gate
         && unit_double_click_select_gate
         && control_group_hotkey_gate
@@ -44088,6 +44530,15 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "selection_clear_stamp_pixel_count": selection_clear_stamp_pixel_count,
         "selection_clear_command_disabled_pixel_count": selection_clear_command_disabled_pixel_count,
         "selection_clear_residual_marker_pixel_count": selection_clear_residual_marker_pixel_count,
+        "right_click_target_samples": right_click_target_samples,
+        "right_click_target_hover_samples": right_click_target_hover_samples,
+        "right_click_target_sample": right_click_target_sample,
+        "right_click_target_hover_sample": right_click_target_hover_sample,
+        "right_click_target_attack_marker_pixel_count": right_click_target_attack_marker_pixel_count,
+        "right_click_target_stamp_pixel_count": right_click_target_stamp_pixel_count,
+        "right_click_target_selection_marker_pixel_count": right_click_target_selection_marker_pixel_count,
+        "right_click_target_follow_stamp_pixel_count": right_click_target_follow_stamp_pixel_count,
+        "right_click_target_harvest_stamp_pixel_count": right_click_target_harvest_stamp_pixel_count,
         "unit_shift_select_samples": unit_shift_select_samples,
         "unit_shift_select_marker_pixel_count": unit_shift_select_marker_pixel_count,
         "unit_shift_select_stamp_pixel_count": unit_shift_select_stamp_pixel_count,
@@ -44149,6 +44600,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "drag_select_filter_gate": drag_select_filter_gate,
         "unit_click_select_gate": unit_click_select_gate,
         "selection_clear_gate": selection_clear_gate,
+        "right_click_target_attack_gate": right_click_target_attack_gate,
+        "right_click_target_move_gate": right_click_target_move_gate,
+        "right_click_target_follow_gate": right_click_target_follow_gate,
+        "right_click_target_harvest_gate": right_click_target_harvest_gate,
+        "right_click_target_semantics_gate": right_click_target_semantics_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
         "control_group_hotkey_gate": control_group_hotkey_gate,
@@ -44156,7 +44612,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -75215,29 +75671,18 @@ fn classic_rts_mouse_action_with_source_from_point_with_modifiers(
                 ))
             }
             MiniMouseButton::Right => {
-                if mouse_x > layout.viewport_x + (layout.viewport_w * 2) / 3 {
-                    Some(ClassicPolledAction::new(
-                        "classic_rts_mouse_viewport",
-                        NativeControlAction::RtsAttackCommand {
-                            target_id: classic_next_runtime_rts_attack_target(runtime),
-                        },
-                    ))
-                } else {
-                    let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
-                        mouse_x,
-                        mouse_y,
-                        layout.viewport_x,
-                        layout.viewport_y,
-                        layout.viewport_w,
-                        layout.viewport_h,
-                    ));
-                    Some(ClassicPolledAction::new(
-                        "classic_rts_mouse_viewport",
-                        NativeControlAction::RtsMoveCommand {
-                            command_id: format!("{tile_id}:line"),
-                        },
-                    ))
-                }
+                let tile = classic_mouse_grid_tile(
+                    mouse_x,
+                    mouse_y,
+                    layout.viewport_x,
+                    layout.viewport_y,
+                    layout.viewport_w,
+                    layout.viewport_h,
+                );
+                Some(ClassicPolledAction::new(
+                    "classic_rts_mouse_viewport",
+                    classic_rts_viewport_context_action_for_tile(runtime, tile),
+                ))
             }
             MiniMouseButton::Middle => None,
         };
@@ -75355,35 +75800,28 @@ fn classic_rts_hover_preview_from_point(
         layout.viewport_w,
         layout.viewport_h,
     ) {
-        if mouse_x > layout.viewport_x + (layout.viewport_w * 2) / 3 {
-            let target_id = classic_next_runtime_rts_attack_target(runtime);
-            let target_tile_id = classic_rts_tile_id(classic_rts_target_tile_for_id(&target_id, 0));
-            return Some(classic_rts_hover_preview_from_action(
-                runtime,
-                "classic_rts_mouse_viewport",
-                Some(target_tile_id),
-                None,
-                "viewport_attack",
-                NativeControlAction::RtsAttackCommand { target_id },
-            ));
-        }
-        let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
+        let tile = classic_mouse_grid_tile(
             mouse_x,
             mouse_y,
             layout.viewport_x,
             layout.viewport_y,
             layout.viewport_w,
             layout.viewport_h,
-        ));
+        );
+        let tile_id = classic_rts_tile_id(tile);
+        let action = classic_rts_viewport_context_action_for_tile(runtime, tile);
+        let queue_id = match &action {
+            NativeControlAction::RtsQueueProduction { queue_id } => Some(queue_id.clone()),
+            _ => None,
+        };
+        let affordance = classic_rts_viewport_context_affordance(&action);
         return Some(classic_rts_hover_preview_from_action(
             runtime,
             "classic_rts_mouse_viewport",
             Some(tile_id.clone()),
-            None,
-            "viewport_move",
-            NativeControlAction::RtsMoveCommand {
-                command_id: format!("{tile_id}:line"),
-            },
+            queue_id,
+            affordance,
+            action,
         ));
     }
     None
@@ -75396,6 +75834,10 @@ fn classic_rts_cursor_kind_for_hover_preview(preview: &ClassicRtsHoverPreview) -
     }
     if preview.affordance.contains("attack") {
         "attack"
+    } else if preview.affordance.contains("harvest") {
+        "harvest"
+    } else if preview.affordance.contains("follow") {
+        "follow"
     } else if preview.affordance.contains("build") || preview.affordance.contains("queue") {
         "build"
     } else if preview.affordance.contains("command_button") {
@@ -75590,10 +76032,11 @@ fn classic_rts_command_stamp_for_action(
                     classic_catalog_text_label(&unit_id.replace('_', " "), 20),
                 )
             } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
+                let tile_id = classic_rts_tile_id(classic_rts_harvest_tile_for_node(node_id));
                 (
                     "harvest",
                     node_id.to_string(),
-                    None,
+                    Some(tile_id),
                     classic_catalog_text_label(&node_id.replace('_', " "), 20),
                 )
             } else if queue_id.starts_with("upgrade:") {
@@ -75633,30 +76076,43 @@ fn classic_rts_command_stamp_for_action(
         NativeControlAction::RtsMoveCommand { command_id } => {
             let (tile_id, formation) = classic_rts_move_command_parts(command_id);
             classic_parse_rts_tile(tile_id)?;
-            let kind = if command_id.starts_with("minimap:") || formation == "rally" {
+            let follow_target_id = classic_rts_move_follow_target(formation);
+            let formation_kind = classic_rts_move_formation_kind(formation);
+            let kind = if command_id.starts_with("minimap:") || formation_kind == "rally" {
                 "rally"
-            } else if formation == "shift_waypoint" {
+            } else if formation_kind == "shift_waypoint" {
                 "waypoint"
-            } else if formation == "attack_move" {
+            } else if formation_kind == "attack_move" {
                 "attack-move"
-            } else if formation == "patrol" {
+            } else if formation_kind == "patrol" {
                 "patrol"
-            } else if formation == "hold" {
+            } else if formation_kind == "hold" {
                 "hold"
-            } else if formation == "stop" {
+            } else if formation_kind == "stop" {
                 "stop"
+            } else if formation_kind == "follow" {
+                "follow"
             } else {
                 "move"
+            };
+            let target_id = follow_target_id.map(ToOwned::to_owned);
+            let player_label = if let Some(target_id) = follow_target_id {
+                format!(
+                    "{source} FOLLOW SENT {}",
+                    classic_catalog_text_label(&target_id.replace('_', " "), 22)
+                )
+            } else {
+                format!(
+                    "{source} {} SENT {tile_id}",
+                    kind.replace('-', " ").to_ascii_uppercase()
+                )
             };
             Some(ClassicRtsCommandStamp {
                 input_source: input_source.to_string(),
                 kind: kind.to_string(),
                 tile_id: Some(tile_id.to_string()),
-                target_id: None,
-                player_label: format!(
-                    "{source} {} SENT {tile_id}",
-                    kind.replace('-', " ").to_ascii_uppercase()
-                ),
+                target_id,
+                player_label,
             })
         }
         NativeControlAction::RtsAttackCommand { target_id } => {
@@ -77146,6 +77602,91 @@ fn classic_next_runtime_rts_attack_target(runtime: &NativeFirstPlayableRuntime) 
         Some("enemy_barracks") => "forest_creep_camp".to_string(),
         Some("forest_creep_camp") => "arena_creep_attack".to_string(),
         _ => "enemy_barracks".to_string(),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_attack_target_at_tile(
+    runtime: &NativeFirstPlayableRuntime,
+    tile: (i32, i32),
+) -> Option<String> {
+    if let Some(unit_id) = classic_rts_selectable_unit_at_tile(tile) {
+        if !classic_rts_unit_is_player_owned(unit_id) {
+            return Some(unit_id.to_string());
+        }
+    }
+    runtime
+        .rts_attack_target_id
+        .iter()
+        .map(String::as_str)
+        .chain([
+            "arena_creep_attack",
+            "arena_guard_support",
+            "arena_worker_support",
+            "forest_creep_camp",
+            "forest_stalker_support",
+            "forest_shaman_support",
+            "enemy_watch_post",
+            "enemy_barracks",
+            "enemy_resource_vault",
+        ])
+        .find(|target_id| classic_rts_target_tile_for_id(target_id, 0) == tile)
+        .map(str::to_string)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_harvest_node_at_tile(tile: (i32, i32)) -> Option<&'static str> {
+    ["gold_vein", "lumber_copse", "forest_relay_gold"]
+        .into_iter()
+        .find(|node_id| classic_rts_harvest_tile_for_node(node_id) == tile)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_viewport_context_action_for_tile(
+    runtime: &NativeFirstPlayableRuntime,
+    tile: (i32, i32),
+) -> NativeControlAction {
+    let tile_id = classic_rts_tile_id(tile);
+    if let Some(target_id) = classic_rts_attack_target_at_tile(runtime, tile) {
+        NativeControlAction::RtsAttackCommand { target_id }
+    } else if let Some(node_id) = classic_rts_harvest_node_at_tile(tile) {
+        NativeControlAction::RtsQueueProduction {
+            queue_id: format!("harvest:{node_id}"),
+        }
+    } else if let Some(unit_id) = classic_rts_selectable_unit_at_tile(tile) {
+        if classic_rts_unit_is_player_owned(unit_id) {
+            NativeControlAction::RtsMoveCommand {
+                command_id: format!("{tile_id}:follow:{unit_id}"),
+            }
+        } else {
+            NativeControlAction::RtsAttackCommand {
+                target_id: unit_id.to_string(),
+            }
+        }
+    } else {
+        NativeControlAction::RtsMoveCommand {
+            command_id: format!("{tile_id}:line"),
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_viewport_context_affordance(action: &NativeControlAction) -> &'static str {
+    match action {
+        NativeControlAction::RtsAttackCommand { .. } => "viewport_attack",
+        NativeControlAction::RtsQueueProduction { queue_id }
+            if queue_id.starts_with("harvest:") =>
+        {
+            "viewport_harvest"
+        }
+        NativeControlAction::RtsMoveCommand { command_id }
+            if classic_rts_move_follow_target(classic_rts_move_command_parts(command_id).1)
+                .is_some() =>
+        {
+            "viewport_follow"
+        }
+        NativeControlAction::RtsMoveCommand { .. } => "viewport_move",
+        _ => "viewport_context",
     }
 }
 
@@ -132299,6 +132840,21 @@ fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {
     (tile_id, formation)
 }
 
+fn classic_rts_move_follow_target(formation: &str) -> Option<&str> {
+    formation
+        .strip_prefix("follow:")
+        .map(str::trim)
+        .filter(|target_id| !target_id.is_empty())
+}
+
+fn classic_rts_move_formation_kind(formation: &str) -> &str {
+    if classic_rts_move_follow_target(formation).is_some() {
+        "follow"
+    } else {
+        formation
+    }
+}
+
 fn classic_rts_tile_id(tile: (i32, i32)) -> String {
     format!("{},{}", tile.0, tile.1)
 }
@@ -132366,6 +132922,8 @@ fn classic_rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {
         string_vec(["9,3", "10,3", "10,2", "11,2"])
     } else if target_id == "forest_creep_camp" {
         string_vec(["8,3", "8,2", "9,3", "7,3"])
+    } else if target_id == "square_creep_wander" {
+        string_vec(["8,4", "9,4", "9,3", "10,4"])
     } else if target_id == "arena_creep_attack" {
         string_vec(["6,5", "6,4", "7,5", "5,5"])
     } else {
@@ -132378,6 +132936,8 @@ fn classic_rts_contact_flash_tiles_for_target(target_id: &str) -> Vec<String> {
         string_vec(["10,3", "10,2", "11,2"])
     } else if target_id == "forest_creep_camp" {
         string_vec(["8,3", "9,3"])
+    } else if target_id == "square_creep_wander" {
+        string_vec(["9,4", "10,4"])
     } else if target_id == "arena_creep_attack" {
         string_vec(["6,5", "6,4"])
     } else {
@@ -132393,6 +132953,7 @@ fn classic_rts_target_tile_for_id(target_id: &str, fallback_index: usize) -> (i3
         "forest_creep_camp" => (8, 3),
         "forest_stalker_support" => (8, 2),
         "forest_shaman_support" => (9, 3),
+        "square_creep_wander" => (9, 4),
         "enemy_watch_post" => (10, 2),
         "enemy_barracks" => (10, 3),
         "enemy_resource_vault" => (11, 2),
@@ -132415,6 +132976,12 @@ fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
             "arena_guard_support",
             "arena_worker_support",
         ])
+    } else if target_id == "square_creep_wander" {
+        string_vec([
+            "square_creep_wander",
+            "forest_creep_camp",
+            "arena_creep_attack",
+        ])
     } else {
         vec![target_id.to_string()]
     }
@@ -132423,7 +132990,10 @@ fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
 fn classic_rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
     if target_id == "enemy_barracks" {
         classic_rts_army_units_for_batch("mixed_vanguard")
-    } else if target_id == "forest_creep_camp" || target_id == "arena_creep_attack" {
+    } else if target_id == "forest_creep_camp"
+        || target_id == "arena_creep_attack"
+        || target_id == "square_creep_wander"
+    {
         classic_rts_default_group_units()
     } else {
         string_vec(["player", "square_guard_patrol"])
@@ -132435,6 +133005,8 @@ fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
         vec![88, 66, 41]
     } else if target_id == "forest_creep_camp" {
         vec![92, 70, 46]
+    } else if target_id == "square_creep_wander" {
+        vec![86, 54, 28]
     } else if target_id == "arena_creep_attack" {
         vec![100, 64, 32]
     } else {
@@ -132447,6 +133019,8 @@ fn classic_rts_projectile_trail_tiles_for_target(target_id: &str) -> Vec<String>
         string_vec(["7,4", "8,4", "9,3", "10,3"])
     } else if target_id == "forest_creep_camp" {
         string_vec(["5,5", "6,5", "7,4", "8,3"])
+    } else if target_id == "square_creep_wander" {
+        string_vec(["5,5", "6,5", "8,4", "9,4"])
     } else if target_id == "arena_creep_attack" {
         string_vec(["5,5", "5,4", "6,4", "6,5"])
     } else {
@@ -135679,18 +136253,31 @@ fn classic_rts_hover_player_label(
                 .replace("train:", "")
                 .replace("upgrade:", "")
                 .replace("research:", "")
+                .replace("harvest:", "")
                 .replace('@', " "),
             18,
         );
         let gold = classic_rts_queue_gold_cost(queue_id);
         return if gold > 0 {
             format!("{source} QUEUE READY {queue_label} {gold}G")
+        } else if affordance == "viewport_harvest" && queue_id.starts_with("harvest:") {
+            format!("{source} HARVEST READY {queue_label}")
         } else {
             format!("{source} QUEUE READY {queue_label}")
         };
     }
     if action_label.starts_with("RTS:MOVE:") {
         let tile = tile_id.unwrap_or("-");
+        if let Some(target_id) = action_label
+            .strip_prefix("RTS:MOVE:")
+            .map(classic_rts_move_command_parts)
+            .and_then(|(_, formation)| classic_rts_move_follow_target(formation))
+        {
+            return format!(
+                "{source} FOLLOW READY {}",
+                classic_catalog_text_label(&target_id.replace('_', " "), 18)
+            );
+        }
         return if affordance == "minimap_rally" {
             format!("{source} RALLY READY {tile}")
         } else {
@@ -135700,7 +136287,7 @@ fn classic_rts_hover_player_label(
     if let Some(target_id) = action_label.strip_prefix("RTS:ATTACK:") {
         return format!(
             "{source} ATTACK READY {}",
-            classic_catalog_text_label(&target_id.replace('_', " "), 18)
+            classic_catalog_text_label(&target_id.replace('_', " "), 22)
         );
     }
     if let Some(ability_id) = action_label.strip_prefix("RTS:ABILITY:") {
@@ -136061,7 +136648,11 @@ fn apply_classic_rts_queue_runtime(
             &format!("unlock:{unit_id}"),
         );
     } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
+        let harvest_tile_id = classic_rts_tile_id(classic_rts_harvest_tile_for_node(node_id));
         push_unique_string(&mut first_playable.rts_harvest_node_ids, node_id);
+        first_playable.rts_command_destination_tile = Some(harvest_tile_id.clone());
+        first_playable.rts_minimap_command_tile_id = Some(harvest_tile_id);
+        first_playable.rts_minimap_command_kind = "harvest".to_string();
         first_playable.rts_worker_assignment_ids = string_vec([
             "square_worker_carry:gold_vein",
             "square_guard_patrol:escort_gold_vein",
@@ -136194,12 +136785,14 @@ fn apply_classic_rts_move_runtime(
         apply_classic_rts_select_group_runtime(first_playable, "1");
     }
     first_playable.rts_command_destination_tile = Some(tile_id.to_string());
+    let follow_target_id = classic_rts_move_follow_target(formation);
+    let formation_kind = classic_rts_move_formation_kind(formation);
     if let Some(destination_tile) = classic_parse_rts_tile(tile_id) {
         first_playable.rts_path_tile_ids = classic_rts_path_tiles_for_destination(destination_tile);
         first_playable.rts_blocked_tile_ids =
             classic_rts_blocked_tiles_for_destination(destination_tile);
         first_playable.rts_formation_slot_tile_ids =
-            classic_rts_formation_slots_for_destination(destination_tile, formation);
+            classic_rts_formation_slots_for_destination(destination_tile, formation_kind);
         first_playable.rts_disperse_tile_ids =
             classic_rts_disperse_slots_for_destination(destination_tile);
         first_playable.rts_pathing_status = if first_playable.rts_blocked_tile_ids.is_empty() {
@@ -136214,9 +136807,9 @@ fn apply_classic_rts_move_runtime(
             "blocked_detour_spread".to_string()
         };
         first_playable.rts_minimap_command_tile_id = Some(tile_id.to_string());
-        first_playable.rts_minimap_command_kind = formation.to_string();
+        first_playable.rts_minimap_command_kind = formation_kind.to_string();
         first_playable.rts_group_route_tile_ids = first_playable.rts_path_tile_ids.clone();
-        if formation == "rally" {
+        if formation_kind == "rally" {
             first_playable.rts_minimap_command_kind = "rally".to_string();
             first_playable.rts_army_rally_tile_ids = first_playable.rts_path_tile_ids.clone();
             first_playable.rts_group_command_state = format!("minimap_rally:{tile_id}");
@@ -136224,7 +136817,7 @@ fn apply_classic_rts_move_runtime(
                 &mut first_playable.rts_command_queue,
                 &format!("minimap:rally:{tile_id}"),
             );
-        } else if formation == "split" {
+        } else if formation_kind == "split" {
             first_playable.rts_group_route_tile_ids =
                 string_vec(["5,5", "6,4", "6,5", "7,5", "6,6"]);
             first_playable.rts_group_command_state = "split_route:group_2".to_string();
@@ -136235,7 +136828,7 @@ fn apply_classic_rts_move_runtime(
                     first_playable.rts_group_route_tile_ids.join(">")
                 ),
             );
-        } else if formation == "shift_waypoint" {
+        } else if formation_kind == "shift_waypoint" {
             push_unique_string(&mut first_playable.rts_group_route_tile_ids, tile_id);
             first_playable.rts_minimap_command_kind = "shift_waypoint".to_string();
             first_playable.rts_group_command_state = format!(
@@ -136253,7 +136846,7 @@ fn apply_classic_rts_move_runtime(
                 &mut first_playable.rts_command_queue,
                 "command_queue_path_preview:shift_waypoints",
             );
-        } else if formation == "stop" {
+        } else if formation_kind == "stop" {
             first_playable.rts_path_tile_ids.clear();
             first_playable.rts_blocked_tile_ids.clear();
             first_playable.rts_formation_slot_tile_ids.clear();
@@ -136275,7 +136868,7 @@ fn apply_classic_rts_move_runtime(
                 &mut first_playable.rts_command_queue,
                 "command_queue_path_preview:cancel_repath",
             );
-        } else if formation == "hold" {
+        } else if formation_kind == "hold" {
             first_playable.rts_player_hold_tile_ids =
                 classic_rts_player_hold_tiles_for_id("live_hold", tile_id);
             first_playable.rts_group_route_tile_ids =
@@ -136297,7 +136890,7 @@ fn apply_classic_rts_move_runtime(
                 &mut first_playable.rts_command_queue,
                 "command_queue_path_preview:queue_stack",
             );
-        } else if formation == "patrol" {
+        } else if formation_kind == "patrol" {
             let mut patrol_route = first_playable.rts_path_tile_ids.clone();
             push_unique_string(&mut patrol_route, "8,4");
             push_unique_string(&mut patrol_route, tile_id);
@@ -136323,7 +136916,7 @@ fn apply_classic_rts_move_runtime(
                 &mut first_playable.rts_command_queue,
                 "command_queue_path_preview:rally_chain",
             );
-        } else if formation == "attack_move" {
+        } else if formation_kind == "attack_move" {
             let target_id = match first_playable.rts_attack_target_id.as_deref() {
                 Some("enemy_barracks") => "forest_creep_camp",
                 Some("forest_creep_camp") => "arena_creep_attack",
@@ -136368,8 +136961,17 @@ fn apply_classic_rts_move_runtime(
                 &mut first_playable.rts_command_queue,
                 "command_queue_path_preview:attack_focus",
             );
+        } else if formation_kind == "follow" {
+            let target_id = follow_target_id.unwrap_or("selected_unit");
+            first_playable.rts_unit_response_state = format!("following:{target_id}");
+            first_playable.rts_minimap_command_kind = "follow".to_string();
+            first_playable.rts_group_command_state = format!("follow:{target_id}@{tile_id}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("follow:{target_id}@{tile_id}"),
+            );
         } else {
-            first_playable.rts_group_command_state = format!("route:{formation}:{tile_id}");
+            first_playable.rts_group_command_state = format!("route:{formation_kind}:{tile_id}");
         }
     }
     push_history(
@@ -136411,8 +137013,9 @@ fn apply_classic_rts_move_runtime(
         );
     }
     push_unique_string(&mut first_playable.rts_visible_tile_ids, tile_id);
-    let (active_command, feedback_label) = match formation {
+    let (active_command, feedback_label) = match formation_kind {
         "attack_move" => ("attack_move", "attack-moving to"),
+        "follow" => ("follow", "following"),
         "hold" => ("hold", "holding"),
         "patrol" => ("patrol", "patrolling through"),
         "stop" => ("stop", "stopping at"),
@@ -136420,8 +137023,9 @@ fn apply_classic_rts_move_runtime(
         _ => ("move", "moving to"),
     };
     first_playable.rts_active_ability_id = Some(active_command.to_string());
-    first_playable.last_feedback = format!("RTS group {feedback_label} {tile_id} in {formation}");
-    let feedback_chip = match formation {
+    first_playable.last_feedback =
+        format!("RTS group {feedback_label} {tile_id} in {formation_kind}");
+    let feedback_chip = match formation_kind {
         "attack_move" => format!(
             "feedback:attack_move@{tile_id}:{}",
             first_playable
@@ -136429,12 +137033,16 @@ fn apply_classic_rts_move_runtime(
                 .as_deref()
                 .unwrap_or("unknown_target")
         ),
+        "follow" => format!(
+            "feedback:follow@{tile_id}:{}",
+            follow_target_id.unwrap_or("selected_unit")
+        ),
         "hold" => format!("feedback:hold_position@{tile_id}"),
         "patrol" => format!("feedback:patrol_route@{tile_id}"),
         "rally" => format!("feedback:rally_confirmed@{tile_id}"),
         "shift_waypoint" => format!("feedback:waypoint_queued@{tile_id}"),
         "stop" => format!("feedback:stop_hold@{tile_id}"),
-        _ => format!("feedback:{formation}@{tile_id}"),
+        _ => format!("feedback:{formation_kind}@{tile_id}"),
     };
     push_history(&mut first_playable.rts_command_queue, &feedback_chip);
     push_feedback_event(first_playable, &first_playable.last_feedback.clone());
@@ -141992,12 +142600,51 @@ mod tests {
                 &runtime,
                 1280,
                 720,
+                790,
+                330,
+                MiniMouseButton::Right,
+            ),
+            Some(NativeControlAction::RtsAttackCommand {
+                target_id: "square_creep_wander".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                460,
+                330,
+                MiniMouseButton::Right,
+            ),
+            Some(NativeControlAction::RtsMoveCommand {
+                command_id: "5,4:follow:player".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
+                300,
+                270,
+                MiniMouseButton::Right,
+            ),
+            Some(NativeControlAction::RtsQueueProduction {
+                queue_id: "harvest:gold_vein".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_mouse_action_from_point(
+                &runtime,
+                1280,
+                720,
                 920,
                 240,
                 MiniMouseButton::Right,
             ),
-            Some(NativeControlAction::RtsAttackCommand {
-                target_id: "forest_creep_camp".to_string(),
+            Some(NativeControlAction::RtsMoveCommand {
+                command_id: "11,3:line".to_string(),
             })
         );
         assert_eq!(
