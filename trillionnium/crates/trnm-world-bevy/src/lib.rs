@@ -42225,6 +42225,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             input_sources.insert(event.input_source.clone());
         }
         frame_pixels.fill(0x0b0d0c_u32);
+        let queue_path_preview_stage = classic_rts_command_queue_path_preview_stage(Some(&runtime));
+        let queue_path_preview_stage_marker =
+            queue_path_preview_stage.map(|stage| format!("command_queue_path_preview:{stage}"));
+        let queue_path_preview_renderer_path = queue_path_preview_stage
+            .map(|_| "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay");
         classic_draw_scene(
             &mut frame_pixels,
             PANEL_WIDTH,
@@ -42233,6 +42238,26 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             &runtime,
             &assets,
         );
+        let queue_path_preview_slot_pixel_count = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR)
+            .count();
+        let queue_path_preview_path_pixel_count = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_QUEUE_PREVIEW_PATH_COLOR)
+            .count();
+        let queue_path_preview_waypoint_pixel_count = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR)
+            .count();
+        let queue_path_preview_target_pixel_count = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR)
+            .count();
+        let queue_path_preview_cancel_pixel_count = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR)
+            .count();
         let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
         let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
         classic_copy_pixels(
@@ -42267,6 +42292,19 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "command_queue": runtime.rts_command_queue.clone(),
             "production_queue": runtime.rts_production_queue.clone(),
             "destination_tile": runtime.rts_command_destination_tile.clone(),
+            "queue_path_preview_stage": queue_path_preview_stage,
+            "queue_path_preview_stage_marker": queue_path_preview_stage_marker,
+            "queue_path_preview_renderer_path": queue_path_preview_renderer_path,
+            "queue_path_preview_input_path": "apply_live_native_action_with_source(classic_rts_live_input)",
+            "queue_path_preview_slot_pixel_count": queue_path_preview_slot_pixel_count,
+            "queue_path_preview_path_pixel_count": queue_path_preview_path_pixel_count,
+            "queue_path_preview_waypoint_pixel_count": queue_path_preview_waypoint_pixel_count,
+            "queue_path_preview_target_pixel_count": queue_path_preview_target_pixel_count,
+            "queue_path_preview_cancel_pixel_count": queue_path_preview_cancel_pixel_count,
+            "queue_path_preview_path_tile_ids": runtime.rts_path_tile_ids.clone(),
+            "queue_path_preview_group_route_tile_ids": runtime.rts_group_route_tile_ids.clone(),
+            "queue_path_preview_formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids.clone(),
+            "queue_path_preview_blocked_tile_ids": runtime.rts_blocked_tile_ids.clone(),
             "attack_target_id": runtime.rts_attack_target_id.clone(),
             "active_ability_id": runtime.rts_active_ability_id.clone(),
             "command_stamp_source": runtime.rts_command_stamp_source.clone(),
@@ -43296,6 +43334,99 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         .iter()
         .filter(|entry| entry.starts_with("feedback:"))
         .count();
+    let live_command_queue_path_preview_pixel_sum = |key: &str| -> usize {
+        stage_summaries
+            .iter()
+            .filter_map(|summary| summary.get(key).and_then(|value| value.as_u64()))
+            .map(|value| value as usize)
+            .sum()
+    };
+    let live_command_queue_path_preview_slot_pixel_count =
+        live_command_queue_path_preview_pixel_sum("queue_path_preview_slot_pixel_count");
+    let live_command_queue_path_preview_path_pixel_count =
+        live_command_queue_path_preview_pixel_sum("queue_path_preview_path_pixel_count");
+    let live_command_queue_path_preview_waypoint_pixel_count =
+        live_command_queue_path_preview_pixel_sum("queue_path_preview_waypoint_pixel_count");
+    let live_command_queue_path_preview_target_pixel_count =
+        live_command_queue_path_preview_pixel_sum("queue_path_preview_target_pixel_count");
+    let live_command_queue_path_preview_cancel_pixel_count =
+        live_command_queue_path_preview_pixel_sum("queue_path_preview_cancel_pixel_count");
+    let live_command_queue_path_preview_stage_gate =
+        |input_stage: &str, preview_stage: &str, color_key: &str, min_pixels: u64| -> bool {
+            stage_summaries.iter().any(|summary| {
+                summary.get("stage").and_then(|value| value.as_str()) == Some(input_stage)
+                && summary.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && summary
+                    .get("queue_path_preview_stage")
+                    .and_then(|value| value.as_str())
+                    == Some(preview_stage)
+                && summary
+                    .get("queue_path_preview_stage_marker")
+                    .and_then(|value| value.as_str())
+                    .is_some_and(|marker| {
+                        marker == format!("command_queue_path_preview:{preview_stage}").as_str()
+                    })
+                && summary
+                    .get("queue_path_preview_renderer_path")
+                    .and_then(|value| value.as_str())
+                    == Some(
+                        "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay",
+                    )
+                && summary
+                    .get("queue_path_preview_input_path")
+                    .and_then(|value| value.as_str())
+                    == Some("apply_live_native_action_with_source(classic_rts_live_input)")
+                && summary
+                    .get(color_key)
+                    .and_then(|value| value.as_u64())
+                    .is_some_and(|count| count > min_pixels)
+            })
+        };
+    let live_command_queue_path_preview_shift_waypoints_gate =
+        live_command_queue_path_preview_stage_gate(
+            "queue_waypoint",
+            "shift_waypoints",
+            "queue_path_preview_waypoint_pixel_count",
+            80,
+        );
+    let live_command_queue_path_preview_queue_stack_gate =
+        live_command_queue_path_preview_stage_gate(
+            "hold_position",
+            "queue_stack",
+            "queue_path_preview_path_pixel_count",
+            80,
+        );
+    let live_command_queue_path_preview_rally_chain_gate =
+        live_command_queue_path_preview_stage_gate(
+            "patrol_route",
+            "rally_chain",
+            "queue_path_preview_waypoint_pixel_count",
+            80,
+        );
+    let live_command_queue_path_preview_attack_focus_gate =
+        live_command_queue_path_preview_stage_gate(
+            "attack_move",
+            "attack_focus",
+            "queue_path_preview_target_pixel_count",
+            80,
+        );
+    let live_command_queue_path_preview_cancel_repath_gate =
+        live_command_queue_path_preview_stage_gate(
+            "stop_order",
+            "cancel_repath",
+            "queue_path_preview_cancel_pixel_count",
+            80,
+        );
+    let live_command_queue_path_preview_gate = live_command_queue_path_preview_shift_waypoints_gate
+        && live_command_queue_path_preview_queue_stack_gate
+        && live_command_queue_path_preview_rally_chain_gate
+        && live_command_queue_path_preview_attack_focus_gate
+        && live_command_queue_path_preview_cancel_repath_gate
+        && live_command_queue_path_preview_slot_pixel_count > 1_200
+        && live_command_queue_path_preview_path_pixel_count > 400
+        && live_command_queue_path_preview_waypoint_pixel_count > 200
+        && live_command_queue_path_preview_target_pixel_count > 80
+        && live_command_queue_path_preview_cancel_pixel_count > 80;
     let live_input_gate = accepted_input_count == actions.len()
         && input_sources.len() == 1
         && input_sources.contains("classic_rts_live_input");
@@ -44586,6 +44717,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && attack_live_gate
         && ability_live_gate
         && command_feedback_chip_gate
+        && live_command_queue_path_preview_gate
         && hover_preview_gate
         && context_cursor_gate
         && drag_select_preview_gate
@@ -44689,6 +44821,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "context_cursor_pixel_count": context_cursor_pixel_count,
         "command_stamp_pixel_count": command_stamp_pixel_count,
         "command_feedback_chip_count": command_feedback_chip_count,
+        "live_command_queue_path_preview_slot_pixel_count": live_command_queue_path_preview_slot_pixel_count,
+        "live_command_queue_path_preview_path_pixel_count": live_command_queue_path_preview_path_pixel_count,
+        "live_command_queue_path_preview_waypoint_pixel_count": live_command_queue_path_preview_waypoint_pixel_count,
+        "live_command_queue_path_preview_target_pixel_count": live_command_queue_path_preview_target_pixel_count,
+        "live_command_queue_path_preview_cancel_pixel_count": live_command_queue_path_preview_cancel_pixel_count,
         "live_input_gate": live_input_gate,
         "selection_live_gate": selection_live_gate,
         "production_live_gate": production_live_gate,
@@ -44703,6 +44840,12 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "attack_live_gate": attack_live_gate,
         "ability_live_gate": ability_live_gate,
         "command_feedback_chip_gate": command_feedback_chip_gate,
+        "live_command_queue_path_preview_shift_waypoints_gate": live_command_queue_path_preview_shift_waypoints_gate,
+        "live_command_queue_path_preview_queue_stack_gate": live_command_queue_path_preview_queue_stack_gate,
+        "live_command_queue_path_preview_rally_chain_gate": live_command_queue_path_preview_rally_chain_gate,
+        "live_command_queue_path_preview_attack_focus_gate": live_command_queue_path_preview_attack_focus_gate,
+        "live_command_queue_path_preview_cancel_repath_gate": live_command_queue_path_preview_cancel_repath_gate,
+        "live_command_queue_path_preview_gate": live_command_queue_path_preview_gate,
         "hover_preview_gate": hover_preview_gate,
         "context_cursor_gate": context_cursor_gate,
         "drag_select_preview_gate": drag_select_preview_gate,
@@ -44723,7 +44866,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }

@@ -412,6 +412,7 @@ jq -n \
       and $rts_live[0].attack_live_gate == true
       and $rts_live[0].ability_live_gate == true
       and $rts_live[0].command_feedback_chip_gate == true
+      and $rts_live[0].live_command_queue_path_preview_gate == true
       and $rts_live[0].context_cursor_gate == true
       and $rts_live[0].control_group_hotkey_gate == true
       and $rts_live[0].accepted_input_count == 10
@@ -877,6 +878,11 @@ jq -n \
       rts_live_input_command_stamp_pixel_count: $rts_live[0].command_stamp_pixel_count,
       rts_live_input_final_command_stamp_player_label: $rts_live[0].final_command_stamp_player_label,
       rts_live_input_command_feedback_chip_count: $rts_live[0].command_feedback_chip_count,
+      rts_live_input_command_queue_path_preview_slot_pixel_count: $rts_live[0].live_command_queue_path_preview_slot_pixel_count,
+      rts_live_input_command_queue_path_preview_path_pixel_count: $rts_live[0].live_command_queue_path_preview_path_pixel_count,
+      rts_live_input_command_queue_path_preview_waypoint_pixel_count: $rts_live[0].live_command_queue_path_preview_waypoint_pixel_count,
+      rts_live_input_command_queue_path_preview_target_pixel_count: $rts_live[0].live_command_queue_path_preview_target_pixel_count,
+      rts_live_input_command_queue_path_preview_cancel_pixel_count: $rts_live[0].live_command_queue_path_preview_cancel_pixel_count,
       rts_pathing_accepted_input_count: $rts_path[0].accepted_input_count,
       rts_pathing_path_tile_count: ($rts_path[0].path_tile_ids | length),
       rts_pathing_blocked_tile_count: ($rts_path[0].blocked_tile_ids | length),
@@ -2185,6 +2191,12 @@ jq -n \
       rts_live_input_attack_live_gate: $rts_live[0].attack_live_gate,
       rts_live_input_ability_live_gate: $rts_live[0].ability_live_gate,
       rts_live_input_command_feedback_chip_gate: $rts_live[0].command_feedback_chip_gate,
+      rts_live_input_command_queue_path_preview_shift_waypoints_gate: $rts_live[0].live_command_queue_path_preview_shift_waypoints_gate,
+      rts_live_input_command_queue_path_preview_queue_stack_gate: $rts_live[0].live_command_queue_path_preview_queue_stack_gate,
+      rts_live_input_command_queue_path_preview_rally_chain_gate: $rts_live[0].live_command_queue_path_preview_rally_chain_gate,
+      rts_live_input_command_queue_path_preview_attack_focus_gate: $rts_live[0].live_command_queue_path_preview_attack_focus_gate,
+      rts_live_input_command_queue_path_preview_cancel_repath_gate: $rts_live[0].live_command_queue_path_preview_cancel_repath_gate,
+      rts_live_input_command_queue_path_preview_gate: $rts_live[0].live_command_queue_path_preview_gate,
       rts_live_input_hover_preview_gate: $rts_live[0].hover_preview_gate,
       rts_live_input_context_cursor_gate: $rts_live[0].context_cursor_gate,
       rts_live_input_drag_select_preview_gate: $rts_live[0].drag_select_preview_gate,
@@ -3588,6 +3600,11 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_control_group_slot_0_key_label == "0"
   and .headline.rts_live_input_command_stamp_pixel_count > 120
   and .headline.rts_live_input_final_command_stamp_player_label == "COMMAND ABILITY SENT FOCUS FIRE"
+  and .headline.rts_live_input_command_queue_path_preview_slot_pixel_count > 1200
+  and .headline.rts_live_input_command_queue_path_preview_path_pixel_count > 400
+  and .headline.rts_live_input_command_queue_path_preview_waypoint_pixel_count > 200
+  and .headline.rts_live_input_command_queue_path_preview_target_pixel_count > 80
+  and .headline.rts_live_input_command_queue_path_preview_cancel_pixel_count > 80
   and .headline.rts_pathing_accepted_input_count == 2
   and .headline.rts_pathing_path_tile_count >= 3
   and .headline.rts_pathing_blocked_tile_count >= 1
@@ -4323,6 +4340,12 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_attack_live_gate == true
   and .gates.rts_live_input_ability_live_gate == true
   and .gates.rts_live_input_command_feedback_chip_gate == true
+  and .gates.rts_live_input_command_queue_path_preview_shift_waypoints_gate == true
+  and .gates.rts_live_input_command_queue_path_preview_queue_stack_gate == true
+  and .gates.rts_live_input_command_queue_path_preview_rally_chain_gate == true
+  and .gates.rts_live_input_command_queue_path_preview_attack_focus_gate == true
+  and .gates.rts_live_input_command_queue_path_preview_cancel_repath_gate == true
+  and .gates.rts_live_input_command_queue_path_preview_gate == true
   and .gates.rts_live_input_hover_preview_gate == true
   and .gates.rts_live_input_context_cursor_gate == true
   and .gates.rts_live_input_drag_select_preview_gate == true

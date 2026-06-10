@@ -418,6 +418,22 @@ jq -e '
   and (.final_command_queue | index("command_queue_path_preview:rally_chain") != null)
   and (.final_command_queue | index("command_queue_path_preview:attack_focus") != null)
   and (.final_command_queue | index("command_queue_path_preview:cancel_repath") != null)
+  and (.stage_summaries | any(.stage == "queue_waypoint" and .queue_path_preview_stage == "shift_waypoints" and .queue_path_preview_stage_marker == "command_queue_path_preview:shift_waypoints" and .queue_path_preview_renderer_path == "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay" and .queue_path_preview_input_path == "apply_live_native_action_with_source(classic_rts_live_input)" and .queue_path_preview_waypoint_pixel_count > 80))
+  and (.stage_summaries | any(.stage == "hold_position" and .queue_path_preview_stage == "queue_stack" and .queue_path_preview_stage_marker == "command_queue_path_preview:queue_stack" and .queue_path_preview_renderer_path == "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay" and .queue_path_preview_path_pixel_count > 80))
+  and (.stage_summaries | any(.stage == "patrol_route" and .queue_path_preview_stage == "rally_chain" and .queue_path_preview_stage_marker == "command_queue_path_preview:rally_chain" and .queue_path_preview_renderer_path == "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay" and .queue_path_preview_waypoint_pixel_count > 80))
+  and (.stage_summaries | any(.stage == "attack_move" and .queue_path_preview_stage == "attack_focus" and .queue_path_preview_stage_marker == "command_queue_path_preview:attack_focus" and .queue_path_preview_renderer_path == "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay" and .queue_path_preview_target_pixel_count > 80))
+  and (.stage_summaries | any(.stage == "stop_order" and .queue_path_preview_stage == "cancel_repath" and .queue_path_preview_stage_marker == "command_queue_path_preview:cancel_repath" and .queue_path_preview_renderer_path == "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay" and .queue_path_preview_cancel_pixel_count > 80))
+  and .live_command_queue_path_preview_slot_pixel_count > 1200
+  and .live_command_queue_path_preview_path_pixel_count > 400
+  and .live_command_queue_path_preview_waypoint_pixel_count > 200
+  and .live_command_queue_path_preview_target_pixel_count > 80
+  and .live_command_queue_path_preview_cancel_pixel_count > 80
+  and .live_command_queue_path_preview_shift_waypoints_gate == true
+  and .live_command_queue_path_preview_queue_stack_gate == true
+  and .live_command_queue_path_preview_rally_chain_gate == true
+  and .live_command_queue_path_preview_attack_focus_gate == true
+  and .live_command_queue_path_preview_cancel_repath_gate == true
+  and .live_command_queue_path_preview_gate == true
   and (.final_command_queue | index("feedback:diamond@7,4") != null)
   and (.final_command_queue | index("feedback:train_queued:guard") != null)
   and (.final_command_queue | index("feedback:waypoint_queued@9,4") != null)
