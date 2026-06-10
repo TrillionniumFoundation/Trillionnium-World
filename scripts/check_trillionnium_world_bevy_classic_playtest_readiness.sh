@@ -833,6 +833,11 @@ jq -n \
       rts_live_input_unit_click_select_stamp_pixel_count: $rts_live[0].unit_click_select_stamp_pixel_count,
       rts_live_input_unit_click_select_unit_count: ($rts_live[0].unit_click_select_sample.selected_unit_ids | length),
       rts_live_input_unit_click_select_label: $rts_live[0].unit_click_select_sample.command_stamp_player_label,
+      rts_live_input_selection_clear_stamp_pixel_count: $rts_live[0].selection_clear_stamp_pixel_count,
+      rts_live_input_selection_clear_command_disabled_pixel_count: $rts_live[0].selection_clear_command_disabled_pixel_count,
+      rts_live_input_selection_clear_residual_marker_pixel_count: $rts_live[0].selection_clear_residual_marker_pixel_count,
+      rts_live_input_selection_clear_empty_label: ([ $rts_live[0].selection_clear_samples[] | select(.stage == "empty_viewport_clear") | .command_stamp_player_label ][0] // ""),
+      rts_live_input_selection_clear_hostile_label: ([ $rts_live[0].selection_clear_samples[] | select(.stage == "hostile_viewport_clear") | .command_stamp_player_label ][0] // ""),
       rts_live_input_unit_shift_select_marker_pixel_count: $rts_live[0].unit_shift_select_marker_pixel_count,
       rts_live_input_unit_shift_select_stamp_pixel_count: $rts_live[0].unit_shift_select_stamp_pixel_count,
       rts_live_input_unit_shift_select_add_unit_count: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_add_patrol") | .selected_unit_ids | length ][0] // 0),
@@ -2172,6 +2177,7 @@ jq -n \
       rts_live_input_drag_select_commit_gate: $rts_live[0].drag_select_commit_gate,
       rts_live_input_drag_select_filter_gate: $rts_live[0].drag_select_filter_gate,
       rts_live_input_unit_click_select_gate: $rts_live[0].unit_click_select_gate,
+      rts_live_input_selection_clear_gate: $rts_live[0].selection_clear_gate,
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
       rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
       rts_live_input_control_group_hotkey_gate: $rts_live[0].control_group_hotkey_gate,
@@ -3523,6 +3529,11 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_unit_click_select_stamp_pixel_count > 80
   and .headline.rts_live_input_unit_click_select_unit_count == 1
   and .headline.rts_live_input_unit_click_select_label == "MAP SELECT SENT 1 UNIT"
+  and .headline.rts_live_input_selection_clear_stamp_pixel_count > 80
+  and .headline.rts_live_input_selection_clear_command_disabled_pixel_count > 500
+  and .headline.rts_live_input_selection_clear_residual_marker_pixel_count < 80
+  and .headline.rts_live_input_selection_clear_empty_label == "MAP SELECTION CLEARED"
+  and .headline.rts_live_input_selection_clear_hostile_label == "MAP SELECTION CLEARED HOSTILE"
   and .headline.rts_live_input_unit_shift_select_marker_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_stamp_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_add_unit_count == 2
@@ -4288,6 +4299,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_drag_select_commit_gate == true
   and .gates.rts_live_input_drag_select_filter_gate == true
   and .gates.rts_live_input_unit_click_select_gate == true
+  and .gates.rts_live_input_selection_clear_gate == true
   and .gates.rts_live_input_unit_shift_select_gate == true
   and .gates.rts_live_input_unit_double_click_select_gate == true
   and .gates.rts_live_input_control_group_hotkey_gate == true

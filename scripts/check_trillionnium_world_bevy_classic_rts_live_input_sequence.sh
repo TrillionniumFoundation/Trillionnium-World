@@ -106,6 +106,39 @@ jq -e '
   and (.unit_click_select_sample.command_queue | index("unit_select:player@5,4") != null)
   and (.unit_click_select_sample.command_queue | index("select_group_1") != null)
   and .unit_click_select_sample.command_stamp_player_label == "MAP SELECT SENT 1 UNIT"
+  and .selection_clear_stamp_pixel_count > 80
+  and .selection_clear_command_disabled_pixel_count > 500
+  and .selection_clear_residual_marker_pixel_count < 80
+  and .selection_clear_gate == true
+  and (.selection_clear_samples | length == 2)
+  and (.selection_clear_samples | all(
+    .accepted == true
+    and (.selected_unit_ids | length == 0)
+    and (.selection_tile_ids | length == 0)
+    and .group_id == null
+    and (.active_control_group_ids | length == 0)
+    and .move_command_available == false
+    and .move_command_availability_reason == "rts_group_selection_required"
+    and .command_slot_move_available == false
+    and .selection_marker_pixel_count < 80
+    and .command_disabled_pixel_count > 500
+  ))
+  and (.selection_clear_samples | any(
+    .stage == "empty_viewport_clear"
+    and .tile_id == "4,3"
+    and .action_label == "RTS:SELECT:clear:empty@4,3"
+    and .group_command_state == "selection_cleared:empty@4,3"
+    and (.command_queue | index("selection_clear:empty@4,3") != null)
+    and .command_stamp_player_label == "MAP SELECTION CLEARED"
+  ))
+  and (.selection_clear_samples | any(
+    .stage == "hostile_viewport_clear"
+    and .tile_id == "9,4"
+    and .action_label == "RTS:SELECT:clear:hostile:square_creep_wander@9,4"
+    and .group_command_state == "selection_cleared:hostile:square_creep_wander@9,4"
+    and (.command_queue | index("selection_clear:hostile:square_creep_wander@9,4") != null)
+    and .command_stamp_player_label == "MAP SELECTION CLEARED HOSTILE"
+  ))
   and .unit_shift_select_marker_pixel_count > 80
   and .unit_shift_select_stamp_pixel_count > 80
   and (.unit_shift_select_samples | length == 3)
