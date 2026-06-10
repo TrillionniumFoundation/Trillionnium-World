@@ -771,6 +771,10 @@ const CLASSIC_RTS_QUEUE_PREVIEW_WAYPOINT_COLOR: u32 = 0xffdd78;
 const CLASSIC_RTS_QUEUE_PREVIEW_TARGET_COLOR: u32 = 0xff6a72;
 const CLASSIC_RTS_QUEUE_PREVIEW_RESERVATION_COLOR: u32 = 0xc6a2ff;
 const CLASSIC_RTS_QUEUE_PREVIEW_CANCEL_COLOR: u32 = 0xffa05f;
+const CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR: u32 = 0x52d7ff;
+const CLASSIC_RTS_TARGET_PREVIEW_ATTACK_COLOR: u32 = 0xff7a92;
+const CLASSIC_RTS_TARGET_PREVIEW_FOLLOW_COLOR: u32 = 0xf2ff72;
+const CLASSIC_RTS_TARGET_PREVIEW_HARVEST_COLOR: u32 = 0xbd92ff;
 const CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR: u32 = 0xb7f6ff;
 const CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR: u32 = 0x86ff93;
 const CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR: u32 = 0xffdf7a;
@@ -42686,6 +42690,36 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             mouse_x,
             mouse_y,
         ) {
+            let target_preview_kind =
+                classic_rts_hover_target_preview_kind(&preview.affordance).unwrap_or("none");
+            let target_preview_source_tile_id =
+                classic_rts_primary_selected_tile(&right_click_target_runtime)
+                    .map(classic_rts_tile_id);
+            let mut right_click_target_hover_frame_pixels = vec![0x0b0d0c_u32; 1280 * 720];
+            classic_draw_scene(
+                &mut right_click_target_hover_frame_pixels,
+                1280,
+                720,
+                (5, 5),
+                &right_click_target_runtime,
+                &assets,
+            );
+            let target_preview_path_pixel_count = right_click_target_hover_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR)
+                .count();
+            let target_preview_attack_pixel_count = right_click_target_hover_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_TARGET_PREVIEW_ATTACK_COLOR)
+                .count();
+            let target_preview_follow_pixel_count = right_click_target_hover_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_TARGET_PREVIEW_FOLLOW_COLOR)
+                .count();
+            let target_preview_harvest_pixel_count = right_click_target_hover_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_TARGET_PREVIEW_HARVEST_COLOR)
+                .count();
             right_click_target_hover_sample = json!({
                 "stage": stage,
                 "input_source": preview.input_source,
@@ -42697,6 +42731,12 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 "affordance": preview.affordance,
                 "cursor_kind": right_click_target_runtime.rts_cursor_kind.clone(),
                 "cursor_player_label": right_click_target_runtime.rts_cursor_player_label.clone(),
+                "target_preview_kind": target_preview_kind,
+                "target_preview_source_tile_id": target_preview_source_tile_id,
+                "target_preview_path_pixel_count": target_preview_path_pixel_count,
+                "target_preview_attack_pixel_count": target_preview_attack_pixel_count,
+                "target_preview_follow_pixel_count": target_preview_follow_pixel_count,
+                "target_preview_harvest_pixel_count": target_preview_harvest_pixel_count,
                 "accepted": preview.accepted,
                 "reason": preview.reason,
             });
@@ -42829,6 +42869,21 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         right_click_target_samples.push(sample);
         right_click_target_hover_samples.push(hover_sample);
     }
+    let right_click_target_hover_pixel_sum = |key: &str| -> usize {
+        right_click_target_hover_samples
+            .iter()
+            .filter_map(|sample| sample.get(key).and_then(|value| value.as_u64()))
+            .map(|value| value as usize)
+            .sum()
+    };
+    let right_click_target_preview_path_pixel_count =
+        right_click_target_hover_pixel_sum("target_preview_path_pixel_count");
+    let right_click_target_preview_attack_pixel_count =
+        right_click_target_hover_pixel_sum("target_preview_attack_pixel_count");
+    let right_click_target_preview_follow_pixel_count =
+        right_click_target_hover_pixel_sum("target_preview_follow_pixel_count");
+    let right_click_target_preview_harvest_pixel_count =
+        right_click_target_hover_pixel_sum("target_preview_harvest_pixel_count");
 
     let mut unit_shift_world = native_bevy_playable_fixture();
     let mut unit_shift_character = WorldTrillionniumCharacter::default_for("local-player");
@@ -43857,6 +43912,28 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                     && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
             })
         };
+    let right_click_target_preview_stage_gate =
+        |stage: &str, kind: &str, pixel_key: &str, min_pixels: u64| {
+            right_click_target_hover_samples.iter().any(|sample| {
+                sample.get("stage").and_then(|value| value.as_str()) == Some(stage)
+                    && sample
+                        .get("target_preview_kind")
+                        .and_then(|value| value.as_str())
+                        == Some(kind)
+                    && sample
+                        .get("target_preview_source_tile_id")
+                        .and_then(|value| value.as_str())
+                        == Some("5,4")
+                    && sample
+                        .get("target_preview_path_pixel_count")
+                        .and_then(|value| value.as_u64())
+                        .is_some_and(|pixels| pixels > 80)
+                    && sample
+                        .get(pixel_key)
+                        .and_then(|value| value.as_u64())
+                        .is_some_and(|pixels| pixels > min_pixels)
+            })
+        };
     let right_click_target_command_contains = |sample: &serde_json::Value, expected: &str| {
         sample
             .get("command_queue")
@@ -43995,10 +44072,39 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                     .and_then(|value| value.as_str())
                     == Some("MAP HARVEST SENT GOLD VEIN 3,3")
         });
+    let right_click_target_preview_gate = right_click_target_preview_path_pixel_count > 300
+        && right_click_target_preview_attack_pixel_count > 80
+        && right_click_target_preview_follow_pixel_count > 80
+        && right_click_target_preview_harvest_pixel_count > 80
+        && right_click_target_preview_stage_gate(
+            "right_click_empty_move",
+            "move",
+            "target_preview_path_pixel_count",
+            160,
+        )
+        && right_click_target_preview_stage_gate(
+            "drag_filter_then_right_click_hostile",
+            "attack",
+            "target_preview_attack_pixel_count",
+            80,
+        )
+        && right_click_target_preview_stage_gate(
+            "right_click_friendly_follow",
+            "follow",
+            "target_preview_follow_pixel_count",
+            80,
+        )
+        && right_click_target_preview_stage_gate(
+            "right_click_resource_harvest",
+            "harvest",
+            "target_preview_harvest_pixel_count",
+            80,
+        );
     let right_click_target_semantics_gate = right_click_target_attack_gate
         && right_click_target_move_gate
         && right_click_target_follow_gate
-        && right_click_target_harvest_gate;
+        && right_click_target_harvest_gate
+        && right_click_target_preview_gate;
     let unit_shift_select_gate = unit_shift_select_samples.len() == 3
         && unit_shift_select_marker_pixel_count > 80
         && unit_shift_select_stamp_pixel_count > 80
@@ -44539,6 +44645,10 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_target_selection_marker_pixel_count": right_click_target_selection_marker_pixel_count,
         "right_click_target_follow_stamp_pixel_count": right_click_target_follow_stamp_pixel_count,
         "right_click_target_harvest_stamp_pixel_count": right_click_target_harvest_stamp_pixel_count,
+        "right_click_target_preview_path_pixel_count": right_click_target_preview_path_pixel_count,
+        "right_click_target_preview_attack_pixel_count": right_click_target_preview_attack_pixel_count,
+        "right_click_target_preview_follow_pixel_count": right_click_target_preview_follow_pixel_count,
+        "right_click_target_preview_harvest_pixel_count": right_click_target_preview_harvest_pixel_count,
         "unit_shift_select_samples": unit_shift_select_samples,
         "unit_shift_select_marker_pixel_count": unit_shift_select_marker_pixel_count,
         "unit_shift_select_stamp_pixel_count": unit_shift_select_stamp_pixel_count,
@@ -44604,6 +44714,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_target_move_gate": right_click_target_move_gate,
         "right_click_target_follow_gate": right_click_target_follow_gate,
         "right_click_target_harvest_gate": right_click_target_harvest_gate,
+        "right_click_target_preview_gate": right_click_target_preview_gate,
         "right_click_target_semantics_gate": right_click_target_semantics_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
@@ -44612,7 +44723,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -75210,6 +75321,60 @@ fn classic_rts_shell_layout(width: usize, height: usize) -> Option<ClassicRtsShe
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_viewport_tile_center(
+    layout: &ClassicRtsShellLayout,
+    tile: (i32, i32),
+) -> (i32, i32) {
+    let cell_w = ((layout.viewport_w - 44).max(120)) / 12;
+    let cell_h = ((layout.viewport_h - 74).max(80)) / 8;
+    let grid_x = layout.viewport_x + 22;
+    let grid_y = layout.viewport_y + 48;
+    (
+        grid_x + tile.0.clamp(0, 11) * cell_w + cell_w / 2,
+        grid_y + tile.1.clamp(0, 7) * cell_h + cell_h / 2,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_hover_target_preview_kind(affordance: &str) -> Option<&'static str> {
+    if affordance.contains("attack") {
+        Some("attack")
+    } else if affordance.contains("harvest") {
+        Some("harvest")
+    } else if affordance.contains("follow") {
+        Some("follow")
+    } else if affordance.contains("move") {
+        Some("move")
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_hover_target_preview_color(kind: &str) -> u32 {
+    match kind {
+        "attack" => CLASSIC_RTS_TARGET_PREVIEW_ATTACK_COLOR,
+        "harvest" => CLASSIC_RTS_TARGET_PREVIEW_HARVEST_COLOR,
+        "follow" => CLASSIC_RTS_TARGET_PREVIEW_FOLLOW_COLOR,
+        _ => CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_primary_selected_tile(runtime: &NativeFirstPlayableRuntime) -> Option<(i32, i32)> {
+    runtime
+        .rts_selected_unit_ids
+        .first()
+        .and_then(|unit_id| classic_rts_selectable_unit_tile(unit_id))
+        .or_else(|| {
+            runtime
+                .rts_selection_box_tile_ids
+                .first()
+                .and_then(|tile_id| classic_parse_rts_tile(tile_id))
+        })
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_drag_distance_sq(start: (i32, i32), end: (i32, i32)) -> i32 {
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
@@ -77101,10 +77266,7 @@ fn classic_draw_rts_hover_preview_overlay(
         if let Some(tile) = classic_parse_rts_tile(tile_id) {
             let cell_w = ((layout.viewport_w - 44).max(120)) / 12;
             let cell_h = ((layout.viewport_h - 74).max(80)) / 8;
-            let grid_x = layout.viewport_x + 22;
-            let grid_y = layout.viewport_y + 48;
-            let center_x = grid_x + tile.0.clamp(0, 11) * cell_w + cell_w / 2;
-            let center_y = grid_y + tile.1.clamp(0, 7) * cell_h + cell_h / 2;
+            let (center_x, center_y) = classic_rts_viewport_tile_center(&layout, tile);
             let preview_color = if runtime.rts_hover_affordance.contains("attack") {
                 CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR
             } else if runtime.rts_hover_affordance.contains("rally") {
@@ -77132,6 +77294,169 @@ fn classic_draw_rts_hover_preview_overlay(
                 4,
                 CLASSIC_RTS_HOVER_PREVIEW_COLOR,
             );
+            if runtime.rts_hover_source == "classic_rts_mouse_viewport" {
+                if let Some(kind) =
+                    classic_rts_hover_target_preview_kind(&runtime.rts_hover_affordance)
+                {
+                    let target_color = classic_rts_hover_target_preview_color(kind);
+                    let source_tile = classic_rts_primary_selected_tile(runtime).unwrap_or((5, 5));
+                    for route_tile_id in classic_rts_line_path_tiles(source_tile, tile)
+                        .iter()
+                        .take(8)
+                    {
+                        if let Some(route_tile) = classic_parse_rts_tile(route_tile_id) {
+                            let (route_x, route_y) =
+                                classic_rts_viewport_tile_center(&layout, route_tile);
+                            classic_draw_rect(
+                                buffer,
+                                width,
+                                height,
+                                route_x - 11,
+                                route_y + 20,
+                                22,
+                                4,
+                                CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR,
+                            );
+                            classic_draw_rect(
+                                buffer,
+                                width,
+                                height,
+                                route_x - 2,
+                                route_y + 12,
+                                4,
+                                20,
+                                CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR,
+                            );
+                        }
+                    }
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 42,
+                        center_y - 31,
+                        84,
+                        4,
+                        target_color,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 42,
+                        center_y + 31,
+                        84,
+                        4,
+                        target_color,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x - 42,
+                        center_y - 31,
+                        4,
+                        66,
+                        target_color,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        center_x + 38,
+                        center_y - 31,
+                        4,
+                        66,
+                        target_color,
+                    );
+                    if kind == "attack" {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x - 48,
+                            center_y,
+                            96,
+                            4,
+                            target_color,
+                        );
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x - 2,
+                            center_y - 42,
+                            4,
+                            84,
+                            target_color,
+                        );
+                    } else if kind == "harvest" {
+                        for offset in [-20, 0, 20] {
+                            classic_draw_rect(
+                                buffer,
+                                width,
+                                height,
+                                center_x + offset - 6,
+                                center_y - 6,
+                                12,
+                                12,
+                                target_color,
+                            );
+                        }
+                    } else if kind == "follow" {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x - 24,
+                            center_y - 2,
+                            48,
+                            4,
+                            target_color,
+                        );
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            center_x + 18,
+                            center_y - 10,
+                            4,
+                            20,
+                            target_color,
+                        );
+                    }
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        panel_x,
+                        panel_y + 29,
+                        panel_w,
+                        18,
+                        CLASSIC_RTS_HOVER_PANEL_COLOR,
+                    );
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        panel_x,
+                        panel_y + 29,
+                        5,
+                        18,
+                        target_color,
+                    );
+                    classic_draw_text(
+                        buffer,
+                        width,
+                        height,
+                        panel_x + 12,
+                        panel_y + 35,
+                        &format!("RMB {} TARGET PREVIEW", kind.to_ascii_uppercase()),
+                        1,
+                        target_color,
+                    );
+                }
+            }
         }
     }
 }

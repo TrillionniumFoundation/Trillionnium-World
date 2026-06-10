@@ -848,6 +848,10 @@ jq -n \
       rts_live_input_right_click_target_harvest_label: ([ $rts_live[0].right_click_target_samples[] | select(.stage == "right_click_resource_harvest") | .command_stamp_player_label ][0] // ""),
       rts_live_input_right_click_target_follow_stamp_pixel_count: $rts_live[0].right_click_target_follow_stamp_pixel_count,
       rts_live_input_right_click_target_harvest_stamp_pixel_count: $rts_live[0].right_click_target_harvest_stamp_pixel_count,
+      rts_live_input_right_click_target_preview_path_pixel_count: $rts_live[0].right_click_target_preview_path_pixel_count,
+      rts_live_input_right_click_target_preview_attack_pixel_count: $rts_live[0].right_click_target_preview_attack_pixel_count,
+      rts_live_input_right_click_target_preview_follow_pixel_count: $rts_live[0].right_click_target_preview_follow_pixel_count,
+      rts_live_input_right_click_target_preview_harvest_pixel_count: $rts_live[0].right_click_target_preview_harvest_pixel_count,
       rts_live_input_unit_shift_select_marker_pixel_count: $rts_live[0].unit_shift_select_marker_pixel_count,
       rts_live_input_unit_shift_select_stamp_pixel_count: $rts_live[0].unit_shift_select_stamp_pixel_count,
       rts_live_input_unit_shift_select_add_unit_count: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_add_patrol") | .selected_unit_ids | length ][0] // 0),
@@ -2189,6 +2193,7 @@ jq -n \
       rts_live_input_unit_click_select_gate: $rts_live[0].unit_click_select_gate,
       rts_live_input_selection_clear_gate: $rts_live[0].selection_clear_gate,
       rts_live_input_right_click_target_gate: $rts_live[0].right_click_target_semantics_gate,
+      rts_live_input_right_click_target_preview_gate: $rts_live[0].right_click_target_preview_gate,
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
       rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
       rts_live_input_control_group_hotkey_gate: $rts_live[0].control_group_hotkey_gate,
@@ -3555,6 +3560,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_right_click_target_harvest_label == "MAP HARVEST SENT GOLD VEIN 3,3"
   and .headline.rts_live_input_right_click_target_follow_stamp_pixel_count > 80
   and .headline.rts_live_input_right_click_target_harvest_stamp_pixel_count > 80
+  and .headline.rts_live_input_right_click_target_preview_path_pixel_count > 300
+  and .headline.rts_live_input_right_click_target_preview_attack_pixel_count > 80
+  and .headline.rts_live_input_right_click_target_preview_follow_pixel_count > 80
+  and .headline.rts_live_input_right_click_target_preview_harvest_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_marker_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_stamp_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_add_unit_count == 2
@@ -4322,6 +4331,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_unit_click_select_gate == true
   and .gates.rts_live_input_selection_clear_gate == true
   and .gates.rts_live_input_right_click_target_gate == true
+  and .gates.rts_live_input_right_click_target_preview_gate == true
   and .gates.rts_live_input_unit_shift_select_gate == true
   and .gates.rts_live_input_unit_double_click_select_gate == true
   and .gates.rts_live_input_control_group_hotkey_gate == true

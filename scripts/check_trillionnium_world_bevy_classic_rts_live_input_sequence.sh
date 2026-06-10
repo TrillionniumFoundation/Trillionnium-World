@@ -146,6 +146,10 @@ jq -e '
   and .right_click_target_hover_sample.player_label == "MAP ATTACK READY SQUARE CREEP WANDER"
   and .right_click_target_hover_sample.cursor_kind == "attack"
   and .right_click_target_hover_sample.cursor_player_label == "MAP CURSOR ATTACK READY"
+  and .right_click_target_hover_sample.target_preview_kind == "attack"
+  and .right_click_target_hover_sample.target_preview_source_tile_id == "5,4"
+  and .right_click_target_hover_sample.target_preview_attack_pixel_count > 80
+  and .right_click_target_hover_sample.target_preview_path_pixel_count > 80
   and .right_click_target_sample.accepted == true
   and .right_click_target_sample.input_source == "classic_rts_mouse_viewport"
   and .right_click_target_sample.stage == "drag_filter_then_right_click_hostile"
@@ -166,6 +170,11 @@ jq -e '
   and .right_click_target_attack_gate == true
   and (.right_click_target_samples | length == 4)
   and (.right_click_target_hover_samples | length == 4)
+  and .right_click_target_preview_path_pixel_count > 300
+  and .right_click_target_preview_attack_pixel_count > 80
+  and .right_click_target_preview_follow_pixel_count > 80
+  and .right_click_target_preview_harvest_pixel_count > 80
+  and .right_click_target_preview_gate == true
   and .right_click_target_follow_stamp_pixel_count > 80
   and .right_click_target_harvest_stamp_pixel_count > 80
   and (.right_click_target_hover_samples | any(
@@ -173,6 +182,9 @@ jq -e '
     and .action_label == "RTS:MOVE:4,3:line"
     and .player_label == "MAP MOVE READY 4,3"
     and .cursor_kind == "move"
+    and .target_preview_kind == "move"
+    and .target_preview_source_tile_id == "5,4"
+    and .target_preview_path_pixel_count > 160
   ))
   and (.right_click_target_samples | any(
     .stage == "right_click_empty_move"
@@ -191,6 +203,10 @@ jq -e '
     and .action_label == "RTS:MOVE:5,4:follow:player"
     and .player_label == "MAP FOLLOW READY PLAYER"
     and .cursor_kind == "follow"
+    and .target_preview_kind == "follow"
+    and .target_preview_source_tile_id == "5,4"
+    and .target_preview_follow_pixel_count > 80
+    and .target_preview_path_pixel_count > 80
   ))
   and (.right_click_target_samples | any(
     .stage == "right_click_friendly_follow"
@@ -210,6 +226,10 @@ jq -e '
     and .action_label == "RTS:QUEUE:harvest:gold_vein"
     and .player_label == "MAP HARVEST READY GOLD VEIN"
     and .cursor_kind == "harvest"
+    and .target_preview_kind == "harvest"
+    and .target_preview_source_tile_id == "5,4"
+    and .target_preview_harvest_pixel_count > 80
+    and .target_preview_path_pixel_count > 80
   ))
   and (.right_click_target_samples | any(
     .stage == "right_click_resource_harvest"
