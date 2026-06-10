@@ -54,6 +54,19 @@ jq -e '
     and (.candidate_unit_ids | length >= 2)
   ))
   and (.drag_select_preview_samples | all(.player_label | (contains("feedback") or contains("rts_")) | not))
+  and .drag_select_commit_selection_marker_pixel_count > 250
+  and .drag_select_commit_stamp_pixel_count > 80
+  and .drag_select_commit_sample.accepted == true
+  and .drag_select_commit_sample.input_source == "classic_rts_mouse_drag"
+  and .drag_select_commit_sample.group_id == "1"
+  and .drag_select_commit_sample.group_command_state == "drag:2,2->6,4"
+  and (.drag_select_commit_sample.selected_unit_ids | length == 2)
+  and (.drag_select_commit_sample.selected_unit_ids | index("player") != null)
+  and (.drag_select_commit_sample.selected_unit_ids | index("square_guard_front") != null)
+  and (.drag_select_commit_sample.selection_tile_ids | length == 15)
+  and (.drag_select_commit_sample.command_queue | any(startswith("drag_select:")))
+  and (.drag_select_commit_sample.command_queue | index("select_group_1") != null)
+  and .drag_select_commit_sample.command_stamp_player_label == "DRAG SELECT SENT 2 UNITS"
   and (.hover_samples | length == 4)
   and (.hover_samples | any(.player_label == "MAP MOVE READY 4,3"))
   and (.hover_samples | any(.player_label | startswith("SIDEBAR QUEUE READY WATCH TOWER")))
@@ -112,6 +125,7 @@ jq -e '
   and .command_feedback_chip_gate == true
   and .hover_preview_gate == true
   and .drag_select_preview_gate == true
+  and .drag_select_commit_gate == true
   and .command_stamp_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false

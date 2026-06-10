@@ -42200,6 +42200,73 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     );
     clear_classic_rts_drag_select_preview_runtime(&mut runtime);
 
+    let mut drag_commit_world = native_bevy_playable_fixture();
+    let mut drag_commit_character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut drag_commit_log = NativeGameplayLog::default();
+    let mut drag_commit_runtime = classic_openra_style_skirmish_runtime();
+    apply_live_native_action_with_source(
+        &mut drag_commit_world,
+        &mut drag_commit_character,
+        &mut drag_commit_log,
+        &mut drag_commit_runtime,
+        "local-player",
+        "classic_rts_mouse_drag",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "drag:2,2->6,4".to_string(),
+        },
+    );
+    frame_pixels.fill(0x0b0d0c_u32);
+    classic_draw_scene(
+        &mut frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &drag_commit_runtime,
+        &assets,
+    );
+    let drag_select_commit_selection_marker_pixel_count = frame_pixels
+        .iter()
+        .filter(|pixel| **pixel == CLASSIC_ISO_CONTROL_GROUP_COLOR)
+        .count();
+    let drag_select_commit_stamp_pixel_count = frame_pixels
+        .iter()
+        .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
+        .count();
+    let drag_select_commit_sample = json!({
+        "input_source": "classic_rts_mouse_drag",
+        "group_id": drag_commit_runtime.rts_control_group_id,
+        "group_command_state": drag_commit_runtime.rts_group_command_state,
+        "selected_unit_ids": drag_commit_runtime.rts_selected_unit_ids,
+        "selection_tile_ids": drag_commit_runtime.rts_selection_box_tile_ids,
+        "command_queue": drag_commit_runtime.rts_command_queue,
+        "last_feedback": drag_commit_runtime.last_feedback,
+        "command_stamp_player_label": drag_commit_runtime.rts_command_stamp_player_label,
+        "accepted": drag_commit_runtime
+            .input_feedback_history
+            .last()
+            .is_some_and(|event| event.accepted),
+    });
+    classic_copy_pixels(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        PANEL_WIDTH as i32,
+        (PANEL_HEIGHT * (PREVIEW_ROWS - 1)) as i32,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        PANEL_WIDTH as i32 + 12,
+        (PANEL_HEIGHT * (PREVIEW_ROWS - 1)) as i32 + 12,
+        "LIVE RTS DRAG COMMIT",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
     let hover_points = [
         ("map_move_hover", 420, 240),
         ("sidebar_build_hover", 1200, 365),
@@ -42527,6 +42594,51 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .and_then(|value| value.as_str())
                 .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
         });
+    let drag_select_commit_gate = drag_select_commit_selection_marker_pixel_count > 250
+        && drag_select_commit_stamp_pixel_count > 80
+        && drag_select_commit_sample
+            .get("accepted")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && drag_select_commit_sample
+            .get("group_id")
+            .and_then(|value| value.as_str())
+            == Some("1")
+        && drag_select_commit_sample
+            .get("group_command_state")
+            .and_then(|value| value.as_str())
+            == Some("drag:2,2->6,4")
+        && drag_select_commit_sample
+            .get("selected_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| {
+                units.len() == 2
+                    && units.iter().any(|unit| unit.as_str() == Some("player"))
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_guard_front"))
+            })
+        && drag_select_commit_sample
+            .get("selection_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|tiles| tiles.len() == 15)
+        && drag_select_commit_sample
+            .get("command_queue")
+            .and_then(|value| value.as_array())
+            .is_some_and(|commands| {
+                commands
+                    .iter()
+                    .filter_map(|entry| entry.as_str())
+                    .any(|entry| entry.starts_with("drag_select:"))
+                    && commands
+                        .iter()
+                        .filter_map(|entry| entry.as_str())
+                        .any(|entry| entry == "select_group_1")
+            })
+        && drag_select_commit_sample
+            .get("command_stamp_player_label")
+            .and_then(|value| value.as_str())
+            == Some("DRAG SELECT SENT 2 UNITS");
     let command_stamp_gate = command_stamp_pixel_count > 120
         && stage_summaries.iter().any(|summary| {
             summary.get("stage").and_then(|value| value.as_str()) == Some("move_formation")
@@ -42584,6 +42696,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && command_feedback_chip_gate
         && hover_preview_gate
         && drag_select_preview_gate
+        && drag_select_commit_gate
         && command_stamp_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -42609,6 +42722,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "final_target_health_percent": runtime.rts_target_health_percent,
         "final_combat_event_log": runtime.rts_combat_event_log,
         "drag_select_preview_samples": drag_select_preview_samples,
+        "drag_select_commit_sample": drag_select_commit_sample,
+        "drag_select_commit_selection_marker_pixel_count": drag_select_commit_selection_marker_pixel_count,
+        "drag_select_commit_stamp_pixel_count": drag_select_commit_stamp_pixel_count,
         "hover_samples": hover_samples,
         "final_hover_source": runtime.rts_hover_source,
         "final_hover_tile_id": runtime.rts_hover_tile_id,
@@ -42648,10 +42764,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_feedback_chip_gate": command_feedback_chip_gate,
         "hover_preview_gate": hover_preview_gate,
         "drag_select_preview_gate": drag_select_preview_gate,
+        "drag_select_commit_gate": drag_select_commit_gate,
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, hover preview, and accepted-command stamp feedback through apply_live_native_action_with_source, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, hover preview, and accepted-command stamp feedback through apply_live_native_action_with_source, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -139653,12 +139770,13 @@ mod tests {
             .iter()
             .any(|unit_id| unit_id == "square_creep_wander"));
 
-        apply_live_native_action(
+        apply_live_native_action_with_source(
             &mut world,
             &mut character,
             &mut log,
             &mut runtime,
             actor_id,
+            "classic_rts_mouse_drag",
             NativeControlAction::RtsSelectControlGroup {
                 group_id: "drag:2,2->6,4".to_string(),
             },
@@ -139673,6 +139791,11 @@ mod tests {
             .rts_selected_unit_ids
             .iter()
             .any(|unit_id| unit_id == "player"));
+        assert_eq!(runtime.rts_selected_unit_ids.len(), 2);
+        assert_eq!(
+            runtime.rts_command_stamp_player_label,
+            "DRAG SELECT SENT 2 UNITS"
+        );
 
         let move_command = classic_next_runtime_rts_move_command(&runtime);
         apply_live_native_action(
