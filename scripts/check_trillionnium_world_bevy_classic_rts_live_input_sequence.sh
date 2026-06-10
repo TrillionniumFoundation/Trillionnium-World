@@ -68,6 +68,21 @@ jq -e '
   and (.drag_select_commit_sample.command_queue | any(startswith("drag_select:")))
   and (.drag_select_commit_sample.command_queue | index("select_group_1") != null)
   and .drag_select_commit_sample.command_stamp_player_label == "DRAG SELECT SENT 2 UNITS"
+  and .unit_click_select_marker_pixel_count > 80
+  and .unit_click_select_stamp_pixel_count > 80
+  and .unit_click_select_sample.accepted == true
+  and .unit_click_select_sample.input_source == "classic_rts_mouse_viewport"
+  and .unit_click_select_sample.tile_id == "5,4"
+  and .unit_click_select_sample.action_label == "RTS:SELECT:unit:player"
+  and .unit_click_select_sample.group_id == "1"
+  and .unit_click_select_sample.group_command_state == "unit_selected:player@5,4"
+  and (.unit_click_select_sample.selected_unit_ids | length == 1)
+  and (.unit_click_select_sample.selected_unit_ids | index("player") != null)
+  and (.unit_click_select_sample.selection_tile_ids | length == 1)
+  and (.unit_click_select_sample.selection_tile_ids | index("5,4") != null)
+  and (.unit_click_select_sample.command_queue | index("unit_select:player@5,4") != null)
+  and (.unit_click_select_sample.command_queue | index("select_group_1") != null)
+  and .unit_click_select_sample.command_stamp_player_label == "MAP SELECT SENT 1 UNIT"
   and (.hover_samples | length == 4)
   and (.hover_samples | any(.player_label == "MAP MOVE READY 4,3"))
   and (.hover_samples | any(.player_label | startswith("SIDEBAR QUEUE READY WATCH TOWER")))
@@ -139,6 +154,7 @@ jq -e '
   and .context_cursor_gate == true
   and .drag_select_preview_gate == true
   and .drag_select_commit_gate == true
+  and .unit_click_select_gate == true
   and .command_stamp_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
