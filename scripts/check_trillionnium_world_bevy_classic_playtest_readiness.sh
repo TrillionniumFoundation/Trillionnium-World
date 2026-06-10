@@ -814,6 +814,12 @@ jq -n \
       rts_live_input_ability_command_pixel_count: $rts_live[0].ability_command_pixel_count,
       rts_live_input_target_health_pixel_count: $rts_live[0].target_health_pixel_count,
       rts_live_input_target_health_percent: $rts_live[0].final_target_health_percent,
+      rts_live_input_hover_preview_pixel_count: $rts_live[0].hover_preview_pixel_count,
+      rts_live_input_final_hover_player_label: $rts_live[0].final_hover_player_label,
+      rts_live_input_drag_select_preview_pixel_count: $rts_live[0].drag_select_preview_pixel_count,
+      rts_live_input_drag_select_preview_label: ($rts_live[0].drag_select_preview_samples[0].player_label // ""),
+      rts_live_input_command_stamp_pixel_count: $rts_live[0].command_stamp_pixel_count,
+      rts_live_input_final_command_stamp_player_label: $rts_live[0].final_command_stamp_player_label,
       rts_live_input_command_feedback_chip_count: $rts_live[0].command_feedback_chip_count,
       rts_pathing_accepted_input_count: $rts_path[0].accepted_input_count,
       rts_pathing_path_tile_count: ($rts_path[0].path_tile_ids | length),
@@ -2123,6 +2129,9 @@ jq -n \
       rts_live_input_attack_live_gate: $rts_live[0].attack_live_gate,
       rts_live_input_ability_live_gate: $rts_live[0].ability_live_gate,
       rts_live_input_command_feedback_chip_gate: $rts_live[0].command_feedback_chip_gate,
+      rts_live_input_hover_preview_gate: $rts_live[0].hover_preview_gate,
+      rts_live_input_drag_select_preview_gate: $rts_live[0].drag_select_preview_gate,
+      rts_live_input_command_stamp_gate: $rts_live[0].command_stamp_gate,
       rts_pathing_live_input_gate: $rts_path[0].live_pathing_input_gate,
       rts_pathing_path_tile_gate: $rts_path[0].path_tile_gate,
       rts_pathing_blocked_tile_gate: $rts_path[0].blocked_tile_gate,
@@ -3452,6 +3461,12 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_ability_command_pixel_count > 800
   and .headline.rts_live_input_target_health_pixel_count > 60
   and .headline.rts_live_input_target_health_percent < 60
+  and .headline.rts_live_input_hover_preview_pixel_count > 40
+  and .headline.rts_live_input_final_hover_player_label == "MINIMAP RALLY READY 5,2"
+  and .headline.rts_live_input_drag_select_preview_pixel_count > 80
+  and .headline.rts_live_input_drag_select_preview_label == "DRAG SELECT 2 UNITS 2,2->6,4"
+  and .headline.rts_live_input_command_stamp_pixel_count > 120
+  and .headline.rts_live_input_final_command_stamp_player_label == "COMMAND ABILITY SENT FOCUS FIRE"
   and .headline.rts_pathing_accepted_input_count == 2
   and .headline.rts_pathing_path_tile_count >= 3
   and .headline.rts_pathing_blocked_tile_count >= 1
@@ -4186,6 +4201,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_stop_live_gate == true
   and .gates.rts_live_input_attack_live_gate == true
   and .gates.rts_live_input_ability_live_gate == true
+  and .gates.rts_live_input_command_feedback_chip_gate == true
+  and .gates.rts_live_input_hover_preview_gate == true
+  and .gates.rts_live_input_drag_select_preview_gate == true
+  and .gates.rts_live_input_command_stamp_gate == true
   and .gates.rts_pathing_live_input_gate == true
   and .gates.rts_pathing_path_tile_gate == true
   and .gates.rts_pathing_blocked_tile_gate == true

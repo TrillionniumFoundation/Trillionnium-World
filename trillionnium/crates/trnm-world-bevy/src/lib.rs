@@ -448,6 +448,7 @@ const CLASSIC_ISO_FORMATION_LINE_COLOR: u32 = 0xa4e86f;
 const CLASSIC_RTS_PATH_TILE_COLOR: u32 = 0x74c96b;
 const CLASSIC_RTS_BLOCKED_TILE_COLOR: u32 = 0xd6504d;
 const CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR: u32 = 0xff6262;
+const CLASSIC_RTS_COMMAND_STAMP_COLOR: u32 = 0xffe16a;
 const CLASSIC_RTS_FORMATION_SLOT_COLOR: u32 = 0xf4c95d;
 const CLASSIC_RTS_DISPERSION_SLOT_COLOR: u32 = 0xb7a6ff;
 const CLASSIC_RTS_ENGAGEMENT_RANGE_COLOR: u32 = 0xff9d4d;
@@ -462,6 +463,7 @@ const CLASSIC_RTS_DROPOFF_COLOR: u32 = 0x64cfff;
 const CLASSIC_RTS_BUILD_BLUEPRINT_COLOR: u32 = 0xc8e8ff;
 const CLASSIC_RTS_BLUEPRINT_PROGRESS_COLOR: u32 = 0x9fdb72;
 const CLASSIC_RTS_SELECTION_BOX_COLOR: u32 = 0xf6ff7a;
+const CLASSIC_RTS_DRAG_PREVIEW_COLOR: u32 = 0xeaff9b;
 const CLASSIC_RTS_MINIMAP_COMMAND_COLOR: u32 = 0xff8ac7;
 const CLASSIC_RTS_GROUP_TWO_COLOR: u32 = 0x8fa8ff;
 const CLASSIC_RTS_SPLIT_ROUTE_COLOR: u32 = 0x48f0bd;
@@ -746,6 +748,8 @@ const CLASSIC_RTS_COMMAND_HISTORY_AGE_COLOR: u32 = 0x8ed7c7;
 const CLASSIC_RTS_COMMAND_HISTORY_RETAINED_COLOR: u32 = 0xb9a7ff;
 const CLASSIC_RTS_COMMAND_HISTORY_PRUNED_COLOR: u32 = 0xffc86f;
 const CLASSIC_RTS_COMMAND_HISTORY_LIMIT_COLOR: u32 = 0x9bb7c8;
+const CLASSIC_RTS_HOVER_PREVIEW_COLOR: u32 = 0x95f7ff;
+const CLASSIC_RTS_HOVER_PANEL_COLOR: u32 = 0x182a2c;
 const CLASSIC_RTS_SCROLL_CAMERA_FRAME_COLOR: u32 = 0x22e6ff;
 const CLASSIC_RTS_SCROLL_EDGE_COLOR: u32 = 0xffd84a;
 const CLASSIC_RTS_SCROLL_DRAG_COLOR: u32 = 0xff7ab8;
@@ -2235,6 +2239,40 @@ pub struct NativeFirstPlayableRuntime {
     #[serde(default)]
     pub rts_camera_viewport_rect: Option<RtsCameraMinimapViewportRect>,
     #[serde(default)]
+    pub rts_hover_source: String,
+    #[serde(default)]
+    pub rts_hover_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_hover_action_label: String,
+    #[serde(default)]
+    pub rts_hover_player_label: String,
+    #[serde(default)]
+    pub rts_hover_queue_id: Option<String>,
+    #[serde(default)]
+    pub rts_hover_affordance: String,
+    #[serde(default)]
+    pub rts_drag_select_source: String,
+    #[serde(default)]
+    pub rts_drag_select_start_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_drag_select_current_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_drag_select_tile_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_drag_select_unit_ids: Vec<String>,
+    #[serde(default)]
+    pub rts_drag_select_player_label: String,
+    #[serde(default)]
+    pub rts_command_stamp_source: String,
+    #[serde(default)]
+    pub rts_command_stamp_kind: String,
+    #[serde(default)]
+    pub rts_command_stamp_tile_id: Option<String>,
+    #[serde(default)]
+    pub rts_command_stamp_target_id: Option<String>,
+    #[serde(default)]
+    pub rts_command_stamp_player_label: String,
+    #[serde(default)]
     pub rts_group_route_tile_ids: Vec<String>,
     #[serde(default)]
     pub rts_group_command_state: String,
@@ -2776,6 +2814,23 @@ impl Default for NativeFirstPlayableRuntime {
             rts_camera_input_source: String::new(),
             rts_camera_zoom_percent: 0,
             rts_camera_viewport_rect: None,
+            rts_hover_source: String::new(),
+            rts_hover_tile_id: None,
+            rts_hover_action_label: String::new(),
+            rts_hover_player_label: String::new(),
+            rts_hover_queue_id: None,
+            rts_hover_affordance: String::new(),
+            rts_drag_select_source: String::new(),
+            rts_drag_select_start_tile_id: None,
+            rts_drag_select_current_tile_id: None,
+            rts_drag_select_tile_ids: Vec::new(),
+            rts_drag_select_unit_ids: Vec::new(),
+            rts_drag_select_player_label: String::new(),
+            rts_command_stamp_source: String::new(),
+            rts_command_stamp_kind: String::new(),
+            rts_command_stamp_tile_id: None,
+            rts_command_stamp_target_id: None,
+            rts_command_stamp_player_label: String::new(),
             rts_group_route_tile_ids: Vec::new(),
             rts_group_command_state: String::new(),
             rts_completed_structure_ids: Vec::new(),
@@ -41936,7 +41991,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
     const PREVIEW_COLUMNS: usize = 2;
-    const PREVIEW_ROWS: usize = 6;
+    const PREVIEW_ROWS: usize = 7;
     let assets = load_classic_runtime_assets();
     let mut world = native_bevy_playable_fixture();
     let mut character = WorldTrillionniumCharacter::default_for("local-player");
@@ -42085,11 +42140,92 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "destination_tile": runtime.rts_command_destination_tile.clone(),
             "attack_target_id": runtime.rts_attack_target_id.clone(),
             "active_ability_id": runtime.rts_active_ability_id.clone(),
+            "command_stamp_source": runtime.rts_command_stamp_source.clone(),
+            "command_stamp_kind": runtime.rts_command_stamp_kind.clone(),
+            "command_stamp_tile_id": runtime.rts_command_stamp_tile_id.clone(),
+            "command_stamp_target_id": runtime.rts_command_stamp_target_id.clone(),
+            "command_stamp_player_label": runtime.rts_command_stamp_player_label.clone(),
             "target_health_percent": runtime.rts_target_health_percent,
             "combat_event_log": runtime.rts_combat_event_log.clone(),
         }));
     }
 
+    let mut drag_select_preview_samples = Vec::new();
+    if let Some(preview) = apply_classic_rts_drag_select_preview_from_points(
+        &mut runtime,
+        1280,
+        720,
+        (240, 180),
+        (520, 350),
+    ) {
+        drag_select_preview_samples.push(json!({
+            "stage": "drag_select_preview",
+            "input_source": preview.input_source,
+            "start_tile_id": preview.start_tile_id,
+            "current_tile_id": preview.current_tile_id,
+            "selection_tile_ids": preview.selection_tile_ids,
+            "candidate_unit_ids": preview.candidate_unit_ids,
+            "player_label": preview.player_label,
+        }));
+    }
+    frame_pixels.fill(0x0b0d0c_u32);
+    classic_draw_scene(
+        &mut frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+    let preview_row_y = (PANEL_HEIGHT * (PREVIEW_ROWS - 2)) as i32;
+    classic_copy_pixels(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        0,
+        preview_row_y,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        12,
+        preview_row_y + 12,
+        "LIVE RTS DRAG PREVIEW",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    clear_classic_rts_drag_select_preview_runtime(&mut runtime);
+
+    let hover_points = [
+        ("map_move_hover", 420, 240),
+        ("sidebar_build_hover", 1200, 365),
+        ("command_button_hover", 424, 600),
+        ("minimap_rally_hover", 1120, 120),
+    ];
+    let mut hover_samples = Vec::new();
+    for (stage, mouse_x, mouse_y) in hover_points {
+        if let Some(preview) =
+            apply_classic_rts_hover_preview_runtime(&mut runtime, 1280, 720, mouse_x, mouse_y)
+        {
+            hover_samples.push(json!({
+                "stage": stage,
+                "mouse_x": mouse_x,
+                "mouse_y": mouse_y,
+                "input_source": preview.input_source,
+                "tile_id": preview.tile_id,
+                "action_label": preview.action_label,
+                "player_label": preview.player_label,
+                "queue_id": preview.queue_id,
+                "affordance": preview.affordance,
+                "accepted": preview.accepted,
+                "reason": preview.reason,
+            }));
+        }
+    }
     frame_pixels.fill(0x0b0d0c_u32);
     classic_draw_scene(
         &mut frame_pixels,
@@ -42107,13 +42243,43 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         PANEL_WIDTH,
         PANEL_HEIGHT,
         PANEL_WIDTH as i32,
-        (PANEL_HEIGHT * (PREVIEW_ROWS - 1)) as i32,
+        preview_row_y,
     );
     classic_draw_text(
         &mut preview_pixels,
         preview_width,
         preview_height,
         PANEL_WIDTH as i32 + 12,
+        preview_row_y + 12,
+        "LIVE RTS HOVER PREVIEW",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
+    frame_pixels.fill(0x0b0d0c_u32);
+    classic_draw_scene(
+        &mut frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        (5, 5),
+        &runtime,
+        &assets,
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &frame_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        0,
+        (PANEL_HEIGHT * (PREVIEW_ROWS - 1)) as i32,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        12,
         (PANEL_HEIGHT * (PREVIEW_ROWS - 1)) as i32 + 12,
         "LIVE RTS FINAL STATE",
         2,
@@ -42144,6 +42310,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let production_queue_pixel_count = count_color(CLASSIC_RTS_PRODUCTION_SLOT_COLOR)
         + count_color(CLASSIC_RTS_PRODUCTION_PROGRESS_COLOR)
         + count_color(CLASSIC_RTS_BUILD_PROGRESS_COLOR);
+    let hover_preview_pixel_count = count_color(CLASSIC_RTS_HOVER_PREVIEW_COLOR);
+    let drag_select_preview_pixel_count = count_color(CLASSIC_RTS_DRAG_PREVIEW_COLOR);
+    let command_stamp_pixel_count = count_color(CLASSIC_RTS_COMMAND_STAMP_COLOR);
     let command_feedback_chip_count = runtime
         .rts_command_queue
         .iter()
@@ -42303,6 +42472,101 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             .rts_command_queue
             .iter()
             .any(|entry| entry == "feedback:stop_hold@10,3");
+    let hover_preview_gate = hover_samples.len() == 4
+        && hover_preview_pixel_count > 40
+        && hover_samples.iter().any(|sample| {
+            sample.get("player_label").and_then(|value| value.as_str())
+                == Some("MAP MOVE READY 4,3")
+        })
+        && hover_samples.iter().any(|sample| {
+            sample
+                .get("player_label")
+                .and_then(|value| value.as_str())
+                .is_some_and(|label| label.starts_with("SIDEBAR QUEUE READY WATCH TOWER"))
+        })
+        && hover_samples.iter().any(|sample| {
+            sample
+                .get("player_label")
+                .and_then(|value| value.as_str())
+                .is_some_and(|label| label.starts_with("COMMAND BAR ABILITY READY"))
+        })
+        && hover_samples.iter().any(|sample| {
+            sample.get("player_label").and_then(|value| value.as_str())
+                == Some("MINIMAP RALLY READY 5,2")
+        })
+        && hover_samples.iter().all(|sample| {
+            sample
+                .get("player_label")
+                .and_then(|value| value.as_str())
+                .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
+        });
+    let drag_select_preview_gate = drag_select_preview_samples.len() == 1
+        && drag_select_preview_pixel_count > 80
+        && drag_select_preview_samples.iter().any(|sample| {
+            sample.get("input_source").and_then(|value| value.as_str())
+                == Some("classic_rts_mouse_drag")
+                && sample.get("start_tile_id").and_then(|value| value.as_str()) == Some("2,2")
+                && sample
+                    .get("current_tile_id")
+                    .and_then(|value| value.as_str())
+                    == Some("6,4")
+                && sample.get("player_label").and_then(|value| value.as_str())
+                    == Some("DRAG SELECT 2 UNITS 2,2->6,4")
+                && sample
+                    .get("selection_tile_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|tiles| tiles.len() >= 12)
+                && sample
+                    .get("candidate_unit_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|units| units.len() >= 2)
+        })
+        && drag_select_preview_samples.iter().all(|sample| {
+            sample
+                .get("player_label")
+                .and_then(|value| value.as_str())
+                .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
+        });
+    let command_stamp_gate = command_stamp_pixel_count > 120
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("move_formation")
+                && summary
+                    .get("command_stamp_tile_id")
+                    .and_then(|value| value.as_str())
+                    == Some("7,4")
+                && summary
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("MAP MOVE SENT 7,4")
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("attack_target")
+                && summary
+                    .get("command_stamp_target_id")
+                    .and_then(|value| value.as_str())
+                    == Some("arena_creep_attack")
+                && summary
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    .is_some_and(|label| label == "MAP ATTACK SENT ARENA CREEP ATTACK")
+        })
+        && stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some("cast_focus_fire")
+                && summary
+                    .get("command_stamp_kind")
+                    .and_then(|value| value.as_str())
+                    == Some("ability")
+                && summary
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    .is_some_and(|label| label == "COMMAND ABILITY SENT FOCUS FIRE")
+        })
+        && stage_summaries.iter().all(|summary| {
+            summary
+                .get("command_stamp_player_label")
+                .and_then(|value| value.as_str())
+                .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
+        });
     let green = write_gate
         && non_background_pixels > 300_000
         && live_input_gate
@@ -42318,6 +42582,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && attack_live_gate
         && ability_live_gate
         && command_feedback_chip_gate
+        && hover_preview_gate
+        && drag_select_preview_gate
+        && command_stamp_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -42341,6 +42608,19 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "final_active_ability_id": runtime.rts_active_ability_id,
         "final_target_health_percent": runtime.rts_target_health_percent,
         "final_combat_event_log": runtime.rts_combat_event_log,
+        "drag_select_preview_samples": drag_select_preview_samples,
+        "hover_samples": hover_samples,
+        "final_hover_source": runtime.rts_hover_source,
+        "final_hover_tile_id": runtime.rts_hover_tile_id,
+        "final_hover_action_label": runtime.rts_hover_action_label,
+        "final_hover_player_label": runtime.rts_hover_player_label,
+        "final_hover_queue_id": runtime.rts_hover_queue_id,
+        "final_hover_affordance": runtime.rts_hover_affordance,
+        "final_command_stamp_source": runtime.rts_command_stamp_source,
+        "final_command_stamp_kind": runtime.rts_command_stamp_kind,
+        "final_command_stamp_tile_id": runtime.rts_command_stamp_tile_id,
+        "final_command_stamp_target_id": runtime.rts_command_stamp_target_id,
+        "final_command_stamp_player_label": runtime.rts_command_stamp_player_label,
         "non_background_pixels": non_background_pixels,
         "selection_marker_pixel_count": selection_marker_pixel_count,
         "command_marker_pixel_count": command_marker_pixel_count,
@@ -42348,6 +42628,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "production_queue_pixel_count": production_queue_pixel_count,
         "ability_command_pixel_count": ability_command_pixel_count,
         "target_health_pixel_count": target_health_pixel_count,
+        "hover_preview_pixel_count": hover_preview_pixel_count,
+        "drag_select_preview_pixel_count": drag_select_preview_pixel_count,
+        "command_stamp_pixel_count": command_stamp_pixel_count,
         "command_feedback_chip_count": command_feedback_chip_count,
         "live_input_gate": live_input_gate,
         "selection_live_gate": selection_live_gate,
@@ -42363,9 +42646,12 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "attack_live_gate": attack_live_gate,
         "ability_live_gate": ability_live_gate,
         "command_feedback_chip_gate": command_feedback_chip_gate,
+        "hover_preview_gate": hover_preview_gate,
+        "drag_select_preview_gate": drag_select_preview_gate,
+        "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, and ability commands through apply_live_native_action_with_source before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, hover preview, and accepted-command stamp feedback through apply_live_native_action_with_source, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -72471,6 +72757,26 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
                 }
             }
         }
+        let drag_preview_active = apply_classic_rts_drag_select_preview_runtime(
+            &mut first_playable,
+            width,
+            height,
+            &mouse_latch,
+        )
+        .is_some();
+        if drag_preview_active {
+            clear_classic_rts_hover_preview_runtime(&mut first_playable);
+        } else if let Some((mouse_x, mouse_y)) = window.get_mouse_pos(MiniMouseMode::Discard) {
+            let _ = apply_classic_rts_hover_preview_runtime(
+                &mut first_playable,
+                width,
+                height,
+                mouse_x as i32,
+                mouse_y as i32,
+            );
+        } else {
+            clear_classic_rts_hover_preview_runtime(&mut first_playable);
+        }
         frame_tick = frame_tick.wrapping_add(1);
         if let Some(demo_id) = scripted_demo_id.as_deref() {
             if let Some(stage) = classic_rts_scripted_demo_stage_from_frame(demo_id, frame_tick) {
@@ -72552,6 +72858,40 @@ fn classic_polled_keyboard_action(action: NativeControlAction) -> ClassicPolledA
         "keyboard"
     };
     ClassicPolledAction::new(input_source, action)
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ClassicRtsHoverPreview {
+    input_source: String,
+    tile_id: Option<String>,
+    action_label: String,
+    player_label: String,
+    queue_id: Option<String>,
+    affordance: String,
+    accepted: bool,
+    reason: String,
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ClassicRtsDragSelectPreview {
+    input_source: String,
+    start_tile_id: String,
+    current_tile_id: String,
+    selection_tile_ids: Vec<String>,
+    candidate_unit_ids: Vec<String>,
+    player_label: String,
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ClassicRtsCommandStamp {
+    input_source: String,
+    kind: String,
+    tile_id: Option<String>,
+    target_id: Option<String>,
+    player_label: String,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -72892,6 +73232,140 @@ fn classic_draw_live_mouse_drag_marquee(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_drag_select_player_label(
+    start_tile_id: &str,
+    current_tile_id: &str,
+    unit_count: usize,
+) -> String {
+    format!(
+        "DRAG SELECT {} {} {}->{}",
+        unit_count,
+        if unit_count == 1 { "UNIT" } else { "UNITS" },
+        start_tile_id,
+        current_tile_id
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_drag_select_preview_from_points(
+    _runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    start: (i32, i32),
+    current: (i32, i32),
+) -> Option<ClassicRtsDragSelectPreview> {
+    if classic_rts_drag_distance_sq(start, current) < 36 {
+        return None;
+    }
+    let layout = classic_rts_shell_layout(width, height)?;
+    if !classic_point_in_rect(
+        start.0,
+        start.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    ) || !classic_point_in_rect(
+        current.0,
+        current.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    ) {
+        return None;
+    }
+    let start_tile = classic_mouse_grid_tile(
+        start.0,
+        start.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    );
+    let current_tile = classic_mouse_grid_tile(
+        current.0,
+        current.1,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    );
+    let start_tile_id = classic_rts_tile_id(start_tile);
+    let current_tile_id = classic_rts_tile_id(current_tile);
+    let selection_tile_ids = classic_rts_selection_box_tiles_between(start_tile, current_tile);
+    let candidate_unit_ids = classic_rts_drag_selected_units(start_tile, current_tile);
+    let player_label = classic_rts_drag_select_player_label(
+        &start_tile_id,
+        &current_tile_id,
+        candidate_unit_ids.len(),
+    );
+    Some(ClassicRtsDragSelectPreview {
+        input_source: "classic_rts_mouse_drag".to_string(),
+        start_tile_id,
+        current_tile_id,
+        selection_tile_ids,
+        candidate_unit_ids,
+        player_label,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn apply_classic_rts_drag_select_preview_from_points(
+    runtime: &mut NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    start: (i32, i32),
+    current: (i32, i32),
+) -> Option<ClassicRtsDragSelectPreview> {
+    let preview =
+        classic_rts_drag_select_preview_from_points(runtime, width, height, start, current);
+    if let Some(preview) = &preview {
+        runtime.rts_drag_select_source = preview.input_source.clone();
+        runtime.rts_drag_select_start_tile_id = Some(preview.start_tile_id.clone());
+        runtime.rts_drag_select_current_tile_id = Some(preview.current_tile_id.clone());
+        runtime.rts_drag_select_tile_ids = preview.selection_tile_ids.clone();
+        runtime.rts_drag_select_unit_ids = preview.candidate_unit_ids.clone();
+        runtime.rts_drag_select_player_label = preview.player_label.clone();
+    } else {
+        clear_classic_rts_drag_select_preview_runtime(runtime);
+    }
+    preview
+}
+
+#[cfg(not(target_os = "android"))]
+fn apply_classic_rts_drag_select_preview_runtime(
+    runtime: &mut NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_latch: &ClassicRuntimeMouseLatch,
+) -> Option<ClassicRtsDragSelectPreview> {
+    if !mouse_latch.left_down {
+        clear_classic_rts_drag_select_preview_runtime(runtime);
+        return None;
+    }
+    let Some(start) = mouse_latch.left_anchor else {
+        clear_classic_rts_drag_select_preview_runtime(runtime);
+        return None;
+    };
+    let Some(current) = mouse_latch.left_current else {
+        clear_classic_rts_drag_select_preview_runtime(runtime);
+        return None;
+    };
+    apply_classic_rts_drag_select_preview_from_points(runtime, width, height, start, current)
+}
+
+#[cfg(not(target_os = "android"))]
+fn clear_classic_rts_drag_select_preview_runtime(runtime: &mut NativeFirstPlayableRuntime) {
+    runtime.rts_drag_select_source.clear();
+    runtime.rts_drag_select_start_tile_id = None;
+    runtime.rts_drag_select_current_tile_id = None;
+    runtime.rts_drag_select_tile_ids.clear();
+    runtime.rts_drag_select_unit_ids.clear();
+    runtime.rts_drag_select_player_label.clear();
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(dead_code)]
 fn classic_rts_drag_action_from_points(
     runtime: &NativeFirstPlayableRuntime,
@@ -73109,6 +73583,349 @@ fn classic_rts_mouse_action_with_source_from_point(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_hover_preview_from_action(
+    runtime: &NativeFirstPlayableRuntime,
+    input_source: &'static str,
+    tile_id: Option<String>,
+    queue_id: Option<String>,
+    affordance: &'static str,
+    action: NativeControlAction,
+) -> ClassicRtsHoverPreview {
+    let action_label = native_control_action_label(&action);
+    let (accepted, reason) = native_live_action_availability(runtime, &action);
+    let player_label = classic_rts_hover_player_label(
+        input_source,
+        &action_label,
+        tile_id.as_deref(),
+        queue_id.as_deref(),
+        affordance,
+        accepted,
+        &reason,
+    );
+    ClassicRtsHoverPreview {
+        input_source: input_source.to_string(),
+        tile_id,
+        action_label,
+        player_label,
+        queue_id,
+        affordance: affordance.to_string(),
+        accepted,
+        reason,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_hover_preview_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_x: i32,
+    mouse_y: i32,
+) -> Option<ClassicRtsHoverPreview> {
+    let layout = classic_rts_shell_layout(width, height)?;
+
+    if classic_point_in_rect(
+        mouse_x,
+        mouse_y,
+        layout.radar_x,
+        layout.radar_y,
+        layout.radar_w,
+        layout.radar_h,
+    ) {
+        let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
+            mouse_x,
+            mouse_y,
+            layout.radar_x,
+            layout.radar_y,
+            layout.radar_w,
+            layout.radar_h,
+        ));
+        return Some(classic_rts_hover_preview_from_action(
+            runtime,
+            "classic_rts_mouse_minimap",
+            Some(tile_id.clone()),
+            None,
+            "minimap_rally",
+            NativeControlAction::RtsMoveCommand {
+                command_id: format!("minimap:{tile_id}:rally"),
+            },
+        ));
+    }
+
+    if let Some(preview) =
+        classic_rts_sidebar_hover_preview_from_point(runtime, &layout, mouse_x, mouse_y)
+    {
+        return Some(preview);
+    }
+
+    if let Some(preview) =
+        classic_rts_bottom_hover_preview_from_point(runtime, &layout, mouse_x, mouse_y)
+    {
+        return Some(preview);
+    }
+
+    if classic_point_in_rect(
+        mouse_x,
+        mouse_y,
+        8,
+        layout.bottom_y,
+        layout.sidebar_x - 16,
+        layout.bottom_h,
+    ) {
+        return Some(classic_rts_hover_preview_from_action(
+            runtime,
+            "classic_rts_mouse_bottom_panel",
+            None,
+            None,
+            "selection_panel",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "box:frontline".to_string(),
+            },
+        ));
+    }
+
+    if classic_point_in_rect(
+        mouse_x,
+        mouse_y,
+        layout.viewport_x,
+        layout.viewport_y,
+        layout.viewport_w,
+        layout.viewport_h,
+    ) {
+        if mouse_x > layout.viewport_x + (layout.viewport_w * 2) / 3 {
+            let target_id = classic_next_runtime_rts_attack_target(runtime);
+            let target_tile_id = classic_rts_tile_id(classic_rts_target_tile_for_id(&target_id, 0));
+            return Some(classic_rts_hover_preview_from_action(
+                runtime,
+                "classic_rts_mouse_viewport",
+                Some(target_tile_id),
+                None,
+                "viewport_attack",
+                NativeControlAction::RtsAttackCommand { target_id },
+            ));
+        }
+        let tile_id = classic_rts_tile_id(classic_mouse_grid_tile(
+            mouse_x,
+            mouse_y,
+            layout.viewport_x,
+            layout.viewport_y,
+            layout.viewport_w,
+            layout.viewport_h,
+        ));
+        return Some(classic_rts_hover_preview_from_action(
+            runtime,
+            "classic_rts_mouse_viewport",
+            Some(tile_id.clone()),
+            None,
+            "viewport_move",
+            NativeControlAction::RtsMoveCommand {
+                command_id: format!("{tile_id}:line"),
+            },
+        ));
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn apply_classic_rts_hover_preview_runtime(
+    runtime: &mut NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_x: i32,
+    mouse_y: i32,
+) -> Option<ClassicRtsHoverPreview> {
+    let preview = classic_rts_hover_preview_from_point(runtime, width, height, mouse_x, mouse_y);
+    if let Some(preview) = &preview {
+        runtime.rts_hover_source = preview.input_source.clone();
+        runtime.rts_hover_tile_id = preview.tile_id.clone();
+        runtime.rts_hover_action_label = preview.action_label.clone();
+        runtime.rts_hover_player_label = preview.player_label.clone();
+        runtime.rts_hover_queue_id = preview.queue_id.clone();
+        runtime.rts_hover_affordance = preview.affordance.clone();
+    } else {
+        clear_classic_rts_hover_preview_runtime(runtime);
+    }
+    preview
+}
+
+#[cfg(not(target_os = "android"))]
+fn clear_classic_rts_hover_preview_runtime(runtime: &mut NativeFirstPlayableRuntime) {
+    runtime.rts_hover_source.clear();
+    runtime.rts_hover_tile_id = None;
+    runtime.rts_hover_action_label.clear();
+    runtime.rts_hover_player_label.clear();
+    runtime.rts_hover_queue_id = None;
+    runtime.rts_hover_affordance.clear();
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_command_stamp_for_action(
+    runtime: &NativeFirstPlayableRuntime,
+    input_source: &str,
+    action: &NativeControlAction,
+) -> Option<ClassicRtsCommandStamp> {
+    let action_label = native_control_action_label(action);
+    let source = classic_rts_input_source_player_label(input_source, &action_label);
+    match action {
+        NativeControlAction::RtsSelectControlGroup { group_id } => {
+            let selected_count = runtime.rts_selected_unit_ids.len().max(1);
+            let unit_word = if selected_count == 1 { "UNIT" } else { "UNITS" };
+            Some(ClassicRtsCommandStamp {
+                input_source: input_source.to_string(),
+                kind: "select".to_string(),
+                tile_id: None,
+                target_id: Some(group_id.clone()),
+                player_label: format!("{source} SELECT SENT {selected_count} {unit_word}"),
+            })
+        }
+        NativeControlAction::RtsQueueProduction { queue_id } => {
+            let (kind, target_id, tile_id, item_label) = if queue_id.starts_with("build:") {
+                let (structure_id, tile_id) = classic_rts_build_parts(queue_id);
+                (
+                    "build",
+                    structure_id.clone(),
+                    Some(tile_id),
+                    classic_catalog_text_label(&structure_id.replace('_', " "), 20),
+                )
+            } else if let Some(unit_id) = queue_id.strip_prefix("train:") {
+                (
+                    "train",
+                    unit_id.to_string(),
+                    None,
+                    classic_catalog_text_label(&unit_id.replace('_', " "), 20),
+                )
+            } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
+                (
+                    "harvest",
+                    node_id.to_string(),
+                    None,
+                    classic_catalog_text_label(&node_id.replace('_', " "), 20),
+                )
+            } else if queue_id.starts_with("upgrade:") {
+                let (upgrade_id, source_id) =
+                    classic_rts_tech_parts(queue_id, "upgrade:", "training_hall");
+                (
+                    "upgrade",
+                    upgrade_id.clone(),
+                    Some(classic_rts_tile_id(classic_rts_structure_tile_for_id(
+                        &source_id,
+                    ))),
+                    classic_catalog_text_label(&upgrade_id.replace('_', " "), 20),
+                )
+            } else {
+                (
+                    "queue",
+                    queue_id.to_string(),
+                    None,
+                    classic_catalog_text_label(&queue_id.replace('_', " "), 20),
+                )
+            };
+            let tile_suffix = tile_id
+                .as_deref()
+                .map(|tile| format!(" {tile}"))
+                .unwrap_or_default();
+            Some(ClassicRtsCommandStamp {
+                input_source: input_source.to_string(),
+                kind: kind.to_string(),
+                tile_id,
+                target_id: Some(target_id),
+                player_label: format!(
+                    "{source} {} SENT {item_label}{tile_suffix}",
+                    kind.to_ascii_uppercase()
+                ),
+            })
+        }
+        NativeControlAction::RtsMoveCommand { command_id } => {
+            let (tile_id, formation) = classic_rts_move_command_parts(command_id);
+            classic_parse_rts_tile(tile_id)?;
+            let kind = if command_id.starts_with("minimap:") || formation == "rally" {
+                "rally"
+            } else if formation == "shift_waypoint" {
+                "waypoint"
+            } else if formation == "attack_move" {
+                "attack-move"
+            } else if formation == "patrol" {
+                "patrol"
+            } else if formation == "hold" {
+                "hold"
+            } else if formation == "stop" {
+                "stop"
+            } else {
+                "move"
+            };
+            Some(ClassicRtsCommandStamp {
+                input_source: input_source.to_string(),
+                kind: kind.to_string(),
+                tile_id: Some(tile_id.to_string()),
+                target_id: None,
+                player_label: format!(
+                    "{source} {} SENT {tile_id}",
+                    kind.replace('-', " ").to_ascii_uppercase()
+                ),
+            })
+        }
+        NativeControlAction::RtsAttackCommand { target_id } => {
+            let tile_id = classic_rts_tile_id(classic_rts_target_tile_for_id(target_id, 0));
+            Some(ClassicRtsCommandStamp {
+                input_source: input_source.to_string(),
+                kind: "attack".to_string(),
+                tile_id: Some(tile_id),
+                target_id: Some(target_id.clone()),
+                player_label: format!(
+                    "{source} ATTACK SENT {}",
+                    classic_catalog_text_label(&target_id.replace('_', " "), 22)
+                ),
+            })
+        }
+        NativeControlAction::RtsAbilityCommand { ability_id } => {
+            let target_id = runtime.rts_attack_target_id.clone();
+            let tile_id = target_id
+                .as_deref()
+                .map(|target| classic_rts_tile_id(classic_rts_target_tile_for_id(target, 0)));
+            Some(ClassicRtsCommandStamp {
+                input_source: input_source.to_string(),
+                kind: "ability".to_string(),
+                tile_id,
+                target_id,
+                player_label: format!(
+                    "{source} ABILITY SENT {}",
+                    classic_catalog_text_label(&ability_id.replace('_', " "), 22)
+                ),
+            })
+        }
+        _ => None,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn apply_classic_rts_command_stamp_for_action(
+    runtime: &mut NativeFirstPlayableRuntime,
+    input_source: &str,
+    action: &NativeControlAction,
+) -> Option<ClassicRtsCommandStamp> {
+    let stamp = classic_rts_command_stamp_for_action(runtime, input_source, action);
+    if let Some(stamp) = &stamp {
+        runtime.rts_command_stamp_source = stamp.input_source.clone();
+        runtime.rts_command_stamp_kind = stamp.kind.clone();
+        runtime.rts_command_stamp_tile_id = stamp.tile_id.clone();
+        runtime.rts_command_stamp_target_id = stamp.target_id.clone();
+        runtime.rts_command_stamp_player_label = stamp.player_label.clone();
+    } else {
+        clear_classic_rts_command_stamp_runtime(runtime);
+    }
+    stamp
+}
+
+#[cfg(not(target_os = "android"))]
+fn clear_classic_rts_command_stamp_runtime(runtime: &mut NativeFirstPlayableRuntime) {
+    runtime.rts_command_stamp_source.clear();
+    runtime.rts_command_stamp_kind.clear();
+    runtime.rts_command_stamp_tile_id = None;
+    runtime.rts_command_stamp_target_id = None;
+    runtime.rts_command_stamp_player_label.clear();
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_sidebar_action_from_point(
     runtime: &NativeFirstPlayableRuntime,
     layout: &ClassicRtsShellLayout,
@@ -73178,6 +73995,93 @@ fn classic_rts_bottom_action_from_point(
         let y = layout.bottom_y + 32 + index as i32 * 18;
         if classic_point_in_rect(mouse_x, mouse_y, queue_x, y, 220, 14) {
             return classic_rts_action_from_order_entry(runtime, order);
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_sidebar_hover_preview_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    layout: &ClassicRtsShellLayout,
+    mouse_x: i32,
+    mouse_y: i32,
+) -> Option<ClassicRtsHoverPreview> {
+    let prod_y = layout.radar_y + layout.radar_h + 16;
+    for index in 0..4 {
+        let x = layout.sidebar_x + 12 + (index % 2) as i32 * 116;
+        let y = prod_y + 18 + (index / 2) as i32 * 34;
+        if classic_point_in_rect(mouse_x, mouse_y, x, y, 56, 18) {
+            let queue_id = classic_rts_production_slot_queue_id(runtime, index);
+            return Some(classic_rts_hover_preview_from_action(
+                runtime,
+                "classic_rts_mouse_sidebar",
+                None,
+                Some(queue_id.clone()),
+                "sidebar_queue",
+                NativeControlAction::RtsQueueProduction { queue_id },
+            ));
+        }
+    }
+    let palette_y = prod_y + 98;
+    for index in 0..8 {
+        let x = layout.sidebar_x + 12 + (index % 4) as i32 * 58;
+        let y = palette_y + 18 + (index / 4) as i32 * 46;
+        if classic_point_in_rect(mouse_x, mouse_y, x, y, 46, 36) {
+            let queue_id = classic_rts_build_palette_queue_id(index);
+            return Some(classic_rts_hover_preview_from_action(
+                runtime,
+                "classic_rts_mouse_sidebar",
+                None,
+                Some(queue_id.clone()),
+                "build_palette",
+                NativeControlAction::RtsQueueProduction { queue_id },
+            ));
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_bottom_hover_preview_from_point(
+    runtime: &NativeFirstPlayableRuntime,
+    layout: &ClassicRtsShellLayout,
+    mouse_x: i32,
+    mouse_y: i32,
+) -> Option<ClassicRtsHoverPreview> {
+    let command_x = 360;
+    for index in 0..12 {
+        let x = command_x + (index % 6) as i32 * 58;
+        let y = layout.bottom_y + 30 + (index / 6) as i32 * 46;
+        if classic_point_in_rect(mouse_x, mouse_y, x, y, 48, 38) {
+            let ability_id = runtime
+                .rts_ability_command_ids
+                .get(index % runtime.rts_ability_command_ids.len().max(1))
+                .cloned()
+                .unwrap_or_else(|| "hold".to_string());
+            return Some(classic_rts_hover_preview_from_action(
+                runtime,
+                "classic_rts_mouse_command_bar",
+                None,
+                None,
+                "command_button",
+                NativeControlAction::RtsAbilityCommand { ability_id },
+            ));
+        }
+    }
+    let queue_x = command_x + 374;
+    for (index, order) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+        let y = layout.bottom_y + 32 + index as i32 * 18;
+        if classic_point_in_rect(mouse_x, mouse_y, queue_x, y, 220, 14) {
+            let action = classic_rts_action_from_order_entry(runtime, order)?;
+            return Some(classic_rts_hover_preview_from_action(
+                runtime,
+                "classic_rts_mouse_command_bar",
+                None,
+                None,
+                "order_queue_replay",
+                action,
+            ));
         }
     }
     None
@@ -73709,6 +74613,420 @@ fn classic_draw_openra_style_build_placement_ghost(
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_drag_select_preview_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    if runtime.rts_drag_select_source.is_empty() || runtime.rts_drag_select_player_label.is_empty()
+    {
+        return;
+    }
+    let layout = classic_rts_shell_layout(width, height);
+    let panel_x = layout
+        .as_ref()
+        .map(|layout| layout.viewport_x + 18)
+        .unwrap_or(18);
+    let panel_y = layout
+        .as_ref()
+        .map(|layout| layout.viewport_y + 44)
+        .unwrap_or(48);
+    let panel_w = (width as i32 - panel_x - 24).clamp(220, 382);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        26,
+        CLASSIC_RTS_HOVER_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        5,
+        26,
+        CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 8,
+        &classic_catalog_text_label(&runtime.rts_drag_select_player_label, 44),
+        1,
+        CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+    );
+
+    if let Some(layout) = layout {
+        let cell_w = ((layout.viewport_w - 44).max(120)) / 12;
+        let cell_h = ((layout.viewport_h - 74).max(80)) / 8;
+        let grid_x = layout.viewport_x + 22;
+        let grid_y = layout.viewport_y + 48;
+        let mut bounds: Option<(i32, i32, i32, i32)> = None;
+        for tile_id in runtime.rts_drag_select_tile_ids.iter().take(48) {
+            let Some(tile) = classic_parse_rts_tile(tile_id) else {
+                continue;
+            };
+            let center_x = grid_x + tile.0.clamp(0, 11) * cell_w + cell_w / 2;
+            let center_y = grid_y + tile.1.clamp(0, 7) * cell_h + cell_h / 2;
+            bounds = Some(match bounds {
+                Some((min_x, min_y, max_x, max_y)) => (
+                    min_x.min(center_x),
+                    min_y.min(center_y),
+                    max_x.max(center_x),
+                    max_y.max(center_y),
+                ),
+                None => (center_x, center_y, center_x, center_y),
+            });
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                center_y - cell_h / 3,
+                (cell_w / 3).clamp(18, 40),
+                (cell_h / 3).clamp(10, 24),
+                CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+            );
+        }
+        if let Some((min_x, min_y, max_x, max_y)) = bounds {
+            let x = min_x - cell_w / 2;
+            let y = min_y - cell_h / 2;
+            let w = (max_x - min_x + cell_w).max(8);
+            let h = (max_y - min_y + cell_h).max(8);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                w,
+                3,
+                CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y + h - 2,
+                w,
+                3,
+                CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                3,
+                h,
+                CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x + w - 2,
+                y,
+                3,
+                h,
+                CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+            );
+        }
+    } else {
+        let preview_x = panel_x + 8;
+        let preview_y = panel_y + 34;
+        let tile_count = runtime.rts_drag_select_tile_ids.len().clamp(1, 18);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            preview_x - 4,
+            preview_y - 4,
+            190,
+            38,
+            CLASSIC_RTS_HOVER_PANEL_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            preview_x - 4,
+            preview_y - 4,
+            190,
+            3,
+            CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            preview_x - 4,
+            preview_y + 31,
+            190,
+            3,
+            CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+        );
+        for index in 0..tile_count {
+            let x = preview_x + (index % 9) as i32 * 20;
+            let y = preview_y + (index / 9) as i32 * 15;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                16,
+                11,
+                CLASSIC_RTS_DRAG_PREVIEW_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_hover_preview_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    if runtime.rts_hover_source.is_empty() || runtime.rts_hover_player_label.is_empty() {
+        return;
+    }
+    let layout = classic_rts_shell_layout(width, height);
+    let panel_x = layout
+        .as_ref()
+        .map(|layout| layout.viewport_x + 18)
+        .unwrap_or(18);
+    let panel_y = layout
+        .as_ref()
+        .map(|layout| layout.viewport_y + 12)
+        .unwrap_or(18);
+    let panel_w = (width as i32 - panel_x - 24).clamp(220, 356);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        24,
+        CLASSIC_RTS_HOVER_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        5,
+        24,
+        CLASSIC_RTS_HOVER_PREVIEW_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 8,
+        &classic_catalog_text_label(&runtime.rts_hover_player_label, 44),
+        1,
+        CLASSIC_RTS_HOVER_PREVIEW_COLOR,
+    );
+    if let (Some(layout), Some(tile_id)) = (layout, runtime.rts_hover_tile_id.as_deref()) {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let cell_w = ((layout.viewport_w - 44).max(120)) / 12;
+            let cell_h = ((layout.viewport_h - 74).max(80)) / 8;
+            let grid_x = layout.viewport_x + 22;
+            let grid_y = layout.viewport_y + 48;
+            let center_x = grid_x + tile.0.clamp(0, 11) * cell_w + cell_w / 2;
+            let center_y = grid_y + tile.1.clamp(0, 7) * cell_h + cell_h / 2;
+            let preview_color = if runtime.rts_hover_affordance.contains("attack") {
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR
+            } else if runtime.rts_hover_affordance.contains("rally") {
+                CLASSIC_RTS_SELECTION_FEEDBACK_RALLY_COLOR
+            } else {
+                CLASSIC_RTS_HOVER_PREVIEW_COLOR
+            };
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                center_y - cell_h / 3,
+                (cell_w / 2).clamp(24, 48),
+                (cell_h / 2).clamp(14, 28),
+                preview_color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 28,
+                center_y + 13,
+                56,
+                4,
+                CLASSIC_RTS_HOVER_PREVIEW_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_stamp_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    if runtime.rts_command_stamp_source.is_empty()
+        || runtime.rts_command_stamp_player_label.is_empty()
+    {
+        return;
+    }
+    let layout = classic_rts_shell_layout(width, height);
+    let panel_x = layout
+        .as_ref()
+        .map(|layout| layout.viewport_x + 18)
+        .unwrap_or(18);
+    let panel_y = layout
+        .as_ref()
+        .map(|layout| layout.viewport_y + 76)
+        .unwrap_or(76);
+    let panel_w = (width as i32 - panel_x - 24).clamp(244, 410);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        25,
+        CLASSIC_RTS_HOVER_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        5,
+        25,
+        CLASSIC_RTS_COMMAND_STAMP_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 8,
+        &classic_catalog_text_label(&runtime.rts_command_stamp_player_label, 48),
+        1,
+        CLASSIC_RTS_COMMAND_STAMP_COLOR,
+    );
+
+    if let (Some(layout), Some(tile_id)) = (layout, runtime.rts_command_stamp_tile_id.as_deref()) {
+        if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let cell_w = ((layout.viewport_w - 44).max(120)) / 12;
+            let cell_h = ((layout.viewport_h - 74).max(80)) / 8;
+            let grid_x = layout.viewport_x + 22;
+            let grid_y = layout.viewport_y + 48;
+            let center_x = grid_x + tile.0.clamp(0, 11) * cell_w + cell_w / 2;
+            let center_y = grid_y + tile.1.clamp(0, 7) * cell_h + cell_h / 2;
+            let marker_color = if runtime.rts_command_stamp_kind.contains("attack")
+                || runtime.rts_command_stamp_kind == "ability"
+            {
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR
+            } else if runtime.rts_command_stamp_kind == "build" {
+                CLASSIC_RTS_BUILD_BLUEPRINT_COLOR
+            } else {
+                CLASSIC_RTS_COMMAND_STAMP_COLOR
+            };
+            classic_draw_iso_diamond(
+                buffer,
+                width,
+                height,
+                center_x,
+                center_y - cell_h / 3,
+                (cell_w / 2).clamp(24, 48),
+                (cell_h / 2).clamp(14, 28),
+                marker_color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 34,
+                center_y + 13,
+                68,
+                4,
+                CLASSIC_RTS_COMMAND_STAMP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 2,
+                center_y - 28,
+                4,
+                56,
+                CLASSIC_RTS_COMMAND_STAMP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                center_y - 18,
+                36,
+                3,
+                CLASSIC_RTS_COMMAND_STAMP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                center_y + 18,
+                36,
+                3,
+                CLASSIC_RTS_COMMAND_STAMP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x - 18,
+                center_y - 18,
+                3,
+                36,
+                CLASSIC_RTS_COMMAND_STAMP_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                center_x + 18,
+                center_y - 18,
+                3,
+                36,
+                CLASSIC_RTS_COMMAND_STAMP_COLOR,
+            );
+        }
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -74248,6 +75566,9 @@ fn classic_draw_scene(
             obstruction_stage,
         );
     }
+    classic_draw_rts_drag_select_preview_overlay(buffer, width, height, runtime);
+    classic_draw_rts_hover_preview_overlay(buffer, width, height, runtime);
+    classic_draw_rts_command_stamp_overlay(buffer, width, height, runtime);
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
         classic_draw_rts_unit_status_portrait_overlay(buffer, width, height, runtime, status_stage);
     }
@@ -95154,6 +96475,22 @@ fn classic_draw_openra_style_rts_shell(
                 },
                 12
             )
+        ),
+        format!(
+            "DRAG {}",
+            if runtime.rts_drag_select_player_label.is_empty() {
+                "NONE".to_string()
+            } else {
+                classic_catalog_text_label(&runtime.rts_drag_select_player_label, 24)
+            }
+        ),
+        format!(
+            "HOVER {}",
+            if runtime.rts_hover_player_label.is_empty() {
+                "NONE".to_string()
+            } else {
+                classic_catalog_text_label(&runtime.rts_hover_player_label, 24)
+            }
         ),
         format!(
             "RES {}",
@@ -126403,6 +127740,7 @@ pub fn apply_live_native_action_with_source(
         record_input_feedback(first_playable, input_source, &label, false, &availability.1);
         return None;
     }
+    let action_for_stamp = action.clone();
     let response = apply_native_first_playable_action(
         world,
         character,
@@ -126411,6 +127749,8 @@ pub fn apply_live_native_action_with_source(
         actor_id,
         action,
     );
+    #[cfg(not(target_os = "android"))]
+    apply_classic_rts_command_stamp_for_action(first_playable, input_source, &action_for_stamp);
     record_input_feedback(first_playable, input_source, &label, true, &availability.1);
     response
 }
@@ -131738,6 +133078,72 @@ fn classic_rts_blocked_feedback_toast(
         "Input blocked: {} {}",
         classic_rts_input_source_player_label(input_source, action_label),
         classic_rts_blocked_feedback_player_label(&chip)
+    )
+}
+
+fn classic_rts_hover_player_label(
+    input_source: &str,
+    action_label: &str,
+    tile_id: Option<&str>,
+    queue_id: Option<&str>,
+    affordance: &str,
+    accepted: bool,
+    reason: &str,
+) -> String {
+    let source = classic_rts_input_source_player_label(input_source, action_label);
+    if !accepted && action_label.starts_with("RTS:") {
+        let chip = classic_rts_rejection_feedback_chip(action_label, reason);
+        return format!(
+            "{source} {}",
+            classic_rts_blocked_feedback_player_label(&chip)
+        );
+    }
+    if let Some(queue_id) = queue_id {
+        let queue_label = classic_catalog_text_label(
+            &queue_id
+                .replace("build:", "")
+                .replace("train:", "")
+                .replace("upgrade:", "")
+                .replace("research:", "")
+                .replace('@', " "),
+            18,
+        );
+        let gold = classic_rts_queue_gold_cost(queue_id);
+        return if gold > 0 {
+            format!("{source} QUEUE READY {queue_label} {gold}G")
+        } else {
+            format!("{source} QUEUE READY {queue_label}")
+        };
+    }
+    if action_label.starts_with("RTS:MOVE:") {
+        let tile = tile_id.unwrap_or("-");
+        return if affordance == "minimap_rally" {
+            format!("{source} RALLY READY {tile}")
+        } else {
+            format!("{source} MOVE READY {tile}")
+        };
+    }
+    if let Some(target_id) = action_label.strip_prefix("RTS:ATTACK:") {
+        return format!(
+            "{source} ATTACK READY {}",
+            classic_catalog_text_label(&target_id.replace('_', " "), 18)
+        );
+    }
+    if let Some(ability_id) = action_label.strip_prefix("RTS:ABILITY:") {
+        return format!(
+            "{source} ABILITY READY {}",
+            classic_catalog_text_label(&ability_id.replace('_', " "), 18)
+        );
+    }
+    if let Some(group_id) = action_label.strip_prefix("RTS:SELECT:") {
+        return format!(
+            "{source} SELECT READY {}",
+            classic_catalog_text_label(group_id, 18)
+        );
+    }
+    format!(
+        "{source} READY {}",
+        classic_catalog_text_label(&action_label.replace("RTS:", "").replace(':', " "), 24)
     )
 }
 
@@ -138034,6 +139440,153 @@ mod tests {
                 group_id: "drag:2,2->6,4".to_string(),
             })
         );
+        let mut drag_preview_runtime = classic_openra_style_skirmish_runtime();
+        let drag_preview = apply_classic_rts_drag_select_preview_from_points(
+            &mut drag_preview_runtime,
+            1280,
+            720,
+            (240, 180),
+            (520, 350),
+        )
+        .expect("dragging across the viewport previews a selection box");
+        assert_eq!(drag_preview.input_source, "classic_rts_mouse_drag");
+        assert_eq!(drag_preview.start_tile_id, "2,2");
+        assert_eq!(drag_preview.current_tile_id, "6,4");
+        assert_eq!(drag_preview.player_label, "DRAG SELECT 2 UNITS 2,2->6,4");
+        assert!(drag_preview.selection_tile_ids.len() >= 12);
+        assert!(drag_preview
+            .candidate_unit_ids
+            .iter()
+            .any(|unit_id| unit_id == "player"));
+        assert_eq!(
+            drag_preview_runtime.rts_drag_select_player_label,
+            "DRAG SELECT 2 UNITS 2,2->6,4"
+        );
+        let mut hover_runtime = classic_openra_style_skirmish_runtime();
+        let map_hover =
+            apply_classic_rts_hover_preview_runtime(&mut hover_runtime, 1280, 720, 420, 240)
+                .expect("map hover previews a move order");
+        assert_eq!(map_hover.input_source, "classic_rts_mouse_viewport");
+        assert_eq!(map_hover.tile_id.as_deref(), Some("4,3"));
+        assert_eq!(map_hover.player_label, "MAP MOVE READY 4,3");
+        assert_eq!(hover_runtime.rts_hover_player_label, "MAP MOVE READY 4,3");
+        let sidebar_hover =
+            apply_classic_rts_hover_preview_runtime(&mut hover_runtime, 1280, 720, 1200, 365)
+                .expect("sidebar hover previews build queue");
+        assert_eq!(sidebar_hover.input_source, "classic_rts_mouse_sidebar");
+        assert!(sidebar_hover
+            .player_label
+            .starts_with("SIDEBAR QUEUE READY WATCH TOWER"));
+        let command_hover =
+            apply_classic_rts_hover_preview_runtime(&mut hover_runtime, 1280, 720, 424, 600)
+                .expect("command-bar hover previews ability");
+        assert!(command_hover
+            .player_label
+            .starts_with("COMMAND BAR ABILITY READY"));
+        let minimap_hover =
+            apply_classic_rts_hover_preview_runtime(&mut hover_runtime, 1280, 720, 1120, 120)
+                .expect("minimap hover previews rally");
+        assert_eq!(minimap_hover.player_label, "MINIMAP RALLY READY 5,2");
+        assert_eq!(hover_runtime.rts_hover_tile_id.as_deref(), Some("5,2"));
+        let mut blocked_hover_runtime = classic_openra_style_skirmish_runtime();
+        blocked_hover_runtime.rts_control_group_id = None;
+        blocked_hover_runtime.rts_selected_unit_ids.clear();
+        let blocked_hover = apply_classic_rts_hover_preview_runtime(
+            &mut blocked_hover_runtime,
+            1280,
+            720,
+            420,
+            240,
+        )
+        .expect("blocked hover previews select requirement");
+        assert_eq!(blocked_hover.player_label, "MAP MOVE LOCK SELECT UNITS");
+        let mut stamp_runtime = classic_openra_style_skirmish_runtime();
+        let move_stamp = apply_classic_rts_command_stamp_for_action(
+            &mut stamp_runtime,
+            "classic_rts_mouse_viewport",
+            &NativeControlAction::RtsMoveCommand {
+                command_id: "7,4:line".to_string(),
+            },
+        )
+        .expect("accepted map move produces a command stamp");
+        assert_eq!(move_stamp.kind, "move");
+        assert_eq!(move_stamp.tile_id.as_deref(), Some("7,4"));
+        assert_eq!(move_stamp.player_label, "MAP MOVE SENT 7,4");
+        let attack_stamp = apply_classic_rts_command_stamp_for_action(
+            &mut stamp_runtime,
+            "classic_rts_mouse_viewport",
+            &NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            },
+        )
+        .expect("accepted attack produces a target stamp");
+        assert_eq!(attack_stamp.kind, "attack");
+        assert_eq!(attack_stamp.tile_id.as_deref(), Some("6,5"));
+        assert_eq!(
+            attack_stamp.player_label,
+            "MAP ATTACK SENT ARENA CREEP ATTACK"
+        );
+        stamp_runtime.rts_attack_target_id = Some("arena_creep_attack".to_string());
+        let ability_stamp = apply_classic_rts_command_stamp_for_action(
+            &mut stamp_runtime,
+            "classic_rts_mouse_command_bar",
+            &NativeControlAction::RtsAbilityCommand {
+                ability_id: "focus_fire".to_string(),
+            },
+        )
+        .expect("accepted ability produces a command-bar stamp");
+        assert_eq!(ability_stamp.kind, "ability");
+        assert_eq!(
+            ability_stamp.player_label,
+            "COMMAND BAR ABILITY SENT FOCUS FIRE"
+        );
+        assert_eq!(
+            stamp_runtime.rts_command_stamp_player_label,
+            "COMMAND BAR ABILITY SENT FOCUS FIRE"
+        );
+        let assets = load_classic_runtime_assets();
+        let mut drag_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut drag_pixels,
+            1280,
+            720,
+            (5, 4),
+            &drag_preview_runtime,
+            &assets,
+        );
+        let drag_preview_pixels = drag_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_DRAG_PREVIEW_COLOR)
+            .count();
+        assert!(drag_preview_pixels > 80);
+        let mut hover_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut hover_pixels,
+            1280,
+            720,
+            (5, 4),
+            &hover_runtime,
+            &assets,
+        );
+        let hover_preview_pixels = hover_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_HOVER_PREVIEW_COLOR)
+            .count();
+        assert!(hover_preview_pixels > 40);
+        let mut stamp_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut stamp_pixels,
+            1280,
+            720,
+            (5, 4),
+            &stamp_runtime,
+            &assets,
+        );
+        let command_stamp_pixels = stamp_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
+            .count();
+        assert!(command_stamp_pixels > 120);
         let camera_start = classic_rts_camera_state_for_focus_tile((5, 4), 1.0);
         assert_eq!(rts_scrollable_map_camera_focus_tile(camera_start), (5, 4));
         let camera_step = apply_rts_scrollable_map_camera_input(
@@ -138069,7 +139622,6 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry.contains("camera:shift_keyboard_pan")));
-        let assets = load_classic_runtime_assets();
         let mut camera_pixels = vec![0_u32; 1280 * 720];
         classic_draw_scene(
             &mut camera_pixels,

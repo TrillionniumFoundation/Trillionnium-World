@@ -15,7 +15,7 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_live_input_sequence_v1"
   and .green == true
   and .preview_width == 1280
-  and .preview_height == 2160
+  and .preview_height == 2520
   and .write_gate == true
   and .input_path == "apply_live_native_action_with_source(classic_rts_live_input)"
   and .input_action_count == 10
@@ -37,6 +37,36 @@ jq -e '
   and .production_queue_pixel_count > 1000
   and .ability_command_pixel_count > 800
   and .target_health_pixel_count > 60
+  and .hover_preview_pixel_count > 40
+  and .drag_select_preview_pixel_count > 80
+  and .command_stamp_pixel_count > 120
+  and (.stage_summaries | any(.stage == "move_formation" and .command_stamp_player_label == "MAP MOVE SENT 7,4" and .command_stamp_tile_id == "7,4"))
+  and (.stage_summaries | any(.stage == "attack_target" and .command_stamp_player_label == "MAP ATTACK SENT ARENA CREEP ATTACK" and .command_stamp_target_id == "arena_creep_attack"))
+  and (.stage_summaries | any(.stage == "cast_focus_fire" and .command_stamp_player_label == "COMMAND ABILITY SENT FOCUS FIRE" and .command_stamp_kind == "ability"))
+  and (.stage_summaries | all(.command_stamp_player_label | (contains("feedback") or contains("rts_")) | not))
+  and (.drag_select_preview_samples | length == 1)
+  and (.drag_select_preview_samples | any(
+    .input_source == "classic_rts_mouse_drag"
+    and .start_tile_id == "2,2"
+    and .current_tile_id == "6,4"
+    and .player_label == "DRAG SELECT 2 UNITS 2,2->6,4"
+    and (.selection_tile_ids | length >= 12)
+    and (.candidate_unit_ids | length >= 2)
+  ))
+  and (.drag_select_preview_samples | all(.player_label | (contains("feedback") or contains("rts_")) | not))
+  and (.hover_samples | length == 4)
+  and (.hover_samples | any(.player_label == "MAP MOVE READY 4,3"))
+  and (.hover_samples | any(.player_label | startswith("SIDEBAR QUEUE READY WATCH TOWER")))
+  and (.hover_samples | any(.player_label | startswith("COMMAND BAR ABILITY READY")))
+  and (.hover_samples | any(.player_label == "MINIMAP RALLY READY 5,2"))
+  and (.hover_samples | all(.player_label | (contains("feedback") or contains("rts_")) | not))
+  and .final_hover_source == "classic_rts_mouse_minimap"
+  and .final_hover_tile_id == "5,2"
+  and .final_hover_player_label == "MINIMAP RALLY READY 5,2"
+  and .final_command_stamp_kind == "ability"
+  and .final_command_stamp_tile_id == "6,5"
+  and .final_command_stamp_target_id == "arena_creep_attack"
+  and .final_command_stamp_player_label == "COMMAND ABILITY SENT FOCUS FIRE"
   and (.final_command_queue | index("select_group_1") != null)
   and (.final_command_queue | index("move:7,4") != null)
   and (.final_command_queue | index("formation:diamond") != null)
@@ -80,6 +110,9 @@ jq -e '
   and .attack_live_gate == true
   and .ability_live_gate == true
   and .command_feedback_chip_gate == true
+  and .hover_preview_gate == true
+  and .drag_select_preview_gate == true
+  and .command_stamp_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
