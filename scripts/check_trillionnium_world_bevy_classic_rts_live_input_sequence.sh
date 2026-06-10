@@ -38,6 +38,7 @@ jq -e '
   and .ability_command_pixel_count > 800
   and .target_health_pixel_count > 60
   and .hover_preview_pixel_count > 40
+  and .context_cursor_pixel_count > 80
   and .drag_select_preview_pixel_count > 80
   and .command_stamp_pixel_count > 120
   and (.stage_summaries | any(.stage == "move_formation" and .command_stamp_player_label == "MAP MOVE SENT 7,4" and .command_stamp_tile_id == "7,4"))
@@ -73,9 +74,20 @@ jq -e '
   and (.hover_samples | any(.player_label | startswith("COMMAND BAR ABILITY READY")))
   and (.hover_samples | any(.player_label == "MINIMAP RALLY READY 5,2"))
   and (.hover_samples | all(.player_label | (contains("feedback") or contains("rts_")) | not))
+  and (.context_cursor_samples | length == 4)
+  and (.context_cursor_samples | any(.player_label == "MAP CURSOR MOVE READY" and .cursor_kind == "move" and .allowed == true))
+  and (.context_cursor_samples | any(.player_label == "SIDEBAR CURSOR BUILD READY" and .cursor_kind == "build" and .allowed == true))
+  and (.context_cursor_samples | any(.player_label == "COMMAND BAR CURSOR ABILITY READY" and .cursor_kind == "ability" and .allowed == true))
+  and (.context_cursor_samples | any(.player_label == "MINIMAP CURSOR RALLY READY" and .cursor_kind == "rally" and .allowed == true))
+  and (.context_cursor_samples | all(.player_label | (contains("feedback") or contains("rts_")) | not))
   and .final_hover_source == "classic_rts_mouse_minimap"
   and .final_hover_tile_id == "5,2"
   and .final_hover_player_label == "MINIMAP RALLY READY 5,2"
+  and .final_context_cursor_source == "classic_rts_mouse_minimap"
+  and .final_context_cursor_tile_id == "5,2"
+  and .final_context_cursor_kind == "rally"
+  and .final_context_cursor_player_label == "MINIMAP CURSOR RALLY READY"
+  and .final_context_cursor_allowed == true
   and .final_command_stamp_kind == "ability"
   and .final_command_stamp_tile_id == "6,5"
   and .final_command_stamp_target_id == "arena_creep_attack"
@@ -124,6 +136,7 @@ jq -e '
   and .ability_live_gate == true
   and .command_feedback_chip_gate == true
   and .hover_preview_gate == true
+  and .context_cursor_gate == true
   and .drag_select_preview_gate == true
   and .drag_select_commit_gate == true
   and .command_stamp_gate == true

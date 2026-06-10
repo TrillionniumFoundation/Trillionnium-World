@@ -412,6 +412,7 @@ jq -n \
       and $rts_live[0].attack_live_gate == true
       and $rts_live[0].ability_live_gate == true
       and $rts_live[0].command_feedback_chip_gate == true
+      and $rts_live[0].context_cursor_gate == true
       and $rts_live[0].accepted_input_count == 10
       and $rts_path[0].live_pathing_input_gate == true
       and $rts_path[0].path_tile_gate == true
@@ -816,6 +817,8 @@ jq -n \
       rts_live_input_target_health_percent: $rts_live[0].final_target_health_percent,
       rts_live_input_hover_preview_pixel_count: $rts_live[0].hover_preview_pixel_count,
       rts_live_input_final_hover_player_label: $rts_live[0].final_hover_player_label,
+      rts_live_input_context_cursor_pixel_count: $rts_live[0].context_cursor_pixel_count,
+      rts_live_input_final_context_cursor_label: $rts_live[0].final_context_cursor_player_label,
       rts_live_input_drag_select_preview_pixel_count: $rts_live[0].drag_select_preview_pixel_count,
       rts_live_input_drag_select_preview_label: ($rts_live[0].drag_select_preview_samples[0].player_label // ""),
       rts_live_input_drag_select_commit_selected_unit_count: ($rts_live[0].drag_select_commit_sample.selected_unit_ids | length),
@@ -2133,6 +2136,7 @@ jq -n \
       rts_live_input_ability_live_gate: $rts_live[0].ability_live_gate,
       rts_live_input_command_feedback_chip_gate: $rts_live[0].command_feedback_chip_gate,
       rts_live_input_hover_preview_gate: $rts_live[0].hover_preview_gate,
+      rts_live_input_context_cursor_gate: $rts_live[0].context_cursor_gate,
       rts_live_input_drag_select_preview_gate: $rts_live[0].drag_select_preview_gate,
       rts_live_input_drag_select_commit_gate: $rts_live[0].drag_select_commit_gate,
       rts_live_input_command_stamp_gate: $rts_live[0].command_stamp_gate,
@@ -3467,6 +3471,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_target_health_percent < 60
   and .headline.rts_live_input_hover_preview_pixel_count > 40
   and .headline.rts_live_input_final_hover_player_label == "MINIMAP RALLY READY 5,2"
+  and .headline.rts_live_input_context_cursor_pixel_count > 80
+  and .headline.rts_live_input_final_context_cursor_label == "MINIMAP CURSOR RALLY READY"
   and .headline.rts_live_input_drag_select_preview_pixel_count > 80
   and .headline.rts_live_input_drag_select_preview_label == "DRAG SELECT 2 UNITS 2,2->6,4"
   and .headline.rts_live_input_drag_select_commit_selected_unit_count == 2
@@ -4210,6 +4216,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_ability_live_gate == true
   and .gates.rts_live_input_command_feedback_chip_gate == true
   and .gates.rts_live_input_hover_preview_gate == true
+  and .gates.rts_live_input_context_cursor_gate == true
   and .gates.rts_live_input_drag_select_preview_gate == true
   and .gates.rts_live_input_drag_select_commit_gate == true
   and .gates.rts_live_input_command_stamp_gate == true
