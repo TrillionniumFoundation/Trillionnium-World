@@ -83,6 +83,39 @@ jq -e '
   and (.unit_click_select_sample.command_queue | index("unit_select:player@5,4") != null)
   and (.unit_click_select_sample.command_queue | index("select_group_1") != null)
   and .unit_click_select_sample.command_stamp_player_label == "MAP SELECT SENT 1 UNIT"
+  and .unit_shift_select_marker_pixel_count > 80
+  and .unit_shift_select_stamp_pixel_count > 80
+  and (.unit_shift_select_samples | length == 3)
+  and (.unit_shift_select_samples | any(
+    .stage == "shift_add_patrol"
+    and .accepted == true
+    and .shift_pressed == true
+    and .tile_id == "7,5"
+    and .action_label == "RTS:SELECT:shift:unit:square_guard_patrol"
+    and .group_command_state == "unit_shift_added:square_guard_patrol@7,5:count:2"
+    and (.selected_unit_ids | length == 2)
+    and (.selected_unit_ids | index("player") != null)
+    and (.selected_unit_ids | index("square_guard_patrol") != null)
+    and (.selection_tile_ids | index("5,4") != null)
+    and (.selection_tile_ids | index("7,5") != null)
+    and (.command_queue | index("unit_shift_add:square_guard_patrol@7,5") != null)
+    and .command_stamp_player_label == "MAP SHIFT SELECT SENT 2 UNITS"
+  ))
+  and (.unit_shift_select_samples | any(
+    .stage == "shift_remove_player"
+    and .accepted == true
+    and .shift_pressed == true
+    and .tile_id == "5,4"
+    and .action_label == "RTS:SELECT:shift:unit:player"
+    and .group_command_state == "unit_shift_removed:player@5,4:count:1"
+    and (.selected_unit_ids | length == 1)
+    and (.selected_unit_ids | index("square_guard_patrol") != null)
+    and (.selection_tile_ids | length == 1)
+    and (.selection_tile_ids | index("7,5") != null)
+    and (.command_queue | index("unit_shift_remove:player@5,4") != null)
+    and .command_stamp_player_label == "MAP SHIFT SELECT SENT 1 UNIT"
+  ))
+  and (.unit_shift_select_samples | all(.command_stamp_player_label | (contains("feedback") or contains("rts_")) | not))
   and (.hover_samples | length == 4)
   and (.hover_samples | any(.player_label == "MAP MOVE READY 4,3"))
   and (.hover_samples | any(.player_label | startswith("SIDEBAR QUEUE READY WATCH TOWER")))
@@ -155,6 +188,7 @@ jq -e '
   and .drag_select_preview_gate == true
   and .drag_select_commit_gate == true
   and .unit_click_select_gate == true
+  and .unit_shift_select_gate == true
   and .command_stamp_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
