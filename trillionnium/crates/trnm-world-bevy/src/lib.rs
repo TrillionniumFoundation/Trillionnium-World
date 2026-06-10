@@ -42533,11 +42533,39 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         ("ctrl_assign_group_5", "assign:5"),
         ("recall_group_5", "recall:5"),
         ("double_tap_camera_group_5", "camera:5"),
+        ("ctrl_shift_append_group_5", "append:5"),
+        ("shift_recall_add_group_5", "recall_add:5"),
     ] {
         if stage == "recall_group_5" {
             control_group_runtime.rts_control_group_id = None;
             control_group_runtime.rts_selected_unit_ids.clear();
             control_group_runtime.rts_selection_box_tile_ids.clear();
+        }
+        if stage == "ctrl_shift_append_group_5" {
+            apply_live_native_action_with_source(
+                &mut control_group_world,
+                &mut control_group_character,
+                &mut control_group_log,
+                &mut control_group_runtime,
+                "local-player",
+                "classic_rts_mouse_viewport",
+                NativeControlAction::RtsSelectControlGroup {
+                    group_id: "unit:square_guard_front".to_string(),
+                },
+            );
+        }
+        if stage == "shift_recall_add_group_5" {
+            apply_live_native_action_with_source(
+                &mut control_group_world,
+                &mut control_group_character,
+                &mut control_group_log,
+                &mut control_group_runtime,
+                "local-player",
+                "classic_rts_mouse_viewport",
+                NativeControlAction::RtsSelectControlGroup {
+                    group_id: "unit:square_worker_carry".to_string(),
+                },
+            );
         }
         let action = NativeControlAction::RtsSelectControlGroup {
             group_id: group_id.to_string(),
@@ -43226,7 +43254,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             .get("command_stamp_player_label")
             .and_then(|value| value.as_str())
             == Some("MAP DOUBLE SELECT SENT 3 UNITS");
-    let control_group_hotkey_gate = control_group_hotkey_samples.len() == 3
+    let control_group_hotkey_gate = control_group_hotkey_samples.len() == 5
         && control_group_hotkey_marker_pixel_count > 80
         && control_group_hotkey_stamp_pixel_count > 80
         && control_group_hotkey_samples.iter().any(|sample| {
@@ -43327,6 +43355,100 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                     .get("command_stamp_player_label")
                     .and_then(|value| value.as_str())
                     == Some("HOTKEY GROUP 5 CAMERA SNAP")
+        })
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("ctrl_shift_append_group_5")
+                && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && sample.get("action_label").and_then(|value| value.as_str())
+                    == Some("RTS:SELECT:append:5")
+                && sample.get("group_id").and_then(|value| value.as_str()) == Some("5")
+                && sample
+                    .get("group_command_state")
+                    .and_then(|value| value.as_str())
+                    == Some("group_5_appended:3units:1new")
+                && sample
+                    .get("selected_unit_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|units| {
+                        units.len() == 3
+                            && units.iter().any(|unit| unit.as_str() == Some("player"))
+                            && units
+                                .iter()
+                                .any(|unit| unit.as_str() == Some("square_guard_front"))
+                            && units
+                                .iter()
+                                .any(|unit| unit.as_str() == Some("square_guard_patrol"))
+                    })
+                && sample
+                    .get("control_group_assignments")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|assignments| {
+                        assignments.iter().any(|entry| {
+                            entry.as_str()
+                                == Some(
+                                    "5:append:player|square_guard_patrol|square_guard_front",
+                                )
+                        })
+                    })
+                && sample
+                    .get("command_queue")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|commands| {
+                        commands.iter().any(|entry| {
+                            entry.as_str()
+                                == Some(
+                                    "control_group_append:5:player|square_guard_patrol|square_guard_front",
+                                )
+                        })
+                    })
+                && sample
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("HOTKEY GROUP 5 APPENDED 3 UNITS")
+        })
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("shift_recall_add_group_5")
+                && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && sample.get("action_label").and_then(|value| value.as_str())
+                    == Some("RTS:SELECT:recall_add:5")
+                && sample.get("group_id").and_then(|value| value.as_str()) == Some("5")
+                && sample
+                    .get("group_command_state")
+                    .and_then(|value| value.as_str())
+                    == Some("group_5_recall_added:4units")
+                && sample
+                    .get("selected_unit_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|units| {
+                        units.len() == 4
+                            && units
+                                .iter()
+                                .any(|unit| unit.as_str() == Some("square_worker_carry"))
+                            && units.iter().any(|unit| unit.as_str() == Some("player"))
+                            && units
+                                .iter()
+                                .any(|unit| unit.as_str() == Some("square_guard_front"))
+                            && units
+                                .iter()
+                                .any(|unit| unit.as_str() == Some("square_guard_patrol"))
+                    })
+                && sample
+                    .get("command_queue")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|commands| {
+                        commands.iter().any(|entry| {
+                            entry.as_str()
+                                == Some(
+                                    "control_group_recall_add:5:square_worker_carry|player|square_guard_patrol|square_guard_front",
+                                )
+                        })
+                    })
+                && sample
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("HOTKEY GROUP 5 ADDED 4 UNITS")
         })
         && control_group_hotkey_samples.iter().all(|sample| {
             sample
@@ -73756,7 +73878,7 @@ fn classic_poll_action(
     {
         Some(action)
     } else if let Some(action) =
-        classic_poll_control_group_hotkey(window, mouse_latch, ctrl_pressed)
+        classic_poll_control_group_hotkey(window, mouse_latch, ctrl_pressed, shift_pressed)
     {
         Some(action)
     } else if window.is_key_pressed(MiniKey::M, MiniKeyRepeat::No) {
@@ -73878,6 +74000,7 @@ fn classic_poll_control_group_hotkey(
     window: &MiniWindow,
     mouse_latch: &mut ClassicRuntimeMouseLatch,
     ctrl_pressed: bool,
+    shift_pressed: bool,
 ) -> Option<ClassicPolledAction> {
     if mouse_latch.control_group_repeat_frames_remaining > 0 {
         mouse_latch.control_group_repeat_frames_remaining -= 1;
@@ -73904,10 +74027,18 @@ fn classic_poll_control_group_hotkey(
             .then_some(*slot)
     })?;
 
-    let group_id = if ctrl_pressed {
+    let group_id = if ctrl_pressed && shift_pressed {
+        mouse_latch.control_group_repeat_slot = None;
+        mouse_latch.control_group_repeat_frames_remaining = 0;
+        format!("append:{slot}")
+    } else if ctrl_pressed {
         mouse_latch.control_group_repeat_slot = None;
         mouse_latch.control_group_repeat_frames_remaining = 0;
         format!("assign:{slot}")
+    } else if shift_pressed {
+        mouse_latch.control_group_repeat_slot = Some(slot.to_string());
+        mouse_latch.control_group_repeat_frames_remaining = 18;
+        format!("recall_add:{slot}")
     } else if mouse_latch.control_group_repeat_slot.as_deref() == Some(slot)
         && mouse_latch.control_group_repeat_frames_remaining > 0
     {
@@ -74825,10 +74956,22 @@ fn classic_rts_command_stamp_for_action(
                         format!("GROUP {slot} ASSIGNED"),
                         Some(slot.to_string()),
                     )
+                } else if let Some(slot) = group_id.strip_prefix("append:") {
+                    (
+                        "control-group",
+                        format!("GROUP {slot} APPENDED"),
+                        Some(slot.to_string()),
+                    )
                 } else if let Some(slot) = group_id.strip_prefix("recall:") {
                     (
                         "control-group",
                         format!("GROUP {slot} RECALLED"),
+                        Some(slot.to_string()),
+                    )
+                } else if let Some(slot) = group_id.strip_prefix("recall_add:") {
+                    (
+                        "control-group",
+                        format!("GROUP {slot} ADDED"),
                         Some(slot.to_string()),
                     )
                 } else if let Some(slot) = group_id.strip_prefix("camera:") {
@@ -97069,7 +97212,7 @@ fn classic_window_title(
     assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select Double-LMB same class Shift+LMB add/remove radar RMB move/attack Shift+WASD/edges pan wheel zoom Ctrl+1 assign 1 recall/double-tap camera M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
+        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select Double-LMB same class Shift+LMB add/remove radar RMB move/attack Shift+WASD/edges pan wheel zoom Ctrl+1 assign Ctrl+Shift+1 append 1 recall Shift+1 add/double-tap camera M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
         assets.manifest.contract_version,
         runtime.current_room_id,
         player_tile.0,
@@ -131368,6 +131511,25 @@ fn replace_classic_rts_control_group_assignment(
     push_unique_string(assignments, &format!("{slot}:{}", unit_ids.join("|")));
 }
 
+fn replace_classic_rts_control_group_assignment_tagged(
+    assignments: &mut Vec<String>,
+    slot: &str,
+    tag: &str,
+    unit_ids: &[String],
+) {
+    let prefix = format!("{slot}:");
+    assignments.retain(|assignment| !assignment.starts_with(&prefix));
+    push_unique_string(assignments, &format!("{slot}:{tag}:{}", unit_ids.join("|")));
+}
+
+fn classic_rts_merged_unit_ids(base_units: &[String], extra_units: &[String]) -> Vec<String> {
+    let mut merged = base_units.to_vec();
+    for unit_id in extra_units {
+        push_unique_string(&mut merged, unit_id);
+    }
+    merged
+}
+
 fn classic_rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32))> {
     let payload = group_id.strip_prefix("drag:")?;
     let (start, end) = payload.split_once("->")?;
@@ -132388,11 +132550,15 @@ fn apply_classic_rts_select_group_runtime(
     let shift_unit_selection = group_id.strip_prefix("shift:unit:");
     let double_unit_selection = group_id.strip_prefix("double:unit:");
     let assign_group_slot = classic_rts_control_group_hotkey_slot(group_id, "assign:");
+    let append_group_slot = classic_rts_control_group_hotkey_slot(group_id, "append:");
     let recall_group_slot = classic_rts_control_group_hotkey_slot(group_id, "recall:");
+    let recall_add_group_slot = classic_rts_control_group_hotkey_slot(group_id, "recall_add:");
     let camera_group_slot = classic_rts_control_group_hotkey_slot(group_id, "camera:");
     let hotkey_group_slot = assign_group_slot
         .as_deref()
+        .or(append_group_slot.as_deref())
         .or(recall_group_slot.as_deref())
+        .or(recall_add_group_slot.as_deref())
         .or(camera_group_slot.as_deref());
     let normalized_group_id = if let Some(slot) = hotkey_group_slot {
         slot
@@ -132540,8 +132706,42 @@ fn apply_classic_rts_select_group_runtime(
                 first_playable.rts_selected_unit_ids.join("|")
             ),
         );
+    } else if let Some(slot) = append_group_slot.as_deref() {
+        if first_playable.rts_selected_unit_ids.is_empty() {
+            first_playable.rts_selected_unit_ids =
+                classic_rts_default_units_for_control_group_slot(slot);
+        }
+        let existing_units = classic_rts_units_from_control_group_assignment(
+            &first_playable.rts_control_group_assignments,
+            slot,
+        );
+        let merged_units =
+            classic_rts_merged_unit_ids(&existing_units, &first_playable.rts_selected_unit_ids);
+        let appended_unit_count = merged_units.len().saturating_sub(existing_units.len());
+        first_playable.rts_selected_unit_ids = merged_units;
+        first_playable.rts_selection_box_tile_ids =
+            classic_rts_selection_tiles_for_units(&first_playable.rts_selected_unit_ids);
+        replace_classic_rts_control_group_assignment_tagged(
+            &mut first_playable.rts_control_group_assignments,
+            slot,
+            "append",
+            &first_playable.rts_selected_unit_ids,
+        );
+        first_playable.rts_group_command_state = format!(
+            "group_{slot}_appended:{}units:{}new",
+            first_playable.rts_selected_unit_ids.len(),
+            appended_unit_count
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "control_group_append:{slot}:{}",
+                first_playable.rts_selected_unit_ids.join("|")
+            ),
+        );
     } else if let Some(slot) = recall_group_slot
         .as_deref()
+        .or(recall_add_group_slot.as_deref())
         .or(camera_group_slot.as_deref())
     {
         let mut selected_units = classic_rts_units_from_control_group_assignment(
@@ -132551,7 +132751,12 @@ fn apply_classic_rts_select_group_runtime(
         if selected_units.is_empty() {
             selected_units = classic_rts_default_units_for_control_group_slot(slot);
         }
-        first_playable.rts_selected_unit_ids = selected_units;
+        if recall_add_group_slot.as_deref() == Some(slot) {
+            first_playable.rts_selected_unit_ids =
+                classic_rts_merged_unit_ids(&first_playable.rts_selected_unit_ids, &selected_units);
+        } else {
+            first_playable.rts_selected_unit_ids = selected_units;
+        }
         first_playable.rts_selection_box_tile_ids =
             classic_rts_selection_tiles_for_units(&first_playable.rts_selected_unit_ids);
         if first_playable.rts_selection_box_tile_ids.is_empty() {
@@ -132569,6 +132774,18 @@ fn apply_classic_rts_select_group_runtime(
             push_history(
                 &mut first_playable.rts_command_queue,
                 &format!("control_group_camera:{slot}@{focus_tile}"),
+            );
+        } else if recall_add_group_slot.as_deref() == Some(slot) {
+            first_playable.rts_group_command_state = format!(
+                "group_{slot}_recall_added:{}units",
+                first_playable.rts_selected_unit_ids.len()
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "control_group_recall_add:{slot}:{}",
+                    first_playable.rts_selected_unit_ids.join("|")
+                ),
             );
         } else {
             first_playable.rts_group_command_state = format!(
@@ -132612,9 +132829,19 @@ fn apply_classic_rts_select_group_runtime(
             "RTS control group {slot} assigned with {} units",
             first_playable.rts_selected_unit_ids.len()
         )
+    } else if let Some(slot) = append_group_slot.as_deref() {
+        format!(
+            "RTS control group {slot} appended to {} units",
+            first_playable.rts_selected_unit_ids.len()
+        )
     } else if let Some(slot) = recall_group_slot.as_deref() {
         format!(
             "RTS control group {slot} recalled with {} units",
+            first_playable.rts_selected_unit_ids.len()
+        )
+    } else if let Some(slot) = recall_add_group_slot.as_deref() {
+        format!(
+            "RTS control group {slot} added to selection; {} units selected",
             first_playable.rts_selected_unit_ids.len()
         )
     } else if let Some(slot) = camera_group_slot.as_deref() {

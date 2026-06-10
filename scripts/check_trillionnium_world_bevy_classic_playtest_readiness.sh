@@ -844,6 +844,10 @@ jq -n \
       rts_live_input_control_group_hotkey_assign_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "ctrl_assign_group_5") | .command_stamp_player_label ][0] // ""),
       rts_live_input_control_group_hotkey_recall_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "recall_group_5") | .command_stamp_player_label ][0] // ""),
       rts_live_input_control_group_hotkey_camera_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "double_tap_camera_group_5") | .command_stamp_player_label ][0] // ""),
+      rts_live_input_control_group_hotkey_append_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "ctrl_shift_append_group_5") | .command_stamp_player_label ][0] // ""),
+      rts_live_input_control_group_hotkey_recall_add_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "shift_recall_add_group_5") | .command_stamp_player_label ][0] // ""),
+      rts_live_input_control_group_hotkey_append_unit_count: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "ctrl_shift_append_group_5") | .selected_unit_ids | length ][0] // 0),
+      rts_live_input_control_group_hotkey_recall_add_unit_count: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "shift_recall_add_group_5") | .selected_unit_ids | length ][0] // 0),
       rts_live_input_command_stamp_pixel_count: $rts_live[0].command_stamp_pixel_count,
       rts_live_input_final_command_stamp_player_label: $rts_live[0].final_command_stamp_player_label,
       rts_live_input_command_feedback_chip_count: $rts_live[0].command_feedback_chip_count,
@@ -3521,6 +3525,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_control_group_hotkey_assign_label == "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
   and .headline.rts_live_input_control_group_hotkey_recall_label == "HOTKEY GROUP 5 RECALLED 2 UNITS"
   and .headline.rts_live_input_control_group_hotkey_camera_label == "HOTKEY GROUP 5 CAMERA SNAP"
+  and .headline.rts_live_input_control_group_hotkey_append_label == "HOTKEY GROUP 5 APPENDED 3 UNITS"
+  and .headline.rts_live_input_control_group_hotkey_recall_add_label == "HOTKEY GROUP 5 ADDED 4 UNITS"
+  and .headline.rts_live_input_control_group_hotkey_append_unit_count == 3
+  and .headline.rts_live_input_control_group_hotkey_recall_add_unit_count == 4
   and .headline.rts_live_input_command_stamp_pixel_count > 120
   and .headline.rts_live_input_final_command_stamp_player_label == "COMMAND ABILITY SENT FOCUS FIRE"
   and .headline.rts_pathing_accepted_input_count == 2
