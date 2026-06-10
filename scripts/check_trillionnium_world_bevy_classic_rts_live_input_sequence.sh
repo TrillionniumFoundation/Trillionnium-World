@@ -116,6 +116,46 @@ jq -e '
     and .command_stamp_player_label == "MAP SHIFT SELECT SENT 1 UNIT"
   ))
   and (.unit_shift_select_samples | all(.command_stamp_player_label | (contains("feedback") or contains("rts_")) | not))
+  and .control_group_hotkey_marker_pixel_count > 80
+  and .control_group_hotkey_stamp_pixel_count > 80
+  and (.control_group_hotkey_samples | length == 3)
+  and (.control_group_hotkey_samples | any(
+    .stage == "ctrl_assign_group_5"
+    and .accepted == true
+    and .input_source == "classic_rts_hotkey"
+    and .action_label == "RTS:SELECT:assign:5"
+    and .group_id == "5"
+    and .group_command_state == "group_5_assigned:2units"
+    and (.selected_unit_ids | length == 2)
+    and (.selected_unit_ids | index("player") != null)
+    and (.selected_unit_ids | index("square_guard_patrol") != null)
+    and (.control_group_assignments | index("5:player|square_guard_patrol") != null)
+    and (.command_queue | index("control_group_assign:5:player|square_guard_patrol") != null)
+    and .command_stamp_player_label == "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
+  ))
+  and (.control_group_hotkey_samples | any(
+    .stage == "recall_group_5"
+    and .accepted == true
+    and .action_label == "RTS:SELECT:recall:5"
+    and .group_id == "5"
+    and .group_command_state == "group_5_recalled:2units"
+    and (.selected_unit_ids | length == 2)
+    and (.selected_unit_ids | index("player") != null)
+    and (.selected_unit_ids | index("square_guard_patrol") != null)
+    and (.command_queue | index("control_group_recall:5:player|square_guard_patrol") != null)
+    and .command_stamp_player_label == "HOTKEY GROUP 5 RECALLED 2 UNITS"
+  ))
+  and (.control_group_hotkey_samples | any(
+    .stage == "double_tap_camera_group_5"
+    and .accepted == true
+    and .action_label == "RTS:SELECT:camera:5"
+    and .group_id == "5"
+    and .group_command_state == "camera_snap:group_5"
+    and .camera_focus_tile_id == "5,4"
+    and (.command_queue | index("control_group_camera:5@5,4") != null)
+    and .command_stamp_player_label == "HOTKEY GROUP 5 CAMERA SNAP"
+  ))
+  and (.control_group_hotkey_samples | all(.command_stamp_player_label | (contains("feedback") or contains("rts_")) | not))
   and (.hover_samples | length == 4)
   and (.hover_samples | any(.player_label == "MAP MOVE READY 4,3"))
   and (.hover_samples | any(.player_label | startswith("SIDEBAR QUEUE READY WATCH TOWER")))
@@ -189,6 +229,7 @@ jq -e '
   and .drag_select_commit_gate == true
   and .unit_click_select_gate == true
   and .unit_shift_select_gate == true
+  and .control_group_hotkey_gate == true
   and .command_stamp_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false

@@ -42431,6 +42431,102 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         }
     }
 
+    let mut control_group_world = native_bevy_playable_fixture();
+    let mut control_group_character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut control_group_log = NativeGameplayLog::default();
+    let mut control_group_runtime = classic_openra_style_skirmish_runtime();
+    apply_live_native_action_with_source(
+        &mut control_group_world,
+        &mut control_group_character,
+        &mut control_group_log,
+        &mut control_group_runtime,
+        "local-player",
+        "classic_rts_mouse_viewport",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "unit:player".to_string(),
+        },
+    );
+    apply_live_native_action_with_source(
+        &mut control_group_world,
+        &mut control_group_character,
+        &mut control_group_log,
+        &mut control_group_runtime,
+        "local-player",
+        "classic_rts_mouse_viewport",
+        NativeControlAction::RtsSelectControlGroup {
+            group_id: "shift:unit:square_guard_patrol".to_string(),
+        },
+    );
+    let mut control_group_hotkey_samples = Vec::new();
+    let mut control_group_hotkey_marker_pixel_count = 0_usize;
+    let mut control_group_hotkey_stamp_pixel_count = 0_usize;
+    for (stage, group_id) in [
+        ("ctrl_assign_group_5", "assign:5"),
+        ("recall_group_5", "recall:5"),
+        ("double_tap_camera_group_5", "camera:5"),
+    ] {
+        if stage == "recall_group_5" {
+            control_group_runtime.rts_control_group_id = None;
+            control_group_runtime.rts_selected_unit_ids.clear();
+            control_group_runtime.rts_selection_box_tile_ids.clear();
+        }
+        let action = NativeControlAction::RtsSelectControlGroup {
+            group_id: group_id.to_string(),
+        };
+        let action_label = native_control_action_label(&action);
+        apply_live_native_action_with_source(
+            &mut control_group_world,
+            &mut control_group_character,
+            &mut control_group_log,
+            &mut control_group_runtime,
+            "local-player",
+            "classic_rts_hotkey",
+            action,
+        );
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &control_group_runtime,
+            &assets,
+        );
+        let marker_pixels = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_ISO_CONTROL_GROUP_COLOR)
+            .count();
+        let stamp_pixels = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
+            .count();
+        control_group_hotkey_marker_pixel_count =
+            control_group_hotkey_marker_pixel_count.max(marker_pixels);
+        control_group_hotkey_stamp_pixel_count =
+            control_group_hotkey_stamp_pixel_count.max(stamp_pixels);
+        control_group_hotkey_samples.push(json!({
+            "stage": stage,
+            "input_source": "classic_rts_hotkey",
+            "action_label": action_label,
+            "group_id": control_group_runtime.rts_control_group_id.clone(),
+            "group_command_state": control_group_runtime.rts_group_command_state.clone(),
+            "selected_unit_ids": control_group_runtime.rts_selected_unit_ids.clone(),
+            "selection_tile_ids": control_group_runtime.rts_selection_box_tile_ids.clone(),
+            "active_control_group_ids": control_group_runtime.rts_active_control_group_ids.clone(),
+            "control_group_assignments": control_group_runtime.rts_control_group_assignments.clone(),
+            "command_queue": control_group_runtime.rts_command_queue.clone(),
+            "camera_focus_tile_id": control_group_runtime.rts_camera_focus_tile_id.clone(),
+            "last_feedback": control_group_runtime.last_feedback.clone(),
+            "command_stamp_player_label": control_group_runtime.rts_command_stamp_player_label.clone(),
+            "selection_marker_pixel_count": marker_pixels,
+            "command_stamp_pixel_count": stamp_pixels,
+            "accepted": control_group_runtime
+                .input_feedback_history
+                .last()
+                .is_some_and(|event| event.accepted),
+        }));
+    }
+
     let hover_points = [
         ("map_move_hover", 420, 240),
         ("sidebar_build_hover", 1200, 365),
@@ -42990,6 +43086,114 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .and_then(|value| value.as_str())
                 .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
         });
+    let control_group_hotkey_gate = control_group_hotkey_samples.len() == 3
+        && control_group_hotkey_marker_pixel_count > 80
+        && control_group_hotkey_stamp_pixel_count > 80
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str()) == Some("ctrl_assign_group_5")
+                && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && sample.get("input_source").and_then(|value| value.as_str())
+                    == Some("classic_rts_hotkey")
+                && sample.get("action_label").and_then(|value| value.as_str())
+                    == Some("RTS:SELECT:assign:5")
+                && sample.get("group_id").and_then(|value| value.as_str()) == Some("5")
+                && sample
+                    .get("group_command_state")
+                    .and_then(|value| value.as_str())
+                    == Some("group_5_assigned:2units")
+                && sample
+                    .get("selected_unit_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|units| {
+                        units.len() == 2
+                            && units.iter().any(|unit| unit.as_str() == Some("player"))
+                            && units
+                                .iter()
+                                .any(|unit| unit.as_str() == Some("square_guard_patrol"))
+                    })
+                && sample
+                    .get("control_group_assignments")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|assignments| {
+                        assignments
+                            .iter()
+                            .any(|entry| entry.as_str() == Some("5:player|square_guard_patrol"))
+                    })
+                && sample
+                    .get("command_queue")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|commands| {
+                        commands.iter().any(|entry| {
+                            entry.as_str()
+                                == Some("control_group_assign:5:player|square_guard_patrol")
+                        })
+                    })
+                && sample
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("HOTKEY GROUP 5 ASSIGNED 2 UNITS")
+        })
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str()) == Some("recall_group_5")
+                && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && sample.get("action_label").and_then(|value| value.as_str())
+                    == Some("RTS:SELECT:recall:5")
+                && sample.get("group_id").and_then(|value| value.as_str()) == Some("5")
+                && sample
+                    .get("group_command_state")
+                    .and_then(|value| value.as_str())
+                    == Some("group_5_recalled:2units")
+                && sample
+                    .get("selected_unit_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|units| units.len() == 2)
+                && sample
+                    .get("command_queue")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|commands| {
+                        commands.iter().any(|entry| {
+                            entry.as_str()
+                                == Some("control_group_recall:5:player|square_guard_patrol")
+                        })
+                    })
+                && sample
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("HOTKEY GROUP 5 RECALLED 2 UNITS")
+        })
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("double_tap_camera_group_5")
+                && sample.get("accepted").and_then(|value| value.as_bool()) == Some(true)
+                && sample.get("action_label").and_then(|value| value.as_str())
+                    == Some("RTS:SELECT:camera:5")
+                && sample
+                    .get("group_command_state")
+                    .and_then(|value| value.as_str())
+                    == Some("camera_snap:group_5")
+                && sample
+                    .get("camera_focus_tile_id")
+                    .and_then(|value| value.as_str())
+                    == Some("5,4")
+                && sample
+                    .get("command_queue")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|commands| {
+                        commands
+                            .iter()
+                            .any(|entry| entry.as_str() == Some("control_group_camera:5@5,4"))
+                    })
+                && sample
+                    .get("command_stamp_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("HOTKEY GROUP 5 CAMERA SNAP")
+        })
+        && control_group_hotkey_samples.iter().all(|sample| {
+            sample
+                .get("command_stamp_player_label")
+                .and_then(|value| value.as_str())
+                .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
+        });
     let command_stamp_gate = command_stamp_pixel_count > 120
         && stage_summaries.iter().any(|summary| {
             summary.get("stage").and_then(|value| value.as_str()) == Some("move_formation")
@@ -43051,6 +43255,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && drag_select_commit_gate
         && unit_click_select_gate
         && unit_shift_select_gate
+        && control_group_hotkey_gate
         && command_stamp_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -43085,6 +43290,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "unit_shift_select_samples": unit_shift_select_samples,
         "unit_shift_select_marker_pixel_count": unit_shift_select_marker_pixel_count,
         "unit_shift_select_stamp_pixel_count": unit_shift_select_stamp_pixel_count,
+        "control_group_hotkey_samples": control_group_hotkey_samples,
+        "control_group_hotkey_marker_pixel_count": control_group_hotkey_marker_pixel_count,
+        "control_group_hotkey_stamp_pixel_count": control_group_hotkey_stamp_pixel_count,
         "hover_samples": hover_samples,
         "context_cursor_samples": cursor_samples,
         "final_hover_source": runtime.rts_hover_source,
@@ -43135,10 +43343,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "drag_select_commit_gate": drag_select_commit_gate,
         "unit_click_select_gate": unit_click_select_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
+        "control_group_hotkey_gate": control_group_hotkey_gate,
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, unit-click selection, Shift+unit add/remove selection, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, unit-click selection, Shift+unit add/remove selection, Ctrl+number assignment, number recall/double-tap camera snap, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -73311,6 +73520,8 @@ struct ClassicRuntimeMouseLatch {
     right_down: bool,
     left_anchor: Option<(i32, i32)>,
     left_current: Option<(i32, i32)>,
+    control_group_repeat_slot: Option<String>,
+    control_group_repeat_frames_remaining: u8,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -73391,28 +73602,16 @@ fn classic_poll_action(
 ) -> Option<ClassicPolledAction> {
     let shift_pressed =
         window.is_key_down(MiniKey::LeftShift) || window.is_key_down(MiniKey::RightShift);
+    let ctrl_pressed =
+        window.is_key_down(MiniKey::LeftCtrl) || window.is_key_down(MiniKey::RightCtrl);
     if let Some(action) =
         classic_poll_mouse_action(window, runtime, width, height, mouse_latch, shift_pressed)
     {
         Some(action)
-    } else if window.is_key_pressed(MiniKey::Key1, MiniKeyRepeat::No) {
-        Some(classic_polled_keyboard_action(
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "1".to_string(),
-            },
-        ))
-    } else if window.is_key_pressed(MiniKey::Key2, MiniKeyRepeat::No) {
-        Some(classic_polled_keyboard_action(
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "2".to_string(),
-            },
-        ))
-    } else if window.is_key_pressed(MiniKey::Key3, MiniKeyRepeat::No) {
-        Some(classic_polled_keyboard_action(
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "box:frontline".to_string(),
-            },
-        ))
+    } else if let Some(action) =
+        classic_poll_control_group_hotkey(window, mouse_latch, ctrl_pressed)
+    {
+        Some(action)
     } else if window.is_key_pressed(MiniKey::M, MiniKeyRepeat::No) {
         Some(classic_polled_keyboard_action(
             NativeControlAction::RtsMoveCommand {
@@ -73525,6 +73724,58 @@ fn classic_poll_action(
     } else {
         None
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_poll_control_group_hotkey(
+    window: &MiniWindow,
+    mouse_latch: &mut ClassicRuntimeMouseLatch,
+    ctrl_pressed: bool,
+) -> Option<ClassicPolledAction> {
+    if mouse_latch.control_group_repeat_frames_remaining > 0 {
+        mouse_latch.control_group_repeat_frames_remaining -= 1;
+    } else {
+        mouse_latch.control_group_repeat_slot = None;
+    }
+
+    let slot = [
+        (MiniKey::Key1, "1"),
+        (MiniKey::Key2, "2"),
+        (MiniKey::Key3, "3"),
+        (MiniKey::Key4, "4"),
+        (MiniKey::Key5, "5"),
+        (MiniKey::Key6, "6"),
+        (MiniKey::Key7, "7"),
+        (MiniKey::Key8, "8"),
+        (MiniKey::Key9, "9"),
+        (MiniKey::Key0, "10"),
+    ]
+    .iter()
+    .find_map(|(key, slot)| {
+        window
+            .is_key_pressed(*key, MiniKeyRepeat::No)
+            .then_some(*slot)
+    })?;
+
+    let group_id = if ctrl_pressed {
+        mouse_latch.control_group_repeat_slot = None;
+        mouse_latch.control_group_repeat_frames_remaining = 0;
+        format!("assign:{slot}")
+    } else if mouse_latch.control_group_repeat_slot.as_deref() == Some(slot)
+        && mouse_latch.control_group_repeat_frames_remaining > 0
+    {
+        mouse_latch.control_group_repeat_slot = None;
+        mouse_latch.control_group_repeat_frames_remaining = 0;
+        format!("camera:{slot}")
+    } else {
+        mouse_latch.control_group_repeat_slot = Some(slot.to_string());
+        mouse_latch.control_group_repeat_frames_remaining = 18;
+        format!("recall:{slot}")
+    };
+
+    Some(classic_polled_keyboard_action(
+        NativeControlAction::RtsSelectControlGroup { group_id },
+    ))
 }
 
 #[cfg(not(target_os = "android"))]
@@ -74360,17 +74611,43 @@ fn classic_rts_command_stamp_for_action(
         NativeControlAction::RtsSelectControlGroup { group_id } => {
             let selected_count = runtime.rts_selected_unit_ids.len().max(1);
             let unit_word = if selected_count == 1 { "UNIT" } else { "UNITS" };
-            let select_label = if group_id.starts_with("shift:unit:") {
-                "SHIFT SELECT"
+            let (kind, select_label, target_id) =
+                if let Some(slot) = group_id.strip_prefix("assign:") {
+                    (
+                        "control-group",
+                        format!("GROUP {slot} ASSIGNED"),
+                        Some(slot.to_string()),
+                    )
+                } else if let Some(slot) = group_id.strip_prefix("recall:") {
+                    (
+                        "control-group",
+                        format!("GROUP {slot} RECALLED"),
+                        Some(slot.to_string()),
+                    )
+                } else if let Some(slot) = group_id.strip_prefix("camera:") {
+                    (
+                        "control-group-camera",
+                        format!("GROUP {slot} CAMERA SNAP"),
+                        Some(slot.to_string()),
+                    )
+                } else if group_id.starts_with("shift:unit:") {
+                    ("select", "SHIFT SELECT".to_string(), Some(group_id.clone()))
+                } else {
+                    ("select", "SELECT".to_string(), Some(group_id.clone()))
+                };
+            let player_label = if group_id.starts_with("camera:") {
+                format!("{source} {select_label}")
+            } else if kind == "select" {
+                format!("{source} {select_label} SENT {selected_count} {unit_word}")
             } else {
-                "SELECT"
+                format!("{source} {select_label} {selected_count} {unit_word}")
             };
             Some(ClassicRtsCommandStamp {
                 input_source: input_source.to_string(),
-                kind: "select".to_string(),
+                kind: kind.to_string(),
                 tile_id: None,
-                target_id: Some(group_id.clone()),
-                player_label: format!("{source} {select_label} SENT {selected_count} {unit_word}"),
+                target_id,
+                player_label,
             })
         }
         NativeControlAction::RtsQueueProduction { queue_id } => {
@@ -96579,7 +96856,7 @@ fn classic_window_title(
     assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select Shift+LMB add/remove radar RMB move/attack Shift+WASD/edges pan wheel zoom 1/2/3 groups M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
+        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select Shift+LMB add/remove radar RMB move/attack Shift+WASD/edges pan wheel zoom Ctrl+1 assign 1 recall/double-tap camera M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
         assets.manifest.contract_version,
         runtime.current_room_id,
         player_tile.0,
@@ -130806,6 +131083,56 @@ fn classic_rts_selection_box_tiles() -> Vec<String> {
     string_vec(["5,5", "6,5", "5,4", "6,4"])
 }
 
+fn classic_rts_control_group_hotkey_slot(group_id: &str, prefix: &str) -> Option<String> {
+    group_id
+        .strip_prefix(prefix)
+        .map(str::trim)
+        .filter(|slot| !slot.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn classic_rts_default_units_for_control_group_slot(slot: &str) -> Vec<String> {
+    match slot {
+        "2" => classic_rts_group_two_units(),
+        "3" => string_vec(["square_worker_carry", "square_worker_harvest"]),
+        _ => classic_rts_default_group_units(),
+    }
+}
+
+fn classic_rts_units_from_control_group_assignment(
+    assignments: &[String],
+    slot: &str,
+) -> Vec<String> {
+    let prefix = format!("{slot}:");
+    for assignment in assignments.iter().rev() {
+        let Some(payload) = assignment.strip_prefix(&prefix) else {
+            continue;
+        };
+        let unit_payload = payload.rsplit(':').next().unwrap_or(payload);
+        let units = unit_payload
+            .split('|')
+            .map(str::trim)
+            .filter(|unit| !unit.is_empty())
+            .filter(|unit| classic_rts_selectable_unit_tile(unit).is_some())
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        if !units.is_empty() {
+            return units;
+        }
+    }
+    Vec::new()
+}
+
+fn replace_classic_rts_control_group_assignment(
+    assignments: &mut Vec<String>,
+    slot: &str,
+    unit_ids: &[String],
+) {
+    let prefix = format!("{slot}:");
+    assignments.retain(|assignment| !assignment.starts_with(&prefix));
+    push_unique_string(assignments, &format!("{slot}:{}", unit_ids.join("|")));
+}
+
 fn classic_rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32))> {
     let payload = group_id.strip_prefix("drag:")?;
     let (start, end) = payload.split_once("->")?;
@@ -131824,7 +132151,16 @@ fn apply_classic_rts_select_group_runtime(
     let drag_selection = classic_rts_drag_selection_parts(group_id);
     let unit_selection = group_id.strip_prefix("unit:");
     let shift_unit_selection = group_id.strip_prefix("shift:unit:");
-    let normalized_group_id = if group_id == "box:frontline"
+    let assign_group_slot = classic_rts_control_group_hotkey_slot(group_id, "assign:");
+    let recall_group_slot = classic_rts_control_group_hotkey_slot(group_id, "recall:");
+    let camera_group_slot = classic_rts_control_group_hotkey_slot(group_id, "camera:");
+    let hotkey_group_slot = assign_group_slot
+        .as_deref()
+        .or(recall_group_slot.as_deref())
+        .or(camera_group_slot.as_deref());
+    let normalized_group_id = if let Some(slot) = hotkey_group_slot {
+        slot
+    } else if group_id == "box:frontline"
         || drag_selection.is_some()
         || unit_selection.is_some()
         || shift_unit_selection.is_some()
@@ -131919,6 +132255,74 @@ fn apply_classic_rts_select_group_runtime(
             &mut first_playable.rts_command_queue,
             &format!("unit_shift_{queue_verb}:{unit_id}@{tile_id}"),
         );
+    } else if let Some(slot) = assign_group_slot.as_deref() {
+        if first_playable.rts_selected_unit_ids.is_empty() {
+            first_playable.rts_selected_unit_ids =
+                classic_rts_default_units_for_control_group_slot(slot);
+        }
+        if first_playable.rts_selection_box_tile_ids.is_empty() {
+            first_playable.rts_selection_box_tile_ids =
+                classic_rts_selection_tiles_for_units(&first_playable.rts_selected_unit_ids);
+        }
+        replace_classic_rts_control_group_assignment(
+            &mut first_playable.rts_control_group_assignments,
+            slot,
+            &first_playable.rts_selected_unit_ids,
+        );
+        first_playable.rts_group_command_state = format!(
+            "group_{slot}_assigned:{}units",
+            first_playable.rts_selected_unit_ids.len()
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "control_group_assign:{slot}:{}",
+                first_playable.rts_selected_unit_ids.join("|")
+            ),
+        );
+    } else if let Some(slot) = recall_group_slot
+        .as_deref()
+        .or(camera_group_slot.as_deref())
+    {
+        let mut selected_units = classic_rts_units_from_control_group_assignment(
+            &first_playable.rts_control_group_assignments,
+            slot,
+        );
+        if selected_units.is_empty() {
+            selected_units = classic_rts_default_units_for_control_group_slot(slot);
+        }
+        first_playable.rts_selected_unit_ids = selected_units;
+        first_playable.rts_selection_box_tile_ids =
+            classic_rts_selection_tiles_for_units(&first_playable.rts_selected_unit_ids);
+        if first_playable.rts_selection_box_tile_ids.is_empty() {
+            first_playable.rts_selection_box_tile_ids = classic_rts_selection_box_tiles();
+        }
+        if camera_group_slot.as_deref() == Some(slot) {
+            let focus_tile = first_playable
+                .rts_selection_box_tile_ids
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "5,4".to_string());
+            first_playable.rts_camera_focus_tile_id = Some(focus_tile.clone());
+            first_playable.rts_minimap_command_tile_id = Some(focus_tile.clone());
+            first_playable.rts_group_command_state = format!("camera_snap:group_{slot}");
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!("control_group_camera:{slot}@{focus_tile}"),
+            );
+        } else {
+            first_playable.rts_group_command_state = format!(
+                "group_{slot}_recalled:{}units",
+                first_playable.rts_selected_unit_ids.len()
+            );
+            push_history(
+                &mut first_playable.rts_command_queue,
+                &format!(
+                    "control_group_recall:{slot}:{}",
+                    first_playable.rts_selected_unit_ids.join("|")
+                ),
+            );
+        }
     } else if group_id == "2" {
         first_playable.rts_selected_unit_ids = classic_rts_group_two_units();
         push_unique_string(
@@ -131943,7 +132347,19 @@ fn apply_classic_rts_select_group_runtime(
         &mut first_playable.rts_command_queue,
         &format!("select_group_{normalized_group_id}"),
     );
-    first_playable.last_feedback = if group_id == "box:frontline" {
+    first_playable.last_feedback = if let Some(slot) = assign_group_slot.as_deref() {
+        format!(
+            "RTS control group {slot} assigned with {} units",
+            first_playable.rts_selected_unit_ids.len()
+        )
+    } else if let Some(slot) = recall_group_slot.as_deref() {
+        format!(
+            "RTS control group {slot} recalled with {} units",
+            first_playable.rts_selected_unit_ids.len()
+        )
+    } else if let Some(slot) = camera_group_slot.as_deref() {
+        format!("RTS control group {slot} camera snap")
+    } else if group_id == "box:frontline" {
         "RTS box selected frontline into group 1".to_string()
     } else if group_id.starts_with("drag:") {
         format!(
@@ -140704,6 +141120,79 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "unit_shift_add:square_guard_patrol@7,5"));
+
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            "classic_rts_hotkey",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "assign:5".to_string(),
+            },
+        );
+        assert_eq!(runtime.rts_control_group_id.as_deref(), Some("5"));
+        assert_eq!(runtime.rts_group_command_state, "group_5_assigned:2units");
+        assert_eq!(
+            runtime.rts_command_stamp_player_label,
+            "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
+        );
+        assert!(runtime
+            .rts_control_group_assignments
+            .iter()
+            .any(|entry| entry == "5:player|square_guard_patrol"));
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "control_group_assign:5:player|square_guard_patrol"));
+
+        runtime.rts_control_group_id = None;
+        runtime.rts_selected_unit_ids.clear();
+        runtime.rts_selection_box_tile_ids.clear();
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            "classic_rts_hotkey",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "recall:5".to_string(),
+            },
+        );
+        assert_eq!(runtime.rts_control_group_id.as_deref(), Some("5"));
+        assert_eq!(runtime.rts_group_command_state, "group_5_recalled:2units");
+        assert_eq!(
+            runtime.rts_selected_unit_ids,
+            string_vec(["player", "square_guard_patrol"])
+        );
+        assert_eq!(
+            runtime.rts_command_stamp_player_label,
+            "HOTKEY GROUP 5 RECALLED 2 UNITS"
+        );
+
+        apply_live_native_action_with_source(
+            &mut world,
+            &mut character,
+            &mut log,
+            &mut runtime,
+            actor_id,
+            "classic_rts_hotkey",
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "camera:5".to_string(),
+            },
+        );
+        assert_eq!(runtime.rts_group_command_state, "camera_snap:group_5");
+        assert_eq!(runtime.rts_camera_focus_tile_id.as_deref(), Some("5,4"));
+        assert_eq!(
+            runtime.rts_command_stamp_player_label,
+            "HOTKEY GROUP 5 CAMERA SNAP"
+        );
+        assert!(runtime
+            .rts_command_queue
+            .iter()
+            .any(|entry| entry == "control_group_camera:5@5,4"));
 
         let shift_remove = classic_rts_mouse_action_with_source_from_point_with_shift(
             &runtime,
