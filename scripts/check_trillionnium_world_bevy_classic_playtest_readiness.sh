@@ -825,6 +825,10 @@ jq -n \
       rts_live_input_drag_select_commit_selected_unit_count: ($rts_live[0].drag_select_commit_sample.selected_unit_ids | length),
       rts_live_input_drag_select_commit_label: $rts_live[0].drag_select_commit_sample.command_stamp_player_label,
       rts_live_input_drag_select_commit_selection_marker_pixel_count: $rts_live[0].drag_select_commit_selection_marker_pixel_count,
+      rts_live_input_drag_select_filter_selected_unit_count: ($rts_live[0].drag_select_filter_sample.selected_unit_ids | length),
+      rts_live_input_drag_select_filter_rejected_unit_count: ($rts_live[0].drag_select_filter_sample.preview_rejected_unit_ids | length),
+      rts_live_input_drag_select_filter_label: $rts_live[0].drag_select_filter_sample.command_stamp_player_label,
+      rts_live_input_drag_select_filter_selection_marker_pixel_count: $rts_live[0].drag_select_filter_selection_marker_pixel_count,
       rts_live_input_unit_click_select_marker_pixel_count: $rts_live[0].unit_click_select_marker_pixel_count,
       rts_live_input_unit_click_select_stamp_pixel_count: $rts_live[0].unit_click_select_stamp_pixel_count,
       rts_live_input_unit_click_select_unit_count: ($rts_live[0].unit_click_select_sample.selected_unit_ids | length),
@@ -2166,6 +2170,7 @@ jq -n \
       rts_live_input_context_cursor_gate: $rts_live[0].context_cursor_gate,
       rts_live_input_drag_select_preview_gate: $rts_live[0].drag_select_preview_gate,
       rts_live_input_drag_select_commit_gate: $rts_live[0].drag_select_commit_gate,
+      rts_live_input_drag_select_filter_gate: $rts_live[0].drag_select_filter_gate,
       rts_live_input_unit_click_select_gate: $rts_live[0].unit_click_select_gate,
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
       rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
@@ -3510,6 +3515,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_drag_select_commit_selected_unit_count == 2
   and .headline.rts_live_input_drag_select_commit_label == "DRAG SELECT SENT 2 UNITS"
   and .headline.rts_live_input_drag_select_commit_selection_marker_pixel_count > 250
+  and .headline.rts_live_input_drag_select_filter_selected_unit_count == 5
+  and .headline.rts_live_input_drag_select_filter_rejected_unit_count == 1
+  and .headline.rts_live_input_drag_select_filter_label == "DRAG SELECT SENT 5 UNITS"
+  and .headline.rts_live_input_drag_select_filter_selection_marker_pixel_count > 400
   and .headline.rts_live_input_unit_click_select_marker_pixel_count > 80
   and .headline.rts_live_input_unit_click_select_stamp_pixel_count > 80
   and .headline.rts_live_input_unit_click_select_unit_count == 1
@@ -4277,6 +4286,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_context_cursor_gate == true
   and .gates.rts_live_input_drag_select_preview_gate == true
   and .gates.rts_live_input_drag_select_commit_gate == true
+  and .gates.rts_live_input_drag_select_filter_gate == true
   and .gates.rts_live_input_unit_click_select_gate == true
   and .gates.rts_live_input_unit_shift_select_gate == true
   and .gates.rts_live_input_unit_double_click_select_gate == true

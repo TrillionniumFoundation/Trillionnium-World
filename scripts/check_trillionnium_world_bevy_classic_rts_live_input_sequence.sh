@@ -68,6 +68,29 @@ jq -e '
   and (.drag_select_commit_sample.command_queue | any(startswith("drag_select:")))
   and (.drag_select_commit_sample.command_queue | index("select_group_1") != null)
   and .drag_select_commit_sample.command_stamp_player_label == "DRAG SELECT SENT 2 UNITS"
+  and .drag_select_filter_selection_marker_pixel_count > 400
+  and .drag_select_filter_stamp_pixel_count > 80
+  and .drag_select_filter_sample.accepted == true
+  and .drag_select_filter_sample.input_source == "classic_rts_mouse_drag"
+  and .drag_select_filter_sample.start_tile_id == "2,2"
+  and .drag_select_filter_sample.current_tile_id == "10,5"
+  and .drag_select_filter_sample.action_label == "RTS:SELECT:drag:2,2->10,5"
+  and .drag_select_filter_sample.preview_player_label == "DRAG SELECT 5 UNITS 2,2->10,5"
+  and (.drag_select_filter_sample.selected_unit_ids | length == 5)
+  and (.drag_select_filter_sample.selected_unit_ids | index("player") != null)
+  and (.drag_select_filter_sample.selected_unit_ids | index("square_guard_front") != null)
+  and (.drag_select_filter_sample.selected_unit_ids | index("square_guard_patrol") != null)
+  and (.drag_select_filter_sample.selected_unit_ids | index("square_worker_carry") != null)
+  and (.drag_select_filter_sample.selected_unit_ids | index("square_worker_harvest") != null)
+  and (.drag_select_filter_sample.selected_unit_ids | index("square_creep_wander") == null)
+  and (.drag_select_filter_sample.preview_rejected_unit_ids | length == 1)
+  and (.drag_select_filter_sample.preview_rejected_unit_ids | index("square_creep_wander") != null)
+  and (.drag_select_filter_sample.selected_unit_allegiances | all(. == "player"))
+  and (.drag_select_filter_sample.selected_unit_priorities | tostring == "[0,1,2,3,4]")
+  and (.drag_select_filter_sample.command_queue | any(startswith("drag_select:")))
+  and (.drag_select_filter_sample.command_queue | index("select_group_1") != null)
+  and .drag_select_filter_sample.command_stamp_player_label == "DRAG SELECT SENT 5 UNITS"
+  and .drag_select_filter_gate == true
   and .unit_click_select_marker_pixel_count > 80
   and .unit_click_select_stamp_pixel_count > 80
   and .unit_click_select_sample.accepted == true

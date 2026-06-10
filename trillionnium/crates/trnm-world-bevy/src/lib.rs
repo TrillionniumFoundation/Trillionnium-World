@@ -42289,6 +42289,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "current_tile_id": preview.current_tile_id,
             "selection_tile_ids": preview.selection_tile_ids,
             "candidate_unit_ids": preview.candidate_unit_ids,
+            "rejected_unit_ids": preview.rejected_unit_ids,
             "player_label": preview.player_label,
         }));
     }
@@ -42390,6 +42391,92 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
+
+    let mut drag_filter_world = native_bevy_playable_fixture();
+    let mut drag_filter_character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut drag_filter_log = NativeGameplayLog::default();
+    let mut drag_filter_runtime = classic_openra_style_skirmish_runtime();
+    let mut drag_select_filter_sample = json!({
+        "accepted": false,
+        "reason": "drag_filter_action_missing",
+    });
+    let mut drag_select_filter_selection_marker_pixel_count = 0_usize;
+    let mut drag_select_filter_stamp_pixel_count = 0_usize;
+    if let Some(preview) = apply_classic_rts_drag_select_preview_from_points(
+        &mut drag_filter_runtime,
+        1280,
+        720,
+        (240, 180),
+        (850, 430),
+    ) {
+        if let Some(polled) = classic_rts_drag_action_with_source_from_points(
+            &drag_filter_runtime,
+            1280,
+            720,
+            (240, 180),
+            (850, 430),
+        ) {
+            let action_label = native_control_action_label(&polled.action);
+            apply_live_native_action_with_source(
+                &mut drag_filter_world,
+                &mut drag_filter_character,
+                &mut drag_filter_log,
+                &mut drag_filter_runtime,
+                "local-player",
+                polled.input_source,
+                polled.action,
+            );
+            frame_pixels.fill(0x0b0d0c_u32);
+            classic_draw_scene(
+                &mut frame_pixels,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                (5, 5),
+                &drag_filter_runtime,
+                &assets,
+            );
+            drag_select_filter_selection_marker_pixel_count = frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_ISO_CONTROL_GROUP_COLOR)
+                .count();
+            drag_select_filter_stamp_pixel_count = frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
+                .count();
+            drag_select_filter_sample = json!({
+                "input_source": "classic_rts_mouse_drag",
+                "start_tile_id": preview.start_tile_id,
+                "current_tile_id": preview.current_tile_id,
+                "action_label": action_label,
+                "preview_player_label": preview.player_label,
+                "preview_candidate_unit_ids": preview.candidate_unit_ids,
+                "preview_rejected_unit_ids": preview.rejected_unit_ids,
+                "group_id": drag_filter_runtime.rts_control_group_id.clone(),
+                "group_command_state": drag_filter_runtime.rts_group_command_state.clone(),
+                "selected_unit_ids": drag_filter_runtime.rts_selected_unit_ids.clone(),
+                "selected_unit_allegiances": drag_filter_runtime
+                    .rts_selected_unit_ids
+                    .iter()
+                    .map(|unit_id| classic_rts_unit_allegiance(unit_id))
+                    .collect::<Vec<_>>(),
+                "selected_unit_priorities": drag_filter_runtime
+                    .rts_selected_unit_ids
+                    .iter()
+                    .map(|unit_id| classic_rts_unit_selection_priority(unit_id))
+                    .collect::<Vec<_>>(),
+                "selection_tile_ids": drag_filter_runtime.rts_selection_box_tile_ids.clone(),
+                "command_queue": drag_filter_runtime.rts_command_queue.clone(),
+                "last_feedback": drag_filter_runtime.last_feedback.clone(),
+                "command_stamp_player_label": drag_filter_runtime.rts_command_stamp_player_label.clone(),
+                "selection_marker_pixel_count": drag_select_filter_selection_marker_pixel_count,
+                "command_stamp_pixel_count": drag_select_filter_stamp_pixel_count,
+                "accepted": drag_filter_runtime
+                    .input_feedback_history
+                    .last()
+                    .is_some_and(|event| event.accepted),
+            });
+        }
+    }
 
     let mut unit_click_world = native_bevy_playable_fixture();
     let mut unit_click_character = WorldTrillionniumCharacter::default_for("local-player");
@@ -43155,6 +43242,98 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             .get("command_stamp_player_label")
             .and_then(|value| value.as_str())
             == Some("DRAG SELECT SENT 2 UNITS");
+    let drag_select_filter_gate = drag_select_filter_selection_marker_pixel_count > 400
+        && drag_select_filter_stamp_pixel_count > 80
+        && drag_select_filter_sample
+            .get("accepted")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && drag_select_filter_sample
+            .get("input_source")
+            .and_then(|value| value.as_str())
+            == Some("classic_rts_mouse_drag")
+        && drag_select_filter_sample
+            .get("start_tile_id")
+            .and_then(|value| value.as_str())
+            == Some("2,2")
+        && drag_select_filter_sample
+            .get("current_tile_id")
+            .and_then(|value| value.as_str())
+            == Some("10,5")
+        && drag_select_filter_sample
+            .get("action_label")
+            .and_then(|value| value.as_str())
+            == Some("RTS:SELECT:drag:2,2->10,5")
+        && drag_select_filter_sample
+            .get("preview_player_label")
+            .and_then(|value| value.as_str())
+            == Some("DRAG SELECT 5 UNITS 2,2->10,5")
+        && drag_select_filter_sample
+            .get("selected_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| {
+                units.len() == 5
+                    && units.iter().any(|unit| unit.as_str() == Some("player"))
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_guard_front"))
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_guard_patrol"))
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_worker_carry"))
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_worker_harvest"))
+                    && units
+                        .iter()
+                        .all(|unit| unit.as_str() != Some("square_creep_wander"))
+            })
+        && drag_select_filter_sample
+            .get("preview_rejected_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| {
+                units.len() == 1
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_creep_wander"))
+            })
+        && drag_select_filter_sample
+            .get("selected_unit_allegiances")
+            .and_then(|value| value.as_array())
+            .is_some_and(|allegiances| {
+                allegiances.len() == 5
+                    && allegiances
+                        .iter()
+                        .all(|allegiance| allegiance.as_str() == Some("player"))
+            })
+        && drag_select_filter_sample
+            .get("selected_unit_priorities")
+            .and_then(|value| value.as_array())
+            .is_some_and(|priorities| {
+                priorities.len() == 5
+                    && priorities
+                        .iter()
+                        .enumerate()
+                        .all(|(index, priority)| priority.as_u64() == Some(index as u64))
+            })
+        && drag_select_filter_sample
+            .get("command_queue")
+            .and_then(|value| value.as_array())
+            .is_some_and(|commands| {
+                commands.iter().any(|entry| {
+                    entry
+                        .as_str()
+                        .is_some_and(|entry| entry.starts_with("drag_select:"))
+                }) && commands
+                    .iter()
+                    .any(|entry| entry.as_str() == Some("select_group_1"))
+            })
+        && drag_select_filter_sample
+            .get("command_stamp_player_label")
+            .and_then(|value| value.as_str())
+            == Some("DRAG SELECT SENT 5 UNITS");
     let unit_click_select_gate = unit_click_select_marker_pixel_count > 80
         && unit_click_select_stamp_pixel_count > 80
         && unit_click_select_sample
@@ -43687,6 +43866,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && context_cursor_gate
         && drag_select_preview_gate
         && drag_select_commit_gate
+        && drag_select_filter_gate
         && unit_click_select_gate
         && unit_shift_select_gate
         && unit_double_click_select_gate
@@ -43720,6 +43900,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "drag_select_commit_sample": drag_select_commit_sample,
         "drag_select_commit_selection_marker_pixel_count": drag_select_commit_selection_marker_pixel_count,
         "drag_select_commit_stamp_pixel_count": drag_select_commit_stamp_pixel_count,
+        "drag_select_filter_sample": drag_select_filter_sample,
+        "drag_select_filter_selection_marker_pixel_count": drag_select_filter_selection_marker_pixel_count,
+        "drag_select_filter_stamp_pixel_count": drag_select_filter_stamp_pixel_count,
         "unit_click_select_sample": unit_click_select_sample,
         "unit_click_select_marker_pixel_count": unit_click_select_marker_pixel_count,
         "unit_click_select_stamp_pixel_count": unit_click_select_stamp_pixel_count,
@@ -43781,6 +43964,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "context_cursor_gate": context_cursor_gate,
         "drag_select_preview_gate": drag_select_preview_gate,
         "drag_select_commit_gate": drag_select_commit_gate,
+        "drag_select_filter_gate": drag_select_filter_gate,
         "unit_click_select_gate": unit_click_select_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
@@ -43789,7 +43973,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, unit-click selection, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -74023,6 +74207,7 @@ struct ClassicRtsDragSelectPreview {
     current_tile_id: String,
     selection_tile_ids: Vec<String>,
     candidate_unit_ids: Vec<String>,
+    rejected_unit_ids: Vec<String>,
     player_label: String,
 }
 
@@ -74525,6 +74710,7 @@ fn classic_rts_drag_select_preview_from_points(
     let current_tile_id = classic_rts_tile_id(current_tile);
     let selection_tile_ids = classic_rts_selection_box_tiles_between(start_tile, current_tile);
     let candidate_unit_ids = classic_rts_drag_selected_units(start_tile, current_tile);
+    let rejected_unit_ids = classic_rts_drag_rejected_unit_ids(start_tile, current_tile);
     let player_label = classic_rts_drag_select_player_label(
         &start_tile_id,
         &current_tile_id,
@@ -74536,6 +74722,7 @@ fn classic_rts_drag_select_preview_from_points(
         current_tile_id,
         selection_tile_ids,
         candidate_unit_ids,
+        rejected_unit_ids,
         player_label,
     })
 }
@@ -131598,29 +131785,52 @@ fn classic_rts_same_class_units(unit_id: &str) -> Vec<String> {
     }
 }
 
+fn classic_rts_selectable_unit_entries() -> [(&'static str, (i32, i32), &'static str, u8); 6] {
+    [
+        ("player", (5, 4), "player", 0),
+        ("square_guard_front", (5, 4), "player", 1),
+        ("square_guard_patrol", (7, 5), "player", 2),
+        ("square_worker_carry", (4, 5), "player", 3),
+        ("square_worker_harvest", (8, 5), "player", 4),
+        ("square_creep_wander", (9, 4), "hostile", 20),
+    ]
+}
+
+fn classic_rts_unit_allegiance(unit_id: &str) -> &'static str {
+    classic_rts_selectable_unit_entries()
+        .into_iter()
+        .find_map(|(entry_unit_id, _, allegiance, _)| {
+            (entry_unit_id == unit_id).then_some(allegiance)
+        })
+        .unwrap_or("unknown")
+}
+
+fn classic_rts_unit_is_player_owned(unit_id: &str) -> bool {
+    classic_rts_unit_allegiance(unit_id) == "player"
+}
+
+fn classic_rts_unit_selection_priority(unit_id: &str) -> u8 {
+    classic_rts_selectable_unit_entries()
+        .into_iter()
+        .find_map(|(entry_unit_id, _, _, priority)| (entry_unit_id == unit_id).then_some(priority))
+        .unwrap_or(u8::MAX)
+}
+
 fn classic_rts_selectable_unit_tile(unit_id: &str) -> Option<(i32, i32)> {
-    match unit_id {
-        "player" => Some((5, 4)),
-        "square_guard_front" => Some((5, 4)),
-        "square_guard_patrol" => Some((7, 5)),
-        "square_worker_carry" => Some((4, 5)),
-        "square_worker_harvest" => Some((8, 5)),
-        "square_creep_wander" => Some((9, 4)),
-        _ => None,
-    }
+    classic_rts_selectable_unit_entries()
+        .into_iter()
+        .find_map(|(entry_unit_id, tile, _, _)| (entry_unit_id == unit_id).then_some(tile))
 }
 
 fn classic_rts_selectable_unit_at_tile(tile: (i32, i32)) -> Option<&'static str> {
-    [
-        ("player", (5, 4)),
-        ("square_guard_front", (5, 4)),
-        ("square_guard_patrol", (7, 5)),
-        ("square_worker_carry", (4, 5)),
-        ("square_worker_harvest", (8, 5)),
-        ("square_creep_wander", (9, 4)),
-    ]
-    .into_iter()
-    .find_map(|(unit_id, unit_tile)| (unit_tile == tile).then_some(unit_id))
+    classic_rts_selectable_unit_entries()
+        .into_iter()
+        .filter(|(_, unit_tile, _, _)| *unit_tile == tile)
+        .min_by_key(|(unit_id, _, allegiance, priority)| {
+            let allegiance_priority = if *allegiance == "player" { 0 } else { 1 };
+            (allegiance_priority, *priority, *unit_id)
+        })
+        .map(|(unit_id, _, _, _)| unit_id)
 }
 
 fn classic_rts_selection_tiles_for_units(unit_ids: &[String]) -> Vec<String> {
@@ -131770,28 +131980,34 @@ fn classic_rts_selection_box_tiles_between(start: (i32, i32), end: (i32, i32)) -
 }
 
 fn classic_rts_drag_selected_units(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    classic_rts_drag_units_between(start, end, true)
+}
+
+fn classic_rts_drag_rejected_unit_ids(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    classic_rts_drag_units_between(start, end, false)
+        .into_iter()
+        .filter(|unit_id| !classic_rts_unit_is_player_owned(unit_id))
+        .collect()
+}
+
+fn classic_rts_drag_units_between(
+    start: (i32, i32),
+    end: (i32, i32),
+    owned_only: bool,
+) -> Vec<String> {
     let min_x = start.0.min(end.0).clamp(0, 11);
     let max_x = start.0.max(end.0).clamp(0, 11);
     let min_y = start.1.min(end.1).clamp(0, 7);
     let max_y = start.1.max(end.1).clamp(0, 7);
     let mut selected = Vec::new();
-    for (unit_id, tile) in [
-        ("player", (5, 4)),
-        ("square_guard_front", (5, 4)),
-        ("square_guard_patrol", (7, 5)),
-        ("square_worker_carry", (4, 5)),
-        ("square_worker_harvest", (8, 5)),
-        ("square_creep_wander", (9, 4)),
-    ] {
+    for (unit_id, tile, _, _) in classic_rts_selectable_unit_entries() {
         if tile.0 >= min_x && tile.0 <= max_x && tile.1 >= min_y && tile.1 <= max_y {
-            push_unique_string(&mut selected, unit_id);
+            if !owned_only || classic_rts_unit_is_player_owned(unit_id) {
+                push_unique_string(&mut selected, unit_id);
+            }
         }
     }
-    if selected.is_empty() {
-        classic_rts_default_group_units()
-    } else {
-        selected
-    }
+    selected
 }
 
 fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {
@@ -141550,9 +141766,41 @@ mod tests {
             .candidate_unit_ids
             .iter()
             .any(|unit_id| unit_id == "player"));
+        assert!(drag_preview.rejected_unit_ids.is_empty());
         assert_eq!(
             drag_preview_runtime.rts_drag_select_player_label,
             "DRAG SELECT 2 UNITS 2,2->6,4"
+        );
+        assert_eq!(classic_rts_selectable_unit_at_tile((5, 4)), Some("player"));
+        assert!(
+            classic_rts_unit_selection_priority("player")
+                < classic_rts_unit_selection_priority("square_guard_front")
+        );
+        let wide_drag_preview = apply_classic_rts_drag_select_preview_from_points(
+            &mut drag_preview_runtime,
+            1280,
+            720,
+            (240, 180),
+            (850, 430),
+        )
+        .expect("wide drag previews owned units and rejects hostile units");
+        assert_eq!(wide_drag_preview.current_tile_id, "10,5");
+        assert_eq!(
+            wide_drag_preview.player_label,
+            "DRAG SELECT 5 UNITS 2,2->10,5"
+        );
+        assert_eq!(wide_drag_preview.candidate_unit_ids.len(), 5);
+        assert!(wide_drag_preview
+            .candidate_unit_ids
+            .iter()
+            .all(|unit_id| classic_rts_unit_is_player_owned(unit_id)));
+        assert!(!wide_drag_preview
+            .candidate_unit_ids
+            .iter()
+            .any(|unit_id| unit_id == "square_creep_wander"));
+        assert_eq!(
+            wide_drag_preview.rejected_unit_ids,
+            string_vec(["square_creep_wander"])
         );
         let mut hover_runtime = classic_openra_style_skirmish_runtime();
         let map_hover =
