@@ -720,6 +720,8 @@ const CLASSIC_RTS_CONTROL_GROUP_CAMERA_COLOR: u32 = 0xffe36d;
 const CLASSIC_RTS_CONTROL_GROUP_IDLE_COLOR: u32 = 0xffa05f;
 const CLASSIC_RTS_CONTROL_GROUP_PRODUCTION_COLOR: u32 = 0xd49cff;
 const CLASSIC_RTS_CONTROL_GROUP_ABILITY_COLOR: u32 = 0x7dffd0;
+const CLASSIC_RTS_CONTROL_GROUP_SLOT_OCCUPIED_COLOR: u32 = 0x24495d;
+const CLASSIC_RTS_CONTROL_GROUP_SLOT_COUNT_COLOR: u32 = 0xfff08a;
 const CLASSIC_RTS_RECALL_FORMATION_HUD_COLOR: u32 = 0x8fdcff;
 const CLASSIC_RTS_RECALL_FORMATION_FOCUS_COLOR: u32 = 0xd49cff;
 const CLASSIC_RTS_RECALL_FORMATION_ANCHOR_COLOR: u32 = 0xffdf7a;
@@ -14242,6 +14244,132 @@ fn classic_rts_control_group_hotkey_feedback_stage(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_control_group_slot_strip(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    origin_x: i32,
+    origin_y: i32,
+    slot_w: i32,
+    slot_h: i32,
+) {
+    let gap = 3_i32;
+    for slot_index in 1..=10 {
+        let slot = slot_index.to_string();
+        let slot_x = origin_x + (slot_index as i32 - 1) * (slot_w + gap);
+        let active = classic_rts_control_group_slot_is_active(runtime, &slot);
+        let member_count = classic_rts_control_group_slot_member_count(runtime, &slot);
+        let occupied = member_count > 0;
+        let fill_color = if active {
+            CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR
+        } else if occupied {
+            CLASSIC_RTS_CONTROL_GROUP_SLOT_OCCUPIED_COLOR
+        } else {
+            CLASSIC_RTS_FIDELITY_PANEL_COLOR
+        };
+        classic_draw_rect(
+            buffer, width, height, slot_x, origin_y, slot_w, slot_h, fill_color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            slot_x,
+            origin_y,
+            slot_w,
+            2,
+            if occupied {
+                CLASSIC_RTS_CONTROL_GROUP_SLOT_COUNT_COLOR
+            } else {
+                CLASSIC_RTS_STRATEGY_PANEL_BORDER_COLOR
+            },
+        );
+        if occupied {
+            let count_bar_w = ((member_count.min(5) as i32) * (slot_w - 6) / 5).max(4);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                slot_x + 3,
+                origin_y + slot_h - 5,
+                count_bar_w,
+                3,
+                CLASSIC_RTS_CONTROL_GROUP_SLOT_COUNT_COLOR,
+            );
+        }
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            slot_x + 6,
+            origin_y + 6,
+            classic_rts_control_group_slot_label(&slot),
+            1,
+            if active {
+                CLASSIC_RTS_STRATEGY_PANEL_COLOR
+            } else {
+                CLASSIC_HUD_TEXT_COLOR
+            },
+        );
+        if occupied {
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                slot_x + slot_w - 10,
+                origin_y + slot_h - 11,
+                &member_count.min(9).to_string(),
+                1,
+                if active {
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR
+                } else {
+                    CLASSIC_RTS_CONTROL_GROUP_SLOT_COUNT_COLOR
+                },
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_control_group_slot_strip_for_scene(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+) {
+    if runtime.rts_control_group_assignments.is_empty() || width < 580 || height < 300 {
+        return;
+    }
+    let width_i = width as i32;
+    let height_i = height as i32;
+    if width >= 900 && height >= 540 {
+        classic_draw_rts_control_group_slot_strip(
+            buffer,
+            width,
+            height,
+            runtime,
+            (width_i - 548).max(620),
+            7,
+            24,
+            20,
+        );
+    } else {
+        classic_draw_rts_control_group_slot_strip(
+            buffer,
+            width,
+            height,
+            runtime,
+            18,
+            (height_i - 124).max(54),
+            26,
+            22,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_rts_control_group_hotkey_feedback_overlay(
     buffer: &mut [u32],
     width: usize,
@@ -14280,47 +14408,21 @@ fn classic_draw_rts_control_group_hotkey_feedback_overlay(
         height,
         panel_x + 10,
         panel_y + 10,
-        "CONTROL GROUP / HOTKEY FEEDBACK",
+        "CONTROL GROUP SLOTS / HOTKEY FEEDBACK",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
 
-    for slot in 1..=6 {
-        let slot_x = panel_x + 12 + (slot - 1) * 45;
-        let active = runtime
-            .rts_active_control_group_ids
-            .iter()
-            .any(|group| group == &slot.to_string())
-            || runtime.rts_control_group_id.as_deref() == Some(&slot.to_string());
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            slot_x,
-            panel_y + 28,
-            35,
-            24,
-            if active {
-                CLASSIC_RTS_CONTROL_GROUP_ASSIGN_COLOR
-            } else {
-                CLASSIC_RTS_FIDELITY_PANEL_COLOR
-            },
-        );
-        classic_draw_text(
-            buffer,
-            width,
-            height,
-            slot_x + 13,
-            panel_y + 36,
-            &slot.to_string(),
-            1,
-            if active {
-                CLASSIC_RTS_STRATEGY_PANEL_COLOR
-            } else {
-                CLASSIC_HUD_TEXT_COLOR
-            },
-        );
-    }
+    classic_draw_rts_control_group_slot_strip(
+        buffer,
+        width,
+        height,
+        runtime,
+        panel_x + 12,
+        panel_y + 28,
+        24,
+        24,
+    );
 
     match stage {
         "assign_group" => {
@@ -42529,6 +42631,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let mut control_group_hotkey_samples = Vec::new();
     let mut control_group_hotkey_marker_pixel_count = 0_usize;
     let mut control_group_hotkey_stamp_pixel_count = 0_usize;
+    let mut control_group_slot_pixel_count = 0_usize;
     for (stage, group_id) in [
         ("ctrl_assign_group_5", "assign:5"),
         ("recall_group_5", "recall:5"),
@@ -42597,10 +42700,18 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             .iter()
             .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
             .count();
+        let slot_pixels = frame_pixels
+            .iter()
+            .filter(|pixel| {
+                **pixel == CLASSIC_RTS_CONTROL_GROUP_SLOT_OCCUPIED_COLOR
+                    || **pixel == CLASSIC_RTS_CONTROL_GROUP_SLOT_COUNT_COLOR
+            })
+            .count();
         control_group_hotkey_marker_pixel_count =
             control_group_hotkey_marker_pixel_count.max(marker_pixels);
         control_group_hotkey_stamp_pixel_count =
             control_group_hotkey_stamp_pixel_count.max(stamp_pixels);
+        control_group_slot_pixel_count = control_group_slot_pixel_count.max(slot_pixels);
         control_group_hotkey_samples.push(json!({
             "stage": stage,
             "input_source": "classic_rts_hotkey",
@@ -42617,6 +42728,8 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "command_stamp_player_label": control_group_runtime.rts_command_stamp_player_label.clone(),
             "selection_marker_pixel_count": marker_pixels,
             "command_stamp_pixel_count": stamp_pixels,
+            "control_group_slot_pixel_count": slot_pixels,
+            "control_group_slot_summaries": classic_rts_control_group_slot_summaries(&control_group_runtime),
             "accepted": control_group_runtime
                 .input_feedback_history
                 .last()
@@ -43456,6 +43569,65 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .and_then(|value| value.as_str())
                 .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
         });
+    let control_group_slot_visual_gate = control_group_slot_pixel_count > 20
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str()) == Some("ctrl_assign_group_5")
+                && sample
+                    .get("control_group_slot_summaries")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|slots| {
+                        slots.iter().any(|slot| {
+                            slot.get("slot").and_then(|value| value.as_str()) == Some("5")
+                                && slot.get("member_count").and_then(|value| value.as_u64())
+                                    == Some(2)
+                                && slot.get("occupied").and_then(|value| value.as_bool())
+                                    == Some(true)
+                                && slot.get("active").and_then(|value| value.as_bool())
+                                    == Some(true)
+                        })
+                    })
+        })
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("ctrl_shift_append_group_5")
+                && sample
+                    .get("control_group_slot_summaries")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|slots| {
+                        slots.iter().any(|slot| {
+                            slot.get("slot").and_then(|value| value.as_str()) == Some("5")
+                                && slot.get("member_count").and_then(|value| value.as_u64())
+                                    == Some(3)
+                                && slot.get("key_label").and_then(|value| value.as_str())
+                                    == Some("5")
+                                && slot.get("occupied").and_then(|value| value.as_bool())
+                                    == Some(true)
+                        })
+                    })
+        })
+        && control_group_hotkey_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str()) == Some("shift_recall_add_group_5")
+                && sample
+                    .get("control_group_slot_summaries")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|slots| {
+                        slots.len() == 10
+                            && slots.iter().any(|slot| {
+                                slot.get("slot").and_then(|value| value.as_str()) == Some("10")
+                                    && slot.get("key_label").and_then(|value| value.as_str())
+                                        == Some("0")
+                                    && slot.get("member_count").and_then(|value| value.as_u64())
+                                        == Some(0)
+                            })
+                            && slots.iter().any(|slot| {
+                                slot.get("slot").and_then(|value| value.as_str()) == Some("5")
+                                    && slot.get("member_count").and_then(|value| value.as_u64())
+                                        == Some(3)
+                                    && slot.get("active").and_then(|value| value.as_bool())
+                                        == Some(true)
+                            })
+                    })
+        });
     let command_stamp_gate = command_stamp_pixel_count > 120
         && stage_summaries.iter().any(|summary| {
             summary.get("stage").and_then(|value| value.as_str()) == Some("move_formation")
@@ -43519,6 +43691,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && unit_shift_select_gate
         && unit_double_click_select_gate
         && control_group_hotkey_gate
+        && control_group_slot_visual_gate
         && command_stamp_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
@@ -43559,6 +43732,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "control_group_hotkey_samples": control_group_hotkey_samples,
         "control_group_hotkey_marker_pixel_count": control_group_hotkey_marker_pixel_count,
         "control_group_hotkey_stamp_pixel_count": control_group_hotkey_stamp_pixel_count,
+        "control_group_slot_pixel_count": control_group_slot_pixel_count,
         "hover_samples": hover_samples,
         "context_cursor_samples": cursor_samples,
         "final_hover_source": runtime.rts_hover_source,
@@ -43611,10 +43785,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
         "control_group_hotkey_gate": control_group_hotkey_gate,
+        "control_group_slot_visual_gate": control_group_slot_visual_gate,
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, unit-click selection, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, number recall/double-tap camera snap, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, unit-click selection, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -76921,6 +77096,7 @@ fn classic_draw_scene(
         }
         classic_draw_rts_product_alignment_hud(buffer, width, height, runtime);
     }
+    classic_draw_rts_control_group_slot_strip_for_scene(buffer, width, height, runtime);
     if let Some(hotkey_stage) = classic_rts_control_group_hotkey_feedback_stage(Some(runtime)) {
         classic_draw_rts_control_group_hotkey_feedback_overlay(
             buffer,
@@ -131499,6 +131675,49 @@ fn classic_rts_units_from_control_group_assignment(
         }
     }
     Vec::new()
+}
+
+fn classic_rts_control_group_slot_label(slot: &str) -> &str {
+    if slot == "10" {
+        "0"
+    } else {
+        slot
+    }
+}
+
+fn classic_rts_control_group_slot_member_count(
+    runtime: &NativeFirstPlayableRuntime,
+    slot: &str,
+) -> usize {
+    classic_rts_units_from_control_group_assignment(&runtime.rts_control_group_assignments, slot)
+        .len()
+}
+
+fn classic_rts_control_group_slot_is_active(
+    runtime: &NativeFirstPlayableRuntime,
+    slot: &str,
+) -> bool {
+    runtime
+        .rts_active_control_group_ids
+        .iter()
+        .any(|group| group == slot)
+        || runtime.rts_control_group_id.as_deref() == Some(slot)
+}
+
+fn classic_rts_control_group_slot_summaries(runtime: &NativeFirstPlayableRuntime) -> Vec<Value> {
+    (1..=10)
+        .map(|slot_index| {
+            let slot = slot_index.to_string();
+            let member_count = classic_rts_control_group_slot_member_count(runtime, &slot);
+            json!({
+                "slot": slot,
+                "key_label": classic_rts_control_group_slot_label(&slot),
+                "member_count": member_count,
+                "occupied": member_count > 0,
+                "active": classic_rts_control_group_slot_is_active(runtime, &slot),
+            })
+        })
+        .collect()
 }
 
 fn replace_classic_rts_control_group_assignment(

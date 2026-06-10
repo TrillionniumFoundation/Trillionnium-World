@@ -137,6 +137,8 @@ jq -e '
   and .unit_double_click_select_sample.command_stamp_player_label == "MAP DOUBLE SELECT SENT 3 UNITS"
   and .control_group_hotkey_marker_pixel_count > 80
   and .control_group_hotkey_stamp_pixel_count > 80
+  and .control_group_slot_pixel_count > 20
+  and .control_group_slot_visual_gate == true
   and (.control_group_hotkey_samples | length == 5)
   and (.control_group_hotkey_samples | any(
     .stage == "ctrl_assign_group_5"
@@ -149,6 +151,9 @@ jq -e '
     and (.selected_unit_ids | index("player") != null)
     and (.selected_unit_ids | index("square_guard_patrol") != null)
     and (.control_group_assignments | index("5:player|square_guard_patrol") != null)
+    and (.control_group_slot_summaries | length == 10)
+    and ([.control_group_slot_summaries[] | select(.slot == "5") | .member_count][0] == 2)
+    and ([.control_group_slot_summaries[] | select(.slot == "5") | .active][0] == true)
     and (.command_queue | index("control_group_assign:5:player|square_guard_patrol") != null)
     and .command_stamp_player_label == "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
   ))
@@ -185,6 +190,8 @@ jq -e '
     and (.selected_unit_ids | index("square_guard_front") != null)
     and (.selected_unit_ids | index("square_guard_patrol") != null)
     and (.control_group_assignments | index("5:append:player|square_guard_patrol|square_guard_front") != null)
+    and ([.control_group_slot_summaries[] | select(.slot == "5") | .member_count][0] == 3)
+    and ([.control_group_slot_summaries[] | select(.slot == "10") | .key_label][0] == "0")
     and (.command_queue | index("control_group_append:5:player|square_guard_patrol|square_guard_front") != null)
     and .command_stamp_player_label == "HOTKEY GROUP 5 APPENDED 3 UNITS"
   ))
@@ -199,6 +206,8 @@ jq -e '
     and (.selected_unit_ids | index("player") != null)
     and (.selected_unit_ids | index("square_guard_front") != null)
     and (.selected_unit_ids | index("square_guard_patrol") != null)
+    and ([.control_group_slot_summaries[] | select(.slot == "5") | .member_count][0] == 3)
+    and ([.control_group_slot_summaries[] | select(.slot == "5") | .occupied][0] == true)
     and (.command_queue | index("control_group_recall_add:5:square_worker_carry|player|square_guard_patrol|square_guard_front") != null)
     and .command_stamp_player_label == "HOTKEY GROUP 5 ADDED 4 UNITS"
   ))

@@ -848,6 +848,9 @@ jq -n \
       rts_live_input_control_group_hotkey_recall_add_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "shift_recall_add_group_5") | .command_stamp_player_label ][0] // ""),
       rts_live_input_control_group_hotkey_append_unit_count: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "ctrl_shift_append_group_5") | .selected_unit_ids | length ][0] // 0),
       rts_live_input_control_group_hotkey_recall_add_unit_count: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "shift_recall_add_group_5") | .selected_unit_ids | length ][0] // 0),
+      rts_live_input_control_group_slot_pixel_count: $rts_live[0].control_group_slot_pixel_count,
+      rts_live_input_control_group_slot_5_member_count: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "ctrl_shift_append_group_5") | .control_group_slot_summaries[] | select(.slot == "5") | .member_count ][0] // 0),
+      rts_live_input_control_group_slot_0_key_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "shift_recall_add_group_5") | .control_group_slot_summaries[] | select(.slot == "10") | .key_label ][0] // ""),
       rts_live_input_command_stamp_pixel_count: $rts_live[0].command_stamp_pixel_count,
       rts_live_input_final_command_stamp_player_label: $rts_live[0].final_command_stamp_player_label,
       rts_live_input_command_feedback_chip_count: $rts_live[0].command_feedback_chip_count,
@@ -2167,6 +2170,7 @@ jq -n \
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
       rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
       rts_live_input_control_group_hotkey_gate: $rts_live[0].control_group_hotkey_gate,
+      rts_live_input_control_group_slot_visual_gate: $rts_live[0].control_group_slot_visual_gate,
       rts_live_input_command_stamp_gate: $rts_live[0].command_stamp_gate,
       rts_pathing_live_input_gate: $rts_path[0].live_pathing_input_gate,
       rts_pathing_path_tile_gate: $rts_path[0].path_tile_gate,
@@ -3529,6 +3533,9 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_control_group_hotkey_recall_add_label == "HOTKEY GROUP 5 ADDED 4 UNITS"
   and .headline.rts_live_input_control_group_hotkey_append_unit_count == 3
   and .headline.rts_live_input_control_group_hotkey_recall_add_unit_count == 4
+  and .headline.rts_live_input_control_group_slot_pixel_count > 20
+  and .headline.rts_live_input_control_group_slot_5_member_count == 3
+  and .headline.rts_live_input_control_group_slot_0_key_label == "0"
   and .headline.rts_live_input_command_stamp_pixel_count > 120
   and .headline.rts_live_input_final_command_stamp_player_label == "COMMAND ABILITY SENT FOCUS FIRE"
   and .headline.rts_pathing_accepted_input_count == 2
@@ -4274,6 +4281,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_unit_shift_select_gate == true
   and .gates.rts_live_input_unit_double_click_select_gate == true
   and .gates.rts_live_input_control_group_hotkey_gate == true
+  and .gates.rts_live_input_control_group_slot_visual_gate == true
   and .gates.rts_live_input_command_stamp_gate == true
   and .gates.rts_pathing_live_input_gate == true
   and .gates.rts_pathing_path_tile_gate == true
