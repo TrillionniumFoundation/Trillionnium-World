@@ -42431,6 +42431,75 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         }
     }
 
+    let mut unit_double_click_world = native_bevy_playable_fixture();
+    let mut unit_double_click_character = WorldTrillionniumCharacter::default_for("local-player");
+    let mut unit_double_click_log = NativeGameplayLog::default();
+    let mut unit_double_click_runtime = classic_openra_style_skirmish_runtime();
+    let mut unit_double_click_select_sample = json!({});
+    let mut unit_double_click_select_marker_pixel_count = 0_usize;
+    let mut unit_double_click_select_stamp_pixel_count = 0_usize;
+    if let Some(polled) = classic_rts_mouse_action_with_source_from_point_with_modifiers(
+        &unit_double_click_runtime,
+        1280,
+        720,
+        460,
+        330,
+        MiniMouseButton::Left,
+        false,
+        true,
+    ) {
+        let action_label = native_control_action_label(&polled.action);
+        apply_live_native_action_with_source(
+            &mut unit_double_click_world,
+            &mut unit_double_click_character,
+            &mut unit_double_click_log,
+            &mut unit_double_click_runtime,
+            "local-player",
+            polled.input_source,
+            polled.action,
+        );
+        frame_pixels.fill(0x0b0d0c_u32);
+        classic_draw_scene(
+            &mut frame_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            (5, 5),
+            &unit_double_click_runtime,
+            &assets,
+        );
+        unit_double_click_select_marker_pixel_count = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_ISO_CONTROL_GROUP_COLOR)
+            .count();
+        unit_double_click_select_stamp_pixel_count = frame_pixels
+            .iter()
+            .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
+            .count();
+        unit_double_click_select_sample = json!({
+            "stage": "double_click_guard_class",
+            "input_source": "classic_rts_mouse_viewport",
+            "mouse_x": 460,
+            "mouse_y": 330,
+            "tile_id": "5,4",
+            "unit_class": classic_rts_unit_selection_class("player"),
+            "action_label": action_label,
+            "group_id": unit_double_click_runtime.rts_control_group_id.clone(),
+            "group_command_state": unit_double_click_runtime.rts_group_command_state.clone(),
+            "selected_unit_ids": unit_double_click_runtime.rts_selected_unit_ids.clone(),
+            "selection_tile_ids": unit_double_click_runtime.rts_selection_box_tile_ids.clone(),
+            "control_group_assignments": unit_double_click_runtime.rts_control_group_assignments.clone(),
+            "command_queue": unit_double_click_runtime.rts_command_queue.clone(),
+            "last_feedback": unit_double_click_runtime.last_feedback.clone(),
+            "command_stamp_player_label": unit_double_click_runtime.rts_command_stamp_player_label.clone(),
+            "selection_marker_pixel_count": unit_double_click_select_marker_pixel_count,
+            "command_stamp_pixel_count": unit_double_click_select_stamp_pixel_count,
+            "accepted": unit_double_click_runtime
+                .input_feedback_history
+                .last()
+                .is_some_and(|event| event.accepted),
+        });
+    }
+
     let mut control_group_world = native_bevy_playable_fixture();
     let mut control_group_character = WorldTrillionniumCharacter::default_for("local-player");
     let mut control_group_log = NativeGameplayLog::default();
@@ -43086,6 +43155,77 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .and_then(|value| value.as_str())
                 .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
         });
+    let unit_double_click_select_gate = unit_double_click_select_marker_pixel_count > 80
+        && unit_double_click_select_stamp_pixel_count > 80
+        && unit_double_click_select_sample
+            .get("accepted")
+            .and_then(|value| value.as_bool())
+            == Some(true)
+        && unit_double_click_select_sample
+            .get("input_source")
+            .and_then(|value| value.as_str())
+            == Some("classic_rts_mouse_viewport")
+        && unit_double_click_select_sample
+            .get("action_label")
+            .and_then(|value| value.as_str())
+            == Some("RTS:SELECT:double:unit:player")
+        && unit_double_click_select_sample
+            .get("unit_class")
+            .and_then(|value| value.as_str())
+            == Some("guard")
+        && unit_double_click_select_sample
+            .get("group_id")
+            .and_then(|value| value.as_str())
+            == Some("1")
+        && unit_double_click_select_sample
+            .get("group_command_state")
+            .and_then(|value| value.as_str())
+            == Some("unit_double_selected:guard:count:3")
+        && unit_double_click_select_sample
+            .get("selected_unit_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|units| {
+                units.len() == 3
+                    && units.iter().any(|unit| unit.as_str() == Some("player"))
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_guard_front"))
+                    && units
+                        .iter()
+                        .any(|unit| unit.as_str() == Some("square_guard_patrol"))
+            })
+        && unit_double_click_select_sample
+            .get("selection_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|tiles| {
+                tiles.len() == 2
+                    && tiles.iter().any(|tile| tile.as_str() == Some("5,4"))
+                    && tiles.iter().any(|tile| tile.as_str() == Some("7,5"))
+            })
+        && unit_double_click_select_sample
+            .get("control_group_assignments")
+            .and_then(|value| value.as_array())
+            .is_some_and(|assignments| {
+                assignments.iter().any(|entry| {
+                    entry.as_str()
+                        == Some("1:double:guard:player|square_guard_front|square_guard_patrol")
+                })
+            })
+        && unit_double_click_select_sample
+            .get("command_queue")
+            .and_then(|value| value.as_array())
+            .is_some_and(|commands| {
+                commands.iter().any(|entry| {
+                    entry.as_str()
+                        == Some(
+                            "unit_double_select:guard:player|square_guard_front|square_guard_patrol",
+                        )
+                })
+            })
+        && unit_double_click_select_sample
+            .get("command_stamp_player_label")
+            .and_then(|value| value.as_str())
+            == Some("MAP DOUBLE SELECT SENT 3 UNITS");
     let control_group_hotkey_gate = control_group_hotkey_samples.len() == 3
         && control_group_hotkey_marker_pixel_count > 80
         && control_group_hotkey_stamp_pixel_count > 80
@@ -43255,6 +43395,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && drag_select_commit_gate
         && unit_click_select_gate
         && unit_shift_select_gate
+        && unit_double_click_select_gate
         && control_group_hotkey_gate
         && command_stamp_gate
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -43290,6 +43431,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "unit_shift_select_samples": unit_shift_select_samples,
         "unit_shift_select_marker_pixel_count": unit_shift_select_marker_pixel_count,
         "unit_shift_select_stamp_pixel_count": unit_shift_select_stamp_pixel_count,
+        "unit_double_click_select_sample": unit_double_click_select_sample,
+        "unit_double_click_select_marker_pixel_count": unit_double_click_select_marker_pixel_count,
+        "unit_double_click_select_stamp_pixel_count": unit_double_click_select_stamp_pixel_count,
         "control_group_hotkey_samples": control_group_hotkey_samples,
         "control_group_hotkey_marker_pixel_count": control_group_hotkey_marker_pixel_count,
         "control_group_hotkey_stamp_pixel_count": control_group_hotkey_stamp_pixel_count,
@@ -43343,11 +43487,12 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "drag_select_commit_gate": drag_select_commit_gate,
         "unit_click_select_gate": unit_click_select_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
+        "unit_double_click_select_gate": unit_double_click_select_gate,
         "control_group_hotkey_gate": control_group_hotkey_gate,
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, unit-click selection, Shift+unit add/remove selection, Ctrl+number assignment, number recall/double-tap camera snap, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live drag-select preview, drag-select commit, unit-click selection, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, number recall/double-tap camera snap, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -73522,6 +73667,8 @@ struct ClassicRuntimeMouseLatch {
     left_current: Option<(i32, i32)>,
     control_group_repeat_slot: Option<String>,
     control_group_repeat_frames_remaining: u8,
+    unit_double_click_unit_id: Option<String>,
+    unit_double_click_frames_remaining: u8,
 }
 
 #[cfg(not(target_os = "android"))]
@@ -73787,6 +73934,12 @@ fn classic_poll_mouse_action(
     mouse_latch: &mut ClassicRuntimeMouseLatch,
     shift_pressed: bool,
 ) -> Option<ClassicPolledAction> {
+    if mouse_latch.unit_double_click_frames_remaining > 0 {
+        mouse_latch.unit_double_click_frames_remaining -= 1;
+    } else {
+        mouse_latch.unit_double_click_unit_id = None;
+    }
+
     let left_down = window.get_mouse_down(MiniMouseButton::Left);
     let right_down = window.get_mouse_down(MiniMouseButton::Right);
     let left_pressed = left_down && !mouse_latch.left_down;
@@ -73823,15 +73976,44 @@ fn classic_poll_mouse_action(
             (Some(start), Some(end)) if classic_rts_drag_distance_sq(start, end) >= 36 => {
                 classic_rts_drag_action_with_source_from_points(runtime, width, height, start, end)
             }
-            (_, Some((x, y))) => classic_rts_mouse_action_with_source_from_point_with_shift(
-                runtime,
-                width,
-                height,
-                x,
-                y,
-                MiniMouseButton::Left,
-                shift_pressed,
-            ),
+            (_, Some((x, y))) => {
+                let mut polled = classic_rts_mouse_action_with_source_from_point_with_shift(
+                    runtime,
+                    width,
+                    height,
+                    x,
+                    y,
+                    MiniMouseButton::Left,
+                    shift_pressed,
+                );
+                if !shift_pressed {
+                    if let Some(ClassicPolledAction {
+                        action: NativeControlAction::RtsSelectControlGroup { group_id },
+                        input_source,
+                    }) = &polled
+                    {
+                        if let Some(unit_id) = group_id.strip_prefix("unit:") {
+                            let repeated_unit = mouse_latch.unit_double_click_unit_id.as_deref()
+                                == Some(unit_id)
+                                && mouse_latch.unit_double_click_frames_remaining > 0;
+                            if repeated_unit {
+                                polled = Some(ClassicPolledAction::new(
+                                    *input_source,
+                                    NativeControlAction::RtsSelectControlGroup {
+                                        group_id: format!("double:unit:{unit_id}"),
+                                    },
+                                ));
+                                mouse_latch.unit_double_click_unit_id = None;
+                                mouse_latch.unit_double_click_frames_remaining = 0;
+                            } else {
+                                mouse_latch.unit_double_click_unit_id = Some(unit_id.to_string());
+                                mouse_latch.unit_double_click_frames_remaining = 18;
+                            }
+                        }
+                    }
+                }
+                polled
+            }
             _ => None,
         }
     } else {
@@ -74221,6 +74403,29 @@ fn classic_rts_mouse_action_with_source_from_point_with_shift(
     button: MiniMouseButton,
     shift_pressed: bool,
 ) -> Option<ClassicPolledAction> {
+    classic_rts_mouse_action_with_source_from_point_with_modifiers(
+        runtime,
+        width,
+        height,
+        mouse_x,
+        mouse_y,
+        button,
+        shift_pressed,
+        false,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_mouse_action_with_source_from_point_with_modifiers(
+    runtime: &NativeFirstPlayableRuntime,
+    width: usize,
+    height: usize,
+    mouse_x: i32,
+    mouse_y: i32,
+    button: MiniMouseButton,
+    shift_pressed: bool,
+    double_click: bool,
+) -> Option<ClassicPolledAction> {
     let layout = classic_rts_shell_layout(width, height)?;
 
     if classic_point_in_rect(
@@ -74313,7 +74518,9 @@ fn classic_rts_mouse_action_with_source_from_point_with_shift(
                 );
                 let group_id = classic_rts_selectable_unit_at_tile(tile)
                     .map(|unit_id| {
-                        if shift_pressed {
+                        if double_click {
+                            format!("double:unit:{unit_id}")
+                        } else if shift_pressed {
                             format!("shift:unit:{unit_id}")
                         } else {
                             format!("unit:{unit_id}")
@@ -74632,6 +74839,12 @@ fn classic_rts_command_stamp_for_action(
                     )
                 } else if group_id.starts_with("shift:unit:") {
                     ("select", "SHIFT SELECT".to_string(), Some(group_id.clone()))
+                } else if group_id.starts_with("double:unit:") {
+                    (
+                        "select",
+                        "DOUBLE SELECT".to_string(),
+                        Some(group_id.clone()),
+                    )
                 } else {
                     ("select", "SELECT".to_string(), Some(group_id.clone()))
                 };
@@ -96856,7 +97069,7 @@ fn classic_window_title(
     assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select Shift+LMB add/remove radar RMB move/attack Shift+WASD/edges pan wheel zoom Ctrl+1 assign 1 recall/double-tap camera M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
+        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select Double-LMB same class Shift+LMB add/remove radar RMB move/attack Shift+WASD/edges pan wheel zoom Ctrl+1 assign 1 recall/double-tap camera M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
         assets.manifest.contract_version,
         runtime.current_room_id,
         player_tile.0,
@@ -97480,11 +97693,12 @@ fn classic_draw_openra_style_rts_shell(
     );
     for (index, label) in [
         "LMB CLICK/DRAG SELECT",
+        "DOUBLE-LMB SAME CLASS",
         "SHIFT+LMB ADD/REMOVE",
         "RADAR CLICK RALLY",
         "SIDEBAR QUEUE/BUILD",
-        "SHIFT+WASD/EDGES PAN",
-        "WHEEL ZOOM  M/A/B/P/G/V",
+        "CTRL+1 ASSIGN / 1 RECALL",
+        "SHIFT+WASD/WHEEL CAMERA",
     ]
     .iter()
     .enumerate()
@@ -131044,6 +131258,27 @@ fn classic_rts_group_two_units() -> Vec<String> {
     string_vec(["square_guard_patrol", "square_creep_wander"])
 }
 
+fn classic_rts_unit_selection_class(unit_id: &str) -> &'static str {
+    if unit_id.contains("guard") || unit_id == "player" {
+        "guard"
+    } else if unit_id.contains("worker") {
+        "worker"
+    } else if unit_id.contains("creep") {
+        "creep"
+    } else {
+        "unit"
+    }
+}
+
+fn classic_rts_same_class_units(unit_id: &str) -> Vec<String> {
+    match classic_rts_unit_selection_class(unit_id) {
+        "guard" => string_vec(["player", "square_guard_front", "square_guard_patrol"]),
+        "worker" => string_vec(["square_worker_carry", "square_worker_harvest"]),
+        "creep" => string_vec(["square_creep_wander"]),
+        _ => vec![unit_id.to_string()],
+    }
+}
+
 fn classic_rts_selectable_unit_tile(unit_id: &str) -> Option<(i32, i32)> {
     match unit_id {
         "player" => Some((5, 4)),
@@ -132151,6 +132386,7 @@ fn apply_classic_rts_select_group_runtime(
     let drag_selection = classic_rts_drag_selection_parts(group_id);
     let unit_selection = group_id.strip_prefix("unit:");
     let shift_unit_selection = group_id.strip_prefix("shift:unit:");
+    let double_unit_selection = group_id.strip_prefix("double:unit:");
     let assign_group_slot = classic_rts_control_group_hotkey_slot(group_id, "assign:");
     let recall_group_slot = classic_rts_control_group_hotkey_slot(group_id, "recall:");
     let camera_group_slot = classic_rts_control_group_hotkey_slot(group_id, "camera:");
@@ -132164,6 +132400,7 @@ fn apply_classic_rts_select_group_runtime(
         || drag_selection.is_some()
         || unit_selection.is_some()
         || shift_unit_selection.is_some()
+        || double_unit_selection.is_some()
     {
         "1"
     } else {
@@ -132254,6 +132491,29 @@ fn apply_classic_rts_select_group_runtime(
         push_history(
             &mut first_playable.rts_command_queue,
             &format!("unit_shift_{queue_verb}:{unit_id}@{tile_id}"),
+        );
+    } else if let Some(unit_id) = double_unit_selection {
+        let unit_class = classic_rts_unit_selection_class(unit_id);
+        first_playable.rts_selected_unit_ids = classic_rts_same_class_units(unit_id);
+        first_playable.rts_selection_box_tile_ids =
+            classic_rts_selection_tiles_for_units(&first_playable.rts_selected_unit_ids);
+        push_unique_string(
+            &mut first_playable.rts_control_group_assignments,
+            &format!(
+                "1:double:{unit_class}:{}",
+                first_playable.rts_selected_unit_ids.join("|")
+            ),
+        );
+        first_playable.rts_group_command_state = format!(
+            "unit_double_selected:{unit_class}:count:{}",
+            first_playable.rts_selected_unit_ids.len()
+        );
+        push_history(
+            &mut first_playable.rts_command_queue,
+            &format!(
+                "unit_double_select:{unit_class}:{}",
+                first_playable.rts_selected_unit_ids.join("|")
+            ),
         );
     } else if let Some(slot) = assign_group_slot.as_deref() {
         if first_playable.rts_selected_unit_ids.is_empty() {
@@ -132377,6 +132637,12 @@ fn apply_classic_rts_select_group_runtime(
         };
         format!(
             "RTS shift {action_word} {unit_id}; {} selected",
+            first_playable.rts_selected_unit_ids.len()
+        )
+    } else if let Some(unit_id) = double_unit_selection {
+        let unit_class = classic_rts_unit_selection_class(unit_id);
+        format!(
+            "RTS double selected {unit_class} units from {unit_id}; {} selected",
             first_playable.rts_selected_unit_ids.len()
         )
     } else if let Some(unit_id) = unit_selection {
@@ -140721,6 +140987,22 @@ mod tests {
             })
         );
         assert_eq!(
+            classic_rts_mouse_action_with_source_from_point_with_modifiers(
+                &runtime,
+                1280,
+                720,
+                460,
+                330,
+                MiniMouseButton::Left,
+                false,
+                true,
+            )
+            .map(|polled| polled.action),
+            Some(NativeControlAction::RtsSelectControlGroup {
+                group_id: "double:unit:player".to_string(),
+            })
+        );
+        assert_eq!(
             classic_rts_mouse_action_from_point(
                 &runtime,
                 1280,
@@ -141120,6 +141402,62 @@ mod tests {
             .rts_command_queue
             .iter()
             .any(|entry| entry == "unit_shift_add:square_guard_patrol@7,5"));
+
+        let mut double_world = native_bevy_playable_fixture();
+        let mut double_character = WorldTrillionniumCharacter::default_for(actor_id);
+        let mut double_log = NativeGameplayLog::default();
+        let mut double_runtime = classic_openra_style_skirmish_runtime();
+        let double_select = classic_rts_mouse_action_with_source_from_point_with_modifiers(
+            &double_runtime,
+            1280,
+            720,
+            460,
+            330,
+            MiniMouseButton::Left,
+            false,
+            true,
+        )
+        .expect("double-clicking an owned unit selects the same class");
+        assert_eq!(double_select.input_source, "classic_rts_mouse_viewport");
+        assert_eq!(
+            double_select.action,
+            NativeControlAction::RtsSelectControlGroup {
+                group_id: "double:unit:player".to_string(),
+            }
+        );
+        apply_live_native_action_with_source(
+            &mut double_world,
+            &mut double_character,
+            &mut double_log,
+            &mut double_runtime,
+            actor_id,
+            double_select.input_source,
+            double_select.action,
+        );
+        assert_eq!(double_runtime.rts_control_group_id.as_deref(), Some("1"));
+        assert_eq!(
+            double_runtime.rts_group_command_state,
+            "unit_double_selected:guard:count:3"
+        );
+        assert_eq!(
+            double_runtime.rts_selected_unit_ids,
+            string_vec(["player", "square_guard_front", "square_guard_patrol"])
+        );
+        assert_eq!(
+            double_runtime.rts_selection_box_tile_ids,
+            string_vec(["5,4", "7,5"])
+        );
+        assert_eq!(
+            double_runtime.rts_command_stamp_player_label,
+            "MAP DOUBLE SELECT SENT 3 UNITS"
+        );
+        assert!(double_runtime
+            .rts_control_group_assignments
+            .iter()
+            .any(|entry| entry == "1:double:guard:player|square_guard_front|square_guard_patrol"));
+        assert!(double_runtime.rts_command_queue.iter().any(|entry| {
+            entry == "unit_double_select:guard:player|square_guard_front|square_guard_patrol"
+        }));
 
         apply_live_native_action_with_source(
             &mut world,

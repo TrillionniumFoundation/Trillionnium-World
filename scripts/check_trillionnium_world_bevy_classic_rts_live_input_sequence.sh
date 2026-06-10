@@ -116,6 +116,25 @@ jq -e '
     and .command_stamp_player_label == "MAP SHIFT SELECT SENT 1 UNIT"
   ))
   and (.unit_shift_select_samples | all(.command_stamp_player_label | (contains("feedback") or contains("rts_")) | not))
+  and .unit_double_click_select_marker_pixel_count > 80
+  and .unit_double_click_select_stamp_pixel_count > 80
+  and .unit_double_click_select_sample.accepted == true
+  and .unit_double_click_select_sample.input_source == "classic_rts_mouse_viewport"
+  and .unit_double_click_select_sample.tile_id == "5,4"
+  and .unit_double_click_select_sample.unit_class == "guard"
+  and .unit_double_click_select_sample.action_label == "RTS:SELECT:double:unit:player"
+  and .unit_double_click_select_sample.group_id == "1"
+  and .unit_double_click_select_sample.group_command_state == "unit_double_selected:guard:count:3"
+  and (.unit_double_click_select_sample.selected_unit_ids | length == 3)
+  and (.unit_double_click_select_sample.selected_unit_ids | index("player") != null)
+  and (.unit_double_click_select_sample.selected_unit_ids | index("square_guard_front") != null)
+  and (.unit_double_click_select_sample.selected_unit_ids | index("square_guard_patrol") != null)
+  and (.unit_double_click_select_sample.selection_tile_ids | length == 2)
+  and (.unit_double_click_select_sample.selection_tile_ids | index("5,4") != null)
+  and (.unit_double_click_select_sample.selection_tile_ids | index("7,5") != null)
+  and (.unit_double_click_select_sample.control_group_assignments | index("1:double:guard:player|square_guard_front|square_guard_patrol") != null)
+  and (.unit_double_click_select_sample.command_queue | index("unit_double_select:guard:player|square_guard_front|square_guard_patrol") != null)
+  and .unit_double_click_select_sample.command_stamp_player_label == "MAP DOUBLE SELECT SENT 3 UNITS"
   and .control_group_hotkey_marker_pixel_count > 80
   and .control_group_hotkey_stamp_pixel_count > 80
   and (.control_group_hotkey_samples | length == 3)
@@ -229,6 +248,7 @@ jq -e '
   and .drag_select_commit_gate == true
   and .unit_click_select_gate == true
   and .unit_shift_select_gate == true
+  and .unit_double_click_select_gate == true
   and .control_group_hotkey_gate == true
   and .command_stamp_gate == true
   and .cex_runtime_player_client_allowed == false

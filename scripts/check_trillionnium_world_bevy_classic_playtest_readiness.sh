@@ -835,6 +835,10 @@ jq -n \
       rts_live_input_unit_shift_select_remove_unit_count: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_remove_player") | .selected_unit_ids | length ][0] // 0),
       rts_live_input_unit_shift_select_add_label: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_add_patrol") | .command_stamp_player_label ][0] // ""),
       rts_live_input_unit_shift_select_remove_label: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_remove_player") | .command_stamp_player_label ][0] // ""),
+      rts_live_input_unit_double_click_select_marker_pixel_count: $rts_live[0].unit_double_click_select_marker_pixel_count,
+      rts_live_input_unit_double_click_select_stamp_pixel_count: $rts_live[0].unit_double_click_select_stamp_pixel_count,
+      rts_live_input_unit_double_click_select_unit_count: ($rts_live[0].unit_double_click_select_sample.selected_unit_ids | length),
+      rts_live_input_unit_double_click_select_label: $rts_live[0].unit_double_click_select_sample.command_stamp_player_label,
       rts_live_input_control_group_hotkey_marker_pixel_count: $rts_live[0].control_group_hotkey_marker_pixel_count,
       rts_live_input_control_group_hotkey_stamp_pixel_count: $rts_live[0].control_group_hotkey_stamp_pixel_count,
       rts_live_input_control_group_hotkey_assign_label: ([ $rts_live[0].control_group_hotkey_samples[] | select(.stage == "ctrl_assign_group_5") | .command_stamp_player_label ][0] // ""),
@@ -2157,6 +2161,7 @@ jq -n \
       rts_live_input_drag_select_commit_gate: $rts_live[0].drag_select_commit_gate,
       rts_live_input_unit_click_select_gate: $rts_live[0].unit_click_select_gate,
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
+      rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
       rts_live_input_control_group_hotkey_gate: $rts_live[0].control_group_hotkey_gate,
       rts_live_input_command_stamp_gate: $rts_live[0].command_stamp_gate,
       rts_pathing_live_input_gate: $rts_path[0].live_pathing_input_gate,
@@ -3507,6 +3512,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_unit_shift_select_remove_unit_count == 1
   and .headline.rts_live_input_unit_shift_select_add_label == "MAP SHIFT SELECT SENT 2 UNITS"
   and .headline.rts_live_input_unit_shift_select_remove_label == "MAP SHIFT SELECT SENT 1 UNIT"
+  and .headline.rts_live_input_unit_double_click_select_marker_pixel_count > 80
+  and .headline.rts_live_input_unit_double_click_select_stamp_pixel_count > 80
+  and .headline.rts_live_input_unit_double_click_select_unit_count == 3
+  and .headline.rts_live_input_unit_double_click_select_label == "MAP DOUBLE SELECT SENT 3 UNITS"
   and .headline.rts_live_input_control_group_hotkey_marker_pixel_count > 80
   and .headline.rts_live_input_control_group_hotkey_stamp_pixel_count > 80
   and .headline.rts_live_input_control_group_hotkey_assign_label == "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
@@ -4255,6 +4264,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_drag_select_commit_gate == true
   and .gates.rts_live_input_unit_click_select_gate == true
   and .gates.rts_live_input_unit_shift_select_gate == true
+  and .gates.rts_live_input_unit_double_click_select_gate == true
   and .gates.rts_live_input_control_group_hotkey_gate == true
   and .gates.rts_live_input_command_stamp_gate == true
   and .gates.rts_pathing_live_input_gate == true
