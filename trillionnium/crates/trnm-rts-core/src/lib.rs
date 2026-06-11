@@ -27,6 +27,7 @@ pub enum RtsOrderKind {
     Capture,
     Attack,
     FocusFire,
+    Ability,
     Repair,
     Cancel,
     Refund,
@@ -53,6 +54,7 @@ impl RtsOrderKind {
             RtsOrderKind::Capture => "capture",
             RtsOrderKind::Attack => "attack",
             RtsOrderKind::FocusFire => "focus_fire",
+            RtsOrderKind::Ability => "ability",
             RtsOrderKind::Repair => "repair",
             RtsOrderKind::Cancel => "cancel",
             RtsOrderKind::Refund => "refund",
@@ -176,6 +178,8 @@ impl RtsFrameOrder {
             order
         } else if let Some(rest) = label.strip_prefix("RTS:QUEUE:") {
             live_queue_order(frame, player_id, subject_actor_ids, rest)?
+        } else if let Some(rest) = label.strip_prefix("RTS:ABILITY:") {
+            live_ability_order(frame, player_id, subject_actor_ids, rest)?
         } else {
             return Err(format!("unsupported_live_command_label:{label}"));
         };
@@ -200,6 +204,11 @@ impl RtsFrameOrder {
             RtsOrderKind::Attack | RtsOrderKind::FocusFire => {
                 if self.target_actor_id.is_none() && self.target_tile.is_none() {
                     return Err(format!("{}_target_missing", self.kind.as_str()));
+                }
+            }
+            RtsOrderKind::Ability => {
+                if self.target_rule_id.is_none() {
+                    return Err("ability_rule_missing".to_string());
                 }
             }
             RtsOrderKind::Follow => {
@@ -410,6 +419,26 @@ fn live_queue_order(
             order.target_rule_id = Some(payload.to_string());
             Ok(order)
         }
+        "commander" => {
+            if let Some(ability_payload) = payload.strip_prefix("ability:") {
+                let mut order =
+                    live_ability_order(frame, player_id, subject_actor_ids, ability_payload)?;
+                order.queued = true;
+                order.queue_id = Some(rest.to_string());
+                Ok(order)
+            } else {
+                let mut order = RtsFrameOrder::new(
+                    frame,
+                    player_id,
+                    subject_actor_ids,
+                    RtsOrderKind::Queue,
+                    RtsOrderSource::LocalInput,
+                );
+                order.queued = true;
+                order.queue_id = Some(rest.to_string());
+                Ok(order)
+            }
+        }
         "complete" => {
             let (rule_id, tile) = payload
                 .split_once('@')
@@ -489,6 +518,39 @@ fn live_queue_order(
     }
 }
 
+fn live_ability_order(
+    frame: u32,
+    player_id: String,
+    subject_actor_ids: Vec<String>,
+    rest: &str,
+) -> Result<RtsFrameOrder, String> {
+    if rest.is_empty() {
+        return Err("ability_id_missing".to_string());
+    }
+    let (ability_id, target_actor_id) = match rest.split_once('@') {
+        Some((ability_id, target_actor_id)) => {
+            if ability_id.is_empty() {
+                return Err(format!("ability_id_empty:{rest}"));
+            }
+            if target_actor_id.is_empty() {
+                return Err(format!("ability_target_empty:{rest}"));
+            }
+            (ability_id, Some(target_actor_id))
+        }
+        None => (rest, None),
+    };
+    let mut order = RtsFrameOrder::new(
+        frame,
+        player_id,
+        subject_actor_ids,
+        RtsOrderKind::Ability,
+        RtsOrderSource::LocalInput,
+    );
+    order.target_rule_id = Some(ability_id.to_string());
+    order.target_actor_id = target_actor_id.map(ToString::to_string);
+    Ok(order)
+}
+
 fn live_rule_source_payload(payload: &str, kind: &str) -> Result<(String, String), String> {
     let (rule_id, source_id) = payload
         .split_once('@')
@@ -565,6 +627,7 @@ impl RtsFrameOrderStream {
         let mut actors = BTreeMap::<String, RtsActorCheckpoint>::new();
         let mut production_lifecycle = RtsProductionLifecycleCheckpoint::default();
         let mut tech_tree = RtsTechTreeCheckpoint::default();
+        let mut abilities = RtsAbilityCheckpoint::default();
         let mut event_log = Vec::new();
         let mut final_frame = 0_u32;
 
@@ -591,6 +654,7 @@ impl RtsFrameOrderStream {
             ));
             production_lifecycle.record_order(order);
             tech_tree.record_order(order);
+            abilities.record_order(order);
 
             for actor_id in &order.subject_actor_ids {
                 let actor = actors.entry(actor_id.clone()).or_insert_with(|| {
@@ -624,6 +688,12 @@ impl RtsFrameOrderStream {
                         actor.target_actor_id = order.target_actor_id.clone();
                         actor.target_tile = order.target_tile;
                         actor.attack_order_count += 1;
+                    }
+                    RtsOrderKind::Ability => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.target_tile = order.target_tile;
+                        actor.ability_order_count += 1;
                     }
                     RtsOrderKind::Harvest | RtsOrderKind::ReturnCargo => {
                         actor.target_actor_id = order.target_actor_id.clone();
@@ -701,6 +771,7 @@ impl RtsFrameOrderStream {
             actor_count: actors.len() as u32,
             production_lifecycle,
             tech_tree,
+            abilities,
             players,
             actors,
             event_log,
@@ -733,6 +804,7 @@ pub struct RtsHeadlessReplayCheckpoint {
     pub actor_count: u32,
     pub production_lifecycle: RtsProductionLifecycleCheckpoint,
     pub tech_tree: RtsTechTreeCheckpoint,
+    pub abilities: RtsAbilityCheckpoint,
     pub players: Vec<RtsPlayerCheckpoint>,
     pub actors: Vec<RtsActorCheckpoint>,
     pub event_log: Vec<String>,
@@ -799,6 +871,7 @@ pub struct RtsActorCheckpoint {
     pub repair_order_count: u32,
     pub cancel_order_count: u32,
     pub refund_order_count: u32,
+    pub ability_order_count: u32,
     pub attack_order_count: u32,
     pub harvest_order_count: u32,
     pub command_history: Vec<String>,
@@ -828,9 +901,36 @@ impl RtsActorCheckpoint {
             repair_order_count: 0,
             cancel_order_count: 0,
             refund_order_count: 0,
+            ability_order_count: 0,
             attack_order_count: 0,
             harvest_order_count: 0,
             command_history: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsAbilityCheckpoint {
+    pub ability_order_count: u32,
+    pub ability_rule_ids: Vec<String>,
+    pub target_actor_ids: Vec<String>,
+    pub target_tile_ids: Vec<String>,
+    pub queued_ability_count: u32,
+}
+
+impl RtsAbilityCheckpoint {
+    fn record_order(&mut self, order: &RtsFrameOrder) {
+        if order.kind != RtsOrderKind::Ability {
+            return;
+        }
+        self.ability_order_count += 1;
+        if order.queued {
+            self.queued_ability_count += 1;
+        }
+        push_if_present(&mut self.ability_rule_ids, order.target_rule_id.as_deref());
+        push_if_present(&mut self.target_actor_ids, order.target_actor_id.as_deref());
+        if let Some(tile) = order.target_tile {
+            self.target_tile_ids.push(tile.label());
         }
     }
 }
@@ -959,6 +1059,14 @@ fn order_target_label(order: &RtsFrameOrder) -> String {
         RtsOrderKind::Unlock => {
             if let Some(rule_id) = order.target_rule_id.as_deref() {
                 return rule_id.to_string();
+            }
+        }
+        RtsOrderKind::Ability => {
+            if let (Some(ability_id), Some(target_id)) = (
+                order.target_rule_id.as_deref(),
+                order.target_actor_id.as_deref(),
+            ) {
+                return format!("{ability_id}@{target_id}");
             }
         }
         _ => {}
@@ -1121,6 +1229,43 @@ mod tests {
         assert_eq!(unlock_order.kind, RtsOrderKind::Unlock);
         assert_eq!(unlock_order.target_rule_id.as_deref(), Some("relay_guard"));
         assert!(unlock_order.target_actor_id.is_none());
+    }
+
+    #[test]
+    fn ability_labels_keep_ability_identity() {
+        let ability_order = RtsFrameOrder::from_live_command_label(
+            19,
+            "Multi0",
+            selected_subjects(),
+            "RTS:ABILITY:focus_fire",
+        )
+        .unwrap();
+        assert_eq!(ability_order.kind, RtsOrderKind::Ability);
+        assert_eq!(ability_order.target_rule_id.as_deref(), Some("focus_fire"));
+        assert!(ability_order.target_actor_id.is_none());
+        assert!(!ability_order.queued);
+
+        let commander_ability_order = RtsFrameOrder::from_live_command_label(
+            20,
+            "Multi0",
+            vec!["mirror_captain".to_string()],
+            "RTS:QUEUE:commander:ability:rally_aura@mirror_captain",
+        )
+        .unwrap();
+        assert_eq!(commander_ability_order.kind, RtsOrderKind::Ability);
+        assert_eq!(
+            commander_ability_order.target_rule_id.as_deref(),
+            Some("rally_aura")
+        );
+        assert_eq!(
+            commander_ability_order.target_actor_id.as_deref(),
+            Some("mirror_captain")
+        );
+        assert!(commander_ability_order.queued);
+        assert_eq!(
+            commander_ability_order.queue_id.as_deref(),
+            Some("commander:ability:rally_aura@mirror_captain")
+        );
     }
 
     #[test]
@@ -1305,6 +1450,7 @@ mod tests {
             "RTS:MOVE:10,3:attack_move",
             "RTS:MOVE:10,3:stop",
             "RTS:ATTACK:arena_creep_attack",
+            "RTS:ABILITY:focus_fire",
         ];
         let mut orders = labels
             .iter()
@@ -1319,12 +1465,31 @@ mod tests {
                 .unwrap()
             })
             .collect::<Vec<_>>();
+        let focus_fire = orders
+            .iter_mut()
+            .find(|order| order.kind == RtsOrderKind::Ability)
+            .unwrap();
+        focus_fire.target_actor_id = Some("arena_creep_attack".to_string());
+        focus_fire.validate().unwrap();
         orders.extend(live_right_click_stream().orders);
         let stream =
             RtsFrameOrderStream::new("first-contact-basin-live-input", "trnm-rules-v1", orders);
         let report = stream.replay_headless().unwrap();
-        assert_eq!(report.checkpoint.applied_order_count, 12);
+        assert_eq!(report.checkpoint.applied_order_count, 13);
         assert_eq!(report.checkpoint.final_frame, 423);
+        assert_eq!(report.checkpoint.abilities.ability_order_count, 1);
+        assert!(report
+            .checkpoint
+            .abilities
+            .ability_rule_ids
+            .iter()
+            .any(|rule| rule == "focus_fire"));
+        assert!(report
+            .checkpoint
+            .abilities
+            .target_actor_ids
+            .iter()
+            .any(|target| target == "arena_creep_attack"));
         assert!(report
             .checkpoint
             .event_log
@@ -1350,6 +1515,11 @@ mod tests {
             .event_log
             .iter()
             .any(|event| event.contains(":kind:stop:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:ability:")));
     }
 
     #[test]

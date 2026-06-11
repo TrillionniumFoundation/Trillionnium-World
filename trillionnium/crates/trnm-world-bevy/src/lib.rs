@@ -43211,6 +43211,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         if !action_label.starts_with("RTS:MOVE:")
             && !action_label.starts_with("RTS:ATTACK:")
             && !action_label.starts_with("RTS:QUEUE:")
+            && !action_label.starts_with("RTS:ABILITY:")
         {
             continue;
         }
@@ -43221,7 +43222,21 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             subject_actor_ids,
             action_label,
         ) {
-            Ok(order) => rts_core_frame_orders.push(order),
+            Ok(mut order) => {
+                if order.kind == RtsOrderKind::Ability && order.target_actor_id.is_none() {
+                    order.target_actor_id = summary
+                        .get("attack_target_id")
+                        .and_then(|value| value.as_str())
+                        .filter(|target| !target.is_empty())
+                        .map(ToString::to_string);
+                }
+                if let Err(error) = order.validate() {
+                    rts_core_frame_order_errors
+                        .push(format!("live_input_{index}:{action_label}:{error}"));
+                } else {
+                    rts_core_frame_orders.push(order);
+                }
+            }
             Err(error) => rts_core_frame_order_errors
                 .push(format!("live_input_{index}:{action_label}:{error}")),
         }
@@ -43264,7 +43279,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let rts_core_frame_order_gate = rts_core_frame_order_errors.is_empty()
         && rts_core_frame_order_stream_error.is_none()
         && rts_core_frame_order_stream_sha256.len() == 64
-        && rts_core_frame_orders.len() == 12
+        && rts_core_frame_orders.len() == 13
         && rts_core_frame_orders
             .iter()
             .any(|order| order.kind == RtsOrderKind::Move && order.target_tile.is_some())
@@ -43289,6 +43304,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && rts_core_frame_orders
             .iter()
             .any(|order| order.kind == RtsOrderKind::Attack && order.target_actor_id.is_some())
+        && rts_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Ability
+                && order.target_rule_id.as_deref() == Some("focus_fire")
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+        })
         && rts_core_frame_orders
             .iter()
             .any(|order| order.kind == RtsOrderKind::Follow && order.target_actor_id.is_some())
@@ -43304,9 +43324,15 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         rts_core_headless_actor_count,
         rts_core_headless_final_frame,
         rts_core_headless_event_log,
+        rts_core_headless_ability_order_count,
+        rts_core_headless_ability_rule_ids,
+        rts_core_headless_ability_target_actor_ids,
     ) = match rts_core_headless_replay_result {
         Ok(report) => {
             let event_log = report.checkpoint.event_log.clone();
+            let ability_order_count = report.checkpoint.abilities.ability_order_count;
+            let ability_rule_ids = report.checkpoint.abilities.ability_rule_ids.clone();
+            let ability_target_actor_ids = report.checkpoint.abilities.target_actor_ids.clone();
             (
                 serde_json::to_value(&report).expect("rts core headless replay report serializes"),
                 report.checkpoint_sha256,
@@ -43315,14 +43341,28 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 report.checkpoint.actor_count,
                 report.checkpoint.final_frame,
                 event_log,
+                ability_order_count,
+                ability_rule_ids,
+                ability_target_actor_ids,
             )
         }
-        Err(error) => (Value::Null, String::new(), Some(error), 0, 0, 0, Vec::new()),
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            Vec::new(),
+            Vec::new(),
+        ),
     };
     let rts_core_headless_replay_gate = rts_core_frame_order_gate
         && rts_core_headless_replay_error.is_none()
         && rts_core_headless_checkpoint_sha256.len() == 64
-        && rts_core_headless_applied_order_count == 12
+        && rts_core_headless_applied_order_count == 13
         && rts_core_headless_actor_count >= 5
         && rts_core_headless_final_frame == 423
         && rts_core_headless_event_log
@@ -43348,10 +43388,20 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             .any(|event| event.contains(":kind:attack:"))
         && rts_core_headless_event_log
             .iter()
+            .any(|event| event.contains(":kind:ability:"))
+        && rts_core_headless_event_log
+            .iter()
             .any(|event| event.contains(":kind:follow:"))
         && rts_core_headless_event_log
             .iter()
-            .any(|event| event.contains(":kind:harvest:"));
+            .any(|event| event.contains(":kind:harvest:"))
+        && rts_core_headless_ability_order_count == 1
+        && rts_core_headless_ability_rule_ids
+            .iter()
+            .any(|rule| rule == "focus_fire")
+        && rts_core_headless_ability_target_actor_ids
+            .iter()
+            .any(|target| target == "arena_creep_attack");
 
     let mut unit_shift_world = native_bevy_playable_fixture();
     let mut unit_shift_character = WorldTrillionniumCharacter::default_for("local-player");
@@ -45419,6 +45469,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "rts_core_headless_actor_count": rts_core_headless_actor_count,
         "rts_core_headless_final_frame": rts_core_headless_final_frame,
         "rts_core_headless_event_log": rts_core_headless_event_log,
+        "rts_core_headless_ability_order_count": rts_core_headless_ability_order_count,
+        "rts_core_headless_ability_rule_ids": rts_core_headless_ability_rule_ids,
+        "rts_core_headless_ability_target_actor_ids": rts_core_headless_ability_target_actor_ids,
         "right_click_execution_feedback_frame_pixel_count": right_click_execution_frame_pixel_count,
         "right_click_execution_feedback_path_pixel_count": right_click_execution_path_pixel_count,
         "right_click_execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,

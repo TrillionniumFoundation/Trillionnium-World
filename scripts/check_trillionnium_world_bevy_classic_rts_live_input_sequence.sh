@@ -299,12 +299,12 @@ jq -e '
   and .right_click_target_semantics_gate == true
   and .rts_core_contract == "trnm_rts_core_frame_order_v1"
   and .rts_core_frame_order_gate == true
-  and (.rts_core_frame_orders | length == 12)
+  and (.rts_core_frame_orders | length == 13)
   and (.rts_core_frame_order_errors | length == 0)
   and .rts_core_frame_order_stream_error == null
-  and (.rts_core_frame_order_stream.orders | length == 12)
+  and (.rts_core_frame_order_stream.orders | length == 13)
   and (.rts_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
-  and (.rts_core_frame_order_kind_labels | tostring == "[\"train\",\"move\",\"move\",\"hold\",\"patrol\",\"attack_move\",\"stop\",\"attack\",\"move\",\"attack\",\"follow\",\"harvest\"]")
+  and (.rts_core_frame_order_kind_labels | tostring == "[\"train\",\"move\",\"move\",\"hold\",\"patrol\",\"attack_move\",\"stop\",\"attack\",\"ability\",\"move\",\"attack\",\"follow\",\"harvest\"]")
   and (.rts_core_frame_orders | any(
     .kind == "train"
     and .raw_command_label == "RTS:QUEUE:train:guard"
@@ -354,6 +354,13 @@ jq -e '
     and .target_actor_id == "arena_creep_attack"
   ))
   and (.rts_core_frame_orders | any(
+    .kind == "ability"
+    and .raw_command_label == "RTS:ABILITY:focus_fire"
+    and .target_rule_id == "focus_fire"
+    and .target_actor_id == "arena_creep_attack"
+    and .source == "local_input"
+  ))
+  and (.rts_core_frame_orders | any(
     .kind == "move"
     and .raw_command_label == "RTS:MOVE:4,3:line"
     and .target_tile.x == 4
@@ -383,12 +390,12 @@ jq -e '
   ))
   and .rts_core_headless_replay_gate == true
   and .rts_core_headless_replay_error == null
-  and .rts_core_headless_applied_order_count == 12
+  and .rts_core_headless_applied_order_count == 13
   and .rts_core_headless_actor_count == 8
   and .rts_core_headless_final_frame == 423
   and (.rts_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
   and .rts_core_headless_replay_report.contract == "trnm_rts_core_frame_order_v1"
-  and .rts_core_headless_replay_report.checkpoint.applied_order_count == 12
+  and .rts_core_headless_replay_report.checkpoint.applied_order_count == 13
   and .rts_core_headless_replay_report.checkpoint.actor_count == 8
   and .rts_core_headless_replay_report.checkpoint.player_count == 1
   and .rts_core_headless_replay_report.checkpoint.final_frame == 423
@@ -399,12 +406,17 @@ jq -e '
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:attack_move:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:stop:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:attack:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:ability:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:follow:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:harvest:")))
+  and .rts_core_headless_replay_report.checkpoint.abilities.ability_order_count == 1
+  and (.rts_core_headless_replay_report.checkpoint.abilities.ability_rule_ids | index("focus_fire") != null)
+  and (.rts_core_headless_replay_report.checkpoint.abilities.target_actor_ids | index("arena_creep_attack") != null)
   and (.rts_core_headless_replay_report.checkpoint.actors | any(
     .actor_id == "player"
     and .last_order_kind == "harvest"
     and .target_actor_id == "gold_vein"
+    and .ability_order_count == 1
     and .queued_order_count >= 3
     and .attack_order_count >= 2
     and .harvest_order_count == 1
