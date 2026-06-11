@@ -859,6 +859,7 @@ jq -n \
       rts_live_input_right_click_execution_feedback_target_pixel_count: $rts_live[0].right_click_execution_feedback_target_pixel_count,
       rts_live_input_right_click_execution_feedback_follow_pixel_count: $rts_live[0].right_click_execution_feedback_follow_pixel_count,
       rts_live_input_right_click_execution_feedback_harvest_pixel_count: $rts_live[0].right_click_execution_feedback_harvest_pixel_count,
+      rts_live_input_right_click_execution_feedback_viewport_marker_pixel_count: $rts_live[0].right_click_execution_feedback_viewport_marker_pixel_count,
       rts_live_input_unit_shift_select_marker_pixel_count: $rts_live[0].unit_shift_select_marker_pixel_count,
       rts_live_input_unit_shift_select_stamp_pixel_count: $rts_live[0].unit_shift_select_stamp_pixel_count,
       rts_live_input_unit_shift_select_add_unit_count: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_add_patrol") | .selected_unit_ids | length ][0] // 0),
@@ -3588,6 +3589,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_right_click_execution_feedback_target_pixel_count > 80
   and .headline.rts_live_input_right_click_execution_feedback_follow_pixel_count > 80
   and .headline.rts_live_input_right_click_execution_feedback_harvest_pixel_count > 80
+  and .headline.rts_live_input_right_click_execution_feedback_viewport_marker_pixel_count > 500
   and .headline.rts_live_input_unit_shift_select_marker_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_stamp_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_add_unit_count == 2

@@ -182,6 +182,7 @@ jq -e '
   and .right_click_execution_feedback_target_pixel_count > 80
   and .right_click_execution_feedback_follow_pixel_count > 80
   and .right_click_execution_feedback_harvest_pixel_count > 80
+  and .right_click_execution_feedback_viewport_marker_pixel_count > 500
   and (.right_click_target_hover_samples | any(
     .stage == "right_click_empty_move"
     and .action_label == "RTS:MOVE:4,3:line"
@@ -207,6 +208,7 @@ jq -e '
     and .execution_feedback_source_tile_id == "5,4"
     and .execution_feedback_destination_tile_id == "4,3"
     and .execution_feedback_path_pixel_count > 140
+    and .execution_feedback_viewport_marker_pixel_count > 80
   ))
   and (.right_click_target_hover_samples | any(
     .stage == "right_click_friendly_follow"
@@ -234,6 +236,7 @@ jq -e '
     and .execution_feedback_renderer_path == "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"
     and .execution_feedback_source_tile_id == "5,4"
     and .execution_feedback_follow_pixel_count > 80
+    and .execution_feedback_viewport_marker_pixel_count > 80
   ))
   and (.right_click_target_hover_samples | any(
     .stage == "right_click_resource_harvest"
@@ -267,6 +270,7 @@ jq -e '
     and .execution_feedback_destination_tile_id == "3,3"
     and .execution_feedback_dropoff_structure_id == "town_hall"
     and .execution_feedback_harvest_pixel_count > 80
+    and .execution_feedback_viewport_marker_pixel_count > 80
   ))
   and (.right_click_target_samples | any(
     .stage == "drag_filter_then_right_click_hostile"
@@ -276,6 +280,7 @@ jq -e '
     and .execution_feedback_destination_tile_id == "9,4"
     and .execution_feedback_target_id == "square_creep_wander"
     and .execution_feedback_target_pixel_count > 80
+    and .execution_feedback_viewport_marker_pixel_count > 80
   ))
   and .right_click_target_move_gate == true
   and .right_click_target_follow_gate == true

@@ -780,6 +780,7 @@ const CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR: u32 = 0x2ee7ff;
 const CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR: u32 = 0xff4f6d;
 const CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR: u32 = 0xeaff4f;
 const CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR: u32 = 0xb06aff;
+const CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR: u32 = 0xfff1a8;
 const CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR: u32 = 0xb7f6ff;
 const CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR: u32 = 0x86ff93;
 const CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR: u32 = 0xffdf7a;
@@ -42710,6 +42711,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         let mut right_click_execution_target_pixel_count = 0_usize;
         let mut right_click_execution_follow_pixel_count = 0_usize;
         let mut right_click_execution_harvest_pixel_count = 0_usize;
+        let mut right_click_execution_viewport_marker_pixel_count = 0_usize;
 
         if pre_drag {
             if let Some(polled) = classic_rts_drag_action_with_source_from_points(
@@ -42850,6 +42852,10 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .iter()
                 .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR)
                 .count();
+            right_click_execution_viewport_marker_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR)
+                .count();
             let execution_feedback_kind =
                 classic_rts_command_execution_feedback_kind(Some(&right_click_target_runtime));
             let execution_feedback_source_tile_id =
@@ -42898,6 +42904,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 "execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,
                 "execution_feedback_follow_pixel_count": right_click_execution_follow_pixel_count,
                 "execution_feedback_harvest_pixel_count": right_click_execution_harvest_pixel_count,
+                "execution_feedback_viewport_marker_pixel_count": right_click_execution_viewport_marker_pixel_count,
                 "accepted": right_click_target_runtime
                     .input_feedback_history
                     .last()
@@ -42916,6 +42923,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             right_click_execution_target_pixel_count,
             right_click_execution_follow_pixel_count,
             right_click_execution_harvest_pixel_count,
+            right_click_execution_viewport_marker_pixel_count,
         )
     };
 
@@ -42936,6 +42944,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let mut right_click_execution_target_pixel_count = 0_usize;
     let mut right_click_execution_follow_pixel_count = 0_usize;
     let mut right_click_execution_harvest_pixel_count = 0_usize;
+    let mut right_click_execution_viewport_marker_pixel_count = 0_usize;
 
     for (stage, mouse_x, mouse_y, tile_id, pre_drag) in [
         ("right_click_empty_move", 420, 240, "4,3", false),
@@ -42960,12 +42969,14 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             execution_target_pixels,
             execution_follow_pixels,
             execution_harvest_pixels,
+            execution_viewport_marker_pixels,
         ) = capture_right_click_target(stage, mouse_x, mouse_y, tile_id, pre_drag);
         right_click_execution_frame_pixel_count += execution_frame_pixels;
         right_click_execution_path_pixel_count += execution_path_pixels;
         right_click_execution_target_pixel_count += execution_target_pixels;
         right_click_execution_follow_pixel_count += execution_follow_pixels;
         right_click_execution_harvest_pixel_count += execution_harvest_pixels;
+        right_click_execution_viewport_marker_pixel_count += execution_viewport_marker_pixels;
         if stage == "drag_filter_then_right_click_hostile" {
             right_click_target_sample = sample.clone();
             right_click_target_hover_sample = hover_sample.clone();
@@ -44176,6 +44187,10 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                         .and_then(|value| value.as_u64())
                         .is_some_and(|pixels| pixels > 200)
                     && sample
+                        .get("execution_feedback_viewport_marker_pixel_count")
+                        .and_then(|value| value.as_u64())
+                        .is_some_and(|pixels| pixels > 80)
+                    && sample
                         .get(pixel_key)
                         .and_then(|value| value.as_u64())
                         .is_some_and(|pixels| pixels > min_pixels)
@@ -44335,6 +44350,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && right_click_execution_target_pixel_count > 80
         && right_click_execution_follow_pixel_count > 80
         && right_click_execution_harvest_pixel_count > 80
+        && right_click_execution_viewport_marker_pixel_count > 500
         && right_click_execution_feedback_stage_gate(
             "right_click_empty_move",
             "move",
@@ -44929,6 +44945,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,
         "right_click_execution_feedback_follow_pixel_count": right_click_execution_follow_pixel_count,
         "right_click_execution_feedback_harvest_pixel_count": right_click_execution_harvest_pixel_count,
+        "right_click_execution_feedback_viewport_marker_pixel_count": right_click_execution_viewport_marker_pixel_count,
         "unit_shift_select_samples": unit_shift_select_samples,
         "unit_shift_select_marker_pixel_count": unit_shift_select_marker_pixel_count,
         "unit_shift_select_stamp_pixel_count": unit_shift_select_stamp_pixel_count,
@@ -75781,6 +75798,154 @@ fn classic_rts_command_execution_target_label(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_command_execution_target_tile(
+    runtime: &NativeFirstPlayableRuntime,
+    kind: &str,
+) -> Option<(i32, i32)> {
+    let destination_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile);
+    match kind {
+        "attack" => runtime
+            .rts_attack_target_id
+            .as_deref()
+            .map(|target_id| classic_rts_target_tile_for_id(target_id, 0))
+            .or(destination_tile),
+        "follow" => {
+            let target_label = classic_rts_command_execution_target_label(runtime, kind);
+            classic_rts_selectable_unit_tile(&target_label).or(destination_tile)
+        }
+        "harvest" => runtime
+            .rts_harvest_node_ids
+            .first()
+            .map(|node_id| classic_rts_harvest_tile_for_node(node_id))
+            .or(destination_tile),
+        _ => destination_tile,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_execution_viewport_ping(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    layout: &ClassicRtsShellLayout,
+    tile: (i32, i32),
+    active_color: u32,
+) {
+    let (x, y) = classic_rts_viewport_tile_center(layout, tile);
+    classic_draw_rect(buffer, width, height, x - 5, y - 5, 10, 10, active_color);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x - 12,
+        y - 12,
+        24,
+        4,
+        CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x - 12,
+        y + 8,
+        24,
+        4,
+        CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x - 12,
+        y - 12,
+        4,
+        24,
+        CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 8,
+        y - 12,
+        4,
+        24,
+        CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_execution_viewport_markers(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    layout: &ClassicRtsShellLayout,
+    runtime: &NativeFirstPlayableRuntime,
+    kind: &str,
+    active_color: u32,
+) {
+    if let Some(source_tile) = classic_rts_primary_selected_tile(runtime) {
+        classic_draw_rts_command_execution_viewport_ping(
+            buffer,
+            width,
+            height,
+            layout,
+            source_tile,
+            CLASSIC_RTS_COMMAND_EXECUTION_FRAME_COLOR,
+        );
+    }
+    let route_tiles = if runtime.rts_path_tile_ids.is_empty() {
+        &runtime.rts_group_route_tile_ids
+    } else {
+        &runtime.rts_path_tile_ids
+    };
+    for tile in route_tiles
+        .iter()
+        .take(8)
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id))
+    {
+        classic_draw_rts_command_execution_viewport_ping(
+            buffer,
+            width,
+            height,
+            layout,
+            tile,
+            CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR,
+        );
+    }
+    if let Some(target_tile) = classic_rts_command_execution_target_tile(runtime, kind) {
+        classic_draw_rts_command_execution_viewport_ping(
+            buffer,
+            width,
+            height,
+            layout,
+            target_tile,
+            active_color,
+        );
+    }
+    if kind == "harvest" {
+        if let Some(dropoff_tile) = runtime
+            .rts_dropoff_structure_id
+            .as_deref()
+            .map(classic_rts_dropoff_tile_for_structure)
+        {
+            classic_draw_rts_command_execution_viewport_ping(
+                buffer,
+                width,
+                height,
+                layout,
+                dropoff_tile,
+                CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_rts_command_execution_feedback_overlay(
     buffer: &mut [u32],
     width: usize,
@@ -75811,6 +75976,17 @@ fn classic_draw_rts_command_execution_feedback_overlay(
         "harvest" => CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR,
         _ => CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR,
     };
+    if let Some(layout) = layout.as_ref() {
+        classic_draw_rts_command_execution_viewport_markers(
+            buffer,
+            width,
+            height,
+            layout,
+            runtime,
+            kind,
+            active_color,
+        );
+    }
     classic_draw_rect(
         buffer,
         width,
@@ -144001,6 +144177,13 @@ mod tests {
                 .count()
                 > 140
         );
+        assert!(
+            move_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR)
+                .count()
+                > 80
+        );
         let mut attack_execution_runtime = classic_openra_style_skirmish_runtime();
         apply_classic_rts_attack_runtime(&mut attack_execution_runtime, "square_creep_wander");
         attack_execution_runtime.rts_command_stamp_source =
@@ -144025,6 +144208,13 @@ mod tests {
                 .count()
                 > 80
         );
+        assert!(
+            attack_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR)
+                .count()
+                > 80
+        );
         let mut follow_execution_runtime = classic_openra_style_skirmish_runtime();
         apply_classic_rts_move_runtime(&mut follow_execution_runtime, "5,4", "follow:player");
         follow_execution_runtime.rts_command_stamp_source =
@@ -144046,6 +144236,13 @@ mod tests {
             follow_execution_pixels
                 .iter()
                 .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR)
+                .count()
+                > 80
+        );
+        assert!(
+            follow_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR)
                 .count()
                 > 80
         );
@@ -144076,6 +144273,13 @@ mod tests {
             harvest_execution_pixels
                 .iter()
                 .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR)
+                .count()
+                > 80
+        );
+        assert!(
+            harvest_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR)
                 .count()
                 > 80
         );
