@@ -37,6 +37,23 @@ jq -e '
   and (.final_command_queue | index("armor_shield:18:0") != null)
   and (.final_combat_event_log | index("projectile_impact:guard_break:arena_creep_attack") != null)
   and (.final_combat_event_log | index("shield_broken") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_projectile_ability_core_frame_order_gate == true
+  and .rts_projectile_ability_core_headless_replay_gate == true
+  and (.rts_projectile_ability_core_frame_orders | length == 4)
+  and (.rts_projectile_ability_core_frame_order_kind_labels | tostring == "[\"move\",\"attack\",\"ability\",\"ability\"]")
+  and (.rts_projectile_ability_core_frame_order_errors | length == 0)
+  and .rts_projectile_ability_core_frame_order_stream_error == null
+  and (.rts_projectile_ability_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_projectile_ability_core_headless_replay_error == null
+  and (.rts_projectile_ability_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_projectile_ability_core_headless_applied_order_count == 4
+  and .rts_projectile_ability_core_headless_actor_count >= 2
+  and .rts_projectile_ability_core_headless_final_frame == 704
+  and .rts_projectile_ability_core_headless_ability_order_count == 2
+  and (.rts_projectile_ability_core_headless_ability_rule_ids | index("focus_fire") != null)
+  and (.rts_projectile_ability_core_headless_ability_rule_ids | index("guard_break") != null)
+  and ((.rts_projectile_ability_core_headless_ability_target_actor_ids | map(select(. == "arena_creep_attack")) | length) == 2)
   and .non_background_pixels > 250000
   and .projectile_trail_pixel_count > 80
   and .projectile_impact_pixel_count > 80

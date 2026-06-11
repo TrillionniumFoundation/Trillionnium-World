@@ -472,6 +472,8 @@ jq -n \
       and $rts_projectile[0].ability_radius_gate == true
       and $rts_projectile[0].damage_tick_gate == true
       and $rts_projectile[0].armor_shield_gate == true
+      and $rts_projectile[0].rts_projectile_ability_core_frame_order_gate == true
+      and $rts_projectile[0].rts_projectile_ability_core_headless_replay_gate == true
       and $rts_projectile[0].accepted_input_count == 5
       and $rts_ai[0].live_ai_skirmish_input_gate == true
       and $rts_ai[0].ai_wave_gate == true
@@ -1038,6 +1040,15 @@ jq -n \
       rts_projectile_ability_target_health_percent: $rts_projectile[0].final_target_health_percent,
       rts_projectile_ability_target_armor_percent: $rts_projectile[0].final_target_armor_percent,
       rts_projectile_ability_target_shield_percent: $rts_projectile[0].final_target_shield_percent,
+      rts_projectile_ability_core_frame_order_count: ($rts_projectile[0].rts_projectile_ability_core_frame_orders | length),
+      rts_projectile_ability_core_frame_order_kinds: $rts_projectile[0].rts_projectile_ability_core_frame_order_kind_labels,
+      rts_projectile_ability_core_headless_checkpoint_sha256: $rts_projectile[0].rts_projectile_ability_core_headless_checkpoint_sha256,
+      rts_projectile_ability_core_headless_applied_order_count: $rts_projectile[0].rts_projectile_ability_core_headless_applied_order_count,
+      rts_projectile_ability_core_headless_actor_count: $rts_projectile[0].rts_projectile_ability_core_headless_actor_count,
+      rts_projectile_ability_core_headless_final_frame: $rts_projectile[0].rts_projectile_ability_core_headless_final_frame,
+      rts_projectile_ability_core_headless_ability_order_count: $rts_projectile[0].rts_projectile_ability_core_headless_ability_order_count,
+      rts_projectile_ability_core_headless_ability_rule_ids: $rts_projectile[0].rts_projectile_ability_core_headless_ability_rule_ids,
+      rts_projectile_ability_core_headless_ability_target_actor_ids: $rts_projectile[0].rts_projectile_ability_core_headless_ability_target_actor_ids,
       rts_projectile_ability_pixel_count: (
         $rts_projectile[0].projectile_trail_pixel_count
         + $rts_projectile[0].projectile_impact_pixel_count
@@ -2311,6 +2322,8 @@ jq -n \
       rts_projectile_ability_ability_radius_gate: $rts_projectile[0].ability_radius_gate,
       rts_projectile_ability_damage_tick_gate: $rts_projectile[0].damage_tick_gate,
       rts_projectile_ability_armor_shield_gate: $rts_projectile[0].armor_shield_gate,
+      rts_projectile_ability_core_frame_order_gate: $rts_projectile[0].rts_projectile_ability_core_frame_order_gate,
+      rts_projectile_ability_core_headless_replay_gate: $rts_projectile[0].rts_projectile_ability_core_headless_replay_gate,
       rts_ai_skirmish_pressure_live_input_gate: $rts_ai[0].live_ai_skirmish_input_gate,
       rts_ai_skirmish_pressure_ai_wave_gate: $rts_ai[0].ai_wave_gate,
       rts_ai_skirmish_pressure_ai_counter_gate: $rts_ai[0].ai_counter_gate,
@@ -3789,6 +3802,15 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_projectile_ability_target_health_percent <= 18
   and .headline.rts_projectile_ability_target_armor_percent == 18
   and .headline.rts_projectile_ability_target_shield_percent == 0
+  and .headline.rts_projectile_ability_core_frame_order_count == 4
+  and .headline.rts_projectile_ability_core_frame_order_kinds == ["move", "attack", "ability", "ability"]
+  and .headline.rts_projectile_ability_core_headless_applied_order_count == 4
+  and .headline.rts_projectile_ability_core_headless_actor_count >= 2
+  and .headline.rts_projectile_ability_core_headless_final_frame == 704
+  and .headline.rts_projectile_ability_core_headless_ability_order_count == 2
+  and (.headline.rts_projectile_ability_core_headless_ability_rule_ids | index("focus_fire") != null)
+  and (.headline.rts_projectile_ability_core_headless_ability_rule_ids | index("guard_break") != null)
+  and ((.headline.rts_projectile_ability_core_headless_ability_target_actor_ids | map(select(. == "arena_creep_attack")) | length) == 2)
   and .headline.rts_projectile_ability_pixel_count > 360
   and .headline.rts_projectile_ability_trail_pixel_count > 80
   and .headline.rts_projectile_ability_impact_pixel_count > 80
@@ -4507,6 +4529,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_projectile_ability_ability_radius_gate == true
   and .gates.rts_projectile_ability_damage_tick_gate == true
   and .gates.rts_projectile_ability_armor_shield_gate == true
+  and .gates.rts_projectile_ability_core_frame_order_gate == true
+  and .gates.rts_projectile_ability_core_headless_replay_gate == true
   and .gates.rts_ai_skirmish_pressure_live_input_gate == true
   and .gates.rts_ai_skirmish_pressure_ai_wave_gate == true
   and .gates.rts_ai_skirmish_pressure_ai_counter_gate == true

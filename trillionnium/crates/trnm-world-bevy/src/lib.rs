@@ -47735,6 +47735,8 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
     let mut action_labels = Vec::new();
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
+    let mut rts_projectile_ability_core_frame_orders = Vec::new();
+    let mut rts_projectile_ability_core_frame_order_errors = Vec::new();
 
     for (index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
@@ -47755,6 +47757,36 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
         }
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
+        }
+        if action_label.starts_with("RTS:MOVE:")
+            || action_label.starts_with("RTS:ATTACK:")
+            || action_label.starts_with("RTS:ABILITY:")
+        {
+            let subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+                vec!["selected_rts_group".to_string()]
+            } else {
+                runtime.rts_selected_unit_ids.clone()
+            };
+            match RtsFrameOrder::from_live_command_label(
+                700 + index as u32,
+                "Multi0",
+                subject_actor_ids,
+                &action_label,
+            ) {
+                Ok(mut order) => {
+                    if order.kind == RtsOrderKind::Ability && order.target_actor_id.is_none() {
+                        order.target_actor_id = runtime.rts_attack_target_id.clone();
+                    }
+                    if let Err(error) = order.validate() {
+                        rts_projectile_ability_core_frame_order_errors
+                            .push(format!("{stage}:{action_label}:{error}"));
+                    } else {
+                        rts_projectile_ability_core_frame_orders.push(order);
+                    }
+                }
+                Err(error) => rts_projectile_ability_core_frame_order_errors
+                    .push(format!("{stage}:{action_label}:{error}")),
+            }
         }
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -47792,6 +47824,9 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
             "action_label": action_label,
             "accepted": accepted,
             "last_action": gameplay_log.last_action,
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
+            "attack_target_id": runtime.rts_attack_target_id.clone(),
+            "active_ability_id": runtime.rts_active_ability_id.clone(),
             "active_projectile_id": runtime.rts_active_projectile_id.clone(),
             "projectile_trail_tile_ids": runtime.rts_projectile_trail_tile_ids.clone(),
             "projectile_impact_tile_id": runtime.rts_projectile_impact_tile_id.clone(),
@@ -47805,6 +47840,113 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
             "combat_event_log": runtime.rts_combat_event_log.clone(),
         }));
     }
+
+    let rts_projectile_ability_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-projectile-ability",
+        "trnm-rts-core-projectile-ability-rules-v1",
+        rts_projectile_ability_core_frame_orders.clone(),
+    );
+    let rts_projectile_ability_core_frame_order_stream_error =
+        rts_projectile_ability_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_projectile_ability_core_frame_order_stream_sha256 =
+        rts_projectile_ability_core_frame_order_stream.sha256_hex();
+    let rts_projectile_ability_core_frame_order_kind_labels =
+        rts_projectile_ability_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_projectile_ability_core_frame_order_values = rts_projectile_ability_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts projectile ability order serializes"))
+        .collect::<Vec<_>>();
+    let rts_projectile_ability_core_frame_order_stream_value =
+        serde_json::to_value(&rts_projectile_ability_core_frame_order_stream)
+            .expect("rts projectile ability stream serializes");
+    let rts_projectile_ability_core_frame_order_gate =
+        rts_projectile_ability_core_frame_order_errors.is_empty()
+            && rts_projectile_ability_core_frame_order_stream_error.is_none()
+            && rts_projectile_ability_core_frame_order_stream_sha256.len() == 64
+            && rts_projectile_ability_core_frame_orders.len() == 4
+            && rts_projectile_ability_core_frame_orders
+                .iter()
+                .any(|order| order.kind == RtsOrderKind::Move && order.target_tile.is_some())
+            && rts_projectile_ability_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Attack
+                        && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+                })
+            && rts_projectile_ability_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Ability
+                        && order.target_rule_id.as_deref() == Some("focus_fire")
+                        && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+                })
+            && rts_projectile_ability_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Ability
+                        && order.target_rule_id.as_deref() == Some("guard_break")
+                        && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+                });
+    let rts_projectile_ability_core_headless_replay_result =
+        rts_projectile_ability_core_frame_order_stream.replay_headless();
+    let (
+        rts_projectile_ability_core_headless_replay_report_value,
+        rts_projectile_ability_core_headless_checkpoint_sha256,
+        rts_projectile_ability_core_headless_replay_error,
+        rts_projectile_ability_core_headless_applied_order_count,
+        rts_projectile_ability_core_headless_actor_count,
+        rts_projectile_ability_core_headless_final_frame,
+        rts_projectile_ability_core_headless_ability_order_count,
+        rts_projectile_ability_core_headless_ability_rule_ids,
+        rts_projectile_ability_core_headless_ability_target_actor_ids,
+    ) = match rts_projectile_ability_core_headless_replay_result {
+        Ok(report) => (
+            serde_json::to_value(&report).expect("rts projectile ability replay report serializes"),
+            report.checkpoint_sha256,
+            None,
+            report.checkpoint.applied_order_count,
+            report.checkpoint.actor_count,
+            report.checkpoint.final_frame,
+            report.checkpoint.abilities.ability_order_count,
+            report.checkpoint.abilities.ability_rule_ids.clone(),
+            report.checkpoint.abilities.target_actor_ids.clone(),
+        ),
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_projectile_ability_core_headless_replay_gate =
+        rts_projectile_ability_core_frame_order_gate
+            && rts_projectile_ability_core_headless_replay_error.is_none()
+            && rts_projectile_ability_core_headless_checkpoint_sha256.len() == 64
+            && rts_projectile_ability_core_headless_applied_order_count == 4
+            && rts_projectile_ability_core_headless_actor_count >= 2
+            && rts_projectile_ability_core_headless_final_frame == 704
+            && rts_projectile_ability_core_headless_ability_order_count == 2
+            && rts_projectile_ability_core_headless_ability_rule_ids
+                .iter()
+                .any(|rule| rule == "focus_fire")
+            && rts_projectile_ability_core_headless_ability_rule_ids
+                .iter()
+                .any(|rule| rule == "guard_break")
+            && rts_projectile_ability_core_headless_ability_target_actor_ids
+                .iter()
+                .filter(|target| target.as_str() == "arena_creep_attack")
+                .count()
+                == 2;
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
@@ -47881,6 +48023,8 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
         && ability_radius_gate
         && damage_tick_gate
         && armor_shield_gate
+        && rts_projectile_ability_core_frame_order_gate
+        && rts_projectile_ability_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -47908,6 +48052,22 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
         "final_ability_resolution_state": runtime.rts_ability_resolution_state,
         "final_command_queue": runtime.rts_command_queue,
         "final_combat_event_log": runtime.rts_combat_event_log,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_projectile_ability_core_frame_orders": rts_projectile_ability_core_frame_order_values,
+        "rts_projectile_ability_core_frame_order_stream": rts_projectile_ability_core_frame_order_stream_value,
+        "rts_projectile_ability_core_frame_order_stream_sha256": rts_projectile_ability_core_frame_order_stream_sha256,
+        "rts_projectile_ability_core_frame_order_kind_labels": rts_projectile_ability_core_frame_order_kind_labels,
+        "rts_projectile_ability_core_frame_order_errors": rts_projectile_ability_core_frame_order_errors,
+        "rts_projectile_ability_core_frame_order_stream_error": rts_projectile_ability_core_frame_order_stream_error,
+        "rts_projectile_ability_core_headless_replay_report": rts_projectile_ability_core_headless_replay_report_value,
+        "rts_projectile_ability_core_headless_checkpoint_sha256": rts_projectile_ability_core_headless_checkpoint_sha256,
+        "rts_projectile_ability_core_headless_replay_error": rts_projectile_ability_core_headless_replay_error,
+        "rts_projectile_ability_core_headless_applied_order_count": rts_projectile_ability_core_headless_applied_order_count,
+        "rts_projectile_ability_core_headless_actor_count": rts_projectile_ability_core_headless_actor_count,
+        "rts_projectile_ability_core_headless_final_frame": rts_projectile_ability_core_headless_final_frame,
+        "rts_projectile_ability_core_headless_ability_order_count": rts_projectile_ability_core_headless_ability_order_count,
+        "rts_projectile_ability_core_headless_ability_rule_ids": rts_projectile_ability_core_headless_ability_rule_ids,
+        "rts_projectile_ability_core_headless_ability_target_actor_ids": rts_projectile_ability_core_headless_ability_target_actor_ids,
         "non_background_pixels": non_background_pixels,
         "projectile_trail_pixel_count": projectile_trail_pixel_count,
         "projectile_impact_pixel_count": projectile_impact_pixel_count,
@@ -47921,9 +48081,11 @@ pub fn native_classic_rts_projectile_ability_evidence_json(preview_path: &str) -
         "ability_radius_gate": ability_radius_gate,
         "damage_tick_gate": damage_tick_gate,
         "armor_shield_gate": armor_shield_gate,
+        "rts_projectile_ability_core_frame_order_gate": rts_projectile_ability_core_frame_order_gate,
+        "rts_projectile_ability_core_headless_replay_gate": rts_projectile_ability_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS projectile ability evidence drives ranged attack, impact, ability area, damage ticks, and armor/shield resolution through live native input before rendering every overlay through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS projectile ability evidence drives ranged attack, impact, ability area, damage ticks, and armor/shield resolution through live native input, emits projectile ability orders into trnm-rts-core, replays focus_fire and guard_break through the Bevy-free headless reducer, and renders every overlay through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS projectile ability evidence serializes")
 }

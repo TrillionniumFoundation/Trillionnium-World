@@ -21,6 +21,11 @@ required_script_lines=(
   'ability_radius_gate == true'
   'damage_tick_gate == true'
   'armor_shield_gate == true'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_projectile_ability_core_frame_order_gate == true'
+  'rts_projectile_ability_core_headless_replay_gate == true'
+  'rts_projectile_ability_core_headless_applied_order_count == 4'
+  'rts_projectile_ability_core_headless_ability_order_count == 2'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -48,6 +53,10 @@ required_source_lines=(
   'CLASSIC_RTS_ABILITY_RADIUS_COLOR'
   'CLASSIC_RTS_DAMAGE_TICK_COLOR'
   'CLASSIC_RTS_ARMOR_SHIELD_COLOR'
+  'RtsFrameOrder::from_live_command_label'
+  'first-contact-basin-projectile-ability'
+  'rts_projectile_ability_core_frame_order_gate'
+  'rts_projectile_ability_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -66,6 +75,9 @@ required_readiness_lines=(
   'rts_projectile_ability_ability_radius_gate'
   'rts_projectile_ability_damage_tick_gate'
   'rts_projectile_ability_armor_shield_gate'
+  'rts_projectile_ability_core_frame_order_gate'
+  'rts_projectile_ability_core_headless_replay_gate'
+  'rts_projectile_ability_core_headless_ability_order_count'
   'rts_projectile_ability_pixel_count'
 )
 
