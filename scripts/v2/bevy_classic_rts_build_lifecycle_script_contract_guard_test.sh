@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_build_lifecycle.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+CORE="$ROOT/trillionnium/crates/trnm-rts-core/src/lib.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 READINESS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
 
@@ -21,6 +22,14 @@ required_script_lines=(
   'completion_gate == true'
   'repair_gate == true'
   'cancel_refund_gate == true'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_production_lifecycle_core_frame_order_gate == true'
+  'rts_production_lifecycle_core_headless_replay_gate == true'
+  'rts_production_lifecycle_core_frame_orders | length == 6'
+  'rts_production_lifecycle_core_frame_order_kind_labels | tostring == "[\"build\",\"complete\",\"repair\",\"build\",\"cancel\",\"refund\"]"'
+  'RTS:QUEUE:refund:scout_tower@8,4:gold:+180'
+  'rts_production_lifecycle_core_headless_applied_order_count == 6'
+  'rts_production_lifecycle_core_refund_order_count == 1'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -47,10 +56,16 @@ required_source_lines=(
   'CLASSIC_RTS_STRUCTURE_REPAIR_COLOR'
   'CLASSIC_RTS_STRUCTURE_CANCEL_COLOR'
   'CLASSIC_RTS_STRUCTURE_HEALTH_COLOR'
+  'RtsFrameOrder::from_live_command_label'
+  'RtsFrameOrderStream::new'
+  'RtsOrderKind::Refund'
+  'rts_production_lifecycle_core_frame_order_gate'
+  'rts_production_lifecycle_core_headless_replay_gate'
+  'rts_production_lifecycle_core_refund_delta_labels'
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$MAIN" "$CORE"; then
     echo "[FAIL] missing classic RTS build lifecycle source line: $line" >&2
     exit 1
   fi
@@ -64,6 +79,10 @@ required_readiness_lines=(
   'rts_build_lifecycle_completion_gate'
   'rts_build_lifecycle_repair_gate'
   'rts_build_lifecycle_cancel_refund_gate'
+  'rts_build_lifecycle_core_frame_order_gate'
+  'rts_build_lifecycle_core_headless_replay_gate'
+  'rts_build_lifecycle_core_frame_order_count'
+  'rts_build_lifecycle_core_refund_order_count'
   'rts_build_lifecycle_pixel_count'
 )
 

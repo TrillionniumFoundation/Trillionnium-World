@@ -26,7 +26,9 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use trnm_rts_core::{RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, TRNM_RTS_CORE_CONTRACT};
+use trnm_rts_core::{
+    RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsTile, TRNM_RTS_CORE_CONTRACT,
+};
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
     WORLD_ACCOUNT_API_CONTRACT, WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT, WORLD_API_CONTRACT,
@@ -46718,6 +46720,199 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
         }));
     }
 
+    let mut rts_production_lifecycle_core_labels = action_labels
+        .iter()
+        .filter(|label| label.starts_with("RTS:QUEUE:"))
+        .cloned()
+        .collect::<Vec<_>>();
+    rts_production_lifecycle_core_labels.extend(
+        runtime
+            .rts_command_queue
+            .iter()
+            .filter(|entry| entry.starts_with("refund:"))
+            .map(|entry| format!("RTS:QUEUE:{entry}")),
+    );
+    let mut rts_production_lifecycle_core_frame_orders = Vec::new();
+    let mut rts_production_lifecycle_core_errors = Vec::new();
+    for (index, action_label) in rts_production_lifecycle_core_labels.iter().enumerate() {
+        match RtsFrameOrder::from_live_command_label(
+            520 + index as u32,
+            "Multi0",
+            vec!["square_worker_harvest".to_string()],
+            action_label,
+        ) {
+            Ok(mut order) => {
+                if order.kind == RtsOrderKind::Cancel
+                    && runtime
+                        .rts_cancelled_structure_ids
+                        .iter()
+                        .any(|structure| structure == "scout_tower")
+                {
+                    order.queue_id = Some("cancel:build:scout_tower@8,4".to_string());
+                    order.target_rule_id = Some("scout_tower".to_string());
+                    order.target_tile = Some(RtsTile::new(8, 4));
+                }
+                if let Err(error) = order.validate() {
+                    rts_production_lifecycle_core_errors.push(format!(
+                        "production_lifecycle_{index}:{action_label}:{error}"
+                    ));
+                } else {
+                    rts_production_lifecycle_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_production_lifecycle_core_errors.push(format!(
+                "production_lifecycle_{index}:{action_label}:{error}"
+            )),
+        }
+    }
+    let rts_production_lifecycle_core_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-build-lifecycle",
+        "trnm-rts-core-production-lifecycle-rules-v1",
+        rts_production_lifecycle_core_frame_orders.clone(),
+    );
+    let rts_production_lifecycle_core_stream_error =
+        rts_production_lifecycle_core_stream.validate().err();
+    let rts_production_lifecycle_core_stream_sha256 =
+        rts_production_lifecycle_core_stream.sha256_hex();
+    let rts_production_lifecycle_core_kind_labels = rts_production_lifecycle_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_production_lifecycle_core_frame_order_values =
+        rts_production_lifecycle_core_frame_orders
+            .iter()
+            .map(|order| serde_json::to_value(order).expect("rts production order serializes"))
+            .collect::<Vec<_>>();
+    let rts_production_lifecycle_core_stream_value =
+        serde_json::to_value(&rts_production_lifecycle_core_stream)
+            .expect("rts production stream serializes");
+    let rts_production_lifecycle_core_frame_order_gate = rts_production_lifecycle_core_errors
+        .is_empty()
+        && rts_production_lifecycle_core_stream_error.is_none()
+        && rts_production_lifecycle_core_stream_sha256.len() == 64
+        && rts_production_lifecycle_core_frame_orders.len() == 6
+        && rts_production_lifecycle_core_frame_orders
+            .iter()
+            .filter(|order| order.kind == RtsOrderKind::Build)
+            .count()
+            == 2
+        && rts_production_lifecycle_core_frame_orders
+            .iter()
+            .any(|order| {
+                order.kind == RtsOrderKind::Complete
+                    && order.target_rule_id.as_deref() == Some("watch_tower")
+            })
+        && rts_production_lifecycle_core_frame_orders
+            .iter()
+            .any(|order| {
+                order.kind == RtsOrderKind::Repair
+                    && order.target_actor_id.as_deref() == Some("watch_tower")
+            })
+        && rts_production_lifecycle_core_frame_orders
+            .iter()
+            .any(|order| {
+                order.kind == RtsOrderKind::Cancel
+                    && order.target_rule_id.as_deref() == Some("scout_tower")
+                    && order.queue_id.as_deref() == Some("cancel:build:scout_tower@8,4")
+            })
+        && rts_production_lifecycle_core_frame_orders
+            .iter()
+            .any(|order| {
+                order.kind == RtsOrderKind::Refund
+                    && order.target_rule_id.as_deref() == Some("scout_tower")
+                    && order.target_tile == Some(RtsTile::new(8, 4))
+                    && order.queue_id.as_deref() == Some("gold:+180")
+            });
+    let rts_production_lifecycle_core_replay_result =
+        rts_production_lifecycle_core_stream.replay_headless();
+    let (
+        rts_production_lifecycle_core_replay_report_value,
+        rts_production_lifecycle_core_checkpoint_sha256,
+        rts_production_lifecycle_core_replay_error,
+        rts_production_lifecycle_core_applied_order_count,
+        rts_production_lifecycle_core_actor_count,
+        rts_production_lifecycle_core_final_frame,
+        rts_production_lifecycle_core_event_log,
+        rts_production_lifecycle_core_checkpoint_value,
+        rts_production_lifecycle_core_lifecycle_order_count,
+        rts_production_lifecycle_core_build_order_count,
+        rts_production_lifecycle_core_complete_order_count,
+        rts_production_lifecycle_core_repair_order_count,
+        rts_production_lifecycle_core_cancel_order_count,
+        rts_production_lifecycle_core_refund_order_count,
+        rts_production_lifecycle_core_refund_delta_labels,
+    ) = match rts_production_lifecycle_core_replay_result {
+        Ok(report) => {
+            let lifecycle = report.checkpoint.production_lifecycle.clone();
+            (
+                serde_json::to_value(&report).expect("rts production lifecycle report serializes"),
+                report.checkpoint_sha256,
+                None,
+                report.checkpoint.applied_order_count,
+                report.checkpoint.actor_count,
+                report.checkpoint.final_frame,
+                report.checkpoint.event_log,
+                serde_json::to_value(&lifecycle)
+                    .expect("rts production lifecycle checkpoint serializes"),
+                lifecycle.lifecycle_order_count,
+                lifecycle.build_order_count,
+                lifecycle.complete_order_count,
+                lifecycle.repair_order_count,
+                lifecycle.cancel_order_count,
+                lifecycle.refund_order_count,
+                lifecycle.refund_delta_labels,
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Value::Null,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+        ),
+    };
+    let rts_production_lifecycle_core_headless_replay_gate =
+        rts_production_lifecycle_core_frame_order_gate
+            && rts_production_lifecycle_core_replay_error.is_none()
+            && rts_production_lifecycle_core_checkpoint_sha256.len() == 64
+            && rts_production_lifecycle_core_applied_order_count == 6
+            && rts_production_lifecycle_core_actor_count == 1
+            && rts_production_lifecycle_core_final_frame == 525
+            && rts_production_lifecycle_core_lifecycle_order_count == 6
+            && rts_production_lifecycle_core_build_order_count == 2
+            && rts_production_lifecycle_core_complete_order_count == 1
+            && rts_production_lifecycle_core_repair_order_count == 1
+            && rts_production_lifecycle_core_cancel_order_count == 1
+            && rts_production_lifecycle_core_refund_order_count == 1
+            && rts_production_lifecycle_core_refund_delta_labels
+                .iter()
+                .any(|delta| delta == "gold:+180")
+            && rts_production_lifecycle_core_event_log
+                .iter()
+                .any(|event| event.contains(":kind:build:"))
+            && rts_production_lifecycle_core_event_log
+                .iter()
+                .any(|event| event.contains(":kind:complete:"))
+            && rts_production_lifecycle_core_event_log
+                .iter()
+                .any(|event| event.contains(":kind:repair:"))
+            && rts_production_lifecycle_core_event_log
+                .iter()
+                .any(|event| event.contains(":kind:cancel:"))
+            && rts_production_lifecycle_core_event_log
+                .iter()
+                .any(|event| event.contains(":kind:refund:"));
+
     let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
     classic_draw_scene(
         &mut preview_pixels,
@@ -46852,6 +47047,8 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
         && completion_gate
         && repair_gate
         && cancel_refund_gate
+        && rts_production_lifecycle_core_frame_order_gate
+        && rts_production_lifecycle_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -46868,6 +47065,29 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
         "input_sources": input_sources,
         "action_labels": action_labels,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_production_lifecycle_core_labels": rts_production_lifecycle_core_labels,
+        "rts_production_lifecycle_core_frame_orders": rts_production_lifecycle_core_frame_order_values,
+        "rts_production_lifecycle_core_frame_order_stream": rts_production_lifecycle_core_stream_value,
+        "rts_production_lifecycle_core_frame_order_stream_sha256": rts_production_lifecycle_core_stream_sha256,
+        "rts_production_lifecycle_core_frame_order_kind_labels": rts_production_lifecycle_core_kind_labels,
+        "rts_production_lifecycle_core_frame_order_errors": rts_production_lifecycle_core_errors,
+        "rts_production_lifecycle_core_frame_order_stream_error": rts_production_lifecycle_core_stream_error,
+        "rts_production_lifecycle_core_headless_replay_report": rts_production_lifecycle_core_replay_report_value,
+        "rts_production_lifecycle_core_headless_checkpoint_sha256": rts_production_lifecycle_core_checkpoint_sha256,
+        "rts_production_lifecycle_core_headless_replay_error": rts_production_lifecycle_core_replay_error,
+        "rts_production_lifecycle_core_headless_applied_order_count": rts_production_lifecycle_core_applied_order_count,
+        "rts_production_lifecycle_core_headless_actor_count": rts_production_lifecycle_core_actor_count,
+        "rts_production_lifecycle_core_headless_final_frame": rts_production_lifecycle_core_final_frame,
+        "rts_production_lifecycle_core_headless_event_log": rts_production_lifecycle_core_event_log,
+        "rts_production_lifecycle_core_checkpoint": rts_production_lifecycle_core_checkpoint_value,
+        "rts_production_lifecycle_core_lifecycle_order_count": rts_production_lifecycle_core_lifecycle_order_count,
+        "rts_production_lifecycle_core_build_order_count": rts_production_lifecycle_core_build_order_count,
+        "rts_production_lifecycle_core_complete_order_count": rts_production_lifecycle_core_complete_order_count,
+        "rts_production_lifecycle_core_repair_order_count": rts_production_lifecycle_core_repair_order_count,
+        "rts_production_lifecycle_core_cancel_order_count": rts_production_lifecycle_core_cancel_order_count,
+        "rts_production_lifecycle_core_refund_order_count": rts_production_lifecycle_core_refund_order_count,
+        "rts_production_lifecycle_core_refund_delta_labels": rts_production_lifecycle_core_refund_delta_labels,
         "final_structure_state": runtime.rts_structure_state,
         "final_build_site_tile_ids": runtime.rts_build_site_tile_ids,
         "final_building_blueprint_id": runtime.rts_building_blueprint_id,
@@ -46892,9 +47112,11 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
         "completion_gate": completion_gate,
         "repair_gate": repair_gate,
         "cancel_refund_gate": cancel_refund_gate,
+        "rts_production_lifecycle_core_frame_order_gate": rts_production_lifecycle_core_frame_order_gate,
+        "rts_production_lifecycle_core_headless_replay_gate": rts_production_lifecycle_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS build lifecycle evidence drives build placement, structure completion, repair, and cancel/refund queue input into native runtime structure state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS build lifecycle evidence drives build placement, structure completion, repair, and cancel/refund queue input into native runtime structure state, emits those production lifecycle orders into trnm-rts-core, replays them through the Bevy-free headless reducer, and then renders the resulting overlays through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS build lifecycle evidence serializes")
 }

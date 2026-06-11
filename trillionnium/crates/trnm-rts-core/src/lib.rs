@@ -20,10 +20,13 @@ pub enum RtsOrderKind {
     ReturnCargo,
     Build,
     Train,
+    Complete,
     Capture,
     Attack,
     FocusFire,
     Repair,
+    Cancel,
+    Refund,
     Hold,
     Follow,
     Queue,
@@ -40,10 +43,13 @@ impl RtsOrderKind {
             RtsOrderKind::ReturnCargo => "return_cargo",
             RtsOrderKind::Build => "build",
             RtsOrderKind::Train => "train",
+            RtsOrderKind::Complete => "complete",
             RtsOrderKind::Capture => "capture",
             RtsOrderKind::Attack => "attack",
             RtsOrderKind::FocusFire => "focus_fire",
             RtsOrderKind::Repair => "repair",
+            RtsOrderKind::Cancel => "cancel",
+            RtsOrderKind::Refund => "refund",
             RtsOrderKind::Hold => "hold",
             RtsOrderKind::Follow => "follow",
             RtsOrderKind::Queue => "queue",
@@ -213,6 +219,30 @@ impl RtsFrameOrder {
                     return Err("train_rule_missing".to_string());
                 }
             }
+            RtsOrderKind::Complete => {
+                if self.target_rule_id.is_none() {
+                    return Err("complete_rule_missing".to_string());
+                }
+                if self.target_tile.is_none() {
+                    return Err("complete_target_tile_missing".to_string());
+                }
+            }
+            RtsOrderKind::Cancel => {
+                if self.queue_id.is_none() && self.target_rule_id.is_none() {
+                    return Err("cancel_target_missing".to_string());
+                }
+            }
+            RtsOrderKind::Refund => {
+                if self.target_rule_id.is_none() {
+                    return Err("refund_rule_missing".to_string());
+                }
+                if self.target_tile.is_none() {
+                    return Err("refund_target_tile_missing".to_string());
+                }
+                if self.queue_id.is_none() {
+                    return Err("refund_delta_missing".to_string());
+                }
+            }
             RtsOrderKind::ReturnCargo | RtsOrderKind::Stop | RtsOrderKind::Hold => {}
             RtsOrderKind::Queue => {
                 if self.queue_id.is_none() {
@@ -321,6 +351,70 @@ fn live_queue_order(
             order.target_rule_id = Some(payload.to_string());
             Ok(order)
         }
+        "complete" => {
+            let (rule_id, tile) = payload
+                .split_once('@')
+                .ok_or_else(|| format!("complete_payload_missing_tile:{payload}"))?;
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Complete,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.target_rule_id = Some(rule_id.to_string());
+            order.target_tile = Some(RtsTile::parse_csv(tile)?);
+            Ok(order)
+        }
+        "repair" => {
+            let (target_actor_id, tile) = payload
+                .split_once('@')
+                .ok_or_else(|| format!("repair_payload_missing_tile:{payload}"))?;
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Repair,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.target_actor_id = Some(target_actor_id.to_string());
+            order.target_tile = Some(RtsTile::parse_csv(tile)?);
+            Ok(order)
+        }
+        "cancel" => {
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Cancel,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.queue_id = Some(payload.to_string());
+            Ok(order)
+        }
+        "refund" => {
+            let (target, delta) = payload
+                .split_once(':')
+                .ok_or_else(|| format!("refund_payload_missing_delta:{payload}"))?;
+            let (rule_id, tile) = target
+                .split_once('@')
+                .ok_or_else(|| format!("refund_payload_missing_tile:{payload}"))?;
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Refund,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.target_rule_id = Some(rule_id.to_string());
+            order.target_tile = Some(RtsTile::parse_csv(tile)?);
+            order.queue_id = Some(delta.to_string());
+            Ok(order)
+        }
         _ => {
             let mut order = RtsFrameOrder::new(
                 frame,
@@ -397,6 +491,7 @@ impl RtsFrameOrderStream {
         let stream_sha256 = self.sha256_hex();
         let mut players = BTreeMap::<String, RtsPlayerCheckpoint>::new();
         let mut actors = BTreeMap::<String, RtsActorCheckpoint>::new();
+        let mut production_lifecycle = RtsProductionLifecycleCheckpoint::default();
         let mut event_log = Vec::new();
         let mut final_frame = 0_u32;
 
@@ -421,6 +516,7 @@ impl RtsFrameOrderStream {
                 subject_count,
                 target_label
             ));
+            production_lifecycle.record_order(order);
 
             for actor_id in &order.subject_actor_ids {
                 let actor = actors.entry(actor_id.clone()).or_insert_with(|| {
@@ -463,13 +559,35 @@ impl RtsFrameOrderStream {
                     RtsOrderKind::Build => {
                         actor.target_rule_id = order.target_rule_id.clone();
                         actor.tile = order.target_tile;
+                        actor.build_order_count += 1;
                     }
                     RtsOrderKind::Train => {
                         actor.target_rule_id = order.target_rule_id.clone();
+                        actor.train_order_count += 1;
+                    }
+                    RtsOrderKind::Complete => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.tile = order.target_tile;
+                        actor.complete_order_count += 1;
                     }
                     RtsOrderKind::Capture | RtsOrderKind::Repair => {
                         actor.target_actor_id = order.target_actor_id.clone();
                         actor.target_tile = order.target_tile;
+                        if order.kind == RtsOrderKind::Repair {
+                            actor.repair_order_count += 1;
+                        }
+                    }
+                    RtsOrderKind::Cancel => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.target_tile = order.target_tile;
+                        actor.queue_id = order.queue_id.clone();
+                        actor.cancel_order_count += 1;
+                    }
+                    RtsOrderKind::Refund => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.target_tile = order.target_tile;
+                        actor.queue_id = order.queue_id.clone();
+                        actor.refund_order_count += 1;
                     }
                     RtsOrderKind::Queue => {
                         actor.queue_id = order.queue_id.clone();
@@ -493,6 +611,7 @@ impl RtsFrameOrderStream {
             applied_order_count: self.orders.len() as u32,
             player_count: players.len() as u32,
             actor_count: actors.len() as u32,
+            production_lifecycle,
             players,
             actors,
             event_log,
@@ -523,6 +642,7 @@ pub struct RtsHeadlessReplayCheckpoint {
     pub applied_order_count: u32,
     pub player_count: u32,
     pub actor_count: u32,
+    pub production_lifecycle: RtsProductionLifecycleCheckpoint,
     pub players: Vec<RtsPlayerCheckpoint>,
     pub actors: Vec<RtsActorCheckpoint>,
     pub event_log: Vec<String>,
@@ -580,6 +700,12 @@ pub struct RtsActorCheckpoint {
     #[serde(default)]
     pub formation_id: Option<String>,
     pub queued_order_count: u32,
+    pub build_order_count: u32,
+    pub train_order_count: u32,
+    pub complete_order_count: u32,
+    pub repair_order_count: u32,
+    pub cancel_order_count: u32,
+    pub refund_order_count: u32,
     pub attack_order_count: u32,
     pub harvest_order_count: u32,
     pub command_history: Vec<String>,
@@ -600,9 +726,86 @@ impl RtsActorCheckpoint {
             queue_id: None,
             formation_id: None,
             queued_order_count: 0,
+            build_order_count: 0,
+            train_order_count: 0,
+            complete_order_count: 0,
+            repair_order_count: 0,
+            cancel_order_count: 0,
+            refund_order_count: 0,
             attack_order_count: 0,
             harvest_order_count: 0,
             command_history: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsProductionLifecycleCheckpoint {
+    pub lifecycle_order_count: u32,
+    pub build_order_count: u32,
+    pub train_order_count: u32,
+    pub complete_order_count: u32,
+    pub repair_order_count: u32,
+    pub cancel_order_count: u32,
+    pub refund_order_count: u32,
+    pub build_rule_ids: Vec<String>,
+    pub train_rule_ids: Vec<String>,
+    pub completed_rule_ids: Vec<String>,
+    pub repair_target_ids: Vec<String>,
+    pub cancelled_queue_ids: Vec<String>,
+    pub refund_rule_ids: Vec<String>,
+    pub refund_delta_labels: Vec<String>,
+}
+
+impl RtsProductionLifecycleCheckpoint {
+    fn record_order(&mut self, order: &RtsFrameOrder) {
+        match order.kind {
+            RtsOrderKind::Build => {
+                self.lifecycle_order_count += 1;
+                self.build_order_count += 1;
+                push_if_present(&mut self.build_rule_ids, order.target_rule_id.as_deref());
+            }
+            RtsOrderKind::Train => {
+                self.lifecycle_order_count += 1;
+                self.train_order_count += 1;
+                push_if_present(&mut self.train_rule_ids, order.target_rule_id.as_deref());
+            }
+            RtsOrderKind::Complete => {
+                self.lifecycle_order_count += 1;
+                self.complete_order_count += 1;
+                push_if_present(
+                    &mut self.completed_rule_ids,
+                    order.target_rule_id.as_deref(),
+                );
+            }
+            RtsOrderKind::Repair => {
+                self.lifecycle_order_count += 1;
+                self.repair_order_count += 1;
+                push_if_present(
+                    &mut self.repair_target_ids,
+                    order.target_actor_id.as_deref(),
+                );
+            }
+            RtsOrderKind::Cancel => {
+                self.lifecycle_order_count += 1;
+                self.cancel_order_count += 1;
+                push_if_present(&mut self.cancelled_queue_ids, order.queue_id.as_deref());
+            }
+            RtsOrderKind::Refund => {
+                self.lifecycle_order_count += 1;
+                self.refund_order_count += 1;
+                push_if_present(&mut self.refund_rule_ids, order.target_rule_id.as_deref());
+                push_if_present(&mut self.refund_delta_labels, order.queue_id.as_deref());
+            }
+            _ => {}
+        }
+    }
+}
+
+fn push_if_present(values: &mut Vec<String>, value: Option<&str>) {
+    if let Some(value) = value {
+        if !value.is_empty() {
+            values.push(value.to_string());
         }
     }
 }
@@ -724,6 +927,56 @@ mod tests {
         .unwrap();
         assert_eq!(train_order.kind, RtsOrderKind::Train);
         assert_eq!(train_order.target_rule_id.as_deref(), Some("guard"));
+    }
+
+    #[test]
+    fn build_lifecycle_queue_labels_keep_lifecycle_identity() {
+        let complete_order = RtsFrameOrder::from_live_command_label(
+            12,
+            "Multi0",
+            vec!["builder".to_string()],
+            "RTS:QUEUE:complete:watch_tower@7,4",
+        )
+        .unwrap();
+        assert_eq!(complete_order.kind, RtsOrderKind::Complete);
+        assert_eq!(
+            complete_order.target_rule_id.as_deref(),
+            Some("watch_tower")
+        );
+        assert_eq!(complete_order.target_tile, Some(RtsTile::new(7, 4)));
+
+        let repair_order = RtsFrameOrder::from_live_command_label(
+            13,
+            "Multi0",
+            vec!["builder".to_string()],
+            "RTS:QUEUE:repair:watch_tower@7,4",
+        )
+        .unwrap();
+        assert_eq!(repair_order.kind, RtsOrderKind::Repair);
+        assert_eq!(repair_order.target_actor_id.as_deref(), Some("watch_tower"));
+        assert_eq!(repair_order.target_tile, Some(RtsTile::new(7, 4)));
+
+        let cancel_order = RtsFrameOrder::from_live_command_label(
+            14,
+            "Multi0",
+            vec!["builder".to_string()],
+            "RTS:QUEUE:cancel:build:1",
+        )
+        .unwrap();
+        assert_eq!(cancel_order.kind, RtsOrderKind::Cancel);
+        assert_eq!(cancel_order.queue_id.as_deref(), Some("build:1"));
+
+        let refund_order = RtsFrameOrder::from_live_command_label(
+            15,
+            "Multi0",
+            vec!["builder".to_string()],
+            "RTS:QUEUE:refund:scout_tower@8,4:gold:+180",
+        )
+        .unwrap();
+        assert_eq!(refund_order.kind, RtsOrderKind::Refund);
+        assert_eq!(refund_order.target_rule_id.as_deref(), Some("scout_tower"));
+        assert_eq!(refund_order.target_tile, Some(RtsTile::new(8, 4)));
+        assert_eq!(refund_order.queue_id.as_deref(), Some("gold:+180"));
     }
 
     #[test]
@@ -903,5 +1156,106 @@ mod tests {
             .event_log
             .iter()
             .any(|event| event.contains(":kind:stop:")));
+    }
+
+    #[test]
+    fn headless_replay_tracks_build_lifecycle_stream() {
+        let labels = [
+            "RTS:QUEUE:build:watch_tower@7,4",
+            "RTS:QUEUE:complete:watch_tower@7,4",
+            "RTS:QUEUE:repair:watch_tower@7,4",
+            "RTS:QUEUE:build:scout_tower@8,4",
+            "RTS:QUEUE:cancel:build:1",
+            "RTS:QUEUE:refund:scout_tower@8,4:gold:+180",
+        ];
+        let mut orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    500 + index as u32,
+                    "Multi0",
+                    vec!["builder".to_string()],
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let cancel = orders
+            .iter_mut()
+            .find(|order| order.kind == RtsOrderKind::Cancel)
+            .unwrap();
+        cancel.queue_id = Some("cancel:build:scout_tower@8,4".to_string());
+        cancel.target_rule_id = Some("scout_tower".to_string());
+        cancel.target_tile = Some(RtsTile::new(8, 4));
+        cancel.validate().unwrap();
+
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-build-lifecycle",
+            "trnm-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let lifecycle = &report.checkpoint.production_lifecycle;
+        assert_eq!(report.checkpoint.applied_order_count, 6);
+        assert_eq!(report.checkpoint.final_frame, 505);
+        assert_eq!(lifecycle.lifecycle_order_count, 6);
+        assert_eq!(lifecycle.build_order_count, 2);
+        assert_eq!(lifecycle.complete_order_count, 1);
+        assert_eq!(lifecycle.repair_order_count, 1);
+        assert_eq!(lifecycle.cancel_order_count, 1);
+        assert_eq!(lifecycle.refund_order_count, 1);
+        assert!(lifecycle
+            .build_rule_ids
+            .iter()
+            .any(|rule| rule == "watch_tower"));
+        assert!(lifecycle
+            .refund_rule_ids
+            .iter()
+            .any(|rule| rule == "scout_tower"));
+        assert!(lifecycle
+            .refund_delta_labels
+            .iter()
+            .any(|delta| delta == "gold:+180"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:build:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:complete:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:repair:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:cancel:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:refund:")));
+
+        let builder = report
+            .checkpoint
+            .actors
+            .iter()
+            .find(|actor| actor.actor_id == "builder")
+            .unwrap();
+        assert_eq!(builder.build_order_count, 2);
+        assert_eq!(builder.complete_order_count, 1);
+        assert_eq!(builder.repair_order_count, 1);
+        assert_eq!(builder.cancel_order_count, 1);
+        assert_eq!(builder.refund_order_count, 1);
+        assert_eq!(builder.target_rule_id.as_deref(), Some("scout_tower"));
+        assert_eq!(builder.target_tile, Some(RtsTile::new(8, 4)));
+        assert_eq!(builder.queue_id.as_deref(), Some("gold:+180"));
     }
 }

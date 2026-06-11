@@ -40,6 +40,66 @@ jq -e '
   and (.final_command_queue | index("repair:watch_tower@7,4") != null)
   and (.final_command_queue | index("cancel:build:scout_tower@8,4") != null)
   and (.final_command_queue | index("refund:scout_tower@8,4:gold:+180") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_production_lifecycle_core_frame_order_gate == true
+  and .rts_production_lifecycle_core_headless_replay_gate == true
+  and (.rts_production_lifecycle_core_frame_orders | length == 6)
+  and (.rts_production_lifecycle_core_frame_order_errors | length == 0)
+  and .rts_production_lifecycle_core_frame_order_stream_error == null
+  and (.rts_production_lifecycle_core_frame_order_stream.orders | length == 6)
+  and (.rts_production_lifecycle_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.rts_production_lifecycle_core_frame_order_kind_labels | tostring == "[\"build\",\"complete\",\"repair\",\"build\",\"cancel\",\"refund\"]")
+  and (.rts_production_lifecycle_core_frame_orders | any(
+    .kind == "build"
+    and .raw_command_label == "RTS:QUEUE:build:watch_tower@7,4"
+    and .target_rule_id == "watch_tower"
+    and .target_tile.x == 7
+    and .target_tile.y == 4
+    and .queued == true
+  ))
+  and (.rts_production_lifecycle_core_frame_orders | any(
+    .kind == "complete"
+    and .raw_command_label == "RTS:QUEUE:complete:watch_tower@7,4"
+    and .target_rule_id == "watch_tower"
+    and .target_tile.x == 7
+    and .target_tile.y == 4
+  ))
+  and (.rts_production_lifecycle_core_frame_orders | any(
+    .kind == "repair"
+    and .raw_command_label == "RTS:QUEUE:repair:watch_tower@7,4"
+    and .target_actor_id == "watch_tower"
+    and .target_tile.x == 7
+    and .target_tile.y == 4
+  ))
+  and (.rts_production_lifecycle_core_frame_orders | any(
+    .kind == "cancel"
+    and .raw_command_label == "RTS:QUEUE:cancel:build:1"
+    and .target_rule_id == "scout_tower"
+    and .target_tile.x == 8
+    and .target_tile.y == 4
+    and .queue_id == "cancel:build:scout_tower@8,4"
+  ))
+  and (.rts_production_lifecycle_core_frame_orders | any(
+    .kind == "refund"
+    and .raw_command_label == "RTS:QUEUE:refund:scout_tower@8,4:gold:+180"
+    and .target_rule_id == "scout_tower"
+    and .target_tile.x == 8
+    and .target_tile.y == 4
+    and .queue_id == "gold:+180"
+  ))
+  and .rts_production_lifecycle_core_headless_replay_error == null
+  and .rts_production_lifecycle_core_headless_applied_order_count == 6
+  and .rts_production_lifecycle_core_headless_actor_count == 1
+  and .rts_production_lifecycle_core_headless_final_frame == 525
+  and (.rts_production_lifecycle_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_production_lifecycle_core_lifecycle_order_count == 6
+  and .rts_production_lifecycle_core_build_order_count == 2
+  and .rts_production_lifecycle_core_complete_order_count == 1
+  and .rts_production_lifecycle_core_repair_order_count == 1
+  and .rts_production_lifecycle_core_cancel_order_count == 1
+  and .rts_production_lifecycle_core_refund_order_count == 1
+  and (.rts_production_lifecycle_core_refund_delta_labels | index("gold:+180") != null)
+  and .rts_production_lifecycle_core_checkpoint.refund_order_count == 1
   and .non_background_pixels > 120000
   and .build_blueprint_pixel_count > 40
   and .build_progress_pixel_count > 20

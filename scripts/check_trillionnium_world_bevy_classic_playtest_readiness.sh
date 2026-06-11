@@ -454,6 +454,8 @@ jq -n \
       and $rts_build_lifecycle[0].completion_gate == true
       and $rts_build_lifecycle[0].repair_gate == true
       and $rts_build_lifecycle[0].cancel_refund_gate == true
+      and $rts_build_lifecycle[0].rts_production_lifecycle_core_frame_order_gate == true
+      and $rts_build_lifecycle[0].rts_production_lifecycle_core_headless_replay_gate == true
       and $rts_build_lifecycle[0].accepted_input_count == 6
       and $rts_tech_tree[0].live_tech_tree_input_gate == true
       and $rts_tech_tree[0].faction_base_gate == true
@@ -972,6 +974,19 @@ jq -n \
       rts_build_lifecycle_cancelled_structure_count: ($rts_build_lifecycle[0].final_cancelled_structure_ids | length),
       rts_build_lifecycle_repair_progress_percent: $rts_build_lifecycle[0].final_repair_progress_percent,
       rts_build_lifecycle_refund_count: ($rts_build_lifecycle[0].final_refund_delta_log | length),
+      rts_build_lifecycle_core_frame_order_count: ($rts_build_lifecycle[0].rts_production_lifecycle_core_frame_orders | length),
+      rts_build_lifecycle_core_frame_order_kinds: $rts_build_lifecycle[0].rts_production_lifecycle_core_frame_order_kind_labels,
+      rts_build_lifecycle_core_frame_order_stream_sha256: $rts_build_lifecycle[0].rts_production_lifecycle_core_frame_order_stream_sha256,
+      rts_build_lifecycle_core_headless_checkpoint_sha256: $rts_build_lifecycle[0].rts_production_lifecycle_core_headless_checkpoint_sha256,
+      rts_build_lifecycle_core_headless_applied_order_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_headless_applied_order_count,
+      rts_build_lifecycle_core_headless_actor_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_headless_actor_count,
+      rts_build_lifecycle_core_headless_final_frame: $rts_build_lifecycle[0].rts_production_lifecycle_core_headless_final_frame,
+      rts_build_lifecycle_core_lifecycle_order_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_lifecycle_order_count,
+      rts_build_lifecycle_core_build_order_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_build_order_count,
+      rts_build_lifecycle_core_complete_order_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_complete_order_count,
+      rts_build_lifecycle_core_repair_order_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_repair_order_count,
+      rts_build_lifecycle_core_cancel_order_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_cancel_order_count,
+      rts_build_lifecycle_core_refund_order_count: $rts_build_lifecycle[0].rts_production_lifecycle_core_refund_order_count,
       rts_build_lifecycle_pixel_count: (
         $rts_build_lifecycle[0].structure_complete_pixel_count
         + $rts_build_lifecycle[0].structure_health_pixel_count
@@ -2269,6 +2284,8 @@ jq -n \
       rts_build_lifecycle_completion_gate: $rts_build_lifecycle[0].completion_gate,
       rts_build_lifecycle_repair_gate: $rts_build_lifecycle[0].repair_gate,
       rts_build_lifecycle_cancel_refund_gate: $rts_build_lifecycle[0].cancel_refund_gate,
+      rts_build_lifecycle_core_frame_order_gate: $rts_build_lifecycle[0].rts_production_lifecycle_core_frame_order_gate,
+      rts_build_lifecycle_core_headless_replay_gate: $rts_build_lifecycle[0].rts_production_lifecycle_core_headless_replay_gate,
       rts_tech_tree_live_input_gate: $rts_tech_tree[0].live_tech_tree_input_gate,
       rts_tech_tree_faction_base_gate: $rts_tech_tree[0].faction_base_gate,
       rts_tech_tree_research_gate: $rts_tech_tree[0].research_gate,
@@ -3709,6 +3726,19 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_build_lifecycle_cancelled_structure_count >= 1
   and .headline.rts_build_lifecycle_repair_progress_percent >= 76
   and .headline.rts_build_lifecycle_refund_count >= 1
+  and .headline.rts_build_lifecycle_core_frame_order_count == 6
+  and (.headline.rts_build_lifecycle_core_frame_order_kinds | tostring == "[\"build\",\"complete\",\"repair\",\"build\",\"cancel\",\"refund\"]")
+  and (.headline.rts_build_lifecycle_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_build_lifecycle_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .headline.rts_build_lifecycle_core_headless_applied_order_count == 6
+  and .headline.rts_build_lifecycle_core_headless_actor_count == 1
+  and .headline.rts_build_lifecycle_core_headless_final_frame == 525
+  and .headline.rts_build_lifecycle_core_lifecycle_order_count == 6
+  and .headline.rts_build_lifecycle_core_build_order_count == 2
+  and .headline.rts_build_lifecycle_core_complete_order_count == 1
+  and .headline.rts_build_lifecycle_core_repair_order_count == 1
+  and .headline.rts_build_lifecycle_core_cancel_order_count == 1
+  and .headline.rts_build_lifecycle_core_refund_order_count == 1
   and .headline.rts_build_lifecycle_pixel_count > 200
   and .headline.rts_build_lifecycle_structure_complete_pixel_count > 80
   and .headline.rts_build_lifecycle_structure_health_pixel_count > 20
@@ -4440,6 +4470,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_build_lifecycle_completion_gate == true
   and .gates.rts_build_lifecycle_repair_gate == true
   and .gates.rts_build_lifecycle_cancel_refund_gate == true
+  and .gates.rts_build_lifecycle_core_frame_order_gate == true
+  and .gates.rts_build_lifecycle_core_headless_replay_gate == true
   and .gates.rts_tech_tree_live_input_gate == true
   and .gates.rts_tech_tree_faction_base_gate == true
   and .gates.rts_tech_tree_research_gate == true
