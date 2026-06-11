@@ -1357,11 +1357,33 @@ jq -n \
       rts_bot_decision_state_gap_match_result_pixel_count: $rts_bot_decision_state_gap[0].match_result_pixel_count,
       rts_bot_adaptive_build_order_gap_stage_count: $rts_bot_adaptive_build_order_gap[0].adaptive_stage_count,
       rts_bot_adaptive_build_order_gap_state: $rts_bot_adaptive_build_order_gap[0].bevy_bot_adaptive_build_gap_state,
-      rts_bot_adaptive_build_order_gap_openra_economy_tech_commit: $rts_bot_adaptive_build_order_gap[0].openra_bot_economy_tech_target_commit,
-      rts_bot_adaptive_build_order_gap_openra_beacon_pressure_commit: $rts_bot_adaptive_build_order_gap[0].openra_bot_beacon_pressure_target_commit,
-      rts_bot_adaptive_build_order_gap_openra_organic_terminal_commit: $rts_bot_adaptive_build_order_gap[0].openra_organic_bot_terminal_target_commit,
-      rts_bot_adaptive_build_order_gap_adaptive_signals: $rts_bot_adaptive_build_order_gap[0].adaptive_signal_count,
-      rts_bot_adaptive_build_order_gap_opening_build_orders: $rts_bot_adaptive_build_order_gap[0].opening_build_order_count,
+	      rts_bot_adaptive_build_order_gap_openra_economy_tech_commit: $rts_bot_adaptive_build_order_gap[0].openra_bot_economy_tech_target_commit,
+	      rts_bot_adaptive_build_order_gap_openra_beacon_pressure_commit: $rts_bot_adaptive_build_order_gap[0].openra_bot_beacon_pressure_target_commit,
+	      rts_bot_adaptive_build_order_gap_openra_organic_terminal_commit: $rts_bot_adaptive_build_order_gap[0].openra_organic_bot_terminal_target_commit,
+	      rts_bot_adaptive_build_order_gap_core_frame_order_stream_sha256: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_frame_order_stream_sha256,
+	      rts_bot_adaptive_build_order_gap_core_headless_checkpoint_sha256: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_checkpoint_sha256,
+	      rts_bot_adaptive_build_order_gap_core_frame_order_kinds: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_frame_order_kind_labels,
+	      rts_bot_adaptive_build_order_gap_core_headless_applied_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_applied_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_actor_count: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_actor_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_final_frame: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_final_frame,
+	      rts_bot_adaptive_build_order_gap_core_headless_harvest_actor_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_harvest_actor_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_build_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_build_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_train_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_train_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_build_rules: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_build_rule_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_train_rules: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_train_rule_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_scout_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_scout_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_recon_ids: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_recon_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_recon_tiles: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_recon_tile_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_research_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_research_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_researched_rules: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_researched_rule_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_research_sources: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_research_source_actor_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_attack_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_attack_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_micro_move_orders: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_micro_move_order_count,
+	      rts_bot_adaptive_build_order_gap_core_headless_combat_targets: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_combat_target_actor_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_combat_tiles: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_combat_target_tile_ids,
+	      rts_bot_adaptive_build_order_gap_core_headless_combat_formations: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_combat_formation_ids,
+	      rts_bot_adaptive_build_order_gap_adaptive_signals: $rts_bot_adaptive_build_order_gap[0].adaptive_signal_count,
+	      rts_bot_adaptive_build_order_gap_opening_build_orders: $rts_bot_adaptive_build_order_gap[0].opening_build_order_count,
       rts_bot_adaptive_build_order_gap_scout_triggers: $rts_bot_adaptive_build_order_gap[0].scout_trigger_count,
       rts_bot_adaptive_build_order_gap_branch_switches: $rts_bot_adaptive_build_order_gap[0].branch_switch_count,
       rts_bot_adaptive_build_order_gap_counter_tech_switches: $rts_bot_adaptive_build_order_gap[0].counter_tech_switch_count,
@@ -2531,9 +2553,11 @@ jq -n \
       rts_bot_adaptive_build_order_gap_retreat_rebuild_gate: $rts_bot_adaptive_build_order_gap[0].adaptive_retreat_rebuild_gate,
       rts_bot_adaptive_build_order_gap_bevy_gap_gate: $rts_bot_adaptive_build_order_gap[0].bevy_gap_gate,
       rts_bot_adaptive_build_order_gap_openra_target_gate: $rts_bot_adaptive_build_order_gap[0].openra_adaptive_build_target_gate,
-      rts_bot_adaptive_build_order_gap_renderer_gate: $rts_bot_adaptive_build_order_gap[0].renderer_gate,
-      rts_bot_adaptive_build_order_gap_openra_gap_not_closed_gate: $rts_bot_adaptive_build_order_gap[0].openra_gap_not_closed_gate,
-      rts_bot_adaptive_build_order_gap_gate: $rts_bot_adaptive_build_order_gap[0].adaptive_build_order_gap_gate,
+	      rts_bot_adaptive_build_order_gap_renderer_gate: $rts_bot_adaptive_build_order_gap[0].renderer_gate,
+	      rts_bot_adaptive_build_order_gap_openra_gap_not_closed_gate: $rts_bot_adaptive_build_order_gap[0].openra_gap_not_closed_gate,
+	      rts_bot_adaptive_build_order_gap_core_frame_order_gate: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_frame_order_gate,
+	      rts_bot_adaptive_build_order_gap_core_headless_replay_gate: $rts_bot_adaptive_build_order_gap[0].rts_bot_adaptive_core_headless_replay_gate,
+	      rts_bot_adaptive_build_order_gap_gate: $rts_bot_adaptive_build_order_gap[0].adaptive_build_order_gap_gate,
       rts_bot_tactical_micro_gap_stage_gate: $rts_bot_tactical_micro_gap[0].micro_stage_gate,
       rts_bot_tactical_micro_gap_signal_gate: $rts_bot_tactical_micro_gap[0].micro_signal_gate,
       rts_bot_tactical_micro_gap_target_gate: $rts_bot_tactical_micro_gap[0].micro_target_gate,
@@ -4181,11 +4205,34 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_bot_decision_state_gap_match_result_pixel_count > 20
   and .headline.rts_bot_adaptive_build_order_gap_stage_count == 6
   and .headline.rts_bot_adaptive_build_order_gap_state == "bevy_adaptive_build_order_vocabulary_not_openra_native_ai_planner"
-  and .headline.rts_bot_adaptive_build_order_gap_openra_economy_tech_commit == "f6c47d9"
-  and .headline.rts_bot_adaptive_build_order_gap_openra_beacon_pressure_commit == "2b6f25b"
-  and .headline.rts_bot_adaptive_build_order_gap_openra_organic_terminal_commit == "5f1bf76"
-  and .headline.rts_bot_adaptive_build_order_gap_adaptive_signals >= 24
-  and .headline.rts_bot_adaptive_build_order_gap_opening_build_orders >= 3
+	  and .headline.rts_bot_adaptive_build_order_gap_openra_economy_tech_commit == "f6c47d9"
+	  and .headline.rts_bot_adaptive_build_order_gap_openra_beacon_pressure_commit == "2b6f25b"
+	  and .headline.rts_bot_adaptive_build_order_gap_openra_organic_terminal_commit == "5f1bf76"
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+	  and .headline.rts_bot_adaptive_build_order_gap_core_frame_order_kinds == ["harvest", "build", "train", "recon", "build", "research", "train", "attack", "move"]
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_applied_orders == 9
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_actor_count >= 3
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_final_frame == 1408
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_harvest_actor_orders >= 3
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_build_orders == 2
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_train_orders == 2
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_build_rules | index("relay_refinery") != null)
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_build_rules | index("forge_natural_defense") != null)
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_train_rules | index("trnm.horizon.skimmer") != null)
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_scout_orders == 1
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_recon_ids | index("enemy_fast_beacon") != null)
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_recon_tiles | index("6,5") != null)
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_research_orders == 1
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_researched_rules | index("signal_array") != null)
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_research_sources | index("town_hall") != null)
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_attack_orders == 1
+	  and .headline.rts_bot_adaptive_build_order_gap_core_headless_micro_move_orders == 1
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_combat_targets | index("beacon_pressure_window") != null)
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_combat_tiles | index("9,5") != null)
+	  and (.headline.rts_bot_adaptive_build_order_gap_core_headless_combat_formations | index("pullback_rebuild_then_reattack") != null)
+	  and .headline.rts_bot_adaptive_build_order_gap_adaptive_signals >= 24
+	  and .headline.rts_bot_adaptive_build_order_gap_opening_build_orders >= 3
   and .headline.rts_bot_adaptive_build_order_gap_scout_triggers >= 2
   and .headline.rts_bot_adaptive_build_order_gap_branch_switches >= 3
   and .headline.rts_bot_adaptive_build_order_gap_counter_tech_switches >= 2
@@ -4864,9 +4911,11 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_adaptive_build_order_gap_retreat_rebuild_gate == true
   and .gates.rts_bot_adaptive_build_order_gap_bevy_gap_gate == true
   and .gates.rts_bot_adaptive_build_order_gap_openra_target_gate == true
-  and .gates.rts_bot_adaptive_build_order_gap_renderer_gate == true
-  and .gates.rts_bot_adaptive_build_order_gap_openra_gap_not_closed_gate == true
-  and .gates.rts_bot_adaptive_build_order_gap_gate == true
+	  and .gates.rts_bot_adaptive_build_order_gap_renderer_gate == true
+	  and .gates.rts_bot_adaptive_build_order_gap_openra_gap_not_closed_gate == true
+	  and .gates.rts_bot_adaptive_build_order_gap_core_frame_order_gate == true
+	  and .gates.rts_bot_adaptive_build_order_gap_core_headless_replay_gate == true
+	  and .gates.rts_bot_adaptive_build_order_gap_gate == true
   and .gates.rts_bot_tactical_micro_gap_stage_gate == true
   and .gates.rts_bot_tactical_micro_gap_signal_gate == true
   and .gates.rts_bot_tactical_micro_gap_target_gate == true

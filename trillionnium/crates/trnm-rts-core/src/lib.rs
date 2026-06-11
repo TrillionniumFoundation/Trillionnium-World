@@ -2380,6 +2380,94 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_adaptive_build_order_stream() {
+        let subjects = vec![
+            "bot_worker".to_string(),
+            "bot_scout".to_string(),
+            "bot_commander".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:harvest:relay_refinery",
+            "RTS:QUEUE:build:relay_refinery@5,5",
+            "RTS:QUEUE:train:trnm.worker",
+            "RTS:QUEUE:recon:scout:enemy_fast_beacon@6,5",
+            "RTS:QUEUE:build:forge_natural_defense@6,5",
+            "RTS:QUEUE:research:signal_array@town_hall",
+            "RTS:QUEUE:train:trnm.horizon.skimmer",
+            "RTS:ATTACK:beacon_pressure_window",
+            "RTS:MOVE:9,5:pullback_rebuild_then_reattack",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    1_400 + index as u32,
+                    "Bot0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-adaptive-build-order",
+            "trnm-rts-core-bot-adaptive-build-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let production = &report.checkpoint.production_lifecycle;
+        let recon = &report.checkpoint.recon_intel;
+        let tech = &report.checkpoint.tech_tree;
+        let combat = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 9);
+        assert_eq!(report.checkpoint.actor_count, 3);
+        assert_eq!(report.checkpoint.final_frame, 1_408);
+        assert_eq!(production.build_order_count, 2);
+        assert_eq!(production.train_order_count, 2);
+        assert!(production
+            .build_rule_ids
+            .iter()
+            .any(|rule| rule == "relay_refinery"));
+        assert!(production
+            .build_rule_ids
+            .iter()
+            .any(|rule| rule == "forge_natural_defense"));
+        assert!(production
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "trnm.horizon.skimmer"));
+        assert_eq!(recon.scout_order_count, 1);
+        assert!(recon.recon_ids.iter().any(|id| id == "enemy_fast_beacon"));
+        assert_eq!(tech.research_order_count, 1);
+        assert!(tech
+            .researched_rule_ids
+            .iter()
+            .any(|rule| rule == "signal_array"));
+        assert_eq!(combat.attack_order_count, 1);
+        assert_eq!(combat.micro_move_order_count, 1);
+        assert!(combat
+            .combat_target_actor_ids
+            .iter()
+            .any(|target| target == "beacon_pressure_window"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "pullback_rebuild_then_reattack"));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.harvest_order_count, 1);
+            assert_eq!(actor.build_order_count, 2);
+            assert_eq!(actor.train_order_count, 2);
+            assert_eq!(actor.recon_order_count, 1);
+            assert_eq!(actor.research_order_count, 1);
+            assert_eq!(actor.attack_order_count, 1);
+            assert_eq!(actor.tile, Some(RtsTile::new(9, 5)));
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),
