@@ -22,6 +22,24 @@ jq -e '
   and .openra_bot_economy_tech_target_commit == "f6c47d9"
   and .openra_bot_beacon_pressure_target_commit == "2b6f25b"
   and .openra_organic_bot_terminal_target_commit == "5f1bf76"
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_bot_decision_core_frame_order_gate == true
+  and .rts_bot_decision_core_headless_replay_gate == true
+  and .rts_bot_decision_core_frame_order_kind_labels == ["harvest", "recon", "capture", "research", "attack", "move"]
+  and .rts_bot_decision_core_headless_applied_order_count == 6
+  and .rts_bot_decision_core_headless_actor_count >= 3
+  and .rts_bot_decision_core_headless_final_frame == 1005
+  and .rts_bot_decision_core_headless_harvest_actor_order_count >= 3
+  and .rts_bot_decision_core_headless_scout_order_count == 1
+  and .rts_bot_decision_core_headless_capture_order_count == 1
+  and .rts_bot_decision_core_headless_research_order_count == 1
+  and .rts_bot_decision_core_headless_attack_order_count == 1
+  and .rts_bot_decision_core_headless_micro_move_order_count == 1
+  and (.rts_bot_decision_core_headless_recon_ids | index("beacon_ring") != null)
+  and (.rts_bot_decision_core_headless_objective_ids | index("relay_beacon") != null)
+  and (.rts_bot_decision_core_headless_researched_rule_ids | index("signal_array") != null)
+  and (.rts_bot_decision_core_headless_combat_target_actor_ids | index("counter_push") != null)
+  and (.rts_bot_decision_core_headless_combat_target_tile_ids | index("8,4") != null)
   and .bot_decision_stage_count == 6
   and (.stage_summaries | length) == 6
   and (.stage_summaries | map(.stage) | index("economy_seed") != null)

@@ -1313,6 +1313,24 @@ jq -n \
       rts_bot_decision_state_gap_openra_economy_tech_commit: $rts_bot_decision_state_gap[0].openra_bot_economy_tech_target_commit,
       rts_bot_decision_state_gap_openra_beacon_pressure_commit: $rts_bot_decision_state_gap[0].openra_bot_beacon_pressure_target_commit,
       rts_bot_decision_state_gap_openra_organic_terminal_commit: $rts_bot_decision_state_gap[0].openra_organic_bot_terminal_target_commit,
+      rts_bot_decision_state_gap_core_frame_order_stream_sha256: $rts_bot_decision_state_gap[0].rts_bot_decision_core_frame_order_stream_sha256,
+      rts_bot_decision_state_gap_core_headless_checkpoint_sha256: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_checkpoint_sha256,
+      rts_bot_decision_state_gap_core_frame_order_kinds: $rts_bot_decision_state_gap[0].rts_bot_decision_core_frame_order_kind_labels,
+      rts_bot_decision_state_gap_core_headless_applied_orders: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_applied_order_count,
+      rts_bot_decision_state_gap_core_headless_actor_count: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_actor_count,
+      rts_bot_decision_state_gap_core_headless_final_frame: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_final_frame,
+      rts_bot_decision_state_gap_core_headless_harvest_actor_orders: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_harvest_actor_order_count,
+      rts_bot_decision_state_gap_core_headless_scout_orders: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_scout_order_count,
+      rts_bot_decision_state_gap_core_headless_capture_orders: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_capture_order_count,
+      rts_bot_decision_state_gap_core_headless_research_orders: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_research_order_count,
+      rts_bot_decision_state_gap_core_headless_attack_orders: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_attack_order_count,
+      rts_bot_decision_state_gap_core_headless_micro_move_orders: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_micro_move_order_count,
+      rts_bot_decision_state_gap_core_headless_recon_ids: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_recon_ids,
+      rts_bot_decision_state_gap_core_headless_objective_ids: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_objective_ids,
+      rts_bot_decision_state_gap_core_headless_researched_rules: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_researched_rule_ids,
+      rts_bot_decision_state_gap_core_headless_combat_targets: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_combat_target_actor_ids,
+      rts_bot_decision_state_gap_core_headless_combat_tiles: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_combat_target_tile_ids,
+      rts_bot_decision_state_gap_core_headless_combat_formations: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_combat_formation_ids,
       rts_bot_decision_state_gap_decision_signals: $rts_bot_decision_state_gap[0].decision_signal_count,
       rts_bot_decision_state_gap_economy_decisions: $rts_bot_decision_state_gap[0].economy_decision_count,
       rts_bot_decision_state_gap_objective_decisions: $rts_bot_decision_state_gap[0].objective_decision_count,
@@ -2500,6 +2518,8 @@ jq -n \
       rts_bot_decision_state_gap_openra_target_gate: $rts_bot_decision_state_gap[0].openra_bot_decision_target_gate,
       rts_bot_decision_state_gap_renderer_gate: $rts_bot_decision_state_gap[0].renderer_gate,
       rts_bot_decision_state_gap_openra_gap_not_closed_gate: $rts_bot_decision_state_gap[0].openra_gap_not_closed_gate,
+      rts_bot_decision_state_gap_core_frame_order_gate: $rts_bot_decision_state_gap[0].rts_bot_decision_core_frame_order_gate,
+      rts_bot_decision_state_gap_core_headless_replay_gate: $rts_bot_decision_state_gap[0].rts_bot_decision_core_headless_replay_gate,
       rts_bot_decision_state_gap_gate: $rts_bot_decision_state_gap[0].bot_decision_state_gap_gate,
       rts_bot_adaptive_build_order_gap_stage_gate: $rts_bot_adaptive_build_order_gap[0].adaptive_stage_gate,
       rts_bot_adaptive_build_order_gap_signal_gate: $rts_bot_adaptive_build_order_gap[0].adaptive_signal_gate,
@@ -4124,6 +4144,24 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_bot_decision_state_gap_openra_economy_tech_commit == "f6c47d9"
   and .headline.rts_bot_decision_state_gap_openra_beacon_pressure_commit == "2b6f25b"
   and .headline.rts_bot_decision_state_gap_openra_organic_terminal_commit == "5f1bf76"
+  and (.headline.rts_bot_decision_state_gap_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_bot_decision_state_gap_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_bot_decision_state_gap_core_frame_order_kinds | tostring == "[\"harvest\",\"recon\",\"capture\",\"research\",\"attack\",\"move\"]")
+  and .headline.rts_bot_decision_state_gap_core_headless_applied_orders == 6
+  and .headline.rts_bot_decision_state_gap_core_headless_actor_count >= 3
+  and .headline.rts_bot_decision_state_gap_core_headless_final_frame == 1005
+  and .headline.rts_bot_decision_state_gap_core_headless_harvest_actor_orders >= 3
+  and .headline.rts_bot_decision_state_gap_core_headless_scout_orders == 1
+  and .headline.rts_bot_decision_state_gap_core_headless_capture_orders == 1
+  and .headline.rts_bot_decision_state_gap_core_headless_research_orders == 1
+  and .headline.rts_bot_decision_state_gap_core_headless_attack_orders == 1
+  and .headline.rts_bot_decision_state_gap_core_headless_micro_move_orders == 1
+  and (.headline.rts_bot_decision_state_gap_core_headless_recon_ids | index("beacon_ring") != null)
+  and (.headline.rts_bot_decision_state_gap_core_headless_objective_ids | index("relay_beacon") != null)
+  and (.headline.rts_bot_decision_state_gap_core_headless_researched_rules | index("signal_array") != null)
+  and (.headline.rts_bot_decision_state_gap_core_headless_combat_targets | index("counter_push") != null)
+  and (.headline.rts_bot_decision_state_gap_core_headless_combat_tiles | index("8,4") != null)
+  and (.headline.rts_bot_decision_state_gap_core_headless_combat_formations | index("attack_commit_repath") != null)
   and .headline.rts_bot_decision_state_gap_decision_signals >= 18
   and .headline.rts_bot_decision_state_gap_economy_decisions >= 3
   and .headline.rts_bot_decision_state_gap_objective_decisions >= 4
@@ -4813,6 +4851,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_decision_state_gap_openra_target_gate == true
   and .gates.rts_bot_decision_state_gap_renderer_gate == true
   and .gates.rts_bot_decision_state_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_bot_decision_state_gap_core_frame_order_gate == true
+  and .gates.rts_bot_decision_state_gap_core_headless_replay_gate == true
   and .gates.rts_bot_decision_state_gap_gate == true
   and .gates.rts_bot_adaptive_build_order_gap_stage_gate == true
   and .gates.rts_bot_adaptive_build_order_gap_signal_gate == true
