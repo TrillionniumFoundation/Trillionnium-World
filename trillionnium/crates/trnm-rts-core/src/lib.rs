@@ -238,19 +238,26 @@ fn live_move_order(
             .ok_or_else(|| "move_tile_missing".to_string())?,
     )?;
     let mode = parts.get(1).copied().unwrap_or("line");
+    let kind = match mode {
+        "attack_move" => RtsOrderKind::AttackMove,
+        "follow" => RtsOrderKind::Follow,
+        "hold" => RtsOrderKind::Hold,
+        "patrol" => RtsOrderKind::Patrol,
+        "stop" => RtsOrderKind::Stop,
+        _ => RtsOrderKind::Move,
+    };
     let mut order = RtsFrameOrder::new(
         frame,
         player_id,
         subject_actor_ids,
-        if mode == "follow" {
-            RtsOrderKind::Follow
-        } else {
-            RtsOrderKind::Move
-        },
+        kind,
         RtsOrderSource::LocalInput,
     );
     order.target_tile = Some(tile);
     order.formation_id = Some(mode.to_string());
+    if mode == "shift_waypoint" {
+        order.queued = true;
+    }
     if mode == "follow" {
         let target_actor_id = parts
             .get(2)
@@ -467,7 +474,10 @@ impl RtsFrameOrderStream {
                     RtsOrderKind::Queue => {
                         actor.queue_id = order.queue_id.clone();
                     }
-                    RtsOrderKind::Stop | RtsOrderKind::Hold => {}
+                    RtsOrderKind::Stop | RtsOrderKind::Hold => {
+                        actor.target_tile = order.target_tile;
+                        actor.formation_id = order.formation_id.clone();
+                    }
                 }
             }
         }
@@ -717,6 +727,24 @@ mod tests {
     }
 
     #[test]
+    fn live_command_modes_keep_order_kind_identity() {
+        for (label, expected_kind, queued) in [
+            ("RTS:MOVE:9,4:shift_waypoint", RtsOrderKind::Move, true),
+            ("RTS:MOVE:6,5:hold", RtsOrderKind::Hold, false),
+            ("RTS:MOVE:9,4:patrol", RtsOrderKind::Patrol, false),
+            ("RTS:MOVE:10,3:attack_move", RtsOrderKind::AttackMove, false),
+            ("RTS:MOVE:10,3:stop", RtsOrderKind::Stop, false),
+        ] {
+            let order =
+                RtsFrameOrder::from_live_command_label(20, "Multi0", selected_subjects(), label)
+                    .unwrap();
+            assert_eq!(order.kind, expected_kind);
+            assert_eq!(order.queued, queued);
+            assert!(order.target_tile.is_some());
+        }
+    }
+
+    #[test]
     fn frame_stream_digest_is_stable_and_order_sensitive() {
         let order = RtsFrameOrder::from_live_command_label(
             7,
@@ -817,5 +845,63 @@ mod tests {
         changed.orders[3].target_actor_id = Some("blue_crystal".to_string());
         let changed = changed.replay_headless().unwrap();
         assert_ne!(first.checkpoint_sha256, changed.checkpoint_sha256);
+    }
+
+    #[test]
+    fn headless_replay_tracks_expanded_live_command_stream() {
+        let labels = [
+            "RTS:QUEUE:train:guard",
+            "RTS:MOVE:7,4:diamond",
+            "RTS:MOVE:9,4:shift_waypoint",
+            "RTS:MOVE:6,5:hold",
+            "RTS:MOVE:9,4:patrol",
+            "RTS:MOVE:10,3:attack_move",
+            "RTS:MOVE:10,3:stop",
+            "RTS:ATTACK:arena_creep_attack",
+        ];
+        let mut orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    300 + index as u32,
+                    "Multi0",
+                    selected_subjects(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        orders.extend(live_right_click_stream().orders);
+        let stream =
+            RtsFrameOrderStream::new("first-contact-basin-live-input", "trnm-rules-v1", orders);
+        let report = stream.replay_headless().unwrap();
+        assert_eq!(report.checkpoint.applied_order_count, 12);
+        assert_eq!(report.checkpoint.final_frame, 423);
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:train:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:hold:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:patrol:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:attack_move:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:stop:")));
     }
 }

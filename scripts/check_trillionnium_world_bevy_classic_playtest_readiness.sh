@@ -3601,12 +3601,12 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_right_click_target_move_label == "MAP MOVE SENT 4,3"
   and .headline.rts_live_input_right_click_target_follow_label == "MAP FOLLOW SENT PLAYER"
   and .headline.rts_live_input_right_click_target_harvest_label == "MAP HARVEST SENT GOLD VEIN 3,3"
-  and .headline.rts_live_input_rts_core_frame_order_count == 4
-  and (.headline.rts_live_input_rts_core_frame_order_kinds | tostring == "[\"move\",\"attack\",\"follow\",\"harvest\"]")
+  and .headline.rts_live_input_rts_core_frame_order_count == 12
+  and (.headline.rts_live_input_rts_core_frame_order_kinds | tostring == "[\"train\",\"move\",\"move\",\"hold\",\"patrol\",\"attack_move\",\"stop\",\"attack\",\"move\",\"attack\",\"follow\",\"harvest\"]")
   and (.headline.rts_live_input_rts_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
   and (.headline.rts_live_input_rts_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
-  and .headline.rts_live_input_rts_core_headless_applied_order_count == 4
-  and .headline.rts_live_input_rts_core_headless_actor_count == 7
+  and .headline.rts_live_input_rts_core_headless_applied_order_count == 12
+  and .headline.rts_live_input_rts_core_headless_actor_count == 8
   and .headline.rts_live_input_rts_core_headless_final_frame == 423
   and .headline.rts_live_input_right_click_target_follow_stamp_pixel_count > 80
   and .headline.rts_live_input_right_click_target_harvest_stamp_pixel_count > 80

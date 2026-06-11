@@ -42459,6 +42459,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "last_feedback": runtime.last_feedback,
             "group_id": runtime.rts_control_group_id.clone(),
             "selected_unit_count": runtime.rts_selected_unit_ids.len(),
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
             "command_queue": runtime.rts_command_queue.clone(),
             "production_queue": runtime.rts_production_queue.clone(),
             "destination_tile": runtime.rts_command_destination_tile.clone(),
@@ -43186,13 +43187,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         right_click_target_hover_pixel_sum("target_preview_harvest_pixel_count");
     let mut rts_core_frame_orders = Vec::new();
     let mut rts_core_frame_order_errors = Vec::new();
-    for (index, sample) in right_click_target_samples.iter().enumerate() {
-        let Some(action_label) = sample.get("action_label").and_then(|value| value.as_str()) else {
-            rts_core_frame_order_errors.push(format!("sample_{index}:action_label_missing"));
-            continue;
-        };
-        let subject_actor_ids = sample
-            .get("selected_unit_ids")
+    let json_string_vec = |value: &Value, key: &str| -> Vec<String> {
+        value
+            .get(key)
             .and_then(|value| value.as_array())
             .map(|values| {
                 values
@@ -43201,7 +43198,38 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                     .collect::<Vec<_>>()
             })
             .filter(|values| !values.is_empty())
-            .unwrap_or_else(|| vec!["selected_rts_group".to_string()]);
+            .unwrap_or_else(|| vec!["selected_rts_group".to_string()])
+    };
+    for (index, summary) in stage_summaries.iter().enumerate() {
+        let Some(action_label) = summary.get("action_label").and_then(|value| value.as_str())
+        else {
+            rts_core_frame_order_errors.push(format!("live_input_{index}:action_label_missing"));
+            continue;
+        };
+        if !action_label.starts_with("RTS:MOVE:")
+            && !action_label.starts_with("RTS:ATTACK:")
+            && !action_label.starts_with("RTS:QUEUE:")
+        {
+            continue;
+        }
+        let subject_actor_ids = json_string_vec(summary, "selected_unit_ids");
+        match RtsFrameOrder::from_live_command_label(
+            300 + index as u32,
+            "Multi0",
+            subject_actor_ids,
+            action_label,
+        ) {
+            Ok(order) => rts_core_frame_orders.push(order),
+            Err(error) => rts_core_frame_order_errors
+                .push(format!("live_input_{index}:{action_label}:{error}")),
+        }
+    }
+    for (index, sample) in right_click_target_samples.iter().enumerate() {
+        let Some(action_label) = sample.get("action_label").and_then(|value| value.as_str()) else {
+            rts_core_frame_order_errors.push(format!("sample_{index}:action_label_missing"));
+            continue;
+        };
+        let subject_actor_ids = json_string_vec(sample, "selected_unit_ids");
         match RtsFrameOrder::from_live_command_label(
             420 + index as u32,
             "Multi0",
@@ -43234,10 +43262,28 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let rts_core_frame_order_gate = rts_core_frame_order_errors.is_empty()
         && rts_core_frame_order_stream_error.is_none()
         && rts_core_frame_order_stream_sha256.len() == 64
-        && rts_core_frame_orders.len() == 4
+        && rts_core_frame_orders.len() == 12
         && rts_core_frame_orders
             .iter()
             .any(|order| order.kind == RtsOrderKind::Move && order.target_tile.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Train && order.target_rule_id.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Move && order.queued)
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Hold && order.target_tile.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Patrol && order.target_tile.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::AttackMove && order.target_tile.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Stop && order.target_tile.is_some())
         && rts_core_frame_orders
             .iter()
             .any(|order| order.kind == RtsOrderKind::Attack && order.target_actor_id.is_some())
@@ -43274,12 +43320,27 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let rts_core_headless_replay_gate = rts_core_frame_order_gate
         && rts_core_headless_replay_error.is_none()
         && rts_core_headless_checkpoint_sha256.len() == 64
-        && rts_core_headless_applied_order_count == 4
+        && rts_core_headless_applied_order_count == 12
         && rts_core_headless_actor_count >= 5
         && rts_core_headless_final_frame == 423
         && rts_core_headless_event_log
             .iter()
+            .any(|event| event.contains(":kind:train:"))
+        && rts_core_headless_event_log
+            .iter()
             .any(|event| event.contains(":kind:move:"))
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:hold:"))
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:patrol:"))
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:attack_move:"))
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:stop:"))
         && rts_core_headless_event_log
             .iter()
             .any(|event| event.contains(":kind:attack:"))

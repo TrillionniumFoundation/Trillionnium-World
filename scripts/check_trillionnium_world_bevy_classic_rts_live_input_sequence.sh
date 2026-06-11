@@ -299,12 +299,60 @@ jq -e '
   and .right_click_target_semantics_gate == true
   and .rts_core_contract == "trnm_rts_core_frame_order_v1"
   and .rts_core_frame_order_gate == true
-  and (.rts_core_frame_orders | length == 4)
+  and (.rts_core_frame_orders | length == 12)
   and (.rts_core_frame_order_errors | length == 0)
   and .rts_core_frame_order_stream_error == null
-  and (.rts_core_frame_order_stream.orders | length == 4)
+  and (.rts_core_frame_order_stream.orders | length == 12)
   and (.rts_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
-  and (.rts_core_frame_order_kind_labels | tostring == "[\"move\",\"attack\",\"follow\",\"harvest\"]")
+  and (.rts_core_frame_order_kind_labels | tostring == "[\"train\",\"move\",\"move\",\"hold\",\"patrol\",\"attack_move\",\"stop\",\"attack\",\"move\",\"attack\",\"follow\",\"harvest\"]")
+  and (.rts_core_frame_orders | any(
+    .kind == "train"
+    and .raw_command_label == "RTS:QUEUE:train:guard"
+    and .target_rule_id == "guard"
+    and .queued == true
+    and .source == "local_input"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "move"
+    and .raw_command_label == "RTS:MOVE:9,4:shift_waypoint"
+    and .target_tile.x == 9
+    and .target_tile.y == 4
+    and .formation_id == "shift_waypoint"
+    and .queued == true
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "hold"
+    and .raw_command_label == "RTS:MOVE:6,5:hold"
+    and .target_tile.x == 6
+    and .target_tile.y == 5
+    and .formation_id == "hold"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "patrol"
+    and .raw_command_label == "RTS:MOVE:9,4:patrol"
+    and .target_tile.x == 9
+    and .target_tile.y == 4
+    and .formation_id == "patrol"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "attack_move"
+    and .raw_command_label == "RTS:MOVE:10,3:attack_move"
+    and .target_tile.x == 10
+    and .target_tile.y == 3
+    and .formation_id == "attack_move"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "stop"
+    and .raw_command_label == "RTS:MOVE:10,3:stop"
+    and .target_tile.x == 10
+    and .target_tile.y == 3
+    and .formation_id == "stop"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "attack"
+    and .raw_command_label == "RTS:ATTACK:arena_creep_attack"
+    and .target_actor_id == "arena_creep_attack"
+  ))
   and (.rts_core_frame_orders | any(
     .kind == "move"
     and .raw_command_label == "RTS:MOVE:4,3:line"
@@ -335,16 +383,21 @@ jq -e '
   ))
   and .rts_core_headless_replay_gate == true
   and .rts_core_headless_replay_error == null
-  and .rts_core_headless_applied_order_count == 4
-  and .rts_core_headless_actor_count == 7
+  and .rts_core_headless_applied_order_count == 12
+  and .rts_core_headless_actor_count == 8
   and .rts_core_headless_final_frame == 423
   and (.rts_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
   and .rts_core_headless_replay_report.contract == "trnm_rts_core_frame_order_v1"
-  and .rts_core_headless_replay_report.checkpoint.applied_order_count == 4
-  and .rts_core_headless_replay_report.checkpoint.actor_count == 7
+  and .rts_core_headless_replay_report.checkpoint.applied_order_count == 12
+  and .rts_core_headless_replay_report.checkpoint.actor_count == 8
   and .rts_core_headless_replay_report.checkpoint.player_count == 1
   and .rts_core_headless_replay_report.checkpoint.final_frame == 423
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:train:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:move:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:hold:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:patrol:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:attack_move:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:stop:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:attack:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:follow:")))
   and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:harvest:")))
@@ -352,9 +405,14 @@ jq -e '
     .actor_id == "player"
     and .last_order_kind == "harvest"
     and .target_actor_id == "gold_vein"
-    and .queued_order_count == 1
-    and .attack_order_count == 1
+    and .queued_order_count >= 3
+    and .attack_order_count >= 2
     and .harvest_order_count == 1
+    and (.command_history | any(contains(":train:guard")))
+    and (.command_history | any(contains(":hold:6,5")))
+    and (.command_history | any(contains(":patrol:9,4")))
+    and (.command_history | any(contains(":attack_move:10,3")))
+    and (.command_history | any(contains(":stop:10,3")))
   ))
   and (.rts_core_headless_replay_report.checkpoint.actors | any(
     .actor_id == "square_guard_front"
