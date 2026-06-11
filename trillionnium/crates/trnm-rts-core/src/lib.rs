@@ -2468,6 +2468,88 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_map_intel_stream() {
+        let subjects = vec![
+            "bot_scout".to_string(),
+            "bot_shadow".to_string(),
+            "bot_commander".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:recon:scout:three_lane_scout_sweep@5,5",
+            "RTS:QUEUE:recon:mark:fog_memory_last_seen_grid@6,5",
+            "RTS:QUEUE:recon:sweep:natural_expand_threat@7,5",
+            "RTS:QUEUE:recon:scan:enemy_signal_array_tech@8,4",
+            "RTS:QUEUE:recon:scout:hidden_army_fog_gap@9,5",
+            "RTS:MOVE:9,5:rotate_pressure_to_confirmed_beacon",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    1_600 + index as u32,
+                    "Bot0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-map-intel",
+            "trnm-rts-core-bot-map-intel-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let recon = &report.checkpoint.recon_intel;
+        let combat = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 6);
+        assert_eq!(report.checkpoint.actor_count, 3);
+        assert_eq!(report.checkpoint.final_frame, 1_605);
+        assert_eq!(recon.recon_order_count, 5);
+        assert_eq!(recon.scout_order_count, 2);
+        assert_eq!(recon.mark_order_count, 1);
+        assert_eq!(recon.sweep_order_count, 1);
+        assert_eq!(recon.scan_order_count, 1);
+        assert!(recon
+            .recon_ids
+            .iter()
+            .any(|id| id == "fog_memory_last_seen_grid"));
+        assert!(recon
+            .recon_ids
+            .iter()
+            .any(|id| id == "enemy_signal_array_tech"));
+        assert!(recon.recon_ids.iter().any(|id| id == "hidden_army_fog_gap"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "5,5"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "8,4"));
+        assert_eq!(combat.micro_move_order_count, 1);
+        assert!(combat
+            .combat_target_tile_ids
+            .iter()
+            .any(|tile| tile == "9,5"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "rotate_pressure_to_confirmed_beacon"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:recon:")
+                && event.contains(":target:scan:enemy_signal_array_tech@8,4")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.recon_order_count, 5);
+            assert_eq!(actor.tile, Some(RtsTile::new(9, 5)));
+            assert_eq!(
+                actor.formation_id.as_deref(),
+                Some("rotate_pressure_to_confirmed_beacon")
+            );
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),

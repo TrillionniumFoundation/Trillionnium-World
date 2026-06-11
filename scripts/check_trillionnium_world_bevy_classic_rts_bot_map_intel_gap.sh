@@ -46,6 +46,35 @@ jq -e '
   and (.final_command_queue | index("native_openra_shroud_memory_ai:false") != null)
   and (.final_army_production_batch_ids | index("map_intel:fog_memory_last_seen_grid") != null)
   and (.final_army_production_batch_ids | index("map_intel:rotate_pressure_to_confirmed_beacon") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_bot_map_intel_core_subject_actor_ids | length) == 3
+  and (.rts_bot_map_intel_core_action_labels | length) == 6
+  and .rts_bot_map_intel_core_frame_order_stream.map_id == "first-contact-basin-bot-map-intel"
+  and .rts_bot_map_intel_core_frame_order_stream.rules_id == "trnm-rts-core-bot-map-intel-rules-v1"
+  and .rts_bot_map_intel_core_frame_order_kind_labels == ["recon", "recon", "recon", "recon", "recon", "move"]
+  and (.rts_bot_map_intel_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_bot_map_intel_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_bot_map_intel_core_frame_order_errors | length) == 0
+  and .rts_bot_map_intel_core_frame_order_stream_error == null
+  and .rts_bot_map_intel_core_headless_replay_error == null
+  and .rts_bot_map_intel_core_headless_applied_order_count == 6
+  and .rts_bot_map_intel_core_headless_actor_count >= 3
+  and .rts_bot_map_intel_core_headless_final_frame == 1605
+  and .rts_bot_map_intel_core_headless_recon_order_count == 5
+  and .rts_bot_map_intel_core_headless_scout_order_count == 2
+  and .rts_bot_map_intel_core_headless_mark_order_count == 1
+  and .rts_bot_map_intel_core_headless_sweep_order_count == 1
+  and .rts_bot_map_intel_core_headless_scan_order_count == 1
+  and (.rts_bot_map_intel_core_headless_recon_ids | index("three_lane_scout_sweep") != null)
+  and (.rts_bot_map_intel_core_headless_recon_ids | index("fog_memory_last_seen_grid") != null)
+  and (.rts_bot_map_intel_core_headless_recon_ids | index("natural_expand_threat") != null)
+  and (.rts_bot_map_intel_core_headless_recon_ids | index("enemy_signal_array_tech") != null)
+  and (.rts_bot_map_intel_core_headless_recon_ids | index("hidden_army_fog_gap") != null)
+  and (.rts_bot_map_intel_core_headless_recon_tile_ids | index("5,5") != null)
+  and (.rts_bot_map_intel_core_headless_recon_tile_ids | index("8,4") != null)
+  and .rts_bot_map_intel_core_headless_micro_move_order_count == 1
+  and (.rts_bot_map_intel_core_headless_combat_target_tile_ids | index("9,5") != null)
+  and (.rts_bot_map_intel_core_headless_combat_formation_ids | index("rotate_pressure_to_confirmed_beacon") != null)
   and .non_background_pixels > 250000
   and .ai_wave_pixel_count > 80
   and .ai_pressure_pixel_count > 120
@@ -65,6 +94,8 @@ jq -e '
   and .openra_map_intel_target_gate == true
   and .renderer_gate == true
   and .map_intel_gap_gate == true
+  and .rts_bot_map_intel_core_frame_order_gate == true
+  and .rts_bot_map_intel_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

@@ -1459,6 +1459,22 @@ jq -n \
       rts_bot_map_intel_gap_openra_economy_tech_commit: $rts_bot_map_intel_gap[0].openra_bot_economy_tech_target_commit,
       rts_bot_map_intel_gap_openra_beacon_pressure_commit: $rts_bot_map_intel_gap[0].openra_bot_beacon_pressure_target_commit,
       rts_bot_map_intel_gap_openra_organic_terminal_commit: $rts_bot_map_intel_gap[0].openra_organic_bot_terminal_target_commit,
+      rts_bot_map_intel_gap_core_frame_order_stream_sha256: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_frame_order_stream_sha256,
+      rts_bot_map_intel_gap_core_headless_checkpoint_sha256: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_checkpoint_sha256,
+      rts_bot_map_intel_gap_core_frame_order_kinds: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_frame_order_kind_labels,
+      rts_bot_map_intel_gap_core_headless_applied_orders: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_applied_order_count,
+      rts_bot_map_intel_gap_core_headless_actor_count: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_actor_count,
+      rts_bot_map_intel_gap_core_headless_final_frame: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_final_frame,
+      rts_bot_map_intel_gap_core_headless_recon_orders: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_recon_order_count,
+      rts_bot_map_intel_gap_core_headless_scout_orders: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_scout_order_count,
+      rts_bot_map_intel_gap_core_headless_mark_orders: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_mark_order_count,
+      rts_bot_map_intel_gap_core_headless_sweep_orders: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_sweep_order_count,
+      rts_bot_map_intel_gap_core_headless_scan_orders: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_scan_order_count,
+      rts_bot_map_intel_gap_core_headless_recon_ids: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_recon_ids,
+      rts_bot_map_intel_gap_core_headless_recon_tiles: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_recon_tile_ids,
+      rts_bot_map_intel_gap_core_headless_micro_move_orders: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_micro_move_order_count,
+      rts_bot_map_intel_gap_core_headless_combat_tiles: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_combat_target_tile_ids,
+      rts_bot_map_intel_gap_core_headless_combat_formations: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_combat_formation_ids,
       rts_bot_map_intel_gap_intel_signals: $rts_bot_map_intel_gap[0].intel_signal_count,
       rts_bot_map_intel_gap_scout_sweeps: $rts_bot_map_intel_gap[0].scout_sweep_count,
       rts_bot_map_intel_gap_fog_memory_stamps: $rts_bot_map_intel_gap[0].fog_memory_stamp_count,
@@ -2585,6 +2601,8 @@ jq -n \
       rts_bot_map_intel_gap_openra_target_gate: $rts_bot_map_intel_gap[0].openra_map_intel_target_gate,
       rts_bot_map_intel_gap_renderer_gate: $rts_bot_map_intel_gap[0].renderer_gate,
       rts_bot_map_intel_gap_openra_gap_not_closed_gate: $rts_bot_map_intel_gap[0].openra_gap_not_closed_gate,
+      rts_bot_map_intel_gap_core_frame_order_gate: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_frame_order_gate,
+      rts_bot_map_intel_gap_core_headless_replay_gate: $rts_bot_map_intel_gap[0].rts_bot_map_intel_core_headless_replay_gate,
       rts_bot_map_intel_gap_gate: $rts_bot_map_intel_gap[0].map_intel_gap_gate,
       rts_bot_macro_economy_gap_stage_gate: $rts_bot_macro_economy_gap[0].macro_stage_gate,
       rts_bot_macro_economy_gap_signal_gate: $rts_bot_macro_economy_gap[0].macro_signal_gate,
@@ -4299,6 +4317,24 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_bot_map_intel_gap_openra_economy_tech_commit == "f6c47d9"
   and .headline.rts_bot_map_intel_gap_openra_beacon_pressure_commit == "2b6f25b"
   and .headline.rts_bot_map_intel_gap_openra_organic_terminal_commit == "5f1bf76"
+  and (.headline.rts_bot_map_intel_gap_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.headline.rts_bot_map_intel_gap_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and .headline.rts_bot_map_intel_gap_core_frame_order_kinds == ["recon", "recon", "recon", "recon", "recon", "move"]
+  and .headline.rts_bot_map_intel_gap_core_headless_applied_orders == 6
+  and .headline.rts_bot_map_intel_gap_core_headless_actor_count >= 3
+  and .headline.rts_bot_map_intel_gap_core_headless_final_frame == 1605
+  and .headline.rts_bot_map_intel_gap_core_headless_recon_orders == 5
+  and .headline.rts_bot_map_intel_gap_core_headless_scout_orders == 2
+  and .headline.rts_bot_map_intel_gap_core_headless_mark_orders == 1
+  and .headline.rts_bot_map_intel_gap_core_headless_sweep_orders == 1
+  and .headline.rts_bot_map_intel_gap_core_headless_scan_orders == 1
+  and (.headline.rts_bot_map_intel_gap_core_headless_recon_ids | index("fog_memory_last_seen_grid") != null)
+  and (.headline.rts_bot_map_intel_gap_core_headless_recon_ids | index("enemy_signal_array_tech") != null)
+  and (.headline.rts_bot_map_intel_gap_core_headless_recon_tiles | index("5,5") != null)
+  and (.headline.rts_bot_map_intel_gap_core_headless_recon_tiles | index("8,4") != null)
+  and .headline.rts_bot_map_intel_gap_core_headless_micro_move_orders == 1
+  and (.headline.rts_bot_map_intel_gap_core_headless_combat_tiles | index("9,5") != null)
+  and (.headline.rts_bot_map_intel_gap_core_headless_combat_formations | index("rotate_pressure_to_confirmed_beacon") != null)
   and .headline.rts_bot_map_intel_gap_intel_signals >= 24
   and .headline.rts_bot_map_intel_gap_scout_sweeps >= 3
   and .headline.rts_bot_map_intel_gap_fog_memory_stamps >= 4
@@ -4943,6 +4979,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_map_intel_gap_openra_target_gate == true
   and .gates.rts_bot_map_intel_gap_renderer_gate == true
   and .gates.rts_bot_map_intel_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_bot_map_intel_gap_core_frame_order_gate == true
+  and .gates.rts_bot_map_intel_gap_core_headless_replay_gate == true
   and .gates.rts_bot_map_intel_gap_gate == true
   and .gates.rts_bot_macro_economy_gap_stage_gate == true
   and .gates.rts_bot_macro_economy_gap_signal_gate == true

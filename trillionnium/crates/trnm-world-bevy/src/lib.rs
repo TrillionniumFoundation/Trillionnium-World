@@ -66845,9 +66845,226 @@ pub fn native_classic_rts_bot_map_intel_gap_evidence_json(preview_path: &str) ->
         && intel_rotation_gate;
     let map_intel_gap_gate =
         intel_stage_gate && intel_signal_gate && bevy_gap_gate && openra_map_intel_target_gate;
+    let rts_bot_map_intel_core_subject_actor_ids = string_vec([
+        "Multi2:trnm.horizon.scout",
+        "Multi2:trnm.shadow.observer",
+        "Multi2:trnm.forge.warden",
+    ]);
+    let rts_bot_map_intel_core_action_labels = [
+        "RTS:QUEUE:recon:scout:three_lane_scout_sweep@5,5",
+        "RTS:QUEUE:recon:mark:fog_memory_last_seen_grid@6,5",
+        "RTS:QUEUE:recon:sweep:natural_expand_threat@7,5",
+        "RTS:QUEUE:recon:scan:enemy_signal_array_tech@8,4",
+        "RTS:QUEUE:recon:scout:hidden_army_fog_gap@9,5",
+        "RTS:MOVE:9,5:rotate_pressure_to_confirmed_beacon",
+    ];
+    let mut rts_bot_map_intel_core_frame_orders = Vec::new();
+    let mut rts_bot_map_intel_core_frame_order_errors = Vec::new();
+    for (index, action_label) in rts_bot_map_intel_core_action_labels.iter().enumerate() {
+        match RtsFrameOrder::from_live_command_label(
+            1_600 + index as u32,
+            "Multi2",
+            rts_bot_map_intel_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_bot_map_intel_core_frame_order_errors
+                        .push(format!("bot_map_intel_{index}:{action_label}:{error}"));
+                } else {
+                    rts_bot_map_intel_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_bot_map_intel_core_frame_order_errors
+                .push(format!("bot_map_intel_{index}:{action_label}:{error}")),
+        }
+    }
+    let rts_bot_map_intel_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-bot-map-intel",
+        "trnm-rts-core-bot-map-intel-rules-v1",
+        rts_bot_map_intel_core_frame_orders.clone(),
+    );
+    let rts_bot_map_intel_core_frame_order_stream_error =
+        rts_bot_map_intel_core_frame_order_stream.validate().err();
+    let rts_bot_map_intel_core_frame_order_stream_sha256 =
+        rts_bot_map_intel_core_frame_order_stream.sha256_hex();
+    let rts_bot_map_intel_core_frame_order_kind_labels = rts_bot_map_intel_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_bot_map_intel_core_frame_order_values = rts_bot_map_intel_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts bot map intel order serializes"))
+        .collect::<Vec<_>>();
+    let rts_bot_map_intel_core_frame_order_stream_value =
+        serde_json::to_value(&rts_bot_map_intel_core_frame_order_stream)
+            .expect("rts bot map intel stream serializes");
+    let rts_bot_map_intel_core_frame_order_gate = rts_bot_map_intel_core_frame_order_errors
+        .is_empty()
+        && rts_bot_map_intel_core_frame_order_stream_error.is_none()
+        && rts_bot_map_intel_core_frame_order_stream_sha256.len() == 64
+        && rts_bot_map_intel_core_frame_orders.len() == 6
+        && rts_bot_map_intel_core_frame_order_kind_labels
+            == ["recon", "recon", "recon", "recon", "recon", "move"]
+        && rts_bot_map_intel_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("scout")
+                && order.target_actor_id.as_deref() == Some("three_lane_scout_sweep")
+                && order.target_tile == Some(RtsTile::new(5, 5))
+        })
+        && rts_bot_map_intel_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("mark")
+                && order.target_actor_id.as_deref() == Some("fog_memory_last_seen_grid")
+                && order.target_tile == Some(RtsTile::new(6, 5))
+        })
+        && rts_bot_map_intel_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("sweep")
+                && order.target_actor_id.as_deref() == Some("natural_expand_threat")
+                && order.target_tile == Some(RtsTile::new(7, 5))
+        })
+        && rts_bot_map_intel_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("scan")
+                && order.target_actor_id.as_deref() == Some("enemy_signal_array_tech")
+                && order.target_tile == Some(RtsTile::new(8, 4))
+        })
+        && rts_bot_map_intel_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("scout")
+                && order.target_actor_id.as_deref() == Some("hidden_army_fog_gap")
+                && order.target_tile == Some(RtsTile::new(9, 5))
+        })
+        && rts_bot_map_intel_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(9, 5))
+                && order.formation_id.as_deref() == Some("rotate_pressure_to_confirmed_beacon")
+        });
+    let rts_bot_map_intel_core_headless_replay_result =
+        rts_bot_map_intel_core_frame_order_stream.replay_headless();
+    let (
+        rts_bot_map_intel_core_headless_replay_report_value,
+        rts_bot_map_intel_core_headless_checkpoint_sha256,
+        rts_bot_map_intel_core_headless_replay_error,
+        rts_bot_map_intel_core_headless_applied_order_count,
+        rts_bot_map_intel_core_headless_actor_count,
+        rts_bot_map_intel_core_headless_final_frame,
+        rts_bot_map_intel_core_headless_event_log,
+        rts_bot_map_intel_core_headless_recon_order_count,
+        rts_bot_map_intel_core_headless_scout_order_count,
+        rts_bot_map_intel_core_headless_mark_order_count,
+        rts_bot_map_intel_core_headless_sweep_order_count,
+        rts_bot_map_intel_core_headless_scan_order_count,
+        rts_bot_map_intel_core_headless_recon_ids,
+        rts_bot_map_intel_core_headless_recon_tile_ids,
+        rts_bot_map_intel_core_headless_micro_move_order_count,
+        rts_bot_map_intel_core_headless_combat_target_tile_ids,
+        rts_bot_map_intel_core_headless_combat_formation_ids,
+    ) = match rts_bot_map_intel_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let recon = &checkpoint.recon_intel;
+            let combat = &checkpoint.tactical_combat;
+            (
+                serde_json::to_value(&report).expect("rts bot map intel replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                recon.recon_order_count,
+                recon.scout_order_count,
+                recon.mark_order_count,
+                recon.sweep_order_count,
+                recon.scan_order_count,
+                recon.recon_ids.clone(),
+                recon.recon_tile_ids.clone(),
+                combat.micro_move_order_count,
+                combat.combat_target_tile_ids.clone(),
+                combat.combat_formation_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_bot_map_intel_core_headless_replay_gate = rts_bot_map_intel_core_frame_order_gate
+        && rts_bot_map_intel_core_headless_replay_error.is_none()
+        && rts_bot_map_intel_core_headless_checkpoint_sha256.len() == 64
+        && rts_bot_map_intel_core_headless_applied_order_count == 6
+        && rts_bot_map_intel_core_headless_actor_count >= 3
+        && rts_bot_map_intel_core_headless_final_frame == 1_605
+        && rts_bot_map_intel_core_headless_recon_order_count == 5
+        && rts_bot_map_intel_core_headless_scout_order_count == 2
+        && rts_bot_map_intel_core_headless_mark_order_count == 1
+        && rts_bot_map_intel_core_headless_sweep_order_count == 1
+        && rts_bot_map_intel_core_headless_scan_order_count == 1
+        && rts_bot_map_intel_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "three_lane_scout_sweep")
+        && rts_bot_map_intel_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "fog_memory_last_seen_grid")
+        && rts_bot_map_intel_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "natural_expand_threat")
+        && rts_bot_map_intel_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "enemy_signal_array_tech")
+        && rts_bot_map_intel_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "hidden_army_fog_gap")
+        && rts_bot_map_intel_core_headless_recon_tile_ids
+            .iter()
+            .any(|tile| tile == "5,5")
+        && rts_bot_map_intel_core_headless_recon_tile_ids
+            .iter()
+            .any(|tile| tile == "6,5")
+        && rts_bot_map_intel_core_headless_recon_tile_ids
+            .iter()
+            .any(|tile| tile == "7,5")
+        && rts_bot_map_intel_core_headless_recon_tile_ids
+            .iter()
+            .any(|tile| tile == "8,4")
+        && rts_bot_map_intel_core_headless_micro_move_order_count == 1
+        && rts_bot_map_intel_core_headless_combat_target_tile_ids
+            .iter()
+            .any(|tile| tile == "9,5")
+        && rts_bot_map_intel_core_headless_combat_formation_ids
+            .iter()
+            .any(|formation| formation == "rotate_pressure_to_confirmed_beacon")
+        && rts_bot_map_intel_core_headless_event_log
+            .iter()
+            .any(|event| {
+                event.contains(":kind:recon:")
+                    && event.contains(":target:scan:enemy_signal_array_tech@8,4")
+            })
+        && rts_bot_map_intel_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:move:") && event.contains(":target:9,5"));
     let green = write_gate
         && renderer_gate
         && map_intel_gap_gate
+        && rts_bot_map_intel_core_frame_order_gate
+        && rts_bot_map_intel_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -66868,6 +67085,32 @@ pub fn native_classic_rts_bot_map_intel_gap_evidence_json(preview_path: &str) ->
         "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
         "intel_stage_count": intel_stage_count,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_bot_map_intel_core_subject_actor_ids": rts_bot_map_intel_core_subject_actor_ids,
+        "rts_bot_map_intel_core_action_labels": rts_bot_map_intel_core_action_labels,
+        "rts_bot_map_intel_core_frame_orders": rts_bot_map_intel_core_frame_order_values,
+        "rts_bot_map_intel_core_frame_order_stream": rts_bot_map_intel_core_frame_order_stream_value,
+        "rts_bot_map_intel_core_frame_order_stream_sha256": rts_bot_map_intel_core_frame_order_stream_sha256,
+        "rts_bot_map_intel_core_frame_order_kind_labels": rts_bot_map_intel_core_frame_order_kind_labels,
+        "rts_bot_map_intel_core_frame_order_errors": rts_bot_map_intel_core_frame_order_errors,
+        "rts_bot_map_intel_core_frame_order_stream_error": rts_bot_map_intel_core_frame_order_stream_error,
+        "rts_bot_map_intel_core_headless_replay_report": rts_bot_map_intel_core_headless_replay_report_value,
+        "rts_bot_map_intel_core_headless_checkpoint_sha256": rts_bot_map_intel_core_headless_checkpoint_sha256,
+        "rts_bot_map_intel_core_headless_replay_error": rts_bot_map_intel_core_headless_replay_error,
+        "rts_bot_map_intel_core_headless_applied_order_count": rts_bot_map_intel_core_headless_applied_order_count,
+        "rts_bot_map_intel_core_headless_actor_count": rts_bot_map_intel_core_headless_actor_count,
+        "rts_bot_map_intel_core_headless_final_frame": rts_bot_map_intel_core_headless_final_frame,
+        "rts_bot_map_intel_core_headless_event_log": rts_bot_map_intel_core_headless_event_log,
+        "rts_bot_map_intel_core_headless_recon_order_count": rts_bot_map_intel_core_headless_recon_order_count,
+        "rts_bot_map_intel_core_headless_scout_order_count": rts_bot_map_intel_core_headless_scout_order_count,
+        "rts_bot_map_intel_core_headless_mark_order_count": rts_bot_map_intel_core_headless_mark_order_count,
+        "rts_bot_map_intel_core_headless_sweep_order_count": rts_bot_map_intel_core_headless_sweep_order_count,
+        "rts_bot_map_intel_core_headless_scan_order_count": rts_bot_map_intel_core_headless_scan_order_count,
+        "rts_bot_map_intel_core_headless_recon_ids": rts_bot_map_intel_core_headless_recon_ids,
+        "rts_bot_map_intel_core_headless_recon_tile_ids": rts_bot_map_intel_core_headless_recon_tile_ids,
+        "rts_bot_map_intel_core_headless_micro_move_order_count": rts_bot_map_intel_core_headless_micro_move_order_count,
+        "rts_bot_map_intel_core_headless_combat_target_tile_ids": rts_bot_map_intel_core_headless_combat_target_tile_ids,
+        "rts_bot_map_intel_core_headless_combat_formation_ids": rts_bot_map_intel_core_headless_combat_formation_ids,
         "intel_signal_count": intel_signal_count,
         "scout_sweep_count": scout_sweep_count,
         "fog_memory_stamp_count": fog_memory_stamp_count,
@@ -66902,9 +67145,11 @@ pub fn native_classic_rts_bot_map_intel_gap_evidence_json(preview_path: &str) ->
         "openra_map_intel_target_gate": openra_map_intel_target_gate,
         "renderer_gate": renderer_gate,
         "map_intel_gap_gate": map_intel_gap_gate,
+        "rts_bot_map_intel_core_frame_order_gate": rts_bot_map_intel_core_frame_order_gate,
+        "rts_bot_map_intel_core_headless_replay_gate": rts_bot_map_intel_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS bot map-intel gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with scout sweeps, fog memory, expansion inference, enemy tech reads, hidden-army prediction, and pressure rotation vocabulary while keeping native OpenRA shroud-memory AI parity unclaimed."
+        "source_of_truth": "Classic RTS bot map-intel gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with scout sweeps, fog memory, expansion inference, enemy tech reads, hidden-army prediction, and pressure rotation vocabulary, emits those intel commands into trnm-rts-core, replays them through the Bevy-free headless reducer, and keeps native OpenRA shroud-memory AI parity unclaimed."
     }))
     .expect("classic RTS bot map-intel gap evidence serializes")
 }
