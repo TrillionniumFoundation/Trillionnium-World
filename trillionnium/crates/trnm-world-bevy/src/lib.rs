@@ -781,6 +781,7 @@ const CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR: u32 = 0xff4f6d;
 const CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR: u32 = 0xeaff4f;
 const CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR: u32 = 0xb06aff;
 const CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR: u32 = 0xfff1a8;
+const CLASSIC_RTS_COMMAND_EXECUTION_LABEL_COLOR: u32 = 0xffc85f;
 const CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR: u32 = 0xb7f6ff;
 const CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR: u32 = 0x86ff93;
 const CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR: u32 = 0xffdf7a;
@@ -42712,6 +42713,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         let mut right_click_execution_follow_pixel_count = 0_usize;
         let mut right_click_execution_harvest_pixel_count = 0_usize;
         let mut right_click_execution_viewport_marker_pixel_count = 0_usize;
+        let mut right_click_execution_label_pixel_count = 0_usize;
 
         if pre_drag {
             if let Some(polled) = classic_rts_drag_action_with_source_from_points(
@@ -42856,6 +42858,10 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .iter()
                 .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_VIEWPORT_MARKER_COLOR)
                 .count();
+            right_click_execution_label_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_LABEL_COLOR)
+                .count();
             let execution_feedback_kind =
                 classic_rts_command_execution_feedback_kind(Some(&right_click_target_runtime));
             let execution_feedback_player_label = execution_feedback_kind.map(|kind| {
@@ -42909,6 +42915,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 "execution_feedback_follow_pixel_count": right_click_execution_follow_pixel_count,
                 "execution_feedback_harvest_pixel_count": right_click_execution_harvest_pixel_count,
                 "execution_feedback_viewport_marker_pixel_count": right_click_execution_viewport_marker_pixel_count,
+                "execution_feedback_label_pixel_count": right_click_execution_label_pixel_count,
                 "accepted": right_click_target_runtime
                     .input_feedback_history
                     .last()
@@ -42928,6 +42935,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             right_click_execution_follow_pixel_count,
             right_click_execution_harvest_pixel_count,
             right_click_execution_viewport_marker_pixel_count,
+            right_click_execution_label_pixel_count,
         )
     };
 
@@ -42949,6 +42957,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let mut right_click_execution_follow_pixel_count = 0_usize;
     let mut right_click_execution_harvest_pixel_count = 0_usize;
     let mut right_click_execution_viewport_marker_pixel_count = 0_usize;
+    let mut right_click_execution_label_pixel_count = 0_usize;
 
     for (stage, mouse_x, mouse_y, tile_id, pre_drag) in [
         ("right_click_empty_move", 420, 240, "4,3", false),
@@ -42974,6 +42983,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             execution_follow_pixels,
             execution_harvest_pixels,
             execution_viewport_marker_pixels,
+            execution_label_pixels,
         ) = capture_right_click_target(stage, mouse_x, mouse_y, tile_id, pre_drag);
         right_click_execution_frame_pixel_count += execution_frame_pixels;
         right_click_execution_path_pixel_count += execution_path_pixels;
@@ -42981,6 +42991,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         right_click_execution_follow_pixel_count += execution_follow_pixels;
         right_click_execution_harvest_pixel_count += execution_harvest_pixels;
         right_click_execution_viewport_marker_pixel_count += execution_viewport_marker_pixels;
+        right_click_execution_label_pixel_count += execution_label_pixels;
         if stage == "drag_filter_then_right_click_hostile" {
             right_click_target_sample = sample.clone();
             right_click_target_hover_sample = hover_sample.clone();
@@ -44203,6 +44214,10 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                         .and_then(|value| value.as_u64())
                         .is_some_and(|pixels| pixels > 80)
                     && sample
+                        .get("execution_feedback_label_pixel_count")
+                        .and_then(|value| value.as_u64())
+                        .is_some_and(|pixels| pixels > 160)
+                    && sample
                         .get(pixel_key)
                         .and_then(|value| value.as_u64())
                         .is_some_and(|pixels| pixels > min_pixels)
@@ -44363,6 +44378,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && right_click_execution_follow_pixel_count > 80
         && right_click_execution_harvest_pixel_count > 80
         && right_click_execution_viewport_marker_pixel_count > 500
+        && right_click_execution_label_pixel_count > 700
         && right_click_execution_feedback_stage_gate(
             "right_click_empty_move",
             "move",
@@ -44997,6 +45013,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_execution_feedback_follow_pixel_count": right_click_execution_follow_pixel_count,
         "right_click_execution_feedback_harvest_pixel_count": right_click_execution_harvest_pixel_count,
         "right_click_execution_feedback_viewport_marker_pixel_count": right_click_execution_viewport_marker_pixel_count,
+        "right_click_execution_feedback_label_pixel_count": right_click_execution_label_pixel_count,
         "unit_shift_select_samples": unit_shift_select_samples,
         "unit_shift_select_marker_pixel_count": unit_shift_select_marker_pixel_count,
         "unit_shift_select_stamp_pixel_count": unit_shift_select_stamp_pixel_count,
@@ -76113,18 +76130,38 @@ fn classic_draw_rts_command_execution_feedback_overlay(
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x + 10,
+        panel_y + 24,
+        panel_w - 20,
+        20,
+        CLASSIC_RTS_COMMAND_EXECUTION_LABEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x + 13,
+        panel_y + 27,
+        panel_w - 26,
+        14,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
     classic_draw_text(
         buffer,
         width,
         height,
-        panel_x + 12,
-        panel_y + 27,
+        panel_x + 16,
+        panel_y + 30,
         &classic_catalog_text_label(
             &classic_rts_command_execution_player_label(runtime, kind),
             34,
         ),
         1,
-        active_color,
+        CLASSIC_RTS_COMMAND_EXECUTION_LABEL_COLOR,
     );
 
     let route_tiles = if runtime.rts_path_tile_ids.is_empty() {
