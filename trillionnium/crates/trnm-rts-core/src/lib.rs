@@ -289,19 +289,30 @@ fn live_move_order(
     rest: &str,
 ) -> Result<RtsFrameOrder, String> {
     let parts = rest.split(':').collect::<Vec<_>>();
-    let tile = RtsTile::parse_csv(
-        parts
-            .first()
+    let (tile_label, mode, target_actor_id) = if parts.first().copied() == Some("minimap") {
+        let tile = parts
+            .get(1)
             .copied()
-            .ok_or_else(|| "move_tile_missing".to_string())?,
-    )?;
-    let mode = parts.get(1).copied().unwrap_or("line");
+            .ok_or_else(|| "minimap_move_tile_missing".to_string())?;
+        let mode = parts.get(2).copied().unwrap_or("rally");
+        (tile, format!("minimap:{mode}"), parts.get(3).copied())
+    } else {
+        (
+            parts
+                .first()
+                .copied()
+                .ok_or_else(|| "move_tile_missing".to_string())?,
+            parts.get(1).copied().unwrap_or("line").to_string(),
+            parts.get(2).copied(),
+        )
+    };
+    let tile = RtsTile::parse_csv(tile_label)?;
     let kind = match mode {
-        "attack_move" => RtsOrderKind::AttackMove,
-        "follow" => RtsOrderKind::Follow,
-        "hold" => RtsOrderKind::Hold,
-        "patrol" => RtsOrderKind::Patrol,
-        "stop" => RtsOrderKind::Stop,
+        ref value if value == "attack_move" => RtsOrderKind::AttackMove,
+        ref value if value == "follow" => RtsOrderKind::Follow,
+        ref value if value == "hold" => RtsOrderKind::Hold,
+        ref value if value == "patrol" => RtsOrderKind::Patrol,
+        ref value if value == "stop" => RtsOrderKind::Stop,
         _ => RtsOrderKind::Move,
     };
     let mut order = RtsFrameOrder::new(
@@ -312,16 +323,15 @@ fn live_move_order(
         RtsOrderSource::LocalInput,
     );
     order.target_tile = Some(tile);
-    order.formation_id = Some(mode.to_string());
+    order.formation_id = Some(mode.clone());
     if mode == "shift_waypoint" {
         order.queued = true;
     }
     if mode == "follow" {
-        let target_actor_id = parts
-            .get(2)
+        let target_actor_id = target_actor_id
             .filter(|value| !value.is_empty())
             .ok_or_else(|| "follow_target_actor_missing".to_string())?;
-        order.target_actor_id = Some((*target_actor_id).to_string());
+        order.target_actor_id = Some(target_actor_id.to_string());
     }
     Ok(order)
 }
@@ -1326,6 +1336,8 @@ mod tests {
             ("RTS:MOVE:9,4:patrol", RtsOrderKind::Patrol, false),
             ("RTS:MOVE:10,3:attack_move", RtsOrderKind::AttackMove, false),
             ("RTS:MOVE:10,3:stop", RtsOrderKind::Stop, false),
+            ("RTS:MOVE:minimap:9,2:rally", RtsOrderKind::Move, false),
+            ("RTS:MOVE:6,5:split", RtsOrderKind::Move, false),
         ] {
             let order =
                 RtsFrameOrder::from_live_command_label(20, "Multi0", selected_subjects(), label)
@@ -1334,6 +1346,15 @@ mod tests {
             assert_eq!(order.queued, queued);
             assert!(order.target_tile.is_some());
         }
+        let minimap_order = RtsFrameOrder::from_live_command_label(
+            21,
+            "Multi0",
+            selected_subjects(),
+            "RTS:MOVE:minimap:9,2:rally",
+        )
+        .unwrap();
+        assert_eq!(minimap_order.target_tile, Some(RtsTile::new(9, 2)));
+        assert_eq!(minimap_order.formation_id.as_deref(), Some("minimap:rally"));
     }
 
     #[test]

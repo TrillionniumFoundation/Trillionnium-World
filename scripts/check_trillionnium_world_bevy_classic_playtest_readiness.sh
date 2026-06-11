@@ -452,6 +452,8 @@ jq -n \
       and $rts_select[0].control_group_gate == true
       and $rts_select[0].minimap_command_gate == true
       and $rts_select[0].split_route_gate == true
+      and $rts_select[0].rts_selection_minimap_core_frame_order_gate == true
+      and $rts_select[0].rts_selection_minimap_core_headless_replay_gate == true
       and $rts_select[0].accepted_input_count == 4
       and $rts_build_lifecycle[0].live_build_lifecycle_input_gate == true
       and $rts_build_lifecycle[0].build_placement_gate == true
@@ -999,6 +1001,13 @@ jq -n \
       rts_minimap_command_pixel_count: $rts_select[0].minimap_command_pixel_count,
       rts_group_two_pixel_count: $rts_select[0].group_two_pixel_count,
       rts_split_route_pixel_count: $rts_select[0].split_route_pixel_count,
+      rts_selection_minimap_core_frame_order_count: ($rts_select[0].rts_selection_minimap_core_frame_orders | length),
+      rts_selection_minimap_core_frame_order_kinds: $rts_select[0].rts_selection_minimap_core_frame_order_kind_labels,
+      rts_selection_minimap_core_frame_order_stream_sha256: $rts_select[0].rts_selection_minimap_core_frame_order_stream_sha256,
+      rts_selection_minimap_core_headless_checkpoint_sha256: $rts_select[0].rts_selection_minimap_core_headless_checkpoint_sha256,
+      rts_selection_minimap_core_headless_applied_order_count: $rts_select[0].rts_selection_minimap_core_headless_applied_order_count,
+      rts_selection_minimap_core_headless_actor_count: $rts_select[0].rts_selection_minimap_core_headless_actor_count,
+      rts_selection_minimap_core_headless_final_frame: $rts_select[0].rts_selection_minimap_core_headless_final_frame,
       rts_build_lifecycle_accepted_input_count: $rts_build_lifecycle[0].accepted_input_count,
       rts_build_lifecycle_completed_structure_count: ($rts_build_lifecycle[0].final_completed_structure_ids | length),
       rts_build_lifecycle_cancelled_structure_count: ($rts_build_lifecycle[0].final_cancelled_structure_ids | length),
@@ -2331,6 +2340,8 @@ jq -n \
       rts_control_group_gate: $rts_select[0].control_group_gate,
       rts_minimap_command_gate: $rts_select[0].minimap_command_gate,
       rts_split_route_gate: $rts_select[0].split_route_gate,
+      rts_selection_minimap_core_frame_order_gate: $rts_select[0].rts_selection_minimap_core_frame_order_gate,
+      rts_selection_minimap_core_headless_replay_gate: $rts_select[0].rts_selection_minimap_core_headless_replay_gate,
       rts_build_lifecycle_live_input_gate: $rts_build_lifecycle[0].live_build_lifecycle_input_gate,
       rts_build_lifecycle_build_placement_gate: $rts_build_lifecycle[0].build_placement_gate,
       rts_build_lifecycle_completion_gate: $rts_build_lifecycle[0].completion_gate,
@@ -3798,6 +3809,13 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_minimap_command_pixel_count > 80
   and .headline.rts_group_two_pixel_count > 20
   and .headline.rts_split_route_pixel_count > 120
+  and .headline.rts_selection_minimap_core_frame_order_count == 2
+  and .headline.rts_selection_minimap_core_frame_order_kinds == ["move","move"]
+  and (.headline.rts_selection_minimap_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_selection_minimap_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .headline.rts_selection_minimap_core_headless_applied_order_count == 2
+  and .headline.rts_selection_minimap_core_headless_actor_count == 4
+  and .headline.rts_selection_minimap_core_headless_final_frame == 713
   and .headline.rts_build_lifecycle_accepted_input_count == 6
   and .headline.rts_build_lifecycle_completed_structure_count >= 1
   and .headline.rts_build_lifecycle_cancelled_structure_count >= 1
@@ -4563,6 +4581,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_control_group_gate == true
   and .gates.rts_minimap_command_gate == true
   and .gates.rts_split_route_gate == true
+  and .gates.rts_selection_minimap_core_frame_order_gate == true
+  and .gates.rts_selection_minimap_core_headless_replay_gate == true
   and .gates.rts_build_lifecycle_live_input_gate == true
   and .gates.rts_build_lifecycle_build_placement_gate == true
   and .gates.rts_build_lifecycle_completion_gate == true

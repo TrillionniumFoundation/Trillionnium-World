@@ -21,6 +21,11 @@ required_script_lines=(
   'control_group_gate == true'
   'minimap_command_gate == true'
   'split_route_gate == true'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_selection_minimap_core_frame_order_gate == true'
+  'rts_selection_minimap_core_headless_replay_gate == true'
+  'rts_selection_minimap_core_headless_applied_order_count == 2'
+  'rts_selection_minimap_core_headless_actor_count == 4'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -48,6 +53,11 @@ required_source_lines=(
   'CLASSIC_RTS_MINIMAP_COMMAND_COLOR'
   'CLASSIC_RTS_GROUP_TWO_COLOR'
   'CLASSIC_RTS_SPLIT_ROUTE_COLOR'
+  'RtsFrameOrder::from_live_command_label'
+  'first-contact-basin-selection-minimap'
+  'trnm-rts-core-selection-minimap-rules-v1'
+  'rts_selection_minimap_core_frame_order_gate'
+  'rts_selection_minimap_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -66,6 +76,10 @@ required_readiness_lines=(
   'rts_minimap_command_gate'
   'rts_split_route_gate'
   'rts_selection_minimap_pixel_count'
+  'rts_selection_minimap_core_frame_order_count'
+  'rts_selection_minimap_core_headless_applied_order_count'
+  'rts_selection_minimap_core_frame_order_gate'
+  'rts_selection_minimap_core_headless_replay_gate'
 )
 
 for line in "${required_readiness_lines[@]}"; do

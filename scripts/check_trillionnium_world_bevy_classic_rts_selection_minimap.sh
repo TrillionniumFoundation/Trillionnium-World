@@ -42,6 +42,19 @@ jq -e '
   and (.final_command_queue | index("minimap:rally:9,2") != null)
   and (.final_command_queue | any(startswith("box_select:")))
   and (.final_command_queue | any(startswith("split_route:")))
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_selection_minimap_core_frame_orders | length == 2)
+  and .rts_selection_minimap_core_frame_order_kind_labels == ["move","move"]
+  and (.rts_selection_minimap_core_frame_order_errors | length == 0)
+  and .rts_selection_minimap_core_frame_order_stream_error == null
+  and (.rts_selection_minimap_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.rts_selection_minimap_core_frame_orders | any(.target_tile.x == 9 and .target_tile.y == 2 and .formation_id == "minimap:rally"))
+  and (.rts_selection_minimap_core_frame_orders | any(.target_tile.x == 6 and .target_tile.y == 5 and .formation_id == "split"))
+  and .rts_selection_minimap_core_headless_replay_error == null
+  and (.rts_selection_minimap_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_selection_minimap_core_headless_applied_order_count == 2
+  and .rts_selection_minimap_core_headless_actor_count == 4
+  and .rts_selection_minimap_core_headless_final_frame == 713
   and .non_background_pixels > 220000
   and .selection_box_pixel_count > 160
   and .minimap_command_pixel_count > 80
@@ -52,6 +65,8 @@ jq -e '
   and .control_group_gate == true
   and .minimap_command_gate == true
   and .split_route_gate == true
+  and .rts_selection_minimap_core_frame_order_gate == true
+  and .rts_selection_minimap_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

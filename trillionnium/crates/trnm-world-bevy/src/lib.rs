@@ -46817,6 +46817,8 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
     let mut action_labels = Vec::new();
     let mut accepted_input_count = 0_usize;
     let mut input_sources = HashSet::new();
+    let mut rts_selection_minimap_core_frame_orders = Vec::new();
+    let mut rts_selection_minimap_core_frame_order_errors = Vec::new();
 
     for (index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
@@ -46837,6 +46839,30 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
         }
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
+        }
+        if action_label.starts_with("RTS:MOVE:") {
+            let subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+                vec!["selected_rts_group".to_string()]
+            } else {
+                runtime.rts_selected_unit_ids.clone()
+            };
+            match RtsFrameOrder::from_live_command_label(
+                710 + index as u32,
+                "Multi0",
+                subject_actor_ids,
+                &action_label,
+            ) {
+                Ok(order) => {
+                    if let Err(error) = order.validate() {
+                        rts_selection_minimap_core_frame_order_errors
+                            .push(format!("selection_minimap_{index}:{action_label}:{error}"));
+                    } else {
+                        rts_selection_minimap_core_frame_orders.push(order);
+                    }
+                }
+                Err(error) => rts_selection_minimap_core_frame_order_errors
+                    .push(format!("selection_minimap_{index}:{action_label}:{error}")),
+            }
         }
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -46886,6 +46912,92 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
             "command_queue": runtime.rts_command_queue.clone(),
         }));
     }
+
+    let rts_selection_minimap_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-selection-minimap",
+        "trnm-rts-core-selection-minimap-rules-v1",
+        rts_selection_minimap_core_frame_orders.clone(),
+    );
+    let rts_selection_minimap_core_frame_order_stream_error =
+        rts_selection_minimap_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_selection_minimap_core_frame_order_stream_sha256 =
+        rts_selection_minimap_core_frame_order_stream.sha256_hex();
+    let rts_selection_minimap_core_frame_order_kind_labels =
+        rts_selection_minimap_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_selection_minimap_core_frame_order_values = rts_selection_minimap_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts selection minimap order serializes"))
+        .collect::<Vec<_>>();
+    let rts_selection_minimap_core_frame_order_stream_value =
+        serde_json::to_value(&rts_selection_minimap_core_frame_order_stream)
+            .expect("rts selection minimap stream serializes");
+    let rts_selection_minimap_core_frame_order_gate = rts_selection_minimap_core_frame_order_errors
+        .is_empty()
+        && rts_selection_minimap_core_frame_order_stream_error.is_none()
+        && rts_selection_minimap_core_frame_order_stream_sha256.len() == 64
+        && rts_selection_minimap_core_frame_orders.len() == 2
+        && rts_selection_minimap_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(9, 2))
+                && order.formation_id.as_deref() == Some("minimap:rally")
+        })
+        && rts_selection_minimap_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(6, 5))
+                && order.formation_id.as_deref() == Some("split")
+        });
+    let rts_selection_minimap_core_headless_replay_result =
+        rts_selection_minimap_core_frame_order_stream.replay_headless();
+    let (
+        rts_selection_minimap_core_headless_replay_report_value,
+        rts_selection_minimap_core_headless_checkpoint_sha256,
+        rts_selection_minimap_core_headless_replay_error,
+        rts_selection_minimap_core_headless_applied_order_count,
+        rts_selection_minimap_core_headless_actor_count,
+        rts_selection_minimap_core_headless_final_frame,
+        rts_selection_minimap_core_headless_event_log,
+        rts_selection_minimap_core_checkpoint_value,
+    ) = match rts_selection_minimap_core_headless_replay_result {
+        Ok(report) => (
+            serde_json::to_value(&report).expect("rts selection minimap replay report serializes"),
+            report.checkpoint_sha256,
+            None,
+            report.checkpoint.applied_order_count,
+            report.checkpoint.actor_count,
+            report.checkpoint.final_frame,
+            report.checkpoint.event_log.clone(),
+            serde_json::to_value(&report.checkpoint)
+                .expect("rts selection minimap checkpoint serializes"),
+        ),
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Value::Null,
+        ),
+    };
+    let rts_selection_minimap_core_headless_replay_gate =
+        rts_selection_minimap_core_frame_order_gate
+            && rts_selection_minimap_core_headless_replay_error.is_none()
+            && rts_selection_minimap_core_headless_checkpoint_sha256.len() == 64
+            && rts_selection_minimap_core_headless_applied_order_count == 2
+            && rts_selection_minimap_core_headless_actor_count == 4
+            && rts_selection_minimap_core_headless_final_frame == 713
+            && rts_selection_minimap_core_headless_event_log
+                .iter()
+                .any(|event| event.contains(":target:9,2"))
+            && rts_selection_minimap_core_headless_event_log
+                .iter()
+                .any(|event| event.contains(":target:6,5"));
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
@@ -46965,6 +47077,8 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
         && control_group_gate
         && minimap_command_gate
         && split_route_gate
+        && rts_selection_minimap_core_frame_order_gate
+        && rts_selection_minimap_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -46991,6 +47105,21 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
         "final_group_route_tile_ids": runtime.rts_group_route_tile_ids,
         "final_group_command_state": runtime.rts_group_command_state,
         "final_command_queue": runtime.rts_command_queue,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_selection_minimap_core_frame_orders": rts_selection_minimap_core_frame_order_values,
+        "rts_selection_minimap_core_frame_order_stream": rts_selection_minimap_core_frame_order_stream_value,
+        "rts_selection_minimap_core_frame_order_stream_sha256": rts_selection_minimap_core_frame_order_stream_sha256,
+        "rts_selection_minimap_core_frame_order_kind_labels": rts_selection_minimap_core_frame_order_kind_labels,
+        "rts_selection_minimap_core_frame_order_errors": rts_selection_minimap_core_frame_order_errors,
+        "rts_selection_minimap_core_frame_order_stream_error": rts_selection_minimap_core_frame_order_stream_error,
+        "rts_selection_minimap_core_headless_replay_report": rts_selection_minimap_core_headless_replay_report_value,
+        "rts_selection_minimap_core_headless_checkpoint_sha256": rts_selection_minimap_core_headless_checkpoint_sha256,
+        "rts_selection_minimap_core_headless_replay_error": rts_selection_minimap_core_headless_replay_error,
+        "rts_selection_minimap_core_headless_applied_order_count": rts_selection_minimap_core_headless_applied_order_count,
+        "rts_selection_minimap_core_headless_actor_count": rts_selection_minimap_core_headless_actor_count,
+        "rts_selection_minimap_core_headless_final_frame": rts_selection_minimap_core_headless_final_frame,
+        "rts_selection_minimap_core_headless_event_log": rts_selection_minimap_core_headless_event_log,
+        "rts_selection_minimap_core_checkpoint": rts_selection_minimap_core_checkpoint_value,
         "non_background_pixels": non_background_pixels,
         "selection_box_pixel_count": selection_box_pixel_count,
         "minimap_command_pixel_count": minimap_command_pixel_count,
@@ -47001,9 +47130,11 @@ pub fn native_classic_rts_selection_minimap_evidence_json(preview_path: &str) ->
         "control_group_gate": control_group_gate,
         "minimap_command_gate": minimap_command_gate,
         "split_route_gate": split_route_gate,
+        "rts_selection_minimap_core_frame_order_gate": rts_selection_minimap_core_frame_order_gate,
+        "rts_selection_minimap_core_headless_replay_gate": rts_selection_minimap_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS selection/minimap evidence drives box selection, two control-group assignments, a minimap rally command, and a group split route through apply_live_native_action_with_source before rendering those runtime states through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS selection/minimap evidence drives box selection, two control-group assignments, a minimap rally command, and a group split route through apply_live_native_action_with_source, emits minimap rally and split-route move orders into trnm-rts-core, replays those world commands through the Bevy-free headless reducer, and renders those runtime states through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS selection minimap evidence serializes")
 }
