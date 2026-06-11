@@ -5157,6 +5157,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "trnm-rts-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "trnm-state"
 version = "0.1.0"
 dependencies = [
@@ -5214,6 +5223,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "trnm-rts-core",
  "trnm-world-api",
  "trnm-world-command",
  "trnm-world-domain",

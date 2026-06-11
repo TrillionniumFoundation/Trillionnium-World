@@ -26,6 +26,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use trnm_rts_core::{RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, TRNM_RTS_CORE_CONTRACT};
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
     WORLD_ACCOUNT_API_CONTRACT, WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT, WORLD_API_CONTRACT,
@@ -43183,6 +43184,69 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         right_click_target_hover_pixel_sum("target_preview_follow_pixel_count");
     let right_click_target_preview_harvest_pixel_count =
         right_click_target_hover_pixel_sum("target_preview_harvest_pixel_count");
+    let mut rts_core_frame_orders = Vec::new();
+    let mut rts_core_frame_order_errors = Vec::new();
+    for (index, sample) in right_click_target_samples.iter().enumerate() {
+        let Some(action_label) = sample.get("action_label").and_then(|value| value.as_str()) else {
+            rts_core_frame_order_errors.push(format!("sample_{index}:action_label_missing"));
+            continue;
+        };
+        let subject_actor_ids = sample
+            .get("selected_unit_ids")
+            .and_then(|value| value.as_array())
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(|value| value.as_str().map(ToString::to_string))
+                    .collect::<Vec<_>>()
+            })
+            .filter(|values| !values.is_empty())
+            .unwrap_or_else(|| vec!["selected_rts_group".to_string()]);
+        match RtsFrameOrder::from_live_command_label(
+            420 + index as u32,
+            "Multi0",
+            subject_actor_ids,
+            action_label,
+        ) {
+            Ok(order) => rts_core_frame_orders.push(order),
+            Err(error) => {
+                rts_core_frame_order_errors.push(format!("sample_{index}:{action_label}:{error}"))
+            }
+        }
+    }
+    let rts_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-live-input",
+        "trnm-rts-core-live-input-rules-v1",
+        rts_core_frame_orders.clone(),
+    );
+    let rts_core_frame_order_stream_error = rts_core_frame_order_stream.validate().err();
+    let rts_core_frame_order_stream_sha256 = rts_core_frame_order_stream.sha256_hex();
+    let rts_core_frame_order_kind_labels = rts_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_core_frame_order_values = rts_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts core frame order serializes"))
+        .collect::<Vec<_>>();
+    let rts_core_frame_order_stream_value =
+        serde_json::to_value(&rts_core_frame_order_stream).expect("rts core stream serializes");
+    let rts_core_frame_order_gate = rts_core_frame_order_errors.is_empty()
+        && rts_core_frame_order_stream_error.is_none()
+        && rts_core_frame_order_stream_sha256.len() == 64
+        && rts_core_frame_orders.len() == 4
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Move && order.target_tile.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Attack && order.target_actor_id.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Follow && order.target_actor_id.is_some())
+        && rts_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Harvest && order.target_actor_id.is_some());
 
     let mut unit_shift_world = native_bevy_playable_fixture();
     let mut unit_shift_character = WorldTrillionniumCharacter::default_for("local-player");
@@ -45179,6 +45243,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && unit_click_select_gate
         && selection_clear_gate
         && right_click_target_semantics_gate
+        && rts_core_frame_order_gate
         && unit_shift_select_gate
         && unit_double_click_select_gate
         && control_group_hotkey_gate
@@ -45234,6 +45299,13 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_target_preview_attack_pixel_count": right_click_target_preview_attack_pixel_count,
         "right_click_target_preview_follow_pixel_count": right_click_target_preview_follow_pixel_count,
         "right_click_target_preview_harvest_pixel_count": right_click_target_preview_harvest_pixel_count,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_core_frame_orders": rts_core_frame_order_values,
+        "rts_core_frame_order_stream": rts_core_frame_order_stream_value,
+        "rts_core_frame_order_stream_sha256": rts_core_frame_order_stream_sha256,
+        "rts_core_frame_order_kind_labels": rts_core_frame_order_kind_labels,
+        "rts_core_frame_order_errors": rts_core_frame_order_errors,
+        "rts_core_frame_order_stream_error": rts_core_frame_order_stream_error,
         "right_click_execution_feedback_frame_pixel_count": right_click_execution_frame_pixel_count,
         "right_click_execution_feedback_path_pixel_count": right_click_execution_path_pixel_count,
         "right_click_execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,
@@ -45323,6 +45395,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_execution_feedback_gate": right_click_execution_feedback_gate,
         "right_click_execution_feedback_player_label_gate": right_click_execution_feedback_player_label_gate,
         "right_click_target_semantics_gate": right_click_target_semantics_gate,
+        "rts_core_frame_order_gate": rts_core_frame_order_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
         "control_group_hotkey_gate": control_group_hotkey_gate,
@@ -45330,7 +45403,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback labels for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, camera-focus viewport world-coordinate input, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, classic_rts_command_execution_player_label, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback labels for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, camera-focus viewport world-coordinate input, accepted-command stamp feedback, and trnm-rts-core frame-order emission through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, classic_rts_command_execution_player_label, RtsFrameOrder::from_live_command_label, RtsFrameOrderStream::validate, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }

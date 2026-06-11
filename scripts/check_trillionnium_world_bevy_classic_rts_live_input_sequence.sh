@@ -297,6 +297,42 @@ jq -e '
   and .right_click_target_harvest_gate == true
   and .right_click_execution_feedback_gate == true
   and .right_click_target_semantics_gate == true
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_core_frame_order_gate == true
+  and (.rts_core_frame_orders | length == 4)
+  and (.rts_core_frame_order_errors | length == 0)
+  and .rts_core_frame_order_stream_error == null
+  and (.rts_core_frame_order_stream.orders | length == 4)
+  and (.rts_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.rts_core_frame_order_kind_labels | tostring == "[\"move\",\"attack\",\"follow\",\"harvest\"]")
+  and (.rts_core_frame_orders | any(
+    .kind == "move"
+    and .raw_command_label == "RTS:MOVE:4,3:line"
+    and .target_tile.x == 4
+    and .target_tile.y == 3
+    and .formation_id == "line"
+    and .source == "local_input"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "attack"
+    and .raw_command_label == "RTS:ATTACK:square_creep_wander"
+    and .target_actor_id == "square_creep_wander"
+    and .source == "local_input"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "follow"
+    and .raw_command_label == "RTS:MOVE:5,4:follow:player"
+    and .target_actor_id == "player"
+    and .target_tile.x == 5
+    and .target_tile.y == 4
+    and .formation_id == "follow"
+  ))
+  and (.rts_core_frame_orders | any(
+    .kind == "harvest"
+    and .raw_command_label == "RTS:QUEUE:harvest:gold_vein"
+    and .target_actor_id == "gold_vein"
+    and .queued == true
+  ))
   and .unit_shift_select_marker_pixel_count > 80
   and .unit_shift_select_stamp_pixel_count > 80
   and (.unit_shift_select_samples | length == 3)
