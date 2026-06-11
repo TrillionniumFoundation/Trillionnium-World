@@ -40,6 +40,22 @@ jq -e '
   and (.final_command_queue | index("focus_fire:arena_creep_attack") != null)
   and (.final_combat_event_log | index("target_acquired:arena_creep_attack") != null)
   and (.final_combat_event_log | index("focus_fire:arena_creep_attack") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_targeting_core_frame_order_gate == true
+  and .rts_targeting_core_headless_replay_gate == true
+  and (.rts_targeting_core_frame_orders | length == 3)
+  and (.rts_targeting_core_frame_order_kind_labels | tostring == "[\"move\",\"attack\",\"ability\"]")
+  and (.rts_targeting_core_frame_order_errors | length == 0)
+  and .rts_targeting_core_frame_order_stream_error == null
+  and (.rts_targeting_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_targeting_core_headless_replay_error == null
+  and (.rts_targeting_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_targeting_core_headless_applied_order_count == 3
+  and .rts_targeting_core_headless_actor_count >= 4
+  and .rts_targeting_core_headless_final_frame == 683
+  and .rts_targeting_core_headless_ability_order_count == 1
+  and (.rts_targeting_core_headless_ability_rule_ids | index("focus_fire") != null)
+  and (.rts_targeting_core_headless_ability_target_actor_ids | index("arena_creep_attack") != null)
   and .non_background_pixels > 220000
   and .target_priority_pixel_count > 80
   and .aggro_pixel_count > 80

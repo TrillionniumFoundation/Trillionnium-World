@@ -437,6 +437,8 @@ jq -n \
       and $rts_target[0].aggro_gate == true
       and $rts_target[0].focus_fire_gate == true
       and $rts_target[0].threat_feedback_gate == true
+      and $rts_target[0].rts_targeting_core_frame_order_gate == true
+      and $rts_target[0].rts_targeting_core_headless_replay_gate == true
       and $rts_target[0].accepted_input_count == 4
       and $rts_economy[0].live_economy_input_gate == true
       and $rts_economy[0].harvest_loop_gate == true
@@ -937,6 +939,15 @@ jq -n \
       rts_targeting_priority_count: ($rts_target[0].final_target_priority_ids | length),
       rts_targeting_focus_fire_unit_count: ($rts_target[0].final_focus_fire_unit_ids | length),
       rts_targeting_threat_level_count: ($rts_target[0].final_threat_level_percents | length),
+      rts_targeting_core_frame_order_count: ($rts_target[0].rts_targeting_core_frame_orders | length),
+      rts_targeting_core_frame_order_kinds: $rts_target[0].rts_targeting_core_frame_order_kind_labels,
+      rts_targeting_core_headless_checkpoint_sha256: $rts_target[0].rts_targeting_core_headless_checkpoint_sha256,
+      rts_targeting_core_headless_applied_order_count: $rts_target[0].rts_targeting_core_headless_applied_order_count,
+      rts_targeting_core_headless_actor_count: $rts_target[0].rts_targeting_core_headless_actor_count,
+      rts_targeting_core_headless_final_frame: $rts_target[0].rts_targeting_core_headless_final_frame,
+      rts_targeting_core_headless_ability_order_count: $rts_target[0].rts_targeting_core_headless_ability_order_count,
+      rts_targeting_core_headless_ability_rule_ids: $rts_target[0].rts_targeting_core_headless_ability_rule_ids,
+      rts_targeting_core_headless_ability_target_actor_ids: $rts_target[0].rts_targeting_core_headless_ability_target_actor_ids,
       rts_targeting_target_priority_pixel_count: $rts_target[0].target_priority_pixel_count,
       rts_targeting_aggro_pixel_count: $rts_target[0].aggro_pixel_count,
       rts_targeting_focus_fire_pixel_count: $rts_target[0].focus_fire_pixel_count,
@@ -2292,6 +2303,8 @@ jq -n \
       rts_targeting_aggro_gate: $rts_target[0].aggro_gate,
       rts_targeting_focus_fire_gate: $rts_target[0].focus_fire_gate,
       rts_targeting_threat_feedback_gate: $rts_target[0].threat_feedback_gate,
+      rts_targeting_core_frame_order_gate: $rts_target[0].rts_targeting_core_frame_order_gate,
+      rts_targeting_core_headless_replay_gate: $rts_target[0].rts_targeting_core_headless_replay_gate,
       rts_economy_live_input_gate: $rts_economy[0].live_economy_input_gate,
       rts_economy_harvest_loop_gate: $rts_economy[0].harvest_loop_gate,
       rts_economy_build_loop_gate: $rts_economy[0].build_loop_gate,
@@ -3719,6 +3732,14 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_targeting_priority_count >= 3
   and .headline.rts_targeting_focus_fire_unit_count >= 4
   and .headline.rts_targeting_threat_level_count >= 3
+  and .headline.rts_targeting_core_frame_order_count == 3
+  and .headline.rts_targeting_core_frame_order_kinds == ["move", "attack", "ability"]
+  and .headline.rts_targeting_core_headless_applied_order_count == 3
+  and .headline.rts_targeting_core_headless_actor_count >= 4
+  and .headline.rts_targeting_core_headless_final_frame == 683
+  and .headline.rts_targeting_core_headless_ability_order_count == 1
+  and (.headline.rts_targeting_core_headless_ability_rule_ids | index("focus_fire") != null)
+  and (.headline.rts_targeting_core_headless_ability_target_actor_ids | index("arena_creep_attack") != null)
   and .headline.rts_targeting_target_priority_pixel_count > 80
   and .headline.rts_targeting_aggro_pixel_count > 80
   and .headline.rts_targeting_focus_fire_pixel_count > 80
@@ -4499,6 +4520,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_targeting_aggro_gate == true
   and .gates.rts_targeting_focus_fire_gate == true
   and .gates.rts_targeting_threat_feedback_gate == true
+  and .gates.rts_targeting_core_frame_order_gate == true
+  and .gates.rts_targeting_core_headless_replay_gate == true
   and .gates.rts_economy_live_input_gate == true
   and .gates.rts_economy_harvest_loop_gate == true
   and .gates.rts_economy_build_loop_gate == true

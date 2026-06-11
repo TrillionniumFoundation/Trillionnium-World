@@ -46056,6 +46056,8 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
     let mut action_labels = Vec::new();
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
+    let mut rts_targeting_core_frame_orders = Vec::new();
+    let mut rts_targeting_core_frame_order_errors = Vec::new();
 
     for (index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
@@ -46076,6 +46078,36 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
         }
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
+        }
+        if action_label.starts_with("RTS:MOVE:")
+            || action_label.starts_with("RTS:ATTACK:")
+            || action_label.starts_with("RTS:ABILITY:")
+        {
+            let subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+                vec!["selected_rts_group".to_string()]
+            } else {
+                runtime.rts_selected_unit_ids.clone()
+            };
+            match RtsFrameOrder::from_live_command_label(
+                680 + index as u32,
+                "Multi0",
+                subject_actor_ids,
+                &action_label,
+            ) {
+                Ok(mut order) => {
+                    if order.kind == RtsOrderKind::Ability && order.target_actor_id.is_none() {
+                        order.target_actor_id = runtime.rts_attack_target_id.clone();
+                    }
+                    if let Err(error) = order.validate() {
+                        rts_targeting_core_frame_order_errors
+                            .push(format!("{stage}:{action_label}:{error}"));
+                    } else {
+                        rts_targeting_core_frame_orders.push(order);
+                    }
+                }
+                Err(error) => rts_targeting_core_frame_order_errors
+                    .push(format!("{stage}:{action_label}:{error}")),
+            }
         }
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -46113,6 +46145,7 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
             "action_label": action_label,
             "accepted": accepted,
             "last_action": gameplay_log.last_action,
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
             "targeting_state": runtime.rts_targeting_state.clone(),
             "attack_target_id": runtime.rts_attack_target_id.clone(),
             "aggro_target_id": runtime.rts_aggro_target_id.clone(),
@@ -46123,6 +46156,92 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
             "combat_event_log": runtime.rts_combat_event_log.clone(),
         }));
     }
+
+    let rts_targeting_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-target-aggro-focus",
+        "trnm-rts-core-targeting-rules-v1",
+        rts_targeting_core_frame_orders.clone(),
+    );
+    let rts_targeting_core_frame_order_stream_error =
+        rts_targeting_core_frame_order_stream.validate().err();
+    let rts_targeting_core_frame_order_stream_sha256 =
+        rts_targeting_core_frame_order_stream.sha256_hex();
+    let rts_targeting_core_frame_order_kind_labels = rts_targeting_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_targeting_core_frame_order_values = rts_targeting_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts targeting order serializes"))
+        .collect::<Vec<_>>();
+    let rts_targeting_core_frame_order_stream_value =
+        serde_json::to_value(&rts_targeting_core_frame_order_stream)
+            .expect("rts targeting stream serializes");
+    let rts_targeting_core_frame_order_gate = rts_targeting_core_frame_order_errors.is_empty()
+        && rts_targeting_core_frame_order_stream_error.is_none()
+        && rts_targeting_core_frame_order_stream_sha256.len() == 64
+        && rts_targeting_core_frame_orders.len() == 3
+        && rts_targeting_core_frame_orders
+            .iter()
+            .any(|order| order.kind == RtsOrderKind::Move && order.target_tile.is_some())
+        && rts_targeting_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Attack
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+        })
+        && rts_targeting_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Ability
+                && order.target_rule_id.as_deref() == Some("focus_fire")
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+        });
+    let rts_targeting_core_headless_replay_result =
+        rts_targeting_core_frame_order_stream.replay_headless();
+    let (
+        rts_targeting_core_headless_replay_report_value,
+        rts_targeting_core_headless_checkpoint_sha256,
+        rts_targeting_core_headless_replay_error,
+        rts_targeting_core_headless_applied_order_count,
+        rts_targeting_core_headless_actor_count,
+        rts_targeting_core_headless_final_frame,
+        rts_targeting_core_headless_ability_order_count,
+        rts_targeting_core_headless_ability_rule_ids,
+        rts_targeting_core_headless_ability_target_actor_ids,
+    ) = match rts_targeting_core_headless_replay_result {
+        Ok(report) => (
+            serde_json::to_value(&report).expect("rts targeting replay report serializes"),
+            report.checkpoint_sha256,
+            None,
+            report.checkpoint.applied_order_count,
+            report.checkpoint.actor_count,
+            report.checkpoint.final_frame,
+            report.checkpoint.abilities.ability_order_count,
+            report.checkpoint.abilities.ability_rule_ids.clone(),
+            report.checkpoint.abilities.target_actor_ids.clone(),
+        ),
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_targeting_core_headless_replay_gate = rts_targeting_core_frame_order_gate
+        && rts_targeting_core_headless_replay_error.is_none()
+        && rts_targeting_core_headless_checkpoint_sha256.len() == 64
+        && rts_targeting_core_headless_applied_order_count == 3
+        && rts_targeting_core_headless_actor_count >= 4
+        && rts_targeting_core_headless_final_frame == 683
+        && rts_targeting_core_headless_ability_order_count == 1
+        && rts_targeting_core_headless_ability_rule_ids
+            .iter()
+            .any(|rule| rule == "focus_fire")
+        && rts_targeting_core_headless_ability_target_actor_ids
+            .iter()
+            .any(|target| target == "arena_creep_attack");
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
@@ -46183,6 +46302,8 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
         && aggro_gate
         && focus_fire_gate
         && threat_feedback_gate
+        && rts_targeting_core_frame_order_gate
+        && rts_targeting_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -46207,6 +46328,22 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
         "final_threat_level_percents": runtime.rts_threat_level_percents,
         "final_command_queue": runtime.rts_command_queue,
         "final_combat_event_log": runtime.rts_combat_event_log,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_targeting_core_frame_orders": rts_targeting_core_frame_order_values,
+        "rts_targeting_core_frame_order_stream": rts_targeting_core_frame_order_stream_value,
+        "rts_targeting_core_frame_order_stream_sha256": rts_targeting_core_frame_order_stream_sha256,
+        "rts_targeting_core_frame_order_kind_labels": rts_targeting_core_frame_order_kind_labels,
+        "rts_targeting_core_frame_order_errors": rts_targeting_core_frame_order_errors,
+        "rts_targeting_core_frame_order_stream_error": rts_targeting_core_frame_order_stream_error,
+        "rts_targeting_core_headless_replay_report": rts_targeting_core_headless_replay_report_value,
+        "rts_targeting_core_headless_checkpoint_sha256": rts_targeting_core_headless_checkpoint_sha256,
+        "rts_targeting_core_headless_replay_error": rts_targeting_core_headless_replay_error,
+        "rts_targeting_core_headless_applied_order_count": rts_targeting_core_headless_applied_order_count,
+        "rts_targeting_core_headless_actor_count": rts_targeting_core_headless_actor_count,
+        "rts_targeting_core_headless_final_frame": rts_targeting_core_headless_final_frame,
+        "rts_targeting_core_headless_ability_order_count": rts_targeting_core_headless_ability_order_count,
+        "rts_targeting_core_headless_ability_rule_ids": rts_targeting_core_headless_ability_rule_ids,
+        "rts_targeting_core_headless_ability_target_actor_ids": rts_targeting_core_headless_ability_target_actor_ids,
         "non_background_pixels": non_background_pixels,
         "target_priority_pixel_count": target_priority_pixel_count,
         "aggro_pixel_count": aggro_pixel_count,
@@ -46218,9 +46355,11 @@ pub fn native_classic_rts_target_aggro_focus_evidence_json(preview_path: &str) -
         "aggro_gate": aggro_gate,
         "focus_fire_gate": focus_fire_gate,
         "threat_feedback_gate": threat_feedback_gate,
+        "rts_targeting_core_frame_order_gate": rts_targeting_core_frame_order_gate,
+        "rts_targeting_core_headless_replay_gate": rts_targeting_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS target aggro focus evidence drives select, move, attack, and focus-fire live input into native runtime target priority, aggro lock, focus-fire unit, and threat feedback state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS target aggro focus evidence drives select, move, attack, and focus-fire live input into native runtime target priority, aggro lock, focus-fire unit, and threat feedback state, emits targeting orders into trnm-rts-core, replays focus_fire through the Bevy-free headless reducer, and renders those overlays through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS target aggro focus evidence serializes")
 }

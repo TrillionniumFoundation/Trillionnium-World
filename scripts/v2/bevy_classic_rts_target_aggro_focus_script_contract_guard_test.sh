@@ -21,6 +21,11 @@ required_script_lines=(
   'aggro_gate == true'
   'focus_fire_gate == true'
   'threat_feedback_gate == true'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_targeting_core_frame_order_gate == true'
+  'rts_targeting_core_headless_replay_gate == true'
+  'rts_targeting_core_headless_applied_order_count == 3'
+  'rts_targeting_core_headless_ability_order_count == 1'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -47,6 +52,10 @@ required_source_lines=(
   'CLASSIC_RTS_AGGRO_RING_COLOR'
   'CLASSIC_RTS_FOCUS_FIRE_COLOR'
   'CLASSIC_RTS_THREAT_BAR_COLOR'
+  'RtsFrameOrder::from_live_command_label'
+  'first-contact-basin-target-aggro-focus'
+  'rts_targeting_core_frame_order_gate'
+  'rts_targeting_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -64,6 +73,9 @@ required_readiness_lines=(
   'rts_targeting_aggro_gate'
   'rts_targeting_focus_fire_gate'
   'rts_targeting_threat_feedback_gate'
+  'rts_targeting_core_frame_order_gate'
+  'rts_targeting_core_headless_replay_gate'
+  'rts_targeting_core_headless_ability_order_count'
   'rts_targeting_focus_fire_pixel_count'
 )
 
