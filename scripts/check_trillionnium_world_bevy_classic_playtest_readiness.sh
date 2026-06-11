@@ -417,6 +417,7 @@ jq -n \
       and $rts_live[0].right_click_execution_feedback_player_label_gate == true
       and $rts_live[0].right_click_execution_feedback_label_pixel_count > 700
       and $rts_live[0].context_cursor_gate == true
+      and $rts_live[0].viewport_world_input_gate == true
       and $rts_live[0].control_group_hotkey_gate == true
       and $rts_live[0].accepted_input_count == 10
       and $rts_path[0].live_pathing_input_gate == true
@@ -824,6 +825,8 @@ jq -n \
       rts_live_input_final_hover_player_label: $rts_live[0].final_hover_player_label,
       rts_live_input_context_cursor_pixel_count: $rts_live[0].context_cursor_pixel_count,
       rts_live_input_final_context_cursor_label: $rts_live[0].final_context_cursor_player_label,
+      rts_live_input_viewport_world_shifted_tile_id: $rts_live[0].viewport_world_input_sample.shifted_tile_id,
+      rts_live_input_viewport_world_shifted_action_label: $rts_live[0].viewport_world_input_sample.shifted_action_label,
       rts_live_input_drag_select_preview_pixel_count: $rts_live[0].drag_select_preview_pixel_count,
       rts_live_input_drag_select_preview_label: ($rts_live[0].drag_select_preview_samples[0].player_label // ""),
       rts_live_input_drag_select_commit_selected_unit_count: ($rts_live[0].drag_select_commit_sample.selected_unit_ids | length),
@@ -2213,6 +2216,7 @@ jq -n \
       rts_live_input_command_queue_path_preview_gate: $rts_live[0].live_command_queue_path_preview_gate,
       rts_live_input_hover_preview_gate: $rts_live[0].hover_preview_gate,
       rts_live_input_context_cursor_gate: $rts_live[0].context_cursor_gate,
+      rts_live_input_viewport_world_input_gate: $rts_live[0].viewport_world_input_gate,
       rts_live_input_drag_select_preview_gate: $rts_live[0].drag_select_preview_gate,
       rts_live_input_drag_select_commit_gate: $rts_live[0].drag_select_commit_gate,
       rts_live_input_drag_select_filter_gate: $rts_live[0].drag_select_filter_gate,

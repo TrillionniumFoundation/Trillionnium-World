@@ -43502,6 +43502,70 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             }));
         }
     }
+    let mut viewport_world_input_runtime = classic_openra_style_skirmish_runtime();
+    let boot_viewport_preview = apply_classic_rts_hover_preview_runtime(
+        &mut viewport_world_input_runtime,
+        1280,
+        720,
+        420,
+        240,
+    );
+    viewport_world_input_runtime.rts_camera_focus_tile_id = Some("22,20".to_string());
+    let shifted_viewport_preview = apply_classic_rts_hover_preview_runtime(
+        &mut viewport_world_input_runtime,
+        1280,
+        720,
+        420,
+        240,
+    );
+    let shifted_viewport_action = classic_rts_mouse_action_with_source_from_point(
+        &viewport_world_input_runtime,
+        1280,
+        720,
+        420,
+        240,
+        MiniMouseButton::Right,
+    );
+    let viewport_world_input_sample = json!({
+        "stage": "camera_focus_viewport_world_input",
+        "input_source": "classic_rts_mouse_viewport",
+        "mouse_x": 420,
+        "mouse_y": 240,
+        "boot_focus_tile_id": "5,4",
+        "boot_tile_id": boot_viewport_preview
+            .as_ref()
+            .and_then(|preview| preview.tile_id.clone()),
+        "shifted_focus_tile_id": viewport_world_input_runtime.rts_camera_focus_tile_id.clone(),
+        "shifted_tile_id": shifted_viewport_preview
+            .as_ref()
+            .and_then(|preview| preview.tile_id.clone()),
+        "shifted_action_label": shifted_viewport_action
+            .as_ref()
+            .map(|polled| native_control_action_label(&polled.action)),
+        "shifted_hover_player_label": shifted_viewport_preview
+            .as_ref()
+            .map(|preview| preview.player_label.clone()),
+    });
+    let viewport_world_input_gate = viewport_world_input_sample
+        .get("boot_tile_id")
+        .and_then(|value| value.as_str())
+        == Some("4,3")
+        && viewport_world_input_sample
+            .get("shifted_focus_tile_id")
+            .and_then(|value| value.as_str())
+            == Some("22,20")
+        && viewport_world_input_sample
+            .get("shifted_tile_id")
+            .and_then(|value| value.as_str())
+            == Some("21,19")
+        && viewport_world_input_sample
+            .get("shifted_action_label")
+            .and_then(|value| value.as_str())
+            == Some("RTS:MOVE:21,19:line")
+        && viewport_world_input_sample
+            .get("shifted_hover_player_label")
+            .and_then(|value| value.as_str())
+            == Some("MAP MOVE READY 21,19");
     frame_pixels.fill(0x0b0d0c_u32);
     classic_draw_scene(
         &mut frame_pixels,
@@ -45108,6 +45172,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && live_command_queue_path_preview_gate
         && hover_preview_gate
         && context_cursor_gate
+        && viewport_world_input_gate
         && drag_select_preview_gate
         && drag_select_commit_gate
         && drag_select_filter_gate
@@ -45188,6 +45253,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "control_group_slot_pixel_count": control_group_slot_pixel_count,
         "hover_samples": hover_samples,
         "context_cursor_samples": cursor_samples,
+        "viewport_world_input_sample": viewport_world_input_sample,
         "final_hover_source": runtime.rts_hover_source,
         "final_hover_tile_id": runtime.rts_hover_tile_id,
         "final_hover_action_label": runtime.rts_hover_action_label,
@@ -45243,6 +45309,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "live_command_queue_path_preview_gate": live_command_queue_path_preview_gate,
         "hover_preview_gate": hover_preview_gate,
         "context_cursor_gate": context_cursor_gate,
+        "viewport_world_input_gate": viewport_world_input_gate,
         "drag_select_preview_gate": drag_select_preview_gate,
         "drag_select_commit_gate": drag_select_commit_gate,
         "drag_select_filter_gate": drag_select_filter_gate,
@@ -45263,7 +45330,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback labels for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, classic_rts_command_execution_player_label, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback labels for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, camera-focus viewport world-coordinate input, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, classic_rts_command_execution_player_label, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -76641,7 +76708,8 @@ fn classic_rts_drag_select_preview_from_points(
     ) {
         return None;
     }
-    let start_tile = classic_mouse_grid_tile(
+    let start_tile = classic_mouse_viewport_world_tile(
+        _runtime,
         start.0,
         start.1,
         layout.viewport_x,
@@ -76649,7 +76717,8 @@ fn classic_rts_drag_select_preview_from_points(
         layout.viewport_w,
         layout.viewport_h,
     );
-    let current_tile = classic_mouse_grid_tile(
+    let current_tile = classic_mouse_viewport_world_tile(
+        _runtime,
         current.0,
         current.1,
         layout.viewport_x,
@@ -76772,7 +76841,8 @@ fn classic_rts_drag_action_with_source_from_points(
     ) {
         return None;
     }
-    let start_tile = classic_mouse_grid_tile(
+    let start_tile = classic_mouse_viewport_world_tile(
+        runtime,
         start.0,
         start.1,
         layout.viewport_x,
@@ -76780,7 +76850,8 @@ fn classic_rts_drag_action_with_source_from_points(
         layout.viewport_w,
         layout.viewport_h,
     );
-    let end_tile = classic_mouse_grid_tile(
+    let end_tile = classic_mouse_viewport_world_tile(
+        runtime,
         end.0,
         end.1,
         layout.viewport_x,
@@ -76952,7 +77023,8 @@ fn classic_rts_mouse_action_with_source_from_point_with_modifiers(
     ) {
         return match button {
             MiniMouseButton::Left => {
-                let tile = classic_mouse_grid_tile(
+                let tile = classic_mouse_viewport_world_tile(
+                    runtime,
                     mouse_x,
                     mouse_y,
                     layout.viewport_x,
@@ -76983,7 +77055,8 @@ fn classic_rts_mouse_action_with_source_from_point_with_modifiers(
                 ))
             }
             MiniMouseButton::Right => {
-                let tile = classic_mouse_grid_tile(
+                let tile = classic_mouse_viewport_world_tile(
+                    runtime,
                     mouse_x,
                     mouse_y,
                     layout.viewport_x,
@@ -77112,7 +77185,8 @@ fn classic_rts_hover_preview_from_point(
         layout.viewport_w,
         layout.viewport_h,
     ) {
-        let tile = classic_mouse_grid_tile(
+        let tile = classic_mouse_viewport_world_tile(
+            runtime,
             mouse_x,
             mouse_y,
             layout.viewport_x,
@@ -78994,6 +79068,31 @@ fn classic_mouse_grid_tile(
     let col = (((x - rect_x).max(0) * 12) / rect_w.max(1)).clamp(0, 11);
     let row = (((y - rect_y).max(0) * 8) / rect_h.max(1)).clamp(0, 7);
     (col, row)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_runtime_camera_focus_tile(runtime: &NativeFirstPlayableRuntime) -> (i32, i32) {
+    runtime
+        .rts_camera_focus_tile_id
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .map(classic_rts_large_map_clamp_tile)
+        .unwrap_or((5, 4))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_mouse_viewport_world_tile(
+    runtime: &NativeFirstPlayableRuntime,
+    x: i32,
+    y: i32,
+    rect_x: i32,
+    rect_y: i32,
+    rect_w: i32,
+    rect_h: i32,
+) -> (i32, i32) {
+    let local = classic_mouse_grid_tile(x, y, rect_x, rect_y, rect_w, rect_h);
+    let focus = classic_rts_runtime_camera_focus_tile(runtime);
+    classic_rts_large_map_clamp_tile((focus.0 - 5 + local.0, focus.1 - 4 + local.1))
 }
 
 #[cfg(not(target_os = "android"))]

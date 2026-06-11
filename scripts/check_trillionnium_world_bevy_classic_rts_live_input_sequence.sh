@@ -438,6 +438,13 @@ jq -e '
   and (.context_cursor_samples | any(.player_label == "COMMAND BAR CURSOR ABILITY READY" and .cursor_kind == "ability" and .allowed == true))
   and (.context_cursor_samples | any(.player_label == "MINIMAP CURSOR RALLY READY" and .cursor_kind == "rally" and .allowed == true))
   and (.context_cursor_samples | all(.player_label | (contains("feedback") or contains("rts_")) | not))
+  and .viewport_world_input_sample.stage == "camera_focus_viewport_world_input"
+  and .viewport_world_input_sample.boot_focus_tile_id == "5,4"
+  and .viewport_world_input_sample.boot_tile_id == "4,3"
+  and .viewport_world_input_sample.shifted_focus_tile_id == "22,20"
+  and .viewport_world_input_sample.shifted_tile_id == "21,19"
+  and .viewport_world_input_sample.shifted_action_label == "RTS:MOVE:21,19:line"
+  and .viewport_world_input_sample.shifted_hover_player_label == "MAP MOVE READY 21,19"
   and .final_hover_source == "classic_rts_mouse_minimap"
   and .final_hover_tile_id == "5,2"
   and .final_hover_player_label == "MINIMAP RALLY READY 5,2"
@@ -511,6 +518,7 @@ jq -e '
   and .command_feedback_chip_gate == true
   and .hover_preview_gate == true
   and .context_cursor_gate == true
+  and .viewport_world_input_gate == true
   and .drag_select_preview_gate == true
   and .drag_select_commit_gate == true
   and .unit_click_select_gate == true
