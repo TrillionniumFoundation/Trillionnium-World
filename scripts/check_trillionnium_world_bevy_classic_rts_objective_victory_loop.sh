@@ -26,6 +26,25 @@ jq -e '
   and (.action_labels | index("RTS:ABILITY:guard_break") != null)
   and (.action_labels | index("RTS:QUEUE:objective:claim:relay_beacon@6,5") != null)
   and (.action_labels | index("RTS:QUEUE:objective:extract:relay_beacon@9,2") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_objective_core_frame_order_gate == true
+  and .rts_objective_core_headless_replay_gate == true
+  and (.rts_objective_core_frame_orders | length == 5)
+  and (.rts_objective_core_frame_order_kind_labels | tostring == "[\"queue\",\"attack\",\"ability\",\"capture\",\"extract\"]")
+  and (.rts_objective_core_frame_order_errors | length == 0)
+  and .rts_objective_core_frame_order_stream_error == null
+  and (.rts_objective_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_objective_core_headless_replay_error == null
+  and (.rts_objective_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_objective_core_headless_applied_order_count == 5
+  and .rts_objective_core_headless_actor_count >= 4
+  and .rts_objective_core_headless_final_frame == 804
+  and .rts_objective_core_headless_objective_order_count == 2
+  and .rts_objective_core_headless_capture_order_count == 1
+  and .rts_objective_core_headless_extract_order_count == 1
+  and (.rts_objective_core_headless_objective_ids | index("relay_beacon") != null)
+  and (.rts_objective_core_headless_objective_tile_ids | index("6,5") != null)
+  and (.rts_objective_core_headless_objective_tile_ids | index("9,2") != null)
   and (.final_objective_tile_ids | length) == 4
   and .final_objective_capture_percent == 100
   and .final_objective_owner_state == "player:relay_beacon"

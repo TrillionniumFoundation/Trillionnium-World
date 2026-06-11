@@ -49098,6 +49098,8 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
     let mut action_labels = Vec::new();
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
+    let mut rts_objective_core_frame_orders = Vec::new();
+    let mut rts_objective_core_frame_order_errors = Vec::new();
 
     for (index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
@@ -49118,6 +49120,36 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
         }
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
+        }
+        if action_label.starts_with("RTS:QUEUE:")
+            || action_label.starts_with("RTS:ATTACK:")
+            || action_label.starts_with("RTS:ABILITY:")
+        {
+            let subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+                vec!["selected_rts_group".to_string()]
+            } else {
+                runtime.rts_selected_unit_ids.clone()
+            };
+            match RtsFrameOrder::from_live_command_label(
+                800 + rts_objective_core_frame_orders.len() as u32,
+                "Multi0",
+                subject_actor_ids,
+                &action_label,
+            ) {
+                Ok(mut order) => {
+                    if order.kind == RtsOrderKind::Ability && order.target_actor_id.is_none() {
+                        order.target_actor_id = runtime.rts_attack_target_id.clone();
+                    }
+                    if let Err(error) = order.validate() {
+                        rts_objective_core_frame_order_errors
+                            .push(format!("objective_{index}:{action_label}:{error}"));
+                    } else {
+                        rts_objective_core_frame_orders.push(order);
+                    }
+                }
+                Err(error) => rts_objective_core_frame_order_errors
+                    .push(format!("objective_{index}:{action_label}:{error}")),
+            }
         }
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -49166,6 +49198,123 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
             "command_queue": runtime.rts_command_queue.clone(),
         }));
     }
+
+    let rts_objective_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-objective-victory",
+        "trnm-rts-core-objective-victory-rules-v1",
+        rts_objective_core_frame_orders.clone(),
+    );
+    let rts_objective_core_frame_order_stream_error =
+        rts_objective_core_frame_order_stream.validate().err();
+    let rts_objective_core_frame_order_stream_sha256 =
+        rts_objective_core_frame_order_stream.sha256_hex();
+    let rts_objective_core_frame_order_kind_labels = rts_objective_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_objective_core_frame_order_values = rts_objective_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts objective order serializes"))
+        .collect::<Vec<_>>();
+    let rts_objective_core_frame_order_stream_value =
+        serde_json::to_value(&rts_objective_core_frame_order_stream)
+            .expect("rts objective stream serializes");
+    let rts_objective_core_frame_order_gate = rts_objective_core_frame_order_errors.is_empty()
+        && rts_objective_core_frame_order_stream_error.is_none()
+        && rts_objective_core_frame_order_stream_sha256.len() == 64
+        && rts_objective_core_frame_orders.len() == 5
+        && rts_objective_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Queue
+                && order.queue_id.as_deref() == Some("ai:skirmish_wave")
+        })
+        && rts_objective_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Attack
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+        })
+        && rts_objective_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Ability
+                && order.target_rule_id.as_deref() == Some("guard_break")
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+        })
+        && rts_objective_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Capture
+                && order.target_actor_id.as_deref() == Some("relay_beacon")
+                && order.target_tile == Some(RtsTile::new(6, 5))
+        })
+        && rts_objective_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Extract
+                && order.target_actor_id.as_deref() == Some("relay_beacon")
+                && order.target_tile == Some(RtsTile::new(9, 2))
+        });
+    let rts_objective_core_headless_replay_result =
+        rts_objective_core_frame_order_stream.replay_headless();
+    let (
+        rts_objective_core_headless_replay_report_value,
+        rts_objective_core_headless_checkpoint_sha256,
+        rts_objective_core_headless_replay_error,
+        rts_objective_core_headless_applied_order_count,
+        rts_objective_core_headless_actor_count,
+        rts_objective_core_headless_final_frame,
+        rts_objective_core_headless_event_log,
+        rts_objective_core_headless_objective_order_count,
+        rts_objective_core_headless_capture_order_count,
+        rts_objective_core_headless_extract_order_count,
+        rts_objective_core_headless_objective_ids,
+        rts_objective_core_headless_objective_tile_ids,
+    ) = match rts_objective_core_headless_replay_result {
+        Ok(report) => (
+            serde_json::to_value(&report).expect("rts objective replay report serializes"),
+            report.checkpoint_sha256,
+            None,
+            report.checkpoint.applied_order_count,
+            report.checkpoint.actor_count,
+            report.checkpoint.final_frame,
+            report.checkpoint.event_log.clone(),
+            report.checkpoint.objectives.objective_order_count,
+            report.checkpoint.objectives.capture_order_count,
+            report.checkpoint.objectives.extract_order_count,
+            report.checkpoint.objectives.objective_ids.clone(),
+            report.checkpoint.objectives.objective_tile_ids.clone(),
+        ),
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_objective_core_headless_replay_gate = rts_objective_core_frame_order_gate
+        && rts_objective_core_headless_replay_error.is_none()
+        && rts_objective_core_headless_checkpoint_sha256.len() == 64
+        && rts_objective_core_headless_applied_order_count == 5
+        && rts_objective_core_headless_actor_count >= 4
+        && rts_objective_core_headless_final_frame == 804
+        && rts_objective_core_headless_objective_order_count == 2
+        && rts_objective_core_headless_capture_order_count == 1
+        && rts_objective_core_headless_extract_order_count == 1
+        && rts_objective_core_headless_objective_ids
+            .iter()
+            .any(|objective| objective == "relay_beacon")
+        && rts_objective_core_headless_objective_tile_ids
+            .iter()
+            .any(|tile| tile == "6,5")
+        && rts_objective_core_headless_objective_tile_ids
+            .iter()
+            .any(|tile| tile == "9,2")
+        && rts_objective_core_headless_event_log.iter().any(|event| {
+            event.contains(":kind:capture:") && event.contains(":target:relay_beacon@6,5")
+        })
+        && rts_objective_core_headless_event_log.iter().any(|event| {
+            event.contains(":kind:extract:") && event.contains(":target:relay_beacon@9,2")
+        });
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
@@ -49229,6 +49378,8 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
         && defeat_pressure_gate
         && extraction_gate
         && openra_parity_bridge_gate
+        && rts_objective_core_frame_order_gate
+        && rts_objective_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -49254,6 +49405,25 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
         "final_defeat_risk_percent": runtime.rts_defeat_risk_percent,
         "final_ai_pressure_percent": runtime.rts_ai_pressure_percent,
         "final_command_queue": runtime.rts_command_queue,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_objective_core_frame_orders": rts_objective_core_frame_order_values,
+        "rts_objective_core_frame_order_stream": rts_objective_core_frame_order_stream_value,
+        "rts_objective_core_frame_order_stream_sha256": rts_objective_core_frame_order_stream_sha256,
+        "rts_objective_core_frame_order_kind_labels": rts_objective_core_frame_order_kind_labels,
+        "rts_objective_core_frame_order_errors": rts_objective_core_frame_order_errors,
+        "rts_objective_core_frame_order_stream_error": rts_objective_core_frame_order_stream_error,
+        "rts_objective_core_headless_replay_report": rts_objective_core_headless_replay_report_value,
+        "rts_objective_core_headless_checkpoint_sha256": rts_objective_core_headless_checkpoint_sha256,
+        "rts_objective_core_headless_replay_error": rts_objective_core_headless_replay_error,
+        "rts_objective_core_headless_applied_order_count": rts_objective_core_headless_applied_order_count,
+        "rts_objective_core_headless_actor_count": rts_objective_core_headless_actor_count,
+        "rts_objective_core_headless_final_frame": rts_objective_core_headless_final_frame,
+        "rts_objective_core_headless_event_log": rts_objective_core_headless_event_log,
+        "rts_objective_core_headless_objective_order_count": rts_objective_core_headless_objective_order_count,
+        "rts_objective_core_headless_capture_order_count": rts_objective_core_headless_capture_order_count,
+        "rts_objective_core_headless_extract_order_count": rts_objective_core_headless_extract_order_count,
+        "rts_objective_core_headless_objective_ids": rts_objective_core_headless_objective_ids,
+        "rts_objective_core_headless_objective_tile_ids": rts_objective_core_headless_objective_tile_ids,
         "non_background_pixels": non_background_pixels,
         "objective_pixel_count": objective_pixel_count,
         "capture_bar_pixel_count": capture_bar_pixel_count,
@@ -49266,6 +49436,8 @@ pub fn native_classic_rts_objective_victory_loop_evidence_json(preview_path: &st
         "victory_resolution_gate": victory_resolution_gate,
         "defeat_pressure_gate": defeat_pressure_gate,
         "extraction_gate": extraction_gate,
+        "rts_objective_core_frame_order_gate": rts_objective_core_frame_order_gate,
+        "rts_objective_core_headless_replay_gate": rts_objective_core_headless_replay_gate,
         "openra_parity_target_commit": OPENRA_ORGANIC_TERMINAL_COMMIT,
         "openra_parity_target_package": OPENRA_ORGANIC_TERMINAL_PACKAGE,
         "openra_parity_target_natural_terminal": true,

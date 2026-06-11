@@ -1164,6 +1164,17 @@ jq -n \
       rts_objective_victory_loop_victory_pixel_count: $rts_objective[0].victory_pixel_count,
       rts_objective_victory_loop_defeat_risk_pixel_count: $rts_objective[0].defeat_risk_pixel_count,
       rts_objective_victory_loop_extraction_pixel_count: $rts_objective[0].extraction_pixel_count,
+      rts_objective_victory_loop_core_frame_order_stream_sha256: $rts_objective[0].rts_objective_core_frame_order_stream_sha256,
+      rts_objective_victory_loop_core_headless_checkpoint_sha256: $rts_objective[0].rts_objective_core_headless_checkpoint_sha256,
+      rts_objective_victory_loop_core_frame_order_kinds: $rts_objective[0].rts_objective_core_frame_order_kind_labels,
+      rts_objective_victory_loop_core_applied_order_count: $rts_objective[0].rts_objective_core_headless_applied_order_count,
+      rts_objective_victory_loop_core_actor_count: $rts_objective[0].rts_objective_core_headless_actor_count,
+      rts_objective_victory_loop_core_final_frame: $rts_objective[0].rts_objective_core_headless_final_frame,
+      rts_objective_victory_loop_core_objective_order_count: $rts_objective[0].rts_objective_core_headless_objective_order_count,
+      rts_objective_victory_loop_core_capture_order_count: $rts_objective[0].rts_objective_core_headless_capture_order_count,
+      rts_objective_victory_loop_core_extract_order_count: $rts_objective[0].rts_objective_core_headless_extract_order_count,
+      rts_objective_victory_loop_core_objective_ids: $rts_objective[0].rts_objective_core_headless_objective_ids,
+      rts_objective_victory_loop_core_objective_tile_ids: $rts_objective[0].rts_objective_core_headless_objective_tile_ids,
       rts_autonomous_bot_skirmish_input_action_count: $rts_auto_bot[0].input_action_count,
       rts_autonomous_bot_skirmish_stage_count: ($rts_auto_bot[0].stage_summaries | length),
       rts_autonomous_bot_skirmish_winner: $rts_auto_bot[0].bevy_terminal_winner,
@@ -2401,6 +2412,8 @@ jq -n \
       rts_objective_victory_loop_defeat_pressure_gate: $rts_objective[0].defeat_pressure_gate,
       rts_objective_victory_loop_extraction_gate: $rts_objective[0].extraction_gate,
       rts_objective_victory_loop_openra_parity_bridge_gate: $rts_objective[0].openra_parity_bridge_gate,
+      rts_objective_victory_loop_core_frame_order_gate: $rts_objective[0].rts_objective_core_frame_order_gate,
+      rts_objective_victory_loop_core_headless_replay_gate: $rts_objective[0].rts_objective_core_headless_replay_gate,
       rts_autonomous_bot_skirmish_no_live_player_input_gate: $rts_auto_bot[0].no_live_player_input_gate,
       rts_autonomous_bot_skirmish_timeline_gate: $rts_auto_bot[0].autonomous_timeline_gate,
       rts_autonomous_bot_skirmish_bot_roster_gate: $rts_auto_bot[0].bot_roster_gate,
@@ -3961,6 +3974,18 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_objective_victory_loop_victory_pixel_count > 20
   and .headline.rts_objective_victory_loop_defeat_risk_pixel_count > 5
   and .headline.rts_objective_victory_loop_extraction_pixel_count > 40
+  and (.headline.rts_objective_victory_loop_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_objective_victory_loop_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_objective_victory_loop_core_frame_order_kinds | tostring == "[\"queue\",\"attack\",\"ability\",\"capture\",\"extract\"]")
+  and .headline.rts_objective_victory_loop_core_applied_order_count == 5
+  and .headline.rts_objective_victory_loop_core_actor_count >= 4
+  and .headline.rts_objective_victory_loop_core_final_frame == 804
+  and .headline.rts_objective_victory_loop_core_objective_order_count == 2
+  and .headline.rts_objective_victory_loop_core_capture_order_count == 1
+  and .headline.rts_objective_victory_loop_core_extract_order_count == 1
+  and (.headline.rts_objective_victory_loop_core_objective_ids | index("relay_beacon") != null)
+  and (.headline.rts_objective_victory_loop_core_objective_tile_ids | index("6,5") != null)
+  and (.headline.rts_objective_victory_loop_core_objective_tile_ids | index("9,2") != null)
   and .headline.rts_autonomous_bot_skirmish_input_action_count == 0
   and .headline.rts_autonomous_bot_skirmish_stage_count == 6
   and .headline.rts_autonomous_bot_skirmish_winner == "Multi2"
@@ -4661,6 +4686,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_objective_victory_loop_defeat_pressure_gate == true
   and .gates.rts_objective_victory_loop_extraction_gate == true
   and .gates.rts_objective_victory_loop_openra_parity_bridge_gate == true
+  and .gates.rts_objective_victory_loop_core_frame_order_gate == true
+  and .gates.rts_objective_victory_loop_core_headless_replay_gate == true
   and .gates.rts_autonomous_bot_skirmish_no_live_player_input_gate == true
   and .gates.rts_autonomous_bot_skirmish_timeline_gate == true
   and .gates.rts_autonomous_bot_skirmish_bot_roster_gate == true
