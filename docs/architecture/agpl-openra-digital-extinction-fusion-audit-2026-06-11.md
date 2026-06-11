@@ -1,4 +1,4 @@
-# AGPL OpenRA + Digital Extinction + Trillionnium Fusion Audit
+# AGPL OpenRA + Digital Extinction + Kiomet + Trillionnium Fusion Audit
 
 Date: 2026-06-11
 
@@ -8,6 +8,7 @@ The viable path is not to keep growing the current Trillionnium classic RTS shel
 
 - OpenRA as the gameplay semantics and data-model reference: orders, deterministic frames, actor/trait composition, rules/maps/mod metadata, shroud, production, replay discipline.
 - Digital Extinction as the Rust/Bevy runtime reference: 3D terrain, camera/minimap/controller separation, pathing/movement, object loading, construction, combat, energy, lobby/connector/network crates.
+- Kiomet as the online Rust RTS reference: shared client/server game model, browser/WASM/WebGL delivery, visibility-scoped actor updates, lightweight binary protocol, bots, arena service boundaries, and low-friction multiplayer deployment.
 - Trillionnium as the product/evidence layer: existing account/server boundaries, Bevy runner, playtest shell, release packet discipline, local evidence gates, UI/HUD polish already proven in runtime.
 
 If AGPL is acceptable, create a separate AGPL/GPL-compatible mainline for this fused RTS. Do not silently merge GPL/AGPL code into the existing MIT Trillionnium line without changing the distribution boundary, notices, and release packaging.
@@ -17,7 +18,8 @@ If AGPL is acceptable, create a separate AGPL/GPL-compatible mainline for this f
 ### Trillionnium
 
 - Path: `/home/qian/.openclaw/workspace/Trillionnium`
-- Current commit audited: `2b146ad4f feat: map RTS viewport input through camera focus`
+- Current documentation base audited: `9d543fbd9 docs: audit AGPL RTS fusion path`
+- Gameplay code baseline audited: `2b146ad4f feat: map RTS viewport input through camera focus`
 - License currently declared in README: MIT
 - Relevant crates: `trnm-world-bevy`, `trnm-world-api`, `trnm-world-server`, `trnm-world-domain`, `trnm-world-command`, `trnm-world-ui-fragments`
 - Current core issue: `trillionnium/crates/trnm-world-bevy/src/lib.rs` is about 151k lines. The RTS features are numerous, but too much logic, rendering, evidence generation, and fixtures live in one giant file.
@@ -61,15 +63,51 @@ If AGPL is acceptable, create a separate AGPL/GPL-compatible mainline for this f
   - `construction`, `objects`, `energy`
   - `multiplayer`, `net`, `connector`, `lobby`
 
+### Kiomet
+
+- Path audited: `/tmp/kiomet`
+- Current shallow clone audited: `d3f0956 Update Readme.md`, 2025-09-09
+- License: AGPL-3.0-or-later for Kiomet source.
+- Shape: Rust browser RTS split into `common`, `server`, `client`, and `macros`.
+- Size sampled locally: 64 Rust files, about 14.4k Rust LOC, 75 test markers.
+- Game scale sampled locally:
+  - `WorldChunks::SIZE = 512`, chunk size `16`, so 32x32 chunks.
+  - `Ticks = kodiak_common::GenTicks<4>`, so the current Kiomet game tick is 4 Hz.
+  - 27 tower types in `common/src/tower.rs`.
+  - 10 unit classes in `common/src/unit.rs`.
+- Useful surfaces:
+  - `common/src/protocol.rs`: shared `Command` and `Update` types using `bitcode` `Encode`/`Decode`.
+  - `common/src/world.rs`: shared world, actor update application, client-side tick application, path search.
+  - `server/src/service.rs`: `TowerService` implementing Kodiak `ArenaService`, player joins/quits, commands, bot support, visibility-filtered updates, tick/post-update split.
+  - `client/src/state.rs`: client applies server `Update` into shared `World`.
+  - `client/src/game.rs`: browser game client, pan/zoom, selection/drag/path commands, WebGL rendering, Yew UI bridge.
+- Important caveat: Kiomet README says current open-source build instructions are broken because downloaded Makefiles are too recent for the pinned trunk path. It also prohibits using the open-source client on official Kiomet servers because of visibility-cheating risk.
+
+### Kodiak
+
+- Path audited: `/tmp/kodiak`
+- Tag audited: `0.1.1`, commit `c17719a`, 2025-03-17
+- License sampled from SPDX headers: LGPL-3.0-or-later.
+- Shape: Softbear's reusable game engine used by Kiomet. Size sampled locally: 321 Rust files, about 53.2k Rust LOC.
+- Useful surfaces:
+  - `server/src/service/arena_service.rs`: generic `ArenaService`, `GameRequest`, `GameUpdate`, player lifecycle, bot hooks, tick hooks.
+  - `client/src/game_client.rs`: generic WASM/Yew game-client trait and update/render event hooks.
+  - `common/src/actor_model/macros.rs`: actor/inbox/update macros with `Knowledge` and `Visibility` scoping.
+  - `common/src/lockstep/*`: generic lockstep client/server framework with prediction, checksums, lag compensation, input windows.
+  - `server/src/socket/*`: WebSocket/WebTransport abstraction, binary message encode/decode, rate limiting, keepalive.
+
+Kodiak matters because Kiomet delegates much of the actual client/server engine and network envelope to it. If Kiomet is used as a reference, audit Kodiak at the same time; otherwise the architecture picture is incomplete.
+
 ## License Posture
 
 AGPL acceptance changes the route, but does not erase asset and notice obligations.
 
-- OpenRA code is GPL-3.0-or-later. Digital Extinction code is AGPL-3.0. A combined distribution should be treated as a copyleft line with explicit GPL/AGPL notices by component.
+- OpenRA code is GPL-3.0-or-later. Digital Extinction and Kiomet code are AGPL-3.0 family. Kodiak is LGPL-3.0-or-later. A combined distribution should be treated as a copyleft line with explicit GPL/AGPL/LGPL notices by component.
 - Do not relicense OpenRA-origin files as MIT.
 - Do not copy Westwood/Electronic Arts proprietary artwork, audio, videos, or original game data into Trillionnium. OpenRA contains installers and metadata for original-game content; those are not a free asset grant.
 - Digital Extinction assets can be used only with CC BY-SA/OFL attribution and share-alike handling.
-- Existing MIT Trillionnium can remain as a historical product shell, but any direct OpenRA/DE code import belongs in a new AGPL/GPL-compatible branch or package.
+- Kiomet assets include branded/trademarked material, binary distribution embeds, audio credits, and AI-generated paintings. Do not reuse them blindly as Trillionnium game content; treat Kiomet primarily as an architecture reference unless a separate asset manifest is created.
+- Existing MIT Trillionnium can remain as a historical product shell, but any direct OpenRA/DE/Kiomet/Kodiak code import belongs in a new AGPL/GPL/LGPL-compatible branch or package.
 
 Recommended repository boundary:
 
@@ -79,7 +117,7 @@ Trillionnium MIT line
 
 Trillionnium RTS Fusion copyleft line
   AGPL/GPL-compatible distribution
-  contains any direct OpenRA/DE-derived code or assets
+  contains any direct OpenRA/DE/Kiomet/Kodiak-derived code or assets
 ```
 
 ## What Each Side Should Own
@@ -125,6 +163,29 @@ Do not use Digital Extinction for:
 - A ready-made asset pack.
 - Long-term upstream support.
 
+### Kiomet Owns The Online Rust RTS Reference
+
+Use Kiomet and Kodiak for:
+
+- Full-stack Rust client/server/shared-code separation.
+- Browser delivery through WASM, WebGL, Yew, and Trunk.
+- `common` crate pattern for shared protocol and world types.
+- Binary protocol discipline with `Encode`/`Decode` request/update types.
+- Visibility-scoped actor updates instead of full-world client leakage.
+- Arena service boundaries: player lifecycle, bots, score, tick/post-update hooks, client data.
+- Server-driven multiplayer with browser clients and low-friction deployment.
+- WebSocket/WebTransport transport envelope, rate limits, keepalive, and redial concepts.
+- Generic lockstep/prediction ideas from Kodiak's `common/src/lockstep`, even if Kiomet's current game does not use that as its main RTS authority model.
+
+Do not use Kiomet for:
+
+- Bevy or 3D runtime. It is not a DE replacement.
+- Classic OpenRA/C&C-style RTS rules. It is a territory/tower RTS.
+- OpenRA replay/order compatibility.
+- Direct official-server client interop.
+- A finished build recipe without fixing the currently broken Makefile/trunk path.
+- Trusting client-side visibility; its own README warns about open-source-client visibility-cheating concerns.
+
 ### Trillionnium Owns Product, Evidence, And Current UX Proof
 
 Keep from Trillionnium:
@@ -165,6 +226,13 @@ trillionnium/crates/trnm-rts-client
 trillionnium/crates/trnm-rts-net
   Frame-order lockstep, replay recorder/player, optional UDP transport.
 
+trillionnium/crates/trnm-rts-online
+  Browser/server multiplayer adapter: sessions, arena service, protocol envelope,
+  visibility-filtered state updates, bots, WebSocket/WebTransport bridge.
+
+trillionnium/crates/trnm-rts-web-client
+  Optional WASM/WebGL/Yew or WebGPU web client, if browser delivery becomes a target.
+
 trillionnium/crates/trnm-rts-evidence
   Evidence JSON/PPM helpers shared by scripts and release packet.
 ```
@@ -190,6 +258,18 @@ mouse/hotkey/minimap input
   -> Bevy scene + HUD + evidence JSON
 ```
 
+Online delivery flow:
+
+```text
+browser/native client
+  -> protocol envelope
+  -> trnm-rts-online arena/session
+  -> OpenRA-style frame orders
+  -> trnm-rts-core deterministic tick
+  -> visibility-scoped client update
+  -> Bevy native renderer or web renderer
+```
+
 ## Integration Strategy
 
 ### Phase 0: Copyleft Line Setup
@@ -204,7 +284,7 @@ Goal: make the licensing boundary honest before code moves.
 Acceptance gate:
 
 - `license_fusion_manifest_gate=true`
-- OpenRA/DE source commit ids recorded.
+- OpenRA/DE/Kiomet/Kodiak source commit ids recorded.
 - No Westwood/EA asset bundling.
 
 ### Phase 1: OpenRA Order Compatibility Spine
@@ -321,6 +401,29 @@ Acceptance gate:
   - replay playback
   - deterministic final sync hash
 
+### Phase 6: Kiomet-Style Online And Browser Delivery
+
+Goal: make the fused RTS deployable as a real online Rust game without weakening deterministic authority.
+
+- Add `trnm-rts-online` with a narrow arena/session trait inspired by Kodiak `ArenaService`.
+- Keep `trnm-rts-core` as the authority. Network layers may buffer, validate, and route frame orders, but must not become gameplay truth.
+- Add a binary request/update protocol with:
+  - player join/quit
+  - viewport subscription
+  - command/frame-order submission
+  - visibility-scoped snapshot/delta update
+  - ping/keepalive/redial
+  - bot command injection
+- Add a browser client spike only after native core replay and Bevy runtime gates are stable.
+- Make client visibility cheating explicit in the threat model; do not connect modified open clients to any official production server without server-side visibility authority.
+
+Acceptance gate:
+
+- Two local clients can connect to one local RTS arena and submit frame orders.
+- The same match can be replayed headlessly with the same final sync hash.
+- Client updates are visibility-scoped and never require exposing the whole world.
+- Browser delivery is documented as optional, not a blocker for the native Bevy runtime.
+
 ## OpenRA Feature Import Priority
 
 1. Order serialization and frame manager.
@@ -343,6 +446,17 @@ Acceptance gate:
 6. Object/GLB asset loading.
 7. Combat laser/sightline as optional flavor.
 8. UDP connector only after OpenRA-style order lockstep is in place.
+
+## Kiomet/Kodiak Feature Import Priority
+
+1. Crate split: `common` shared game/protocol types, `server` arena authority, `client` renderer/input.
+2. `ArenaService`-like boundary for match lifecycle, player lifecycle, bots, score, tick/post-update.
+3. Binary request/update envelope using explicit encode/decode types.
+4. Visibility-scoped actor/snapshot updates based on client knowledge and viewport/subscription state.
+5. Browser/WASM/WebGL delivery pattern, after native RTS core is no longer renderer-owned.
+6. WebSocket/WebTransport socket abstraction, rate limiting, keepalive, and reconnect/redial.
+7. Kodiak lockstep ideas: input windows, prediction, checksums, lag compensation.
+8. Kiomet territory/tower gameplay ideas only as optional modes or design inspiration, not as the main OpenRA-style rules layer.
 
 ## Trillionnium Refactor Priority
 
@@ -374,6 +488,8 @@ Not allowed as bundled game content without separate rights:
 - False parity: claiming OpenRA compatibility from superficial UI screenshots.
 - Asset contamination: treating OpenRA content installer metadata as a license to bundle original assets.
 - Determinism gap: Bevy runtime state driving gameplay directly instead of consuming deterministic core snapshots.
+- Online-authority gap: using Kiomet-style browser delivery before server-side visibility and replay authority are in place.
+- Build-recipe gap: Kiomet's current open-source build instructions are not cleanly reproducible without Makefile/trunk fixes.
 - Scope explosion: trying to import OpenRA, DE, multiplayer, 3D rendering, and all gameplay at once.
 
 ## Recommended First Week
@@ -385,7 +501,19 @@ Not allowed as bundled game content without separate rights:
 5. Add a new release gate: current samples must replay through headless core before rendering.
 6. Add a minimal data-loaded map fixture replacing the hardcoded 34x34 constants.
 7. Spike DE camera/terrain/raycast in a separate proof command, not in the production runner yet.
+8. Add a Kiomet/Kodiak audit fixture that proves the planned `trnm-rts-online` boundary is source-backed but deferred until deterministic core gates are green.
+
+## Revised Fusion Verdict
+
+The four-source split should be:
+
+- OpenRA defines what a classic RTS match means.
+- Digital Extinction shows how a Rust/Bevy 3D RTS can be structured and rendered.
+- Kiomet/Kodiak shows how a real Rust browser multiplayer game packages shared logic, server authority, bots, deltas, and deployment.
+- Trillionnium provides the product shell, native runner, and evidence gates.
+
+Kiomet should not replace Digital Extinction. Kiomet should replace hand-wavy multiplayer plans.
 
 ## One-Sentence Direction
 
-Build a new copyleft Trillionnium RTS line where OpenRA defines what an RTS match means, Digital Extinction shows how a Rust/Bevy RTS can run, and Trillionnium keeps the product shell plus evidence discipline that prevents fake completion claims.
+Build a new copyleft Trillionnium RTS line where OpenRA defines what an RTS match means, Digital Extinction shows how a Rust/Bevy RTS can run, Kiomet/Kodiak shows how Rust multiplayer can ship online, and Trillionnium keeps the product shell plus evidence discipline that prevents fake completion claims.
