@@ -2652,6 +2652,98 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_harassment_defense_stream() {
+        let subjects = vec![
+            "bot_worker".to_string(),
+            "bot_repair_team".to_string(),
+            "bot_counter_raid".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:recon:scout:worker_line_probe@4,5",
+            "RTS:MOVE:5,5:worker_pullback_split",
+            "RTS:QUEUE:repair:relay_turret@6,5",
+            "RTS:QUEUE:build:static_defense_turret@6,5",
+            "RTS:ATTACK:enemy_expand_counter_raid",
+            "RTS:MOVE:7,4:retreat_path_rejoin",
+            "RTS:QUEUE:build:rebuild_route_relay@8,6",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    2_000 + index as u32,
+                    "Bot0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-harassment-defense",
+            "trnm-rts-core-bot-harassment-defense-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let production = &report.checkpoint.production_lifecycle;
+        let recon = &report.checkpoint.recon_intel;
+        let combat = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 7);
+        assert_eq!(report.checkpoint.actor_count, 3);
+        assert_eq!(report.checkpoint.final_frame, 2_006);
+        assert_eq!(recon.scout_order_count, 1);
+        assert!(recon.recon_ids.iter().any(|id| id == "worker_line_probe"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "4,5"));
+        assert_eq!(production.build_order_count, 2);
+        assert_eq!(production.repair_order_count, 1);
+        assert!(production
+            .build_rule_ids
+            .iter()
+            .any(|rule| rule == "static_defense_turret"));
+        assert!(production
+            .build_rule_ids
+            .iter()
+            .any(|rule| rule == "rebuild_route_relay"));
+        assert!(production
+            .repair_target_ids
+            .iter()
+            .any(|target| target == "relay_turret"));
+        assert_eq!(combat.attack_order_count, 1);
+        assert_eq!(combat.micro_move_order_count, 2);
+        assert!(combat
+            .combat_target_actor_ids
+            .iter()
+            .any(|target| target == "enemy_expand_counter_raid"));
+        assert!(combat
+            .combat_target_tile_ids
+            .iter()
+            .any(|tile| tile == "7,4"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "worker_pullback_split"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "retreat_path_rejoin"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:repair:") && event.contains(":target:6,5")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.recon_order_count, 1);
+            assert_eq!(actor.build_order_count, 2);
+            assert_eq!(actor.repair_order_count, 1);
+            assert_eq!(actor.attack_order_count, 1);
+            assert_eq!(actor.tile, Some(RtsTile::new(8, 6)));
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),

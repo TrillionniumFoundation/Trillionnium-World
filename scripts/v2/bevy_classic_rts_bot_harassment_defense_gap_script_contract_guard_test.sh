@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+CORE="$ROOT/trillionnium/crates/trnm-rts-core/src/lib.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 READINESS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
 
@@ -20,6 +21,10 @@ required_script_lines=(
   'openra_organic_bot_terminal_target_commit == "5f1bf76"'
   'harassment_signal_count >= 24'
   'final_harassment_state == "counter_raid_rebuild_secured"'
+  'rts_bot_harassment_defense_core_frame_order_gate == true'
+  'rts_bot_harassment_defense_core_headless_replay_gate == true'
+  'rts_bot_harassment_defense_core_headless_build_order_count == 2'
+  'rts_bot_harassment_defense_core_headless_repair_order_count == 1'
   'harassment_defense_gap_gate == true'
 )
 
@@ -44,11 +49,21 @@ required_source_lines=(
   'OPENRA_BOT_ECONOMY_TECH_COMMIT'
   'OPENRA_BOT_BEACON_PRESSURE_COMMIT'
   'OPENRA_ORGANIC_BOT_TERMINAL_COMMIT'
+  'RtsFrameOrder::from_live_command_label'
+  'first-contact-basin-bot-harassment-defense'
+  'trnm-rts-core-bot-harassment-defense-rules-v1'
+  'worker_line_probe'
+  'static_defense_turret'
+  'relay_turret'
+  'enemy_expand_counter_raid'
+  'rebuild_route_relay'
   'harassment_defense_gap_gate'
+  'rts_bot_harassment_defense_core_frame_order_gate'
+  'rts_bot_harassment_defense_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$CORE" "$MAIN"; then
     echo "[FAIL] missing classic RTS bot harassment defense gap source line: $line" >&2
     exit 1
   fi
@@ -60,6 +75,8 @@ required_readiness_lines=(
   'classic_rts_bot_harassment_defense_gap_green'
   'rts_bot_harassment_defense_gap_stage_count'
   'rts_bot_harassment_defense_gap_openra_gap_not_closed_gate'
+  'rts_bot_harassment_defense_gap_core_frame_order_gate'
+  'rts_bot_harassment_defense_gap_core_headless_replay_gate'
   'rts_bot_harassment_defense_gap_gate'
 )
 

@@ -2650,6 +2650,8 @@ jq -n \
       rts_bot_harassment_defense_gap_openra_target_gate: $rts_bot_harassment_defense_gap[0].openra_harassment_defense_target_gate,
       rts_bot_harassment_defense_gap_renderer_gate: $rts_bot_harassment_defense_gap[0].renderer_gate,
       rts_bot_harassment_defense_gap_openra_gap_not_closed_gate: $rts_bot_harassment_defense_gap[0].openra_gap_not_closed_gate,
+      rts_bot_harassment_defense_gap_core_frame_order_gate: $rts_bot_harassment_defense_gap[0].rts_bot_harassment_defense_core_frame_order_gate,
+      rts_bot_harassment_defense_gap_core_headless_replay_gate: $rts_bot_harassment_defense_gap[0].rts_bot_harassment_defense_core_headless_replay_gate,
       rts_bot_harassment_defense_gap_gate: $rts_bot_harassment_defense_gap[0].harassment_defense_gap_gate,
       rts_bot_multi_front_pressure_gap_stage_gate: $rts_bot_multi_front_pressure_gap[0].multi_front_stage_gate,
       rts_bot_multi_front_pressure_gap_signal_gate: $rts_bot_multi_front_pressure_gap[0].multi_front_signal_gate,
@@ -5052,6 +5054,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_harassment_defense_gap_openra_target_gate == true
   and .gates.rts_bot_harassment_defense_gap_renderer_gate == true
   and .gates.rts_bot_harassment_defense_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_bot_harassment_defense_gap_core_frame_order_gate == true
+  and .gates.rts_bot_harassment_defense_gap_core_headless_replay_gate == true
   and .gates.rts_bot_harassment_defense_gap_gate == true
   and .gates.rts_bot_multi_front_pressure_gap_stage_gate == true
   and .gates.rts_bot_multi_front_pressure_gap_signal_gate == true

@@ -68236,6 +68236,249 @@ pub fn native_classic_rts_bot_harassment_defense_gap_evidence_json(preview_path:
     let openra_harassment_defense_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
         && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
         && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let rts_bot_harassment_defense_core_subject_actor_ids = string_vec([
+        "Multi2:trnm.worker",
+        "Multi2:trnm.repair.team",
+        "Multi2:trnm.counter.raid",
+    ]);
+    let rts_bot_harassment_defense_core_action_labels = [
+        "RTS:QUEUE:recon:scout:worker_line_probe@4,5",
+        "RTS:MOVE:5,5:worker_pullback_split",
+        "RTS:QUEUE:repair:relay_turret@6,5",
+        "RTS:QUEUE:build:static_defense_turret@6,5",
+        "RTS:ATTACK:enemy_expand_counter_raid",
+        "RTS:MOVE:7,4:retreat_path_rejoin",
+        "RTS:QUEUE:build:rebuild_route_relay@8,6",
+    ];
+    let mut rts_bot_harassment_defense_core_frame_orders = Vec::new();
+    let mut rts_bot_harassment_defense_core_frame_order_errors = Vec::new();
+    for (index, action_label) in rts_bot_harassment_defense_core_action_labels
+        .iter()
+        .enumerate()
+    {
+        match RtsFrameOrder::from_live_command_label(
+            2_000 + index as u32,
+            "Multi2",
+            rts_bot_harassment_defense_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_bot_harassment_defense_core_frame_order_errors.push(format!(
+                        "bot_harassment_defense_{index}:{action_label}:{error}"
+                    ));
+                } else {
+                    rts_bot_harassment_defense_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_bot_harassment_defense_core_frame_order_errors.push(format!(
+                "bot_harassment_defense_{index}:{action_label}:{error}"
+            )),
+        }
+    }
+    let rts_bot_harassment_defense_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-bot-harassment-defense",
+        "trnm-rts-core-bot-harassment-defense-rules-v1",
+        rts_bot_harassment_defense_core_frame_orders.clone(),
+    );
+    let rts_bot_harassment_defense_core_frame_order_stream_error =
+        rts_bot_harassment_defense_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_bot_harassment_defense_core_frame_order_stream_sha256 =
+        rts_bot_harassment_defense_core_frame_order_stream.sha256_hex();
+    let rts_bot_harassment_defense_core_frame_order_kind_labels =
+        rts_bot_harassment_defense_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_bot_harassment_defense_core_frame_order_values =
+        rts_bot_harassment_defense_core_frame_orders
+            .iter()
+            .map(|order| {
+                serde_json::to_value(order).expect("rts bot harassment defense order serializes")
+            })
+            .collect::<Vec<_>>();
+    let rts_bot_harassment_defense_core_frame_order_stream_value =
+        serde_json::to_value(&rts_bot_harassment_defense_core_frame_order_stream)
+            .expect("rts bot harassment defense stream serializes");
+    let rts_bot_harassment_defense_core_frame_order_gate =
+        rts_bot_harassment_defense_core_frame_order_errors.is_empty()
+            && rts_bot_harassment_defense_core_frame_order_stream_error.is_none()
+            && rts_bot_harassment_defense_core_frame_order_stream_sha256.len() == 64
+            && rts_bot_harassment_defense_core_frame_orders.len() == 7
+            && rts_bot_harassment_defense_core_frame_order_kind_labels
+                == [
+                    "recon", "move", "repair", "build", "attack", "move", "build",
+                ]
+            && rts_bot_harassment_defense_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Recon
+                        && order.target_rule_id.as_deref() == Some("scout")
+                        && order.target_actor_id.as_deref() == Some("worker_line_probe")
+                        && order.target_tile == Some(RtsTile::new(4, 5))
+                })
+            && rts_bot_harassment_defense_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Move
+                        && order.target_tile == Some(RtsTile::new(5, 5))
+                        && order.formation_id.as_deref() == Some("worker_pullback_split")
+                })
+            && rts_bot_harassment_defense_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Repair
+                        && order.target_actor_id.as_deref() == Some("relay_turret")
+                        && order.target_tile == Some(RtsTile::new(6, 5))
+                })
+            && rts_bot_harassment_defense_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Build
+                        && order.target_rule_id.as_deref() == Some("static_defense_turret")
+                        && order.target_tile == Some(RtsTile::new(6, 5))
+                })
+            && rts_bot_harassment_defense_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Attack
+                        && order.target_actor_id.as_deref() == Some("enemy_expand_counter_raid")
+                })
+            && rts_bot_harassment_defense_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Move
+                        && order.target_tile == Some(RtsTile::new(7, 4))
+                        && order.formation_id.as_deref() == Some("retreat_path_rejoin")
+                })
+            && rts_bot_harassment_defense_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Build
+                        && order.target_rule_id.as_deref() == Some("rebuild_route_relay")
+                        && order.target_tile == Some(RtsTile::new(8, 6))
+                });
+    let rts_bot_harassment_defense_core_headless_replay_result =
+        rts_bot_harassment_defense_core_frame_order_stream.replay_headless();
+    let (
+        rts_bot_harassment_defense_core_headless_replay_report_value,
+        rts_bot_harassment_defense_core_headless_checkpoint_sha256,
+        rts_bot_harassment_defense_core_headless_replay_error,
+        rts_bot_harassment_defense_core_headless_applied_order_count,
+        rts_bot_harassment_defense_core_headless_actor_count,
+        rts_bot_harassment_defense_core_headless_final_frame,
+        rts_bot_harassment_defense_core_headless_event_log,
+        rts_bot_harassment_defense_core_headless_recon_order_count,
+        rts_bot_harassment_defense_core_headless_scout_order_count,
+        rts_bot_harassment_defense_core_headless_recon_ids,
+        rts_bot_harassment_defense_core_headless_recon_tile_ids,
+        rts_bot_harassment_defense_core_headless_build_order_count,
+        rts_bot_harassment_defense_core_headless_repair_order_count,
+        rts_bot_harassment_defense_core_headless_build_rule_ids,
+        rts_bot_harassment_defense_core_headless_repair_target_ids,
+        rts_bot_harassment_defense_core_headless_attack_order_count,
+        rts_bot_harassment_defense_core_headless_micro_move_order_count,
+        rts_bot_harassment_defense_core_headless_combat_target_actor_ids,
+        rts_bot_harassment_defense_core_headless_combat_target_tile_ids,
+        rts_bot_harassment_defense_core_headless_combat_formation_ids,
+    ) = match rts_bot_harassment_defense_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let production = &checkpoint.production_lifecycle;
+            let recon = &checkpoint.recon_intel;
+            let combat = &checkpoint.tactical_combat;
+            (
+                serde_json::to_value(&report)
+                    .expect("rts bot harassment defense replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                recon.recon_order_count,
+                recon.scout_order_count,
+                recon.recon_ids.clone(),
+                recon.recon_tile_ids.clone(),
+                production.build_order_count,
+                production.repair_order_count,
+                production.build_rule_ids.clone(),
+                production.repair_target_ids.clone(),
+                combat.attack_order_count,
+                combat.micro_move_order_count,
+                combat.combat_target_actor_ids.clone(),
+                combat.combat_target_tile_ids.clone(),
+                combat.combat_formation_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_bot_harassment_defense_core_headless_replay_gate =
+        rts_bot_harassment_defense_core_frame_order_gate
+            && rts_bot_harassment_defense_core_headless_replay_error.is_none()
+            && rts_bot_harassment_defense_core_headless_checkpoint_sha256.len() == 64
+            && rts_bot_harassment_defense_core_headless_applied_order_count == 7
+            && rts_bot_harassment_defense_core_headless_actor_count >= 3
+            && rts_bot_harassment_defense_core_headless_final_frame == 2_006
+            && rts_bot_harassment_defense_core_headless_recon_order_count == 1
+            && rts_bot_harassment_defense_core_headless_scout_order_count == 1
+            && rts_bot_harassment_defense_core_headless_recon_ids
+                .iter()
+                .any(|id| id == "worker_line_probe")
+            && rts_bot_harassment_defense_core_headless_recon_tile_ids
+                .iter()
+                .any(|tile| tile == "4,5")
+            && rts_bot_harassment_defense_core_headless_build_order_count == 2
+            && rts_bot_harassment_defense_core_headless_repair_order_count == 1
+            && rts_bot_harassment_defense_core_headless_build_rule_ids
+                .iter()
+                .any(|rule| rule == "static_defense_turret")
+            && rts_bot_harassment_defense_core_headless_build_rule_ids
+                .iter()
+                .any(|rule| rule == "rebuild_route_relay")
+            && rts_bot_harassment_defense_core_headless_repair_target_ids
+                .iter()
+                .any(|target| target == "relay_turret")
+            && rts_bot_harassment_defense_core_headless_attack_order_count == 1
+            && rts_bot_harassment_defense_core_headless_micro_move_order_count == 2
+            && rts_bot_harassment_defense_core_headless_combat_target_actor_ids
+                .iter()
+                .any(|target| target == "enemy_expand_counter_raid")
+            && rts_bot_harassment_defense_core_headless_combat_target_tile_ids
+                .iter()
+                .any(|tile| tile == "7,4")
+            && rts_bot_harassment_defense_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "worker_pullback_split")
+            && rts_bot_harassment_defense_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "retreat_path_rejoin")
+            && rts_bot_harassment_defense_core_headless_event_log
+                .iter()
+                .any(|event| event.contains(":kind:repair:") && event.contains(":target:6,5"));
     let renderer_gate = non_background_pixels > 250_000
         && ai_wave_pixel_count > 80
         && ai_pressure_pixel_count > 120
@@ -68257,6 +68500,8 @@ pub fn native_classic_rts_bot_harassment_defense_gap_evidence_json(preview_path:
     let green = write_gate
         && renderer_gate
         && harassment_defense_gap_gate
+        && rts_bot_harassment_defense_core_frame_order_gate
+        && rts_bot_harassment_defense_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -68277,6 +68522,35 @@ pub fn native_classic_rts_bot_harassment_defense_gap_evidence_json(preview_path:
         "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
         "harassment_stage_count": harassment_stage_count,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_bot_harassment_defense_core_subject_actor_ids": rts_bot_harassment_defense_core_subject_actor_ids,
+        "rts_bot_harassment_defense_core_action_labels": rts_bot_harassment_defense_core_action_labels,
+        "rts_bot_harassment_defense_core_frame_orders": rts_bot_harassment_defense_core_frame_order_values,
+        "rts_bot_harassment_defense_core_frame_order_stream": rts_bot_harassment_defense_core_frame_order_stream_value,
+        "rts_bot_harassment_defense_core_frame_order_stream_sha256": rts_bot_harassment_defense_core_frame_order_stream_sha256,
+        "rts_bot_harassment_defense_core_frame_order_kind_labels": rts_bot_harassment_defense_core_frame_order_kind_labels,
+        "rts_bot_harassment_defense_core_frame_order_errors": rts_bot_harassment_defense_core_frame_order_errors,
+        "rts_bot_harassment_defense_core_frame_order_stream_error": rts_bot_harassment_defense_core_frame_order_stream_error,
+        "rts_bot_harassment_defense_core_headless_replay_report": rts_bot_harassment_defense_core_headless_replay_report_value,
+        "rts_bot_harassment_defense_core_headless_checkpoint_sha256": rts_bot_harassment_defense_core_headless_checkpoint_sha256,
+        "rts_bot_harassment_defense_core_headless_replay_error": rts_bot_harassment_defense_core_headless_replay_error,
+        "rts_bot_harassment_defense_core_headless_applied_order_count": rts_bot_harassment_defense_core_headless_applied_order_count,
+        "rts_bot_harassment_defense_core_headless_actor_count": rts_bot_harassment_defense_core_headless_actor_count,
+        "rts_bot_harassment_defense_core_headless_final_frame": rts_bot_harassment_defense_core_headless_final_frame,
+        "rts_bot_harassment_defense_core_headless_event_log": rts_bot_harassment_defense_core_headless_event_log,
+        "rts_bot_harassment_defense_core_headless_recon_order_count": rts_bot_harassment_defense_core_headless_recon_order_count,
+        "rts_bot_harassment_defense_core_headless_scout_order_count": rts_bot_harassment_defense_core_headless_scout_order_count,
+        "rts_bot_harassment_defense_core_headless_recon_ids": rts_bot_harassment_defense_core_headless_recon_ids,
+        "rts_bot_harassment_defense_core_headless_recon_tile_ids": rts_bot_harassment_defense_core_headless_recon_tile_ids,
+        "rts_bot_harassment_defense_core_headless_build_order_count": rts_bot_harassment_defense_core_headless_build_order_count,
+        "rts_bot_harassment_defense_core_headless_repair_order_count": rts_bot_harassment_defense_core_headless_repair_order_count,
+        "rts_bot_harassment_defense_core_headless_build_rule_ids": rts_bot_harassment_defense_core_headless_build_rule_ids,
+        "rts_bot_harassment_defense_core_headless_repair_target_ids": rts_bot_harassment_defense_core_headless_repair_target_ids,
+        "rts_bot_harassment_defense_core_headless_attack_order_count": rts_bot_harassment_defense_core_headless_attack_order_count,
+        "rts_bot_harassment_defense_core_headless_micro_move_order_count": rts_bot_harassment_defense_core_headless_micro_move_order_count,
+        "rts_bot_harassment_defense_core_headless_combat_target_actor_ids": rts_bot_harassment_defense_core_headless_combat_target_actor_ids,
+        "rts_bot_harassment_defense_core_headless_combat_target_tile_ids": rts_bot_harassment_defense_core_headless_combat_target_tile_ids,
+        "rts_bot_harassment_defense_core_headless_combat_formation_ids": rts_bot_harassment_defense_core_headless_combat_formation_ids,
         "harassment_signal_count": harassment_signal_count,
         "worker_pullback_count": worker_pullback_count,
         "repair_cycle_count": repair_cycle_count,
@@ -68311,9 +68585,11 @@ pub fn native_classic_rts_bot_harassment_defense_gap_evidence_json(preview_path:
         "openra_harassment_defense_target_gate": openra_harassment_defense_target_gate,
         "renderer_gate": renderer_gate,
         "harassment_defense_gap_gate": harassment_defense_gap_gate,
+        "rts_bot_harassment_defense_core_frame_order_gate": rts_bot_harassment_defense_core_frame_order_gate,
+        "rts_bot_harassment_defense_core_headless_replay_gate": rts_bot_harassment_defense_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS bot harassment-defense gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker pullback, repair/body-block, static defense, counter-raid, retreat path, and rebuild vocabulary while keeping native OpenRA harassment AI parity unclaimed."
+        "source_of_truth": "Classic RTS bot harassment-defense gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker pullback, repair/body-block, static defense, counter-raid, retreat path, and rebuild vocabulary, emits those harassment defense commands into trnm-rts-core, replays them through the Bevy-free headless reducer, and keeps native OpenRA harassment AI parity unclaimed."
     }))
     .expect("classic RTS bot harassment-defense gap evidence serializes")
 }
