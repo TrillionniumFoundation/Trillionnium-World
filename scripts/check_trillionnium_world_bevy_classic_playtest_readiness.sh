@@ -416,6 +416,7 @@ jq -n \
       and $rts_live[0].right_click_execution_feedback_gate == true
       and $rts_live[0].right_click_execution_feedback_player_label_gate == true
       and $rts_live[0].rts_core_frame_order_gate == true
+      and $rts_live[0].rts_core_headless_replay_gate == true
       and $rts_live[0].right_click_execution_feedback_label_pixel_count > 700
       and $rts_live[0].context_cursor_gate == true
       and $rts_live[0].viewport_world_input_gate == true
@@ -857,6 +858,10 @@ jq -n \
       rts_live_input_rts_core_frame_order_count: ($rts_live[0].rts_core_frame_orders | length),
       rts_live_input_rts_core_frame_order_kinds: $rts_live[0].rts_core_frame_order_kind_labels,
       rts_live_input_rts_core_frame_order_stream_sha256: $rts_live[0].rts_core_frame_order_stream_sha256,
+      rts_live_input_rts_core_headless_checkpoint_sha256: $rts_live[0].rts_core_headless_checkpoint_sha256,
+      rts_live_input_rts_core_headless_applied_order_count: $rts_live[0].rts_core_headless_applied_order_count,
+      rts_live_input_rts_core_headless_actor_count: $rts_live[0].rts_core_headless_actor_count,
+      rts_live_input_rts_core_headless_final_frame: $rts_live[0].rts_core_headless_final_frame,
       rts_live_input_right_click_target_follow_stamp_pixel_count: $rts_live[0].right_click_target_follow_stamp_pixel_count,
       rts_live_input_right_click_target_harvest_stamp_pixel_count: $rts_live[0].right_click_target_harvest_stamp_pixel_count,
       rts_live_input_right_click_target_preview_path_pixel_count: $rts_live[0].right_click_target_preview_path_pixel_count,
@@ -2231,6 +2236,7 @@ jq -n \
       rts_live_input_right_click_execution_feedback_gate: $rts_live[0].right_click_execution_feedback_gate,
       rts_live_input_right_click_execution_feedback_player_label_gate: $rts_live[0].right_click_execution_feedback_player_label_gate,
       rts_live_input_rts_core_frame_order_gate: $rts_live[0].rts_core_frame_order_gate,
+      rts_live_input_rts_core_headless_replay_gate: $rts_live[0].rts_core_headless_replay_gate,
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
       rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
       rts_live_input_control_group_hotkey_gate: $rts_live[0].control_group_hotkey_gate,
@@ -3598,6 +3604,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_rts_core_frame_order_count == 4
   and (.headline.rts_live_input_rts_core_frame_order_kinds | tostring == "[\"move\",\"attack\",\"follow\",\"harvest\"]")
   and (.headline.rts_live_input_rts_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_live_input_rts_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .headline.rts_live_input_rts_core_headless_applied_order_count == 4
+  and .headline.rts_live_input_rts_core_headless_actor_count == 7
+  and .headline.rts_live_input_rts_core_headless_final_frame == 423
   and .headline.rts_live_input_right_click_target_follow_stamp_pixel_count > 80
   and .headline.rts_live_input_right_click_target_harvest_stamp_pixel_count > 80
   and .headline.rts_live_input_right_click_target_preview_path_pixel_count > 300
@@ -4397,6 +4407,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_right_click_execution_feedback_gate == true
   and .gates.rts_live_input_right_click_execution_feedback_player_label_gate == true
   and .gates.rts_live_input_rts_core_frame_order_gate == true
+  and .gates.rts_live_input_rts_core_headless_replay_gate == true
   and .gates.rts_live_input_unit_shift_select_gate == true
   and .gates.rts_live_input_unit_double_click_select_gate == true
   and .gates.rts_live_input_control_group_hotkey_gate == true

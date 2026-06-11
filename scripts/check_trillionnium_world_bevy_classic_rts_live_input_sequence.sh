@@ -333,6 +333,35 @@ jq -e '
     and .target_actor_id == "gold_vein"
     and .queued == true
   ))
+  and .rts_core_headless_replay_gate == true
+  and .rts_core_headless_replay_error == null
+  and .rts_core_headless_applied_order_count == 4
+  and .rts_core_headless_actor_count == 7
+  and .rts_core_headless_final_frame == 423
+  and (.rts_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_core_headless_replay_report.contract == "trnm_rts_core_frame_order_v1"
+  and .rts_core_headless_replay_report.checkpoint.applied_order_count == 4
+  and .rts_core_headless_replay_report.checkpoint.actor_count == 7
+  and .rts_core_headless_replay_report.checkpoint.player_count == 1
+  and .rts_core_headless_replay_report.checkpoint.final_frame == 423
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:move:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:attack:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:follow:")))
+  and (.rts_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:harvest:")))
+  and (.rts_core_headless_replay_report.checkpoint.actors | any(
+    .actor_id == "player"
+    and .last_order_kind == "harvest"
+    and .target_actor_id == "gold_vein"
+    and .queued_order_count == 1
+    and .attack_order_count == 1
+    and .harvest_order_count == 1
+  ))
+  and (.rts_core_headless_replay_report.checkpoint.actors | any(
+    .actor_id == "square_guard_front"
+    and .last_order_kind == "attack"
+    and .target_actor_id == "square_creep_wander"
+    and .attack_order_count == 1
+  ))
   and .unit_shift_select_marker_pixel_count > 80
   and .unit_shift_select_stamp_pixel_count > 80
   and (.unit_shift_select_samples | length == 3)

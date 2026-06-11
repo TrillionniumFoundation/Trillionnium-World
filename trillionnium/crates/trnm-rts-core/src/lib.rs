@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 
 pub const TRNM_RTS_CORE_CONTRACT: &str = "trnm_rts_core_frame_order_v1";
 
@@ -383,6 +384,227 @@ impl RtsFrameOrderStream {
     pub fn sha256_hex(&self) -> String {
         sha256_hex(&self.canonical_json_bytes())
     }
+
+    pub fn replay_headless(&self) -> Result<RtsHeadlessReplayReport, String> {
+        self.validate()?;
+        let stream_sha256 = self.sha256_hex();
+        let mut players = BTreeMap::<String, RtsPlayerCheckpoint>::new();
+        let mut actors = BTreeMap::<String, RtsActorCheckpoint>::new();
+        let mut event_log = Vec::new();
+        let mut final_frame = 0_u32;
+
+        for order in &self.orders {
+            final_frame = final_frame.max(order.frame);
+            let subject_count = order.subject_actor_ids.len() as u32;
+            let player = players
+                .entry(order.player_id.clone())
+                .or_insert_with(|| RtsPlayerCheckpoint::new(order.player_id.clone()));
+            player.issued_order_count += 1;
+            player.subject_order_count += subject_count;
+            if order.queued {
+                player.queued_order_count += 1;
+            }
+
+            let target_label = order_target_label(order);
+            event_log.push(format!(
+                "frame:{}:player:{}:kind:{}:subjects:{}:target:{}",
+                order.frame,
+                order.player_id,
+                order.kind.as_str(),
+                subject_count,
+                target_label
+            ));
+
+            for actor_id in &order.subject_actor_ids {
+                let actor = actors.entry(actor_id.clone()).or_insert_with(|| {
+                    RtsActorCheckpoint::new(actor_id.clone(), order.player_id.clone())
+                });
+                actor.player_id = order.player_id.clone();
+                actor.last_frame = Some(order.frame);
+                actor.last_order_kind = Some(order.kind);
+                actor.last_raw_command_label = order.raw_command_label.clone();
+                if order.queued {
+                    actor.queued_order_count += 1;
+                }
+                actor.command_history.push(format!(
+                    "{}:{}:{}",
+                    order.frame,
+                    order.kind.as_str(),
+                    target_label
+                ));
+
+                match order.kind {
+                    RtsOrderKind::Move | RtsOrderKind::AttackMove | RtsOrderKind::Patrol => {
+                        actor.tile = order.target_tile;
+                        actor.formation_id = order.formation_id.clone();
+                    }
+                    RtsOrderKind::Follow => {
+                        actor.tile = order.target_tile;
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.formation_id = order.formation_id.clone();
+                    }
+                    RtsOrderKind::Attack | RtsOrderKind::FocusFire => {
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.target_tile = order.target_tile;
+                        actor.attack_order_count += 1;
+                    }
+                    RtsOrderKind::Harvest | RtsOrderKind::ReturnCargo => {
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.target_tile = order.target_tile;
+                        actor.harvest_order_count += 1;
+                    }
+                    RtsOrderKind::Build => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.tile = order.target_tile;
+                    }
+                    RtsOrderKind::Train => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                    }
+                    RtsOrderKind::Capture | RtsOrderKind::Repair => {
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.target_tile = order.target_tile;
+                    }
+                    RtsOrderKind::Queue => {
+                        actor.queue_id = order.queue_id.clone();
+                    }
+                    RtsOrderKind::Stop | RtsOrderKind::Hold => {}
+                }
+            }
+        }
+
+        let actors = actors.into_values().collect::<Vec<_>>();
+        let players = players.into_values().collect::<Vec<_>>();
+        let checkpoint = RtsHeadlessReplayCheckpoint {
+            contract: TRNM_RTS_CORE_CONTRACT.to_string(),
+            map_id: self.map_id.clone(),
+            rules_id: self.rules_id.clone(),
+            stream_sha256,
+            final_frame,
+            applied_order_count: self.orders.len() as u32,
+            player_count: players.len() as u32,
+            actor_count: actors.len() as u32,
+            players,
+            actors,
+            event_log,
+        };
+        let checkpoint_sha256 = checkpoint.sha256_hex();
+        Ok(RtsHeadlessReplayReport {
+            contract: TRNM_RTS_CORE_CONTRACT.to_string(),
+            checkpoint_sha256,
+            checkpoint,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsHeadlessReplayReport {
+    pub contract: String,
+    pub checkpoint_sha256: String,
+    pub checkpoint: RtsHeadlessReplayCheckpoint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsHeadlessReplayCheckpoint {
+    pub contract: String,
+    pub map_id: String,
+    pub rules_id: String,
+    pub stream_sha256: String,
+    pub final_frame: u32,
+    pub applied_order_count: u32,
+    pub player_count: u32,
+    pub actor_count: u32,
+    pub players: Vec<RtsPlayerCheckpoint>,
+    pub actors: Vec<RtsActorCheckpoint>,
+    pub event_log: Vec<String>,
+}
+
+impl RtsHeadlessReplayCheckpoint {
+    pub fn canonical_json_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).expect("rts headless checkpoint serializes")
+    }
+
+    pub fn sha256_hex(&self) -> String {
+        sha256_hex(&self.canonical_json_bytes())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsPlayerCheckpoint {
+    pub player_id: String,
+    pub issued_order_count: u32,
+    pub subject_order_count: u32,
+    pub queued_order_count: u32,
+}
+
+impl RtsPlayerCheckpoint {
+    fn new(player_id: String) -> Self {
+        Self {
+            player_id,
+            issued_order_count: 0,
+            subject_order_count: 0,
+            queued_order_count: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsActorCheckpoint {
+    pub actor_id: String,
+    pub player_id: String,
+    #[serde(default)]
+    pub last_frame: Option<u32>,
+    #[serde(default)]
+    pub last_order_kind: Option<RtsOrderKind>,
+    #[serde(default)]
+    pub last_raw_command_label: Option<String>,
+    #[serde(default)]
+    pub tile: Option<RtsTile>,
+    #[serde(default)]
+    pub target_tile: Option<RtsTile>,
+    #[serde(default)]
+    pub target_actor_id: Option<String>,
+    #[serde(default)]
+    pub target_rule_id: Option<String>,
+    #[serde(default)]
+    pub queue_id: Option<String>,
+    #[serde(default)]
+    pub formation_id: Option<String>,
+    pub queued_order_count: u32,
+    pub attack_order_count: u32,
+    pub harvest_order_count: u32,
+    pub command_history: Vec<String>,
+}
+
+impl RtsActorCheckpoint {
+    fn new(actor_id: String, player_id: String) -> Self {
+        Self {
+            actor_id,
+            player_id,
+            last_frame: None,
+            last_order_kind: None,
+            last_raw_command_label: None,
+            tile: None,
+            target_tile: None,
+            target_actor_id: None,
+            target_rule_id: None,
+            queue_id: None,
+            formation_id: None,
+            queued_order_count: 0,
+            attack_order_count: 0,
+            harvest_order_count: 0,
+            command_history: Vec::new(),
+        }
+    }
+}
+
+fn order_target_label(order: &RtsFrameOrder) -> String {
+    order
+        .target_tile
+        .map(RtsTile::label)
+        .or_else(|| order.target_actor_id.clone())
+        .or_else(|| order.target_rule_id.clone())
+        .or_else(|| order.queue_id.clone())
+        .unwrap_or_else(|| "none".to_string())
 }
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
@@ -396,6 +618,29 @@ mod tests {
 
     fn selected_subjects() -> Vec<String> {
         vec!["player".to_string(), "square_worker_harvest".to_string()]
+    }
+
+    fn live_right_click_stream() -> RtsFrameOrderStream {
+        let labels = [
+            "RTS:MOVE:4,3:line",
+            "RTS:ATTACK:square_creep_wander",
+            "RTS:MOVE:5,4:follow:player",
+            "RTS:QUEUE:harvest:gold_vein",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    420 + index as u32,
+                    "Multi0",
+                    selected_subjects(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        RtsFrameOrderStream::new("first-contact-basin-live-input", "trnm-rules-v1", orders)
     }
 
     #[test]
@@ -525,5 +770,52 @@ mod tests {
             vec![order_a, order_b],
         );
         assert_eq!(stream.validate().unwrap_err(), "frame_regression:3->2");
+    }
+
+    #[test]
+    fn headless_replay_checkpoint_tracks_actor_and_player_state() {
+        let report = live_right_click_stream().replay_headless().unwrap();
+        assert_eq!(report.contract, TRNM_RTS_CORE_CONTRACT);
+        assert_eq!(report.checkpoint.applied_order_count, 4);
+        assert_eq!(report.checkpoint.final_frame, 423);
+        assert_eq!(report.checkpoint.player_count, 1);
+        assert_eq!(report.checkpoint.actor_count, 2);
+        assert_eq!(report.checkpoint.players[0].issued_order_count, 4);
+        assert_eq!(report.checkpoint.players[0].queued_order_count, 1);
+        assert_eq!(report.checkpoint.event_log.len(), 4);
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:attack:")));
+
+        let player = report
+            .checkpoint
+            .actors
+            .iter()
+            .find(|actor| actor.actor_id == "player")
+            .unwrap();
+        assert_eq!(player.last_order_kind, Some(RtsOrderKind::Harvest));
+        assert_eq!(player.target_actor_id.as_deref(), Some("gold_vein"));
+        assert_eq!(player.tile, Some(RtsTile::new(5, 4)));
+        assert_eq!(player.queued_order_count, 1);
+        assert_eq!(player.attack_order_count, 1);
+        assert_eq!(player.harvest_order_count, 1);
+        assert_eq!(player.command_history.len(), 4);
+        assert_eq!(report.checkpoint.sha256_hex(), report.checkpoint_sha256);
+        assert_eq!(report.checkpoint_sha256.len(), 64);
+    }
+
+    #[test]
+    fn headless_replay_checkpoint_hash_is_deterministic_and_order_sensitive() {
+        let stream = live_right_click_stream();
+        let first = stream.replay_headless().unwrap();
+        let second = stream.replay_headless().unwrap();
+        assert_eq!(first.checkpoint_sha256, second.checkpoint_sha256);
+
+        let mut changed = stream.clone();
+        changed.orders[3].target_actor_id = Some("blue_crystal".to_string());
+        let changed = changed.replay_headless().unwrap();
+        assert_ne!(first.checkpoint_sha256, changed.checkpoint_sha256);
     }
 }

@@ -43247,6 +43247,48 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && rts_core_frame_orders
             .iter()
             .any(|order| order.kind == RtsOrderKind::Harvest && order.target_actor_id.is_some());
+    let rts_core_headless_replay_result = rts_core_frame_order_stream.replay_headless();
+    let (
+        rts_core_headless_replay_report_value,
+        rts_core_headless_checkpoint_sha256,
+        rts_core_headless_replay_error,
+        rts_core_headless_applied_order_count,
+        rts_core_headless_actor_count,
+        rts_core_headless_final_frame,
+        rts_core_headless_event_log,
+    ) = match rts_core_headless_replay_result {
+        Ok(report) => {
+            let event_log = report.checkpoint.event_log.clone();
+            (
+                serde_json::to_value(&report).expect("rts core headless replay report serializes"),
+                report.checkpoint_sha256,
+                None,
+                report.checkpoint.applied_order_count,
+                report.checkpoint.actor_count,
+                report.checkpoint.final_frame,
+                event_log,
+            )
+        }
+        Err(error) => (Value::Null, String::new(), Some(error), 0, 0, 0, Vec::new()),
+    };
+    let rts_core_headless_replay_gate = rts_core_frame_order_gate
+        && rts_core_headless_replay_error.is_none()
+        && rts_core_headless_checkpoint_sha256.len() == 64
+        && rts_core_headless_applied_order_count == 4
+        && rts_core_headless_actor_count >= 5
+        && rts_core_headless_final_frame == 423
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:move:"))
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:attack:"))
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:follow:"))
+        && rts_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:harvest:"));
 
     let mut unit_shift_world = native_bevy_playable_fixture();
     let mut unit_shift_character = WorldTrillionniumCharacter::default_for("local-player");
@@ -45244,6 +45286,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && selection_clear_gate
         && right_click_target_semantics_gate
         && rts_core_frame_order_gate
+        && rts_core_headless_replay_gate
         && unit_shift_select_gate
         && unit_double_click_select_gate
         && control_group_hotkey_gate
@@ -45306,6 +45349,13 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "rts_core_frame_order_kind_labels": rts_core_frame_order_kind_labels,
         "rts_core_frame_order_errors": rts_core_frame_order_errors,
         "rts_core_frame_order_stream_error": rts_core_frame_order_stream_error,
+        "rts_core_headless_replay_report": rts_core_headless_replay_report_value,
+        "rts_core_headless_checkpoint_sha256": rts_core_headless_checkpoint_sha256,
+        "rts_core_headless_replay_error": rts_core_headless_replay_error,
+        "rts_core_headless_applied_order_count": rts_core_headless_applied_order_count,
+        "rts_core_headless_actor_count": rts_core_headless_actor_count,
+        "rts_core_headless_final_frame": rts_core_headless_final_frame,
+        "rts_core_headless_event_log": rts_core_headless_event_log,
         "right_click_execution_feedback_frame_pixel_count": right_click_execution_frame_pixel_count,
         "right_click_execution_feedback_path_pixel_count": right_click_execution_path_pixel_count,
         "right_click_execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,
@@ -45396,6 +45446,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_execution_feedback_player_label_gate": right_click_execution_feedback_player_label_gate,
         "right_click_target_semantics_gate": right_click_target_semantics_gate,
         "rts_core_frame_order_gate": rts_core_frame_order_gate,
+        "rts_core_headless_replay_gate": rts_core_headless_replay_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
         "control_group_hotkey_gate": control_group_hotkey_gate,
@@ -45403,7 +45454,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback labels for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, camera-focus viewport world-coordinate input, accepted-command stamp feedback, and trnm-rts-core frame-order emission through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, classic_rts_command_execution_player_label, RtsFrameOrder::from_live_command_label, RtsFrameOrderStream::validate, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback labels for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, camera-focus viewport world-coordinate input, accepted-command stamp feedback, trnm-rts-core frame-order emission, and trnm-rts-core headless replay checkpointing through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, classic_rts_command_execution_player_label, RtsFrameOrder::from_live_command_label, RtsFrameOrderStream::validate, RtsFrameOrderStream::replay_headless, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
