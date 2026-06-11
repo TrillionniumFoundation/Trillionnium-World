@@ -67524,6 +67524,245 @@ pub fn native_classic_rts_bot_macro_economy_gap_evidence_json(preview_path: &str
     let openra_macro_economy_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
         && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
         && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let rts_bot_macro_economy_core_subject_actor_ids = string_vec([
+        "Multi2:trnm.worker",
+        "Multi2:trnm.production.overseer",
+        "Multi2:trnm.forge.warden",
+    ]);
+    let rts_bot_macro_economy_core_action_labels = [
+        "RTS:QUEUE:harvest:relay_refinery",
+        "RTS:QUEUE:train:trnm.worker",
+        "RTS:QUEUE:build:natural_refinery@5,5",
+        "RTS:QUEUE:build:supply_cache@6,4",
+        "RTS:QUEUE:train:trnm.horizon.skimmer",
+        "RTS:QUEUE:train:trnm.forge.warden",
+        "RTS:QUEUE:research:signal_array@town_hall",
+        "RTS:ATTACK:enemy_rebuild_node",
+        "RTS:MOVE:9,2:deny_enemy_node_rebuild_army",
+    ];
+    let mut rts_bot_macro_economy_core_frame_orders = Vec::new();
+    let mut rts_bot_macro_economy_core_frame_order_errors = Vec::new();
+    for (index, action_label) in rts_bot_macro_economy_core_action_labels.iter().enumerate() {
+        match RtsFrameOrder::from_live_command_label(
+            1_800 + index as u32,
+            "Multi2",
+            rts_bot_macro_economy_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_bot_macro_economy_core_frame_order_errors
+                        .push(format!("bot_macro_economy_{index}:{action_label}:{error}"));
+                } else {
+                    rts_bot_macro_economy_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_bot_macro_economy_core_frame_order_errors
+                .push(format!("bot_macro_economy_{index}:{action_label}:{error}")),
+        }
+    }
+    let rts_bot_macro_economy_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-bot-macro-economy",
+        "trnm-rts-core-bot-macro-economy-rules-v1",
+        rts_bot_macro_economy_core_frame_orders.clone(),
+    );
+    let rts_bot_macro_economy_core_frame_order_stream_error =
+        rts_bot_macro_economy_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_bot_macro_economy_core_frame_order_stream_sha256 =
+        rts_bot_macro_economy_core_frame_order_stream.sha256_hex();
+    let rts_bot_macro_economy_core_frame_order_kind_labels =
+        rts_bot_macro_economy_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_bot_macro_economy_core_frame_order_values = rts_bot_macro_economy_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts bot macro economy order serializes"))
+        .collect::<Vec<_>>();
+    let rts_bot_macro_economy_core_frame_order_stream_value =
+        serde_json::to_value(&rts_bot_macro_economy_core_frame_order_stream)
+            .expect("rts bot macro economy stream serializes");
+    let rts_bot_macro_economy_core_frame_order_gate = rts_bot_macro_economy_core_frame_order_errors
+        .is_empty()
+        && rts_bot_macro_economy_core_frame_order_stream_error.is_none()
+        && rts_bot_macro_economy_core_frame_order_stream_sha256.len() == 64
+        && rts_bot_macro_economy_core_frame_orders.len() == 9
+        && rts_bot_macro_economy_core_frame_order_kind_labels
+            == [
+                "harvest", "train", "build", "build", "train", "train", "research", "attack",
+                "move",
+            ]
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Harvest
+                && order.target_actor_id.as_deref() == Some("relay_refinery")
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Train
+                && order.target_rule_id.as_deref() == Some("trnm.worker")
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Build
+                && order.target_rule_id.as_deref() == Some("natural_refinery")
+                && order.target_tile == Some(RtsTile::new(5, 5))
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Build
+                && order.target_rule_id.as_deref() == Some("supply_cache")
+                && order.target_tile == Some(RtsTile::new(6, 4))
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Train
+                && order.target_rule_id.as_deref() == Some("trnm.horizon.skimmer")
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Train
+                && order.target_rule_id.as_deref() == Some("trnm.forge.warden")
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Research
+                && order.target_rule_id.as_deref() == Some("signal_array")
+                && order.target_actor_id.as_deref() == Some("town_hall")
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Attack
+                && order.target_actor_id.as_deref() == Some("enemy_rebuild_node")
+        })
+        && rts_bot_macro_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(9, 2))
+                && order.formation_id.as_deref() == Some("deny_enemy_node_rebuild_army")
+        });
+    let rts_bot_macro_economy_core_headless_replay_result =
+        rts_bot_macro_economy_core_frame_order_stream.replay_headless();
+    let (
+        rts_bot_macro_economy_core_headless_replay_report_value,
+        rts_bot_macro_economy_core_headless_checkpoint_sha256,
+        rts_bot_macro_economy_core_headless_replay_error,
+        rts_bot_macro_economy_core_headless_applied_order_count,
+        rts_bot_macro_economy_core_headless_actor_count,
+        rts_bot_macro_economy_core_headless_final_frame,
+        rts_bot_macro_economy_core_headless_event_log,
+        rts_bot_macro_economy_core_headless_harvest_actor_order_count,
+        rts_bot_macro_economy_core_headless_build_order_count,
+        rts_bot_macro_economy_core_headless_train_order_count,
+        rts_bot_macro_economy_core_headless_build_rule_ids,
+        rts_bot_macro_economy_core_headless_train_rule_ids,
+        rts_bot_macro_economy_core_headless_research_order_count,
+        rts_bot_macro_economy_core_headless_researched_rule_ids,
+        rts_bot_macro_economy_core_headless_research_source_actor_ids,
+        rts_bot_macro_economy_core_headless_attack_order_count,
+        rts_bot_macro_economy_core_headless_micro_move_order_count,
+        rts_bot_macro_economy_core_headless_combat_target_actor_ids,
+        rts_bot_macro_economy_core_headless_combat_target_tile_ids,
+        rts_bot_macro_economy_core_headless_combat_formation_ids,
+    ) = match rts_bot_macro_economy_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let production = &checkpoint.production_lifecycle;
+            let tech_tree = &checkpoint.tech_tree;
+            let combat = &checkpoint.tactical_combat;
+            (
+                serde_json::to_value(&report)
+                    .expect("rts bot macro economy replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                checkpoint
+                    .actors
+                    .iter()
+                    .map(|actor| actor.harvest_order_count)
+                    .sum::<u32>(),
+                production.build_order_count,
+                production.train_order_count,
+                production.build_rule_ids.clone(),
+                production.train_rule_ids.clone(),
+                tech_tree.research_order_count,
+                tech_tree.researched_rule_ids.clone(),
+                tech_tree.source_actor_ids.clone(),
+                combat.attack_order_count,
+                combat.micro_move_order_count,
+                combat.combat_target_actor_ids.clone(),
+                combat.combat_target_tile_ids.clone(),
+                combat.combat_formation_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_bot_macro_economy_core_headless_replay_gate =
+        rts_bot_macro_economy_core_frame_order_gate
+            && rts_bot_macro_economy_core_headless_replay_error.is_none()
+            && rts_bot_macro_economy_core_headless_checkpoint_sha256.len() == 64
+            && rts_bot_macro_economy_core_headless_applied_order_count == 9
+            && rts_bot_macro_economy_core_headless_actor_count >= 3
+            && rts_bot_macro_economy_core_headless_final_frame == 1_808
+            && rts_bot_macro_economy_core_headless_harvest_actor_order_count >= 3
+            && rts_bot_macro_economy_core_headless_build_order_count == 2
+            && rts_bot_macro_economy_core_headless_train_order_count == 3
+            && rts_bot_macro_economy_core_headless_build_rule_ids
+                .iter()
+                .any(|rule| rule == "natural_refinery")
+            && rts_bot_macro_economy_core_headless_build_rule_ids
+                .iter()
+                .any(|rule| rule == "supply_cache")
+            && rts_bot_macro_economy_core_headless_train_rule_ids
+                .iter()
+                .any(|rule| rule == "trnm.worker")
+            && rts_bot_macro_economy_core_headless_train_rule_ids
+                .iter()
+                .any(|rule| rule == "trnm.horizon.skimmer")
+            && rts_bot_macro_economy_core_headless_train_rule_ids
+                .iter()
+                .any(|rule| rule == "trnm.forge.warden")
+            && rts_bot_macro_economy_core_headless_research_order_count == 1
+            && rts_bot_macro_economy_core_headless_researched_rule_ids
+                .iter()
+                .any(|rule| rule == "signal_array")
+            && rts_bot_macro_economy_core_headless_research_source_actor_ids
+                .iter()
+                .any(|source| source == "town_hall")
+            && rts_bot_macro_economy_core_headless_attack_order_count == 1
+            && rts_bot_macro_economy_core_headless_micro_move_order_count == 1
+            && rts_bot_macro_economy_core_headless_combat_target_actor_ids
+                .iter()
+                .any(|target| target == "enemy_rebuild_node")
+            && rts_bot_macro_economy_core_headless_combat_target_tile_ids
+                .iter()
+                .any(|tile| tile == "9,2")
+            && rts_bot_macro_economy_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "deny_enemy_node_rebuild_army")
+            && rts_bot_macro_economy_core_headless_event_log
+                .iter()
+                .any(|event| {
+                    event.contains(":kind:research:")
+                        && event.contains(":target:signal_array@town_hall")
+                });
     let renderer_gate = non_background_pixels > 250_000
         && ai_wave_pixel_count > 80
         && ai_pressure_pixel_count > 120
@@ -67543,6 +67782,8 @@ pub fn native_classic_rts_bot_macro_economy_gap_evidence_json(preview_path: &str
     let green = write_gate
         && renderer_gate
         && macro_economy_gap_gate
+        && rts_bot_macro_economy_core_frame_order_gate
+        && rts_bot_macro_economy_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -67563,6 +67804,35 @@ pub fn native_classic_rts_bot_macro_economy_gap_evidence_json(preview_path: &str
         "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
         "macro_stage_count": macro_stage_count,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_bot_macro_economy_core_subject_actor_ids": rts_bot_macro_economy_core_subject_actor_ids,
+        "rts_bot_macro_economy_core_action_labels": rts_bot_macro_economy_core_action_labels,
+        "rts_bot_macro_economy_core_frame_orders": rts_bot_macro_economy_core_frame_order_values,
+        "rts_bot_macro_economy_core_frame_order_stream": rts_bot_macro_economy_core_frame_order_stream_value,
+        "rts_bot_macro_economy_core_frame_order_stream_sha256": rts_bot_macro_economy_core_frame_order_stream_sha256,
+        "rts_bot_macro_economy_core_frame_order_kind_labels": rts_bot_macro_economy_core_frame_order_kind_labels,
+        "rts_bot_macro_economy_core_frame_order_errors": rts_bot_macro_economy_core_frame_order_errors,
+        "rts_bot_macro_economy_core_frame_order_stream_error": rts_bot_macro_economy_core_frame_order_stream_error,
+        "rts_bot_macro_economy_core_headless_replay_report": rts_bot_macro_economy_core_headless_replay_report_value,
+        "rts_bot_macro_economy_core_headless_checkpoint_sha256": rts_bot_macro_economy_core_headless_checkpoint_sha256,
+        "rts_bot_macro_economy_core_headless_replay_error": rts_bot_macro_economy_core_headless_replay_error,
+        "rts_bot_macro_economy_core_headless_applied_order_count": rts_bot_macro_economy_core_headless_applied_order_count,
+        "rts_bot_macro_economy_core_headless_actor_count": rts_bot_macro_economy_core_headless_actor_count,
+        "rts_bot_macro_economy_core_headless_final_frame": rts_bot_macro_economy_core_headless_final_frame,
+        "rts_bot_macro_economy_core_headless_event_log": rts_bot_macro_economy_core_headless_event_log,
+        "rts_bot_macro_economy_core_headless_harvest_actor_order_count": rts_bot_macro_economy_core_headless_harvest_actor_order_count,
+        "rts_bot_macro_economy_core_headless_build_order_count": rts_bot_macro_economy_core_headless_build_order_count,
+        "rts_bot_macro_economy_core_headless_train_order_count": rts_bot_macro_economy_core_headless_train_order_count,
+        "rts_bot_macro_economy_core_headless_build_rule_ids": rts_bot_macro_economy_core_headless_build_rule_ids,
+        "rts_bot_macro_economy_core_headless_train_rule_ids": rts_bot_macro_economy_core_headless_train_rule_ids,
+        "rts_bot_macro_economy_core_headless_research_order_count": rts_bot_macro_economy_core_headless_research_order_count,
+        "rts_bot_macro_economy_core_headless_researched_rule_ids": rts_bot_macro_economy_core_headless_researched_rule_ids,
+        "rts_bot_macro_economy_core_headless_research_source_actor_ids": rts_bot_macro_economy_core_headless_research_source_actor_ids,
+        "rts_bot_macro_economy_core_headless_attack_order_count": rts_bot_macro_economy_core_headless_attack_order_count,
+        "rts_bot_macro_economy_core_headless_micro_move_order_count": rts_bot_macro_economy_core_headless_micro_move_order_count,
+        "rts_bot_macro_economy_core_headless_combat_target_actor_ids": rts_bot_macro_economy_core_headless_combat_target_actor_ids,
+        "rts_bot_macro_economy_core_headless_combat_target_tile_ids": rts_bot_macro_economy_core_headless_combat_target_tile_ids,
+        "rts_bot_macro_economy_core_headless_combat_formation_ids": rts_bot_macro_economy_core_headless_combat_formation_ids,
         "macro_signal_count": macro_signal_count,
         "worker_saturation_count": worker_saturation_count,
         "expansion_timing_count": expansion_timing_count,
@@ -67597,9 +67867,11 @@ pub fn native_classic_rts_bot_macro_economy_gap_evidence_json(preview_path: &str
         "openra_macro_economy_target_gate": openra_macro_economy_target_gate,
         "renderer_gate": renderer_gate,
         "macro_economy_gap_gate": macro_economy_gap_gate,
+        "rts_bot_macro_economy_core_frame_order_gate": rts_bot_macro_economy_core_frame_order_gate,
+        "rts_bot_macro_economy_core_headless_replay_gate": rts_bot_macro_economy_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS bot macro-economy gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker saturation, expansion timing, supply recovery, production tempo, tech ramp, resource denial, and rebuild vocabulary while keeping native OpenRA economy AI parity unclaimed."
+        "source_of_truth": "Classic RTS bot macro-economy gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with worker saturation, expansion timing, supply recovery, production tempo, tech ramp, resource denial, and rebuild vocabulary, emits those macro economy commands into trnm-rts-core, replays them through the Bevy-free headless reducer, and keeps native OpenRA economy AI parity unclaimed."
     }))
     .expect("classic RTS bot macro-economy gap evidence serializes")
 }

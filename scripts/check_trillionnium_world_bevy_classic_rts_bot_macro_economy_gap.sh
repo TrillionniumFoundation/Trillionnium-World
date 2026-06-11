@@ -49,6 +49,36 @@ jq -e '
   and (.final_command_queue | index("native_openra_macro_economy_ai:false") != null)
   and (.final_army_production_batch_ids | index("macro_economy:worker_saturation_to_12") != null)
   and (.final_army_production_batch_ids | index("macro_economy:deny_enemy_node_rebuild_army") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_bot_macro_economy_core_subject_actor_ids | length) == 3
+  and (.rts_bot_macro_economy_core_action_labels | length) == 9
+  and .rts_bot_macro_economy_core_frame_order_stream.map_id == "first-contact-basin-bot-macro-economy"
+  and .rts_bot_macro_economy_core_frame_order_stream.rules_id == "trnm-rts-core-bot-macro-economy-rules-v1"
+  and .rts_bot_macro_economy_core_frame_order_kind_labels == ["harvest", "train", "build", "build", "train", "train", "research", "attack", "move"]
+  and (.rts_bot_macro_economy_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_bot_macro_economy_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_bot_macro_economy_core_frame_order_errors | length) == 0
+  and .rts_bot_macro_economy_core_frame_order_stream_error == null
+  and .rts_bot_macro_economy_core_headless_replay_error == null
+  and .rts_bot_macro_economy_core_headless_applied_order_count == 9
+  and .rts_bot_macro_economy_core_headless_actor_count >= 3
+  and .rts_bot_macro_economy_core_headless_final_frame == 1808
+  and .rts_bot_macro_economy_core_headless_harvest_actor_order_count >= 3
+  and .rts_bot_macro_economy_core_headless_build_order_count == 2
+  and .rts_bot_macro_economy_core_headless_train_order_count == 3
+  and (.rts_bot_macro_economy_core_headless_build_rule_ids | index("natural_refinery") != null)
+  and (.rts_bot_macro_economy_core_headless_build_rule_ids | index("supply_cache") != null)
+  and (.rts_bot_macro_economy_core_headless_train_rule_ids | index("trnm.worker") != null)
+  and (.rts_bot_macro_economy_core_headless_train_rule_ids | index("trnm.horizon.skimmer") != null)
+  and (.rts_bot_macro_economy_core_headless_train_rule_ids | index("trnm.forge.warden") != null)
+  and .rts_bot_macro_economy_core_headless_research_order_count == 1
+  and (.rts_bot_macro_economy_core_headless_researched_rule_ids | index("signal_array") != null)
+  and (.rts_bot_macro_economy_core_headless_research_source_actor_ids | index("town_hall") != null)
+  and .rts_bot_macro_economy_core_headless_attack_order_count == 1
+  and .rts_bot_macro_economy_core_headless_micro_move_order_count == 1
+  and (.rts_bot_macro_economy_core_headless_combat_target_actor_ids | index("enemy_rebuild_node") != null)
+  and (.rts_bot_macro_economy_core_headless_combat_target_tile_ids | index("9,2") != null)
+  and (.rts_bot_macro_economy_core_headless_combat_formation_ids | index("deny_enemy_node_rebuild_army") != null)
   and .non_background_pixels > 250000
   and .ai_wave_pixel_count > 80
   and .ai_pressure_pixel_count > 120
@@ -68,6 +98,8 @@ jq -e '
   and .openra_macro_economy_target_gate == true
   and .renderer_gate == true
   and .macro_economy_gap_gate == true
+  and .rts_bot_macro_economy_core_frame_order_gate == true
+  and .rts_bot_macro_economy_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

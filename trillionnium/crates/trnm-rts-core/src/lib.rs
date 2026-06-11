@@ -2550,6 +2550,108 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_macro_economy_stream() {
+        let subjects = vec![
+            "bot_worker".to_string(),
+            "bot_production".to_string(),
+            "bot_commander".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:harvest:relay_refinery",
+            "RTS:QUEUE:train:trnm.worker",
+            "RTS:QUEUE:build:natural_refinery@5,5",
+            "RTS:QUEUE:build:supply_cache@6,4",
+            "RTS:QUEUE:train:trnm.horizon.skimmer",
+            "RTS:QUEUE:train:trnm.forge.warden",
+            "RTS:QUEUE:research:signal_array@town_hall",
+            "RTS:ATTACK:enemy_rebuild_node",
+            "RTS:MOVE:9,2:deny_enemy_node_rebuild_army",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    1_800 + index as u32,
+                    "Bot0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-macro-economy",
+            "trnm-rts-core-bot-macro-economy-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let production = &report.checkpoint.production_lifecycle;
+        let tech = &report.checkpoint.tech_tree;
+        let combat = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 9);
+        assert_eq!(report.checkpoint.actor_count, 3);
+        assert_eq!(report.checkpoint.final_frame, 1_808);
+        assert_eq!(production.build_order_count, 2);
+        assert_eq!(production.train_order_count, 3);
+        assert!(production
+            .build_rule_ids
+            .iter()
+            .any(|rule| rule == "natural_refinery"));
+        assert!(production
+            .build_rule_ids
+            .iter()
+            .any(|rule| rule == "supply_cache"));
+        assert!(production
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "trnm.worker"));
+        assert!(production
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "trnm.forge.warden"));
+        assert_eq!(tech.research_order_count, 1);
+        assert!(tech
+            .researched_rule_ids
+            .iter()
+            .any(|rule| rule == "signal_array"));
+        assert_eq!(combat.attack_order_count, 1);
+        assert_eq!(combat.micro_move_order_count, 1);
+        assert!(combat
+            .combat_target_actor_ids
+            .iter()
+            .any(|target| target == "enemy_rebuild_node"));
+        assert!(combat
+            .combat_target_tile_ids
+            .iter()
+            .any(|tile| tile == "9,2"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "deny_enemy_node_rebuild_army"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:research:")
+                && event.contains(":target:signal_array@town_hall")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.harvest_order_count, 1);
+            assert_eq!(actor.build_order_count, 2);
+            assert_eq!(actor.train_order_count, 3);
+            assert_eq!(actor.research_order_count, 1);
+            assert_eq!(actor.attack_order_count, 1);
+            assert_eq!(actor.tile, Some(RtsTile::new(9, 2)));
+            assert_eq!(
+                actor.formation_id.as_deref(),
+                Some("deny_enemy_node_rebuild_army")
+            );
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),

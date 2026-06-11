@@ -1506,6 +1506,25 @@ jq -n \
       rts_bot_macro_economy_gap_openra_economy_tech_commit: $rts_bot_macro_economy_gap[0].openra_bot_economy_tech_target_commit,
       rts_bot_macro_economy_gap_openra_beacon_pressure_commit: $rts_bot_macro_economy_gap[0].openra_bot_beacon_pressure_target_commit,
       rts_bot_macro_economy_gap_openra_organic_terminal_commit: $rts_bot_macro_economy_gap[0].openra_organic_bot_terminal_target_commit,
+      rts_bot_macro_economy_gap_core_frame_order_stream_sha256: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_frame_order_stream_sha256,
+      rts_bot_macro_economy_gap_core_headless_checkpoint_sha256: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_checkpoint_sha256,
+      rts_bot_macro_economy_gap_core_frame_order_kinds: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_frame_order_kind_labels,
+      rts_bot_macro_economy_gap_core_headless_applied_orders: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_applied_order_count,
+      rts_bot_macro_economy_gap_core_headless_actor_count: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_actor_count,
+      rts_bot_macro_economy_gap_core_headless_final_frame: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_final_frame,
+      rts_bot_macro_economy_gap_core_headless_harvest_actor_orders: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_harvest_actor_order_count,
+      rts_bot_macro_economy_gap_core_headless_build_orders: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_build_order_count,
+      rts_bot_macro_economy_gap_core_headless_train_orders: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_train_order_count,
+      rts_bot_macro_economy_gap_core_headless_build_rules: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_build_rule_ids,
+      rts_bot_macro_economy_gap_core_headless_train_rules: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_train_rule_ids,
+      rts_bot_macro_economy_gap_core_headless_research_orders: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_research_order_count,
+      rts_bot_macro_economy_gap_core_headless_researched_rules: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_researched_rule_ids,
+      rts_bot_macro_economy_gap_core_headless_research_source_actor_ids: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_research_source_actor_ids,
+      rts_bot_macro_economy_gap_core_headless_attack_orders: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_attack_order_count,
+      rts_bot_macro_economy_gap_core_headless_micro_move_orders: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_micro_move_order_count,
+      rts_bot_macro_economy_gap_core_headless_combat_targets: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_combat_target_actor_ids,
+      rts_bot_macro_economy_gap_core_headless_combat_tiles: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_combat_target_tile_ids,
+      rts_bot_macro_economy_gap_core_headless_combat_formations: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_combat_formation_ids,
       rts_bot_macro_economy_gap_macro_signals: $rts_bot_macro_economy_gap[0].macro_signal_count,
       rts_bot_macro_economy_gap_worker_saturation: $rts_bot_macro_economy_gap[0].worker_saturation_count,
       rts_bot_macro_economy_gap_expansion_timings: $rts_bot_macro_economy_gap[0].expansion_timing_count,
@@ -2616,6 +2635,8 @@ jq -n \
       rts_bot_macro_economy_gap_openra_target_gate: $rts_bot_macro_economy_gap[0].openra_macro_economy_target_gate,
       rts_bot_macro_economy_gap_renderer_gate: $rts_bot_macro_economy_gap[0].renderer_gate,
       rts_bot_macro_economy_gap_openra_gap_not_closed_gate: $rts_bot_macro_economy_gap[0].openra_gap_not_closed_gate,
+      rts_bot_macro_economy_gap_core_frame_order_gate: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_frame_order_gate,
+      rts_bot_macro_economy_gap_core_headless_replay_gate: $rts_bot_macro_economy_gap[0].rts_bot_macro_economy_core_headless_replay_gate,
       rts_bot_macro_economy_gap_gate: $rts_bot_macro_economy_gap[0].macro_economy_gap_gate,
       rts_bot_harassment_defense_gap_stage_gate: $rts_bot_harassment_defense_gap[0].harassment_stage_gate,
       rts_bot_harassment_defense_gap_signal_gate: $rts_bot_harassment_defense_gap[0].harassment_signal_gate,
@@ -4359,6 +4380,28 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_bot_macro_economy_gap_openra_economy_tech_commit == "f6c47d9"
   and .headline.rts_bot_macro_economy_gap_openra_beacon_pressure_commit == "2b6f25b"
   and .headline.rts_bot_macro_economy_gap_openra_organic_terminal_commit == "5f1bf76"
+  and (.headline.rts_bot_macro_economy_gap_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and .headline.rts_bot_macro_economy_gap_core_frame_order_kinds == ["harvest", "train", "build", "build", "train", "train", "research", "attack", "move"]
+  and .headline.rts_bot_macro_economy_gap_core_headless_applied_orders == 9
+  and .headline.rts_bot_macro_economy_gap_core_headless_actor_count >= 3
+  and .headline.rts_bot_macro_economy_gap_core_headless_final_frame == 1808
+  and .headline.rts_bot_macro_economy_gap_core_headless_harvest_actor_orders >= 3
+  and .headline.rts_bot_macro_economy_gap_core_headless_build_orders == 2
+  and .headline.rts_bot_macro_economy_gap_core_headless_train_orders == 3
+  and (.headline.rts_bot_macro_economy_gap_core_headless_build_rules | index("natural_refinery") != null)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_build_rules | index("supply_cache") != null)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_train_rules | index("trnm.worker") != null)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_train_rules | index("trnm.horizon.skimmer") != null)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_train_rules | index("trnm.forge.warden") != null)
+  and .headline.rts_bot_macro_economy_gap_core_headless_research_orders == 1
+  and (.headline.rts_bot_macro_economy_gap_core_headless_researched_rules | index("signal_array") != null)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_research_source_actor_ids | index("town_hall") != null)
+  and .headline.rts_bot_macro_economy_gap_core_headless_attack_orders == 1
+  and .headline.rts_bot_macro_economy_gap_core_headless_micro_move_orders == 1
+  and (.headline.rts_bot_macro_economy_gap_core_headless_combat_targets | index("enemy_rebuild_node") != null)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_combat_tiles | index("9,2") != null)
+  and (.headline.rts_bot_macro_economy_gap_core_headless_combat_formations | index("deny_enemy_node_rebuild_army") != null)
   and .headline.rts_bot_macro_economy_gap_macro_signals >= 24
   and .headline.rts_bot_macro_economy_gap_worker_saturation >= 12
   and .headline.rts_bot_macro_economy_gap_expansion_timings >= 3
@@ -4994,6 +5037,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_macro_economy_gap_openra_target_gate == true
   and .gates.rts_bot_macro_economy_gap_renderer_gate == true
   and .gates.rts_bot_macro_economy_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_bot_macro_economy_gap_core_frame_order_gate == true
+  and .gates.rts_bot_macro_economy_gap_core_headless_replay_gate == true
   and .gates.rts_bot_macro_economy_gap_gate == true
   and .gates.rts_bot_harassment_defense_gap_stage_gate == true
   and .gates.rts_bot_harassment_defense_gap_signal_gate == true
