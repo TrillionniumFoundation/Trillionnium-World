@@ -177,6 +177,11 @@ jq -e '
   and .right_click_target_preview_gate == true
   and .right_click_target_follow_stamp_pixel_count > 80
   and .right_click_target_harvest_stamp_pixel_count > 80
+  and .right_click_execution_feedback_frame_pixel_count > 800
+  and .right_click_execution_feedback_path_pixel_count > 300
+  and .right_click_execution_feedback_target_pixel_count > 80
+  and .right_click_execution_feedback_follow_pixel_count > 80
+  and .right_click_execution_feedback_harvest_pixel_count > 80
   and (.right_click_target_hover_samples | any(
     .stage == "right_click_empty_move"
     and .action_label == "RTS:MOVE:4,3:line"
@@ -197,6 +202,11 @@ jq -e '
     and .command_stamp_kind == "move"
     and .command_stamp_player_label == "MAP MOVE SENT 4,3"
     and .command_stamp_pixel_count > 80
+    and .execution_feedback_kind == "move"
+    and .execution_feedback_renderer_path == "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"
+    and .execution_feedback_source_tile_id == "5,4"
+    and .execution_feedback_destination_tile_id == "4,3"
+    and .execution_feedback_path_pixel_count > 140
   ))
   and (.right_click_target_hover_samples | any(
     .stage == "right_click_friendly_follow"
@@ -220,6 +230,10 @@ jq -e '
     and .command_stamp_kind == "follow"
     and .command_stamp_target_id == "player"
     and .command_stamp_player_label == "MAP FOLLOW SENT PLAYER"
+    and .execution_feedback_kind == "follow"
+    and .execution_feedback_renderer_path == "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"
+    and .execution_feedback_source_tile_id == "5,4"
+    and .execution_feedback_follow_pixel_count > 80
   ))
   and (.right_click_target_hover_samples | any(
     .stage == "right_click_resource_harvest"
@@ -239,16 +253,34 @@ jq -e '
     and .minimap_command_kind == "harvest"
     and .minimap_command_tile_id == "3,3"
     and (.harvest_node_ids | index("gold_vein") != null)
+    and (.worker_assignment_ids | length >= 2)
+    and .economy_state == "harvesting:gold_vein"
     and (.command_queue | index("harvest:gold_vein->town_hall") != null)
     and (.command_queue | index("feedback:harvest_assigned:gold_vein") != null)
     and .command_stamp_kind == "harvest"
     and .command_stamp_tile_id == "3,3"
     and .command_stamp_target_id == "gold_vein"
     and .command_stamp_player_label == "MAP HARVEST SENT GOLD VEIN 3,3"
+    and .execution_feedback_kind == "harvest"
+    and .execution_feedback_renderer_path == "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"
+    and .execution_feedback_source_tile_id == "5,4"
+    and .execution_feedback_destination_tile_id == "3,3"
+    and .execution_feedback_dropoff_structure_id == "town_hall"
+    and .execution_feedback_harvest_pixel_count > 80
+  ))
+  and (.right_click_target_samples | any(
+    .stage == "drag_filter_then_right_click_hostile"
+    and .execution_feedback_kind == "attack"
+    and .execution_feedback_renderer_path == "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"
+    and .execution_feedback_source_tile_id == "5,4"
+    and .execution_feedback_destination_tile_id == "9,4"
+    and .execution_feedback_target_id == "square_creep_wander"
+    and .execution_feedback_target_pixel_count > 80
   ))
   and .right_click_target_move_gate == true
   and .right_click_target_follow_gate == true
   and .right_click_target_harvest_gate == true
+  and .right_click_execution_feedback_gate == true
   and .right_click_target_semantics_gate == true
   and .unit_shift_select_marker_pixel_count > 80
   and .unit_shift_select_stamp_pixel_count > 80

@@ -413,6 +413,7 @@ jq -n \
       and $rts_live[0].ability_live_gate == true
       and $rts_live[0].command_feedback_chip_gate == true
       and $rts_live[0].live_command_queue_path_preview_gate == true
+      and $rts_live[0].right_click_execution_feedback_gate == true
       and $rts_live[0].context_cursor_gate == true
       and $rts_live[0].control_group_hotkey_gate == true
       and $rts_live[0].accepted_input_count == 10
@@ -853,6 +854,11 @@ jq -n \
       rts_live_input_right_click_target_preview_attack_pixel_count: $rts_live[0].right_click_target_preview_attack_pixel_count,
       rts_live_input_right_click_target_preview_follow_pixel_count: $rts_live[0].right_click_target_preview_follow_pixel_count,
       rts_live_input_right_click_target_preview_harvest_pixel_count: $rts_live[0].right_click_target_preview_harvest_pixel_count,
+      rts_live_input_right_click_execution_feedback_frame_pixel_count: $rts_live[0].right_click_execution_feedback_frame_pixel_count,
+      rts_live_input_right_click_execution_feedback_path_pixel_count: $rts_live[0].right_click_execution_feedback_path_pixel_count,
+      rts_live_input_right_click_execution_feedback_target_pixel_count: $rts_live[0].right_click_execution_feedback_target_pixel_count,
+      rts_live_input_right_click_execution_feedback_follow_pixel_count: $rts_live[0].right_click_execution_feedback_follow_pixel_count,
+      rts_live_input_right_click_execution_feedback_harvest_pixel_count: $rts_live[0].right_click_execution_feedback_harvest_pixel_count,
       rts_live_input_unit_shift_select_marker_pixel_count: $rts_live[0].unit_shift_select_marker_pixel_count,
       rts_live_input_unit_shift_select_stamp_pixel_count: $rts_live[0].unit_shift_select_stamp_pixel_count,
       rts_live_input_unit_shift_select_add_unit_count: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_add_patrol") | .selected_unit_ids | length ][0] // 0),
@@ -2206,6 +2212,7 @@ jq -n \
       rts_live_input_selection_clear_gate: $rts_live[0].selection_clear_gate,
       rts_live_input_right_click_target_gate: $rts_live[0].right_click_target_semantics_gate,
       rts_live_input_right_click_target_preview_gate: $rts_live[0].right_click_target_preview_gate,
+      rts_live_input_right_click_execution_feedback_gate: $rts_live[0].right_click_execution_feedback_gate,
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
       rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
       rts_live_input_control_group_hotkey_gate: $rts_live[0].control_group_hotkey_gate,
@@ -3576,6 +3583,11 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_right_click_target_preview_attack_pixel_count > 80
   and .headline.rts_live_input_right_click_target_preview_follow_pixel_count > 80
   and .headline.rts_live_input_right_click_target_preview_harvest_pixel_count > 80
+  and .headline.rts_live_input_right_click_execution_feedback_frame_pixel_count > 800
+  and .headline.rts_live_input_right_click_execution_feedback_path_pixel_count > 300
+  and .headline.rts_live_input_right_click_execution_feedback_target_pixel_count > 80
+  and .headline.rts_live_input_right_click_execution_feedback_follow_pixel_count > 80
+  and .headline.rts_live_input_right_click_execution_feedback_harvest_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_marker_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_stamp_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_add_unit_count == 2
@@ -4355,6 +4367,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_selection_clear_gate == true
   and .gates.rts_live_input_right_click_target_gate == true
   and .gates.rts_live_input_right_click_target_preview_gate == true
+  and .gates.rts_live_input_right_click_execution_feedback_gate == true
   and .gates.rts_live_input_unit_shift_select_gate == true
   and .gates.rts_live_input_unit_double_click_select_gate == true
   and .gates.rts_live_input_control_group_hotkey_gate == true

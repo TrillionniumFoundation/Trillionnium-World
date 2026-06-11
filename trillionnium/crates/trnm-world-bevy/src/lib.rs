@@ -775,6 +775,11 @@ const CLASSIC_RTS_TARGET_PREVIEW_PATH_COLOR: u32 = 0x52d7ff;
 const CLASSIC_RTS_TARGET_PREVIEW_ATTACK_COLOR: u32 = 0xff7a92;
 const CLASSIC_RTS_TARGET_PREVIEW_FOLLOW_COLOR: u32 = 0xf2ff72;
 const CLASSIC_RTS_TARGET_PREVIEW_HARVEST_COLOR: u32 = 0xbd92ff;
+const CLASSIC_RTS_COMMAND_EXECUTION_FRAME_COLOR: u32 = 0x4fffe0;
+const CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR: u32 = 0x2ee7ff;
+const CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR: u32 = 0xff4f6d;
+const CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR: u32 = 0xeaff4f;
+const CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR: u32 = 0xb06aff;
 const CLASSIC_RTS_FORMATION_PREVIEW_GHOST_COLOR: u32 = 0xb7f6ff;
 const CLASSIC_RTS_FORMATION_PREVIEW_PATH_COLOR: u32 = 0x86ff93;
 const CLASSIC_RTS_FORMATION_PREVIEW_SLOT_COLOR: u32 = 0xffdf7a;
@@ -42700,6 +42705,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         let mut right_click_target_attack_marker_pixel_count = 0_usize;
         let mut right_click_target_stamp_pixel_count = 0_usize;
         let mut right_click_target_selection_marker_pixel_count = 0_usize;
+        let mut right_click_execution_frame_pixel_count = 0_usize;
+        let mut right_click_execution_path_pixel_count = 0_usize;
+        let mut right_click_execution_target_pixel_count = 0_usize;
+        let mut right_click_execution_follow_pixel_count = 0_usize;
+        let mut right_click_execution_harvest_pixel_count = 0_usize;
 
         if pre_drag {
             if let Some(polled) = classic_rts_drag_action_with_source_from_points(
@@ -42820,6 +42830,31 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .iter()
                 .filter(|pixel| **pixel == CLASSIC_ISO_CONTROL_GROUP_COLOR)
                 .count();
+            right_click_execution_frame_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_FRAME_COLOR)
+                .count();
+            right_click_execution_path_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR)
+                .count();
+            right_click_execution_target_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR)
+                .count();
+            right_click_execution_follow_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR)
+                .count();
+            right_click_execution_harvest_pixel_count = right_click_target_frame_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR)
+                .count();
+            let execution_feedback_kind =
+                classic_rts_command_execution_feedback_kind(Some(&right_click_target_runtime));
+            let execution_feedback_source_tile_id =
+                classic_rts_primary_selected_tile(&right_click_target_runtime)
+                    .map(classic_rts_tile_id);
             right_click_target_sample = json!({
                 "stage": stage,
                 "input_source": input_source,
@@ -42850,6 +42885,19 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 "attack_marker_pixel_count": right_click_target_attack_marker_pixel_count,
                 "command_stamp_pixel_count": right_click_target_stamp_pixel_count,
                 "selection_marker_pixel_count": right_click_target_selection_marker_pixel_count,
+                "execution_feedback_kind": execution_feedback_kind,
+                "execution_feedback_renderer_path": execution_feedback_kind.map(|_| "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"),
+                "execution_feedback_source_tile_id": execution_feedback_source_tile_id,
+                "execution_feedback_destination_tile_id": right_click_target_runtime.rts_command_destination_tile.clone(),
+                "execution_feedback_path_tile_ids": right_click_target_runtime.rts_path_tile_ids.clone(),
+                "execution_feedback_group_route_tile_ids": right_click_target_runtime.rts_group_route_tile_ids.clone(),
+                "execution_feedback_target_id": right_click_target_runtime.rts_attack_target_id.clone(),
+                "execution_feedback_dropoff_structure_id": right_click_target_runtime.rts_dropoff_structure_id.clone(),
+                "execution_feedback_frame_pixel_count": right_click_execution_frame_pixel_count,
+                "execution_feedback_path_pixel_count": right_click_execution_path_pixel_count,
+                "execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,
+                "execution_feedback_follow_pixel_count": right_click_execution_follow_pixel_count,
+                "execution_feedback_harvest_pixel_count": right_click_execution_harvest_pixel_count,
                 "accepted": right_click_target_runtime
                     .input_feedback_history
                     .last()
@@ -42863,6 +42911,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             right_click_target_attack_marker_pixel_count,
             right_click_target_stamp_pixel_count,
             right_click_target_selection_marker_pixel_count,
+            right_click_execution_frame_pixel_count,
+            right_click_execution_path_pixel_count,
+            right_click_execution_target_pixel_count,
+            right_click_execution_follow_pixel_count,
+            right_click_execution_harvest_pixel_count,
         )
     };
 
@@ -42878,6 +42931,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
     let mut right_click_target_follow_stamp_pixel_count = 0_usize;
     let mut right_click_target_harvest_stamp_pixel_count = 0_usize;
     let mut right_click_target_hover_sample = json!({});
+    let mut right_click_execution_frame_pixel_count = 0_usize;
+    let mut right_click_execution_path_pixel_count = 0_usize;
+    let mut right_click_execution_target_pixel_count = 0_usize;
+    let mut right_click_execution_follow_pixel_count = 0_usize;
+    let mut right_click_execution_harvest_pixel_count = 0_usize;
 
     for (stage, mouse_x, mouse_y, tile_id, pre_drag) in [
         ("right_click_empty_move", 420, 240, "4,3", false),
@@ -42891,8 +42949,23 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         ("right_click_friendly_follow", 460, 330, "5,4", false),
         ("right_click_resource_harvest", 300, 270, "3,3", false),
     ] {
-        let (sample, hover_sample, attack_pixels, stamp_pixels, selection_pixels) =
-            capture_right_click_target(stage, mouse_x, mouse_y, tile_id, pre_drag);
+        let (
+            sample,
+            hover_sample,
+            attack_pixels,
+            stamp_pixels,
+            selection_pixels,
+            execution_frame_pixels,
+            execution_path_pixels,
+            execution_target_pixels,
+            execution_follow_pixels,
+            execution_harvest_pixels,
+        ) = capture_right_click_target(stage, mouse_x, mouse_y, tile_id, pre_drag);
+        right_click_execution_frame_pixel_count += execution_frame_pixels;
+        right_click_execution_path_pixel_count += execution_path_pixels;
+        right_click_execution_target_pixel_count += execution_target_pixels;
+        right_click_execution_follow_pixel_count += execution_follow_pixels;
+        right_click_execution_harvest_pixel_count += execution_harvest_pixels;
         if stage == "drag_filter_then_right_click_hostile" {
             right_click_target_sample = sample.clone();
             right_click_target_hover_sample = hover_sample.clone();
@@ -44082,6 +44155,32 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .and_then(|value| value.as_array())
                 .is_some_and(|entries| entries.iter().any(|entry| entry.as_str() == Some(expected)))
         };
+    let right_click_execution_feedback_stage_gate =
+        |stage: &str, kind: &str, pixel_key: &str, min_pixels: u64| {
+            right_click_target_samples.iter().any(|sample| {
+                sample.get("stage").and_then(|value| value.as_str()) == Some(stage)
+                    && sample
+                        .get("execution_feedback_kind")
+                        .and_then(|value| value.as_str())
+                        == Some(kind)
+                    && sample
+                        .get("execution_feedback_renderer_path")
+                        .and_then(|value| value.as_str())
+                        == Some("classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay")
+                    && sample
+                        .get("execution_feedback_source_tile_id")
+                        .and_then(|value| value.as_str())
+                        == Some("5,4")
+                    && sample
+                        .get("execution_feedback_frame_pixel_count")
+                        .and_then(|value| value.as_u64())
+                        .is_some_and(|pixels| pixels > 200)
+                    && sample
+                        .get(pixel_key)
+                        .and_then(|value| value.as_u64())
+                        .is_some_and(|pixels| pixels > min_pixels)
+            })
+        };
     let right_click_target_move_gate = right_click_target_hover_gate(
         "right_click_empty_move",
         "RTS:MOVE:4,3:line",
@@ -44231,11 +44330,55 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
             "target_preview_harvest_pixel_count",
             80,
         );
+    let right_click_execution_feedback_gate = right_click_execution_frame_pixel_count > 800
+        && right_click_execution_path_pixel_count > 300
+        && right_click_execution_target_pixel_count > 80
+        && right_click_execution_follow_pixel_count > 80
+        && right_click_execution_harvest_pixel_count > 80
+        && right_click_execution_feedback_stage_gate(
+            "right_click_empty_move",
+            "move",
+            "execution_feedback_path_pixel_count",
+            140,
+        )
+        && right_click_execution_feedback_stage_gate(
+            "drag_filter_then_right_click_hostile",
+            "attack",
+            "execution_feedback_target_pixel_count",
+            80,
+        )
+        && right_click_execution_feedback_stage_gate(
+            "right_click_friendly_follow",
+            "follow",
+            "execution_feedback_follow_pixel_count",
+            80,
+        )
+        && right_click_execution_feedback_stage_gate(
+            "right_click_resource_harvest",
+            "harvest",
+            "execution_feedback_harvest_pixel_count",
+            80,
+        )
+        && right_click_target_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("right_click_resource_harvest")
+                && sample
+                    .get("execution_feedback_dropoff_structure_id")
+                    .and_then(|value| value.as_str())
+                    == Some("town_hall")
+                && sample
+                    .get("worker_assignment_ids")
+                    .and_then(|value| value.as_array())
+                    .is_some_and(|workers| workers.len() >= 2)
+                && sample.get("economy_state").and_then(|value| value.as_str())
+                    == Some("harvesting:gold_vein")
+        });
     let right_click_target_semantics_gate = right_click_target_attack_gate
         && right_click_target_move_gate
         && right_click_target_follow_gate
         && right_click_target_harvest_gate
-        && right_click_target_preview_gate;
+        && right_click_target_preview_gate
+        && right_click_execution_feedback_gate;
     let unit_shift_select_gate = unit_shift_select_samples.len() == 3
         && unit_shift_select_marker_pixel_count > 80
         && unit_shift_select_stamp_pixel_count > 80
@@ -44781,6 +44924,11 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_target_preview_attack_pixel_count": right_click_target_preview_attack_pixel_count,
         "right_click_target_preview_follow_pixel_count": right_click_target_preview_follow_pixel_count,
         "right_click_target_preview_harvest_pixel_count": right_click_target_preview_harvest_pixel_count,
+        "right_click_execution_feedback_frame_pixel_count": right_click_execution_frame_pixel_count,
+        "right_click_execution_feedback_path_pixel_count": right_click_execution_path_pixel_count,
+        "right_click_execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,
+        "right_click_execution_feedback_follow_pixel_count": right_click_execution_follow_pixel_count,
+        "right_click_execution_feedback_harvest_pixel_count": right_click_execution_harvest_pixel_count,
         "unit_shift_select_samples": unit_shift_select_samples,
         "unit_shift_select_marker_pixel_count": unit_shift_select_marker_pixel_count,
         "unit_shift_select_stamp_pixel_count": unit_shift_select_stamp_pixel_count,
@@ -44858,6 +45006,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_target_follow_gate": right_click_target_follow_gate,
         "right_click_target_harvest_gate": right_click_target_harvest_gate,
         "right_click_target_preview_gate": right_click_target_preview_gate,
+        "right_click_execution_feedback_gate": right_click_execution_feedback_gate,
         "right_click_target_semantics_gate": right_click_target_semantics_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
@@ -44866,7 +45015,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, and apply_classic_rts_command_stamp_for_action before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -75518,6 +75667,417 @@ fn classic_rts_primary_selected_tile(runtime: &NativeFirstPlayableRuntime) -> Op
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_command_execution_feedback_kind(
+    runtime: Option<&NativeFirstPlayableRuntime>,
+) -> Option<&'static str> {
+    let runtime = runtime?;
+    if let Some(recent_feedback_chip) = runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .find(|entry| entry.starts_with("feedback:"))
+    {
+        if recent_feedback_chip.starts_with("feedback:harvest_assigned:") {
+            return Some("harvest");
+        }
+        if recent_feedback_chip.starts_with("feedback:follow@") {
+            return Some("follow");
+        }
+        if recent_feedback_chip.starts_with("feedback:attack_move@") {
+            return Some("attack");
+        }
+        if recent_feedback_chip.starts_with("feedback:line@")
+            || recent_feedback_chip.starts_with("feedback:diamond@")
+            || recent_feedback_chip.starts_with("feedback:waypoint_queued@")
+            || recent_feedback_chip.starts_with("feedback:hold_position@")
+            || recent_feedback_chip.starts_with("feedback:patrol_route@")
+            || recent_feedback_chip.starts_with("feedback:rally_confirmed@")
+            || recent_feedback_chip.starts_with("feedback:stop_hold@")
+        {
+            return Some("move");
+        }
+    }
+    if runtime.rts_unit_response_state.starts_with("following:")
+        || runtime.rts_group_command_state.starts_with("follow:")
+        || runtime.rts_minimap_command_kind == "follow"
+    {
+        Some("follow")
+    } else if runtime.rts_unit_response_state.starts_with("engaged:")
+        || runtime
+            .rts_unit_response_state
+            .starts_with("attack_move_advancing:")
+        || runtime.rts_group_command_state.starts_with("attack_move:")
+    {
+        Some("attack")
+    } else if runtime.rts_command_destination_tile.is_some()
+        && runtime.rts_minimap_command_kind != "harvest"
+        && !runtime.rts_economy_state.starts_with("harvesting:")
+        && (!runtime.rts_path_tile_ids.is_empty() || !runtime.rts_group_route_tile_ids.is_empty())
+    {
+        Some("move")
+    } else if runtime.rts_minimap_command_kind == "harvest"
+        || runtime.rts_economy_state.starts_with("harvesting:")
+        || runtime
+            .rts_command_queue
+            .iter()
+            .rev()
+            .any(|entry| entry.starts_with("harvest:"))
+    {
+        Some("harvest")
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_command_execution_feedback_visible(runtime: &NativeFirstPlayableRuntime) -> bool {
+    matches!(
+        runtime.rts_command_stamp_source.as_str(),
+        "classic_rts_mouse_viewport" | "classic_rts_command_execution_test"
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_command_execution_target_label(
+    runtime: &NativeFirstPlayableRuntime,
+    kind: &str,
+) -> String {
+    match kind {
+        "attack" => runtime
+            .rts_attack_target_id
+            .clone()
+            .unwrap_or_else(|| "target".to_string()),
+        "follow" => runtime
+            .rts_unit_response_state
+            .strip_prefix("following:")
+            .map(str::to_string)
+            .or_else(|| {
+                runtime
+                    .rts_group_command_state
+                    .strip_prefix("follow:")
+                    .and_then(|target| target.split('@').next())
+                    .map(str::to_string)
+            })
+            .unwrap_or_else(|| "unit".to_string()),
+        "harvest" => runtime
+            .rts_harvest_node_ids
+            .first()
+            .cloned()
+            .or_else(|| {
+                runtime.rts_command_queue.iter().rev().find_map(|entry| {
+                    entry
+                        .strip_prefix("harvest:")
+                        .and_then(|value| value.split("->").next())
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_string)
+                })
+            })
+            .unwrap_or_else(|| "resource".to_string()),
+        _ => runtime
+            .rts_command_destination_tile
+            .clone()
+            .unwrap_or_else(|| "destination".to_string()),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_draw_rts_command_execution_feedback_overlay(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    kind: &str,
+) {
+    if width < 580 || height < 300 {
+        return;
+    }
+    let layout = classic_rts_shell_layout(width, height);
+    let panel_w = layout
+        .as_ref()
+        .map(|layout| (layout.viewport_w - 38).clamp(320, 430))
+        .unwrap_or_else(|| (width as i32 - 36).clamp(320, 430));
+    let panel_h = 98_i32;
+    let panel_x = layout
+        .as_ref()
+        .map(|layout| layout.viewport_x + 18)
+        .unwrap_or(18);
+    let panel_y = layout
+        .as_ref()
+        .map(|layout| layout.viewport_y + 106)
+        .unwrap_or(108);
+    let active_color = match kind {
+        "attack" => CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR,
+        "follow" => CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR,
+        "harvest" => CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR,
+        _ => CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR,
+    };
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        panel_h,
+        CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        panel_w,
+        4,
+        CLASSIC_RTS_COMMAND_EXECUTION_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y,
+        5,
+        panel_h,
+        CLASSIC_RTS_COMMAND_EXECUTION_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        panel_x,
+        panel_y + panel_h - 4,
+        panel_w,
+        4,
+        CLASSIC_RTS_COMMAND_EXECUTION_FRAME_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 11,
+        "COMMAND EXECUTION",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        panel_x + 12,
+        panel_y + 27,
+        &classic_catalog_text_label(
+            &format!(
+                "{} {}",
+                kind.to_ascii_uppercase(),
+                runtime
+                    .rts_command_destination_tile
+                    .as_deref()
+                    .unwrap_or("--")
+            ),
+            34,
+        ),
+        1,
+        active_color,
+    );
+
+    let route_tiles = if runtime.rts_path_tile_ids.is_empty() {
+        &runtime.rts_group_route_tile_ids
+    } else {
+        &runtime.rts_path_tile_ids
+    };
+    for (index, _) in route_tiles.iter().take(10).enumerate() {
+        let x = panel_x + 14 + index as i32 * 26;
+        let y = panel_y + 49 + (index as i32 % 2) * 4;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            20,
+            5,
+            CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR,
+        );
+    }
+    if route_tiles.is_empty() {
+        for index in 0..5 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x + 14 + index * 26,
+                panel_y + 50 + (index % 2) * 4,
+                20,
+                5,
+                CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR,
+            );
+        }
+    }
+
+    let target_label = classic_rts_command_execution_target_label(runtime, kind);
+    match kind {
+        "attack" => {
+            let cross_x = panel_x + panel_w - 78;
+            let cross_y = panel_y + 48;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cross_x - 22,
+                cross_y,
+                52,
+                5,
+                CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cross_x,
+                cross_y - 18,
+                5,
+                42,
+                CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cross_x - 18,
+                cross_y - 18,
+                38,
+                4,
+                CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 12,
+                panel_y + 69,
+                &classic_catalog_text_label(&format!("FOCUS {target_label}"), 40),
+                1,
+                CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR,
+            );
+        }
+        "follow" => {
+            for index in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    panel_x + panel_w - 104 + index * 18,
+                    panel_y + 48 + index % 2 * 9,
+                    15,
+                    15,
+                    CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 12,
+                panel_y + 69,
+                &classic_catalog_text_label(&format!("FOLLOW {target_label}"), 40),
+                1,
+                CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR,
+            );
+        }
+        "harvest" => {
+            for (index, worker) in runtime.rts_worker_assignment_ids.iter().take(4).enumerate() {
+                let chip_x = panel_x + panel_w - 140 + index as i32 * 31;
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    chip_x,
+                    panel_y + 47,
+                    24,
+                    16,
+                    CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    chip_x + 4,
+                    panel_y + 51,
+                    16,
+                    8,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    chip_x + 2,
+                    panel_y + 66,
+                    &classic_catalog_text_label(worker, 3),
+                    1,
+                    CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 12,
+                panel_y + 69,
+                &classic_catalog_text_label(
+                    &format!(
+                        "HARVEST {target_label}->{dropoff}",
+                        dropoff = runtime
+                            .rts_dropoff_structure_id
+                            .as_deref()
+                            .unwrap_or("dropoff")
+                    ),
+                    40,
+                ),
+                1,
+                CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR,
+            );
+        }
+        _ => {
+            if let Some(tile_id) = &runtime.rts_command_destination_tile {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    panel_x + panel_w - 92,
+                    panel_y + 45,
+                    58,
+                    20,
+                    CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    panel_x + panel_w - 84,
+                    panel_y + 52,
+                    tile_id,
+                    1,
+                    CLASSIC_RTS_STRATEGY_PANEL_COLOR,
+                );
+            }
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 12,
+                panel_y + 69,
+                &classic_catalog_text_label(&runtime.rts_group_command_state, 40),
+                1,
+                CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_drag_distance_sq(start: (i32, i32), end: (i32, i32)) -> i32 {
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
@@ -78627,6 +79187,19 @@ fn classic_draw_scene(
             runtime,
             obstruction_stage,
         );
+    }
+    if classic_rts_command_execution_feedback_visible(runtime) {
+        if let Some(command_execution_kind) =
+            classic_rts_command_execution_feedback_kind(Some(runtime))
+        {
+            classic_draw_rts_command_execution_feedback_overlay(
+                buffer,
+                width,
+                height,
+                runtime,
+                command_execution_kind,
+            );
+        }
     }
     classic_draw_rts_drag_select_preview_overlay(buffer, width, height, runtime);
     classic_draw_rts_hover_preview_overlay(buffer, width, height, runtime);
@@ -143397,6 +143970,115 @@ mod tests {
             .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_STAMP_COLOR)
             .count();
         assert!(command_stamp_pixels > 120);
+        let mut move_execution_runtime = classic_openra_style_skirmish_runtime();
+        apply_classic_rts_move_runtime(&mut move_execution_runtime, "4,3", "line");
+        move_execution_runtime.rts_command_stamp_source =
+            "classic_rts_command_execution_test".to_string();
+        assert_eq!(
+            classic_rts_command_execution_feedback_kind(Some(&move_execution_runtime)),
+            Some("move")
+        );
+        let mut move_execution_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut move_execution_pixels,
+            1280,
+            720,
+            (5, 4),
+            &move_execution_runtime,
+            &assets,
+        );
+        assert!(
+            move_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_FRAME_COLOR)
+                .count()
+                > 800
+        );
+        assert!(
+            move_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_PATH_COLOR)
+                .count()
+                > 140
+        );
+        let mut attack_execution_runtime = classic_openra_style_skirmish_runtime();
+        apply_classic_rts_attack_runtime(&mut attack_execution_runtime, "square_creep_wander");
+        attack_execution_runtime.rts_command_stamp_source =
+            "classic_rts_command_execution_test".to_string();
+        assert_eq!(
+            classic_rts_command_execution_feedback_kind(Some(&attack_execution_runtime)),
+            Some("attack")
+        );
+        let mut attack_execution_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut attack_execution_pixels,
+            1280,
+            720,
+            (5, 4),
+            &attack_execution_runtime,
+            &assets,
+        );
+        assert!(
+            attack_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_TARGET_COLOR)
+                .count()
+                > 80
+        );
+        let mut follow_execution_runtime = classic_openra_style_skirmish_runtime();
+        apply_classic_rts_move_runtime(&mut follow_execution_runtime, "5,4", "follow:player");
+        follow_execution_runtime.rts_command_stamp_source =
+            "classic_rts_command_execution_test".to_string();
+        assert_eq!(
+            classic_rts_command_execution_feedback_kind(Some(&follow_execution_runtime)),
+            Some("follow")
+        );
+        let mut follow_execution_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut follow_execution_pixels,
+            1280,
+            720,
+            (5, 4),
+            &follow_execution_runtime,
+            &assets,
+        );
+        assert!(
+            follow_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_FOLLOW_COLOR)
+                .count()
+                > 80
+        );
+        let mut harvest_execution_runtime = classic_openra_style_skirmish_runtime();
+        apply_classic_rts_queue_runtime(&mut harvest_execution_runtime, "harvest:gold_vein");
+        harvest_execution_runtime.rts_command_stamp_source =
+            "classic_rts_command_execution_test".to_string();
+        assert_eq!(
+            classic_rts_command_execution_feedback_kind(Some(&harvest_execution_runtime)),
+            Some("harvest")
+        );
+        assert_eq!(
+            harvest_execution_runtime
+                .rts_dropoff_structure_id
+                .as_deref(),
+            Some("town_hall")
+        );
+        let mut harvest_execution_pixels = vec![0_u32; 1280 * 720];
+        classic_draw_scene(
+            &mut harvest_execution_pixels,
+            1280,
+            720,
+            (5, 4),
+            &harvest_execution_runtime,
+            &assets,
+        );
+        assert!(
+            harvest_execution_pixels
+                .iter()
+                .filter(|pixel| **pixel == CLASSIC_RTS_COMMAND_EXECUTION_HARVEST_COLOR)
+                .count()
+                > 80
+        );
         let camera_start = classic_rts_camera_state_for_focus_tile((5, 4), 1.0);
         assert_eq!(rts_scrollable_map_camera_focus_tile(camera_start), (5, 4));
         let camera_step = apply_rts_scrollable_map_camera_input(
