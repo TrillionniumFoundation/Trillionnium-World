@@ -40,6 +40,32 @@ jq -e '
   and (.final_command_queue | index("research:wayfinder_code@town_hall") != null)
   and (.final_command_queue | index("upgrade:iron_lacing@training_hall") != null)
   and (.final_command_queue | index("unlock:relay_guard") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_tech_tree_core_frame_order_gate == true
+  and .rts_tech_tree_core_headless_replay_gate == true
+  and (.rts_tech_tree_core_frame_orders | length == 5)
+  and (.rts_tech_tree_core_frame_order_kind_labels | tostring == "[\"queue\",\"build\",\"research\",\"upgrade\",\"unlock\"]")
+  and (.rts_tech_tree_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_tech_tree_core_frame_order_errors == []
+  and .rts_tech_tree_core_frame_order_stream_error == null
+  and .rts_tech_tree_core_headless_replay_error == null
+  and .rts_tech_tree_core_headless_applied_order_count == 5
+  and .rts_tech_tree_core_headless_actor_count == 4
+  and .rts_tech_tree_core_headless_final_frame == 644
+  and (.rts_tech_tree_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_tech_tree_core_tech_order_count == 3
+  and .rts_tech_tree_core_research_order_count == 1
+  and .rts_tech_tree_core_upgrade_order_count == 1
+  and .rts_tech_tree_core_unlock_order_count == 1
+  and (.rts_tech_tree_core_researched_rule_ids | index("wayfinder_code") != null)
+  and (.rts_tech_tree_core_upgraded_rule_ids | index("iron_lacing") != null)
+  and (.rts_tech_tree_core_unlocked_rule_ids | index("relay_guard") != null)
+  and (.rts_tech_tree_core_source_actor_ids | index("town_hall") != null)
+  and (.rts_tech_tree_core_source_actor_ids | index("training_hall") != null)
+  and (.rts_tech_tree_core_headless_replay_report.checkpoint.tech_tree.tech_order_count == 3)
+  and (.rts_tech_tree_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:research:")))
+  and (.rts_tech_tree_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:upgrade:")))
+  and (.rts_tech_tree_core_headless_replay_report.checkpoint.event_log | any(contains(":kind:unlock:")))
   and .non_background_pixels > 330000
   and .tech_base_pixel_count > 140
   and .tech_research_pixel_count > 50

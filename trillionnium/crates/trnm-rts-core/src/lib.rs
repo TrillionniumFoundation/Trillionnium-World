@@ -20,6 +20,9 @@ pub enum RtsOrderKind {
     ReturnCargo,
     Build,
     Train,
+    Research,
+    Upgrade,
+    Unlock,
     Complete,
     Capture,
     Attack,
@@ -43,6 +46,9 @@ impl RtsOrderKind {
             RtsOrderKind::ReturnCargo => "return_cargo",
             RtsOrderKind::Build => "build",
             RtsOrderKind::Train => "train",
+            RtsOrderKind::Research => "research",
+            RtsOrderKind::Upgrade => "upgrade",
+            RtsOrderKind::Unlock => "unlock",
             RtsOrderKind::Complete => "complete",
             RtsOrderKind::Capture => "capture",
             RtsOrderKind::Attack => "attack",
@@ -219,6 +225,19 @@ impl RtsFrameOrder {
                     return Err("train_rule_missing".to_string());
                 }
             }
+            RtsOrderKind::Research | RtsOrderKind::Upgrade => {
+                if self.target_rule_id.is_none() {
+                    return Err(format!("{}_rule_missing", self.kind.as_str()));
+                }
+                if self.target_actor_id.is_none() {
+                    return Err(format!("{}_source_missing", self.kind.as_str()));
+                }
+            }
+            RtsOrderKind::Unlock => {
+                if self.target_rule_id.is_none() {
+                    return Err("unlock_rule_missing".to_string());
+                }
+            }
             RtsOrderKind::Complete => {
                 if self.target_rule_id.is_none() {
                     return Err("complete_rule_missing".to_string());
@@ -351,6 +370,46 @@ fn live_queue_order(
             order.target_rule_id = Some(payload.to_string());
             Ok(order)
         }
+        "research" => {
+            let (tech_id, source_id) = live_rule_source_payload(payload, "research")?;
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Research,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.target_rule_id = Some(tech_id);
+            order.target_actor_id = Some(source_id);
+            Ok(order)
+        }
+        "upgrade" => {
+            let (upgrade_id, source_id) = live_rule_source_payload(payload, "upgrade")?;
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Upgrade,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.target_rule_id = Some(upgrade_id);
+            order.target_actor_id = Some(source_id);
+            Ok(order)
+        }
+        "unlock" => {
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Unlock,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.target_rule_id = Some(payload.to_string());
+            Ok(order)
+        }
         "complete" => {
             let (rule_id, tile) = payload
                 .split_once('@')
@@ -430,6 +489,19 @@ fn live_queue_order(
     }
 }
 
+fn live_rule_source_payload(payload: &str, kind: &str) -> Result<(String, String), String> {
+    let (rule_id, source_id) = payload
+        .split_once('@')
+        .ok_or_else(|| format!("{kind}_payload_missing_source:{payload}"))?;
+    if rule_id.is_empty() {
+        return Err(format!("{kind}_payload_rule_empty:{payload}"));
+    }
+    if source_id.is_empty() {
+        return Err(format!("{kind}_payload_source_empty:{payload}"));
+    }
+    Ok((rule_id.to_string(), source_id.to_string()))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsFrameOrderStream {
     pub contract: String,
@@ -492,6 +564,7 @@ impl RtsFrameOrderStream {
         let mut players = BTreeMap::<String, RtsPlayerCheckpoint>::new();
         let mut actors = BTreeMap::<String, RtsActorCheckpoint>::new();
         let mut production_lifecycle = RtsProductionLifecycleCheckpoint::default();
+        let mut tech_tree = RtsTechTreeCheckpoint::default();
         let mut event_log = Vec::new();
         let mut final_frame = 0_u32;
 
@@ -517,6 +590,7 @@ impl RtsFrameOrderStream {
                 target_label
             ));
             production_lifecycle.record_order(order);
+            tech_tree.record_order(order);
 
             for actor_id in &order.subject_actor_ids {
                 let actor = actors.entry(actor_id.clone()).or_insert_with(|| {
@@ -565,6 +639,20 @@ impl RtsFrameOrderStream {
                         actor.target_rule_id = order.target_rule_id.clone();
                         actor.train_order_count += 1;
                     }
+                    RtsOrderKind::Research => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.research_order_count += 1;
+                    }
+                    RtsOrderKind::Upgrade => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.upgrade_order_count += 1;
+                    }
+                    RtsOrderKind::Unlock => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.unlock_order_count += 1;
+                    }
                     RtsOrderKind::Complete => {
                         actor.target_rule_id = order.target_rule_id.clone();
                         actor.tile = order.target_tile;
@@ -612,6 +700,7 @@ impl RtsFrameOrderStream {
             player_count: players.len() as u32,
             actor_count: actors.len() as u32,
             production_lifecycle,
+            tech_tree,
             players,
             actors,
             event_log,
@@ -643,6 +732,7 @@ pub struct RtsHeadlessReplayCheckpoint {
     pub player_count: u32,
     pub actor_count: u32,
     pub production_lifecycle: RtsProductionLifecycleCheckpoint,
+    pub tech_tree: RtsTechTreeCheckpoint,
     pub players: Vec<RtsPlayerCheckpoint>,
     pub actors: Vec<RtsActorCheckpoint>,
     pub event_log: Vec<String>,
@@ -702,6 +792,9 @@ pub struct RtsActorCheckpoint {
     pub queued_order_count: u32,
     pub build_order_count: u32,
     pub train_order_count: u32,
+    pub research_order_count: u32,
+    pub upgrade_order_count: u32,
+    pub unlock_order_count: u32,
     pub complete_order_count: u32,
     pub repair_order_count: u32,
     pub cancel_order_count: u32,
@@ -728,6 +821,9 @@ impl RtsActorCheckpoint {
             queued_order_count: 0,
             build_order_count: 0,
             train_order_count: 0,
+            research_order_count: 0,
+            upgrade_order_count: 0,
+            unlock_order_count: 0,
             complete_order_count: 0,
             repair_order_count: 0,
             cancel_order_count: 0,
@@ -735,6 +831,46 @@ impl RtsActorCheckpoint {
             attack_order_count: 0,
             harvest_order_count: 0,
             command_history: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsTechTreeCheckpoint {
+    pub tech_order_count: u32,
+    pub research_order_count: u32,
+    pub upgrade_order_count: u32,
+    pub unlock_order_count: u32,
+    pub researched_rule_ids: Vec<String>,
+    pub upgraded_rule_ids: Vec<String>,
+    pub unlocked_rule_ids: Vec<String>,
+    pub source_actor_ids: Vec<String>,
+}
+
+impl RtsTechTreeCheckpoint {
+    fn record_order(&mut self, order: &RtsFrameOrder) {
+        match order.kind {
+            RtsOrderKind::Research => {
+                self.tech_order_count += 1;
+                self.research_order_count += 1;
+                push_if_present(
+                    &mut self.researched_rule_ids,
+                    order.target_rule_id.as_deref(),
+                );
+                push_if_present(&mut self.source_actor_ids, order.target_actor_id.as_deref());
+            }
+            RtsOrderKind::Upgrade => {
+                self.tech_order_count += 1;
+                self.upgrade_order_count += 1;
+                push_if_present(&mut self.upgraded_rule_ids, order.target_rule_id.as_deref());
+                push_if_present(&mut self.source_actor_ids, order.target_actor_id.as_deref());
+            }
+            RtsOrderKind::Unlock => {
+                self.tech_order_count += 1;
+                self.unlock_order_count += 1;
+                push_if_present(&mut self.unlocked_rule_ids, order.target_rule_id.as_deref());
+            }
+            _ => {}
         }
     }
 }
@@ -811,6 +947,22 @@ fn push_if_present(values: &mut Vec<String>, value: Option<&str>) {
 }
 
 fn order_target_label(order: &RtsFrameOrder) -> String {
+    match order.kind {
+        RtsOrderKind::Research | RtsOrderKind::Upgrade => {
+            if let (Some(rule_id), Some(source_id)) = (
+                order.target_rule_id.as_deref(),
+                order.target_actor_id.as_deref(),
+            ) {
+                return format!("{rule_id}@{source_id}");
+            }
+        }
+        RtsOrderKind::Unlock => {
+            if let Some(rule_id) = order.target_rule_id.as_deref() {
+                return rule_id.to_string();
+            }
+        }
+        _ => {}
+    }
     order
         .target_tile
         .map(RtsTile::label)
@@ -927,6 +1079,48 @@ mod tests {
         .unwrap();
         assert_eq!(train_order.kind, RtsOrderKind::Train);
         assert_eq!(train_order.target_rule_id.as_deref(), Some("guard"));
+    }
+
+    #[test]
+    fn tech_tree_queue_labels_keep_tech_identity() {
+        let research_order = RtsFrameOrder::from_live_command_label(
+            16,
+            "Multi0",
+            vec!["town_hall".to_string()],
+            "RTS:QUEUE:research:wayfinder_code@town_hall",
+        )
+        .unwrap();
+        assert_eq!(research_order.kind, RtsOrderKind::Research);
+        assert_eq!(
+            research_order.target_rule_id.as_deref(),
+            Some("wayfinder_code")
+        );
+        assert_eq!(research_order.target_actor_id.as_deref(), Some("town_hall"));
+
+        let upgrade_order = RtsFrameOrder::from_live_command_label(
+            17,
+            "Multi0",
+            vec!["training_hall".to_string()],
+            "RTS:QUEUE:upgrade:iron_lacing@training_hall",
+        )
+        .unwrap();
+        assert_eq!(upgrade_order.kind, RtsOrderKind::Upgrade);
+        assert_eq!(upgrade_order.target_rule_id.as_deref(), Some("iron_lacing"));
+        assert_eq!(
+            upgrade_order.target_actor_id.as_deref(),
+            Some("training_hall")
+        );
+
+        let unlock_order = RtsFrameOrder::from_live_command_label(
+            18,
+            "Multi0",
+            vec!["signal_spire".to_string()],
+            "RTS:QUEUE:unlock:relay_guard",
+        )
+        .unwrap();
+        assert_eq!(unlock_order.kind, RtsOrderKind::Unlock);
+        assert_eq!(unlock_order.target_rule_id.as_deref(), Some("relay_guard"));
+        assert!(unlock_order.target_actor_id.is_none());
     }
 
     #[test]
@@ -1257,5 +1451,85 @@ mod tests {
         assert_eq!(builder.target_rule_id.as_deref(), Some("scout_tower"));
         assert_eq!(builder.target_tile, Some(RtsTile::new(8, 4)));
         assert_eq!(builder.queue_id.as_deref(), Some("gold:+180"));
+    }
+
+    #[test]
+    fn headless_replay_tracks_tech_tree_stream() {
+        let labels = [
+            "RTS:QUEUE:build:training_hall@4,3",
+            "RTS:QUEUE:research:wayfinder_code@town_hall",
+            "RTS:QUEUE:upgrade:iron_lacing@training_hall",
+            "RTS:QUEUE:unlock:relay_guard",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    600 + index as u32,
+                    "Multi0",
+                    vec!["tech_lane".to_string()],
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream =
+            RtsFrameOrderStream::new("first-contact-basin-tech-tree", "trnm-rules-v1", orders);
+        let report = stream.replay_headless().unwrap();
+        let tech_tree = &report.checkpoint.tech_tree;
+        assert_eq!(report.checkpoint.applied_order_count, 4);
+        assert_eq!(report.checkpoint.final_frame, 603);
+        assert_eq!(tech_tree.tech_order_count, 3);
+        assert_eq!(tech_tree.research_order_count, 1);
+        assert_eq!(tech_tree.upgrade_order_count, 1);
+        assert_eq!(tech_tree.unlock_order_count, 1);
+        assert!(tech_tree
+            .researched_rule_ids
+            .iter()
+            .any(|rule| rule == "wayfinder_code"));
+        assert!(tech_tree
+            .upgraded_rule_ids
+            .iter()
+            .any(|rule| rule == "iron_lacing"));
+        assert!(tech_tree
+            .unlocked_rule_ids
+            .iter()
+            .any(|rule| rule == "relay_guard"));
+        assert!(tech_tree
+            .source_actor_ids
+            .iter()
+            .any(|source| source == "town_hall"));
+        assert!(tech_tree
+            .source_actor_ids
+            .iter()
+            .any(|source| source == "training_hall"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:research:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:upgrade:")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:unlock:")));
+
+        let tech_lane = report
+            .checkpoint
+            .actors
+            .iter()
+            .find(|actor| actor.actor_id == "tech_lane")
+            .unwrap();
+        assert_eq!(tech_lane.build_order_count, 1);
+        assert_eq!(tech_lane.research_order_count, 1);
+        assert_eq!(tech_lane.upgrade_order_count, 1);
+        assert_eq!(tech_lane.unlock_order_count, 1);
+        assert_eq!(tech_lane.target_rule_id.as_deref(), Some("relay_guard"));
     }
 }

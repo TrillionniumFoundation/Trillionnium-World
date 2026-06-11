@@ -47122,6 +47122,197 @@ pub fn native_classic_rts_build_lifecycle_evidence_json(preview_path: &str) -> S
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_tech_tree_core_evidence(action_labels: &[String]) -> Value {
+    let labels = action_labels
+        .iter()
+        .filter(|label| label.starts_with("RTS:QUEUE:"))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut frame_orders = Vec::new();
+    let mut errors = Vec::new();
+    for (index, action_label) in labels.iter().enumerate() {
+        let subject_actor_ids = if action_label.contains(":research:") {
+            vec!["town_hall".to_string()]
+        } else if action_label.contains(":upgrade:") {
+            vec!["training_hall".to_string()]
+        } else if action_label.contains(":unlock:") {
+            vec!["signal_spire".to_string()]
+        } else if action_label.contains(":build:") {
+            vec!["square_worker_harvest".to_string()]
+        } else {
+            vec!["town_hall".to_string()]
+        };
+        match RtsFrameOrder::from_live_command_label(
+            640 + index as u32,
+            "Multi0",
+            subject_actor_ids,
+            action_label,
+        ) {
+            Ok(order) => frame_orders.push(order),
+            Err(error) => errors.push(format!("tech_tree_{index}:{action_label}:{error}")),
+        }
+    }
+    let stream = RtsFrameOrderStream::new(
+        "first-contact-basin-tech-tree",
+        "trnm-rts-core-tech-tree-rules-v1",
+        frame_orders.clone(),
+    );
+    let stream_error = stream.validate().err();
+    let stream_sha256 = stream.sha256_hex();
+    let kind_labels = frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let frame_order_values = frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts tech tree order serializes"))
+        .collect::<Vec<_>>();
+    let stream_value = serde_json::to_value(&stream).expect("rts tech tree stream serializes");
+    let frame_order_gate = errors.is_empty()
+        && stream_error.is_none()
+        && stream_sha256.len() == 64
+        && frame_orders.len() == 5
+        && frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Queue
+                && order.queue_id.as_deref() == Some("faction:mirror_guard")
+        })
+        && frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Build
+                && order.target_rule_id.as_deref() == Some("training_hall")
+                && order.target_tile == Some(RtsTile::new(4, 3))
+        })
+        && frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Research
+                && order.target_rule_id.as_deref() == Some("wayfinder_code")
+                && order.target_actor_id.as_deref() == Some("town_hall")
+        })
+        && frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Upgrade
+                && order.target_rule_id.as_deref() == Some("iron_lacing")
+                && order.target_actor_id.as_deref() == Some("training_hall")
+        })
+        && frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Unlock
+                && order.target_rule_id.as_deref() == Some("relay_guard")
+        });
+    let replay_result = stream.replay_headless();
+    let (
+        replay_report_value,
+        checkpoint_sha256,
+        replay_error,
+        applied_order_count,
+        actor_count,
+        final_frame,
+        event_log,
+        checkpoint_value,
+        tech_order_count,
+        research_order_count,
+        upgrade_order_count,
+        unlock_order_count,
+        researched_rule_ids,
+        upgraded_rule_ids,
+        unlocked_rule_ids,
+        source_actor_ids,
+    ) = match replay_result {
+        Ok(report) => {
+            let tech_tree = report.checkpoint.tech_tree.clone();
+            (
+                serde_json::to_value(&report).expect("rts tech tree replay report serializes"),
+                report.checkpoint_sha256,
+                Value::Null,
+                report.checkpoint.applied_order_count,
+                report.checkpoint.actor_count,
+                report.checkpoint.final_frame,
+                report.checkpoint.event_log,
+                serde_json::to_value(&tech_tree).expect("rts tech tree checkpoint serializes"),
+                tech_tree.tech_order_count,
+                tech_tree.research_order_count,
+                tech_tree.upgrade_order_count,
+                tech_tree.unlock_order_count,
+                tech_tree.researched_rule_ids,
+                tech_tree.upgraded_rule_ids,
+                tech_tree.unlocked_rule_ids,
+                tech_tree.source_actor_ids,
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            json!(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Value::Null,
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let headless_replay_gate = frame_order_gate
+        && replay_error.is_null()
+        && checkpoint_sha256.len() == 64
+        && applied_order_count == 5
+        && actor_count == 4
+        && final_frame == 644
+        && tech_order_count == 3
+        && research_order_count == 1
+        && upgrade_order_count == 1
+        && unlock_order_count == 1
+        && researched_rule_ids
+            .iter()
+            .any(|rule| rule == "wayfinder_code")
+        && upgraded_rule_ids.iter().any(|rule| rule == "iron_lacing")
+        && unlocked_rule_ids.iter().any(|rule| rule == "relay_guard")
+        && source_actor_ids.iter().any(|source| source == "town_hall")
+        && source_actor_ids
+            .iter()
+            .any(|source| source == "training_hall")
+        && event_log
+            .iter()
+            .any(|event| event.contains(":kind:research:"))
+        && event_log
+            .iter()
+            .any(|event| event.contains(":kind:upgrade:"))
+        && event_log
+            .iter()
+            .any(|event| event.contains(":kind:unlock:"));
+
+    json!({
+        "labels": labels,
+        "frame_orders": frame_order_values,
+        "frame_order_stream": stream_value,
+        "frame_order_stream_sha256": stream_sha256,
+        "frame_order_kind_labels": kind_labels,
+        "frame_order_errors": errors,
+        "frame_order_stream_error": stream_error,
+        "headless_replay_report": replay_report_value,
+        "headless_checkpoint_sha256": checkpoint_sha256,
+        "headless_replay_error": replay_error,
+        "headless_applied_order_count": applied_order_count,
+        "headless_actor_count": actor_count,
+        "headless_final_frame": final_frame,
+        "headless_event_log": event_log,
+        "checkpoint": checkpoint_value,
+        "tech_order_count": tech_order_count,
+        "research_order_count": research_order_count,
+        "upgrade_order_count": upgrade_order_count,
+        "unlock_order_count": unlock_order_count,
+        "researched_rule_ids": researched_rule_ids,
+        "upgraded_rule_ids": upgraded_rule_ids,
+        "unlocked_rule_ids": unlocked_rule_ids,
+        "source_actor_ids": source_actor_ids,
+        "frame_order_gate": frame_order_gate,
+        "headless_replay_gate": headless_replay_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_tech_tree_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -47257,6 +47448,18 @@ pub fn native_classic_rts_tech_tree_evidence_json(preview_path: &str) -> String 
         }));
     }
 
+    let rts_tech_tree_core = classic_rts_tech_tree_core_evidence(&action_labels);
+    let rts_tech_tree_core_frame_order_gate = rts_tech_tree_core
+        .get("frame_order_gate")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let rts_tech_tree_core_headless_replay_gate = rts_tech_tree_core
+        .get("headless_replay_gate")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let rts_tech_tree_core_field =
+        |key: &str| rts_tech_tree_core.get(key).cloned().unwrap_or(Value::Null);
+
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
@@ -47346,6 +47549,8 @@ pub fn native_classic_rts_tech_tree_evidence_json(preview_path: &str) -> String 
         && upgrade_gate
         && unlock_gate
         && dependency_gate
+        && rts_tech_tree_core_frame_order_gate
+        && rts_tech_tree_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -47362,6 +47567,30 @@ pub fn native_classic_rts_tech_tree_evidence_json(preview_path: &str) -> String 
         "input_sources": input_sources,
         "action_labels": action_labels,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_tech_tree_core_labels": rts_tech_tree_core_field("labels"),
+        "rts_tech_tree_core_frame_orders": rts_tech_tree_core_field("frame_orders"),
+        "rts_tech_tree_core_frame_order_stream": rts_tech_tree_core_field("frame_order_stream"),
+        "rts_tech_tree_core_frame_order_stream_sha256": rts_tech_tree_core_field("frame_order_stream_sha256"),
+        "rts_tech_tree_core_frame_order_kind_labels": rts_tech_tree_core_field("frame_order_kind_labels"),
+        "rts_tech_tree_core_frame_order_errors": rts_tech_tree_core_field("frame_order_errors"),
+        "rts_tech_tree_core_frame_order_stream_error": rts_tech_tree_core_field("frame_order_stream_error"),
+        "rts_tech_tree_core_headless_replay_report": rts_tech_tree_core_field("headless_replay_report"),
+        "rts_tech_tree_core_headless_checkpoint_sha256": rts_tech_tree_core_field("headless_checkpoint_sha256"),
+        "rts_tech_tree_core_headless_replay_error": rts_tech_tree_core_field("headless_replay_error"),
+        "rts_tech_tree_core_headless_applied_order_count": rts_tech_tree_core_field("headless_applied_order_count"),
+        "rts_tech_tree_core_headless_actor_count": rts_tech_tree_core_field("headless_actor_count"),
+        "rts_tech_tree_core_headless_final_frame": rts_tech_tree_core_field("headless_final_frame"),
+        "rts_tech_tree_core_headless_event_log": rts_tech_tree_core_field("headless_event_log"),
+        "rts_tech_tree_core_checkpoint": rts_tech_tree_core_field("checkpoint"),
+        "rts_tech_tree_core_tech_order_count": rts_tech_tree_core_field("tech_order_count"),
+        "rts_tech_tree_core_research_order_count": rts_tech_tree_core_field("research_order_count"),
+        "rts_tech_tree_core_upgrade_order_count": rts_tech_tree_core_field("upgrade_order_count"),
+        "rts_tech_tree_core_unlock_order_count": rts_tech_tree_core_field("unlock_order_count"),
+        "rts_tech_tree_core_researched_rule_ids": rts_tech_tree_core_field("researched_rule_ids"),
+        "rts_tech_tree_core_upgraded_rule_ids": rts_tech_tree_core_field("upgraded_rule_ids"),
+        "rts_tech_tree_core_unlocked_rule_ids": rts_tech_tree_core_field("unlocked_rule_ids"),
+        "rts_tech_tree_core_source_actor_ids": rts_tech_tree_core_field("source_actor_ids"),
         "final_faction_id": runtime.rts_faction_id,
         "final_base_structure_ids": runtime.rts_base_structure_ids,
         "final_tech_research_ids": runtime.rts_tech_research_ids,
@@ -47386,9 +47615,11 @@ pub fn native_classic_rts_tech_tree_evidence_json(preview_path: &str) -> String 
         "upgrade_gate": upgrade_gate,
         "unlock_gate": unlock_gate,
         "dependency_gate": dependency_gate,
+        "rts_tech_tree_core_frame_order_gate": rts_tech_tree_core_frame_order_gate,
+        "rts_tech_tree_core_headless_replay_gate": rts_tech_tree_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS tech-tree evidence drives faction selection, base structure dependency, research, upgrade, and unlock queue input into native runtime tech state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS tech-tree evidence drives faction selection, base structure dependency, research, upgrade, and unlock queue input into native runtime tech state, emits the tech-tree queue orders into trnm-rts-core, replays them through the Bevy-free headless reducer, and then renders those overlays through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS tech tree evidence serializes")
 }

@@ -463,6 +463,8 @@ jq -n \
       and $rts_tech_tree[0].upgrade_gate == true
       and $rts_tech_tree[0].unlock_gate == true
       and $rts_tech_tree[0].dependency_gate == true
+      and $rts_tech_tree[0].rts_tech_tree_core_frame_order_gate == true
+      and $rts_tech_tree[0].rts_tech_tree_core_headless_replay_gate == true
       and $rts_tech_tree[0].accepted_input_count == 6
       and $rts_projectile[0].live_projectile_ability_input_gate == true
       and $rts_projectile[0].projectile_trail_gate == true
@@ -1006,6 +1008,15 @@ jq -n \
       rts_tech_tree_unlocked_structure_count: ($rts_tech_tree[0].final_unlocked_structure_ids | length),
       rts_tech_tree_requirement_count: ($rts_tech_tree[0].final_tech_requirements_log | length),
       rts_tech_tree_progress_percent: $rts_tech_tree[0].final_tech_progress_percent,
+      rts_tech_tree_core_frame_order_count: ($rts_tech_tree[0].rts_tech_tree_core_frame_orders | length),
+      rts_tech_tree_core_headless_checkpoint_sha256: $rts_tech_tree[0].rts_tech_tree_core_headless_checkpoint_sha256,
+      rts_tech_tree_core_headless_applied_order_count: $rts_tech_tree[0].rts_tech_tree_core_headless_applied_order_count,
+      rts_tech_tree_core_headless_actor_count: $rts_tech_tree[0].rts_tech_tree_core_headless_actor_count,
+      rts_tech_tree_core_headless_final_frame: $rts_tech_tree[0].rts_tech_tree_core_headless_final_frame,
+      rts_tech_tree_core_tech_order_count: $rts_tech_tree[0].rts_tech_tree_core_tech_order_count,
+      rts_tech_tree_core_research_order_count: $rts_tech_tree[0].rts_tech_tree_core_research_order_count,
+      rts_tech_tree_core_upgrade_order_count: $rts_tech_tree[0].rts_tech_tree_core_upgrade_order_count,
+      rts_tech_tree_core_unlock_order_count: $rts_tech_tree[0].rts_tech_tree_core_unlock_order_count,
       rts_tech_tree_pixel_count: (
         $rts_tech_tree[0].tech_base_pixel_count
         + $rts_tech_tree[0].tech_research_pixel_count
@@ -2292,6 +2303,8 @@ jq -n \
       rts_tech_tree_upgrade_gate: $rts_tech_tree[0].upgrade_gate,
       rts_tech_tree_unlock_gate: $rts_tech_tree[0].unlock_gate,
       rts_tech_tree_dependency_gate: $rts_tech_tree[0].dependency_gate,
+      rts_tech_tree_core_frame_order_gate: $rts_tech_tree[0].rts_tech_tree_core_frame_order_gate,
+      rts_tech_tree_core_headless_replay_gate: $rts_tech_tree[0].rts_tech_tree_core_headless_replay_gate,
       rts_projectile_ability_live_input_gate: $rts_projectile[0].live_projectile_ability_input_gate,
       rts_projectile_ability_projectile_trail_gate: $rts_projectile[0].projectile_trail_gate,
       rts_projectile_ability_projectile_impact_gate: $rts_projectile[0].projectile_impact_gate,
@@ -3753,6 +3766,14 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_tech_tree_unlocked_structure_count >= 1
   and .headline.rts_tech_tree_requirement_count >= 4
   and .headline.rts_tech_tree_progress_percent == 100
+  and .headline.rts_tech_tree_core_frame_order_count == 5
+  and .headline.rts_tech_tree_core_headless_applied_order_count == 5
+  and .headline.rts_tech_tree_core_headless_actor_count == 4
+  and .headline.rts_tech_tree_core_headless_final_frame == 644
+  and .headline.rts_tech_tree_core_tech_order_count == 3
+  and .headline.rts_tech_tree_core_research_order_count == 1
+  and .headline.rts_tech_tree_core_upgrade_order_count == 1
+  and .headline.rts_tech_tree_core_unlock_order_count == 1
   and .headline.rts_tech_tree_pixel_count > 360
   and .headline.rts_tech_tree_base_pixel_count > 140
   and .headline.rts_tech_tree_research_pixel_count > 50
@@ -4478,6 +4499,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_tech_tree_upgrade_gate == true
   and .gates.rts_tech_tree_unlock_gate == true
   and .gates.rts_tech_tree_dependency_gate == true
+  and .gates.rts_tech_tree_core_frame_order_gate == true
+  and .gates.rts_tech_tree_core_headless_replay_gate == true
   and .gates.rts_projectile_ability_live_input_gate == true
   and .gates.rts_projectile_ability_projectile_trail_gate == true
   and .gates.rts_projectile_ability_projectile_impact_gate == true

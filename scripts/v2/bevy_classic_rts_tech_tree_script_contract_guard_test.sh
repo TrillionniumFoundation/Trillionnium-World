@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_tech_tree.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+CORE="$ROOT/trillionnium/crates/trnm-rts-core/src/lib.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 READINESS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
 
@@ -22,6 +23,16 @@ required_script_lines=(
   'upgrade_gate == true'
   'unlock_gate == true'
   'dependency_gate == true'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_tech_tree_core_frame_order_gate == true'
+  'rts_tech_tree_core_headless_replay_gate == true'
+  'rts_tech_tree_core_frame_orders | length == 5'
+  'rts_tech_tree_core_frame_order_kind_labels | tostring == "[\"queue\",\"build\",\"research\",\"upgrade\",\"unlock\"]"'
+  'rts_tech_tree_core_headless_applied_order_count == 5'
+  'rts_tech_tree_core_tech_order_count == 3'
+  'rts_tech_tree_core_research_order_count == 1'
+  'rts_tech_tree_core_upgrade_order_count == 1'
+  'rts_tech_tree_core_unlock_order_count == 1'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -50,10 +61,18 @@ required_source_lines=(
   'CLASSIC_RTS_TECH_UPGRADE_COLOR'
   'CLASSIC_RTS_TECH_UNLOCK_COLOR'
   'CLASSIC_RTS_TECH_REQUIREMENT_COLOR'
+  'RtsFrameOrder::from_live_command_label'
+  'RtsFrameOrderStream::new'
+  'RtsOrderKind::Research'
+  'RtsOrderKind::Upgrade'
+  'RtsOrderKind::Unlock'
+  'RtsTechTreeCheckpoint'
+  'rts_tech_tree_core_frame_order_gate'
+  'rts_tech_tree_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$MAIN" "$CORE"; then
     echo "[FAIL] missing classic RTS tech tree source line: $line" >&2
     exit 1
   fi
@@ -68,6 +87,13 @@ required_readiness_lines=(
   'rts_tech_tree_upgrade_gate'
   'rts_tech_tree_unlock_gate'
   'rts_tech_tree_dependency_gate'
+  'rts_tech_tree_core_frame_order_gate'
+  'rts_tech_tree_core_headless_replay_gate'
+  'rts_tech_tree_core_frame_order_count'
+  'rts_tech_tree_core_tech_order_count'
+  'rts_tech_tree_core_research_order_count'
+  'rts_tech_tree_core_upgrade_order_count'
+  'rts_tech_tree_core_unlock_order_count'
   'rts_tech_tree_pixel_count'
 )
 
