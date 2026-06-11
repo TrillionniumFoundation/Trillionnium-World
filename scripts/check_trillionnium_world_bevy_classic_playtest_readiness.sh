@@ -1373,6 +1373,21 @@ jq -n \
       rts_bot_tactical_micro_gap_openra_economy_tech_commit: $rts_bot_tactical_micro_gap[0].openra_bot_economy_tech_target_commit,
       rts_bot_tactical_micro_gap_openra_beacon_pressure_commit: $rts_bot_tactical_micro_gap[0].openra_bot_beacon_pressure_target_commit,
       rts_bot_tactical_micro_gap_openra_organic_terminal_commit: $rts_bot_tactical_micro_gap[0].openra_organic_bot_terminal_target_commit,
+      rts_bot_tactical_micro_gap_core_frame_order_stream_sha256: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_frame_order_stream_sha256,
+      rts_bot_tactical_micro_gap_core_headless_checkpoint_sha256: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_checkpoint_sha256,
+      rts_bot_tactical_micro_gap_core_frame_order_kinds: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_frame_order_kind_labels,
+      rts_bot_tactical_micro_gap_core_headless_applied_orders: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_applied_order_count,
+      rts_bot_tactical_micro_gap_core_headless_actor_count: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_actor_count,
+      rts_bot_tactical_micro_gap_core_headless_final_frame: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_final_frame,
+      rts_bot_tactical_micro_gap_core_headless_attack_orders: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_attack_order_count,
+      rts_bot_tactical_micro_gap_core_headless_focus_fire_orders: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_focus_fire_order_count,
+      rts_bot_tactical_micro_gap_core_headless_micro_move_orders: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_micro_move_order_count,
+      rts_bot_tactical_micro_gap_core_headless_ability_orders: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_ability_order_count,
+      rts_bot_tactical_micro_gap_core_headless_combat_targets: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_combat_target_actor_ids,
+      rts_bot_tactical_micro_gap_core_headless_combat_tiles: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_combat_target_tile_ids,
+      rts_bot_tactical_micro_gap_core_headless_combat_formations: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_combat_formation_ids,
+      rts_bot_tactical_micro_gap_core_headless_ability_rules: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_ability_rule_ids,
+      rts_bot_tactical_micro_gap_core_headless_ability_targets: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_ability_target_actor_ids,
       rts_bot_tactical_micro_gap_micro_signals: $rts_bot_tactical_micro_gap[0].micro_signal_count,
       rts_bot_tactical_micro_gap_target_swaps: $rts_bot_tactical_micro_gap[0].target_swap_count,
       rts_bot_tactical_micro_gap_focus_fire_orders: $rts_bot_tactical_micro_gap[0].focus_fire_order_count,
@@ -2511,6 +2526,8 @@ jq -n \
       rts_bot_tactical_micro_gap_openra_target_gate: $rts_bot_tactical_micro_gap[0].openra_tactical_micro_target_gate,
       rts_bot_tactical_micro_gap_renderer_gate: $rts_bot_tactical_micro_gap[0].renderer_gate,
       rts_bot_tactical_micro_gap_openra_gap_not_closed_gate: $rts_bot_tactical_micro_gap[0].openra_gap_not_closed_gate,
+      rts_bot_tactical_micro_gap_core_frame_order_gate: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_frame_order_gate,
+      rts_bot_tactical_micro_gap_core_headless_replay_gate: $rts_bot_tactical_micro_gap[0].rts_bot_tactical_micro_core_headless_replay_gate,
       rts_bot_tactical_micro_gap_gate: $rts_bot_tactical_micro_gap[0].tactical_micro_gap_gate,
       rts_bot_map_intel_gap_stage_gate: $rts_bot_map_intel_gap[0].intel_stage_gate,
       rts_bot_map_intel_gap_signal_gate: $rts_bot_map_intel_gap[0].intel_signal_gate,
@@ -4153,6 +4170,26 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_bot_tactical_micro_gap_openra_economy_tech_commit == "f6c47d9"
   and .headline.rts_bot_tactical_micro_gap_openra_beacon_pressure_commit == "2b6f25b"
   and .headline.rts_bot_tactical_micro_gap_openra_organic_terminal_commit == "5f1bf76"
+  and (.headline.rts_bot_tactical_micro_gap_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_bot_tactical_micro_gap_core_frame_order_kinds | tostring == "[\"attack\",\"focus_fire\",\"move\",\"move\",\"ability\",\"move\"]")
+  and .headline.rts_bot_tactical_micro_gap_core_headless_applied_orders == 6
+  and .headline.rts_bot_tactical_micro_gap_core_headless_actor_count >= 2
+  and .headline.rts_bot_tactical_micro_gap_core_headless_final_frame == 1205
+  and .headline.rts_bot_tactical_micro_gap_core_headless_attack_orders == 1
+  and .headline.rts_bot_tactical_micro_gap_core_headless_focus_fire_orders == 1
+  and .headline.rts_bot_tactical_micro_gap_core_headless_micro_move_orders == 3
+  and .headline.rts_bot_tactical_micro_gap_core_headless_ability_orders == 1
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_targets | index("warden_frontline") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_targets | index("low_armor_striker") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_tiles | index("8,5") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_tiles | index("7,4") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_tiles | index("6,4") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_formations | index("kite_step") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_formations | index("flank_split") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_combat_formations | index("pullback") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_ability_rules | index("signal_burst") != null)
+  and (.headline.rts_bot_tactical_micro_gap_core_headless_ability_targets | index("relay_beacon") != null)
   and .headline.rts_bot_tactical_micro_gap_micro_signals >= 24
   and .headline.rts_bot_tactical_micro_gap_target_swaps >= 3
   and .headline.rts_bot_tactical_micro_gap_focus_fire_orders >= 3
@@ -4802,6 +4839,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_bot_tactical_micro_gap_openra_target_gate == true
   and .gates.rts_bot_tactical_micro_gap_renderer_gate == true
   and .gates.rts_bot_tactical_micro_gap_openra_gap_not_closed_gate == true
+  and .gates.rts_bot_tactical_micro_gap_core_frame_order_gate == true
+  and .gates.rts_bot_tactical_micro_gap_core_headless_replay_gate == true
   and .gates.rts_bot_tactical_micro_gap_gate == true
   and .gates.rts_bot_map_intel_gap_stage_gate == true
   and .gates.rts_bot_map_intel_gap_signal_gate == true

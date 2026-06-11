@@ -180,6 +180,19 @@ impl RtsFrameOrder {
             );
             order.target_actor_id = Some(target_actor_id.to_string());
             order
+        } else if let Some(target_actor_id) = label.strip_prefix("RTS:FOCUS:") {
+            if target_actor_id.is_empty() {
+                return Err("focus_fire_target_missing".to_string());
+            }
+            let mut order = Self::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::FocusFire,
+                RtsOrderSource::LocalInput,
+            );
+            order.target_actor_id = Some(target_actor_id.to_string());
+            order
         } else if let Some(rest) = label.strip_prefix("RTS:QUEUE:") {
             live_queue_order(frame, player_id, subject_actor_ids, rest)?
         } else if let Some(rest) = label.strip_prefix("RTS:ABILITY:") {
@@ -739,6 +752,7 @@ impl RtsFrameOrderStream {
         let mut abilities = RtsAbilityCheckpoint::default();
         let mut objectives = RtsObjectiveCheckpoint::default();
         let mut recon_intel = RtsReconIntelCheckpoint::default();
+        let mut tactical_combat = RtsTacticalCombatCheckpoint::default();
         let mut event_log = Vec::new();
         let mut final_frame = 0_u32;
 
@@ -768,6 +782,7 @@ impl RtsFrameOrderStream {
             abilities.record_order(order);
             objectives.record_order(order);
             recon_intel.record_order(order);
+            tactical_combat.record_order(order);
 
             for actor_id in &order.subject_actor_ids {
                 let actor = actors.entry(actor_id.clone()).or_insert_with(|| {
@@ -902,6 +917,7 @@ impl RtsFrameOrderStream {
             abilities,
             objectives,
             recon_intel,
+            tactical_combat,
             players,
             actors,
             event_log,
@@ -937,6 +953,7 @@ pub struct RtsHeadlessReplayCheckpoint {
     pub abilities: RtsAbilityCheckpoint,
     pub objectives: RtsObjectiveCheckpoint,
     pub recon_intel: RtsReconIntelCheckpoint,
+    pub tactical_combat: RtsTacticalCombatCheckpoint,
     pub players: Vec<RtsPlayerCheckpoint>,
     pub actors: Vec<RtsActorCheckpoint>,
     pub event_log: Vec<String>,
@@ -1137,6 +1154,70 @@ impl RtsReconIntelCheckpoint {
         push_if_present(&mut self.recon_queue_ids, order.queue_id.as_deref());
         if let Some(tile) = order.target_tile {
             self.recon_tile_ids.push(tile.label());
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsTacticalCombatCheckpoint {
+    pub attack_order_count: u32,
+    pub focus_fire_order_count: u32,
+    pub micro_move_order_count: u32,
+    pub attack_move_order_count: u32,
+    pub combat_target_actor_ids: Vec<String>,
+    pub combat_target_tile_ids: Vec<String>,
+    pub combat_formation_ids: Vec<String>,
+}
+
+impl RtsTacticalCombatCheckpoint {
+    fn record_order(&mut self, order: &RtsFrameOrder) {
+        match order.kind {
+            RtsOrderKind::Attack => {
+                self.attack_order_count += 1;
+                push_if_present(
+                    &mut self.combat_target_actor_ids,
+                    order.target_actor_id.as_deref(),
+                );
+                if let Some(tile) = order.target_tile {
+                    self.combat_target_tile_ids.push(tile.label());
+                }
+            }
+            RtsOrderKind::FocusFire => {
+                self.focus_fire_order_count += 1;
+                push_if_present(
+                    &mut self.combat_target_actor_ids,
+                    order.target_actor_id.as_deref(),
+                );
+                if let Some(tile) = order.target_tile {
+                    self.combat_target_tile_ids.push(tile.label());
+                }
+            }
+            RtsOrderKind::Move
+            | RtsOrderKind::Patrol
+            | RtsOrderKind::Follow
+            | RtsOrderKind::Hold
+            | RtsOrderKind::Stop => {
+                self.micro_move_order_count += 1;
+                push_if_present(
+                    &mut self.combat_formation_ids,
+                    order.formation_id.as_deref(),
+                );
+                if let Some(tile) = order.target_tile {
+                    self.combat_target_tile_ids.push(tile.label());
+                }
+            }
+            RtsOrderKind::AttackMove => {
+                self.micro_move_order_count += 1;
+                self.attack_move_order_count += 1;
+                push_if_present(
+                    &mut self.combat_formation_ids,
+                    order.formation_id.as_deref(),
+                );
+                if let Some(tile) = order.target_tile {
+                    self.combat_target_tile_ids.push(tile.label());
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -1364,8 +1445,21 @@ mod tests {
             Some("square_creep_wander")
         );
 
-        let follow_order = RtsFrameOrder::from_live_command_label(
+        let focus_fire_order = RtsFrameOrder::from_live_command_label(
             122,
+            "Multi0",
+            selected_subjects(),
+            "RTS:FOCUS:low_armor_striker",
+        )
+        .unwrap();
+        assert_eq!(focus_fire_order.kind, RtsOrderKind::FocusFire);
+        assert_eq!(
+            focus_fire_order.target_actor_id.as_deref(),
+            Some("low_armor_striker")
+        );
+
+        let follow_order = RtsFrameOrder::from_live_command_label(
+            123,
             "Multi0",
             selected_subjects(),
             "RTS:MOVE:5,4:follow:player",
@@ -1376,7 +1470,7 @@ mod tests {
         assert_eq!(follow_order.target_actor_id.as_deref(), Some("player"));
 
         let harvest_order = RtsFrameOrder::from_live_command_label(
-            123,
+            124,
             "Multi0",
             selected_subjects(),
             "RTS:QUEUE:harvest:gold_vein",
@@ -2152,6 +2246,60 @@ mod tests {
             assert_eq!(actor.target_actor_id.as_deref(), Some("relay_beacon"));
             assert_eq!(actor.target_tile, Some(RtsTile::new(9, 2)));
         }
+    }
+
+    #[test]
+    fn headless_replay_tracks_tactical_combat_micro_stream() {
+        let subjects = vec!["skimmer_alpha".to_string(), "warden_beta".to_string()];
+        let labels = [
+            "RTS:ATTACK:warden_frontline",
+            "RTS:FOCUS:low_armor_striker",
+            "RTS:MOVE:8,5:kite_step",
+            "RTS:MOVE:7,4:flank_split",
+            "RTS:ABILITY:signal_burst@relay_beacon",
+            "RTS:MOVE:6,4:pullback",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    1_200 + index as u32,
+                    "Multi2",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-tactical-micro",
+            "trnm-rts-core-bot-tactical-micro-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let combat = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 6);
+        assert_eq!(report.checkpoint.actor_count, 2);
+        assert_eq!(report.checkpoint.final_frame, 1_205);
+        assert_eq!(combat.attack_order_count, 1);
+        assert_eq!(combat.focus_fire_order_count, 1);
+        assert_eq!(combat.micro_move_order_count, 3);
+        assert_eq!(report.checkpoint.abilities.ability_order_count, 1);
+        assert!(combat
+            .combat_target_actor_ids
+            .iter()
+            .any(|target| target == "low_armor_striker"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "kite_step"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:focus_fire:")));
     }
 
     #[test]

@@ -24,6 +24,33 @@ jq -e '
   and .openra_organic_bot_terminal_target_commit == "5f1bf76"
   and .micro_stage_count == 6
   and (.stage_summaries | length) == 6
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_bot_tactical_micro_core_frame_order_gate == true
+  and .rts_bot_tactical_micro_core_headless_replay_gate == true
+  and (.rts_bot_tactical_micro_core_frame_orders | length) == 6
+  and (.rts_bot_tactical_micro_core_frame_order_kind_labels | tostring == "[\"attack\",\"focus_fire\",\"move\",\"move\",\"ability\",\"move\"]")
+  and (.rts_bot_tactical_micro_core_frame_order_errors | length == 0)
+  and .rts_bot_tactical_micro_core_frame_order_stream_error == null
+  and (.rts_bot_tactical_micro_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_bot_tactical_micro_core_headless_replay_error == null
+  and (.rts_bot_tactical_micro_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_bot_tactical_micro_core_headless_applied_order_count == 6
+  and .rts_bot_tactical_micro_core_headless_actor_count >= 2
+  and .rts_bot_tactical_micro_core_headless_final_frame == 1205
+  and .rts_bot_tactical_micro_core_headless_attack_order_count == 1
+  and .rts_bot_tactical_micro_core_headless_focus_fire_order_count == 1
+  and .rts_bot_tactical_micro_core_headless_micro_move_order_count == 3
+  and .rts_bot_tactical_micro_core_headless_ability_order_count == 1
+  and (.rts_bot_tactical_micro_core_headless_combat_target_actor_ids | index("warden_frontline") != null)
+  and (.rts_bot_tactical_micro_core_headless_combat_target_actor_ids | index("low_armor_striker") != null)
+  and (.rts_bot_tactical_micro_core_headless_combat_target_tile_ids | index("8,5") != null)
+  and (.rts_bot_tactical_micro_core_headless_combat_target_tile_ids | index("7,4") != null)
+  and (.rts_bot_tactical_micro_core_headless_combat_target_tile_ids | index("6,4") != null)
+  and (.rts_bot_tactical_micro_core_headless_combat_formation_ids | index("kite_step") != null)
+  and (.rts_bot_tactical_micro_core_headless_combat_formation_ids | index("flank_split") != null)
+  and (.rts_bot_tactical_micro_core_headless_combat_formation_ids | index("pullback") != null)
+  and (.rts_bot_tactical_micro_core_headless_ability_rule_ids | index("signal_burst") != null)
+  and (.rts_bot_tactical_micro_core_headless_ability_target_actor_ids | index("relay_beacon") != null)
   and (.stage_summaries | map(.stage) | index("target_priority_probe") != null)
   and (.stage_summaries | map(.stage) | index("focus_fire_commit") != null)
   and (.stage_summaries | map(.stage) | index("kite_and_stutter_step") != null)

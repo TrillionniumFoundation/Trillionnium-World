@@ -65624,9 +65624,222 @@ pub fn native_classic_rts_bot_tactical_micro_gap_evidence_json(preview_path: &st
         && micro_pullback_gate;
     let tactical_micro_gap_gate =
         micro_stage_gate && micro_signal_gate && bevy_gap_gate && openra_tactical_micro_target_gate;
+    let rts_bot_tactical_micro_core_subject_actor_ids =
+        string_vec(["Multi2:trnm.horizon.skimmer", "Multi2:trnm.forge.warden"]);
+    let rts_bot_tactical_micro_core_action_labels = [
+        "RTS:ATTACK:warden_frontline",
+        "RTS:FOCUS:low_armor_striker",
+        "RTS:MOVE:8,5:kite_step",
+        "RTS:MOVE:7,4:flank_split",
+        "RTS:ABILITY:signal_burst@relay_beacon",
+        "RTS:MOVE:6,4:pullback",
+    ];
+    let mut rts_bot_tactical_micro_core_frame_orders = Vec::new();
+    let mut rts_bot_tactical_micro_core_frame_order_errors = Vec::new();
+    for (index, action_label) in rts_bot_tactical_micro_core_action_labels.iter().enumerate() {
+        match RtsFrameOrder::from_live_command_label(
+            1_200 + index as u32,
+            "Multi2",
+            rts_bot_tactical_micro_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_bot_tactical_micro_core_frame_order_errors
+                        .push(format!("bot_tactical_micro_{index}:{action_label}:{error}"));
+                } else {
+                    rts_bot_tactical_micro_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_bot_tactical_micro_core_frame_order_errors
+                .push(format!("bot_tactical_micro_{index}:{action_label}:{error}")),
+        }
+    }
+    let rts_bot_tactical_micro_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-bot-tactical-micro",
+        "trnm-rts-core-bot-tactical-micro-rules-v1",
+        rts_bot_tactical_micro_core_frame_orders.clone(),
+    );
+    let rts_bot_tactical_micro_core_frame_order_stream_error =
+        rts_bot_tactical_micro_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_bot_tactical_micro_core_frame_order_stream_sha256 =
+        rts_bot_tactical_micro_core_frame_order_stream.sha256_hex();
+    let rts_bot_tactical_micro_core_frame_order_kind_labels =
+        rts_bot_tactical_micro_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_bot_tactical_micro_core_frame_order_values = rts_bot_tactical_micro_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts bot tactical micro order serializes"))
+        .collect::<Vec<_>>();
+    let rts_bot_tactical_micro_core_frame_order_stream_value =
+        serde_json::to_value(&rts_bot_tactical_micro_core_frame_order_stream)
+            .expect("rts bot tactical micro stream serializes");
+    let rts_bot_tactical_micro_core_frame_order_gate =
+        rts_bot_tactical_micro_core_frame_order_errors.is_empty()
+            && rts_bot_tactical_micro_core_frame_order_stream_error.is_none()
+            && rts_bot_tactical_micro_core_frame_order_stream_sha256.len() == 64
+            && rts_bot_tactical_micro_core_frame_orders.len() == 6
+            && rts_bot_tactical_micro_core_frame_order_kind_labels
+                == ["attack", "focus_fire", "move", "move", "ability", "move"]
+            && rts_bot_tactical_micro_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Attack
+                        && order.target_actor_id.as_deref() == Some("warden_frontline")
+                })
+            && rts_bot_tactical_micro_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::FocusFire
+                        && order.target_actor_id.as_deref() == Some("low_armor_striker")
+                })
+            && rts_bot_tactical_micro_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Move
+                        && order.target_tile == Some(RtsTile::new(8, 5))
+                        && order.formation_id.as_deref() == Some("kite_step")
+                })
+            && rts_bot_tactical_micro_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Move
+                        && order.target_tile == Some(RtsTile::new(7, 4))
+                        && order.formation_id.as_deref() == Some("flank_split")
+                })
+            && rts_bot_tactical_micro_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Ability
+                        && order.target_rule_id.as_deref() == Some("signal_burst")
+                        && order.target_actor_id.as_deref() == Some("relay_beacon")
+                })
+            && rts_bot_tactical_micro_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Move
+                        && order.target_tile == Some(RtsTile::new(6, 4))
+                        && order.formation_id.as_deref() == Some("pullback")
+                });
+    let rts_bot_tactical_micro_core_headless_replay_result =
+        rts_bot_tactical_micro_core_frame_order_stream.replay_headless();
+    let (
+        rts_bot_tactical_micro_core_headless_replay_report_value,
+        rts_bot_tactical_micro_core_headless_checkpoint_sha256,
+        rts_bot_tactical_micro_core_headless_replay_error,
+        rts_bot_tactical_micro_core_headless_applied_order_count,
+        rts_bot_tactical_micro_core_headless_actor_count,
+        rts_bot_tactical_micro_core_headless_final_frame,
+        rts_bot_tactical_micro_core_headless_event_log,
+        rts_bot_tactical_micro_core_headless_attack_order_count,
+        rts_bot_tactical_micro_core_headless_focus_fire_order_count,
+        rts_bot_tactical_micro_core_headless_micro_move_order_count,
+        rts_bot_tactical_micro_core_headless_combat_target_actor_ids,
+        rts_bot_tactical_micro_core_headless_combat_target_tile_ids,
+        rts_bot_tactical_micro_core_headless_combat_formation_ids,
+        rts_bot_tactical_micro_core_headless_ability_order_count,
+        rts_bot_tactical_micro_core_headless_ability_rule_ids,
+        rts_bot_tactical_micro_core_headless_ability_target_actor_ids,
+    ) = match rts_bot_tactical_micro_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let combat = &checkpoint.tactical_combat;
+            let abilities = &checkpoint.abilities;
+            (
+                serde_json::to_value(&report)
+                    .expect("rts bot tactical micro replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                combat.attack_order_count,
+                combat.focus_fire_order_count,
+                combat.micro_move_order_count,
+                combat.combat_target_actor_ids.clone(),
+                combat.combat_target_tile_ids.clone(),
+                combat.combat_formation_ids.clone(),
+                abilities.ability_order_count,
+                abilities.ability_rule_ids.clone(),
+                abilities.target_actor_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            0,
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_bot_tactical_micro_core_headless_replay_gate =
+        rts_bot_tactical_micro_core_frame_order_gate
+            && rts_bot_tactical_micro_core_headless_replay_error.is_none()
+            && rts_bot_tactical_micro_core_headless_checkpoint_sha256.len() == 64
+            && rts_bot_tactical_micro_core_headless_applied_order_count == 6
+            && rts_bot_tactical_micro_core_headless_actor_count >= 2
+            && rts_bot_tactical_micro_core_headless_final_frame == 1_205
+            && rts_bot_tactical_micro_core_headless_attack_order_count == 1
+            && rts_bot_tactical_micro_core_headless_focus_fire_order_count == 1
+            && rts_bot_tactical_micro_core_headless_micro_move_order_count == 3
+            && rts_bot_tactical_micro_core_headless_ability_order_count == 1
+            && rts_bot_tactical_micro_core_headless_combat_target_actor_ids
+                .iter()
+                .any(|id| id == "warden_frontline")
+            && rts_bot_tactical_micro_core_headless_combat_target_actor_ids
+                .iter()
+                .any(|id| id == "low_armor_striker")
+            && rts_bot_tactical_micro_core_headless_combat_target_tile_ids
+                .iter()
+                .any(|tile| tile == "8,5")
+            && rts_bot_tactical_micro_core_headless_combat_target_tile_ids
+                .iter()
+                .any(|tile| tile == "7,4")
+            && rts_bot_tactical_micro_core_headless_combat_target_tile_ids
+                .iter()
+                .any(|tile| tile == "6,4")
+            && rts_bot_tactical_micro_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "kite_step")
+            && rts_bot_tactical_micro_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "flank_split")
+            && rts_bot_tactical_micro_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "pullback")
+            && rts_bot_tactical_micro_core_headless_ability_rule_ids
+                .iter()
+                .any(|rule| rule == "signal_burst")
+            && rts_bot_tactical_micro_core_headless_ability_target_actor_ids
+                .iter()
+                .any(|id| id == "relay_beacon")
+            && rts_bot_tactical_micro_core_headless_event_log
+                .iter()
+                .any(|event| {
+                    event.contains(":kind:focus_fire:")
+                        && event.contains(":target:low_armor_striker")
+                });
     let green = write_gate
         && renderer_gate
         && tactical_micro_gap_gate
+        && rts_bot_tactical_micro_core_frame_order_gate
+        && rts_bot_tactical_micro_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -65647,6 +65860,31 @@ pub fn native_classic_rts_bot_tactical_micro_gap_evidence_json(preview_path: &st
         "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
         "micro_stage_count": micro_stage_count,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_bot_tactical_micro_core_subject_actor_ids": rts_bot_tactical_micro_core_subject_actor_ids,
+        "rts_bot_tactical_micro_core_action_labels": rts_bot_tactical_micro_core_action_labels,
+        "rts_bot_tactical_micro_core_frame_orders": rts_bot_tactical_micro_core_frame_order_values,
+        "rts_bot_tactical_micro_core_frame_order_stream": rts_bot_tactical_micro_core_frame_order_stream_value,
+        "rts_bot_tactical_micro_core_frame_order_stream_sha256": rts_bot_tactical_micro_core_frame_order_stream_sha256,
+        "rts_bot_tactical_micro_core_frame_order_kind_labels": rts_bot_tactical_micro_core_frame_order_kind_labels,
+        "rts_bot_tactical_micro_core_frame_order_errors": rts_bot_tactical_micro_core_frame_order_errors,
+        "rts_bot_tactical_micro_core_frame_order_stream_error": rts_bot_tactical_micro_core_frame_order_stream_error,
+        "rts_bot_tactical_micro_core_headless_replay_report": rts_bot_tactical_micro_core_headless_replay_report_value,
+        "rts_bot_tactical_micro_core_headless_checkpoint_sha256": rts_bot_tactical_micro_core_headless_checkpoint_sha256,
+        "rts_bot_tactical_micro_core_headless_replay_error": rts_bot_tactical_micro_core_headless_replay_error,
+        "rts_bot_tactical_micro_core_headless_applied_order_count": rts_bot_tactical_micro_core_headless_applied_order_count,
+        "rts_bot_tactical_micro_core_headless_actor_count": rts_bot_tactical_micro_core_headless_actor_count,
+        "rts_bot_tactical_micro_core_headless_final_frame": rts_bot_tactical_micro_core_headless_final_frame,
+        "rts_bot_tactical_micro_core_headless_event_log": rts_bot_tactical_micro_core_headless_event_log,
+        "rts_bot_tactical_micro_core_headless_attack_order_count": rts_bot_tactical_micro_core_headless_attack_order_count,
+        "rts_bot_tactical_micro_core_headless_focus_fire_order_count": rts_bot_tactical_micro_core_headless_focus_fire_order_count,
+        "rts_bot_tactical_micro_core_headless_micro_move_order_count": rts_bot_tactical_micro_core_headless_micro_move_order_count,
+        "rts_bot_tactical_micro_core_headless_combat_target_actor_ids": rts_bot_tactical_micro_core_headless_combat_target_actor_ids,
+        "rts_bot_tactical_micro_core_headless_combat_target_tile_ids": rts_bot_tactical_micro_core_headless_combat_target_tile_ids,
+        "rts_bot_tactical_micro_core_headless_combat_formation_ids": rts_bot_tactical_micro_core_headless_combat_formation_ids,
+        "rts_bot_tactical_micro_core_headless_ability_order_count": rts_bot_tactical_micro_core_headless_ability_order_count,
+        "rts_bot_tactical_micro_core_headless_ability_rule_ids": rts_bot_tactical_micro_core_headless_ability_rule_ids,
+        "rts_bot_tactical_micro_core_headless_ability_target_actor_ids": rts_bot_tactical_micro_core_headless_ability_target_actor_ids,
         "micro_signal_count": micro_signal_count,
         "target_swap_count": target_swap_count,
         "focus_fire_order_count": focus_fire_order_count,
@@ -65681,9 +65919,11 @@ pub fn native_classic_rts_bot_tactical_micro_gap_evidence_json(preview_path: &st
         "openra_tactical_micro_target_gate": openra_tactical_micro_target_gate,
         "renderer_gate": renderer_gate,
         "tactical_micro_gap_gate": tactical_micro_gap_gate,
+        "rts_bot_tactical_micro_core_frame_order_gate": rts_bot_tactical_micro_core_frame_order_gate,
+        "rts_bot_tactical_micro_core_headless_replay_gate": rts_bot_tactical_micro_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS bot tactical micro gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with target priority, focus-fire, kite, flank, ability timing, low-health pullback, regroup, and reattack vocabulary while keeping native OpenRA combat AI parity unclaimed."
+        "source_of_truth": "Classic RTS bot tactical micro gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with target priority, focus-fire, kite, flank, ability timing, low-health pullback, regroup, and reattack vocabulary, emits those micro commands into trnm-rts-core, replays them through the Bevy-free headless reducer, and keeps native OpenRA combat AI parity unclaimed."
     }))
     .expect("classic RTS bot tactical micro gap evidence serializes")
 }
