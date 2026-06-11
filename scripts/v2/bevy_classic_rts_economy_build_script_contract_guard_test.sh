@@ -19,6 +19,11 @@ required_script_lines=(
   'harvest_loop_gate == true'
   'build_loop_gate == true'
   'production_loop_gate == true'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_economy_core_frame_order_gate == true'
+  'rts_economy_core_headless_replay_gate == true'
+  'rts_economy_core_headless_applied_order_count == 3'
+  'rts_economy_core_lifecycle_order_count == 2'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -48,6 +53,11 @@ required_source_lines=(
   'CLASSIC_RTS_DROPOFF_COLOR'
   'CLASSIC_RTS_BUILD_BLUEPRINT_COLOR'
   'CLASSIC_RTS_BLUEPRINT_PROGRESS_COLOR'
+  'RtsFrameOrder::from_live_command_label'
+  'first-contact-basin-economy-build'
+  'trnm-rts-core-economy-build-rules-v1'
+  'rts_economy_core_frame_order_gate'
+  'rts_economy_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -65,6 +75,10 @@ required_readiness_lines=(
   'rts_economy_build_loop_gate'
   'rts_economy_production_loop_gate'
   'rts_economy_worker_route_pixel_count'
+  'rts_economy_core_frame_order_count'
+  'rts_economy_core_headless_applied_order_count'
+  'rts_economy_core_frame_order_gate'
+  'rts_economy_core_headless_replay_gate'
 )
 
 for line in "${required_readiness_lines[@]}"; do

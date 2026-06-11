@@ -444,6 +444,8 @@ jq -n \
       and $rts_economy[0].harvest_loop_gate == true
       and $rts_economy[0].build_loop_gate == true
       and $rts_economy[0].production_loop_gate == true
+      and $rts_economy[0].rts_economy_core_frame_order_gate == true
+      and $rts_economy[0].rts_economy_core_headless_replay_gate == true
       and $rts_economy[0].accepted_input_count == 4
       and $rts_select[0].live_selection_minimap_input_gate == true
       and $rts_select[0].selection_box_gate == true
@@ -964,6 +966,19 @@ jq -n \
       rts_economy_build_blueprint_pixel_count: $rts_economy[0].build_blueprint_pixel_count,
       rts_economy_build_progress_pixel_count: $rts_economy[0].build_progress_pixel_count,
       rts_economy_production_queue_pixel_count: $rts_economy[0].production_queue_pixel_count,
+      rts_economy_core_frame_order_count: ($rts_economy[0].rts_economy_core_frame_orders | length),
+      rts_economy_core_frame_order_kinds: $rts_economy[0].rts_economy_core_frame_order_kind_labels,
+      rts_economy_core_frame_order_stream_sha256: $rts_economy[0].rts_economy_core_frame_order_stream_sha256,
+      rts_economy_core_headless_checkpoint_sha256: $rts_economy[0].rts_economy_core_headless_checkpoint_sha256,
+      rts_economy_core_headless_applied_order_count: $rts_economy[0].rts_economy_core_headless_applied_order_count,
+      rts_economy_core_headless_actor_count: $rts_economy[0].rts_economy_core_headless_actor_count,
+      rts_economy_core_headless_final_frame: $rts_economy[0].rts_economy_core_headless_final_frame,
+      rts_economy_core_lifecycle_order_count: $rts_economy[0].rts_economy_core_lifecycle_order_count,
+      rts_economy_core_build_order_count: $rts_economy[0].rts_economy_core_build_order_count,
+      rts_economy_core_train_order_count: $rts_economy[0].rts_economy_core_train_order_count,
+      rts_economy_core_harvest_order_count: $rts_economy[0].rts_economy_core_harvest_order_count,
+      rts_economy_core_build_rule_ids: $rts_economy[0].rts_economy_core_build_rule_ids,
+      rts_economy_core_train_rule_ids: $rts_economy[0].rts_economy_core_train_rule_ids,
       rts_selection_minimap_accepted_input_count: $rts_select[0].accepted_input_count,
       rts_selection_box_tile_count: ($rts_select[0].final_selection_box_tile_ids | length),
       rts_control_group_assignment_count: ($rts_select[0].final_control_group_assignments | length),
@@ -2309,6 +2324,8 @@ jq -n \
       rts_economy_harvest_loop_gate: $rts_economy[0].harvest_loop_gate,
       rts_economy_build_loop_gate: $rts_economy[0].build_loop_gate,
       rts_economy_production_loop_gate: $rts_economy[0].production_loop_gate,
+      rts_economy_core_frame_order_gate: $rts_economy[0].rts_economy_core_frame_order_gate,
+      rts_economy_core_headless_replay_gate: $rts_economy[0].rts_economy_core_headless_replay_gate,
       rts_selection_minimap_live_input_gate: $rts_select[0].live_selection_minimap_input_gate,
       rts_selection_box_gate: $rts_select[0].selection_box_gate,
       rts_control_group_gate: $rts_select[0].control_group_gate,
@@ -3756,6 +3773,19 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_economy_build_blueprint_pixel_count > 80
   and .headline.rts_economy_build_progress_pixel_count > 20
   and .headline.rts_economy_production_queue_pixel_count > 1000
+  and .headline.rts_economy_core_frame_order_count == 3
+  and .headline.rts_economy_core_frame_order_kinds == ["harvest","build","train"]
+  and (.headline.rts_economy_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_economy_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .headline.rts_economy_core_headless_applied_order_count == 3
+  and .headline.rts_economy_core_headless_actor_count == 4
+  and .headline.rts_economy_core_headless_final_frame == 693
+  and .headline.rts_economy_core_lifecycle_order_count == 2
+  and .headline.rts_economy_core_build_order_count == 1
+  and .headline.rts_economy_core_train_order_count == 1
+  and .headline.rts_economy_core_harvest_order_count == 4
+  and (.headline.rts_economy_core_build_rule_ids | index("watch_tower") != null)
+  and (.headline.rts_economy_core_train_rule_ids | index("worker") != null)
   and .headline.rts_selection_minimap_accepted_input_count == 4
   and .headline.rts_selection_box_tile_count >= 4
   and .headline.rts_control_group_assignment_count >= 2
@@ -4526,6 +4556,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_economy_harvest_loop_gate == true
   and .gates.rts_economy_build_loop_gate == true
   and .gates.rts_economy_production_loop_gate == true
+  and .gates.rts_economy_core_frame_order_gate == true
+  and .gates.rts_economy_core_headless_replay_gate == true
   and .gates.rts_selection_minimap_live_input_gate == true
   and .gates.rts_selection_box_gate == true
   and .gates.rts_control_group_gate == true

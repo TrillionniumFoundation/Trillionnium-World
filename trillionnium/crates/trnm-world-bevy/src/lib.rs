@@ -46416,6 +46416,8 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
     let mut action_labels = Vec::new();
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
+    let mut rts_economy_core_frame_orders = Vec::new();
+    let mut rts_economy_core_frame_order_errors = Vec::new();
 
     for (index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
@@ -46436,6 +46438,30 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
         }
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
+        }
+        if action_label.starts_with("RTS:QUEUE:") {
+            let subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+                vec!["selected_rts_group".to_string()]
+            } else {
+                runtime.rts_selected_unit_ids.clone()
+            };
+            match RtsFrameOrder::from_live_command_label(
+                690 + index as u32,
+                "Multi0",
+                subject_actor_ids,
+                &action_label,
+            ) {
+                Ok(order) => {
+                    if let Err(error) = order.validate() {
+                        rts_economy_core_frame_order_errors
+                            .push(format!("economy_build_{index}:{action_label}:{error}"));
+                    } else {
+                        rts_economy_core_frame_orders.push(order);
+                    }
+                }
+                Err(error) => rts_economy_core_frame_order_errors
+                    .push(format!("economy_build_{index}:{action_label}:{error}")),
+            }
         }
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -46473,6 +46499,7 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
             "action_label": action_label,
             "accepted": accepted,
             "last_action": gameplay_log.last_action,
+            "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
             "economy_state": runtime.rts_economy_state.clone(),
             "harvest_node_ids": runtime.rts_harvest_node_ids.clone(),
             "worker_assignment_ids": runtime.rts_worker_assignment_ids.clone(),
@@ -46486,6 +46513,129 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
             "command_queue": runtime.rts_command_queue.clone(),
         }));
     }
+
+    let rts_economy_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-economy-build",
+        "trnm-rts-core-economy-build-rules-v1",
+        rts_economy_core_frame_orders.clone(),
+    );
+    let rts_economy_core_frame_order_stream_error =
+        rts_economy_core_frame_order_stream.validate().err();
+    let rts_economy_core_frame_order_stream_sha256 =
+        rts_economy_core_frame_order_stream.sha256_hex();
+    let rts_economy_core_frame_order_kind_labels = rts_economy_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_economy_core_frame_order_values = rts_economy_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts economy order serializes"))
+        .collect::<Vec<_>>();
+    let rts_economy_core_frame_order_stream_value =
+        serde_json::to_value(&rts_economy_core_frame_order_stream)
+            .expect("rts economy stream serializes");
+    let rts_economy_core_frame_order_gate = rts_economy_core_frame_order_errors.is_empty()
+        && rts_economy_core_frame_order_stream_error.is_none()
+        && rts_economy_core_frame_order_stream_sha256.len() == 64
+        && rts_economy_core_frame_orders.len() == 3
+        && rts_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Harvest
+                && order.target_actor_id.as_deref() == Some("gold_vein")
+        })
+        && rts_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Build
+                && order.target_rule_id.as_deref() == Some("watch_tower")
+                && order.target_tile == Some(RtsTile::new(7, 4))
+        })
+        && rts_economy_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Train && order.target_rule_id.as_deref() == Some("worker")
+        });
+    let rts_economy_core_headless_replay_result =
+        rts_economy_core_frame_order_stream.replay_headless();
+    let (
+        rts_economy_core_headless_replay_report_value,
+        rts_economy_core_headless_checkpoint_sha256,
+        rts_economy_core_headless_replay_error,
+        rts_economy_core_headless_applied_order_count,
+        rts_economy_core_headless_actor_count,
+        rts_economy_core_headless_final_frame,
+        rts_economy_core_headless_event_log,
+        rts_economy_core_checkpoint_value,
+        rts_economy_core_lifecycle_order_count,
+        rts_economy_core_build_order_count,
+        rts_economy_core_train_order_count,
+        rts_economy_core_harvest_order_count,
+        rts_economy_core_build_rule_ids,
+        rts_economy_core_train_rule_ids,
+    ) = match rts_economy_core_headless_replay_result {
+        Ok(report) => {
+            let lifecycle = report.checkpoint.production_lifecycle.clone();
+            let harvest_order_count = report
+                .checkpoint
+                .actors
+                .iter()
+                .map(|actor| actor.harvest_order_count)
+                .sum::<u32>();
+            (
+                serde_json::to_value(&report).expect("rts economy replay report serializes"),
+                report.checkpoint_sha256,
+                None,
+                report.checkpoint.applied_order_count,
+                report.checkpoint.actor_count,
+                report.checkpoint.final_frame,
+                report.checkpoint.event_log.clone(),
+                serde_json::to_value(&report.checkpoint)
+                    .expect("rts economy checkpoint serializes"),
+                lifecycle.lifecycle_order_count,
+                lifecycle.build_order_count,
+                lifecycle.train_order_count,
+                harvest_order_count,
+                lifecycle.build_rule_ids,
+                lifecycle.train_rule_ids,
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Value::Null,
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_economy_core_headless_replay_gate = rts_economy_core_frame_order_gate
+        && rts_economy_core_headless_replay_error.is_none()
+        && rts_economy_core_headless_checkpoint_sha256.len() == 64
+        && rts_economy_core_headless_applied_order_count == 3
+        && rts_economy_core_headless_actor_count == 4
+        && rts_economy_core_headless_final_frame == 693
+        && rts_economy_core_lifecycle_order_count == 2
+        && rts_economy_core_build_order_count == 1
+        && rts_economy_core_train_order_count == 1
+        && rts_economy_core_harvest_order_count == 4
+        && rts_economy_core_build_rule_ids
+            .iter()
+            .any(|rule| rule == "watch_tower")
+        && rts_economy_core_train_rule_ids
+            .iter()
+            .any(|rule| rule == "worker")
+        && rts_economy_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:harvest:"))
+        && rts_economy_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:build:"))
+        && rts_economy_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:train:"));
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
@@ -46545,6 +46695,8 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
         && harvest_loop_gate
         && build_loop_gate
         && production_loop_gate
+        && rts_economy_core_frame_order_gate
+        && rts_economy_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -46572,6 +46724,27 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
         "final_production_queue": runtime.rts_production_queue,
         "final_build_queue": runtime.rts_build_queue,
         "final_command_queue": runtime.rts_command_queue,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_economy_core_frame_orders": rts_economy_core_frame_order_values,
+        "rts_economy_core_frame_order_stream": rts_economy_core_frame_order_stream_value,
+        "rts_economy_core_frame_order_stream_sha256": rts_economy_core_frame_order_stream_sha256,
+        "rts_economy_core_frame_order_kind_labels": rts_economy_core_frame_order_kind_labels,
+        "rts_economy_core_frame_order_errors": rts_economy_core_frame_order_errors,
+        "rts_economy_core_frame_order_stream_error": rts_economy_core_frame_order_stream_error,
+        "rts_economy_core_headless_replay_report": rts_economy_core_headless_replay_report_value,
+        "rts_economy_core_headless_checkpoint_sha256": rts_economy_core_headless_checkpoint_sha256,
+        "rts_economy_core_headless_replay_error": rts_economy_core_headless_replay_error,
+        "rts_economy_core_headless_applied_order_count": rts_economy_core_headless_applied_order_count,
+        "rts_economy_core_headless_actor_count": rts_economy_core_headless_actor_count,
+        "rts_economy_core_headless_final_frame": rts_economy_core_headless_final_frame,
+        "rts_economy_core_headless_event_log": rts_economy_core_headless_event_log,
+        "rts_economy_core_checkpoint": rts_economy_core_checkpoint_value,
+        "rts_economy_core_lifecycle_order_count": rts_economy_core_lifecycle_order_count,
+        "rts_economy_core_build_order_count": rts_economy_core_build_order_count,
+        "rts_economy_core_train_order_count": rts_economy_core_train_order_count,
+        "rts_economy_core_harvest_order_count": rts_economy_core_harvest_order_count,
+        "rts_economy_core_build_rule_ids": rts_economy_core_build_rule_ids,
+        "rts_economy_core_train_rule_ids": rts_economy_core_train_rule_ids,
         "non_background_pixels": non_background_pixels,
         "harvest_node_pixel_count": harvest_node_pixel_count,
         "worker_route_pixel_count": worker_route_pixel_count,
@@ -46583,9 +46756,11 @@ pub fn native_classic_rts_economy_build_evidence_json(preview_path: &str) -> Str
         "harvest_loop_gate": harvest_loop_gate,
         "build_loop_gate": build_loop_gate,
         "production_loop_gate": production_loop_gate,
+        "rts_economy_core_frame_order_gate": rts_economy_core_frame_order_gate,
+        "rts_economy_core_headless_replay_gate": rts_economy_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS economy build evidence drives select, harvest, build, and train live queue input into native runtime resource, worker assignment, dropoff, blueprint, and build progress state before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS economy build evidence drives select, harvest, build, and train live queue input into native runtime resource, worker assignment, dropoff, blueprint, and build progress state, emits economy orders into trnm-rts-core, replays harvest/build/train through the Bevy-free headless reducer, and renders those overlays through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS economy build evidence serializes")
 }
