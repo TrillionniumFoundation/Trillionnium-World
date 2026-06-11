@@ -21,6 +21,10 @@ jq -e '
   and .selection_follow_path == "rts_camera_minimap_selection_follow_step"
   and .native_runtime_path == "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view+rts_camera_minimap_viewport_rect"
   and .input_action_count == 6
+  and .large_map.map_width_tiles == 34
+  and .large_map.map_height_tiles == 34
+  and .large_map.playable_max_x == 32
+  and .large_map.playable_max_y == 32
   and (.stage_summaries | length) == 6
   and (.stage_summaries | map(.stage) | index("viewport_rect") != null)
   and (.stage_summaries | map(.stage) | index("fog_reveal") != null)
@@ -31,6 +35,7 @@ jq -e '
   and (.stage_summaries | map(select(.stage == "selection_follow"))[0].selected_unit_id == "mirror_captain")
   and (.stage_summaries | map(select(.stage == "control_group_recall"))[0].control_group_id == "2")
   and (.stage_summaries | map(select(.stage == "route_projection"))[0].minimap_tile_id == "minimap_route_target")
+  and (.stage_summaries | any(.focus_tile.x >= 20 and .focus_tile.y >= 18))
   and .revealed_tile_union_count >= 12
   and .viewport_pixel_count > 2400
   and .fog_pixel_count > 8000
@@ -45,6 +50,7 @@ jq -e '
   and .stage_gate == true
   and .viewport_sync_gate == true
   and .fog_reveal_gate == true
+  and .large_map_minimap_gate == true
   and .selection_follow_gate == true
   and .control_group_sync_gate == true
   and .route_projection_gate == true

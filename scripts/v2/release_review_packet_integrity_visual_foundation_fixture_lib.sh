@@ -236,13 +236,14 @@ add_camera_minimap_sync_packet_fixtures() {
     selection_follow_path: "rts_camera_minimap_selection_follow_step",
     native_runtime_path: "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view+rts_camera_minimap_viewport_rect",
     input_action_count: 6,
+    large_map: {map_width_tiles: 34, map_height_tiles: 34, playable_min_tile: 1, playable_max_x: 32, playable_max_y: 32},
     stage_summaries: [
-      {stage: "viewport_rect", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null},
-      {stage: "fog_reveal", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null},
-      {stage: "selection_follow", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: "mirror_captain"},
-      {stage: "control_group_recall", selected_unit_id: "field_engineer", control_group_id: "2", minimap_tile_id: null},
-      {stage: "route_projection", selected_unit_id: "signal_lancer", control_group_id: "2", minimap_tile_id: "minimap_route_target"},
-      {stage: "zoom_sync", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null}
+      {stage: "viewport_rect", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null, focus_tile: {x: 8, y: 8}},
+      {stage: "fog_reveal", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null, focus_tile: {x: 9, y: 9}},
+      {stage: "selection_follow", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: "mirror_captain", focus_tile: {x: 20, y: 19}},
+      {stage: "control_group_recall", selected_unit_id: "field_engineer", control_group_id: "2", minimap_tile_id: null, focus_tile: {x: 19, y: 18}},
+      {stage: "route_projection", selected_unit_id: "signal_lancer", control_group_id: "2", minimap_tile_id: "minimap_route_target", focus_tile: {x: 22, y: 20}},
+      {stage: "zoom_sync", selected_unit_id: "mirror_captain", control_group_id: "1", minimap_tile_id: null, focus_tile: {x: 22, y: 20}}
     ],
     revealed_tile_union_count: 33,
     viewport_pixel_count: 5579,
@@ -258,6 +259,7 @@ add_camera_minimap_sync_packet_fixtures() {
     stage_gate: true,
     viewport_sync_gate: true,
     fog_reveal_gate: true,
+    large_map_minimap_gate: true,
     selection_follow_gate: true,
     control_group_sync_gate: true,
     route_projection_gate: true,

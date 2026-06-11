@@ -25,6 +25,10 @@ jq -e '
   and .surface_role_filter == "is_scrollable_map_surface_role"
   and .native_runtime_path == "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view"
   and .input_action_count == 6
+  and .large_map.map_width_tiles == 34
+  and .large_map.map_height_tiles == 34
+  and .large_map.playable_max_x == 32
+  and .large_map.playable_max_y == 32
   and (.stage_summaries | length) == 6
   and (.stage_summaries | map(.stage) | index("keyboard_pan") != null)
   and (.stage_summaries | map(.stage) | index("edge_scroll") != null)
@@ -34,6 +38,8 @@ jq -e '
   and (.stage_summaries | map(.stage) | index("bounds_clamp") != null)
   and (.stage_summaries | map(select(.stage == "minimap_jump"))[0].minimap_tile_id == "minimap_cursor_jump")
   and (.stage_summaries | map(select(.stage == "bounds_clamp"))[0].clamped == true)
+  and (.stage_summaries | any(.focus_tile.x >= 28))
+  and (.stage_summaries | any(.focus_tile.y >= 18))
   and .camera_frame_pixel_count > 4000
   and .edge_pixel_count > 1000
   and .drag_pixel_count > 250
@@ -47,6 +53,7 @@ jq -e '
   and .minimap_gate == true
   and .clamp_gate == true
   and .stage_gate == true
+  and .large_map_coordinate_gate == true
   and .keyboard_pan_gate == true
   and .edge_scroll_gate == true
   and .drag_pan_gate == true

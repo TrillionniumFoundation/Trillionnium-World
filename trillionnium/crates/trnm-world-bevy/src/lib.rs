@@ -1405,12 +1405,74 @@ pub struct BevyWorldScrollableMapAnchor {
     pub base_scale: Vec3,
 }
 
+pub const CLASSIC_RTS_LARGE_MAP_WIDTH_TILES: i32 = 34;
+pub const CLASSIC_RTS_LARGE_MAP_HEIGHT_TILES: i32 = 34;
+pub const CLASSIC_RTS_LARGE_MAP_MIN_TILE: i32 = 1;
+pub const CLASSIC_RTS_LARGE_MAP_MAX_X: i32 = 32;
+pub const CLASSIC_RTS_LARGE_MAP_MAX_Y: i32 = 32;
+const CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_X: i32 = 17;
+const CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_Y: i32 = 17;
+const CLASSIC_RTS_LARGE_MAP_TILE_WORLD_W: f32 = 72.0;
+const CLASSIC_RTS_LARGE_MAP_TILE_WORLD_H: f32 = 48.0;
+
+fn classic_rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
+    (
+        tile.0
+            .clamp(CLASSIC_RTS_LARGE_MAP_MIN_TILE, CLASSIC_RTS_LARGE_MAP_MAX_X),
+        tile.1
+            .clamp(CLASSIC_RTS_LARGE_MAP_MIN_TILE, CLASSIC_RTS_LARGE_MAP_MAX_Y),
+    )
+}
+
+fn classic_rts_large_map_tile_to_camera_center(tile: (i32, i32)) -> Vec2 {
+    let tile = classic_rts_large_map_clamp_tile(tile);
+    Vec2::new(
+        (tile.0 - CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_X) as f32
+            * CLASSIC_RTS_LARGE_MAP_TILE_WORLD_W,
+        -((tile.1 - CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_Y) as f32)
+            * CLASSIC_RTS_LARGE_MAP_TILE_WORLD_H,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_minimap_cell_origin(
+    origin_x: i32,
+    origin_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+) -> (i32, i32) {
+    let tile = classic_rts_large_map_clamp_tile(tile);
+    (
+        origin_x + (tile.0 - CLASSIC_RTS_LARGE_MAP_MIN_TILE) * cell_w,
+        origin_y + (tile.1 - CLASSIC_RTS_LARGE_MAP_MIN_TILE) * cell_h,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_large_map_cell_col(tile: (i32, i32)) -> i32 {
+    classic_rts_large_map_clamp_tile(tile).0 - CLASSIC_RTS_LARGE_MAP_MIN_TILE
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_large_map_cell_row(tile: (i32, i32)) -> i32 {
+    classic_rts_large_map_clamp_tile(tile).1 - CLASSIC_RTS_LARGE_MAP_MIN_TILE
+}
+
 pub fn rts_scrollable_map_camera_config() -> RtsScrollableMapCameraConfig {
+    let min_camera = classic_rts_large_map_tile_to_camera_center((
+        CLASSIC_RTS_LARGE_MAP_MIN_TILE,
+        CLASSIC_RTS_LARGE_MAP_MAX_Y,
+    ));
+    let max_camera = classic_rts_large_map_tile_to_camera_center((
+        CLASSIC_RTS_LARGE_MAP_MAX_X,
+        CLASSIC_RTS_LARGE_MAP_MIN_TILE,
+    ));
     RtsScrollableMapCameraConfig {
-        min_x: -420.0,
-        max_x: 420.0,
-        min_y: -260.0,
-        max_y: 260.0,
+        min_x: min_camera.x,
+        max_x: max_camera.x,
+        min_y: min_camera.y,
+        max_y: max_camera.y,
         min_zoom: 0.66,
         max_zoom: 1.85,
         keyboard_speed: 280.0,
@@ -1465,9 +1527,12 @@ pub fn apply_rts_scrollable_map_camera_input(
 }
 
 pub fn rts_scrollable_map_camera_focus_tile(state: RtsScrollableMapCameraState) -> (i32, i32) {
-    let tile_x = ((state.center_x / 72.0).round() as i32 + 5).clamp(1, 13);
-    let tile_y = ((-state.center_y / 48.0).round() as i32 + 5).clamp(1, 8);
-    (tile_x, tile_y)
+    classic_rts_large_map_clamp_tile((
+        (state.center_x / CLASSIC_RTS_LARGE_MAP_TILE_WORLD_W).round() as i32
+            + CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_X,
+        (-state.center_y / CLASSIC_RTS_LARGE_MAP_TILE_WORLD_H).round() as i32
+            + CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_Y,
+    ))
 }
 
 pub fn rts_camera_minimap_viewport_rect(
@@ -1498,8 +1563,8 @@ pub fn rts_camera_minimap_revealed_tiles(focus_tile: (i32, i32)) -> Vec<String> 
     let mut tile_ids = Vec::new();
     for y_delta in -1..=1 {
         for x_delta in -1..=1 {
-            let tile_x = (focus_tile.0 + x_delta).clamp(1, 13);
-            let tile_y = (focus_tile.1 + y_delta).clamp(1, 8);
+            let (tile_x, tile_y) =
+                classic_rts_large_map_clamp_tile((focus_tile.0 + x_delta, focus_tile.1 + y_delta));
             let tile_id = format!("{tile_x},{tile_y}");
             if !tile_ids.contains(&tile_id) {
                 tile_ids.push(tile_id);
@@ -1526,7 +1591,7 @@ pub fn rts_camera_minimap_selection_follow_step(
 }
 
 pub fn rts_scrollable_map_viewport_center() -> Vec2 {
-    Vec2::new(-120.0, -20.0)
+    classic_rts_large_map_tile_to_camera_center((8, 8))
 }
 
 fn is_scrollable_map_surface_role(role: &str) -> bool {
@@ -14998,10 +15063,10 @@ fn classic_draw_rts_camera_minimap_sync_overlay(
     if width < 580 || height < 300 {
         return;
     }
-    let map_x = width as i32 - 198;
-    let map_y = height as i32 - 154;
-    let map_w = 160_i32;
-    let map_h = 116_i32;
+    let map_x = width as i32 - 214;
+    let map_y = (height as i32 - 176).max(156);
+    let map_w = 188_i32;
+    let map_h = 166_i32;
     classic_draw_rect(
         buffer,
         width,
@@ -15044,25 +15109,27 @@ fn classic_draw_rts_camera_minimap_sync_overlay(
     );
 
     let grid_x = map_x + 14;
-    let grid_y = map_y + 43;
-    let cell_w = 9_i32;
-    let cell_h = 7_i32;
-    for tile_y in 1..=8 {
-        for tile_x in 1..=13 {
+    let grid_y = map_y + 40;
+    let cell_w = 4_i32;
+    let cell_h = 4_i32;
+    for tile_y in CLASSIC_RTS_LARGE_MAP_MIN_TILE..=CLASSIC_RTS_LARGE_MAP_MAX_Y {
+        for tile_x in CLASSIC_RTS_LARGE_MAP_MIN_TILE..=CLASSIC_RTS_LARGE_MAP_MAX_X {
             let tile_id = format!("{tile_x},{tile_y}");
             let color = if revealed_tile_ids.contains(&tile_id) {
                 CLASSIC_RTS_CAMERA_SYNC_REVEAL_COLOR
             } else {
                 CLASSIC_RTS_CAMERA_SYNC_FOG_COLOR
             };
+            let (tile_origin_x, tile_origin_y) =
+                classic_rts_minimap_cell_origin(grid_x, grid_y, cell_w, cell_h, (tile_x, tile_y));
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                grid_x + (tile_x - 1) * cell_w,
-                grid_y + (tile_y - 1) * cell_h,
-                cell_w - 2,
-                cell_h - 2,
+                tile_origin_x,
+                tile_origin_y,
+                cell_w,
+                cell_h,
                 color,
             );
         }
@@ -15098,16 +15165,16 @@ fn classic_draw_rts_camera_minimap_sync_overlay(
         );
     }
 
-    let focus_x = grid_x + (focus_tile.0 - 1) * cell_w;
-    let focus_y = grid_y + (focus_tile.1 - 1) * cell_h;
+    let (focus_x, focus_y) =
+        classic_rts_minimap_cell_origin(grid_x, grid_y, cell_w, cell_h, focus_tile);
     classic_draw_rect(
         buffer,
         width,
         height,
-        focus_x - 3,
-        focus_y - 3,
-        16,
-        4,
+        focus_x - 4,
+        focus_y - 4,
+        20,
+        5,
         CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR,
     );
     classic_draw_rect(
@@ -15115,19 +15182,19 @@ fn classic_draw_rts_camera_minimap_sync_overlay(
         width,
         height,
         focus_x + 3,
-        focus_y - 9,
-        4,
-        16,
+        focus_y - 10,
+        5,
+        20,
         CLASSIC_RTS_CAMERA_SYNC_SELECTION_COLOR,
     );
-    for index in 0..9 {
+    for index in 0..15 {
         classic_draw_rect(
             buffer,
             width,
             height,
-            grid_x + 10 + index * 11,
-            grid_y + 78 - index * 3,
-            9,
+            grid_x + 8 + index * 7,
+            grid_y + 118 - index * 4,
+            10,
             3,
             CLASSIC_RTS_CAMERA_SYNC_ROUTE_COLOR,
         );
@@ -38253,6 +38320,37 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
             .iter()
             .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
     });
+    let large_map_coordinate_gate = stage_summaries.iter().all(|summary| {
+        let focus_x_ok = summary
+            .get("focus_tile")
+            .and_then(|value| value.get("x"))
+            .and_then(|value| value.as_i64())
+            .is_some_and(|tile| {
+                ((CLASSIC_RTS_LARGE_MAP_MIN_TILE as i64)..=(CLASSIC_RTS_LARGE_MAP_MAX_X as i64))
+                    .contains(&tile)
+            });
+        let focus_y_ok = summary
+            .get("focus_tile")
+            .and_then(|value| value.get("y"))
+            .and_then(|value| value.as_i64())
+            .is_some_and(|tile| {
+                ((CLASSIC_RTS_LARGE_MAP_MIN_TILE as i64)..=(CLASSIC_RTS_LARGE_MAP_MAX_Y as i64))
+                    .contains(&tile)
+            });
+        focus_x_ok && focus_y_ok
+    }) && stage_summaries.iter().any(|summary| {
+        summary
+            .get("focus_tile")
+            .and_then(|value| value.get("x"))
+            .and_then(|value| value.as_i64())
+            .is_some_and(|tile| tile >= 28)
+    }) && stage_summaries.iter().any(|summary| {
+        summary
+            .get("focus_tile")
+            .and_then(|value| value.get("y"))
+            .and_then(|value| value.as_i64())
+            .is_some_and(|tile| tile >= 18)
+    });
     let camera_runtime_gate = stage_summaries.iter().all(|summary| {
         summary
             .get("after")
@@ -38290,6 +38388,7 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
         && minimap_gate
         && clamp_gate
         && stage_gate
+        && large_map_coordinate_gate
         && keyboard_pan_gate
         && edge_scroll_gate
         && drag_pan_gate
@@ -38316,6 +38415,13 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
         "surface_role_filter": "is_scrollable_map_surface_role",
         "native_runtime_path": "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view",
         "input_action_count": stages.len(),
+        "large_map": {
+            "map_width_tiles": CLASSIC_RTS_LARGE_MAP_WIDTH_TILES,
+            "map_height_tiles": CLASSIC_RTS_LARGE_MAP_HEIGHT_TILES,
+            "playable_min_tile": CLASSIC_RTS_LARGE_MAP_MIN_TILE,
+            "playable_max_x": CLASSIC_RTS_LARGE_MAP_MAX_X,
+            "playable_max_y": CLASSIC_RTS_LARGE_MAP_MAX_Y
+        },
         "input_sources": input_sources,
         "stage_summaries": stage_summaries,
         "final_camera_state": camera_state,
@@ -38344,6 +38450,7 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
         "minimap_gate": minimap_gate,
         "clamp_gate": clamp_gate,
         "stage_gate": stage_gate,
+        "large_map_coordinate_gate": large_map_coordinate_gate,
         "keyboard_pan_gate": keyboard_pan_gate,
         "edge_scroll_gate": edge_scroll_gate,
         "drag_pan_gate": drag_pan_gate,
@@ -38359,7 +38466,7 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
         "source_art_policy": "Original Trillionnium scrollable-map camera overlays; keyboard pan, edge scroll, middle-mouse drag, wheel zoom, minimap jump, and bounds clamp feedback are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Scrollable map evidence uses the Bevy RTS camera input reducer plus actual classic_draw_scene frames and local overlay pixels to prove mouse/keyboard map navigation remains visible in the playable low-spec renderer."
+        "source_of_truth": "Scrollable map evidence uses the Bevy RTS camera input reducer plus actual classic_draw_scene frames and local overlay pixels to prove mouse/keyboard map navigation traverses the 34x34 First Contact Basin map instead of a 13x8 tactical stub."
     }))
     .expect("classic RTS scrollable map evidence serializes")
 }
@@ -38633,6 +38740,46 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
                 .and_then(|value| value.as_array())
                 .is_some_and(|tiles| tiles.len() >= 4)
         });
+    let large_map_minimap_gate = stage_summaries.iter().all(|summary| {
+        let focus_x_ok = summary
+            .get("focus_tile")
+            .and_then(|value| value.get("x"))
+            .and_then(|value| value.as_i64())
+            .is_some_and(|tile| {
+                ((CLASSIC_RTS_LARGE_MAP_MIN_TILE as i64)..=(CLASSIC_RTS_LARGE_MAP_MAX_X as i64))
+                    .contains(&tile)
+            });
+        let focus_y_ok = summary
+            .get("focus_tile")
+            .and_then(|value| value.get("y"))
+            .and_then(|value| value.as_i64())
+            .is_some_and(|tile| {
+                ((CLASSIC_RTS_LARGE_MAP_MIN_TILE as i64)..=(CLASSIC_RTS_LARGE_MAP_MAX_Y as i64))
+                    .contains(&tile)
+            });
+        let revealed_ok = summary
+            .get("revealed_tile_ids")
+            .and_then(|value| value.as_array())
+            .is_some_and(|tiles| {
+                tiles.iter().all(|tile| {
+                    tile.as_str()
+                        .and_then(classic_parse_rts_tile)
+                        .is_some_and(|tile| classic_rts_large_map_clamp_tile(tile) == tile)
+                })
+            });
+        focus_x_ok && focus_y_ok && revealed_ok
+    }) && stage_summaries.iter().any(|summary| {
+        summary
+            .get("focus_tile")
+            .and_then(|value| value.get("x"))
+            .and_then(|value| value.as_i64())
+            .is_some_and(|tile| tile >= 20)
+            && summary
+                .get("focus_tile")
+                .and_then(|value| value.get("y"))
+                .and_then(|value| value.as_i64())
+                .is_some_and(|tile| tile >= 18)
+    });
     let selection_follow_gate = stage_summaries.iter().any(|summary| {
         summary.get("stage").and_then(|value| value.as_str()) == Some("selection_follow")
             && summary
@@ -38680,12 +38827,18 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
                 .get("focus_tile")
                 .and_then(|value| value.get("x"))
                 .and_then(|value| value.as_i64())
-                .is_some_and(|tile| (1..=13).contains(&tile));
+                .is_some_and(|tile| {
+                    ((CLASSIC_RTS_LARGE_MAP_MIN_TILE as i64)..=(CLASSIC_RTS_LARGE_MAP_MAX_X as i64))
+                        .contains(&tile)
+                });
             let focus_y_ok = summary
                 .get("focus_tile")
                 .and_then(|value| value.get("y"))
                 .and_then(|value| value.as_i64())
-                .is_some_and(|tile| (1..=8).contains(&tile));
+                .is_some_and(|tile| {
+                    ((CLASSIC_RTS_LARGE_MAP_MIN_TILE as i64)..=(CLASSIC_RTS_LARGE_MAP_MAX_Y as i64))
+                        .contains(&tile)
+                });
             zoom_ok && focus_x_ok && focus_y_ok
         });
     let scene_renderer_gate = stage_summaries.len() == stages.len()
@@ -38707,6 +38860,7 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
         && stage_gate
         && viewport_sync_gate
         && fog_reveal_gate
+        && large_map_minimap_gate
         && selection_follow_gate
         && control_group_sync_gate
         && route_projection_gate
@@ -38728,6 +38882,13 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
         "selection_follow_path": "rts_camera_minimap_selection_follow_step",
         "native_runtime_path": "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view+rts_camera_minimap_viewport_rect",
         "input_action_count": stages.len(),
+        "large_map": {
+            "map_width_tiles": CLASSIC_RTS_LARGE_MAP_WIDTH_TILES,
+            "map_height_tiles": CLASSIC_RTS_LARGE_MAP_HEIGHT_TILES,
+            "playable_min_tile": CLASSIC_RTS_LARGE_MAP_MIN_TILE,
+            "playable_max_x": CLASSIC_RTS_LARGE_MAP_MAX_X,
+            "playable_max_y": CLASSIC_RTS_LARGE_MAP_MAX_Y
+        },
         "input_sources": input_sources,
         "stage_summaries": stage_summaries,
         "final_camera_state": camera_state,
@@ -38745,6 +38906,7 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
         "stage_gate": stage_gate,
         "viewport_sync_gate": viewport_sync_gate,
         "fog_reveal_gate": fog_reveal_gate,
+        "large_map_minimap_gate": large_map_minimap_gate,
         "selection_follow_gate": selection_follow_gate,
         "control_group_sync_gate": control_group_sync_gate,
         "route_projection_gate": route_projection_gate,
@@ -38756,7 +38918,7 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
         "source_art_policy": "Original Trillionnium camera/minimap sync overlays; viewport rectangle, fog reveal, selection follow, control-group recall, route projection, and zoom synchronization are authored locally without copied Warcraft III UI art, cursor art, text, names, models, or animation data.",
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Camera/minimap sync evidence uses the Bevy RTS camera reducer, minimap viewport math, revealed tile state, selection-follow runtime, and actual classic_draw_scene frames to prove camera and minimap feedback stay synchronized in the playable low-spec renderer."
+        "source_of_truth": "Camera/minimap sync evidence uses the Bevy RTS camera reducer, minimap viewport math, revealed tile state, selection-follow runtime, and actual classic_draw_scene frames to prove the 34x34 First Contact Basin map, minimap viewport, fog reveal, and camera focus stay synchronized."
     }))
     .expect("classic RTS camera minimap sync evidence serializes")
 }
@@ -79113,10 +79275,11 @@ fn classic_rts_camera_state_for_focus_tile(
     zoom: f32,
 ) -> RtsScrollableMapCameraState {
     let config = rts_scrollable_map_camera_config();
+    let camera_center = classic_rts_large_map_tile_to_camera_center(focus_tile);
     clamp_rts_scrollable_map_camera_state(
         RtsScrollableMapCameraState {
-            center_x: (focus_tile.0.clamp(1, 13) - 5) as f32 * 72.0,
-            center_y: -((focus_tile.1.clamp(1, 8) - 5) as f32) * 48.0,
+            center_x: camera_center.x,
+            center_y: camera_center.y,
             zoom,
         },
         config,
@@ -96106,13 +96269,13 @@ fn classic_draw_rts_strategy_overlay(
 
     let map_x = panel_x + 7;
     let map_y = panel_y + 18;
-    let cell_w = 6;
-    let cell_h = 5;
+    let cell_w = ((minimap_w - 14) / CLASSIC_RTS_LARGE_MAP_MAX_X).max(2);
+    let cell_h = ((minimap_h - 24) / CLASSIC_RTS_LARGE_MAP_MAX_Y).max(1);
     let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
     let visible_tiles = classic_rts_visible_tiles(runtime, player_tile, &selected_units);
     let fogged_tiles = classic_rts_fogged_tiles(runtime);
-    for row in 0..8 {
-        for col in 0..12 {
+    for row in CLASSIC_RTS_LARGE_MAP_MIN_TILE..=CLASSIC_RTS_LARGE_MAP_MAX_Y {
+        for col in CLASSIC_RTS_LARGE_MAP_MIN_TILE..=CLASSIC_RTS_LARGE_MAP_MAX_X {
             let color = if scene_id == "league_coliseum" && (row == 2 || row == 5) {
                 CLASSIC_RTS_MINIMAP_ROAD_COLOR
             } else if scene_id == "mentor_training_room" && row <= 1 {
@@ -96122,14 +96285,16 @@ fn classic_draw_rts_strategy_overlay(
             } else {
                 CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
             };
+            let (tile_x, tile_y) =
+                classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, (col, row));
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                map_x + col * cell_w,
-                map_y + row * cell_h,
-                cell_w - 1,
-                cell_h - 1,
+                tile_x,
+                tile_y,
+                cell_w.max(1),
+                cell_h.max(1),
                 color,
             );
             if !visible_tiles.contains(&(col, row)) {
@@ -96137,10 +96302,10 @@ fn classic_draw_rts_strategy_overlay(
                     buffer,
                     width,
                     height,
-                    map_x + col * cell_w + 1,
-                    map_y + row * cell_h + 1,
-                    cell_w - 2,
-                    cell_h - 2,
+                    tile_x,
+                    tile_y,
+                    cell_w.max(1),
+                    cell_h.max(1),
                     CLASSIC_RTS_MINIMAP_FOG_COLOR,
                 );
             }
@@ -96148,20 +96313,21 @@ fn classic_draw_rts_strategy_overlay(
     }
 
     for tile in fogged_tiles {
+        let (tile_x, tile_y) = classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, tile);
         classic_draw_rect(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w + 1,
-            map_y + tile.1.clamp(0, 7) * cell_h + 1,
-            cell_w - 2,
-            cell_h - 2,
+            tile_x,
+            tile_y,
+            cell_w.max(1),
+            cell_h.max(1),
             CLASSIC_RTS_MINIMAP_FOG_COLOR,
         );
     }
     for entity in &selected_units {
-        let dot_x = map_x + entity.tile.0.clamp(0, 11) * cell_w;
-        let dot_y = map_y + entity.tile.1.clamp(0, 7) * cell_h;
+        let (dot_x, dot_y) =
+            classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, entity.tile);
         classic_draw_rect(
             buffer,
             width,
@@ -96169,18 +96335,20 @@ fn classic_draw_rts_strategy_overlay(
             dot_x,
             dot_y,
             4,
-            4,
+            cell_h.max(3),
             CLASSIC_ISO_CONTROL_GROUP_COLOR,
         );
     }
+    let (player_x, player_y) =
+        classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, player_tile);
     classic_draw_rect(
         buffer,
         width,
         height,
-        map_x + player_tile.0.clamp(0, 11) * cell_w,
-        map_y + player_tile.1.clamp(0, 7) * cell_h,
+        player_x,
+        player_y,
         5,
-        5,
+        cell_h.max(3),
         CLASSIC_ISO_UNIT_PLAYER_COLOR,
     );
     if let Some(destination_tile) = runtime
@@ -96188,14 +96356,16 @@ fn classic_draw_rts_strategy_overlay(
         .as_deref()
         .and_then(classic_parse_rts_tile)
     {
+        let (tile_x, tile_y) =
+            classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, destination_tile);
         classic_draw_rect(
             buffer,
             width,
             height,
-            map_x + destination_tile.0.clamp(0, 11) * cell_w,
-            map_y + destination_tile.1.clamp(0, 7) * cell_h,
+            tile_x,
+            tile_y,
             5,
-            5,
+            cell_h.max(3),
             CLASSIC_ISO_COMMAND_MARKER_COLOR,
         );
     }
@@ -96204,8 +96374,8 @@ fn classic_draw_rts_strategy_overlay(
         .as_deref()
         .and_then(classic_parse_rts_tile)
     {
-        let dot_x = map_x + minimap_tile.0.clamp(0, 11) * cell_w;
-        let dot_y = map_y + minimap_tile.1.clamp(0, 7) * cell_h;
+        let (dot_x, dot_y) =
+            classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, minimap_tile);
         classic_draw_rect(
             buffer,
             width,
@@ -96229,12 +96399,14 @@ fn classic_draw_rts_strategy_overlay(
     }
     for tile_id in &runtime.rts_selection_box_tile_ids {
         if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (tile_x, tile_y) =
+                classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, tile);
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w,
-                map_y + tile.1.clamp(0, 7) * cell_h,
+                tile_x,
+                tile_y,
                 5,
                 2,
                 CLASSIC_RTS_SELECTION_BOX_COLOR,
@@ -96243,12 +96415,14 @@ fn classic_draw_rts_strategy_overlay(
     }
     for tile_id in &runtime.rts_group_route_tile_ids {
         if let Some(tile) = classic_parse_rts_tile(tile_id) {
+            let (tile_x, tile_y) =
+                classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, tile);
             classic_draw_rect(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                tile_x + 1,
+                tile_y + 1,
                 4,
                 2,
                 CLASSIC_RTS_SPLIT_ROUTE_COLOR,
@@ -96256,14 +96430,15 @@ fn classic_draw_rts_strategy_overlay(
         }
     }
     for tile in &visible_tiles {
+        let (tile_x, tile_y) = classic_rts_minimap_cell_origin(map_x, map_y, cell_w, cell_h, *tile);
         classic_draw_rect(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w + 1,
-            map_y + tile.1.clamp(0, 7) * cell_h + 1,
+            tile_x,
+            tile_y,
             5,
-            4,
+            cell_h.max(2),
             CLASSIC_RTS_MINIMAP_VISION_COLOR,
         );
     }
@@ -96272,8 +96447,8 @@ fn classic_draw_rts_strategy_overlay(
         .as_deref()
         .and_then(classic_parse_rts_tile)
     {
-        let dot_x = map_x + minimap_tile.0.clamp(0, 11) * cell_w;
-        let dot_y = map_y + minimap_tile.1.clamp(0, 7) * cell_h;
+        let dot_x = map_x + classic_rts_large_map_cell_col(minimap_tile) * cell_w;
+        let dot_y = map_y + classic_rts_large_map_cell_row(minimap_tile) * cell_h;
         classic_draw_rect(
             buffer,
             width,
@@ -96301,8 +96476,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w,
-                map_y + tile.1.clamp(0, 7) * cell_h,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h,
                 5,
                 2,
                 CLASSIC_RTS_SELECTION_BOX_COLOR,
@@ -96315,8 +96490,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 2,
                 4,
                 2,
                 CLASSIC_RTS_SPLIT_ROUTE_COLOR,
@@ -96329,8 +96504,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 1,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 1,
                 4,
                 3,
                 CLASSIC_RTS_TERRAIN_ROUTE_COLOR,
@@ -96343,8 +96518,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w,
-                map_y + tile.1.clamp(0, 7) * cell_h,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h,
                 5,
                 2,
                 CLASSIC_RTS_CHOKE_COLOR,
@@ -96357,8 +96532,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w,
-                map_y + tile.1.clamp(0, 7) * cell_h,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h,
                 5,
                 4,
                 CLASSIC_RTS_CREEP_CAMP_COLOR,
@@ -96371,8 +96546,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h,
                 4,
                 4,
                 CLASSIC_RTS_EXPANSION_COLOR,
@@ -96385,8 +96560,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 2,
                 4,
                 2,
                 CLASSIC_RTS_SCOUT_ROUTE_COLOR,
@@ -96399,8 +96574,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 1,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 1,
                 5,
                 4,
                 CLASSIC_RTS_FOG_REVEAL_COLOR,
@@ -96413,8 +96588,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             5,
             4,
             CLASSIC_RTS_ENEMY_STRUCTURE_COLOR,
@@ -96426,8 +96601,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w + 1,
-            map_y + tile.1.clamp(0, 7) * cell_h + 1,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h + 1,
             4,
             3,
             CLASSIC_RTS_ENEMY_INTEL_COLOR,
@@ -96446,8 +96621,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             5,
             3,
             CLASSIC_RTS_ENEMY_TECH_COLOR,
@@ -96459,8 +96634,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w + 1,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             4,
             4,
             CLASSIC_RTS_ENEMY_PRODUCTION_COLOR,
@@ -96472,8 +96647,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 2,
                 4,
                 2,
                 CLASSIC_RTS_PRESSURE_WARNING_COLOR,
@@ -96486,8 +96661,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w + 1,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             4,
             4,
             CLASSIC_RTS_DEFENSE_READY_COLOR,
@@ -96499,8 +96674,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 2,
                 4,
                 2,
                 CLASSIC_RTS_RALLY_LINE_COLOR,
@@ -96513,8 +96688,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             5,
             4,
             CLASSIC_RTS_ARMY_SPAWN_COLOR,
@@ -96526,8 +96701,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 2,
                 4,
                 2,
                 CLASSIC_RTS_BASE_ASSAULT_PATH_COLOR,
@@ -96540,8 +96715,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             5,
             4,
             CLASSIC_RTS_BASE_BREACH_COLOR,
@@ -96553,8 +96728,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w,
-                map_y + tile.1.clamp(0, 7) * cell_h,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h,
                 5,
                 4,
                 CLASSIC_RTS_DEBRIS_COLOR,
@@ -96567,8 +96742,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 1,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 1,
                 4,
                 3,
                 CLASSIC_RTS_SMOKE_COLOR,
@@ -96617,8 +96792,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 1,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 1,
                 4,
                 3,
                 CLASSIC_RTS_COMMANDER_AURA_COLOR,
@@ -96643,8 +96818,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             6,
             5,
             CLASSIC_RTS_EXPANSION_BASE_COLOR,
@@ -96660,8 +96835,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w + 1,
-            map_y + tile.1.clamp(0, 7) * cell_h + 1,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h + 1,
             4,
             3,
             CLASSIC_RTS_EXPANSION_WORKER_COLOR,
@@ -96673,8 +96848,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 2,
                 4,
                 2,
                 CLASSIC_RTS_COUNTERATTACK_COLOR,
@@ -96699,8 +96874,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             6,
             5,
             CLASSIC_RTS_TIER_TWO_TECH_COLOR,
@@ -96712,8 +96887,8 @@ fn classic_draw_rts_strategy_overlay(
                 buffer,
                 width,
                 height,
-                map_x + tile.0.clamp(0, 11) * cell_w + 1,
-                map_y + tile.1.clamp(0, 7) * cell_h + 2,
+                map_x + classic_rts_large_map_cell_col(tile) * cell_w + 1,
+                map_y + classic_rts_large_map_cell_row(tile) * cell_h + 2,
                 4,
                 2,
                 CLASSIC_RTS_SIEGE_ROUTE_COLOR,
@@ -96726,8 +96901,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             5,
             4,
             CLASSIC_RTS_SIEGE_UNIT_COLOR,
@@ -96739,8 +96914,8 @@ fn classic_draw_rts_strategy_overlay(
             buffer,
             width,
             height,
-            map_x + tile.0.clamp(0, 11) * cell_w,
-            map_y + tile.1.clamp(0, 7) * cell_h,
+            map_x + classic_rts_large_map_cell_col(tile) * cell_w,
+            map_y + classic_rts_large_map_cell_row(tile) * cell_h,
             6,
             5,
             CLASSIC_RTS_ENEMY_FORTIFY_COLOR,
@@ -99074,7 +99249,10 @@ fn classic_rts_visible_tiles(
         {
             for dy in -1..=1 {
                 for dx in -1..=1 {
-                    visible.insert(((center.0 + dx).clamp(0, 11), (center.1 + dy).clamp(0, 7)));
+                    visible.insert(classic_rts_large_map_clamp_tile((
+                        center.0 + dx,
+                        center.1 + dy,
+                    )));
                 }
             }
         }
@@ -99084,17 +99262,14 @@ fn classic_rts_visible_tiles(
         .as_deref()
         .and_then(classic_parse_rts_tile)
     {
-        visible.insert((
-            destination_tile.0.clamp(0, 11),
-            destination_tile.1.clamp(0, 7),
-        ));
+        visible.insert(classic_rts_large_map_clamp_tile(destination_tile));
     }
     for tile in runtime
         .rts_fog_reveal_tile_ids
         .iter()
         .filter_map(|value| classic_parse_rts_tile(value))
     {
-        visible.insert((tile.0.clamp(0, 11), tile.1.clamp(0, 7)));
+        visible.insert(classic_rts_large_map_clamp_tile(tile));
     }
     visible
 }
@@ -99105,7 +99280,7 @@ fn classic_rts_fogged_tiles(runtime: &NativeFirstPlayableRuntime) -> Vec<(i32, i
         .rts_fogged_tile_ids
         .iter()
         .filter_map(|value| classic_parse_rts_tile(value))
-        .map(|tile| (tile.0.clamp(0, 11), tile.1.clamp(0, 7)))
+        .map(classic_rts_large_map_clamp_tile)
         .collect()
 }
 
@@ -99979,19 +100154,24 @@ fn classic_draw_openra_style_rts_shell(
     );
     let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
     let visible_tiles = classic_rts_visible_tiles(runtime, player_tile, &selected_units);
-    let cell_w = (radar_w - 8) / 12;
-    let cell_h = (radar_h - 8) / 8;
-    for row in 0..8 {
-        for col in 0..12 {
+    let cell_w = ((radar_w - 8) / CLASSIC_RTS_LARGE_MAP_MAX_X).max(2);
+    let cell_h = ((radar_h - 8) / CLASSIC_RTS_LARGE_MAP_MAX_Y).max(2);
+    for row in CLASSIC_RTS_LARGE_MAP_MIN_TILE..=CLASSIC_RTS_LARGE_MAP_MAX_Y {
+        for col in CLASSIC_RTS_LARGE_MAP_MIN_TILE..=CLASSIC_RTS_LARGE_MAP_MAX_X {
             let tile_color = if (row + col) % 5 == 0 {
                 CLASSIC_RTS_MINIMAP_ROAD_COLOR
-            } else if row == 3 || col == 6 {
+            } else if row == 16 || col == 16 {
                 CLASSIC_RTS_MINIMAP_WATER_COLOR
             } else {
                 CLASSIC_RTS_MINIMAP_TERRAIN_COLOR
             };
-            let x = radar_x + 4 + col * cell_w;
-            let y = radar_y + 4 + row * cell_h;
+            let (x, y) = classic_rts_minimap_cell_origin(
+                radar_x + 4,
+                radar_y + 4,
+                cell_w,
+                cell_h,
+                (col, row),
+            );
             classic_draw_rect(
                 buffer,
                 width,
@@ -100007,37 +100187,39 @@ fn classic_draw_openra_style_rts_shell(
                     buffer,
                     width,
                     height,
-                    x + 2,
-                    y + 2,
-                    cell_w - 4,
-                    cell_h - 4,
+                    x,
+                    y,
+                    cell_w.max(1),
+                    cell_h.max(1),
                     0x0a0f0c,
                 );
             }
         }
     }
     for entity in &selected_units {
-        let x = radar_x + 4 + entity.tile.0.clamp(0, 11) * cell_w;
-        let y = radar_y + 4 + entity.tile.1.clamp(0, 7) * cell_h;
+        let (x, y) =
+            classic_rts_minimap_cell_origin(radar_x + 4, radar_y + 4, cell_w, cell_h, entity.tile);
         classic_draw_rect(
             buffer,
             width,
             height,
-            x + 2,
-            y + 2,
+            x,
+            y,
             7,
-            7,
+            cell_h.max(4),
             CLASSIC_ISO_CONTROL_GROUP_COLOR,
         );
     }
+    let (player_x, player_y) =
+        classic_rts_minimap_cell_origin(radar_x + 4, radar_y + 4, cell_w, cell_h, player_tile);
     classic_draw_rect(
         buffer,
         width,
         height,
-        radar_x + 4 + player_tile.0.clamp(0, 11) * cell_w,
-        radar_y + 4 + player_tile.1.clamp(0, 7) * cell_h,
+        player_x,
+        player_y,
         9,
-        9,
+        cell_h.max(5),
         CLASSIC_ISO_UNIT_PLAYER_COLOR,
     );
     if let Some(viewport_rect) = runtime.rts_camera_viewport_rect {
@@ -100045,8 +100227,8 @@ fn classic_draw_openra_style_rts_shell(
         let map_h = 56_i32;
         let inner_x = radar_x + 4;
         let inner_y = radar_y + 4;
-        let inner_w = (cell_w * 12).max(1);
-        let inner_h = (cell_h * 8).max(1);
+        let inner_w = (cell_w * CLASSIC_RTS_LARGE_MAP_MAX_X).max(1);
+        let inner_h = (cell_h * CLASSIC_RTS_LARGE_MAP_MAX_Y).max(1);
         let rect_x = inner_x + (viewport_rect.x * inner_w) / map_w;
         let rect_y = inner_y + (viewport_rect.y * inner_h) / map_h;
         let rect_w = ((viewport_rect.width * inner_w) / map_w).max(10);
@@ -100097,8 +100279,13 @@ fn classic_draw_openra_style_rts_shell(
         .as_deref()
         .and_then(classic_parse_rts_tile)
     {
-        let x = radar_x + 4 + destination_tile.0.clamp(0, 11) * cell_w;
-        let y = radar_y + 4 + destination_tile.1.clamp(0, 7) * cell_h;
+        let (x, y) = classic_rts_minimap_cell_origin(
+            radar_x + 4,
+            radar_y + 4,
+            cell_w,
+            cell_h,
+            destination_tile,
+        );
         classic_draw_rect(
             buffer,
             width,
@@ -134105,10 +134292,12 @@ fn classic_rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32,
 }
 
 fn classic_rts_selection_box_tiles_between(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
-    let min_x = start.0.min(end.0).clamp(0, 11);
-    let max_x = start.0.max(end.0).clamp(0, 11);
-    let min_y = start.1.min(end.1).clamp(0, 7);
-    let max_y = start.1.max(end.1).clamp(0, 7);
+    let start = classic_rts_large_map_clamp_tile(start);
+    let end = classic_rts_large_map_clamp_tile(end);
+    let min_x = start.0.min(end.0);
+    let max_x = start.0.max(end.0);
+    let min_y = start.1.min(end.1);
+    let max_y = start.1.max(end.1);
     let mut tiles = Vec::new();
     for y in min_y..=max_y {
         for x in min_x..=max_x {
@@ -134134,10 +134323,12 @@ fn classic_rts_drag_units_between(
     end: (i32, i32),
     owned_only: bool,
 ) -> Vec<String> {
-    let min_x = start.0.min(end.0).clamp(0, 11);
-    let max_x = start.0.max(end.0).clamp(0, 11);
-    let min_y = start.1.min(end.1).clamp(0, 7);
-    let max_y = start.1.max(end.1).clamp(0, 7);
+    let start = classic_rts_large_map_clamp_tile(start);
+    let end = classic_rts_large_map_clamp_tile(end);
+    let min_x = start.0.min(end.0);
+    let max_x = start.0.max(end.0);
+    let min_y = start.1.min(end.1);
+    let max_y = start.1.max(end.1);
     let mut selected = Vec::new();
     for (unit_id, tile, _, _) in classic_rts_selectable_unit_entries() {
         if tile.0 >= min_x && tile.0 <= max_x && tile.1 >= min_y && tile.1 <= max_y {
