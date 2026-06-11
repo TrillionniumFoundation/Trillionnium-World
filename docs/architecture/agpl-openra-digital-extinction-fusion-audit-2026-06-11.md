@@ -4,14 +4,16 @@ Date: 2026-06-11
 
 ## Executive Verdict
 
-The viable path is not to keep growing the current Trillionnium classic RTS shell, and not to transplant OpenRA or Digital Extinction wholesale into it. The strong path is a new copyleft RTS line with:
+The viable path is not a full rewrite and not a wholesale transplant of OpenRA, Digital Extinction, or Kiomet. The strong path is to keep the current Trillionnium playable Bevy RTS as the mainline, change the project-owned license posture away from MIT, and incrementally replace the weakest gameplay internals with source-backed RTS modules.
+
+The current runtime remains valuable: it already has a native Bevy runner, account/server boundaries, HUD/input polish, scripted demo evidence, and release gates. The fusion work should preserve that playable surface while adding:
 
 - OpenRA as the gameplay semantics and data-model reference: orders, deterministic frames, actor/trait composition, rules/maps/mod metadata, shroud, production, replay discipline.
 - Digital Extinction as the Rust/Bevy runtime reference: 3D terrain, camera/minimap/controller separation, pathing/movement, object loading, construction, combat, energy, lobby/connector/network crates.
 - Kiomet as the online Rust RTS reference: shared client/server game model, browser/WASM/WebGL delivery, visibility-scoped actor updates, lightweight binary protocol, bots, arena service boundaries, and low-friction multiplayer deployment.
 - Trillionnium as the product/evidence layer: existing account/server boundaries, Bevy runner, playtest shell, release packet discipline, local evidence gates, UI/HUD polish already proven in runtime.
 
-If AGPL is acceptable, create a separate AGPL/GPL-compatible mainline for this fused RTS. Do not silently merge GPL/AGPL code into the existing MIT Trillionnium line without changing the distribution boundary, notices, and release packaging.
+The earlier "separate copyleft line" recommendation was too conservative for this project. The project is not preparing for public open-source release, so the mainline should be treated as internal/proprietary Trillionnium-owned code with explicit third-party license records. This removes the need to preserve an MIT mainline, but it does not remove GPL/AGPL/LGPL/CC BY-SA obligations if third-party code/assets are copied, externally distributed, or offered as a network service.
 
 ## Audited Snapshots
 
@@ -20,7 +22,7 @@ If AGPL is acceptable, create a separate AGPL/GPL-compatible mainline for this f
 - Path: `/home/qian/.openclaw/workspace/Trillionnium`
 - Current documentation base audited: `9d543fbd9 docs: audit AGPL RTS fusion path`
 - Gameplay code baseline audited: `2b146ad4f feat: map RTS viewport input through camera focus`
-- License currently declared in README: MIT
+- License posture after this revision: internal/proprietary for Trillionnium-owned code; third-party imports remain under their source licenses. The README still declared MIT at the start of the audit and was corrected as part of the route change.
 - Relevant crates: `trnm-world-bevy`, `trnm-world-api`, `trnm-world-server`, `trnm-world-domain`, `trnm-world-command`, `trnm-world-ui-fragments`
 - Current core issue: `trillionnium/crates/trnm-world-bevy/src/lib.rs` is about 151k lines. The RTS features are numerous, but too much logic, rendering, evidence generation, and fixtures live in one giant file.
 - Current strongest asset: release/evidence discipline. The release packet already gates many RTS surfaces, and current integrity is green with public blockers preserved.
@@ -100,24 +102,28 @@ Kodiak matters because Kiomet delegates much of the actual client/server engine 
 
 ## License Posture
 
-AGPL acceptance changes the route, but does not erase asset and notice obligations.
+The mainline no longer needs to protect an MIT public license promise. It should be treated as internal/proprietary Trillionnium-owned code plus third-party components tracked by source and license.
 
 - OpenRA code is GPL-3.0-or-later. Digital Extinction and Kiomet code are AGPL-3.0 family. Kodiak is LGPL-3.0-or-later. A combined distribution should be treated as a copyleft line with explicit GPL/AGPL/LGPL notices by component.
 - Do not relicense OpenRA-origin files as MIT.
+- Do not assume "not open source" cancels upstream obligations. Private internal work is lower-friction, but external distribution, hosted network access, asset packaging, or commercial delivery must pass a release/license review.
 - Do not copy Westwood/Electronic Arts proprietary artwork, audio, videos, or original game data into Trillionnium. OpenRA contains installers and metadata for original-game content; those are not a free asset grant.
 - Digital Extinction assets can be used only with CC BY-SA/OFL attribution and share-alike handling.
 - Kiomet assets include branded/trademarked material, binary distribution embeds, audio credits, and AI-generated paintings. Do not reuse them blindly as Trillionnium game content; treat Kiomet primarily as an architecture reference unless a separate asset manifest is created.
-- Existing MIT Trillionnium can remain as a historical product shell, but any direct OpenRA/DE/Kiomet/Kodiak code import belongs in a new AGPL/GPL/LGPL-compatible branch or package.
+- Any direct OpenRA/DE/Kiomet/Kodiak code import belongs in an explicit third-party manifest with upstream path, commit id, local path, component license, copied/derived status, and release constraints.
+- Current manifest: `docs/architecture/rts-third-party-source-manifest-2026-06-11.md`.
 
-Recommended repository boundary:
+Recommended repository posture:
 
 ```text
-Trillionnium MIT line
-  keeps current release/evidence/product history
+Trillionnium mainline
+  internal/proprietary Trillionnium-owned code
+  keeps current playable Bevy RTS, release/evidence gates, account/server shell
 
-Trillionnium RTS Fusion copyleft line
-  AGPL/GPL-compatible distribution
-  contains any direct OpenRA/DE/Kiomet/Kodiak-derived code or assets
+Third-party RTS references/imports
+  tracked by source commit and component license
+  no proprietary C&C/RA/D2K assets
+  no public release claim until notices and obligations are reviewed
 ```
 
 ## What Each Side Should Own
@@ -272,18 +278,20 @@ browser/native client
 
 ## Integration Strategy
 
-### Phase 0: Copyleft Line Setup
+### Phase 0: Mainline License And Route Reset
 
-Goal: make the licensing boundary honest before code moves.
+Goal: remove the stale MIT assumption and prevent a slow rewrite detour before code moves.
 
-- Create a dedicated branch/worktree for the fused RTS line.
-- Add top-level `COPYING`, `NOTICE`, and third-party source manifest.
-- Mark the line as AGPL/GPL-compatible, not MIT-only.
-- Preserve existing MIT Trillionnium history without pretending imported code remains MIT.
+- Keep the current Trillionnium playable Bevy RTS as the mainline.
+- Mark Trillionnium-owned code as internal/proprietary in README and release notes.
+- Add or update a third-party RTS source manifest before any copied/derived upstream code lands.
+- Record OpenRA/DE/Kiomet/Kodiak source commit ids and whether each use is reference-only, derived, or copied.
+- Do not start by extracting the whole 151k-line Bevy runtime. First add small modules beside it and route current inputs through them.
 
 Acceptance gate:
 
-- `license_fusion_manifest_gate=true`
+- `mainline_not_mit_gate=true`
+- `third_party_rts_source_manifest_gate=true`
 - OpenRA/DE/Kiomet/Kodiak source commit ids recorded.
 - No Westwood/EA asset bundling.
 
@@ -483,7 +491,7 @@ Not allowed as bundled game content without separate rights:
 
 ## Main Risks
 
-- License drift: accidentally mixing GPL/AGPL code into the MIT line.
+- License drift: copying GPL/AGPL/LGPL/CC BY-SA material without source manifest, notices, and release constraints.
 - Monolith drift: continuing to add features to the 151k-line Bevy file instead of extracting core.
 - False parity: claiming OpenRA compatibility from superficial UI screenshots.
 - Asset contamination: treating OpenRA content installer metadata as a license to bundle original assets.
@@ -494,11 +502,11 @@ Not allowed as bundled game content without separate rights:
 
 ## Recommended First Week
 
-1. Create copyleft fusion branch/worktree and license manifest.
-2. Add `trnm-rts-core` with deterministic order/state skeleton.
-3. Add `trnm-rts-openra-compat` with Rust order serializer fixtures.
-4. Make the current Trillionnium live-input path emit real frame orders.
-5. Add a new release gate: current samples must replay through headless core before rendering.
+1. Correct the README/license posture from MIT to internal/proprietary and add third-party source tracking.
+2. Add the smallest `trnm-rts-core` order/state skeleton beside the current runtime, not as a rewrite.
+3. Make the current Trillionnium live-input path emit real frame orders while keeping existing feedback chips and visual gates.
+4. Add a headless replay gate for the current samples before touching renderer architecture.
+5. Add `trnm-rts-openra-compat` fixtures for order/rules/map concepts after current input samples pass through the core.
 6. Add a minimal data-loaded map fixture replacing the hardcoded 34x34 constants.
 7. Spike DE camera/terrain/raycast in a separate proof command, not in the production runner yet.
 8. Add a Kiomet/Kodiak audit fixture that proves the planned `trnm-rts-online` boundary is source-backed but deferred until deterministic core gates are green.

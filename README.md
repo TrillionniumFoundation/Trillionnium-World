@@ -438,4 +438,12 @@ Only switch to durable handoff templates when all six durable-read anchors are t
 
 ## License
 
-MIT
+Internal / proprietary. This repository does not grant a public open-source
+license for Trillionnium-owned code.
+
+Third-party source, assets, tools, and references remain under their own
+licenses. Direct imports or derived work from OpenRA, Digital Extinction,
+Kiomet, Kodiak, or other upstream projects must be recorded with their source
+commit, component license, and attribution/notice requirements before release.
+The current RTS audit manifest is
+`docs/architecture/rts-third-party-source-manifest-2026-06-11.md`.
