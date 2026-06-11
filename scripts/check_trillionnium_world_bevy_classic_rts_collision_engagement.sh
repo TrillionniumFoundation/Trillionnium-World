@@ -35,6 +35,23 @@ jq -e '
   and (.final_command_queue | index("contact:6,5|6,4") != null)
   and .final_attack_target_id == "arena_creep_attack"
   and (.final_combat_event_log | index("target_acquired:arena_creep_attack") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_collision_core_frame_order_gate == true
+  and .rts_collision_core_headless_replay_gate == true
+  and (.rts_collision_core_frame_orders | length == 2)
+  and (.rts_collision_core_frame_order_kind_labels | tostring == "[\"move\",\"attack\"]")
+  and (.rts_collision_core_frame_order_errors | length == 0)
+  and .rts_collision_core_frame_order_stream_error == null
+  and (.rts_collision_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_collision_core_headless_replay_error == null
+  and (.rts_collision_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_collision_core_headless_applied_order_count == 2
+  and .rts_collision_core_headless_actor_count == 4
+  and .rts_collision_core_headless_final_frame == 741
+  and .rts_collision_core_headless_attack_order_count == 4
+  and (.rts_collision_core_headless_event_log | any(contains(":kind:move:")))
+  and (.rts_collision_core_headless_event_log | any(contains(":kind:attack:")))
+  and (.rts_collision_core_headless_event_log | any(contains(":target:arena_creep_attack")))
   and .non_background_pixels > 240000
   and .dispersion_slot_pixel_count > 120
   and .engagement_range_pixel_count > 120

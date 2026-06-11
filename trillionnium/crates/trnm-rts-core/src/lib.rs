@@ -1461,6 +1461,57 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_pathing_collision_orders() {
+        let subjects = vec![
+            "player".to_string(),
+            "square_guard_patrol".to_string(),
+            "square_worker_carry".to_string(),
+            "square_creep_wander".to_string(),
+        ];
+        let labels = ["RTS:MOVE:8,4:wedge", "RTS:ATTACK:arena_creep_attack"];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    740 + index as u32,
+                    "Multi0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-collision-engagement",
+            "trnm-rts-core-collision-engagement-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        assert_eq!(report.checkpoint.applied_order_count, 2);
+        assert_eq!(report.checkpoint.final_frame, 741);
+        assert_eq!(report.checkpoint.actor_count, 4);
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:move:") && event.contains(":target:8,4")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:attack:")
+                && event.contains(":target:arena_creep_attack")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.tile, Some(RtsTile::new(8, 4)));
+            assert_eq!(actor.formation_id.as_deref(), Some("wedge"));
+            assert_eq!(actor.target_actor_id.as_deref(), Some("arena_creep_attack"));
+            assert_eq!(actor.attack_order_count, 1);
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_expanded_live_command_stream() {
         let labels = [
             "RTS:QUEUE:train:guard",

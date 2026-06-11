@@ -16,6 +16,9 @@ required_script_lines=(
   'RTS:MOVE:8,4:wedge'
   'path:6,5>7,5>8,4'
   'blocked:7,4'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_pathing_core_frame_order_gate == true'
+  'rts_pathing_core_headless_replay_gate == true'
   'path_tile_gate == true'
   'blocked_tile_gate == true'
   'formation_slot_gate == true'
@@ -39,6 +42,11 @@ required_source_lines=(
   'classic_rts_path_tiles_for_destination'
   'classic_rts_blocked_tiles_for_destination'
   'classic_rts_formation_slots_for_destination'
+  'TRNM_RTS_CORE_CONTRACT'
+  'RtsFrameOrder::from_live_command_label'
+  'RtsFrameOrderStream::new'
+  'rts_pathing_core_frame_order_gate'
+  'rts_pathing_core_headless_replay_gate'
   'CLASSIC_RTS_PATH_TILE_COLOR'
   'CLASSIC_RTS_BLOCKED_TILE_COLOR'
   'CLASSIC_RTS_FORMATION_SLOT_COLOR'
@@ -58,6 +66,8 @@ required_readiness_lines=(
   'rts_pathing_path_tile_gate'
   'rts_pathing_blocked_tile_gate'
   'rts_pathing_formation_slot_gate'
+  'rts_pathing_core_frame_order_gate'
+  'rts_pathing_core_headless_replay_gate'
 )
 
 for line in "${required_readiness_lines[@]}"; do

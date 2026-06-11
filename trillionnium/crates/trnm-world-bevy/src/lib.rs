@@ -45620,6 +45620,100 @@ pub fn native_classic_rts_pathing_formation_evidence_json(preview_path: &str) ->
             accepted_input_count += 1;
         }
     }
+    let rts_pathing_core_subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+        vec!["selected_rts_pathing_group".to_string()]
+    } else {
+        runtime.rts_selected_unit_ids.clone()
+    };
+    let mut rts_pathing_core_frame_orders = Vec::new();
+    let mut rts_pathing_core_frame_order_errors = Vec::new();
+    for (index, action_label) in action_labels
+        .iter()
+        .filter(|label| label.starts_with("RTS:MOVE:"))
+        .enumerate()
+    {
+        match RtsFrameOrder::from_live_command_label(
+            720 + index as u32,
+            "Multi0",
+            rts_pathing_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_pathing_core_frame_order_errors
+                        .push(format!("pathing_{index}:{action_label}:{error}"));
+                } else {
+                    rts_pathing_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_pathing_core_frame_order_errors
+                .push(format!("pathing_{index}:{action_label}:{error}")),
+        }
+    }
+    let rts_pathing_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-pathing-formation",
+        "trnm-rts-core-pathing-formation-rules-v1",
+        rts_pathing_core_frame_orders.clone(),
+    );
+    let rts_pathing_core_frame_order_stream_error =
+        rts_pathing_core_frame_order_stream.validate().err();
+    let rts_pathing_core_frame_order_stream_sha256 =
+        rts_pathing_core_frame_order_stream.sha256_hex();
+    let rts_pathing_core_frame_order_kind_labels = rts_pathing_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_pathing_core_frame_order_values = rts_pathing_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts pathing order serializes"))
+        .collect::<Vec<_>>();
+    let rts_pathing_core_frame_order_stream_value =
+        serde_json::to_value(&rts_pathing_core_frame_order_stream)
+            .expect("rts pathing stream serializes");
+    let rts_pathing_core_frame_order_gate = rts_pathing_core_frame_order_errors.is_empty()
+        && rts_pathing_core_frame_order_stream_error.is_none()
+        && rts_pathing_core_frame_order_stream_sha256.len() == 64
+        && rts_pathing_core_frame_orders.len() == 1
+        && rts_pathing_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(8, 4))
+                && order.formation_id.as_deref() == Some("wedge")
+                && order.subject_actor_ids.len() == 4
+        });
+    let rts_pathing_core_headless_replay_result =
+        rts_pathing_core_frame_order_stream.replay_headless();
+    let (
+        rts_pathing_core_headless_replay_report_value,
+        rts_pathing_core_headless_checkpoint_sha256,
+        rts_pathing_core_headless_replay_error,
+        rts_pathing_core_headless_applied_order_count,
+        rts_pathing_core_headless_actor_count,
+        rts_pathing_core_headless_final_frame,
+        rts_pathing_core_headless_event_log,
+    ) = match rts_pathing_core_headless_replay_result {
+        Ok(report) => (
+            serde_json::to_value(&report).expect("rts pathing replay report serializes"),
+            report.checkpoint_sha256,
+            None,
+            report.checkpoint.applied_order_count,
+            report.checkpoint.actor_count,
+            report.checkpoint.final_frame,
+            report.checkpoint.event_log,
+        ),
+        Err(error) => (Value::Null, String::new(), Some(error), 0, 0, 0, Vec::new()),
+    };
+    let rts_pathing_core_headless_replay_gate = rts_pathing_core_frame_order_gate
+        && rts_pathing_core_headless_replay_error.is_none()
+        && rts_pathing_core_headless_checkpoint_sha256.len() == 64
+        && rts_pathing_core_headless_applied_order_count == 1
+        && rts_pathing_core_headless_actor_count == 4
+        && rts_pathing_core_headless_final_frame == 720
+        && rts_pathing_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:move:"))
+        && rts_pathing_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":target:8,4"));
 
     let mut preview_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
     classic_draw_scene(
@@ -45751,6 +45845,8 @@ pub fn native_classic_rts_pathing_formation_evidence_json(preview_path: &str) ->
         && blocked_tile_gate
         && formation_slot_gate
         && command_visual_gate
+        && rts_pathing_core_frame_order_gate
+        && rts_pathing_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -45770,6 +45866,21 @@ pub fn native_classic_rts_pathing_formation_evidence_json(preview_path: &str) ->
         "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids,
         "pathing_status": runtime.rts_pathing_status,
         "command_queue": runtime.rts_command_queue,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_pathing_core_subject_actor_ids": rts_pathing_core_subject_actor_ids,
+        "rts_pathing_core_frame_orders": rts_pathing_core_frame_order_values,
+        "rts_pathing_core_frame_order_stream": rts_pathing_core_frame_order_stream_value,
+        "rts_pathing_core_frame_order_stream_sha256": rts_pathing_core_frame_order_stream_sha256,
+        "rts_pathing_core_frame_order_kind_labels": rts_pathing_core_frame_order_kind_labels,
+        "rts_pathing_core_frame_order_errors": rts_pathing_core_frame_order_errors,
+        "rts_pathing_core_frame_order_stream_error": rts_pathing_core_frame_order_stream_error,
+        "rts_pathing_core_headless_replay_report": rts_pathing_core_headless_replay_report_value,
+        "rts_pathing_core_headless_checkpoint_sha256": rts_pathing_core_headless_checkpoint_sha256,
+        "rts_pathing_core_headless_replay_error": rts_pathing_core_headless_replay_error,
+        "rts_pathing_core_headless_applied_order_count": rts_pathing_core_headless_applied_order_count,
+        "rts_pathing_core_headless_actor_count": rts_pathing_core_headless_actor_count,
+        "rts_pathing_core_headless_final_frame": rts_pathing_core_headless_final_frame,
+        "rts_pathing_core_headless_event_log": rts_pathing_core_headless_event_log,
         "non_background_pixels": non_background_pixels,
         "path_tile_pixel_count": path_tile_pixel_count,
         "blocked_tile_pixel_count": blocked_tile_pixel_count,
@@ -45781,9 +45892,11 @@ pub fn native_classic_rts_pathing_formation_evidence_json(preview_path: &str) ->
         "blocked_tile_gate": blocked_tile_gate,
         "formation_slot_gate": formation_slot_gate,
         "command_visual_gate": command_visual_gate,
+        "rts_pathing_core_frame_order_gate": rts_pathing_core_frame_order_gate,
+        "rts_pathing_core_headless_replay_gate": rts_pathing_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS pathing formation evidence renders native live move input as path tiles, detour/blocked-tile feedback, and formation destination slots through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS pathing formation evidence renders native live move input as path tiles, detour/blocked-tile feedback, and formation destination slots through the Trillionnium Bevy low-spec scene path, then emits the actual wedge move order into trnm-rts-core and replays it through the Bevy-free headless reducer."
     }))
     .expect("classic RTS pathing formation evidence serializes")
 }
@@ -45919,6 +46032,128 @@ pub fn native_classic_rts_collision_engagement_evidence_json(preview_path: &str)
         2,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
+    let rts_collision_core_subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+        vec!["selected_rts_collision_group".to_string()]
+    } else {
+        runtime.rts_selected_unit_ids.clone()
+    };
+    let mut rts_collision_core_frame_orders = Vec::new();
+    let mut rts_collision_core_frame_order_errors = Vec::new();
+    for (index, action_label) in action_labels
+        .iter()
+        .filter(|label| label.starts_with("RTS:MOVE:") || label.starts_with("RTS:ATTACK:"))
+        .enumerate()
+    {
+        match RtsFrameOrder::from_live_command_label(
+            740 + index as u32,
+            "Multi0",
+            rts_collision_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_collision_core_frame_order_errors
+                        .push(format!("collision_{index}:{action_label}:{error}"));
+                } else {
+                    rts_collision_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_collision_core_frame_order_errors
+                .push(format!("collision_{index}:{action_label}:{error}")),
+        }
+    }
+    let rts_collision_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-collision-engagement",
+        "trnm-rts-core-collision-engagement-rules-v1",
+        rts_collision_core_frame_orders.clone(),
+    );
+    let rts_collision_core_frame_order_stream_error =
+        rts_collision_core_frame_order_stream.validate().err();
+    let rts_collision_core_frame_order_stream_sha256 =
+        rts_collision_core_frame_order_stream.sha256_hex();
+    let rts_collision_core_frame_order_kind_labels = rts_collision_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_collision_core_frame_order_values = rts_collision_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts collision order serializes"))
+        .collect::<Vec<_>>();
+    let rts_collision_core_frame_order_stream_value =
+        serde_json::to_value(&rts_collision_core_frame_order_stream)
+            .expect("rts collision stream serializes");
+    let rts_collision_core_frame_order_gate = rts_collision_core_frame_order_errors.is_empty()
+        && rts_collision_core_frame_order_stream_error.is_none()
+        && rts_collision_core_frame_order_stream_sha256.len() == 64
+        && rts_collision_core_frame_orders.len() == 2
+        && rts_collision_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(8, 4))
+                && order.formation_id.as_deref() == Some("wedge")
+                && order.subject_actor_ids.len() == 4
+        })
+        && rts_collision_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Attack
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+                && order.subject_actor_ids.len() == 4
+        });
+    let rts_collision_core_headless_replay_result =
+        rts_collision_core_frame_order_stream.replay_headless();
+    let (
+        rts_collision_core_headless_replay_report_value,
+        rts_collision_core_headless_checkpoint_sha256,
+        rts_collision_core_headless_replay_error,
+        rts_collision_core_headless_applied_order_count,
+        rts_collision_core_headless_actor_count,
+        rts_collision_core_headless_final_frame,
+        rts_collision_core_headless_event_log,
+        rts_collision_core_headless_attack_order_count,
+    ) = match rts_collision_core_headless_replay_result {
+        Ok(report) => {
+            let attack_order_count = report
+                .checkpoint
+                .actors
+                .iter()
+                .map(|actor| actor.attack_order_count)
+                .sum::<u32>();
+            (
+                serde_json::to_value(&report).expect("rts collision replay report serializes"),
+                report.checkpoint_sha256,
+                None,
+                report.checkpoint.applied_order_count,
+                report.checkpoint.actor_count,
+                report.checkpoint.final_frame,
+                report.checkpoint.event_log,
+                attack_order_count,
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+        ),
+    };
+    let rts_collision_core_headless_replay_gate = rts_collision_core_frame_order_gate
+        && rts_collision_core_headless_replay_error.is_none()
+        && rts_collision_core_headless_checkpoint_sha256.len() == 64
+        && rts_collision_core_headless_applied_order_count == 2
+        && rts_collision_core_headless_actor_count == 4
+        && rts_collision_core_headless_final_frame == 741
+        && rts_collision_core_headless_attack_order_count == 4
+        && rts_collision_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:move:"))
+        && rts_collision_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":kind:attack:"))
+        && rts_collision_core_headless_event_log
+            .iter()
+            .any(|event| event.contains(":target:arena_creep_attack"));
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
@@ -45966,6 +46201,8 @@ pub fn native_classic_rts_collision_engagement_evidence_json(preview_path: &str)
         && live_collision_input_gate
         && collision_response_gate
         && engagement_response_gate
+        && rts_collision_core_frame_order_gate
+        && rts_collision_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -45988,6 +46225,22 @@ pub fn native_classic_rts_collision_engagement_evidence_json(preview_path: &str)
         "final_command_queue": runtime.rts_command_queue,
         "final_attack_target_id": runtime.rts_attack_target_id,
         "final_combat_event_log": runtime.rts_combat_event_log,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_collision_core_subject_actor_ids": rts_collision_core_subject_actor_ids,
+        "rts_collision_core_frame_orders": rts_collision_core_frame_order_values,
+        "rts_collision_core_frame_order_stream": rts_collision_core_frame_order_stream_value,
+        "rts_collision_core_frame_order_stream_sha256": rts_collision_core_frame_order_stream_sha256,
+        "rts_collision_core_frame_order_kind_labels": rts_collision_core_frame_order_kind_labels,
+        "rts_collision_core_frame_order_errors": rts_collision_core_frame_order_errors,
+        "rts_collision_core_frame_order_stream_error": rts_collision_core_frame_order_stream_error,
+        "rts_collision_core_headless_replay_report": rts_collision_core_headless_replay_report_value,
+        "rts_collision_core_headless_checkpoint_sha256": rts_collision_core_headless_checkpoint_sha256,
+        "rts_collision_core_headless_replay_error": rts_collision_core_headless_replay_error,
+        "rts_collision_core_headless_applied_order_count": rts_collision_core_headless_applied_order_count,
+        "rts_collision_core_headless_actor_count": rts_collision_core_headless_actor_count,
+        "rts_collision_core_headless_final_frame": rts_collision_core_headless_final_frame,
+        "rts_collision_core_headless_event_log": rts_collision_core_headless_event_log,
+        "rts_collision_core_headless_attack_order_count": rts_collision_core_headless_attack_order_count,
         "non_background_pixels": non_background_pixels,
         "dispersion_slot_pixel_count": dispersion_slot_pixel_count,
         "engagement_range_pixel_count": engagement_range_pixel_count,
@@ -45997,9 +46250,11 @@ pub fn native_classic_rts_collision_engagement_evidence_json(preview_path: &str)
         "live_collision_input_gate": live_collision_input_gate,
         "collision_response_gate": collision_response_gate,
         "engagement_response_gate": engagement_response_gate,
+        "rts_collision_core_frame_order_gate": rts_collision_core_frame_order_gate,
+        "rts_collision_core_headless_replay_gate": rts_collision_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS collision engagement evidence proves live move and attack input mutate native runtime response state, then renders blocked-tile dispersal, engagement range, contact flash, and attack feedback through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS collision engagement evidence proves live move and attack input mutate native runtime response state, emits the same move and attack commands into trnm-rts-core, replays them through the Bevy-free headless reducer, then renders blocked-tile dispersal, engagement range, contact flash, and attack feedback through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS collision engagement evidence serializes")
 }

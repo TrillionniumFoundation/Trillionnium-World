@@ -427,10 +427,14 @@ jq -n \
       and $rts_path[0].blocked_tile_gate == true
       and $rts_path[0].formation_slot_gate == true
       and $rts_path[0].command_visual_gate == true
+      and $rts_path[0].rts_pathing_core_frame_order_gate == true
+      and $rts_path[0].rts_pathing_core_headless_replay_gate == true
       and $rts_path[0].accepted_input_count == 2
       and $rts_collision[0].live_collision_input_gate == true
       and $rts_collision[0].collision_response_gate == true
       and $rts_collision[0].engagement_response_gate == true
+      and $rts_collision[0].rts_collision_core_frame_order_gate == true
+      and $rts_collision[0].rts_collision_core_headless_replay_gate == true
       and $rts_collision[0].accepted_input_count == 3
       and $rts_target[0].live_targeting_input_gate == true
       and $rts_target[0].target_priority_gate == true
@@ -930,6 +934,13 @@ jq -n \
       rts_pathing_formation_slot_pixel_count: $rts_path[0].formation_slot_pixel_count,
       rts_pathing_selection_marker_pixel_count: $rts_path[0].selection_marker_pixel_count,
       rts_pathing_command_marker_pixel_count: $rts_path[0].command_marker_pixel_count,
+      rts_pathing_core_frame_order_count: ($rts_path[0].rts_pathing_core_frame_orders | length),
+      rts_pathing_core_frame_order_kinds: $rts_path[0].rts_pathing_core_frame_order_kind_labels,
+      rts_pathing_core_frame_order_stream_sha256: $rts_path[0].rts_pathing_core_frame_order_stream_sha256,
+      rts_pathing_core_headless_checkpoint_sha256: $rts_path[0].rts_pathing_core_headless_checkpoint_sha256,
+      rts_pathing_core_headless_applied_order_count: $rts_path[0].rts_pathing_core_headless_applied_order_count,
+      rts_pathing_core_headless_actor_count: $rts_path[0].rts_pathing_core_headless_actor_count,
+      rts_pathing_core_headless_final_frame: $rts_path[0].rts_pathing_core_headless_final_frame,
       rts_collision_accepted_input_count: $rts_collision[0].accepted_input_count,
       rts_collision_move_disperse_tile_count: ($rts_collision[0].move_disperse_tile_ids | length),
       rts_collision_engagement_tile_count: ($rts_collision[0].engagement_tile_ids | length),
@@ -939,6 +950,14 @@ jq -n \
       rts_collision_contact_flash_pixel_count: $rts_collision[0].contact_flash_pixel_count,
       rts_collision_blocked_tile_pixel_count: $rts_collision[0].blocked_tile_pixel_count,
       rts_collision_attack_feedback_pixel_count: $rts_collision[0].attack_feedback_pixel_count,
+      rts_collision_core_frame_order_count: ($rts_collision[0].rts_collision_core_frame_orders | length),
+      rts_collision_core_frame_order_kinds: $rts_collision[0].rts_collision_core_frame_order_kind_labels,
+      rts_collision_core_frame_order_stream_sha256: $rts_collision[0].rts_collision_core_frame_order_stream_sha256,
+      rts_collision_core_headless_checkpoint_sha256: $rts_collision[0].rts_collision_core_headless_checkpoint_sha256,
+      rts_collision_core_headless_applied_order_count: $rts_collision[0].rts_collision_core_headless_applied_order_count,
+      rts_collision_core_headless_actor_count: $rts_collision[0].rts_collision_core_headless_actor_count,
+      rts_collision_core_headless_final_frame: $rts_collision[0].rts_collision_core_headless_final_frame,
+      rts_collision_core_headless_attack_order_count: $rts_collision[0].rts_collision_core_headless_attack_order_count,
       rts_targeting_accepted_input_count: $rts_target[0].accepted_input_count,
       rts_targeting_priority_count: ($rts_target[0].final_target_priority_ids | length),
       rts_targeting_focus_fire_unit_count: ($rts_target[0].final_focus_fire_unit_ids | length),
@@ -2319,9 +2338,13 @@ jq -n \
       rts_pathing_blocked_tile_gate: $rts_path[0].blocked_tile_gate,
       rts_pathing_formation_slot_gate: $rts_path[0].formation_slot_gate,
       rts_pathing_command_visual_gate: $rts_path[0].command_visual_gate,
+      rts_pathing_core_frame_order_gate: $rts_path[0].rts_pathing_core_frame_order_gate,
+      rts_pathing_core_headless_replay_gate: $rts_path[0].rts_pathing_core_headless_replay_gate,
       rts_collision_live_input_gate: $rts_collision[0].live_collision_input_gate,
       rts_collision_collision_response_gate: $rts_collision[0].collision_response_gate,
       rts_collision_engagement_response_gate: $rts_collision[0].engagement_response_gate,
+      rts_collision_core_frame_order_gate: $rts_collision[0].rts_collision_core_frame_order_gate,
+      rts_collision_core_headless_replay_gate: $rts_collision[0].rts_collision_core_headless_replay_gate,
       rts_targeting_live_input_gate: $rts_target[0].live_targeting_input_gate,
       rts_targeting_target_priority_gate: $rts_target[0].target_priority_gate,
       rts_targeting_aggro_gate: $rts_target[0].aggro_gate,
@@ -3747,6 +3770,13 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_pathing_formation_slot_pixel_count > 80
   and .headline.rts_pathing_selection_marker_pixel_count > 800
   and .headline.rts_pathing_command_marker_pixel_count > 500
+  and .headline.rts_pathing_core_frame_order_count == 1
+  and .headline.rts_pathing_core_frame_order_kinds == ["move"]
+  and (.headline.rts_pathing_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_pathing_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .headline.rts_pathing_core_headless_applied_order_count == 1
+  and .headline.rts_pathing_core_headless_actor_count == 4
+  and .headline.rts_pathing_core_headless_final_frame == 720
   and .headline.rts_collision_accepted_input_count == 3
   and .headline.rts_collision_move_disperse_tile_count >= 4
   and .headline.rts_collision_engagement_tile_count >= 4
@@ -3756,6 +3786,14 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_collision_contact_flash_pixel_count > 80
   and .headline.rts_collision_blocked_tile_pixel_count > 40
   and .headline.rts_collision_attack_feedback_pixel_count > 180
+  and .headline.rts_collision_core_frame_order_count == 2
+  and .headline.rts_collision_core_frame_order_kinds == ["move", "attack"]
+  and (.headline.rts_collision_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_collision_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .headline.rts_collision_core_headless_applied_order_count == 2
+  and .headline.rts_collision_core_headless_actor_count == 4
+  and .headline.rts_collision_core_headless_final_frame == 741
+  and .headline.rts_collision_core_headless_attack_order_count == 4
   and .headline.rts_targeting_accepted_input_count == 4
   and .headline.rts_targeting_priority_count >= 3
   and .headline.rts_targeting_focus_fire_unit_count >= 4
@@ -4560,9 +4598,13 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_pathing_blocked_tile_gate == true
   and .gates.rts_pathing_formation_slot_gate == true
   and .gates.rts_pathing_command_visual_gate == true
+  and .gates.rts_pathing_core_frame_order_gate == true
+  and .gates.rts_pathing_core_headless_replay_gate == true
   and .gates.rts_collision_live_input_gate == true
   and .gates.rts_collision_collision_response_gate == true
   and .gates.rts_collision_engagement_response_gate == true
+  and .gates.rts_collision_core_frame_order_gate == true
+  and .gates.rts_collision_core_headless_replay_gate == true
   and .gates.rts_targeting_live_input_gate == true
   and .gates.rts_targeting_target_priority_gate == true
   and .gates.rts_targeting_aggro_gate == true

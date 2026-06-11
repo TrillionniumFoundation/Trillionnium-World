@@ -17,6 +17,9 @@ required_script_lines=(
   'RTS:ATTACK:arena_creep_attack'
   'blocked_detour_spread'
   'engaged:arena_creep_attack'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_collision_core_frame_order_gate == true'
+  'rts_collision_core_headless_replay_gate == true'
   'collision_response_gate == true'
   'engagement_response_gate == true'
 )
@@ -40,6 +43,11 @@ required_source_lines=(
   'classic_rts_disperse_slots_for_destination'
   'classic_rts_engagement_tiles_for_target'
   'classic_rts_contact_flash_tiles_for_target'
+  'TRNM_RTS_CORE_CONTRACT'
+  'RtsFrameOrder::from_live_command_label'
+  'RtsFrameOrderStream::new'
+  'rts_collision_core_frame_order_gate'
+  'rts_collision_core_headless_replay_gate'
   'CLASSIC_RTS_DISPERSION_SLOT_COLOR'
   'CLASSIC_RTS_ENGAGEMENT_RANGE_COLOR'
   'CLASSIC_RTS_CONTACT_FLASH_COLOR'
@@ -59,6 +67,8 @@ required_readiness_lines=(
   'rts_collision_collision_response_gate'
   'rts_collision_engagement_response_gate'
   'rts_collision_dispersion_slot_pixel_count'
+  'rts_collision_core_frame_order_gate'
+  'rts_collision_core_headless_replay_gate'
 )
 
 for line in "${required_readiness_lines[@]}"; do

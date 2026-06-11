@@ -31,6 +31,21 @@ jq -e '
   and (.command_queue | index("blocked:7,4") != null)
   and (.command_queue | index("formation:wedge") != null)
   and .pathing_status == "detour:7,4"
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_pathing_core_frame_order_gate == true
+  and .rts_pathing_core_headless_replay_gate == true
+  and (.rts_pathing_core_frame_orders | length == 1)
+  and (.rts_pathing_core_frame_order_kind_labels | tostring == "[\"move\"]")
+  and (.rts_pathing_core_frame_order_errors | length == 0)
+  and .rts_pathing_core_frame_order_stream_error == null
+  and (.rts_pathing_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_pathing_core_headless_replay_error == null
+  and (.rts_pathing_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_pathing_core_headless_applied_order_count == 1
+  and .rts_pathing_core_headless_actor_count == 4
+  and .rts_pathing_core_headless_final_frame == 720
+  and (.rts_pathing_core_headless_event_log | any(contains(":kind:move:")))
+  and (.rts_pathing_core_headless_event_log | any(contains(":target:8,4")))
   and .non_background_pixels > 120000
   and .path_tile_pixel_count > 80
   and .blocked_tile_pixel_count > 40
