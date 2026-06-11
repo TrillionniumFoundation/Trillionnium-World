@@ -26,6 +26,7 @@ pub enum RtsOrderKind {
     Complete,
     Capture,
     Extract,
+    Recon,
     Attack,
     FocusFire,
     Ability,
@@ -54,6 +55,7 @@ impl RtsOrderKind {
             RtsOrderKind::Complete => "complete",
             RtsOrderKind::Capture => "capture",
             RtsOrderKind::Extract => "extract",
+            RtsOrderKind::Recon => "recon",
             RtsOrderKind::Attack => "attack",
             RtsOrderKind::FocusFire => "focus_fire",
             RtsOrderKind::Ability => "ability",
@@ -221,9 +223,13 @@ impl RtsFrameOrder {
             RtsOrderKind::Harvest
             | RtsOrderKind::Capture
             | RtsOrderKind::Extract
+            | RtsOrderKind::Recon
             | RtsOrderKind::Repair => {
                 if self.target_actor_id.is_none() && self.target_tile.is_none() {
                     return Err(format!("{}_target_missing", self.kind.as_str()));
+                }
+                if self.kind == RtsOrderKind::Recon && self.target_rule_id.is_none() {
+                    return Err("recon_kind_missing".to_string());
                 }
             }
             RtsOrderKind::Build => {
@@ -498,6 +504,22 @@ fn live_queue_order(
             order.queue_id = Some(rest.to_string());
             Ok(order)
         }
+        "recon" => {
+            let (recon_kind, recon_id, tile) = live_recon_payload(payload)?;
+            let mut order = RtsFrameOrder::new(
+                frame,
+                player_id,
+                subject_actor_ids,
+                RtsOrderKind::Recon,
+                RtsOrderSource::LocalInput,
+            );
+            order.queued = true;
+            order.target_rule_id = Some(recon_kind);
+            order.target_actor_id = Some(recon_id);
+            order.target_tile = Some(tile);
+            order.queue_id = Some(rest.to_string());
+            Ok(order)
+        }
         "complete" => {
             let (rule_id, tile) = payload
                 .split_once('@')
@@ -633,6 +655,24 @@ fn live_actor_tile_payload(payload: &str, kind: &str) -> Result<(String, RtsTile
     Ok((actor_id.to_string(), RtsTile::parse_csv(tile)?))
 }
 
+fn live_recon_payload(payload: &str) -> Result<(String, String, RtsTile), String> {
+    let (kind, recon_payload) = payload.split_once(':').unwrap_or(("scout", payload));
+    let (raw_recon_id, tile) = live_actor_tile_payload(recon_payload, "recon")?;
+    let recon_id = match raw_recon_id.as_str() {
+        "scout_enemy_base" => "enemy_base".to_string(),
+        value => value.to_string(),
+    };
+    let recon_kind = if kind == "scout" && raw_recon_id.ends_with("_scan") {
+        "scan"
+    } else {
+        kind
+    };
+    if recon_kind.is_empty() {
+        return Err(format!("recon_kind_empty:{payload}"));
+    }
+    Ok((recon_kind.to_string(), recon_id, tile))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsFrameOrderStream {
     pub contract: String,
@@ -698,6 +738,7 @@ impl RtsFrameOrderStream {
         let mut tech_tree = RtsTechTreeCheckpoint::default();
         let mut abilities = RtsAbilityCheckpoint::default();
         let mut objectives = RtsObjectiveCheckpoint::default();
+        let mut recon_intel = RtsReconIntelCheckpoint::default();
         let mut event_log = Vec::new();
         let mut final_frame = 0_u32;
 
@@ -726,6 +767,7 @@ impl RtsFrameOrderStream {
             tech_tree.record_order(order);
             abilities.record_order(order);
             objectives.record_order(order);
+            recon_intel.record_order(order);
 
             for actor_id in &order.subject_actor_ids {
                 let actor = actors.entry(actor_id.clone()).or_insert_with(|| {
@@ -814,6 +856,13 @@ impl RtsFrameOrderStream {
                         actor.target_tile = order.target_tile;
                         actor.extract_order_count += 1;
                     }
+                    RtsOrderKind::Recon => {
+                        actor.target_rule_id = order.target_rule_id.clone();
+                        actor.target_actor_id = order.target_actor_id.clone();
+                        actor.target_tile = order.target_tile;
+                        actor.queue_id = order.queue_id.clone();
+                        actor.recon_order_count += 1;
+                    }
                     RtsOrderKind::Cancel => {
                         actor.target_rule_id = order.target_rule_id.clone();
                         actor.target_tile = order.target_tile;
@@ -852,6 +901,7 @@ impl RtsFrameOrderStream {
             tech_tree,
             abilities,
             objectives,
+            recon_intel,
             players,
             actors,
             event_log,
@@ -886,6 +936,7 @@ pub struct RtsHeadlessReplayCheckpoint {
     pub tech_tree: RtsTechTreeCheckpoint,
     pub abilities: RtsAbilityCheckpoint,
     pub objectives: RtsObjectiveCheckpoint,
+    pub recon_intel: RtsReconIntelCheckpoint,
     pub players: Vec<RtsPlayerCheckpoint>,
     pub actors: Vec<RtsActorCheckpoint>,
     pub event_log: Vec<String>,
@@ -954,6 +1005,7 @@ pub struct RtsActorCheckpoint {
     pub repair_order_count: u32,
     pub cancel_order_count: u32,
     pub refund_order_count: u32,
+    pub recon_order_count: u32,
     pub ability_order_count: u32,
     pub attack_order_count: u32,
     pub harvest_order_count: u32,
@@ -986,6 +1038,7 @@ impl RtsActorCheckpoint {
             repair_order_count: 0,
             cancel_order_count: 0,
             refund_order_count: 0,
+            recon_order_count: 0,
             ability_order_count: 0,
             attack_order_count: 0,
             harvest_order_count: 0,
@@ -1052,6 +1105,38 @@ impl RtsObjectiveCheckpoint {
                 }
             }
             _ => {}
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsReconIntelCheckpoint {
+    pub recon_order_count: u32,
+    pub scout_order_count: u32,
+    pub sweep_order_count: u32,
+    pub scan_order_count: u32,
+    pub mark_order_count: u32,
+    pub recon_ids: Vec<String>,
+    pub recon_tile_ids: Vec<String>,
+    pub recon_queue_ids: Vec<String>,
+}
+
+impl RtsReconIntelCheckpoint {
+    fn record_order(&mut self, order: &RtsFrameOrder) {
+        if order.kind != RtsOrderKind::Recon {
+            return;
+        }
+        self.recon_order_count += 1;
+        match order.target_rule_id.as_deref() {
+            Some("sweep") => self.sweep_order_count += 1,
+            Some("scan") => self.scan_order_count += 1,
+            Some("mark") => self.mark_order_count += 1,
+            _ => self.scout_order_count += 1,
+        }
+        push_if_present(&mut self.recon_ids, order.target_actor_id.as_deref());
+        push_if_present(&mut self.recon_queue_ids, order.queue_id.as_deref());
+        if let Some(tile) = order.target_tile {
+            self.recon_tile_ids.push(tile.label());
         }
     }
 }
@@ -1187,6 +1272,15 @@ fn order_target_label(order: &RtsFrameOrder) -> String {
         RtsOrderKind::Unlock => {
             if let Some(rule_id) = order.target_rule_id.as_deref() {
                 return rule_id.to_string();
+            }
+        }
+        RtsOrderKind::Recon => {
+            if let (Some(recon_kind), Some(recon_id), Some(tile)) = (
+                order.target_rule_id.as_deref(),
+                order.target_actor_id.as_deref(),
+                order.target_tile,
+            ) {
+                return format!("{recon_kind}:{recon_id}@{}", tile.label());
             }
         }
         RtsOrderKind::Ability => {
@@ -1434,6 +1528,52 @@ mod tests {
             extract_order.queue_id.as_deref(),
             Some("objective:extract:relay_beacon@9,2")
         );
+    }
+
+    #[test]
+    fn recon_queue_labels_keep_scouting_identity() {
+        let scout_order = RtsFrameOrder::from_live_command_label(
+            26,
+            "Multi0",
+            selected_subjects(),
+            "RTS:QUEUE:recon:scout_enemy_base@10,2",
+        )
+        .unwrap();
+        assert_eq!(scout_order.kind, RtsOrderKind::Recon);
+        assert!(scout_order.queued);
+        assert_eq!(scout_order.target_rule_id.as_deref(), Some("scout"));
+        assert_eq!(scout_order.target_actor_id.as_deref(), Some("enemy_base"));
+        assert_eq!(scout_order.target_tile, Some(RtsTile::new(10, 2)));
+        assert_eq!(
+            scout_order.queue_id.as_deref(),
+            Some("recon:scout_enemy_base@10,2")
+        );
+
+        let scan_order = RtsFrameOrder::from_live_command_label(
+            27,
+            "Multi0",
+            selected_subjects(),
+            "RTS:QUEUE:recon:watchtower_scan@7,4",
+        )
+        .unwrap();
+        assert_eq!(scan_order.kind, RtsOrderKind::Recon);
+        assert_eq!(scan_order.target_rule_id.as_deref(), Some("scan"));
+        assert_eq!(
+            scan_order.target_actor_id.as_deref(),
+            Some("watchtower_scan")
+        );
+        assert_eq!(scan_order.target_tile, Some(RtsTile::new(7, 4)));
+
+        let mark_order = RtsFrameOrder::from_live_command_label(
+            28,
+            "Multi0",
+            selected_subjects(),
+            "RTS:QUEUE:recon:mark:enemy_base@10,2",
+        )
+        .unwrap();
+        assert_eq!(mark_order.kind, RtsOrderKind::Recon);
+        assert_eq!(mark_order.target_rule_id.as_deref(), Some("mark"));
+        assert_eq!(mark_order.target_actor_id.as_deref(), Some("enemy_base"));
     }
 
     #[test]
@@ -2011,6 +2151,66 @@ mod tests {
             assert_eq!(actor.extract_order_count, 1);
             assert_eq!(actor.target_actor_id.as_deref(), Some("relay_beacon"));
             assert_eq!(actor.target_tile, Some(RtsTile::new(9, 2)));
+        }
+    }
+
+    #[test]
+    fn headless_replay_tracks_recon_intel_stream() {
+        let subjects = vec![
+            "square_guard_patrol".to_string(),
+            "square_creep_wander".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:recon:scout_enemy_base@10,2",
+            "RTS:MOVE:9,2:rally",
+            "RTS:QUEUE:recon:sweep:enemy_base@10,2",
+            "RTS:QUEUE:recon:watchtower_scan@7,4",
+            "RTS:QUEUE:recon:mark:enemy_base@10,2",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    900 + index as u32,
+                    "Multi0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-fog-scouting-intel",
+            "trnm-rts-core-fog-scouting-intel-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let recon = &report.checkpoint.recon_intel;
+        assert_eq!(report.checkpoint.applied_order_count, 5);
+        assert_eq!(report.checkpoint.final_frame, 904);
+        assert_eq!(report.checkpoint.actor_count, 2);
+        assert_eq!(recon.recon_order_count, 4);
+        assert_eq!(recon.scout_order_count, 1);
+        assert_eq!(recon.sweep_order_count, 1);
+        assert_eq!(recon.scan_order_count, 1);
+        assert_eq!(recon.mark_order_count, 1);
+        assert!(recon.recon_ids.iter().any(|id| id == "enemy_base"));
+        assert!(recon.recon_ids.iter().any(|id| id == "watchtower_scan"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "10,2"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "7,4"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:recon:")
+                && event.contains(":target:mark:enemy_base@10,2")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.recon_order_count, 4);
+            assert_eq!(actor.target_rule_id.as_deref(), Some("mark"));
+            assert_eq!(actor.target_actor_id.as_deref(), Some("enemy_base"));
+            assert_eq!(actor.target_tile, Some(RtsTile::new(10, 2)));
         }
     }
 }

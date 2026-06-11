@@ -49,6 +49,28 @@ jq -e '
   and .enemy_unit_intel_gate == true
   and .intel_log_gate == true
   and .visibility_bar_gate == true
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_fog_core_frame_order_gate == true
+  and .rts_fog_core_headless_replay_gate == true
+  and (.rts_fog_core_frame_orders | length == 5)
+  and (.rts_fog_core_frame_order_kind_labels | tostring == "[\"recon\",\"move\",\"recon\",\"recon\",\"recon\"]")
+  and (.rts_fog_core_frame_order_errors | length == 0)
+  and .rts_fog_core_frame_order_stream_error == null
+  and (.rts_fog_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_fog_core_headless_replay_error == null
+  and (.rts_fog_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and .rts_fog_core_headless_applied_order_count == 5
+  and .rts_fog_core_headless_actor_count >= 2
+  and .rts_fog_core_headless_final_frame == 904
+  and .rts_fog_core_headless_recon_order_count == 4
+  and .rts_fog_core_headless_scout_order_count == 1
+  and .rts_fog_core_headless_sweep_order_count == 1
+  and .rts_fog_core_headless_scan_order_count == 1
+  and .rts_fog_core_headless_mark_order_count == 1
+  and (.rts_fog_core_headless_recon_ids | index("enemy_base") != null)
+  and (.rts_fog_core_headless_recon_ids | index("watchtower_scan") != null)
+  and (.rts_fog_core_headless_recon_tile_ids | index("10,2") != null)
+  and (.rts_fog_core_headless_recon_tile_ids | index("7,4") != null)
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

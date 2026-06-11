@@ -522,6 +522,8 @@ jq -n \
       and $rts_fog[0].enemy_unit_intel_gate == true
       and $rts_fog[0].intel_log_gate == true
       and $rts_fog[0].visibility_bar_gate == true
+      and $rts_fog[0].rts_fog_core_frame_order_gate == true
+      and $rts_fog[0].rts_fog_core_headless_replay_gate == true
       and $rts_fog[0].accepted_input_count == 6
       and $rts_enemy_base[0].live_enemy_base_tech_pressure_input_gate == true
       and $rts_enemy_base[0].intel_dependency_gate == true
@@ -1654,6 +1656,19 @@ jq -n \
       rts_fog_scouting_intel_enemy_structure_pixel_count: $rts_fog[0].enemy_structure_pixel_count,
       rts_fog_scouting_intel_enemy_unit_pixel_count: $rts_fog[0].enemy_intel_pixel_count,
       rts_fog_scouting_intel_visibility_bar_pixel_count: $rts_fog[0].visibility_bar_pixel_count,
+      rts_fog_scouting_intel_core_frame_order_stream_sha256: $rts_fog[0].rts_fog_core_frame_order_stream_sha256,
+      rts_fog_scouting_intel_core_headless_checkpoint_sha256: $rts_fog[0].rts_fog_core_headless_checkpoint_sha256,
+      rts_fog_scouting_intel_core_frame_order_kinds: $rts_fog[0].rts_fog_core_frame_order_kind_labels,
+      rts_fog_scouting_intel_core_applied_order_count: $rts_fog[0].rts_fog_core_headless_applied_order_count,
+      rts_fog_scouting_intel_core_actor_count: $rts_fog[0].rts_fog_core_headless_actor_count,
+      rts_fog_scouting_intel_core_final_frame: $rts_fog[0].rts_fog_core_headless_final_frame,
+      rts_fog_scouting_intel_core_recon_order_count: $rts_fog[0].rts_fog_core_headless_recon_order_count,
+      rts_fog_scouting_intel_core_scout_order_count: $rts_fog[0].rts_fog_core_headless_scout_order_count,
+      rts_fog_scouting_intel_core_sweep_order_count: $rts_fog[0].rts_fog_core_headless_sweep_order_count,
+      rts_fog_scouting_intel_core_scan_order_count: $rts_fog[0].rts_fog_core_headless_scan_order_count,
+      rts_fog_scouting_intel_core_mark_order_count: $rts_fog[0].rts_fog_core_headless_mark_order_count,
+      rts_fog_scouting_intel_core_recon_ids: $rts_fog[0].rts_fog_core_headless_recon_ids,
+      rts_fog_scouting_intel_core_recon_tile_ids: $rts_fog[0].rts_fog_core_headless_recon_tile_ids,
       rts_enemy_base_tech_pressure_accepted_input_count: $rts_enemy_base[0].accepted_input_count,
       rts_enemy_base_tech_pressure_enemy_tech_count: ($rts_enemy_base[0].final_enemy_base_tech_ids | length),
       rts_enemy_base_tech_pressure_enemy_production_count: ($rts_enemy_base[0].final_enemy_production_queue | length),
@@ -2601,6 +2616,8 @@ jq -n \
       rts_fog_scouting_intel_enemy_unit_gate: $rts_fog[0].enemy_unit_intel_gate,
       rts_fog_scouting_intel_intel_log_gate: $rts_fog[0].intel_log_gate,
       rts_fog_scouting_intel_visibility_gate: $rts_fog[0].visibility_bar_gate,
+      rts_fog_scouting_intel_core_frame_order_gate: $rts_fog[0].rts_fog_core_frame_order_gate,
+      rts_fog_scouting_intel_core_headless_replay_gate: $rts_fog[0].rts_fog_core_headless_replay_gate,
       rts_enemy_base_tech_pressure_live_input_gate: $rts_enemy_base[0].live_enemy_base_tech_pressure_input_gate,
       rts_enemy_base_tech_pressure_intel_dependency_gate: $rts_enemy_base[0].intel_dependency_gate,
       rts_enemy_base_tech_pressure_enemy_tech_gate: $rts_enemy_base[0].enemy_tech_gate,
@@ -4351,6 +4368,21 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_fog_scouting_intel_enemy_structure_pixel_count > 80
   and .headline.rts_fog_scouting_intel_enemy_unit_pixel_count > 60
   and .headline.rts_fog_scouting_intel_visibility_bar_pixel_count > 20
+  and (.headline.rts_fog_scouting_intel_core_frame_order_stream_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_fog_scouting_intel_core_headless_checkpoint_sha256 | test("^[0-9a-f]{64}$"))
+  and (.headline.rts_fog_scouting_intel_core_frame_order_kinds | tostring == "[\"recon\",\"move\",\"recon\",\"recon\",\"recon\"]")
+  and .headline.rts_fog_scouting_intel_core_applied_order_count == 5
+  and .headline.rts_fog_scouting_intel_core_actor_count >= 2
+  and .headline.rts_fog_scouting_intel_core_final_frame == 904
+  and .headline.rts_fog_scouting_intel_core_recon_order_count == 4
+  and .headline.rts_fog_scouting_intel_core_scout_order_count == 1
+  and .headline.rts_fog_scouting_intel_core_sweep_order_count == 1
+  and .headline.rts_fog_scouting_intel_core_scan_order_count == 1
+  and .headline.rts_fog_scouting_intel_core_mark_order_count == 1
+  and (.headline.rts_fog_scouting_intel_core_recon_ids | index("enemy_base") != null)
+  and (.headline.rts_fog_scouting_intel_core_recon_ids | index("watchtower_scan") != null)
+  and (.headline.rts_fog_scouting_intel_core_recon_tile_ids | index("10,2") != null)
+  and (.headline.rts_fog_scouting_intel_core_recon_tile_ids | index("7,4") != null)
   and .headline.rts_enemy_base_tech_pressure_accepted_input_count == 6
   and .headline.rts_enemy_base_tech_pressure_enemy_tech_count >= 2
   and .headline.rts_enemy_base_tech_pressure_enemy_production_count >= 2
@@ -4875,6 +4907,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_fog_scouting_intel_enemy_unit_gate == true
   and .gates.rts_fog_scouting_intel_intel_log_gate == true
   and .gates.rts_fog_scouting_intel_visibility_gate == true
+  and .gates.rts_fog_scouting_intel_core_frame_order_gate == true
+  and .gates.rts_fog_scouting_intel_core_headless_replay_gate == true
   and .gates.rts_enemy_base_tech_pressure_live_input_gate == true
   and .gates.rts_enemy_base_tech_pressure_intel_dependency_gate == true
   and .gates.rts_enemy_base_tech_pressure_enemy_tech_gate == true

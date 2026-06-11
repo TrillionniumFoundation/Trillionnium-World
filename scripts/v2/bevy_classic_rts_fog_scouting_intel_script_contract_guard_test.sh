@@ -24,6 +24,10 @@ required_script_lines=(
   'enemy_unit_intel_gate == true'
   'intel_log_gate == true'
   'visibility_bar_gate == true'
+  'rts_fog_core_frame_order_gate == true'
+  'rts_fog_core_headless_replay_gate == true'
+  'rts_fog_core_headless_recon_order_count == 4'
+  'rts_fog_core_headless_mark_order_count == 1'
 )
 
 for line in "${required_script_lines[@]}"; do
@@ -45,6 +49,11 @@ required_source_lines=(
   'rts_revealed_enemy_unit_ids'
   'rts_intel_log'
   'rts_visibility_percent'
+  'RtsFrameOrder::from_live_command_label'
+  'RtsFrameOrderStream::new'
+  'rts_fog_core_frame_order_gate'
+  'rts_fog_core_headless_replay_gate'
+  'rts_fog_core_headless_recon_ids'
   'CLASSIC_RTS_SCOUT_ROUTE_COLOR'
   'CLASSIC_RTS_FOG_REVEAL_COLOR'
   'CLASSIC_RTS_ENEMY_INTEL_COLOR'
@@ -70,6 +79,9 @@ required_readiness_lines=(
   'rts_fog_scouting_intel_enemy_unit_gate'
   'rts_fog_scouting_intel_intel_log_gate'
   'rts_fog_scouting_intel_visibility_gate'
+  'rts_fog_scouting_intel_core_frame_order_gate'
+  'rts_fog_scouting_intel_core_headless_replay_gate'
+  'rts_fog_scouting_intel_core_recon_order_count'
   'rts_fog_scouting_intel_pixel_count'
 )
 
@@ -80,4 +92,4 @@ for line in "${required_readiness_lines[@]}"; do
   fi
 done
 
-echo "[PASS] classic RTS fog scouting intel evidence remains connected to native scout input, fog reveal, enemy intel, minimap readability, renderer overlays, and readiness"
+echo "[PASS] classic RTS fog scouting intel evidence remains connected to native scout input, fog reveal, enemy intel, minimap readability, trnm-rts-core replay, renderer overlays, and readiness"

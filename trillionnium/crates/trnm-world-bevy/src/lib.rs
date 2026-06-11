@@ -69164,6 +69164,170 @@ pub fn native_classic_rts_fog_scouting_intel_evidence_json(preview_path: &str) -
         }));
     }
 
+    let rts_fog_core_subject_actor_ids = if runtime.rts_scout_unit_ids.is_empty() {
+        vec!["selected_rts_fog_scout_group".to_string()]
+    } else {
+        runtime.rts_scout_unit_ids.clone()
+    };
+    let mut rts_fog_core_frame_orders = Vec::new();
+    let mut rts_fog_core_frame_order_errors = Vec::new();
+    for (index, action_label) in action_labels
+        .iter()
+        .filter(|label| label.starts_with("RTS:QUEUE:recon:") || label.starts_with("RTS:MOVE:"))
+        .enumerate()
+    {
+        match RtsFrameOrder::from_live_command_label(
+            900 + index as u32,
+            "Multi0",
+            rts_fog_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_fog_core_frame_order_errors
+                        .push(format!("fog_scouting_{index}:{action_label}:{error}"));
+                } else {
+                    rts_fog_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_fog_core_frame_order_errors
+                .push(format!("fog_scouting_{index}:{action_label}:{error}")),
+        }
+    }
+    let rts_fog_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-fog-scouting-intel",
+        "trnm-rts-core-fog-scouting-intel-rules-v1",
+        rts_fog_core_frame_orders.clone(),
+    );
+    let rts_fog_core_frame_order_stream_error = rts_fog_core_frame_order_stream.validate().err();
+    let rts_fog_core_frame_order_stream_sha256 = rts_fog_core_frame_order_stream.sha256_hex();
+    let rts_fog_core_frame_order_kind_labels = rts_fog_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_fog_core_frame_order_values = rts_fog_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts fog order serializes"))
+        .collect::<Vec<_>>();
+    let rts_fog_core_frame_order_stream_value =
+        serde_json::to_value(&rts_fog_core_frame_order_stream).expect("rts fog stream serializes");
+    let rts_fog_core_frame_order_gate = rts_fog_core_frame_order_errors.is_empty()
+        && rts_fog_core_frame_order_stream_error.is_none()
+        && rts_fog_core_frame_order_stream_sha256.len() == 64
+        && rts_fog_core_frame_orders.len() == 5
+        && rts_fog_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("scout")
+                && order.target_actor_id.as_deref() == Some("enemy_base")
+                && order.target_tile == Some(RtsTile::new(10, 2))
+        })
+        && rts_fog_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(9, 2))
+                && order.formation_id.as_deref() == Some("rally")
+        })
+        && rts_fog_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("sweep")
+                && order.target_actor_id.as_deref() == Some("enemy_base")
+                && order.target_tile == Some(RtsTile::new(10, 2))
+        })
+        && rts_fog_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("scan")
+                && order.target_actor_id.as_deref() == Some("watchtower_scan")
+                && order.target_tile == Some(RtsTile::new(7, 4))
+        })
+        && rts_fog_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.target_rule_id.as_deref() == Some("mark")
+                && order.target_actor_id.as_deref() == Some("enemy_base")
+                && order.target_tile == Some(RtsTile::new(10, 2))
+        });
+    let rts_fog_core_headless_replay_result = rts_fog_core_frame_order_stream.replay_headless();
+    let (
+        rts_fog_core_headless_replay_report_value,
+        rts_fog_core_headless_checkpoint_sha256,
+        rts_fog_core_headless_replay_error,
+        rts_fog_core_headless_applied_order_count,
+        rts_fog_core_headless_actor_count,
+        rts_fog_core_headless_final_frame,
+        rts_fog_core_headless_event_log,
+        rts_fog_core_headless_recon_order_count,
+        rts_fog_core_headless_scout_order_count,
+        rts_fog_core_headless_sweep_order_count,
+        rts_fog_core_headless_scan_order_count,
+        rts_fog_core_headless_mark_order_count,
+        rts_fog_core_headless_recon_ids,
+        rts_fog_core_headless_recon_tile_ids,
+        rts_fog_core_headless_recon_queue_ids,
+    ) = match rts_fog_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let recon = &checkpoint.recon_intel;
+            (
+                serde_json::to_value(&report).expect("rts fog replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                recon.recon_order_count,
+                recon.scout_order_count,
+                recon.sweep_order_count,
+                recon.scan_order_count,
+                recon.mark_order_count,
+                recon.recon_ids.clone(),
+                recon.recon_tile_ids.clone(),
+                recon.recon_queue_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_fog_core_headless_replay_gate = rts_fog_core_frame_order_gate
+        && rts_fog_core_headless_replay_error.is_none()
+        && rts_fog_core_headless_checkpoint_sha256.len() == 64
+        && rts_fog_core_headless_applied_order_count == 5
+        && rts_fog_core_headless_actor_count >= 2
+        && rts_fog_core_headless_final_frame == 904
+        && rts_fog_core_headless_recon_order_count == 4
+        && rts_fog_core_headless_scout_order_count == 1
+        && rts_fog_core_headless_sweep_order_count == 1
+        && rts_fog_core_headless_scan_order_count == 1
+        && rts_fog_core_headless_mark_order_count == 1
+        && rts_fog_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "enemy_base")
+        && rts_fog_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "watchtower_scan")
+        && rts_fog_core_headless_recon_tile_ids
+            .iter()
+            .any(|tile| tile == "10,2")
+        && rts_fog_core_headless_recon_tile_ids
+            .iter()
+            .any(|tile| tile == "7,4")
+        && rts_fog_core_headless_event_log.iter().any(|event| {
+            event.contains(":kind:recon:") && event.contains(":target:mark:enemy_base@10,2")
+        });
+
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
@@ -69213,6 +69377,8 @@ pub fn native_classic_rts_fog_scouting_intel_evidence_json(preview_path: &str) -
         && enemy_unit_intel_gate
         && intel_log_gate
         && visibility_bar_gate
+        && rts_fog_core_frame_order_gate
+        && rts_fog_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -69229,6 +69395,29 @@ pub fn native_classic_rts_fog_scouting_intel_evidence_json(preview_path: &str) -
         "input_sources": input_sources,
         "action_labels": action_labels,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_fog_core_subject_actor_ids": rts_fog_core_subject_actor_ids,
+        "rts_fog_core_frame_orders": rts_fog_core_frame_order_values,
+        "rts_fog_core_frame_order_stream": rts_fog_core_frame_order_stream_value,
+        "rts_fog_core_frame_order_stream_sha256": rts_fog_core_frame_order_stream_sha256,
+        "rts_fog_core_frame_order_kind_labels": rts_fog_core_frame_order_kind_labels,
+        "rts_fog_core_frame_order_errors": rts_fog_core_frame_order_errors,
+        "rts_fog_core_frame_order_stream_error": rts_fog_core_frame_order_stream_error,
+        "rts_fog_core_headless_replay_report": rts_fog_core_headless_replay_report_value,
+        "rts_fog_core_headless_checkpoint_sha256": rts_fog_core_headless_checkpoint_sha256,
+        "rts_fog_core_headless_replay_error": rts_fog_core_headless_replay_error,
+        "rts_fog_core_headless_applied_order_count": rts_fog_core_headless_applied_order_count,
+        "rts_fog_core_headless_actor_count": rts_fog_core_headless_actor_count,
+        "rts_fog_core_headless_final_frame": rts_fog_core_headless_final_frame,
+        "rts_fog_core_headless_event_log": rts_fog_core_headless_event_log,
+        "rts_fog_core_headless_recon_order_count": rts_fog_core_headless_recon_order_count,
+        "rts_fog_core_headless_scout_order_count": rts_fog_core_headless_scout_order_count,
+        "rts_fog_core_headless_sweep_order_count": rts_fog_core_headless_sweep_order_count,
+        "rts_fog_core_headless_scan_order_count": rts_fog_core_headless_scan_order_count,
+        "rts_fog_core_headless_mark_order_count": rts_fog_core_headless_mark_order_count,
+        "rts_fog_core_headless_recon_ids": rts_fog_core_headless_recon_ids,
+        "rts_fog_core_headless_recon_tile_ids": rts_fog_core_headless_recon_tile_ids,
+        "rts_fog_core_headless_recon_queue_ids": rts_fog_core_headless_recon_queue_ids,
         "final_scout_unit_ids": runtime.rts_scout_unit_ids,
         "final_scout_route_tile_ids": runtime.rts_scout_route_tile_ids,
         "final_fog_reveal_tile_ids": runtime.rts_fog_reveal_tile_ids,
@@ -69250,9 +69439,11 @@ pub fn native_classic_rts_fog_scouting_intel_evidence_json(preview_path: &str) -
         "enemy_unit_intel_gate": enemy_unit_intel_gate,
         "intel_log_gate": intel_log_gate,
         "visibility_bar_gate": visibility_bar_gate,
+        "rts_fog_core_frame_order_gate": rts_fog_core_frame_order_gate,
+        "rts_fog_core_headless_replay_gate": rts_fog_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS fog scouting intel evidence drives scout route movement, fog reveal, enemy structure discovery, enemy unit intelligence, visibility reporting, and minimap readability through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS fog scouting intel evidence drives scout route movement, fog reveal, enemy structure discovery, enemy unit intelligence, visibility reporting, and minimap readability through live native input, emits those recon/move commands into trnm-rts-core, replays them through the Bevy-free headless reducer, then renders the overlays through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS fog scouting intel evidence serializes")
 }
