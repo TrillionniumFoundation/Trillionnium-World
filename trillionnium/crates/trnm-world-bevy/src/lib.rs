@@ -42858,6 +42858,9 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .count();
             let execution_feedback_kind =
                 classic_rts_command_execution_feedback_kind(Some(&right_click_target_runtime));
+            let execution_feedback_player_label = execution_feedback_kind.map(|kind| {
+                classic_rts_command_execution_player_label(&right_click_target_runtime, kind)
+            });
             let execution_feedback_source_tile_id =
                 classic_rts_primary_selected_tile(&right_click_target_runtime)
                     .map(classic_rts_tile_id);
@@ -42899,6 +42902,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 "execution_feedback_group_route_tile_ids": right_click_target_runtime.rts_group_route_tile_ids.clone(),
                 "execution_feedback_target_id": right_click_target_runtime.rts_attack_target_id.clone(),
                 "execution_feedback_dropoff_structure_id": right_click_target_runtime.rts_dropoff_structure_id.clone(),
+                "execution_feedback_player_label": execution_feedback_player_label,
                 "execution_feedback_frame_pixel_count": right_click_execution_frame_pixel_count,
                 "execution_feedback_path_pixel_count": right_click_execution_path_pixel_count,
                 "execution_feedback_target_pixel_count": right_click_execution_target_pixel_count,
@@ -44167,7 +44171,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 .is_some_and(|entries| entries.iter().any(|entry| entry.as_str() == Some(expected)))
         };
     let right_click_execution_feedback_stage_gate =
-        |stage: &str, kind: &str, pixel_key: &str, min_pixels: u64| {
+        |stage: &str, kind: &str, expected_label: &str, pixel_key: &str, min_pixels: u64| {
             right_click_target_samples.iter().any(|sample| {
                 sample.get("stage").and_then(|value| value.as_str()) == Some(stage)
                     && sample
@@ -44182,6 +44186,14 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                         .get("execution_feedback_source_tile_id")
                         .and_then(|value| value.as_str())
                         == Some("5,4")
+                    && sample
+                        .get("execution_feedback_player_label")
+                        .and_then(|value| value.as_str())
+                        .is_some_and(|label| {
+                            label == expected_label
+                                && !label.contains("feedback")
+                                && !label.contains("rts_")
+                        })
                     && sample
                         .get("execution_feedback_frame_pixel_count")
                         .and_then(|value| value.as_u64())
@@ -44354,24 +44366,28 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         && right_click_execution_feedback_stage_gate(
             "right_click_empty_move",
             "move",
+            "MOVE EXECUTING 4,3",
             "execution_feedback_path_pixel_count",
             140,
         )
         && right_click_execution_feedback_stage_gate(
             "drag_filter_then_right_click_hostile",
             "attack",
+            "ATTACK FOCUS SQUARE CREEP WANDER",
             "execution_feedback_target_pixel_count",
             80,
         )
         && right_click_execution_feedback_stage_gate(
             "right_click_friendly_follow",
             "follow",
+            "FOLLOWING PLAYER",
             "execution_feedback_follow_pixel_count",
             80,
         )
         && right_click_execution_feedback_stage_gate(
             "right_click_resource_harvest",
             "harvest",
+            "HARVEST GOLD VEIN TO TOWN HALL",
             "execution_feedback_harvest_pixel_count",
             80,
         )
@@ -44389,12 +44405,47 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
                 && sample.get("economy_state").and_then(|value| value.as_str())
                     == Some("harvesting:gold_vein")
         });
+    let right_click_execution_feedback_player_label_gate =
+        right_click_target_samples.iter().all(|sample| {
+            sample
+                .get("execution_feedback_player_label")
+                .and_then(|value| value.as_str())
+                .is_some_and(|label| !label.contains("feedback") && !label.contains("rts_"))
+        }) && right_click_target_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str()) == Some("right_click_empty_move")
+                && sample
+                    .get("execution_feedback_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("MOVE EXECUTING 4,3")
+        }) && right_click_target_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("drag_filter_then_right_click_hostile")
+                && sample
+                    .get("execution_feedback_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("ATTACK FOCUS SQUARE CREEP WANDER")
+        }) && right_click_target_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("right_click_friendly_follow")
+                && sample
+                    .get("execution_feedback_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("FOLLOWING PLAYER")
+        }) && right_click_target_samples.iter().any(|sample| {
+            sample.get("stage").and_then(|value| value.as_str())
+                == Some("right_click_resource_harvest")
+                && sample
+                    .get("execution_feedback_player_label")
+                    .and_then(|value| value.as_str())
+                    == Some("HARVEST GOLD VEIN TO TOWN HALL")
+        });
     let right_click_target_semantics_gate = right_click_target_attack_gate
         && right_click_target_move_gate
         && right_click_target_follow_gate
         && right_click_target_harvest_gate
         && right_click_target_preview_gate
-        && right_click_execution_feedback_gate;
+        && right_click_execution_feedback_gate
+        && right_click_execution_feedback_player_label_gate;
     let unit_shift_select_gate = unit_shift_select_samples.len() == 3
         && unit_shift_select_marker_pixel_count > 80
         && unit_shift_select_stamp_pixel_count > 80
@@ -45024,6 +45075,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "right_click_target_harvest_gate": right_click_target_harvest_gate,
         "right_click_target_preview_gate": right_click_target_preview_gate,
         "right_click_execution_feedback_gate": right_click_execution_feedback_gate,
+        "right_click_execution_feedback_player_label_gate": right_click_execution_feedback_player_label_gate,
         "right_click_target_semantics_gate": right_click_target_semantics_gate,
         "unit_shift_select_gate": unit_shift_select_gate,
         "unit_double_click_select_gate": unit_double_click_select_gate,
@@ -45032,7 +45084,7 @@ pub fn native_classic_rts_live_input_sequence_evidence_json(preview_path: &str) 
         "command_stamp_gate": command_stamp_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS live input sequence drives RTS control-group, production, move, queued-waypoint, hold, patrol, attack-move, stop, attack, ability, live command queue/path preview overlays for accepted waypoint/hold/patrol/attack-move/stop orders, live drag-select preview, drag-select commit, owned-only drag-select filtering, unit-click selection, empty/hostile click selection clearing with locked command-grid feedback, right-click tile-context target semantics for empty move, hostile attack, friendly follow, and resource harvest with visible target/path hover previews and persistent post-command execution feedback labels for move paths, attack focus, follow target, and harvest workers/dropoff, Shift+unit add/remove selection, double-click same-class selection, Ctrl+number assignment, Ctrl+Shift+number append, Shift+number recall-add, number recall/double-tap camera snap, occupied 1-0 control-group slot strip, hover preview, context cursor, and accepted-command stamp feedback through apply_live_native_action_with_source, classic_rts_mouse_action_with_source_from_point, classic_rts_mouse_action_with_source_from_point_with_shift, classic_rts_mouse_action_with_source_from_point_with_modifiers, apply_classic_rts_drag_select_preview_from_points, apply_classic_rts_hover_preview_runtime, apply_classic_rts_context_cursor_runtime, apply_classic_rts_command_stamp_for_action, classic_rts_command_execution_player_label, and classic_draw_rts_command_execution_feedback_overlay before rendering each accepted state through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS live input sequence evidence serializes")
 }
@@ -75798,6 +75850,30 @@ fn classic_rts_command_execution_target_label(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_command_execution_player_label(
+    runtime: &NativeFirstPlayableRuntime,
+    kind: &str,
+) -> String {
+    let target_label = classic_rts_command_execution_target_label(runtime, kind)
+        .replace('_', " ")
+        .to_ascii_uppercase();
+    match kind {
+        "attack" => format!("ATTACK FOCUS {target_label}"),
+        "follow" => format!("FOLLOWING {target_label}"),
+        "harvest" => {
+            let dropoff = runtime
+                .rts_dropoff_structure_id
+                .as_deref()
+                .unwrap_or("dropoff")
+                .replace('_', " ")
+                .to_ascii_uppercase();
+            format!("HARVEST {target_label} TO {dropoff}")
+        }
+        _ => format!("MOVE EXECUTING {target_label}"),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_command_execution_target_tile(
     runtime: &NativeFirstPlayableRuntime,
     kind: &str,
@@ -76044,14 +76120,7 @@ fn classic_draw_rts_command_execution_feedback_overlay(
         panel_x + 12,
         panel_y + 27,
         &classic_catalog_text_label(
-            &format!(
-                "{} {}",
-                kind.to_ascii_uppercase(),
-                runtime
-                    .rts_command_destination_tile
-                    .as_deref()
-                    .unwrap_or("--")
-            ),
+            &classic_rts_command_execution_player_label(runtime, kind),
             34,
         ),
         1,

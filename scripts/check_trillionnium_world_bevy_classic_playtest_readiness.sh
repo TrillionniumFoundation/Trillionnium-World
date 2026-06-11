@@ -414,6 +414,7 @@ jq -n \
       and $rts_live[0].command_feedback_chip_gate == true
       and $rts_live[0].live_command_queue_path_preview_gate == true
       and $rts_live[0].right_click_execution_feedback_gate == true
+      and $rts_live[0].right_click_execution_feedback_player_label_gate == true
       and $rts_live[0].context_cursor_gate == true
       and $rts_live[0].control_group_hotkey_gate == true
       and $rts_live[0].accepted_input_count == 10
@@ -860,6 +861,10 @@ jq -n \
       rts_live_input_right_click_execution_feedback_follow_pixel_count: $rts_live[0].right_click_execution_feedback_follow_pixel_count,
       rts_live_input_right_click_execution_feedback_harvest_pixel_count: $rts_live[0].right_click_execution_feedback_harvest_pixel_count,
       rts_live_input_right_click_execution_feedback_viewport_marker_pixel_count: $rts_live[0].right_click_execution_feedback_viewport_marker_pixel_count,
+      rts_live_input_right_click_execution_feedback_move_label: ([ $rts_live[0].right_click_target_samples[] | select(.stage == "right_click_empty_move") | .execution_feedback_player_label ][0] // ""),
+      rts_live_input_right_click_execution_feedback_attack_label: ([ $rts_live[0].right_click_target_samples[] | select(.stage == "drag_filter_then_right_click_hostile") | .execution_feedback_player_label ][0] // ""),
+      rts_live_input_right_click_execution_feedback_follow_label: ([ $rts_live[0].right_click_target_samples[] | select(.stage == "right_click_friendly_follow") | .execution_feedback_player_label ][0] // ""),
+      rts_live_input_right_click_execution_feedback_harvest_label: ([ $rts_live[0].right_click_target_samples[] | select(.stage == "right_click_resource_harvest") | .execution_feedback_player_label ][0] // ""),
       rts_live_input_unit_shift_select_marker_pixel_count: $rts_live[0].unit_shift_select_marker_pixel_count,
       rts_live_input_unit_shift_select_stamp_pixel_count: $rts_live[0].unit_shift_select_stamp_pixel_count,
       rts_live_input_unit_shift_select_add_unit_count: ([ $rts_live[0].unit_shift_select_samples[] | select(.stage == "shift_add_patrol") | .selected_unit_ids | length ][0] // 0),
@@ -2214,6 +2219,7 @@ jq -n \
       rts_live_input_right_click_target_gate: $rts_live[0].right_click_target_semantics_gate,
       rts_live_input_right_click_target_preview_gate: $rts_live[0].right_click_target_preview_gate,
       rts_live_input_right_click_execution_feedback_gate: $rts_live[0].right_click_execution_feedback_gate,
+      rts_live_input_right_click_execution_feedback_player_label_gate: $rts_live[0].right_click_execution_feedback_player_label_gate,
       rts_live_input_unit_shift_select_gate: $rts_live[0].unit_shift_select_gate,
       rts_live_input_unit_double_click_select_gate: $rts_live[0].unit_double_click_select_gate,
       rts_live_input_control_group_hotkey_gate: $rts_live[0].control_group_hotkey_gate,
@@ -3590,6 +3596,10 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_live_input_right_click_execution_feedback_follow_pixel_count > 80
   and .headline.rts_live_input_right_click_execution_feedback_harvest_pixel_count > 80
   and .headline.rts_live_input_right_click_execution_feedback_viewport_marker_pixel_count > 500
+  and .headline.rts_live_input_right_click_execution_feedback_move_label == "MOVE EXECUTING 4,3"
+  and .headline.rts_live_input_right_click_execution_feedback_attack_label == "ATTACK FOCUS SQUARE CREEP WANDER"
+  and .headline.rts_live_input_right_click_execution_feedback_follow_label == "FOLLOWING PLAYER"
+  and .headline.rts_live_input_right_click_execution_feedback_harvest_label == "HARVEST GOLD VEIN TO TOWN HALL"
   and .headline.rts_live_input_unit_shift_select_marker_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_stamp_pixel_count > 80
   and .headline.rts_live_input_unit_shift_select_add_unit_count == 2
@@ -4370,6 +4380,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_live_input_right_click_target_gate == true
   and .gates.rts_live_input_right_click_target_preview_gate == true
   and .gates.rts_live_input_right_click_execution_feedback_gate == true
+  and .gates.rts_live_input_right_click_execution_feedback_player_label_gate == true
   and .gates.rts_live_input_unit_shift_select_gate == true
   and .gates.rts_live_input_unit_double_click_select_gate == true
   and .gates.rts_live_input_control_group_hotkey_gate == true

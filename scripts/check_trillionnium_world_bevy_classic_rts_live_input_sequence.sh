@@ -183,6 +183,7 @@ jq -e '
   and .right_click_execution_feedback_follow_pixel_count > 80
   and .right_click_execution_feedback_harvest_pixel_count > 80
   and .right_click_execution_feedback_viewport_marker_pixel_count > 500
+  and .right_click_execution_feedback_player_label_gate == true
   and (.right_click_target_hover_samples | any(
     .stage == "right_click_empty_move"
     and .action_label == "RTS:MOVE:4,3:line"
@@ -207,6 +208,7 @@ jq -e '
     and .execution_feedback_renderer_path == "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"
     and .execution_feedback_source_tile_id == "5,4"
     and .execution_feedback_destination_tile_id == "4,3"
+    and .execution_feedback_player_label == "MOVE EXECUTING 4,3"
     and .execution_feedback_path_pixel_count > 140
     and .execution_feedback_viewport_marker_pixel_count > 80
   ))
@@ -236,6 +238,7 @@ jq -e '
     and .execution_feedback_renderer_path == "classic_draw_scene+classic_draw_rts_command_execution_feedback_overlay"
     and .execution_feedback_source_tile_id == "5,4"
     and .execution_feedback_follow_pixel_count > 80
+    and .execution_feedback_player_label == "FOLLOWING PLAYER"
     and .execution_feedback_viewport_marker_pixel_count > 80
   ))
   and (.right_click_target_hover_samples | any(
@@ -269,6 +272,7 @@ jq -e '
     and .execution_feedback_source_tile_id == "5,4"
     and .execution_feedback_destination_tile_id == "3,3"
     and .execution_feedback_dropoff_structure_id == "town_hall"
+    and .execution_feedback_player_label == "HARVEST GOLD VEIN TO TOWN HALL"
     and .execution_feedback_harvest_pixel_count > 80
     and .execution_feedback_viewport_marker_pixel_count > 80
   ))
@@ -279,6 +283,7 @@ jq -e '
     and .execution_feedback_source_tile_id == "5,4"
     and .execution_feedback_destination_tile_id == "9,4"
     and .execution_feedback_target_id == "square_creep_wander"
+    and .execution_feedback_player_label == "ATTACK FOCUS SQUARE CREEP WANDER"
     and .execution_feedback_target_pixel_count > 80
     and .execution_feedback_viewport_marker_pixel_count > 80
   ))
