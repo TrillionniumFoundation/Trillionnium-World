@@ -38,6 +38,13 @@ jq -e '
   and (.rts_data_canonical_sha256 | type == "string" and length == 64)
   and .rts_data_validation_error == null
   and .rts_data_consumer_gate == true
+  and .rts_data_terrain_profile_count == 1156
+  and .rts_data_terrain_profile_samples.border.role == "border"
+  and .rts_data_terrain_profile_samples.lane.role == "lane"
+  and .rts_data_terrain_profile_samples.center.height == 2
+  and .rts_data_terrain_profile_samples.base_pad.base_pad == true
+  and .rts_data_terrain_profile_samples.resource_zone.resource_zone == true
+  and .rts_data_terrain_profile_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true

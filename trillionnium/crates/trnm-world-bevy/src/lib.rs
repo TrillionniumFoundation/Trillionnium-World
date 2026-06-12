@@ -30,7 +30,10 @@ use trnm_rts_core::{
     RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsTile, TRNM_RTS_CORE_CONTRACT,
 };
 #[cfg(not(target_os = "android"))]
-use trnm_rts_data::{first_contact_basin_map, RtsMapActor, RtsRuleKind, TRNM_RTS_DATA_CONTRACT};
+use trnm_rts_data::{
+    first_contact_basin_map, first_contact_terrain_profile, first_contact_terrain_profiles,
+    RtsMapActor, RtsRuleKind, RtsTerrainRole, TRNM_RTS_DATA_CONTRACT,
+};
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
     WORLD_ACCOUNT_API_CONTRACT, WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT, WORLD_API_CONTRACT,
@@ -28348,6 +28351,7 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
+    let terrain_profiles = first_contact_terrain_profiles();
     let rts_data_validation_error = map_model.validate().err();
     let map_summary = map_model.summary();
     let actor_count = map_summary.actor_count;
@@ -28447,6 +28451,23 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .actors
             .iter()
             .all(|actor| classic_first_contact_actor_from_rts_data_actor(actor).is_some());
+    let rts_data_terrain_profile_gate = terrain_profiles.len()
+        == (map_model.width * map_model.height) as usize
+        && terrain_profiles
+            .iter()
+            .any(|profile| profile.role == RtsTerrainRole::Lane)
+        && terrain_profiles
+            .iter()
+            .any(|profile| profile.role == RtsTerrainRole::BasePad)
+        && terrain_profiles
+            .iter()
+            .any(|profile| profile.role == RtsTerrainRole::CentralBasin)
+        && terrain_profiles
+            .iter()
+            .filter(|profile| profile.resource_zone)
+            .count()
+            >= 76
+        && first_contact_terrain_profile(RtsTile::new(16, 16)).height == 2;
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
     let rts_data_map_summary =
@@ -28458,6 +28479,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rules_gate
         && rts_data_consumer_gate
         && bevy_map_model_adapter_gate
+        && rts_data_terrain_profile_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28484,6 +28506,15 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_canonical_sha256": map_summary.canonical_sha256,
         "rts_data_validation_error": rts_data_validation_error,
         "rts_data_consumer_gate": rts_data_consumer_gate,
+        "rts_data_terrain_profile_count": terrain_profiles.len(),
+        "rts_data_terrain_profile_samples": {
+            "border": first_contact_terrain_profile(RtsTile::new(0, 0)),
+            "lane": first_contact_terrain_profile(RtsTile::new(16, 9)),
+            "center": first_contact_terrain_profile(RtsTile::new(16, 16)),
+            "base_pad": first_contact_terrain_profile(RtsTile::new(10, 10)),
+            "resource_zone": first_contact_terrain_profile(RtsTile::new(12, 16)),
+        },
+        "rts_data_terrain_profile_gate": rts_data_terrain_profile_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -93024,48 +93055,39 @@ fn classic_first_contact_tile_screen(
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_lane_tile(tile: (i32, i32)) -> bool {
-    let (x, y) = tile;
-    x == 16 || y == 16 || (x - y).abs() <= 1 || (x + y - 33).abs() <= 1
+    first_contact_terrain_profile(RtsTile::new(tile.0, tile.1)).lane
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_base_pad(tile: (i32, i32)) -> bool {
-    let (x, y) = tile;
-    (6..=11).contains(&x) && (6..=11).contains(&y)
-        || (22..=27).contains(&x) && (22..=27).contains(&y)
-        || (22..=27).contains(&x) && (6..=11).contains(&y)
-        || (6..=11).contains(&x) && (22..=27).contains(&y)
+    first_contact_terrain_profile(RtsTile::new(tile.0, tile.1)).base_pad
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_resource_tile(tile: (i32, i32)) -> bool {
-    let (x, y) = tile;
-    ((11..=14).contains(&x) && (14..=18).contains(&y))
-        || ((19..=22).contains(&x) && (14..=18).contains(&y))
-        || ((14..=18).contains(&x) && (11..=14).contains(&y))
-        || ((14..=18).contains(&x) && (19..=22).contains(&y))
+    first_contact_terrain_profile(RtsTile::new(tile.0, tile.1)).resource_zone
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
     let (x, y) = tile;
-    let dx = (x - 16).abs();
-    let dy = (y - 16).abs();
-    if !(1..=32).contains(&x) || !(1..=32).contains(&y) {
+    let terrain = first_contact_terrain_profile(RtsTile::new(x, y));
+    if !terrain.playable {
         return 0x111812;
     }
-    let mut color = if classic_first_contact_lane_tile(tile) {
-        classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4)
-    } else if dx <= 4 && dy <= 4 {
-        0x203f39
-    } else if classic_first_contact_base_pad(tile) {
-        0x243326
-    } else if classic_first_contact_resource_tile(tile) {
-        0x21392d
-    } else if (x + y) % 2 == 0 {
-        0x18251d
-    } else {
-        0x1d2d22
+    let mut color = match terrain.role {
+        RtsTerrainRole::Border => 0x111812,
+        RtsTerrainRole::Lane => classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4),
+        RtsTerrainRole::CentralBasin => 0x203f39,
+        RtsTerrainRole::BasePad => 0x243326,
+        RtsTerrainRole::ResourceZone => 0x21392d,
+        RtsTerrainRole::Field => {
+            if (x + y) % 2 == 0 {
+                0x18251d
+            } else {
+                0x1d2d22
+            }
+        }
     };
     let surface_seed = (x * 37 + y * 19 + (x - y).abs() * 11) % 17;
     if surface_seed == 0 {
@@ -93078,24 +93100,7 @@ fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_height(tile: (i32, i32)) -> i32 {
-    let (x, y) = tile;
-    let dx = (x - 16).abs();
-    let dy = (y - 16).abs();
-    if !(1..=32).contains(&x) || !(1..=32).contains(&y) {
-        0
-    } else if dx <= 3 && dy <= 3 {
-        2
-    } else if x == 16 || y == 16 || (x - y).abs() <= 1 || (x + y - 33).abs() <= 1 {
-        1
-    } else if (6..=11).contains(&x) && (6..=11).contains(&y)
-        || (22..=27).contains(&x) && (22..=27).contains(&y)
-        || (22..=27).contains(&x) && (6..=11).contains(&y)
-        || (6..=11).contains(&x) && (22..=27).contains(&y)
-    {
-        2
-    } else {
-        0
-    }
+    i32::from(first_contact_terrain_profile(RtsTile::new(tile.0, tile.1)).height)
 }
 
 #[cfg(not(target_os = "android"))]

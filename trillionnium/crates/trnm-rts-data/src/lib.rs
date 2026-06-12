@@ -118,6 +118,41 @@ pub struct RtsMapActor {
     pub kind: RtsRuleKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsTerrainRole {
+    Border,
+    Lane,
+    CentralBasin,
+    BasePad,
+    ResourceZone,
+    Field,
+}
+
+impl RtsTerrainRole {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Border => "border",
+            Self::Lane => "lane",
+            Self::CentralBasin => "central_basin",
+            Self::BasePad => "base_pad",
+            Self::ResourceZone => "resource_zone",
+            Self::Field => "field",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsTerrainTileProfile {
+    pub tile: RtsTile,
+    pub role: RtsTerrainRole,
+    pub playable: bool,
+    pub lane: bool,
+    pub base_pad: bool,
+    pub resource_zone: bool,
+    pub height: u8,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsMapModel {
     pub contract_version: String,
@@ -953,6 +988,87 @@ fn first_contact_actors() -> Vec<RtsMapActor> {
         .collect()
 }
 
+pub fn first_contact_terrain_profile(tile: RtsTile) -> RtsTerrainTileProfile {
+    let x = tile.x;
+    let y = tile.y;
+    let playable = (1..=32).contains(&x) && (1..=32).contains(&y);
+    let lane = first_contact_lane_tile(tile);
+    let base_pad = first_contact_base_pad(tile);
+    let resource_zone = first_contact_resource_zone(tile);
+    let dx = (x - 16).abs();
+    let dy = (y - 16).abs();
+    let role = if !playable {
+        RtsTerrainRole::Border
+    } else if lane {
+        RtsTerrainRole::Lane
+    } else if dx <= 4 && dy <= 4 {
+        RtsTerrainRole::CentralBasin
+    } else if base_pad {
+        RtsTerrainRole::BasePad
+    } else if resource_zone {
+        RtsTerrainRole::ResourceZone
+    } else {
+        RtsTerrainRole::Field
+    };
+    RtsTerrainTileProfile {
+        tile,
+        role,
+        playable,
+        lane,
+        base_pad,
+        resource_zone,
+        height: first_contact_tile_height(tile),
+    }
+}
+
+pub fn first_contact_terrain_profiles() -> Vec<RtsTerrainTileProfile> {
+    (0..34)
+        .flat_map(|y| (0..34).map(move |x| first_contact_terrain_profile(RtsTile::new(x, y))))
+        .collect()
+}
+
+fn first_contact_lane_tile(tile: RtsTile) -> bool {
+    let x = tile.x;
+    let y = tile.y;
+    x == 16 || y == 16 || (x - y).abs() <= 1 || (x + y - 33).abs() <= 1
+}
+
+fn first_contact_base_pad(tile: RtsTile) -> bool {
+    let x = tile.x;
+    let y = tile.y;
+    (6..=11).contains(&x) && (6..=11).contains(&y)
+        || (22..=27).contains(&x) && (22..=27).contains(&y)
+        || (22..=27).contains(&x) && (6..=11).contains(&y)
+        || (6..=11).contains(&x) && (22..=27).contains(&y)
+}
+
+fn first_contact_resource_zone(tile: RtsTile) -> bool {
+    let x = tile.x;
+    let y = tile.y;
+    ((11..=14).contains(&x) && (14..=18).contains(&y))
+        || ((19..=22).contains(&x) && (14..=18).contains(&y))
+        || ((14..=18).contains(&x) && (11..=14).contains(&y))
+        || ((14..=18).contains(&x) && (19..=22).contains(&y))
+}
+
+fn first_contact_tile_height(tile: RtsTile) -> u8 {
+    let x = tile.x;
+    let y = tile.y;
+    let dx = (x - 16).abs();
+    let dy = (y - 16).abs();
+    if !(1..=32).contains(&x) || !(1..=32).contains(&y) {
+        0
+    } else if dx <= 3 && dy <= 3 {
+        2
+    } else if first_contact_lane_tile(tile) {
+        1
+    } else if first_contact_base_pad(tile) {
+        2
+    } else {
+        0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1007,5 +1123,39 @@ mod tests {
         assert_eq!(hash.len(), 64);
         assert!(hash.chars().all(|ch| ch.is_ascii_hexdigit()));
         assert_eq!(hash, first_contact_basin_map().canonical_sha256());
+    }
+
+    #[test]
+    fn first_contact_terrain_profiles_preserve_render_roles() {
+        let profiles = first_contact_terrain_profiles();
+        assert_eq!(profiles.len(), 34 * 34);
+        assert_eq!(
+            first_contact_terrain_profile(RtsTile::new(0, 0)).role,
+            RtsTerrainRole::Border
+        );
+        assert_eq!(
+            first_contact_terrain_profile(RtsTile::new(16, 9)).role,
+            RtsTerrainRole::Lane
+        );
+        assert_eq!(
+            first_contact_terrain_profile(RtsTile::new(16, 16)).height,
+            2
+        );
+        assert!(first_contact_terrain_profile(RtsTile::new(10, 10)).base_pad);
+        assert!(first_contact_terrain_profile(RtsTile::new(12, 16)).resource_zone);
+        assert!(
+            profiles
+                .iter()
+                .filter(|profile| profile.role == RtsTerrainRole::Border)
+                .count()
+                >= 120
+        );
+        assert!(
+            profiles
+                .iter()
+                .filter(|profile| profile.resource_zone)
+                .count()
+                >= 76
+        );
     }
 }
