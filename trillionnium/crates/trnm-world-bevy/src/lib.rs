@@ -92154,17 +92154,329 @@ fn classic_first_contact_runtime_actor_color(actor: &TrnmOpenRaLikeActorState) -
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_runtime_actor_label(actor: &TrnmOpenRaLikeActorState) -> &'static str {
-    match actor.rule_id {
-        "trnm.worker" => "WRK",
-        "trnm.horizon.scout" => "SCT",
-        "trnm.forge.warden" => "WRD",
-        "trnm.striker" => "STK",
-        "trnm.command.core" => "CORE",
-        "trnm.flux.relay" => "RLY",
-        "trnm.flux.beacon" => "BCN",
-        _ => "RTS",
+fn classic_first_contact_runtime_actor_health_percent(actor: &TrnmOpenRaLikeActorState) -> u8 {
+    let max_hp = classic_openra_like_rule_for(actor.rule_id)
+        .map(|rule| rule.hp)
+        .unwrap_or_else(|| actor.hp.max(1))
+        .max(1);
+    ((actor.hp.min(max_hp) * 100) / max_hp) as u8
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_is_structure(actor: &TrnmOpenRaLikeActorState) -> bool {
+    classic_openra_like_rule_for(actor.rule_id).is_some_and(|rule| {
+        matches!(
+            rule.kind,
+            TrnmOpenRaLikeEntityKind::Structure | TrnmOpenRaLikeEntityKind::Objective
+        )
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_actor_health_bar(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    bar_w: i32,
+    percent: u8,
+    color: u32,
+) {
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        bar_w,
+        3,
+        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        ((bar_w.max(1) * i32::from(percent.min(100))) / 100).max(1),
+        3,
+        color,
+    );
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_actor_glyph(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    actor: &TrnmOpenRaLikeActorState,
+    center_x: i32,
+    center_y: i32,
+    size_w: i32,
+    size_h: i32,
+    color: u32,
+) {
+    let base_x = center_x - size_w / 4;
+    let base_y = center_y - size_h / 2;
+    let highlight = classic_lighten(color, 1, 4);
+    let shadow = classic_darken(color, 2, 5);
+    if classic_first_contact_runtime_actor_is_structure(actor) {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            base_x,
+            base_y + size_h / 3,
+            size_w,
+            (size_h * 2 / 3).max(5),
+            CLASSIC_ISO_OUTLINE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            base_x + 2,
+            base_y + size_h / 3 + 2,
+            size_w - 4,
+            (size_h * 2 / 3).max(5) - 4,
+            shadow,
+        );
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            center_x + size_w / 4,
+            base_y,
+            size_w.max(10),
+            size_h.max(8),
+            color,
+        );
+        match actor.rule_id {
+            "trnm.command.core" => {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 2,
+                    base_y - 6,
+                    4,
+                    14,
+                    color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 11,
+                    base_y + size_h / 3 + 4,
+                    22,
+                    4,
+                    highlight,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + size_w / 4 - 4,
+                    base_y + size_h / 2,
+                    8,
+                    8,
+                    CLASSIC_RTS_COMMANDER_AURA_COLOR,
+                );
+            }
+            "trnm.flux.relay" => {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 3,
+                    base_y - 2,
+                    6,
+                    size_h,
+                    color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 10,
+                    base_y + size_h / 3,
+                    20,
+                    4,
+                    CLASSIC_RTS_RALLY_LINE_COLOR,
+                );
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    center_x,
+                    base_y + 2,
+                    9,
+                    4,
+                    CLASSIC_RTS_COMMANDER_AURA_COLOR,
+                );
+            }
+            "trnm.flux.beacon" => {
+                classic_draw_iso_ellipse(
+                    buffer,
+                    width,
+                    height,
+                    center_x + size_w / 4,
+                    base_y + size_h / 2,
+                    size_w / 2,
+                    (size_h / 3).max(3),
+                    CLASSIC_RTS_CAPTURE_BAR_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + size_w / 4 - 2,
+                    base_y + 2,
+                    4,
+                    size_h - 2,
+                    CLASSIC_RTS_OBJECTIVE_COLOR,
+                );
+            }
+            _ => {}
+        }
+    } else {
+        classic_draw_iso_shadow(
+            buffer,
+            width,
+            height,
+            center_x,
+            center_y + size_h / 4,
+            size_w / 2,
+            (size_h / 4).max(2),
+        );
+        if actor.owner == "Multi0" {
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                center_x,
+                center_y + size_h / 4,
+                size_w / 2 + 2,
+                (size_h / 3).max(3),
+                CLASSIC_ISO_UNIT_RING_COLOR,
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - size_w / 5,
+            center_y - size_h / 3,
+            (size_w * 2 / 5).max(5),
+            (size_h * 2 / 3).max(7),
+            CLASSIC_ISO_OUTLINE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - size_w / 5 + 2,
+            center_y - size_h / 3 + 2,
+            (size_w * 2 / 5).max(5) - 4,
+            (size_h * 2 / 3).max(7) - 4,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - size_w / 6,
+            center_y - size_h / 2,
+            (size_w / 3).max(4),
+            (size_h / 4).max(3),
+            highlight,
+        );
+        match actor.rule_id {
+            "trnm.worker" => {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x + size_w / 6,
+                    center_y - 1,
+                    (size_w / 3).max(4),
+                    3,
+                    CLASSIC_RTS_HARVEST_NODE_COLOR,
+                );
+            }
+            "trnm.horizon.scout" => {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - size_w / 2,
+                    center_y,
+                    size_w,
+                    2,
+                    CLASSIC_RTS_SCOUT_ROUTE_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x,
+                    center_y - size_h / 2,
+                    2,
+                    size_h,
+                    CLASSIC_RTS_SCOUT_REVEAL_COLOR,
+                );
+            }
+            "trnm.forge.warden" => {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - size_w / 2,
+                    center_y - size_h / 8,
+                    size_w,
+                    4,
+                    CLASSIC_RTS_DEFENSE_READY_COLOR,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - 2,
+                    center_y + size_h / 5,
+                    4,
+                    (size_h / 3).max(4),
+                    CLASSIC_RTS_STRUCTURE_HEALTH_COLOR,
+                );
+            }
+            "trnm.striker" => {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    center_x - size_w / 2,
+                    center_y - 2,
+                    size_w,
+                    4,
+                    CLASSIC_RTS_DAMAGE_TICK_COLOR,
+                );
+            }
+            _ => {}
+        }
     }
+    classic_draw_first_contact_actor_health_bar(
+        buffer,
+        width,
+        height,
+        base_x,
+        center_y + size_h / 2 + 2,
+        size_w.max(10),
+        classic_first_contact_runtime_actor_health_percent(actor),
+        color,
+    );
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92200,35 +92512,8 @@ fn classic_draw_first_contact_runtime_core_layer(
             cell_h
         }
         .max(6);
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x - size_w / 4,
-            tile_y - size_h / 2,
-            size_w,
-            size_h,
-            CLASSIC_ISO_OUTLINE_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            tile_x - size_w / 4 + 2,
-            tile_y - size_h / 2 + 2,
-            size_w - 4,
-            size_h - 4,
-            color,
-        );
-        classic_draw_text(
-            buffer,
-            width,
-            height,
-            tile_x - size_w / 4 + 3,
-            tile_y - size_h / 2 + 3,
-            classic_first_contact_runtime_actor_label(actor),
-            1,
-            CLASSIC_ISO_OUTLINE_COLOR,
+        classic_draw_first_contact_actor_glyph(
+            buffer, width, height, actor, tile_x, tile_y, size_w, size_h, color,
         );
         if actor.build_progress < 100 || actor.capture_progress > 0 {
             let progress = if actor.build_progress < 100 {
@@ -93470,12 +93755,12 @@ fn classic_draw_first_contact_starting_army(
     cell_h: i32,
 ) {
     let armies = [
-        ((8, 8), "H0", 0x67c980),
-        ((25, 8), "H2", 0x67c980),
-        ((25, 25), "F1", 0xd47967),
-        ((8, 25), "F3", 0xd47967),
+        ((8, 8), 0x67c980),
+        ((25, 8), 0x67c980),
+        ((25, 25), 0xd47967),
+        ((8, 25), 0xd47967),
     ];
-    for (tile, label, owner_color) in armies {
+    for (tile, owner_color) in armies {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
@@ -93540,7 +93825,8 @@ fn classic_draw_first_contact_starting_army(
             6,
             owner_color,
         );
-        classic_draw_text(buffer, width, height, cx - 7, cy - 4, label, 1, 0x111812);
+        classic_draw_rect(buffer, width, height, cx - 8, cy - 5, 16, 3, 0x111812);
+        classic_draw_rect(buffer, width, height, cx - 5, cy - 1, 10, 3, 0x111812);
         for offset in [
             (-cell_w, cell_h + 8),
             (0, cell_h + 10),
@@ -93572,12 +93858,12 @@ fn classic_draw_first_contact_model_identity_layers(
     cell_h: i32,
 ) {
     let command_cores = [
-        ((8, 8), "CORE", 0x67c980),
-        ((25, 8), "CORE", 0x67c980),
-        ((25, 25), "CORE", 0xd47967),
-        ((8, 25), "CORE", 0xd47967),
+        ((8, 8), 0x67c980),
+        ((25, 8), 0x67c980),
+        ((25, 25), 0xd47967),
+        ((8, 25), 0xd47967),
     ];
-    for (tile, label, faction_color) in command_cores {
+    for (tile, faction_color) in command_cores {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
@@ -93632,26 +93918,33 @@ fn classic_draw_first_contact_model_identity_layers(
             12,
             CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
         );
-        classic_draw_text(
+        classic_draw_rect(
             buffer,
             width,
             height,
-            cx - 13,
-            cy + cell_h + 12,
-            label,
-            1,
+            cx - 10,
+            cy + cell_h + 10,
+            20,
+            4,
+            CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 5,
+            cy + cell_h + 15,
+            10,
+            3,
             CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
         );
     }
 
     let relays = [
-        (
-            CLASSIC_FIRST_CONTACT_OPENING_LOOP.active_relay_tile,
-            "RELAY",
-        ),
-        ((22, 25), "RELAY"),
+        CLASSIC_FIRST_CONTACT_OPENING_LOOP.active_relay_tile,
+        (22, 25),
     ];
-    for (tile, label) in relays {
+    for tile in relays {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
@@ -93686,14 +93979,24 @@ fn classic_draw_first_contact_model_identity_layers(
             cell_h * 2,
             CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
         );
-        classic_draw_text(
+        classic_draw_rect(
             buffer,
             width,
             height,
-            cx - 17,
-            cy + cell_h + 6,
-            label,
-            1,
+            cx - 12,
+            cy + cell_h + 5,
+            24,
+            3,
+            CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 6,
+            cy + cell_h + 10,
+            12,
+            3,
             CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
         );
     }
@@ -93733,27 +94036,27 @@ fn classic_draw_first_contact_model_identity_layers(
             4,
             CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
         );
-        classic_draw_text(
+        classic_draw_iso_ellipse(
             buffer,
             width,
             height,
-            cx - 11,
-            cy + cell_h + 7,
-            "BCN",
-            1,
+            cx,
+            cy + cell_h + 9,
+            11,
+            4,
             CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
         );
     }
 
     let unit_models = [
-        ((9, 9), "WK", CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR),
-        ((11, 10), "SC", CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR),
-        ((10, 12), "WD", CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR),
-        ((24, 9), "SC", CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR),
-        ((23, 25), "ST", CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR),
-        ((9, 24), "WD", CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR),
+        ((9, 9), CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR),
+        ((11, 10), CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR),
+        ((10, 12), CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR),
+        ((24, 9), CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR),
+        ((23, 25), CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR),
+        ((9, 24), CLASSIC_RTS_STATUS_ROLE_BADGE_COLOR),
     ];
-    for (tile, label, role_color) in unit_models {
+    for (tile, role_color) in unit_models {
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
         let cx = tile_x + cell_w / 2;
@@ -93798,14 +94101,24 @@ fn classic_draw_first_contact_model_identity_layers(
             5,
             CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
         );
-        classic_draw_text(
+        classic_draw_rect(
             buffer,
             width,
             height,
-            cx - 6,
+            cx - 5,
             cy + cell_h + 3,
-            label,
-            1,
+            10,
+            3,
+            role_color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 2,
+            cy + cell_h + 7,
+            4,
+            3,
             role_color,
         );
     }
