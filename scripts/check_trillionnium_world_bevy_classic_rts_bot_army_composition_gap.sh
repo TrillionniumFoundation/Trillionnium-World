@@ -49,6 +49,36 @@ jq -e '
   and (.final_command_queue | index("native_openra_army_composition_ai:false") != null)
   and (.final_army_production_batch_ids | index("army_composition:counter_mix_swap") != null)
   and (.final_army_production_batch_ids | index("army_composition:terminal_composition_lock") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_bot_army_composition_core_subject_actor_ids | length) == 3
+  and (.rts_bot_army_composition_core_action_labels | length) == 6
+  and .rts_bot_army_composition_core_frame_order_stream.map_id == "first-contact-basin-bot-army-composition"
+  and .rts_bot_army_composition_core_frame_order_stream.rules_id == "trnm-rts-core-bot-army-composition-rules-v1"
+  and .rts_bot_army_composition_core_frame_order_kind_labels == ["recon", "train", "train", "train", "ability", "capture"]
+  and (.rts_bot_army_composition_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_bot_army_composition_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_bot_army_composition_core_frame_order_errors | length) == 0
+  and .rts_bot_army_composition_core_frame_order_stream_error == null
+  and .rts_bot_army_composition_core_headless_replay_error == null
+  and .rts_bot_army_composition_core_headless_applied_order_count == 6
+  and .rts_bot_army_composition_core_headless_actor_count >= 3
+  and .rts_bot_army_composition_core_headless_final_frame == 2805
+  and .rts_bot_army_composition_core_headless_recon_order_count == 1
+  and .rts_bot_army_composition_core_headless_scout_order_count == 1
+  and (.rts_bot_army_composition_core_headless_recon_ids | index("opening_unit_mix_read") != null)
+  and (.rts_bot_army_composition_core_headless_recon_tile_ids | index("4,5") != null)
+  and .rts_bot_army_composition_core_headless_train_order_count == 3
+  and (.rts_bot_army_composition_core_headless_train_rule_ids | index("frontline_backline_ratio") != null)
+  and (.rts_bot_army_composition_core_headless_train_rule_ids | index("counter_mix_swap") != null)
+  and (.rts_bot_army_composition_core_headless_train_rule_ids | index("reinforce_supply_curve") != null)
+  and .rts_bot_army_composition_core_headless_ability_order_count == 1
+  and (.rts_bot_army_composition_core_headless_ability_rule_ids | index("specialist_timing_window") != null)
+  and (.rts_bot_army_composition_core_headless_ability_target_actor_ids | index("signal_array") != null)
+  and .rts_bot_army_composition_core_headless_objective_order_count == 1
+  and .rts_bot_army_composition_core_headless_capture_order_count == 1
+  and (.rts_bot_army_composition_core_headless_objective_ids | index("terminal_composition_lock") != null)
+  and (.rts_bot_army_composition_core_headless_objective_tile_ids | index("6,5") != null)
+  and (.rts_bot_army_composition_core_headless_objective_queue_ids | index("objective:claim:terminal_composition_lock@6,5") != null)
   and .non_background_pixels > 250000
   and .ai_wave_pixel_count > 80
   and .ai_pressure_pixel_count > 120
@@ -68,6 +98,8 @@ jq -e '
   and .openra_army_composition_target_gate == true
   and .renderer_gate == true
   and .army_composition_gap_gate == true
+  and .rts_bot_army_composition_core_frame_order_gate == true
+  and .rts_bot_army_composition_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

@@ -3017,6 +3017,106 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_army_composition_stream() {
+        let subjects = vec![
+            "bot_mix_scout".to_string(),
+            "bot_frontline".to_string(),
+            "bot_specialist".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:recon:scout:opening_unit_mix_read@4,5",
+            "RTS:QUEUE:train:frontline_backline_ratio",
+            "RTS:QUEUE:train:counter_mix_swap",
+            "RTS:QUEUE:train:reinforce_supply_curve",
+            "RTS:ABILITY:specialist_timing_window@signal_array",
+            "RTS:QUEUE:objective:claim:terminal_composition_lock@6,5",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    2_800 + index as u32,
+                    "Bot0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-army-composition",
+            "trnm-rts-core-bot-army-composition-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let recon = &report.checkpoint.recon_intel;
+        let production = &report.checkpoint.production_lifecycle;
+        let abilities = &report.checkpoint.abilities;
+        let objectives = &report.checkpoint.objectives;
+
+        assert_eq!(report.checkpoint.applied_order_count, 6);
+        assert_eq!(report.checkpoint.actor_count, 3);
+        assert_eq!(report.checkpoint.final_frame, 2_805);
+        assert_eq!(recon.recon_order_count, 1);
+        assert_eq!(recon.scout_order_count, 1);
+        assert!(recon
+            .recon_ids
+            .iter()
+            .any(|id| id == "opening_unit_mix_read"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "4,5"));
+        assert_eq!(production.train_order_count, 3);
+        assert!(production
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "frontline_backline_ratio"));
+        assert!(production
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "counter_mix_swap"));
+        assert!(production
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "reinforce_supply_curve"));
+        assert_eq!(abilities.ability_order_count, 1);
+        assert!(abilities
+            .ability_rule_ids
+            .iter()
+            .any(|rule| rule == "specialist_timing_window"));
+        assert!(abilities
+            .target_actor_ids
+            .iter()
+            .any(|target| target == "signal_array"));
+        assert_eq!(objectives.capture_order_count, 1);
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "terminal_composition_lock"));
+        assert!(objectives
+            .objective_tile_ids
+            .iter()
+            .any(|tile| tile == "6,5"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:capture:")
+                && event.contains(":target:terminal_composition_lock@6,5")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.recon_order_count, 1);
+            assert_eq!(actor.train_order_count, 3);
+            assert_eq!(actor.ability_order_count, 1);
+            assert_eq!(actor.capture_order_count, 1);
+            assert_eq!(
+                actor.target_actor_id.as_deref(),
+                Some("terminal_composition_lock")
+            );
+            assert_eq!(actor.target_tile, Some(RtsTile::new(6, 5)));
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),

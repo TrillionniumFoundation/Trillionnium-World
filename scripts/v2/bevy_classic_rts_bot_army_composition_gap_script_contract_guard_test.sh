@@ -20,6 +20,10 @@ required_script_lines=(
   'openra_organic_bot_terminal_target_commit == "5f1bf76"'
   'army_composition_signal_count >= 24'
   'final_army_composition_state == "terminal_composition_lock_secured"'
+  'rts_bot_army_composition_core_frame_order_gate == true'
+  'rts_bot_army_composition_core_headless_replay_gate == true'
+  'rts_bot_army_composition_core_headless_train_order_count == 3'
+  'rts_bot_army_composition_core_headless_ability_order_count == 1'
   'army_composition_gap_gate == true'
 )
 
@@ -44,6 +48,9 @@ required_source_lines=(
   'OPENRA_BOT_ECONOMY_TECH_COMMIT'
   'OPENRA_BOT_BEACON_PRESSURE_COMMIT'
   'OPENRA_ORGANIC_BOT_TERMINAL_COMMIT'
+  'RTS:QUEUE:objective:claim:terminal_composition_lock@6,5'
+  'rts_bot_army_composition_core_frame_order_gate'
+  'rts_bot_army_composition_core_headless_replay_gate'
   'army_composition_gap_gate'
 )
 

@@ -71107,6 +71107,248 @@ pub fn native_classic_rts_bot_army_composition_gap_evidence_json(preview_path: &
     let openra_army_composition_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
         && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
         && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let rts_bot_army_composition_core_subject_actor_ids = string_vec([
+        "Multi2:trnm.mix.scout",
+        "Multi2:trnm.frontline",
+        "Multi2:trnm.specialist",
+    ]);
+    let rts_bot_army_composition_core_action_labels = [
+        "RTS:QUEUE:recon:scout:opening_unit_mix_read@4,5",
+        "RTS:QUEUE:train:frontline_backline_ratio",
+        "RTS:QUEUE:train:counter_mix_swap",
+        "RTS:QUEUE:train:reinforce_supply_curve",
+        "RTS:ABILITY:specialist_timing_window@signal_array",
+        "RTS:QUEUE:objective:claim:terminal_composition_lock@6,5",
+    ];
+    let mut rts_bot_army_composition_core_frame_orders = Vec::new();
+    let mut rts_bot_army_composition_core_frame_order_errors = Vec::new();
+    for (index, action_label) in rts_bot_army_composition_core_action_labels
+        .iter()
+        .enumerate()
+    {
+        match RtsFrameOrder::from_live_command_label(
+            2_800 + index as u32,
+            "Multi2",
+            rts_bot_army_composition_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_bot_army_composition_core_frame_order_errors.push(format!(
+                        "bot_army_composition_{index}:{action_label}:{error}"
+                    ));
+                } else {
+                    rts_bot_army_composition_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_bot_army_composition_core_frame_order_errors.push(format!(
+                "bot_army_composition_{index}:{action_label}:{error}"
+            )),
+        }
+    }
+    let rts_bot_army_composition_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-bot-army-composition",
+        "trnm-rts-core-bot-army-composition-rules-v1",
+        rts_bot_army_composition_core_frame_orders.clone(),
+    );
+    let rts_bot_army_composition_core_frame_order_stream_error =
+        rts_bot_army_composition_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_bot_army_composition_core_frame_order_stream_sha256 =
+        rts_bot_army_composition_core_frame_order_stream.sha256_hex();
+    let rts_bot_army_composition_core_frame_order_kind_labels =
+        rts_bot_army_composition_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_bot_army_composition_core_frame_order_values =
+        rts_bot_army_composition_core_frame_orders
+            .iter()
+            .map(|order| {
+                serde_json::to_value(order).expect("rts bot army composition order serializes")
+            })
+            .collect::<Vec<_>>();
+    let rts_bot_army_composition_core_frame_order_stream_value =
+        serde_json::to_value(&rts_bot_army_composition_core_frame_order_stream)
+            .expect("rts bot army composition stream serializes");
+    let rts_bot_army_composition_core_frame_order_gate =
+        rts_bot_army_composition_core_frame_order_errors.is_empty()
+            && rts_bot_army_composition_core_frame_order_stream_error.is_none()
+            && rts_bot_army_composition_core_frame_order_stream_sha256.len() == 64
+            && rts_bot_army_composition_core_frame_orders.len() == 6
+            && rts_bot_army_composition_core_frame_order_kind_labels
+                == ["recon", "train", "train", "train", "ability", "capture"]
+            && rts_bot_army_composition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Recon
+                        && order.target_rule_id.as_deref() == Some("scout")
+                        && order.target_actor_id.as_deref() == Some("opening_unit_mix_read")
+                        && order.target_tile == Some(RtsTile::new(4, 5))
+                })
+            && rts_bot_army_composition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Train
+                        && order.target_rule_id.as_deref() == Some("frontline_backline_ratio")
+                })
+            && rts_bot_army_composition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Train
+                        && order.target_rule_id.as_deref() == Some("counter_mix_swap")
+                })
+            && rts_bot_army_composition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Train
+                        && order.target_rule_id.as_deref() == Some("reinforce_supply_curve")
+                })
+            && rts_bot_army_composition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Ability
+                        && order.target_rule_id.as_deref() == Some("specialist_timing_window")
+                        && order.target_actor_id.as_deref() == Some("signal_array")
+                })
+            && rts_bot_army_composition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Capture
+                        && order.target_rule_id.as_deref() == Some("claim")
+                        && order.target_actor_id.as_deref() == Some("terminal_composition_lock")
+                        && order.target_tile == Some(RtsTile::new(6, 5))
+                });
+    let rts_bot_army_composition_core_headless_replay_result =
+        rts_bot_army_composition_core_frame_order_stream.replay_headless();
+    let (
+        rts_bot_army_composition_core_headless_replay_report_value,
+        rts_bot_army_composition_core_headless_checkpoint_sha256,
+        rts_bot_army_composition_core_headless_replay_error,
+        rts_bot_army_composition_core_headless_applied_order_count,
+        rts_bot_army_composition_core_headless_actor_count,
+        rts_bot_army_composition_core_headless_final_frame,
+        rts_bot_army_composition_core_headless_event_log,
+        rts_bot_army_composition_core_headless_recon_order_count,
+        rts_bot_army_composition_core_headless_scout_order_count,
+        rts_bot_army_composition_core_headless_recon_ids,
+        rts_bot_army_composition_core_headless_recon_tile_ids,
+        rts_bot_army_composition_core_headless_train_order_count,
+        rts_bot_army_composition_core_headless_train_rule_ids,
+        rts_bot_army_composition_core_headless_ability_order_count,
+        rts_bot_army_composition_core_headless_ability_rule_ids,
+        rts_bot_army_composition_core_headless_ability_target_actor_ids,
+        rts_bot_army_composition_core_headless_objective_order_count,
+        rts_bot_army_composition_core_headless_capture_order_count,
+        rts_bot_army_composition_core_headless_objective_ids,
+        rts_bot_army_composition_core_headless_objective_tile_ids,
+        rts_bot_army_composition_core_headless_objective_queue_ids,
+    ) = match rts_bot_army_composition_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let recon = &checkpoint.recon_intel;
+            let production = &checkpoint.production_lifecycle;
+            let abilities = &checkpoint.abilities;
+            let objectives = &checkpoint.objectives;
+            (
+                serde_json::to_value(&report)
+                    .expect("rts bot army composition replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                recon.recon_order_count,
+                recon.scout_order_count,
+                recon.recon_ids.clone(),
+                recon.recon_tile_ids.clone(),
+                production.train_order_count,
+                production.train_rule_ids.clone(),
+                abilities.ability_order_count,
+                abilities.ability_rule_ids.clone(),
+                abilities.target_actor_ids.clone(),
+                objectives.objective_order_count,
+                objectives.capture_order_count,
+                objectives.objective_ids.clone(),
+                objectives.objective_tile_ids.clone(),
+                objectives.objective_queue_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            Vec::new(),
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_bot_army_composition_core_headless_replay_gate =
+        rts_bot_army_composition_core_frame_order_gate
+            && rts_bot_army_composition_core_headless_replay_error.is_none()
+            && rts_bot_army_composition_core_headless_checkpoint_sha256.len() == 64
+            && rts_bot_army_composition_core_headless_applied_order_count == 6
+            && rts_bot_army_composition_core_headless_actor_count >= 3
+            && rts_bot_army_composition_core_headless_final_frame == 2_805
+            && rts_bot_army_composition_core_headless_recon_order_count == 1
+            && rts_bot_army_composition_core_headless_scout_order_count == 1
+            && rts_bot_army_composition_core_headless_recon_ids
+                .iter()
+                .any(|id| id == "opening_unit_mix_read")
+            && rts_bot_army_composition_core_headless_recon_tile_ids
+                .iter()
+                .any(|tile| tile == "4,5")
+            && rts_bot_army_composition_core_headless_train_order_count == 3
+            && rts_bot_army_composition_core_headless_train_rule_ids
+                .iter()
+                .any(|rule| rule == "frontline_backline_ratio")
+            && rts_bot_army_composition_core_headless_train_rule_ids
+                .iter()
+                .any(|rule| rule == "counter_mix_swap")
+            && rts_bot_army_composition_core_headless_train_rule_ids
+                .iter()
+                .any(|rule| rule == "reinforce_supply_curve")
+            && rts_bot_army_composition_core_headless_ability_order_count == 1
+            && rts_bot_army_composition_core_headless_ability_rule_ids
+                .iter()
+                .any(|rule| rule == "specialist_timing_window")
+            && rts_bot_army_composition_core_headless_ability_target_actor_ids
+                .iter()
+                .any(|target| target == "signal_array")
+            && rts_bot_army_composition_core_headless_objective_order_count == 1
+            && rts_bot_army_composition_core_headless_capture_order_count == 1
+            && rts_bot_army_composition_core_headless_objective_ids
+                .iter()
+                .any(|id| id == "terminal_composition_lock")
+            && rts_bot_army_composition_core_headless_objective_tile_ids
+                .iter()
+                .any(|tile| tile == "6,5")
+            && rts_bot_army_composition_core_headless_objective_queue_ids
+                .iter()
+                .any(|queue| queue == "objective:claim:terminal_composition_lock@6,5")
+            && rts_bot_army_composition_core_headless_event_log
+                .iter()
+                .any(|event| {
+                    event.contains(":kind:capture:")
+                        && event.contains(":target:terminal_composition_lock@6,5")
+                });
     let renderer_gate = non_background_pixels > 250_000
         && ai_wave_pixel_count > 80
         && ai_pressure_pixel_count > 120
@@ -71129,6 +71371,8 @@ pub fn native_classic_rts_bot_army_composition_gap_evidence_json(preview_path: &
     let green = write_gate
         && renderer_gate
         && army_composition_gap_gate
+        && rts_bot_army_composition_core_frame_order_gate
+        && rts_bot_army_composition_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -71149,6 +71393,36 @@ pub fn native_classic_rts_bot_army_composition_gap_evidence_json(preview_path: &
         "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
         "army_composition_stage_count": army_composition_stage_count,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_bot_army_composition_core_subject_actor_ids": rts_bot_army_composition_core_subject_actor_ids,
+        "rts_bot_army_composition_core_action_labels": rts_bot_army_composition_core_action_labels,
+        "rts_bot_army_composition_core_frame_orders": rts_bot_army_composition_core_frame_order_values,
+        "rts_bot_army_composition_core_frame_order_stream": rts_bot_army_composition_core_frame_order_stream_value,
+        "rts_bot_army_composition_core_frame_order_stream_sha256": rts_bot_army_composition_core_frame_order_stream_sha256,
+        "rts_bot_army_composition_core_frame_order_kind_labels": rts_bot_army_composition_core_frame_order_kind_labels,
+        "rts_bot_army_composition_core_frame_order_errors": rts_bot_army_composition_core_frame_order_errors,
+        "rts_bot_army_composition_core_frame_order_stream_error": rts_bot_army_composition_core_frame_order_stream_error,
+        "rts_bot_army_composition_core_headless_replay_report": rts_bot_army_composition_core_headless_replay_report_value,
+        "rts_bot_army_composition_core_headless_checkpoint_sha256": rts_bot_army_composition_core_headless_checkpoint_sha256,
+        "rts_bot_army_composition_core_headless_replay_error": rts_bot_army_composition_core_headless_replay_error,
+        "rts_bot_army_composition_core_headless_applied_order_count": rts_bot_army_composition_core_headless_applied_order_count,
+        "rts_bot_army_composition_core_headless_actor_count": rts_bot_army_composition_core_headless_actor_count,
+        "rts_bot_army_composition_core_headless_final_frame": rts_bot_army_composition_core_headless_final_frame,
+        "rts_bot_army_composition_core_headless_event_log": rts_bot_army_composition_core_headless_event_log,
+        "rts_bot_army_composition_core_headless_recon_order_count": rts_bot_army_composition_core_headless_recon_order_count,
+        "rts_bot_army_composition_core_headless_scout_order_count": rts_bot_army_composition_core_headless_scout_order_count,
+        "rts_bot_army_composition_core_headless_recon_ids": rts_bot_army_composition_core_headless_recon_ids,
+        "rts_bot_army_composition_core_headless_recon_tile_ids": rts_bot_army_composition_core_headless_recon_tile_ids,
+        "rts_bot_army_composition_core_headless_train_order_count": rts_bot_army_composition_core_headless_train_order_count,
+        "rts_bot_army_composition_core_headless_train_rule_ids": rts_bot_army_composition_core_headless_train_rule_ids,
+        "rts_bot_army_composition_core_headless_ability_order_count": rts_bot_army_composition_core_headless_ability_order_count,
+        "rts_bot_army_composition_core_headless_ability_rule_ids": rts_bot_army_composition_core_headless_ability_rule_ids,
+        "rts_bot_army_composition_core_headless_ability_target_actor_ids": rts_bot_army_composition_core_headless_ability_target_actor_ids,
+        "rts_bot_army_composition_core_headless_objective_order_count": rts_bot_army_composition_core_headless_objective_order_count,
+        "rts_bot_army_composition_core_headless_capture_order_count": rts_bot_army_composition_core_headless_capture_order_count,
+        "rts_bot_army_composition_core_headless_objective_ids": rts_bot_army_composition_core_headless_objective_ids,
+        "rts_bot_army_composition_core_headless_objective_tile_ids": rts_bot_army_composition_core_headless_objective_tile_ids,
+        "rts_bot_army_composition_core_headless_objective_queue_ids": rts_bot_army_composition_core_headless_objective_queue_ids,
         "army_composition_signal_count": army_composition_signal_count,
         "unit_mix_read_count": unit_mix_read_count,
         "frontline_ratio_count": frontline_ratio_count,
@@ -71183,9 +71457,11 @@ pub fn native_classic_rts_bot_army_composition_gap_evidence_json(preview_path: &
         "openra_army_composition_target_gate": openra_army_composition_target_gate,
         "renderer_gate": renderer_gate,
         "army_composition_gap_gate": army_composition_gap_gate,
+        "rts_bot_army_composition_core_frame_order_gate": rts_bot_army_composition_core_frame_order_gate,
+        "rts_bot_army_composition_core_headless_replay_gate": rts_bot_army_composition_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS bot army-composition gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with opening unit-mix read, frontline/backline ratio, counter-mix swap, reinforce supply curve, specialist timing, and terminal composition lock vocabulary while keeping native OpenRA unit-mix AI parity unclaimed."
+        "source_of_truth": "Classic RTS bot army-composition gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with opening unit-mix read, frontline/backline ratio, counter-mix swap, reinforce supply curve, specialist timing, and terminal composition lock vocabulary, emits those army-composition commands into trnm-rts-core, replays them through the Bevy-free headless reducer, and keeps native OpenRA unit-mix AI parity unclaimed."
     }))
     .expect("classic RTS bot army composition gap evidence serializes")
 }
