@@ -2832,6 +2832,100 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_expansion_control_stream() {
+        let subjects = vec![
+            "bot_map_scout".to_string(),
+            "bot_contain_force".to_string(),
+            "bot_node_team".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:recon:scout:natural_expand_probe@3,4",
+            "RTS:MOVE:4,4:third_node_deny",
+            "RTS:ATTACK:refinery_pickoff",
+            "RTS:MOVE:6,5:contain_ring_setup",
+            "RTS:ATTACK:reexpand_punish",
+            "RTS:QUEUE:objective:claim:map_control_lock@6,5",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    2_400 + index as u32,
+                    "Bot0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-expansion-control",
+            "trnm-rts-core-bot-expansion-control-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let recon = &report.checkpoint.recon_intel;
+        let objectives = &report.checkpoint.objectives;
+        let combat = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 6);
+        assert_eq!(report.checkpoint.actor_count, 3);
+        assert_eq!(report.checkpoint.final_frame, 2_405);
+        assert_eq!(recon.scout_order_count, 1);
+        assert!(recon
+            .recon_ids
+            .iter()
+            .any(|id| id == "natural_expand_probe"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "3,4"));
+        assert_eq!(objectives.capture_order_count, 1);
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "map_control_lock"));
+        assert!(objectives
+            .objective_tile_ids
+            .iter()
+            .any(|tile| tile == "6,5"));
+        assert_eq!(combat.attack_order_count, 2);
+        assert_eq!(combat.micro_move_order_count, 2);
+        assert!(combat
+            .combat_target_actor_ids
+            .iter()
+            .any(|target| target == "refinery_pickoff"));
+        assert!(combat
+            .combat_target_actor_ids
+            .iter()
+            .any(|target| target == "reexpand_punish"));
+        assert!(combat
+            .combat_target_tile_ids
+            .iter()
+            .any(|tile| tile == "6,5"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "third_node_deny"));
+        assert!(combat
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "contain_ring_setup"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:capture:")
+                && event.contains(":target:map_control_lock@6,5")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.recon_order_count, 1);
+            assert_eq!(actor.attack_order_count, 2);
+            assert_eq!(actor.capture_order_count, 1);
+            assert_eq!(actor.target_actor_id.as_deref(), Some("map_control_lock"));
+            assert_eq!(actor.target_tile, Some(RtsTile::new(6, 5)));
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),

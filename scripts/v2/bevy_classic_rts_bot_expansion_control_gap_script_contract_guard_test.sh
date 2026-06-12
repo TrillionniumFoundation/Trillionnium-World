@@ -20,6 +20,9 @@ required_script_lines=(
   'openra_organic_bot_terminal_target_commit == "5f1bf76"'
   'expansion_control_signal_count >= 24'
   'final_expansion_control_state == "map_control_lock_secured"'
+  'rts_bot_expansion_control_core_frame_order_gate == true'
+  'rts_bot_expansion_control_core_headless_replay_gate == true'
+  'rts_bot_expansion_control_core_headless_capture_order_count == 1'
   'expansion_control_gap_gate == true'
 )
 
@@ -44,6 +47,9 @@ required_source_lines=(
   'OPENRA_BOT_ECONOMY_TECH_COMMIT'
   'OPENRA_BOT_BEACON_PRESSURE_COMMIT'
   'OPENRA_ORGANIC_BOT_TERMINAL_COMMIT'
+  'RTS:QUEUE:objective:claim:map_control_lock@6,5'
+  'rts_bot_expansion_control_core_frame_order_gate'
+  'rts_bot_expansion_control_core_headless_replay_gate'
   'expansion_control_gap_gate'
 )
 

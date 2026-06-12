@@ -69633,6 +69633,248 @@ pub fn native_classic_rts_bot_expansion_control_gap_evidence_json(preview_path: 
     let openra_expansion_control_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
         && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
         && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let rts_bot_expansion_control_core_subject_actor_ids = string_vec([
+        "Multi2:trnm.horizon.scout",
+        "Multi2:trnm.contain.force",
+        "Multi2:trnm.node.team",
+    ]);
+    let rts_bot_expansion_control_core_action_labels = [
+        "RTS:QUEUE:recon:scout:natural_expand_probe@3,4",
+        "RTS:MOVE:4,4:third_node_deny",
+        "RTS:ATTACK:refinery_pickoff",
+        "RTS:MOVE:6,5:contain_ring_setup",
+        "RTS:ATTACK:reexpand_punish",
+        "RTS:QUEUE:objective:claim:map_control_lock@6,5",
+    ];
+    let mut rts_bot_expansion_control_core_frame_orders = Vec::new();
+    let mut rts_bot_expansion_control_core_frame_order_errors = Vec::new();
+    for (index, action_label) in rts_bot_expansion_control_core_action_labels
+        .iter()
+        .enumerate()
+    {
+        match RtsFrameOrder::from_live_command_label(
+            2_400 + index as u32,
+            "Multi2",
+            rts_bot_expansion_control_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_bot_expansion_control_core_frame_order_errors.push(format!(
+                        "bot_expansion_control_{index}:{action_label}:{error}"
+                    ));
+                } else {
+                    rts_bot_expansion_control_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_bot_expansion_control_core_frame_order_errors.push(format!(
+                "bot_expansion_control_{index}:{action_label}:{error}"
+            )),
+        }
+    }
+    let rts_bot_expansion_control_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-bot-expansion-control",
+        "trnm-rts-core-bot-expansion-control-rules-v1",
+        rts_bot_expansion_control_core_frame_orders.clone(),
+    );
+    let rts_bot_expansion_control_core_frame_order_stream_error =
+        rts_bot_expansion_control_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_bot_expansion_control_core_frame_order_stream_sha256 =
+        rts_bot_expansion_control_core_frame_order_stream.sha256_hex();
+    let rts_bot_expansion_control_core_frame_order_kind_labels =
+        rts_bot_expansion_control_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_bot_expansion_control_core_frame_order_values =
+        rts_bot_expansion_control_core_frame_orders
+            .iter()
+            .map(|order| {
+                serde_json::to_value(order).expect("rts bot expansion control order serializes")
+            })
+            .collect::<Vec<_>>();
+    let rts_bot_expansion_control_core_frame_order_stream_value =
+        serde_json::to_value(&rts_bot_expansion_control_core_frame_order_stream)
+            .expect("rts bot expansion control stream serializes");
+    let rts_bot_expansion_control_core_frame_order_gate =
+        rts_bot_expansion_control_core_frame_order_errors.is_empty()
+            && rts_bot_expansion_control_core_frame_order_stream_error.is_none()
+            && rts_bot_expansion_control_core_frame_order_stream_sha256.len() == 64
+            && rts_bot_expansion_control_core_frame_orders.len() == 6
+            && rts_bot_expansion_control_core_frame_order_kind_labels
+                == ["recon", "move", "attack", "move", "attack", "capture"]
+            && rts_bot_expansion_control_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Recon
+                        && order.target_rule_id.as_deref() == Some("scout")
+                        && order.target_actor_id.as_deref() == Some("natural_expand_probe")
+                        && order.target_tile == Some(RtsTile::new(3, 4))
+                })
+            && rts_bot_expansion_control_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Move
+                        && order.target_tile == Some(RtsTile::new(4, 4))
+                        && order.formation_id.as_deref() == Some("third_node_deny")
+                })
+            && rts_bot_expansion_control_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Attack
+                        && order.target_actor_id.as_deref() == Some("refinery_pickoff")
+                })
+            && rts_bot_expansion_control_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Move
+                        && order.target_tile == Some(RtsTile::new(6, 5))
+                        && order.formation_id.as_deref() == Some("contain_ring_setup")
+                })
+            && rts_bot_expansion_control_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Attack
+                        && order.target_actor_id.as_deref() == Some("reexpand_punish")
+                })
+            && rts_bot_expansion_control_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Capture
+                        && order.target_rule_id.as_deref() == Some("claim")
+                        && order.target_actor_id.as_deref() == Some("map_control_lock")
+                        && order.target_tile == Some(RtsTile::new(6, 5))
+                });
+    let rts_bot_expansion_control_core_headless_replay_result =
+        rts_bot_expansion_control_core_frame_order_stream.replay_headless();
+    let (
+        rts_bot_expansion_control_core_headless_replay_report_value,
+        rts_bot_expansion_control_core_headless_checkpoint_sha256,
+        rts_bot_expansion_control_core_headless_replay_error,
+        rts_bot_expansion_control_core_headless_applied_order_count,
+        rts_bot_expansion_control_core_headless_actor_count,
+        rts_bot_expansion_control_core_headless_final_frame,
+        rts_bot_expansion_control_core_headless_event_log,
+        rts_bot_expansion_control_core_headless_recon_order_count,
+        rts_bot_expansion_control_core_headless_scout_order_count,
+        rts_bot_expansion_control_core_headless_recon_ids,
+        rts_bot_expansion_control_core_headless_recon_tile_ids,
+        rts_bot_expansion_control_core_headless_objective_order_count,
+        rts_bot_expansion_control_core_headless_capture_order_count,
+        rts_bot_expansion_control_core_headless_objective_ids,
+        rts_bot_expansion_control_core_headless_objective_tile_ids,
+        rts_bot_expansion_control_core_headless_objective_queue_ids,
+        rts_bot_expansion_control_core_headless_attack_order_count,
+        rts_bot_expansion_control_core_headless_micro_move_order_count,
+        rts_bot_expansion_control_core_headless_combat_target_actor_ids,
+        rts_bot_expansion_control_core_headless_combat_target_tile_ids,
+        rts_bot_expansion_control_core_headless_combat_formation_ids,
+    ) = match rts_bot_expansion_control_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let recon = &checkpoint.recon_intel;
+            let objectives = &checkpoint.objectives;
+            let combat = &checkpoint.tactical_combat;
+            (
+                serde_json::to_value(&report)
+                    .expect("rts bot expansion control replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                recon.recon_order_count,
+                recon.scout_order_count,
+                recon.recon_ids.clone(),
+                recon.recon_tile_ids.clone(),
+                objectives.objective_order_count,
+                objectives.capture_order_count,
+                objectives.objective_ids.clone(),
+                objectives.objective_tile_ids.clone(),
+                objectives.objective_queue_ids.clone(),
+                combat.attack_order_count,
+                combat.micro_move_order_count,
+                combat.combat_target_actor_ids.clone(),
+                combat.combat_target_tile_ids.clone(),
+                combat.combat_formation_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_bot_expansion_control_core_headless_replay_gate =
+        rts_bot_expansion_control_core_frame_order_gate
+            && rts_bot_expansion_control_core_headless_replay_error.is_none()
+            && rts_bot_expansion_control_core_headless_checkpoint_sha256.len() == 64
+            && rts_bot_expansion_control_core_headless_applied_order_count == 6
+            && rts_bot_expansion_control_core_headless_actor_count >= 3
+            && rts_bot_expansion_control_core_headless_final_frame == 2_405
+            && rts_bot_expansion_control_core_headless_recon_order_count == 1
+            && rts_bot_expansion_control_core_headless_scout_order_count == 1
+            && rts_bot_expansion_control_core_headless_recon_ids
+                .iter()
+                .any(|id| id == "natural_expand_probe")
+            && rts_bot_expansion_control_core_headless_recon_tile_ids
+                .iter()
+                .any(|tile| tile == "3,4")
+            && rts_bot_expansion_control_core_headless_objective_order_count == 1
+            && rts_bot_expansion_control_core_headless_capture_order_count == 1
+            && rts_bot_expansion_control_core_headless_objective_ids
+                .iter()
+                .any(|id| id == "map_control_lock")
+            && rts_bot_expansion_control_core_headless_objective_tile_ids
+                .iter()
+                .any(|tile| tile == "6,5")
+            && rts_bot_expansion_control_core_headless_objective_queue_ids
+                .iter()
+                .any(|queue| queue == "objective:claim:map_control_lock@6,5")
+            && rts_bot_expansion_control_core_headless_attack_order_count == 2
+            && rts_bot_expansion_control_core_headless_micro_move_order_count == 2
+            && rts_bot_expansion_control_core_headless_combat_target_actor_ids
+                .iter()
+                .any(|target| target == "refinery_pickoff")
+            && rts_bot_expansion_control_core_headless_combat_target_actor_ids
+                .iter()
+                .any(|target| target == "reexpand_punish")
+            && rts_bot_expansion_control_core_headless_combat_target_tile_ids
+                .iter()
+                .any(|tile| tile == "6,5")
+            && rts_bot_expansion_control_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "third_node_deny")
+            && rts_bot_expansion_control_core_headless_combat_formation_ids
+                .iter()
+                .any(|formation| formation == "contain_ring_setup")
+            && rts_bot_expansion_control_core_headless_event_log
+                .iter()
+                .any(|event| {
+                    event.contains(":kind:capture:")
+                        && event.contains(":target:map_control_lock@6,5")
+                });
     let renderer_gate = non_background_pixels > 250_000
         && ai_wave_pixel_count > 80
         && ai_pressure_pixel_count > 120
@@ -69655,6 +69897,8 @@ pub fn native_classic_rts_bot_expansion_control_gap_evidence_json(preview_path: 
     let green = write_gate
         && renderer_gate
         && expansion_control_gap_gate
+        && rts_bot_expansion_control_core_frame_order_gate
+        && rts_bot_expansion_control_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -69675,6 +69919,36 @@ pub fn native_classic_rts_bot_expansion_control_gap_evidence_json(preview_path: 
         "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
         "expansion_control_stage_count": expansion_control_stage_count,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_bot_expansion_control_core_subject_actor_ids": rts_bot_expansion_control_core_subject_actor_ids,
+        "rts_bot_expansion_control_core_action_labels": rts_bot_expansion_control_core_action_labels,
+        "rts_bot_expansion_control_core_frame_orders": rts_bot_expansion_control_core_frame_order_values,
+        "rts_bot_expansion_control_core_frame_order_stream": rts_bot_expansion_control_core_frame_order_stream_value,
+        "rts_bot_expansion_control_core_frame_order_stream_sha256": rts_bot_expansion_control_core_frame_order_stream_sha256,
+        "rts_bot_expansion_control_core_frame_order_kind_labels": rts_bot_expansion_control_core_frame_order_kind_labels,
+        "rts_bot_expansion_control_core_frame_order_errors": rts_bot_expansion_control_core_frame_order_errors,
+        "rts_bot_expansion_control_core_frame_order_stream_error": rts_bot_expansion_control_core_frame_order_stream_error,
+        "rts_bot_expansion_control_core_headless_replay_report": rts_bot_expansion_control_core_headless_replay_report_value,
+        "rts_bot_expansion_control_core_headless_checkpoint_sha256": rts_bot_expansion_control_core_headless_checkpoint_sha256,
+        "rts_bot_expansion_control_core_headless_replay_error": rts_bot_expansion_control_core_headless_replay_error,
+        "rts_bot_expansion_control_core_headless_applied_order_count": rts_bot_expansion_control_core_headless_applied_order_count,
+        "rts_bot_expansion_control_core_headless_actor_count": rts_bot_expansion_control_core_headless_actor_count,
+        "rts_bot_expansion_control_core_headless_final_frame": rts_bot_expansion_control_core_headless_final_frame,
+        "rts_bot_expansion_control_core_headless_event_log": rts_bot_expansion_control_core_headless_event_log,
+        "rts_bot_expansion_control_core_headless_recon_order_count": rts_bot_expansion_control_core_headless_recon_order_count,
+        "rts_bot_expansion_control_core_headless_scout_order_count": rts_bot_expansion_control_core_headless_scout_order_count,
+        "rts_bot_expansion_control_core_headless_recon_ids": rts_bot_expansion_control_core_headless_recon_ids,
+        "rts_bot_expansion_control_core_headless_recon_tile_ids": rts_bot_expansion_control_core_headless_recon_tile_ids,
+        "rts_bot_expansion_control_core_headless_objective_order_count": rts_bot_expansion_control_core_headless_objective_order_count,
+        "rts_bot_expansion_control_core_headless_capture_order_count": rts_bot_expansion_control_core_headless_capture_order_count,
+        "rts_bot_expansion_control_core_headless_objective_ids": rts_bot_expansion_control_core_headless_objective_ids,
+        "rts_bot_expansion_control_core_headless_objective_tile_ids": rts_bot_expansion_control_core_headless_objective_tile_ids,
+        "rts_bot_expansion_control_core_headless_objective_queue_ids": rts_bot_expansion_control_core_headless_objective_queue_ids,
+        "rts_bot_expansion_control_core_headless_attack_order_count": rts_bot_expansion_control_core_headless_attack_order_count,
+        "rts_bot_expansion_control_core_headless_micro_move_order_count": rts_bot_expansion_control_core_headless_micro_move_order_count,
+        "rts_bot_expansion_control_core_headless_combat_target_actor_ids": rts_bot_expansion_control_core_headless_combat_target_actor_ids,
+        "rts_bot_expansion_control_core_headless_combat_target_tile_ids": rts_bot_expansion_control_core_headless_combat_target_tile_ids,
+        "rts_bot_expansion_control_core_headless_combat_formation_ids": rts_bot_expansion_control_core_headless_combat_formation_ids,
         "expansion_control_signal_count": expansion_control_signal_count,
         "natural_probe_count": natural_probe_count,
         "third_node_deny_count": third_node_deny_count,
@@ -69709,9 +69983,11 @@ pub fn native_classic_rts_bot_expansion_control_gap_evidence_json(preview_path: 
         "openra_expansion_control_target_gate": openra_expansion_control_target_gate,
         "renderer_gate": renderer_gate,
         "expansion_control_gap_gate": expansion_control_gap_gate,
+        "rts_bot_expansion_control_core_frame_order_gate": rts_bot_expansion_control_core_frame_order_gate,
+        "rts_bot_expansion_control_core_headless_replay_gate": rts_bot_expansion_control_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS bot expansion-control gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with natural expansion probe, third-node deny, refinery pickoff, contain ring, reexpand punish, and map-control lock vocabulary while keeping native OpenRA map-control AI parity unclaimed."
+        "source_of_truth": "Classic RTS bot expansion-control gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with natural expansion probe, third-node deny, refinery pickoff, contain ring, reexpand punish, and map-control lock vocabulary, emits those expansion-control commands into trnm-rts-core, replays them through the Bevy-free headless reducer, and keeps native OpenRA map-control AI parity unclaimed."
     }))
     .expect("classic RTS bot expansion control gap evidence serializes")
 }

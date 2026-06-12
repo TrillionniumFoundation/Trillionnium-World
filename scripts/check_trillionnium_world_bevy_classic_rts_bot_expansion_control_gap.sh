@@ -49,6 +49,36 @@ jq -e '
   and (.final_command_queue | index("native_openra_expansion_control_ai:false") != null)
   and (.final_army_production_batch_ids | index("expansion_control:third_node_deny") != null)
   and (.final_army_production_batch_ids | index("expansion_control:map_control_lock") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_bot_expansion_control_core_subject_actor_ids | length) == 3
+  and (.rts_bot_expansion_control_core_action_labels | length) == 6
+  and .rts_bot_expansion_control_core_frame_order_stream.map_id == "first-contact-basin-bot-expansion-control"
+  and .rts_bot_expansion_control_core_frame_order_stream.rules_id == "trnm-rts-core-bot-expansion-control-rules-v1"
+  and .rts_bot_expansion_control_core_frame_order_kind_labels == ["recon", "move", "attack", "move", "attack", "capture"]
+  and (.rts_bot_expansion_control_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_bot_expansion_control_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_bot_expansion_control_core_frame_order_errors | length) == 0
+  and .rts_bot_expansion_control_core_frame_order_stream_error == null
+  and .rts_bot_expansion_control_core_headless_replay_error == null
+  and .rts_bot_expansion_control_core_headless_applied_order_count == 6
+  and .rts_bot_expansion_control_core_headless_actor_count >= 3
+  and .rts_bot_expansion_control_core_headless_final_frame == 2405
+  and .rts_bot_expansion_control_core_headless_recon_order_count == 1
+  and .rts_bot_expansion_control_core_headless_scout_order_count == 1
+  and (.rts_bot_expansion_control_core_headless_recon_ids | index("natural_expand_probe") != null)
+  and (.rts_bot_expansion_control_core_headless_recon_tile_ids | index("3,4") != null)
+  and .rts_bot_expansion_control_core_headless_objective_order_count == 1
+  and .rts_bot_expansion_control_core_headless_capture_order_count == 1
+  and (.rts_bot_expansion_control_core_headless_objective_ids | index("map_control_lock") != null)
+  and (.rts_bot_expansion_control_core_headless_objective_tile_ids | index("6,5") != null)
+  and (.rts_bot_expansion_control_core_headless_objective_queue_ids | index("objective:claim:map_control_lock@6,5") != null)
+  and .rts_bot_expansion_control_core_headless_attack_order_count == 2
+  and .rts_bot_expansion_control_core_headless_micro_move_order_count == 2
+  and (.rts_bot_expansion_control_core_headless_combat_target_actor_ids | index("refinery_pickoff") != null)
+  and (.rts_bot_expansion_control_core_headless_combat_target_actor_ids | index("reexpand_punish") != null)
+  and (.rts_bot_expansion_control_core_headless_combat_target_tile_ids | index("6,5") != null)
+  and (.rts_bot_expansion_control_core_headless_combat_formation_ids | index("third_node_deny") != null)
+  and (.rts_bot_expansion_control_core_headless_combat_formation_ids | index("contain_ring_setup") != null)
   and .non_background_pixels > 250000
   and .ai_wave_pixel_count > 80
   and .ai_pressure_pixel_count > 120
@@ -68,6 +98,8 @@ jq -e '
   and .openra_expansion_control_target_gate == true
   and .renderer_gate == true
   and .expansion_control_gap_gate == true
+  and .rts_bot_expansion_control_core_frame_order_gate == true
+  and .rts_bot_expansion_control_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
