@@ -498,8 +498,37 @@ pub struct RtsPlayerScreenTacticsRowProfile {
     pub empty_label: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsPlayerScreenResourceReadoutKind {
+    Credits,
+    Power,
+    Supply,
+    Visibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsPlayerScreenResourceReadoutProfile {
+    pub kind: RtsPlayerScreenResourceReadoutKind,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsPlayerScreenBuildPaletteSlotProfile {
+    pub label: String,
+    pub queue_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsFirstContactPlayerScreenChromeProfile {
+    pub top_title: String,
+    pub skirmish_status_label: String,
+    pub resource_readouts: Vec<RtsPlayerScreenResourceReadoutProfile>,
+    pub radar_title: String,
+    pub production_title: String,
+    pub build_palette_title: String,
+    pub production_empty_label: String,
+    pub build_palette_slots: Vec<RtsPlayerScreenBuildPaletteSlotProfile>,
     pub tactics_title: String,
     pub tactics_rows: Vec<RtsPlayerScreenTacticsRowProfile>,
     pub selection_panel_title: String,
@@ -1858,6 +1887,64 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             map_inner_padding_px: 4,
         },
         chrome: RtsFirstContactPlayerScreenChromeProfile {
+            top_title: "TRNM RTS".to_string(),
+            skirmish_status_label: "LOCAL SKIRMISH  OWNED ASSETS".to_string(),
+            resource_readouts: vec![
+                RtsPlayerScreenResourceReadoutProfile {
+                    kind: RtsPlayerScreenResourceReadoutKind::Credits,
+                    label: "CRED".to_string(),
+                },
+                RtsPlayerScreenResourceReadoutProfile {
+                    kind: RtsPlayerScreenResourceReadoutKind::Power,
+                    label: "PWR".to_string(),
+                },
+                RtsPlayerScreenResourceReadoutProfile {
+                    kind: RtsPlayerScreenResourceReadoutKind::Supply,
+                    label: "SUP".to_string(),
+                },
+                RtsPlayerScreenResourceReadoutProfile {
+                    kind: RtsPlayerScreenResourceReadoutKind::Visibility,
+                    label: "VIS".to_string(),
+                },
+            ],
+            radar_title: "RADAR".to_string(),
+            production_title: "PRODUCTION".to_string(),
+            build_palette_title: "BUILD PALETTE".to_string(),
+            production_empty_label: "ready".to_string(),
+            build_palette_slots: vec![
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "PWR".to_string(),
+                    queue_id: "build:power_node@5,3".to_string(),
+                },
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "RAX".to_string(),
+                    queue_id: "build:training_hall@4,3".to_string(),
+                },
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "REF".to_string(),
+                    queue_id: "build:refinery@6,4".to_string(),
+                },
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "TUR".to_string(),
+                    queue_id: "build:watch_tower@7,4".to_string(),
+                },
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "COM".to_string(),
+                    queue_id: "build:command_post@5,2".to_string(),
+                },
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "RAD".to_string(),
+                    queue_id: "build:radar_spire@6,2".to_string(),
+                },
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "WAL".to_string(),
+                    queue_id: "build:wall@8,4".to_string(),
+                },
+                RtsPlayerScreenBuildPaletteSlotProfile {
+                    label: "UPG".to_string(),
+                    queue_id: "upgrade:signal_blade".to_string(),
+                },
+            ],
             tactics_title: "TACTICS".to_string(),
             tactics_rows: vec![
                 RtsPlayerScreenTacticsRowProfile {
@@ -2303,6 +2390,44 @@ mod tests {
         assert_eq!(profile.layout.spec_map.cell_width.max, 22);
         assert_eq!(profile.layout.map_outer_padding_px, 8);
         assert_eq!(profile.layout.map_inner_padding_px, 4);
+        assert_eq!(profile.chrome.top_title, "TRNM RTS");
+        assert_eq!(
+            profile.chrome.skirmish_status_label,
+            "LOCAL SKIRMISH  OWNED ASSETS"
+        );
+        assert_eq!(profile.chrome.resource_readouts.len(), 4);
+        assert!(profile.chrome.resource_readouts.iter().any(|readout| {
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Credits && readout.label == "CRED"
+        }));
+        assert!(profile.chrome.resource_readouts.iter().any(|readout| {
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Power && readout.label == "PWR"
+        }));
+        assert!(profile.chrome.resource_readouts.iter().any(|readout| {
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Supply && readout.label == "SUP"
+        }));
+        assert!(profile.chrome.resource_readouts.iter().any(|readout| {
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Visibility && readout.label == "VIS"
+        }));
+        assert_eq!(profile.chrome.radar_title, "RADAR");
+        assert_eq!(profile.chrome.production_title, "PRODUCTION");
+        assert_eq!(profile.chrome.build_palette_title, "BUILD PALETTE");
+        assert_eq!(profile.chrome.production_empty_label, "ready");
+        assert_eq!(profile.chrome.build_palette_slots.len(), 8);
+        assert!(profile
+            .chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| { slot.label == "PWR" && slot.queue_id == "build:power_node@5,3" }));
+        assert!(profile
+            .chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| { slot.label == "RAX" && slot.queue_id == "build:training_hall@4,3" }));
+        assert!(profile
+            .chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| { slot.label == "UPG" && slot.queue_id == "upgrade:signal_blade" }));
         assert_eq!(profile.chrome.tactics_title, "TACTICS");
         assert_eq!(profile.chrome.tactics_rows.len(), 5);
         assert!(profile.chrome.tactics_rows.iter().any(|row| {

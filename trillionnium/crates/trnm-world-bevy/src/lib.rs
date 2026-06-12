@@ -38,9 +38,11 @@ use trnm_rts_data::{
     first_contact_terrain_profiles, first_contact_visual_telemetry_profile, RtsActorColorRole,
     RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
     RtsFirstContactPlayerScreenProfile, RtsFirstContactVisualTelemetryProfile, RtsMapActor,
-    RtsOpeningLoopProfile, RtsPlayerScreenTacticsRowKind, RtsPlayerScreenTacticsRowProfile,
-    RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole, RtsVisualTelemetryColorRole,
-    TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
+    RtsOpeningLoopProfile, RtsPlayerScreenBuildPaletteSlotProfile,
+    RtsPlayerScreenResourceReadoutKind, RtsPlayerScreenResourceReadoutProfile,
+    RtsPlayerScreenTacticsRowKind, RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile,
+    RtsRule, RtsRuleKind, RtsTerrainRole, RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
@@ -28627,7 +28629,53 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_layout.map_outer_padding_px == 8
         && player_screen_layout.map_inner_padding_px == 4;
     let player_screen_chrome = &player_screen_profile.chrome;
-    let rts_data_player_screen_chrome_gate = player_screen_chrome.tactics_title == "TACTICS"
+    let rts_data_player_screen_chrome_gate = player_screen_chrome.top_title == "TRNM RTS"
+        && player_screen_chrome.skirmish_status_label == "LOCAL SKIRMISH  OWNED ASSETS"
+        && player_screen_chrome.resource_readouts.len() == 4
+        && player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == RtsPlayerScreenResourceReadoutKind::Credits
+                    && readout.label == "CRED"
+            })
+        && player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == RtsPlayerScreenResourceReadoutKind::Power && readout.label == "PWR"
+            })
+        && player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == RtsPlayerScreenResourceReadoutKind::Supply && readout.label == "SUP"
+            })
+        && player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == RtsPlayerScreenResourceReadoutKind::Visibility
+                    && readout.label == "VIS"
+            })
+        && player_screen_chrome.radar_title == "RADAR"
+        && player_screen_chrome.production_title == "PRODUCTION"
+        && player_screen_chrome.build_palette_title == "BUILD PALETTE"
+        && player_screen_chrome.production_empty_label == "ready"
+        && player_screen_chrome.build_palette_slots.len() == 8
+        && player_screen_chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| slot.label == "PWR" && slot.queue_id == "build:power_node@5,3")
+        && player_screen_chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| slot.label == "RAX" && slot.queue_id == "build:training_hall@4,3")
+        && player_screen_chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| slot.label == "UPG" && slot.queue_id == "upgrade:signal_blade")
+        && player_screen_chrome.tactics_title == "TACTICS"
         && player_screen_chrome.tactics_rows.len() == 5
         && player_screen_chrome.tactics_rows.iter().any(|row| {
             row.kind == RtsPlayerScreenTacticsRowKind::Order
@@ -85722,6 +85770,51 @@ fn classic_first_contact_tactics_row_color(kind: RtsPlayerScreenTacticsRowKind) 
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_resource_readout_color(kind: RtsPlayerScreenResourceReadoutKind) -> u32 {
+    match kind {
+        RtsPlayerScreenResourceReadoutKind::Credits => CLASSIC_ISO_GOLD_COLOR,
+        RtsPlayerScreenResourceReadoutKind::Power => CLASSIC_RTS_VISIBILITY_BAR_COLOR,
+        RtsPlayerScreenResourceReadoutKind::Supply => CLASSIC_RTS_RESOURCE_FOOD_COLOR,
+        RtsPlayerScreenResourceReadoutKind::Visibility => CLASSIC_RTS_MINIMAP_VISION_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_resource_readout_value(
+    runtime: &NativeFirstPlayableRuntime,
+    readout: &RtsPlayerScreenResourceReadoutProfile,
+) -> String {
+    match readout.kind {
+        RtsPlayerScreenResourceReadoutKind::Credits => {
+            classic_rts_available_gold(runtime).to_string()
+        }
+        RtsPlayerScreenResourceReadoutKind::Power => {
+            let power =
+                100_i32.saturating_sub((runtime.rts_ai_pressure_percent as i32 / 4).min(20));
+            format!("{}%", power.max(0))
+        }
+        RtsPlayerScreenResourceReadoutKind::Supply => format!(
+            "{}/{}",
+            runtime.rts_army_supply_used.max(1),
+            runtime
+                .rts_army_supply_cap
+                .max(runtime.rts_army_supply_used.max(1))
+        ),
+        RtsPlayerScreenResourceReadoutKind::Visibility => {
+            format!("{}%", runtime.rts_visibility_percent)
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_build_palette_slot(
+    slots: &[RtsPlayerScreenBuildPaletteSlotProfile],
+    index: usize,
+) -> Option<&RtsPlayerScreenBuildPaletteSlotProfile> {
+    slots.get(index)
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_tactics_row_value(
     runtime: &NativeFirstPlayableRuntime,
     row: &RtsPlayerScreenTacticsRowProfile,
@@ -106697,59 +106790,98 @@ fn classic_draw_openra_style_rts_shell(
         height,
         12,
         10,
-        "TRNM RTS",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.top_title.as_str())
+            .unwrap_or("TRNM RTS"),
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
 
-    let gold = classic_rts_available_gold(runtime);
-    let power = 100_i32.saturating_sub((runtime.rts_ai_pressure_percent as i32 / 4).min(20));
-    let supply = format!(
-        "{}/{}",
-        runtime.rts_army_supply_used.max(1),
-        runtime
-            .rts_army_supply_cap
-            .max(runtime.rts_army_supply_used.max(1))
-    );
-    for (index, (label, value, color)) in [
-        ("CRED", gold.to_string(), CLASSIC_ISO_GOLD_COLOR),
-        (
-            "PWR",
-            format!("{}%", power.max(0)),
-            CLASSIC_RTS_VISIBILITY_BAR_COLOR,
-        ),
-        ("SUP", supply, CLASSIC_RTS_RESOURCE_FOOD_COLOR),
-        (
-            "VIS",
-            format!("{}%", runtime.rts_visibility_percent),
-            CLASSIC_RTS_MINIMAP_VISION_COLOR,
-        ),
-    ]
-    .iter()
-    .enumerate()
-    {
-        let x = 120 + index as i32 * 132;
-        classic_draw_rect(buffer, width, height, x, 7, 10, 10, *color);
-        classic_draw_text(
-            buffer,
-            width,
-            height,
-            x + 16,
-            8,
-            label,
-            1,
-            CLASSIC_HUD_MUTED_TEXT_COLOR,
+    if let Some(chrome) = first_contact_player_chrome.as_ref() {
+        for (index, readout) in chrome.resource_readouts.iter().enumerate() {
+            let x = 120 + index as i32 * 132;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                x,
+                7,
+                10,
+                10,
+                classic_first_contact_resource_readout_color(readout.kind),
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                x + 16,
+                8,
+                &readout.label,
+                1,
+                CLASSIC_HUD_MUTED_TEXT_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                x + 50,
+                8,
+                &classic_first_contact_resource_readout_value(runtime, readout),
+                1,
+                CLASSIC_HUD_TEXT_COLOR,
+            );
+        }
+    } else {
+        let gold = classic_rts_available_gold(runtime);
+        let power = 100_i32.saturating_sub((runtime.rts_ai_pressure_percent as i32 / 4).min(20));
+        let supply = format!(
+            "{}/{}",
+            runtime.rts_army_supply_used.max(1),
+            runtime
+                .rts_army_supply_cap
+                .max(runtime.rts_army_supply_used.max(1))
         );
-        classic_draw_text(
-            buffer,
-            width,
-            height,
-            x + 50,
-            8,
-            value,
-            1,
-            CLASSIC_HUD_TEXT_COLOR,
-        );
+        for (index, (label, value, color)) in [
+            ("CRED", gold.to_string(), CLASSIC_ISO_GOLD_COLOR),
+            (
+                "PWR",
+                format!("{}%", power.max(0)),
+                CLASSIC_RTS_VISIBILITY_BAR_COLOR,
+            ),
+            ("SUP", supply, CLASSIC_RTS_RESOURCE_FOOD_COLOR),
+            (
+                "VIS",
+                format!("{}%", runtime.rts_visibility_percent),
+                CLASSIC_RTS_MINIMAP_VISION_COLOR,
+            ),
+        ]
+        .iter()
+        .enumerate()
+        {
+            let x = 120 + index as i32 * 132;
+            classic_draw_rect(buffer, width, height, x, 7, 10, 10, *color);
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                x + 16,
+                8,
+                label,
+                1,
+                CLASSIC_HUD_MUTED_TEXT_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                x + 50,
+                8,
+                value,
+                1,
+                CLASSIC_HUD_TEXT_COLOR,
+            );
+        }
     }
     classic_draw_text(
         buffer,
@@ -106757,7 +106889,10 @@ fn classic_draw_openra_style_rts_shell(
         height,
         width_i - 260,
         10,
-        "LOCAL SKIRMISH  OWNED ASSETS",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.skirmish_status_label.as_str())
+            .unwrap_or("LOCAL SKIRMISH  OWNED ASSETS"),
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
@@ -106847,7 +106982,10 @@ fn classic_draw_openra_style_rts_shell(
         height,
         sidebar_x + 12,
         viewport_y + 10,
-        "RADAR",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.radar_title.as_str())
+            .unwrap_or("RADAR"),
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
@@ -107021,10 +107159,17 @@ fn classic_draw_openra_style_rts_shell(
         height,
         sidebar_x + 12,
         prod_y,
-        "PRODUCTION",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.production_title.as_str())
+            .unwrap_or("PRODUCTION"),
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
+    let production_empty_label = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.production_empty_label.as_str())
+        .unwrap_or("ready");
     for index in 0..4 {
         let x = sidebar_x + 12 + (index % 2) as i32 * 116;
         let y = prod_y + 18 + (index / 2) as i32 * 34;
@@ -107033,7 +107178,7 @@ fn classic_draw_openra_style_rts_shell(
             .get(index)
             .or_else(|| runtime.rts_build_queue.get(index.saturating_sub(2)))
             .map(String::as_str)
-            .unwrap_or("ready");
+            .unwrap_or(production_empty_label);
         let queue_id = classic_rts_production_slot_queue_id(runtime, index);
         let progress = if index % 2 == 0 {
             runtime.rts_training_progress_percent
@@ -107089,14 +107234,24 @@ fn classic_draw_openra_style_rts_shell(
         height,
         sidebar_x + 12,
         palette_y,
-        "BUILD PALETTE",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.build_palette_title.as_str())
+            .unwrap_or("BUILD PALETTE"),
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
+    let build_palette_slots = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.build_palette_slots.as_slice())
+        .unwrap_or(&[]);
     for index in 0..8 {
         let x = sidebar_x + 12 + (index % 4) as i32 * 58;
         let y = palette_y + 18 + (index / 4) as i32 * 46;
-        let queue_id = classic_rts_build_palette_queue_id(index);
+        let data_slot = classic_first_contact_build_palette_slot(build_palette_slots, index);
+        let queue_id = data_slot
+            .map(|slot| slot.queue_id.clone())
+            .unwrap_or_else(|| classic_rts_build_palette_queue_id(index));
         let active = runtime
             .rts_building_blueprint_id
             .as_deref()
@@ -107146,7 +107301,9 @@ fn classic_draw_openra_style_rts_shell(
         );
         classic_draw_rect(buffer, width, height, x + 8, y + 8, 30, 14, 0x314532);
         classic_draw_rect(buffer, width, height, x + 12, y + 5, 22, 4, 0x719566);
-        let label = ["PWR", "RAX", "REF", "TUR", "COM", "RAD", "WAL", "UPG"][index];
+        let label = data_slot
+            .map(|slot| slot.label.as_str())
+            .unwrap_or(["PWR", "RAX", "REF", "TUR", "COM", "RAD", "WAL", "UPG"][index]);
         classic_draw_text(
             buffer,
             width,

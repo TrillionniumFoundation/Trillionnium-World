@@ -101,6 +101,21 @@ jq -e '
   and .rts_data_player_screen_layout_profile.map_outer_padding_px == 8
   and .rts_data_player_screen_layout_profile.map_inner_padding_px == 4
   and .rts_data_player_screen_layout_gate == true
+  and .rts_data_player_screen_profile.chrome.top_title == "TRNM RTS"
+  and .rts_data_player_screen_profile.chrome.skirmish_status_label == "LOCAL SKIRMISH  OWNED ASSETS"
+  and (.rts_data_player_screen_profile.chrome.resource_readouts | length) == 4
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "credits" and .label == "CRED"))
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "power" and .label == "PWR"))
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "supply" and .label == "SUP"))
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "visibility" and .label == "VIS"))
+  and .rts_data_player_screen_profile.chrome.radar_title == "RADAR"
+  and .rts_data_player_screen_profile.chrome.production_title == "PRODUCTION"
+  and .rts_data_player_screen_profile.chrome.build_palette_title == "BUILD PALETTE"
+  and .rts_data_player_screen_profile.chrome.production_empty_label == "ready"
+  and (.rts_data_player_screen_profile.chrome.build_palette_slots | length) == 8
+  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "PWR" and .queue_id == "build:power_node@5,3"))
+  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "RAX" and .queue_id == "build:training_hall@4,3"))
+  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "UPG" and .queue_id == "upgrade:signal_blade"))
   and .rts_data_player_screen_profile.chrome.tactics_title == "TACTICS"
   and (.rts_data_player_screen_profile.chrome.tactics_rows | length) == 5
   and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "order" and .label == "ORDER" and .max_value_chars == 20))
