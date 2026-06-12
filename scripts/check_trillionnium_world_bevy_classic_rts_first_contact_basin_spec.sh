@@ -26,6 +26,20 @@ jq -e '
   and .map_actor_gate == true
   and .map_topology_gate == true
   and .rules_gate == true
+  and .rts_data_contract == "trnm_rts_data_map_model_v1"
+  and .rts_data_map_model.contract_version == "trnm_rts_data_map_model_v1"
+  and .rts_data_map_model.map_id == "first_contact_basin"
+  and (.rts_data_map_model.actors | length) == 39
+  and .rts_data_map_summary.actor_count == 39
+  and .rts_data_map_summary.source_integration_mode == "gpl_internal_component"
+  and .rts_data_source_manifest.integration_mode == "gpl_internal_component"
+  and .rts_data_source_manifest.copied_or_derived == true
+  and (.rts_data_source_manifest.source_paths | index("mods/trnm/maps/first-contact-basin/map.yaml") != null)
+  and (.rts_data_canonical_sha256 | type == "string" and length == 64)
+  and .rts_data_validation_error == null
+  and .rts_data_consumer_gate == true
+  and .bevy_data_actor_parity_gate == true
+  and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true
   and (.rules[] | select(.id == "trnm.worker" and .cost == 200 and .hp == 8000))
   and (.rules[] | select(.id == "trnm.horizon.scout" and .speed == 92))

@@ -38,6 +38,7 @@ trnm-world-domain = { path = "../trnm-world-domain" }
 trnm-world-map-provider = { path = "../trnm-world-map-provider" }
 trnm-world-projection = { path = "../trnm-world-projection" }
 trnm-rts-core = { path = "../trnm-rts-core" }
+trnm-rts-data = { path = "../trnm-rts-data" }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 minifb = "0.27"

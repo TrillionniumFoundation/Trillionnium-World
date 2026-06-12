@@ -29,6 +29,8 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use trnm_rts_core::{
     RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsTile, TRNM_RTS_CORE_CONTRACT,
 };
+#[cfg(not(target_os = "android"))]
+use trnm_rts_data::{first_contact_basin_map, RtsMapActor, RtsRuleKind, TRNM_RTS_DATA_CONTRACT};
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
     WORLD_ACCOUNT_API_CONTRACT, WORLD_ACCOUNT_CLIENT_BOUNDARY_CONTRACT, WORLD_API_CONTRACT,
@@ -28345,45 +28347,44 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
 
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
-    let actor_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len();
-    let spawn_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+    let map_model = first_contact_basin_map();
+    let rts_data_validation_error = map_model.validate().err();
+    let map_summary = map_model.summary();
+    let actor_count = map_summary.actor_count;
+    let spawn_count = map_summary.spawn_count;
+    let flux_count = map_summary.flux_bloom_count;
+    let beacon_count = map_summary.beacon_count;
+    let expansion_count = map_summary.expansion_count;
+    let unit_count = map_model
+        .rules
         .iter()
-        .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
+        .filter(|rule| rule.kind == RtsRuleKind::Unit)
         .count();
-    let flux_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+    let building_count = map_model
+        .rules
         .iter()
-        .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
+        .filter(|rule| rule.kind == RtsRuleKind::Structure)
         .count();
-    let beacon_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-        .iter()
-        .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
-        .count();
-    let expansion_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-        .iter()
-        .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
-        .count();
-    let unit_count = CLASSIC_FIRST_CONTACT_RULES
-        .iter()
-        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Unit)
-        .count();
-    let building_count = CLASSIC_FIRST_CONTACT_RULES
-        .iter()
-        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Building)
-        .count();
-    let rule_summaries = CLASSIC_FIRST_CONTACT_RULES
+    let rule_summaries = map_model
+        .rules
         .iter()
         .map(|rule| {
             json!({
                 "id": rule.id,
                 "label": rule.label,
                 "kind": match rule.kind {
-                    ClassicFirstContactRuleKind::Unit => "unit",
-                    ClassicFirstContactRuleKind::Building => "building",
+                    RtsRuleKind::Unit => "unit",
+                    RtsRuleKind::Structure => "structure",
+                    RtsRuleKind::Resource => "resource",
+                    RtsRuleKind::Objective => "objective",
+                    RtsRuleKind::Marker => "marker",
+                    RtsRuleKind::Spawn => "spawn",
                 },
                 "faction": rule.faction,
                 "cost": rule.cost,
                 "hp": rule.hp,
                 "speed": rule.speed,
+                "traits": rule.traits,
                 "build_duration": rule.build_duration,
                 "queue": rule.queue,
             })
@@ -28394,30 +28395,77 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         spawn_count == 4 && flux_count == 11 && beacon_count == 4 && expansion_count == 4;
     let rules_gate = unit_count >= 4
         && building_count >= 2
-        && CLASSIC_FIRST_CONTACT_RULES
+        && map_model
+            .rules
             .iter()
             .any(|rule| rule.id == "trnm.worker" && rule.cost == 200 && rule.hp == 8000)
-        && CLASSIC_FIRST_CONTACT_RULES
+        && map_model
+            .rules
             .iter()
             .any(|rule| rule.id == "trnm.horizon.scout" && rule.speed == Some(92))
-        && CLASSIC_FIRST_CONTACT_RULES
+        && map_model
+            .rules
             .iter()
             .any(|rule| rule.id == "trnm.forge.warden" && rule.hp == 18000)
-        && CLASSIC_FIRST_CONTACT_RULES
+        && map_model
+            .rules
             .iter()
             .any(|rule| rule.id == "trnm.command.core" && rule.cost == 1600)
-        && CLASSIC_FIRST_CONTACT_RULES
+        && map_model
+            .rules
             .iter()
             .any(|rule| rule.id == "trnm.flux.relay" && rule.cost == 500);
+    let rts_data_consumer_gate = rts_data_validation_error.is_none()
+        && map_model.contract_version == TRNM_RTS_DATA_CONTRACT
+        && map_summary.contract_version == TRNM_RTS_DATA_CONTRACT
+        && map_summary.canonical_sha256.len() == 64
+        && map_summary.source_integration_mode == "gpl_internal_component";
+    let bevy_data_actor_parity_gate = actor_count == CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len()
+        && spawn_count
+            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
+                .count()
+        && flux_count
+            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
+                .count()
+        && beacon_count
+            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
+                .count()
+        && expansion_count
+            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                .iter()
+                .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
+                .count();
+    let bevy_map_model_adapter_gate = rts_data_consumer_gate
+        && bevy_data_actor_parity_gate
+        && map_model
+            .actors
+            .iter()
+            .all(|actor| classic_first_contact_actor_from_rts_data_actor(actor).is_some());
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
-    let green = map_actor_gate && map_topology_gate && rules_gate && ui_runtime_gate;
+    let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
+    let rts_data_map_summary =
+        serde_json::to_value(&map_summary).expect("RTS data map summary serializes");
+    let rts_data_source_manifest = serde_json::to_value(&map_model.source_manifest)
+        .expect("RTS data source manifest serializes");
+    let green = map_actor_gate
+        && map_topology_gate
+        && rules_gate
+        && rts_data_consumer_gate
+        && bevy_map_model_adapter_gate
+        && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
         "green": green,
-        "map_id": "first_contact_basin",
-        "map_title": "First Contact Basin",
-        "map_size": {"width": 34, "height": 34},
-        "bounds": {"x": 1, "y": 1, "width": 32, "height": 32},
+        "map_id": map_model.map_id,
+        "map_title": map_model.title,
+        "map_size": {"width": map_model.width, "height": map_model.height},
+        "bounds": {"x": map_model.bounds.x, "y": map_model.bounds.y, "width": map_model.bounds.width, "height": map_model.bounds.height},
         "actor_count": actor_count,
         "spawn_count": spawn_count,
         "flux_bloom_count": flux_count,
@@ -28429,11 +28477,20 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "map_actor_gate": map_actor_gate,
         "map_topology_gate": map_topology_gate,
         "rules_gate": rules_gate,
+        "rts_data_contract": TRNM_RTS_DATA_CONTRACT,
+        "rts_data_map_model": rts_data_map_model,
+        "rts_data_map_summary": rts_data_map_summary,
+        "rts_data_source_manifest": rts_data_source_manifest,
+        "rts_data_canonical_sha256": map_summary.canonical_sha256,
+        "rts_data_validation_error": rts_data_validation_error,
+        "rts_data_consumer_gate": rts_data_consumer_gate,
+        "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
+        "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
-        "source_policy": "Trillionnium-owned mod data is represented as original Rust/Bevy structures; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the Rust-side First Contact Basin map/rule vocabulary that the Bevy desktop RTS UI renders: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, and the initial unit/building rules surfaced in the command and rules panels."
+        "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -85179,6 +85236,48 @@ struct ClassicFirstContactActor {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_actor_kind_from_rule_id(
+    rule_id: &str,
+) -> Option<ClassicFirstContactActorKind> {
+    match rule_id {
+        "mpspawn" => Some(ClassicFirstContactActorKind::Spawn),
+        "trnm.flux.bloom" => Some(ClassicFirstContactActorKind::FluxBloom),
+        "trnm.flux.beacon" => Some(ClassicFirstContactActorKind::Beacon),
+        "trnm.map.ridge" => Some(ClassicFirstContactActorKind::Ridge),
+        "trnm.flux.vent" => Some(ClassicFirstContactActorKind::Vent),
+        "trnm.lane.marker" => Some(ClassicFirstContactActorKind::LaneMarker),
+        "trnm.beacon.ring" => Some(ClassicFirstContactActorKind::BeaconRing),
+        "trnm.expansion.marker" => Some(ClassicFirstContactActorKind::ExpansionMarker),
+        _ => None,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_actor_owner_from_rts_data(owner: &str) -> &'static str {
+    match owner {
+        "Multi0" => "Multi0",
+        "Multi1" => "Multi1",
+        "Multi2" => "Multi2",
+        "Multi3" => "Multi3",
+        "Multi4" => "Multi4",
+        "Multi5" => "Multi5",
+        "Neutral" => "Neutral",
+        _ => "Neutral",
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_actor_from_rts_data_actor(
+    actor: &RtsMapActor,
+) -> Option<ClassicFirstContactActor> {
+    Some(ClassicFirstContactActor {
+        kind: classic_first_contact_actor_kind_from_rule_id(&actor.rule_id)?,
+        owner: classic_first_contact_actor_owner_from_rts_data(&actor.owner),
+        tile: (actor.tile.x, actor.tile.y),
+    })
+}
+
+#[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ClassicFirstContactRuleKind {
     Unit,
@@ -94965,6 +95064,10 @@ fn classic_draw_first_contact_basin_scene(
     runtime: &NativeFirstPlayableRuntime,
 ) {
     let player_screen = classic_player_screen_mode_enabled();
+    let map_model = first_contact_basin_map();
+    let map_summary = map_model.summary();
+    let map_width_tiles = map_model.width as i32;
+    let map_height_tiles = map_model.height as i32;
     let map_x = if player_screen { 16_i32 } else { 24_i32 };
     let map_y = if player_screen { 54_i32 } else { 110_i32 };
     let available_w = if player_screen {
@@ -94974,17 +95077,17 @@ fn classic_draw_first_contact_basin_scene(
     };
     let available_h = (height as i32 - 158 - map_y).max(238);
     let cell_w = if player_screen {
-        (available_w / 34).clamp(12, 28)
+        (available_w / map_width_tiles).clamp(12, 28)
     } else {
-        (available_w / 34).clamp(10, 22)
+        (available_w / map_width_tiles).clamp(10, 22)
     };
     let cell_h = if player_screen {
-        (available_h / 34).clamp(8, 15)
+        (available_h / map_height_tiles).clamp(8, 15)
     } else {
-        (available_h / 34).clamp(7, 14)
+        (available_h / map_height_tiles).clamp(7, 14)
     };
-    let map_w = cell_w * 34;
-    let map_h = cell_h * 34;
+    let map_w = cell_w * map_width_tiles;
+    let map_h = cell_h * map_height_tiles;
     let core_world = classic_first_contact_openra_like_core_preview_world();
 
     classic_draw_rect(
@@ -95008,8 +95111,8 @@ fn classic_draw_first_contact_basin_scene(
         0x0d1511,
     );
 
-    for y in 0..34 {
-        for x in 0..34 {
+    for y in 0..map_height_tiles {
+        for x in 0..map_width_tiles {
             let color = classic_first_contact_tile_color((x, y));
             classic_draw_rect(
                 buffer,
@@ -95070,9 +95173,13 @@ fn classic_draw_first_contact_basin_scene(
         );
     }
 
-    for actor in CLASSIC_FIRST_CONTACT_BASIN_ACTORS {
+    for actor in map_model
+        .actors
+        .iter()
+        .filter_map(classic_first_contact_actor_from_rts_data_actor)
+    {
         classic_draw_first_contact_actor(
-            buffer, width, height, *actor, map_x, map_y, cell_w, cell_h,
+            buffer, width, height, actor, map_x, map_y, cell_w, cell_h,
         );
     }
     classic_draw_first_contact_starting_army(buffer, width, height, map_x, map_y, cell_w, cell_h);
@@ -95144,7 +95251,15 @@ fn classic_draw_first_contact_basin_scene(
             height,
             map_x,
             map_y - 18,
-            "FIRST CONTACT BASIN  34x34  BOUNDS 1,1,32,32  SOURCE mods/trnm/maps/first-contact-basin/map.yaml",
+            &format!(
+                "FIRST CONTACT BASIN  {}x{}  BOUNDS {},{},{},{}  SOURCE trnm-rts-data",
+                map_model.width,
+                map_model.height,
+                map_model.bounds.x,
+                map_model.bounds.y,
+                map_model.bounds.max_x(),
+                map_model.bounds.max_y()
+            ),
             1,
             CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
         );
@@ -95183,35 +95298,11 @@ fn classic_draw_first_contact_basin_scene(
             CLASSIC_HUD_TEXT_COLOR,
         );
         let rows = [
-            ("ACTORS", CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len()),
-            (
-                "SPAWNS",
-                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                    .iter()
-                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
-                    .count(),
-            ),
-            (
-                "FLUX",
-                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                    .iter()
-                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
-                    .count(),
-            ),
-            (
-                "BEACONS",
-                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                    .iter()
-                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
-                    .count(),
-            ),
-            (
-                "EXPANSIONS",
-                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                    .iter()
-                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
-                    .count(),
-            ),
+            ("ACTORS", map_summary.actor_count),
+            ("SPAWNS", map_summary.spawn_count),
+            ("FLUX", map_summary.flux_bloom_count),
+            ("BEACONS", map_summary.beacon_count),
+            ("EXPANSIONS", map_summary.expansion_count),
         ];
         for (index, (label, value)) in rows.iter().enumerate() {
             let y = panel_y + 54 + index as i32 * 20;
