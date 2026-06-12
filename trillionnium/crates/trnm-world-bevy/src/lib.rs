@@ -28710,7 +28710,19 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
                 && row.empty_label == "NONE"
         })
         && player_screen_chrome.selection_panel_title == "SELECTION"
+        && player_screen_chrome.selection_card_visible_count == 5
+        && player_screen_chrome.selection_card_frame_ids.len() == 5
+        && player_screen_chrome
+            .selection_card_frame_ids
+            .iter()
+            .any(|frame| frame == "actor_player_idle_south")
+        && player_screen_chrome
+            .selection_card_frame_ids
+            .iter()
+            .any(|frame| frame == "prop_banner")
         && player_screen_chrome.command_panel_title == "COMMANDS"
+        && player_screen_chrome.command_grid_slot_count == 12
+        && player_screen_chrome.command_grid_column_count == 6
         && player_screen_chrome.command_slot_fallback_id == "hold"
         && player_screen_chrome.order_queue_title == "ORDER QUEUE"
         && player_screen_chrome.order_queue_empty_label == "NO ORDERS"
@@ -107618,7 +107630,15 @@ fn classic_draw_openra_style_rts_shell(
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
-    for index in 0..selected_units.len().min(5) {
+    let selection_card_visible_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.selection_card_visible_count.max(1) as usize)
+        .unwrap_or(5);
+    let selection_card_frame_ids = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.selection_card_frame_ids.as_slice())
+        .unwrap_or(&[]);
+    for index in 0..selected_units.len().min(selection_card_visible_count) {
         let x = 20 + index as i32 * 58;
         let y = bottom_y + 30;
         classic_draw_rect(
@@ -107631,13 +107651,16 @@ fn classic_draw_openra_style_rts_shell(
             54,
             CLASSIC_RTS_STRATEGY_PANEL_COLOR,
         );
-        let frame_id = match index {
-            0 => "actor_player_idle_south",
-            1 => "actor_mentor_idle",
-            2 => "actor_player_walk_east_1",
-            3 => "actor_enemy_idle",
-            _ => "prop_banner",
-        };
+        let frame_id = selection_card_frame_ids
+            .get(index)
+            .map(String::as_str)
+            .unwrap_or(match index {
+                0 => "actor_player_idle_south",
+                1 => "actor_mentor_idle",
+                2 => "actor_player_walk_east_1",
+                3 => "actor_enemy_idle",
+                _ => "prop_banner",
+            });
         classic_blit_frame_scaled(buffer, width, height, assets, frame_id, x + 11, y + 8, 2);
         let health = runtime
             .rts_unit_health_percents
@@ -107707,9 +107730,17 @@ fn classic_draw_openra_style_rts_shell(
         .as_ref()
         .map(|chrome| chrome.command_slot_fallback_id.as_str())
         .unwrap_or("hold");
-    for index in 0..12 {
-        let x = command_x + (index % 6) as i32 * 58;
-        let y = bottom_y + 30 + (index / 6) as i32 * 46;
+    let command_grid_slot_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_grid_slot_count.max(1) as usize)
+        .unwrap_or(12);
+    let command_grid_column_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_grid_column_count.max(1) as usize)
+        .unwrap_or(6);
+    for index in 0..command_grid_slot_count {
+        let x = command_x + (index % command_grid_column_count) as i32 * 58;
+        let y = bottom_y + 30 + (index / command_grid_column_count) as i32 * 46;
         let ability = runtime
             .rts_ability_command_ids
             .get(index % runtime.rts_ability_command_ids.len().max(1))

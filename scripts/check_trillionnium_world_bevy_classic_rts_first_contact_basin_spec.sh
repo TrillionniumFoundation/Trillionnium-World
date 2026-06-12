@@ -131,7 +131,13 @@ jq -e '
   and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "queue" and .label == "QUEUE"))
   and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "build" and .label == "BUILD" and .empty_label == "NONE"))
   and .rts_data_player_screen_chrome_profile.selection_panel_title == "SELECTION"
+  and .rts_data_player_screen_chrome_profile.selection_card_visible_count == 5
+  and (.rts_data_player_screen_chrome_profile.selection_card_frame_ids | length) == 5
+  and (.rts_data_player_screen_chrome_profile.selection_card_frame_ids | index("actor_player_idle_south") != null)
+  and (.rts_data_player_screen_chrome_profile.selection_card_frame_ids | index("prop_banner") != null)
   and .rts_data_player_screen_chrome_profile.command_panel_title == "COMMANDS"
+  and .rts_data_player_screen_chrome_profile.command_grid_slot_count == 12
+  and .rts_data_player_screen_chrome_profile.command_grid_column_count == 6
   and .rts_data_player_screen_chrome_profile.command_slot_fallback_id == "hold"
   and .rts_data_player_screen_chrome_profile.order_queue_title == "ORDER QUEUE"
   and .rts_data_player_screen_chrome_profile.order_queue_empty_label == "NO ORDERS"

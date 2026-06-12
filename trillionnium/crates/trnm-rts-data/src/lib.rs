@@ -538,7 +538,11 @@ pub struct RtsFirstContactPlayerScreenChromeProfile {
     pub tactics_title: String,
     pub tactics_rows: Vec<RtsPlayerScreenTacticsRowProfile>,
     pub selection_panel_title: String,
+    pub selection_card_visible_count: u8,
+    pub selection_card_frame_ids: Vec<String>,
     pub command_panel_title: String,
+    pub command_grid_slot_count: u8,
+    pub command_grid_column_count: u8,
     pub command_slot_fallback_id: String,
     pub order_queue_title: String,
     pub order_queue_empty_label: String,
@@ -1995,7 +1999,17 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
                 },
             ],
             selection_panel_title: "SELECTION".to_string(),
+            selection_card_visible_count: 5,
+            selection_card_frame_ids: vec![
+                "actor_player_idle_south".to_string(),
+                "actor_mentor_idle".to_string(),
+                "actor_player_walk_east_1".to_string(),
+                "actor_enemy_idle".to_string(),
+                "prop_banner".to_string(),
+            ],
             command_panel_title: "COMMANDS".to_string(),
+            command_grid_slot_count: 12,
+            command_grid_column_count: 6,
             command_slot_fallback_id: "hold".to_string(),
             order_queue_title: "ORDER QUEUE".to_string(),
             order_queue_empty_label: "NO ORDERS".to_string(),
@@ -2486,7 +2500,16 @@ mod tests {
                 && row.empty_label == "NONE"
         }));
         assert_eq!(profile.chrome.selection_panel_title, "SELECTION");
+        assert_eq!(profile.chrome.selection_card_visible_count, 5);
+        assert_eq!(profile.chrome.selection_card_frame_ids.len(), 5);
+        assert_eq!(
+            profile.chrome.selection_card_frame_ids[0],
+            "actor_player_idle_south"
+        );
+        assert_eq!(profile.chrome.selection_card_frame_ids[4], "prop_banner");
         assert_eq!(profile.chrome.command_panel_title, "COMMANDS");
+        assert_eq!(profile.chrome.command_grid_slot_count, 12);
+        assert_eq!(profile.chrome.command_grid_column_count, 6);
         assert_eq!(profile.chrome.command_slot_fallback_id, "hold");
         assert_eq!(profile.chrome.order_queue_title, "ORDER QUEUE");
         assert_eq!(profile.chrome.order_queue_empty_label, "NO ORDERS");
