@@ -534,7 +534,11 @@ pub struct RtsFirstContactPlayerScreenChromeProfile {
     pub production_title: String,
     pub build_palette_title: String,
     pub production_empty_label: String,
+    pub production_slot_visible_count: u8,
+    pub production_slot_column_count: u8,
     pub build_palette_slots: Vec<RtsPlayerScreenBuildPaletteSlotProfile>,
+    pub build_palette_visible_count: u8,
+    pub build_palette_column_count: u8,
     pub tactics_title: String,
     pub tactics_rows: Vec<RtsPlayerScreenTacticsRowProfile>,
     pub selection_panel_title: String,
@@ -1931,6 +1935,8 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             production_title: "PRODUCTION".to_string(),
             build_palette_title: "BUILD PALETTE".to_string(),
             production_empty_label: "ready".to_string(),
+            production_slot_visible_count: 4,
+            production_slot_column_count: 2,
             build_palette_slots: vec![
                 RtsPlayerScreenBuildPaletteSlotProfile {
                     label: "PWR".to_string(),
@@ -1965,6 +1971,8 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
                     queue_id: "upgrade:signal_blade".to_string(),
                 },
             ],
+            build_palette_visible_count: 8,
+            build_palette_column_count: 4,
             tactics_title: "TACTICS".to_string(),
             tactics_rows: vec![
                 RtsPlayerScreenTacticsRowProfile {
@@ -2458,6 +2466,8 @@ mod tests {
         assert_eq!(profile.chrome.production_title, "PRODUCTION");
         assert_eq!(profile.chrome.build_palette_title, "BUILD PALETTE");
         assert_eq!(profile.chrome.production_empty_label, "ready");
+        assert_eq!(profile.chrome.production_slot_visible_count, 4);
+        assert_eq!(profile.chrome.production_slot_column_count, 2);
         assert_eq!(profile.chrome.build_palette_slots.len(), 8);
         assert!(profile
             .chrome
@@ -2474,6 +2484,8 @@ mod tests {
             .build_palette_slots
             .iter()
             .any(|slot| { slot.label == "UPG" && slot.queue_id == "upgrade:signal_blade" }));
+        assert_eq!(profile.chrome.build_palette_visible_count, 8);
+        assert_eq!(profile.chrome.build_palette_column_count, 4);
         assert_eq!(profile.chrome.tactics_title, "TACTICS");
         assert_eq!(profile.chrome.tactics_rows.len(), 5);
         assert!(profile.chrome.tactics_rows.iter().any(|row| {

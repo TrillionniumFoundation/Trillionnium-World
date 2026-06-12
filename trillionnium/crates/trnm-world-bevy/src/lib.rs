@@ -28670,6 +28670,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_chrome.production_title == "PRODUCTION"
         && player_screen_chrome.build_palette_title == "BUILD PALETTE"
         && player_screen_chrome.production_empty_label == "ready"
+        && player_screen_chrome.production_slot_visible_count == 4
+        && player_screen_chrome.production_slot_column_count == 2
         && player_screen_chrome.build_palette_slots.len() == 8
         && player_screen_chrome
             .build_palette_slots
@@ -28683,6 +28685,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .build_palette_slots
             .iter()
             .any(|slot| slot.label == "UPG" && slot.queue_id == "upgrade:signal_blade")
+        && player_screen_chrome.build_palette_visible_count == 8
+        && player_screen_chrome.build_palette_column_count == 4
         && player_screen_chrome.tactics_title == "TACTICS"
         && player_screen_chrome.tactics_rows.len() == 5
         && player_screen_chrome.tactics_rows.iter().any(|row| {
@@ -107232,9 +107236,17 @@ fn classic_draw_openra_style_rts_shell(
         .as_ref()
         .map(|chrome| chrome.production_empty_label.as_str())
         .unwrap_or("ready");
-    for index in 0..4 {
-        let x = sidebar_x + 12 + (index % 2) as i32 * 116;
-        let y = prod_y + 18 + (index / 2) as i32 * 34;
+    let production_slot_visible_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.production_slot_visible_count.max(1) as usize)
+        .unwrap_or(4);
+    let production_slot_column_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.production_slot_column_count.max(1) as usize)
+        .unwrap_or(2);
+    for index in 0..production_slot_visible_count {
+        let x = sidebar_x + 12 + (index % production_slot_column_count) as i32 * 116;
+        let y = prod_y + 18 + (index / production_slot_column_count) as i32 * 34;
         let label = runtime
             .rts_production_queue
             .get(index)
@@ -107307,9 +107319,17 @@ fn classic_draw_openra_style_rts_shell(
         .as_ref()
         .map(|chrome| chrome.build_palette_slots.as_slice())
         .unwrap_or(&[]);
-    for index in 0..8 {
-        let x = sidebar_x + 12 + (index % 4) as i32 * 58;
-        let y = palette_y + 18 + (index / 4) as i32 * 46;
+    let build_palette_visible_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.build_palette_visible_count.max(1) as usize)
+        .unwrap_or(8);
+    let build_palette_column_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.build_palette_column_count.max(1) as usize)
+        .unwrap_or(4);
+    for index in 0..build_palette_visible_count {
+        let x = sidebar_x + 12 + (index % build_palette_column_count) as i32 * 58;
+        let y = palette_y + 18 + (index / build_palette_column_count) as i32 * 46;
         let data_slot = classic_first_contact_build_palette_slot(build_palette_slots, index);
         let queue_id = data_slot
             .map(|slot| slot.queue_id.clone())
@@ -107365,7 +107385,12 @@ fn classic_draw_openra_style_rts_shell(
         classic_draw_rect(buffer, width, height, x + 12, y + 5, 22, 4, 0x719566);
         let label = data_slot
             .map(|slot| slot.label.as_str())
-            .unwrap_or(["PWR", "RAX", "REF", "TUR", "COM", "RAD", "WAL", "UPG"][index]);
+            .unwrap_or_else(|| {
+                ["PWR", "RAX", "REF", "TUR", "COM", "RAD", "WAL", "UPG"]
+                    .get(index)
+                    .copied()
+                    .unwrap_or("UPG")
+            });
         classic_draw_text(
             buffer,
             width,
