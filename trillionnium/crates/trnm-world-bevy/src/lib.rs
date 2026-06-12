@@ -83499,6 +83499,7 @@ fn classic_draw_rts_hover_preview_overlay(
     if runtime.rts_hover_source.is_empty() || runtime.rts_hover_player_label.is_empty() {
         return;
     }
+    let player_screen = classic_player_screen_mode_enabled();
     let layout = classic_rts_shell_layout(width, height);
     let panel_x = layout
         .as_ref()
@@ -83509,36 +83510,38 @@ fn classic_draw_rts_hover_preview_overlay(
         .map(|layout| layout.viewport_y + 12)
         .unwrap_or(18);
     let panel_w = (width as i32 - panel_x - 24).clamp(220, 356);
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        panel_x,
-        panel_y,
-        panel_w,
-        24,
-        CLASSIC_RTS_HOVER_PANEL_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        panel_x,
-        panel_y,
-        5,
-        24,
-        CLASSIC_RTS_HOVER_PREVIEW_COLOR,
-    );
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 8,
-        &classic_catalog_text_label(&runtime.rts_hover_player_label, 44),
-        1,
-        CLASSIC_RTS_HOVER_PREVIEW_COLOR,
-    );
+    if !player_screen {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x,
+            panel_y,
+            panel_w,
+            24,
+            CLASSIC_RTS_HOVER_PANEL_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x,
+            panel_y,
+            5,
+            24,
+            CLASSIC_RTS_HOVER_PREVIEW_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 12,
+            panel_y + 8,
+            &classic_catalog_text_label(&runtime.rts_hover_player_label, 44),
+            1,
+            CLASSIC_RTS_HOVER_PREVIEW_COLOR,
+        );
+    }
     if let (Some(layout), Some(tile_id)) = (layout, runtime.rts_hover_tile_id.as_deref()) {
         if let Some(tile) = classic_parse_rts_tile(tile_id) {
             let cell_w = ((layout.viewport_w - 44).max(120)) / 12;
@@ -83702,36 +83705,38 @@ fn classic_draw_rts_hover_preview_overlay(
                             target_color,
                         );
                     }
-                    classic_draw_rect(
-                        buffer,
-                        width,
-                        height,
-                        panel_x,
-                        panel_y + 29,
-                        panel_w,
-                        18,
-                        CLASSIC_RTS_HOVER_PANEL_COLOR,
-                    );
-                    classic_draw_rect(
-                        buffer,
-                        width,
-                        height,
-                        panel_x,
-                        panel_y + 29,
-                        5,
-                        18,
-                        target_color,
-                    );
-                    classic_draw_text(
-                        buffer,
-                        width,
-                        height,
-                        panel_x + 12,
-                        panel_y + 35,
-                        &format!("RMB {} TARGET PREVIEW", kind.to_ascii_uppercase()),
-                        1,
-                        target_color,
-                    );
+                    if !player_screen {
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            panel_x,
+                            panel_y + 29,
+                            panel_w,
+                            18,
+                            CLASSIC_RTS_HOVER_PANEL_COLOR,
+                        );
+                        classic_draw_rect(
+                            buffer,
+                            width,
+                            height,
+                            panel_x,
+                            panel_y + 29,
+                            5,
+                            18,
+                            target_color,
+                        );
+                        classic_draw_text(
+                            buffer,
+                            width,
+                            height,
+                            panel_x + 12,
+                            panel_y + 35,
+                            &format!("RMB {} TARGET PREVIEW", kind.to_ascii_uppercase()),
+                            1,
+                            target_color,
+                        );
+                    }
                 }
             }
         }
@@ -83925,6 +83930,10 @@ fn classic_draw_rts_context_cursor_overlay(
             2,
             marker_color,
         );
+    }
+
+    if classic_player_screen_mode_enabled() {
+        return;
     }
 
     let label_x = (cursor_x + 14)
