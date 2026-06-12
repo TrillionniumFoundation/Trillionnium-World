@@ -92655,27 +92655,57 @@ fn classic_first_contact_tile_screen(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_lane_tile(tile: (i32, i32)) -> bool {
+    let (x, y) = tile;
+    x == 16 || y == 16 || (x - y).abs() <= 1 || (x + y - 33).abs() <= 1
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_base_pad(tile: (i32, i32)) -> bool {
+    let (x, y) = tile;
+    (6..=11).contains(&x) && (6..=11).contains(&y)
+        || (22..=27).contains(&x) && (22..=27).contains(&y)
+        || (22..=27).contains(&x) && (6..=11).contains(&y)
+        || (6..=11).contains(&x) && (22..=27).contains(&y)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_resource_tile(tile: (i32, i32)) -> bool {
+    let (x, y) = tile;
+    ((11..=14).contains(&x) && (14..=18).contains(&y))
+        || ((19..=22).contains(&x) && (14..=18).contains(&y))
+        || ((14..=18).contains(&x) && (11..=14).contains(&y))
+        || ((14..=18).contains(&x) && (19..=22).contains(&y))
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
     let (x, y) = tile;
     let dx = (x - 16).abs();
     let dy = (y - 16).abs();
     if !(1..=32).contains(&x) || !(1..=32).contains(&y) {
-        0x111812
-    } else if x == 16 || y == 16 || (x - y).abs() <= 1 || (x + y - 33).abs() <= 1 {
+        return 0x111812;
+    }
+    let mut color = if classic_first_contact_lane_tile(tile) {
         classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4)
     } else if dx <= 4 && dy <= 4 {
         0x203f39
-    } else if (6..=11).contains(&x) && (6..=11).contains(&y)
-        || (22..=27).contains(&x) && (22..=27).contains(&y)
-        || (22..=27).contains(&x) && (6..=11).contains(&y)
-        || (6..=11).contains(&x) && (22..=27).contains(&y)
-    {
+    } else if classic_first_contact_base_pad(tile) {
         0x243326
+    } else if classic_first_contact_resource_tile(tile) {
+        0x21392d
     } else if (x + y) % 2 == 0 {
         0x18251d
     } else {
         0x1d2d22
+    };
+    let surface_seed = (x * 37 + y * 19 + (x - y).abs() * 11) % 17;
+    if surface_seed == 0 {
+        color = classic_lighten(color, 1, 10);
+    } else if surface_seed == 1 || surface_seed == 9 {
+        color = classic_darken(color, 1, 10);
     }
+    color
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92713,12 +92743,55 @@ fn classic_draw_first_contact_terrain_layer(
 ) {
     for y in 1..=32 {
         for x in 1..=32 {
+            let tile = (x, y);
+            let tile_x = map_x + x * cell_w;
+            let tile_y = map_y + y * cell_h;
+            let surface_seed = (x * 13 + y * 17 + (x - y).abs() * 7) % 23;
+            if surface_seed == 0 && !classic_first_contact_lane_tile(tile) {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 3,
+                    tile_y + cell_h / 2,
+                    (cell_w / 3).max(3),
+                    1,
+                    classic_lighten(classic_first_contact_tile_color(tile), 1, 6),
+                );
+            }
+            if classic_first_contact_resource_tile(tile) && surface_seed % 5 == 0 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + cell_w / 2 - 2,
+                    tile_y + cell_h / 2 - 1,
+                    4,
+                    3,
+                    CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+                );
+            }
+            if classic_first_contact_base_pad(tile)
+                && ((x == 6 || x == 11)
+                    || (y == 6 || y == 11)
+                    || (x == 22 || x == 27)
+                    || (y == 22 || y == 27))
+            {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    tile_x + 2,
+                    tile_y + 2,
+                    cell_w - 4,
+                    1,
+                    CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+                );
+            }
             let tile_height = classic_first_contact_tile_height((x, y));
             if tile_height == 0 {
                 continue;
             }
-            let tile_x = map_x + x * cell_w;
-            let tile_y = map_y + y * cell_h;
             if tile_height >= 2 && (x + y) % 6 == 0 {
                 classic_draw_rect(
                     buffer,
