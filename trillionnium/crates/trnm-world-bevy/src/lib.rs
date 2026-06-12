@@ -104843,6 +104843,280 @@ fn classic_draw_rts_queue_slot(
 
 #[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_command_glyph(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    ability: &str,
+    color: u32,
+    accent: u32,
+) {
+    let center_x = x + 24;
+    let center_y = y + 20;
+    let normalized = ability.replace('_', "-").to_ascii_lowercase();
+    classic_draw_rect(buffer, width, height, x + 8, y + 12, 32, 18, 0x263b2e);
+    if normalized.contains("worker") || normalized.contains("harvest") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 5,
+            center_y - 8,
+            10,
+            16,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 7,
+            center_y - 12,
+            14,
+            5,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 8,
+            center_y - 2,
+            14,
+            4,
+            CLASSIC_RTS_HARVEST_NODE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 15,
+            center_y - 7,
+            4,
+            14,
+            CLASSIC_RTS_HARVEST_NODE_COLOR,
+        );
+    } else if normalized.contains("scout") || normalized.contains("recon") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 15,
+            center_y - 1,
+            30,
+            3,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 1,
+            center_y - 12,
+            3,
+            24,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 5,
+            center_y - 5,
+            11,
+            11,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 9,
+            center_y - 9,
+            8,
+            3,
+            CLASSIC_RTS_SCOUT_REVEAL_COLOR,
+        );
+    } else if normalized.contains("warden")
+        || normalized.contains("guard")
+        || normalized.contains("hold")
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 13,
+            center_y - 9,
+            26,
+            5,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 9,
+            center_y - 4,
+            18,
+            17,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 2,
+            center_y - 10,
+            4,
+            23,
+            CLASSIC_RTS_DEFENSE_READY_COLOR,
+        );
+    } else if normalized.contains("relay") || normalized.contains("rally") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 3,
+            center_y - 13,
+            6,
+            24,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 15,
+            center_y - 2,
+            30,
+            4,
+            accent,
+        );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            center_x,
+            center_y - 10,
+            13,
+            5,
+            CLASSIC_RTS_COMMANDER_AURA_COLOR,
+        );
+    } else if normalized.contains("core") || normalized.contains("build") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 13,
+            center_y - 4,
+            26,
+            15,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 9,
+            center_y - 11,
+            18,
+            8,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 2,
+            center_y - 16,
+            4,
+            10,
+            color,
+        );
+    } else if normalized.contains("signal")
+        || normalized.contains("ability")
+        || normalized.contains("focus")
+    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 2,
+            center_y - 14,
+            4,
+            28,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 14,
+            center_y - 2,
+            28,
+            4,
+            accent,
+        );
+        classic_draw_iso_ellipse(buffer, width, height, center_x, center_y, 14, 8, color);
+    } else if normalized.contains("attack") || normalized.contains("strike") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 14,
+            center_y - 2,
+            28,
+            4,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 2,
+            center_y - 14,
+            4,
+            28,
+            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 6,
+            center_y - 10,
+            10,
+            4,
+            color,
+        );
+    } else {
+        classic_draw_iso_diamond(
+            buffer,
+            width,
+            height,
+            center_x,
+            center_y - 10,
+            24,
+            16,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 12,
+            center_y + 8,
+            24,
+            4,
+            accent,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
 fn classic_draw_rts_ability_slot(
     buffer: &mut [u32],
     width: usize,
@@ -105979,142 +106253,233 @@ fn classic_draw_openra_style_rts_shell(
     }
 
     let input_y = palette_y + 118;
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        sidebar_x + 12,
-        input_y,
-        "LIVE INPUT",
-        1,
-        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-    );
-    for (index, label) in [
-        "LMB CLICK/DRAG SELECT",
-        "DOUBLE-LMB SAME CLASS",
-        "SHIFT+LMB ADD/REMOVE",
-        "RADAR CLICK RALLY",
-        "SIDEBAR QUEUE/BUILD",
-        "CTRL+1 ASSIGN / 1 RECALL",
-        "SHIFT+WASD/WHEEL CAMERA",
-    ]
-    .iter()
-    .enumerate()
-    {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            sidebar_x + 12,
-            input_y + 18 + index as i32 * 17,
-            sidebar_w - 24,
-            14,
-            0x111b14,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            sidebar_x + 12,
-            input_y + 18 + index as i32 * 17,
-            4,
-            14,
-            if index == 0 {
-                CLASSIC_ISO_CONTROL_GROUP_COLOR
-            } else {
-                CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR
-            },
-        );
+    if classic_player_screen_mode_enabled() {
         classic_draw_text(
             buffer,
             width,
             height,
-            sidebar_x + 22,
-            input_y + 22 + index as i32 * 17,
-            label,
+            sidebar_x + 12,
+            input_y,
+            "TACTICS",
             1,
-            CLASSIC_HUD_TEXT_COLOR,
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
         );
-    }
-    let state_y = input_y + 132;
-    let state_lines = [
-        format!(
-            "ORDER {}",
-            classic_catalog_text_label(&runtime.rts_group_command_state, 24)
-        ),
-        format!(
-            "TARGET {}",
-            runtime
-                .rts_attack_target_id
-                .as_deref()
-                .map(|target| classic_catalog_text_label(target, 22))
-                .unwrap_or_else(|| "NONE".to_string())
-        ),
-        format!(
-            "BUILD {} {}",
-            runtime
-                .rts_building_blueprint_id
-                .as_deref()
-                .map(|id| classic_catalog_text_label(id, 14))
-                .unwrap_or_else(|| "NONE".to_string()),
-            runtime.rts_building_progress_percent.min(100)
-        ),
-        format!(
-            "PROD {}",
-            classic_catalog_text_label(&classic_rts_sidebar_queue_summary(runtime), 24)
-        ),
-        format!(
-            "CAM {} {}",
-            runtime
-                .rts_camera_focus_tile_id
-                .as_deref()
-                .or(runtime.rts_minimap_command_tile_id.as_deref())
-                .unwrap_or("-"),
-            classic_catalog_text_label(
-                if runtime.rts_camera_input_source.is_empty() {
-                    "viewport"
+        let compact_state_lines = [
+            (
+                "ORDER",
+                classic_catalog_text_label(&runtime.rts_group_command_state, 20),
+                CLASSIC_ISO_CONTROL_GROUP_COLOR,
+            ),
+            (
+                "TARGET",
+                runtime
+                    .rts_attack_target_id
+                    .as_deref()
+                    .map(|target| classic_catalog_text_label(target, 18))
+                    .unwrap_or_else(|| "NONE".to_string()),
+                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+            ),
+            (
+                "CAM",
+                runtime
+                    .rts_camera_focus_tile_id
+                    .as_deref()
+                    .or(runtime.rts_minimap_command_tile_id.as_deref())
+                    .unwrap_or("-")
+                    .to_string(),
+                CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+            ),
+            (
+                "QUEUE",
+                classic_catalog_text_label(&classic_rts_sidebar_queue_summary(runtime), 20),
+                CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR,
+            ),
+            (
+                "BUILD",
+                format!(
+                    "{} {}",
+                    runtime
+                        .rts_building_blueprint_id
+                        .as_deref()
+                        .map(|id| classic_catalog_text_label(id, 14))
+                        .unwrap_or_else(|| "NONE".to_string()),
+                    runtime.rts_building_progress_percent.min(100)
+                ),
+                CLASSIC_RTS_BUILD_PROGRESS_COLOR,
+            ),
+        ];
+        for (index, (label, value, color)) in compact_state_lines.iter().enumerate() {
+            let y = input_y + 18 + index as i32 * 22;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                sidebar_x + 12,
+                y,
+                sidebar_w - 24,
+                18,
+                0x111b14,
+            );
+            classic_draw_rect(buffer, width, height, sidebar_x + 12, y, 4, 18, *color);
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                sidebar_x + 22,
+                y + 5,
+                label,
+                1,
+                CLASSIC_HUD_MUTED_TEXT_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                sidebar_x + 76,
+                y + 5,
+                value,
+                1,
+                CLASSIC_HUD_TEXT_COLOR,
+            );
+        }
+    } else {
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            sidebar_x + 12,
+            input_y,
+            "LIVE INPUT",
+            1,
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        );
+        for (index, label) in [
+            "LMB CLICK/DRAG SELECT",
+            "DOUBLE-LMB SAME CLASS",
+            "SHIFT+LMB ADD/REMOVE",
+            "RADAR CLICK RALLY",
+            "SIDEBAR QUEUE/BUILD",
+            "CTRL+1 ASSIGN / 1 RECALL",
+            "SHIFT+WASD/WHEEL CAMERA",
+        ]
+        .iter()
+        .enumerate()
+        {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                sidebar_x + 12,
+                input_y + 18 + index as i32 * 17,
+                sidebar_w - 24,
+                14,
+                0x111b14,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                sidebar_x + 12,
+                input_y + 18 + index as i32 * 17,
+                4,
+                14,
+                if index == 0 {
+                    CLASSIC_ISO_CONTROL_GROUP_COLOR
                 } else {
-                    &runtime.rts_camera_input_source
+                    CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR
                 },
-                12
-            )
-        ),
-        format!(
-            "DRAG {}",
-            if runtime.rts_drag_select_player_label.is_empty() {
-                "NONE".to_string()
-            } else {
-                classic_catalog_text_label(&runtime.rts_drag_select_player_label, 24)
-            }
-        ),
-        format!(
-            "HOVER {}",
-            if runtime.rts_hover_player_label.is_empty() {
-                "NONE".to_string()
-            } else {
-                classic_catalog_text_label(&runtime.rts_hover_player_label, 24)
-            }
-        ),
-        format!(
-            "RES {}",
-            runtime
-                .rts_resource_spend_log
-                .last()
-                .map(|entry| classic_catalog_text_label(entry, 24))
-                .unwrap_or_else(|| "NONE".to_string())
-        ),
-    ];
-    for (index, line) in state_lines.iter().enumerate() {
-        classic_draw_text(
-            buffer,
-            width,
-            height,
-            sidebar_x + 12,
-            state_y + index as i32 * 16,
-            line,
-            1,
-            CLASSIC_HUD_MUTED_TEXT_COLOR,
-        );
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                sidebar_x + 22,
+                input_y + 22 + index as i32 * 17,
+                label,
+                1,
+                CLASSIC_HUD_TEXT_COLOR,
+            );
+        }
+        let state_y = input_y + 132;
+        let state_lines = [
+            format!(
+                "ORDER {}",
+                classic_catalog_text_label(&runtime.rts_group_command_state, 24)
+            ),
+            format!(
+                "TARGET {}",
+                runtime
+                    .rts_attack_target_id
+                    .as_deref()
+                    .map(|target| classic_catalog_text_label(target, 22))
+                    .unwrap_or_else(|| "NONE".to_string())
+            ),
+            format!(
+                "BUILD {} {}",
+                runtime
+                    .rts_building_blueprint_id
+                    .as_deref()
+                    .map(|id| classic_catalog_text_label(id, 14))
+                    .unwrap_or_else(|| "NONE".to_string()),
+                runtime.rts_building_progress_percent.min(100)
+            ),
+            format!(
+                "PROD {}",
+                classic_catalog_text_label(&classic_rts_sidebar_queue_summary(runtime), 24)
+            ),
+            format!(
+                "CAM {} {}",
+                runtime
+                    .rts_camera_focus_tile_id
+                    .as_deref()
+                    .or(runtime.rts_minimap_command_tile_id.as_deref())
+                    .unwrap_or("-"),
+                classic_catalog_text_label(
+                    if runtime.rts_camera_input_source.is_empty() {
+                        "viewport"
+                    } else {
+                        &runtime.rts_camera_input_source
+                    },
+                    12
+                )
+            ),
+            format!(
+                "DRAG {}",
+                if runtime.rts_drag_select_player_label.is_empty() {
+                    "NONE".to_string()
+                } else {
+                    classic_catalog_text_label(&runtime.rts_drag_select_player_label, 24)
+                }
+            ),
+            format!(
+                "HOVER {}",
+                if runtime.rts_hover_player_label.is_empty() {
+                    "NONE".to_string()
+                } else {
+                    classic_catalog_text_label(&runtime.rts_hover_player_label, 24)
+                }
+            ),
+            format!(
+                "RES {}",
+                runtime
+                    .rts_resource_spend_log
+                    .last()
+                    .map(|entry| classic_catalog_text_label(entry, 24))
+                    .unwrap_or_else(|| "NONE".to_string())
+            ),
+        ];
+        for (index, line) in state_lines.iter().enumerate() {
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                sidebar_x + 12,
+                state_y + index as i32 * 16,
+                line,
+                1,
+                CLASSIC_HUD_MUTED_TEXT_COLOR,
+            );
+        }
     }
 
     classic_draw_panel_frame(
@@ -106270,19 +106635,55 @@ fn classic_draw_openra_style_rts_shell(
                 CLASSIC_RTS_COMMAND_DISABLED_COLOR
             },
         );
-        classic_draw_rect(buffer, width, height, x + 8, y + 12, 32, 10, 0x263b2e);
-        classic_draw_text(
+        let glyph_color = if available {
+            CLASSIC_HUD_TEXT_COLOR
+        } else {
+            CLASSIC_HUD_MUTED_TEXT_COLOR
+        };
+        classic_draw_rts_command_glyph(
             buffer,
             width,
             height,
-            x + 6,
-            y + 27,
-            &classic_catalog_text_label(ability, 5),
-            1,
-            if available {
-                CLASSIC_HUD_TEXT_COLOR
+            x,
+            y,
+            ability,
+            glyph_color,
+            if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else if sent {
+                CLASSIC_ISO_COMMAND_MARKER_COLOR
             } else {
-                CLASSIC_HUD_MUTED_TEXT_COLOR
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR
+            },
+        );
+        if !classic_player_screen_mode_enabled() {
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                x + 6,
+                y + 27,
+                &classic_catalog_text_label(ability, 5),
+                1,
+                if available {
+                    CLASSIC_HUD_TEXT_COLOR
+                } else {
+                    CLASSIC_HUD_MUTED_TEXT_COLOR
+                },
+            );
+        }
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 36,
+            y + 26,
+            7,
+            7,
+            if !available {
+                CLASSIC_RTS_COMMAND_DISABLED_COLOR
+            } else {
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR
             },
         );
         classic_draw_rect(
