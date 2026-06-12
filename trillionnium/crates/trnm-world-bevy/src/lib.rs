@@ -35,8 +35,9 @@ use trnm_rts_data::{
     first_contact_basin_map, first_contact_command_feedback_profile,
     first_contact_opening_loop_profile, first_contact_player_startup_profiles,
     first_contact_terrain_profile, first_contact_terrain_profiles, RtsActorColorRole,
-    RtsActorPresentationProfile, RtsCommandFeedbackProfile, RtsMapActor, RtsOpeningLoopProfile,
-    RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole, TRNM_RTS_DATA_CONTRACT,
+    RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
+    RtsMapActor, RtsOpeningLoopProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
+    RtsTerrainRole, TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
@@ -28535,6 +28536,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             profile.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT
                 && profile.map_id == map_model.map_id
                 && profile.health_bar_width >= 10
+                && profile.glyph.contract_version
+                    == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT
+                && profile.glyph.footprint_width_cells > 0
+                && profile.glyph.footprint_height_cells > 0
                 && map_model
                     .rules
                     .iter()
@@ -28549,9 +28554,19 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             profile.color_role == RtsActorColorRole::CommandCore
                 && profile.structure
                 && profile.health_bar_width >= 32
+                && profile.glyph.body == RtsActorGlyphBody::Structure
+                && profile.glyph.accent == RtsActorGlyphAccent::CommandSpire
+                && profile.glyph.footprint_width_cells == 2
         })
         && classic_first_contact_actor_presentation("trnm.flux.beacon").is_some_and(|profile| {
-            profile.color_role == RtsActorColorRole::Objective && profile.structure
+            profile.color_role == RtsActorColorRole::Objective
+                && profile.structure
+                && profile.glyph.body == RtsActorGlyphBody::ObjectiveBeacon
+                && profile.glyph.accent == RtsActorGlyphAccent::BeaconCore
+        })
+        && classic_first_contact_actor_presentation("mpspawn").is_some_and(|profile| {
+            profile.glyph.body == RtsActorGlyphBody::SpawnPad
+                && profile.glyph.accent == RtsActorGlyphAccent::OwnerStripe
         });
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
@@ -28616,6 +28631,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_command_feedback_profile": rts_data_command_feedback_profile,
         "rts_data_player_startup_profiles": rts_data_player_startup_profiles,
         "rts_data_actor_presentation_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
+        "rts_data_actor_glyph_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
         "rts_data_actor_presentation_profiles": rts_data_actor_presentation_profiles,
         "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
         "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
@@ -85406,6 +85422,20 @@ fn classic_first_contact_actor_kind_from_rule_id(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_actor_rule_id(kind: ClassicFirstContactActorKind) -> &'static str {
+    match kind {
+        ClassicFirstContactActorKind::Spawn => "mpspawn",
+        ClassicFirstContactActorKind::FluxBloom => "trnm.flux.bloom",
+        ClassicFirstContactActorKind::Beacon => "trnm.flux.beacon",
+        ClassicFirstContactActorKind::Ridge => "trnm.map.ridge",
+        ClassicFirstContactActorKind::Vent => "trnm.flux.vent",
+        ClassicFirstContactActorKind::LaneMarker => "trnm.lane.marker",
+        ClassicFirstContactActorKind::BeaconRing => "trnm.beacon.ring",
+        ClassicFirstContactActorKind::ExpansionMarker => "trnm.expansion.marker",
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_actor_owner_from_rts_data(owner: &str) -> &'static str {
     match owner {
         "Multi0" => "Multi0",
@@ -92650,6 +92680,66 @@ fn classic_first_contact_runtime_actor_health_bar_width(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_glyph_body(
+    actor: &TrnmOpenRaLikeActorState,
+) -> RtsActorGlyphBody {
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| profile.glyph.body)
+        .unwrap_or_else(|| {
+            if classic_first_contact_runtime_actor_is_structure(actor) {
+                RtsActorGlyphBody::Structure
+            } else {
+                RtsActorGlyphBody::Unit
+            }
+        })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_glyph_accent(
+    actor: &TrnmOpenRaLikeActorState,
+) -> RtsActorGlyphAccent {
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| profile.glyph.accent)
+        .unwrap_or(RtsActorGlyphAccent::None)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_selection_ring(actor: &TrnmOpenRaLikeActorState) -> bool {
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| profile.glyph.selection_ring)
+        .unwrap_or(actor.owner == "Multi0")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_shadow(actor: &TrnmOpenRaLikeActorState) -> bool {
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| profile.glyph.shadow)
+        .unwrap_or(true)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_size(
+    actor: &TrnmOpenRaLikeActorState,
+    cell_w: i32,
+    cell_h: i32,
+) -> (i32, i32) {
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| {
+            (
+                (cell_w * i32::from(profile.glyph.footprint_width_cells)).max(8),
+                (cell_h * i32::from(profile.glyph.footprint_height_cells)).max(6),
+            )
+        })
+        .unwrap_or_else(|| {
+            if classic_first_contact_runtime_actor_is_structure(actor) {
+                ((cell_w * 2).max(8), (cell_h * 2).max(6))
+            } else {
+                (cell_w.max(8), cell_h.max(6))
+            }
+        })
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_actor_health_bar(
     buffer: &mut [u32],
@@ -92700,7 +92790,12 @@ fn classic_draw_first_contact_actor_glyph(
     let base_y = center_y - size_h / 2;
     let highlight = classic_lighten(color, 1, 4);
     let shadow = classic_darken(color, 2, 5);
-    if classic_first_contact_runtime_actor_is_structure(actor) {
+    let glyph_body = classic_first_contact_runtime_actor_glyph_body(actor);
+    let glyph_accent = classic_first_contact_runtime_actor_glyph_accent(actor);
+    if matches!(
+        glyph_body,
+        RtsActorGlyphBody::Structure | RtsActorGlyphBody::ObjectiveBeacon
+    ) {
         classic_draw_rect(
             buffer,
             width,
@@ -92731,8 +92826,8 @@ fn classic_draw_first_contact_actor_glyph(
             size_h.max(8),
             color,
         );
-        match actor.rule_id {
-            "trnm.command.core" => {
+        match glyph_accent {
+            RtsActorGlyphAccent::CommandSpire => {
                 classic_draw_rect(
                     buffer,
                     width,
@@ -92764,7 +92859,7 @@ fn classic_draw_first_contact_actor_glyph(
                     CLASSIC_RTS_COMMANDER_AURA_COLOR,
                 );
             }
-            "trnm.flux.relay" => {
+            RtsActorGlyphAccent::RelayMast => {
                 classic_draw_rect(
                     buffer,
                     width,
@@ -92796,7 +92891,7 @@ fn classic_draw_first_contact_actor_glyph(
                     CLASSIC_RTS_COMMANDER_AURA_COLOR,
                 );
             }
-            "trnm.flux.beacon" => {
+            RtsActorGlyphAccent::BeaconCore => {
                 classic_draw_iso_ellipse(
                     buffer,
                     width,
@@ -92821,16 +92916,18 @@ fn classic_draw_first_contact_actor_glyph(
             _ => {}
         }
     } else {
-        classic_draw_iso_shadow(
-            buffer,
-            width,
-            height,
-            center_x,
-            center_y + size_h / 4,
-            size_w / 2,
-            (size_h / 4).max(2),
-        );
-        if actor.owner == "Multi0" {
+        if classic_first_contact_runtime_actor_shadow(actor) {
+            classic_draw_iso_shadow(
+                buffer,
+                width,
+                height,
+                center_x,
+                center_y + size_h / 4,
+                size_w / 2,
+                (size_h / 4).max(2),
+            );
+        }
+        if actor.owner == "Multi0" && classic_first_contact_runtime_actor_selection_ring(actor) {
             classic_draw_iso_ellipse(
                 buffer,
                 width,
@@ -92872,8 +92969,8 @@ fn classic_draw_first_contact_actor_glyph(
             (size_h / 4).max(3),
             highlight,
         );
-        match actor.rule_id {
-            "trnm.worker" => {
+        match glyph_accent {
+            RtsActorGlyphAccent::WorkerCargo => {
                 classic_draw_rect(
                     buffer,
                     width,
@@ -92885,7 +92982,7 @@ fn classic_draw_first_contact_actor_glyph(
                     CLASSIC_RTS_HARVEST_NODE_COLOR,
                 );
             }
-            "trnm.horizon.scout" => {
+            RtsActorGlyphAccent::ScoutSensor => {
                 classic_draw_rect(
                     buffer,
                     width,
@@ -92907,7 +93004,7 @@ fn classic_draw_first_contact_actor_glyph(
                     CLASSIC_RTS_SCOUT_REVEAL_COLOR,
                 );
             }
-            "trnm.forge.warden" => {
+            RtsActorGlyphAccent::WardenShield => {
                 classic_draw_rect(
                     buffer,
                     width,
@@ -92929,7 +93026,7 @@ fn classic_draw_first_contact_actor_glyph(
                     CLASSIC_RTS_STRUCTURE_HEALTH_COLOR,
                 );
             }
-            "trnm.striker" => {
+            RtsActorGlyphAccent::StrikerBlade => {
                 classic_draw_rect(
                     buffer,
                     width,
@@ -92977,18 +93074,7 @@ fn classic_draw_first_contact_runtime_core_layer(
         let (tile_x, tile_y) =
             classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
         let color = classic_first_contact_runtime_actor_color(actor);
-        let size_w = if actor.rule_id == "trnm.command.core" {
-            cell_w * 2
-        } else {
-            cell_w
-        }
-        .max(8);
-        let size_h = if actor.rule_id == "trnm.command.core" {
-            cell_h * 2
-        } else {
-            cell_h
-        }
-        .max(6);
+        let (size_w, size_h) = classic_first_contact_runtime_actor_size(actor, cell_w, cell_h);
         classic_draw_first_contact_actor_glyph(
             buffer, width, height, actor, tile_x, tile_y, size_w, size_h, color,
         );
@@ -93987,8 +94073,27 @@ fn classic_draw_first_contact_actor(
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
-    match actor.kind {
-        ClassicFirstContactActorKind::Spawn => {
+    let rule_id = classic_first_contact_actor_rule_id(actor.kind);
+    let presentation = classic_first_contact_actor_presentation(rule_id);
+    let glyph_body = presentation
+        .as_ref()
+        .map(|profile| profile.glyph.body)
+        .unwrap_or_else(|| match actor.kind {
+            ClassicFirstContactActorKind::Spawn => RtsActorGlyphBody::SpawnPad,
+            ClassicFirstContactActorKind::FluxBloom => RtsActorGlyphBody::ResourceBloom,
+            ClassicFirstContactActorKind::Beacon => RtsActorGlyphBody::ObjectiveBeacon,
+            ClassicFirstContactActorKind::Ridge => RtsActorGlyphBody::TerrainRidge,
+            ClassicFirstContactActorKind::Vent => RtsActorGlyphBody::FluxVent,
+            ClassicFirstContactActorKind::LaneMarker => RtsActorGlyphBody::LaneMarker,
+            ClassicFirstContactActorKind::BeaconRing => RtsActorGlyphBody::BeaconRing,
+            ClassicFirstContactActorKind::ExpansionMarker => RtsActorGlyphBody::ExpansionMarker,
+        });
+    let glyph_accent = presentation
+        .as_ref()
+        .map(|profile| profile.glyph.accent)
+        .unwrap_or(RtsActorGlyphAccent::None);
+    match glyph_body {
+        RtsActorGlyphBody::SpawnPad => {
             let owner_color = match actor.owner {
                 "Multi0" | "Multi2" => 0x67c980,
                 "Multi1" | "Multi3" => 0xd47967,
@@ -94055,7 +94160,7 @@ fn classic_draw_first_contact_actor(
                 owner_color,
             );
         }
-        ClassicFirstContactActorKind::FluxBloom => {
+        RtsActorGlyphBody::ResourceBloom => {
             classic_draw_rect(
                 buffer,
                 width,
@@ -94097,7 +94202,7 @@ fn classic_draw_first_contact_actor(
                 CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
             );
         }
-        ClassicFirstContactActorKind::Beacon => {
+        RtsActorGlyphBody::ObjectiveBeacon => {
             classic_draw_rect(
                 buffer,
                 width,
@@ -94139,7 +94244,7 @@ fn classic_draw_first_contact_actor(
                 CLASSIC_RTS_STRUCTURE_PRODUCTION_GLOW_COLOR,
             );
         }
-        ClassicFirstContactActorKind::Ridge => {
+        RtsActorGlyphBody::TerrainRidge => {
             classic_draw_rect(
                 buffer,
                 width,
@@ -94161,7 +94266,7 @@ fn classic_draw_first_contact_actor(
                 0x72805d,
             );
         }
-        ClassicFirstContactActorKind::Vent => {
+        RtsActorGlyphBody::FluxVent => {
             classic_draw_rect(
                 buffer,
                 width,
@@ -94183,7 +94288,7 @@ fn classic_draw_first_contact_actor(
                 CLASSIC_RTS_PRODUCT_RESOURCE_COLOR,
             );
         }
-        ClassicFirstContactActorKind::LaneMarker => {
+        RtsActorGlyphBody::LaneMarker => {
             classic_draw_rect(
                 buffer,
                 width,
@@ -94205,7 +94310,7 @@ fn classic_draw_first_contact_actor(
                 CLASSIC_RTS_PRODUCT_LANE_COLOR,
             );
         }
-        ClassicFirstContactActorKind::BeaconRing => {
+        RtsActorGlyphBody::BeaconRing => {
             classic_draw_rect(
                 buffer,
                 width,
@@ -94247,7 +94352,7 @@ fn classic_draw_first_contact_actor(
                 CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
             );
         }
-        ClassicFirstContactActorKind::ExpansionMarker => {
+        RtsActorGlyphBody::ExpansionMarker => {
             classic_draw_rect(
                 buffer,
                 width,
@@ -94269,6 +94374,54 @@ fn classic_draw_first_contact_actor(
                 CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
             );
         }
+        RtsActorGlyphBody::Unit | RtsActorGlyphBody::Structure => {
+            let color = classic_first_contact_actor_color_role_color(
+                presentation
+                    .as_ref()
+                    .map(|profile| profile.color_role)
+                    .unwrap_or(RtsActorColorRole::MapDetail),
+            );
+            let footprint_w = presentation
+                .as_ref()
+                .map(|profile| i32::from(profile.glyph.footprint_width_cells).max(1))
+                .unwrap_or(1);
+            let footprint_h = presentation
+                .as_ref()
+                .map(|profile| i32::from(profile.glyph.footprint_height_cells).max(1))
+                .unwrap_or(1);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - (cell_w * footprint_w) / 2,
+                cy - (cell_h * footprint_h) / 2,
+                (cell_w * footprint_w).max(8),
+                (cell_h * footprint_h).max(6),
+                color,
+            );
+        }
+    }
+    if matches!(
+        glyph_accent,
+        RtsActorGlyphAccent::OwnerStripe
+            | RtsActorGlyphAccent::ResourceGlint
+            | RtsActorGlyphAccent::BeaconCore
+            | RtsActorGlyphAccent::RidgeLip
+            | RtsActorGlyphAccent::VentGlow
+            | RtsActorGlyphAccent::LaneCross
+            | RtsActorGlyphAccent::RingFrame
+            | RtsActorGlyphAccent::ExpansionCross
+    ) {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 2,
+            cy - 2,
+            4,
+            4,
+            classic_lighten(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR, 1, 5),
+        );
     }
 }
 

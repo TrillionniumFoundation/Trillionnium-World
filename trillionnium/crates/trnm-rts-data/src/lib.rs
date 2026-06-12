@@ -18,6 +18,8 @@ pub const TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT: &str =
     "trnm_rts_data_first_contact_player_startup_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT: &str =
     "trnm_rts_data_first_contact_actor_presentation_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT: &str =
+    "trnm_rts_data_first_contact_actor_glyph_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -268,6 +270,91 @@ impl RtsActorGlyphRole {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsActorGlyphBody {
+    Unit,
+    Structure,
+    SpawnPad,
+    ResourceBloom,
+    ObjectiveBeacon,
+    TerrainRidge,
+    FluxVent,
+    LaneMarker,
+    BeaconRing,
+    ExpansionMarker,
+}
+
+impl RtsActorGlyphBody {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unit => "unit",
+            Self::Structure => "structure",
+            Self::SpawnPad => "spawn_pad",
+            Self::ResourceBloom => "resource_bloom",
+            Self::ObjectiveBeacon => "objective_beacon",
+            Self::TerrainRidge => "terrain_ridge",
+            Self::FluxVent => "flux_vent",
+            Self::LaneMarker => "lane_marker",
+            Self::BeaconRing => "beacon_ring",
+            Self::ExpansionMarker => "expansion_marker",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsActorGlyphAccent {
+    None,
+    WorkerCargo,
+    ScoutSensor,
+    WardenShield,
+    StrikerBlade,
+    CommandSpire,
+    RelayMast,
+    BeaconCore,
+    ResourceGlint,
+    OwnerStripe,
+    RidgeLip,
+    VentGlow,
+    LaneCross,
+    RingFrame,
+    ExpansionCross,
+}
+
+impl RtsActorGlyphAccent {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::WorkerCargo => "worker_cargo",
+            Self::ScoutSensor => "scout_sensor",
+            Self::WardenShield => "warden_shield",
+            Self::StrikerBlade => "striker_blade",
+            Self::CommandSpire => "command_spire",
+            Self::RelayMast => "relay_mast",
+            Self::BeaconCore => "beacon_core",
+            Self::ResourceGlint => "resource_glint",
+            Self::OwnerStripe => "owner_stripe",
+            Self::RidgeLip => "ridge_lip",
+            Self::VentGlow => "vent_glow",
+            Self::LaneCross => "lane_cross",
+            Self::RingFrame => "ring_frame",
+            Self::ExpansionCross => "expansion_cross",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsActorGlyphProfile {
+    pub contract_version: String,
+    pub body: RtsActorGlyphBody,
+    pub accent: RtsActorGlyphAccent,
+    pub footprint_width_cells: u8,
+    pub footprint_height_cells: u8,
+    pub selection_ring: bool,
+    pub shadow: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsActorPresentationProfile {
     pub contract_version: String,
@@ -280,6 +367,7 @@ pub struct RtsActorPresentationProfile {
     pub selectable: bool,
     pub health_bar_width: u8,
     pub draw_priority: u8,
+    pub glyph: RtsActorGlyphProfile,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1259,6 +1347,21 @@ pub fn first_contact_player_startup_profiles() -> Vec<RtsPlayerStartupProfile> {
 pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationProfile> {
     [
         (
+            "mpspawn",
+            RtsActorColorRole::MapDetail,
+            RtsActorGlyphRole::MapDetail,
+            false,
+            false,
+            10,
+            11,
+            RtsActorGlyphBody::SpawnPad,
+            RtsActorGlyphAccent::OwnerStripe,
+            3,
+            3,
+            false,
+            true,
+        ),
+        (
             "trnm.worker",
             RtsActorColorRole::Worker,
             RtsActorGlyphRole::Worker,
@@ -1266,6 +1369,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             true,
             18,
             42,
+            RtsActorGlyphBody::Unit,
+            RtsActorGlyphAccent::WorkerCargo,
+            1,
+            1,
+            true,
+            true,
         ),
         (
             "trnm.horizon.scout",
@@ -1275,6 +1384,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             true,
             18,
             45,
+            RtsActorGlyphBody::Unit,
+            RtsActorGlyphAccent::ScoutSensor,
+            1,
+            1,
+            true,
+            true,
         ),
         (
             "trnm.forge.warden",
@@ -1284,6 +1399,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             true,
             20,
             46,
+            RtsActorGlyphBody::Unit,
+            RtsActorGlyphAccent::WardenShield,
+            1,
+            1,
+            true,
+            true,
         ),
         (
             "trnm.striker",
@@ -1293,6 +1414,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             true,
             18,
             47,
+            RtsActorGlyphBody::Unit,
+            RtsActorGlyphAccent::StrikerBlade,
+            1,
+            1,
+            true,
+            true,
         ),
         (
             "trnm.command.core",
@@ -1302,6 +1429,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             true,
             36,
             70,
+            RtsActorGlyphBody::Structure,
+            RtsActorGlyphAccent::CommandSpire,
+            2,
+            2,
+            true,
+            true,
         ),
         (
             "trnm.flux.relay",
@@ -1311,6 +1444,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             true,
             30,
             62,
+            RtsActorGlyphBody::Structure,
+            RtsActorGlyphAccent::RelayMast,
+            2,
+            2,
+            true,
+            true,
         ),
         (
             "trnm.flux.beacon",
@@ -1320,6 +1459,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             true,
             28,
             58,
+            RtsActorGlyphBody::ObjectiveBeacon,
+            RtsActorGlyphAccent::BeaconCore,
+            2,
+            2,
+            true,
+            true,
         ),
         (
             "trnm.flux.bloom",
@@ -1329,6 +1474,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             false,
             12,
             20,
+            RtsActorGlyphBody::ResourceBloom,
+            RtsActorGlyphAccent::ResourceGlint,
+            2,
+            2,
+            false,
+            true,
         ),
         (
             "trnm.map.ridge",
@@ -1338,6 +1489,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             false,
             10,
             10,
+            RtsActorGlyphBody::TerrainRidge,
+            RtsActorGlyphAccent::RidgeLip,
+            2,
+            1,
+            false,
+            false,
         ),
         (
             "trnm.flux.vent",
@@ -1347,6 +1504,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             false,
             10,
             10,
+            RtsActorGlyphBody::FluxVent,
+            RtsActorGlyphAccent::VentGlow,
+            1,
+            1,
+            false,
+            false,
         ),
         (
             "trnm.lane.marker",
@@ -1356,6 +1519,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             false,
             10,
             10,
+            RtsActorGlyphBody::LaneMarker,
+            RtsActorGlyphAccent::LaneCross,
+            3,
+            3,
+            false,
+            false,
         ),
         (
             "trnm.beacon.ring",
@@ -1365,6 +1534,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             false,
             10,
             10,
+            RtsActorGlyphBody::BeaconRing,
+            RtsActorGlyphAccent::RingFrame,
+            2,
+            2,
+            false,
+            false,
         ),
         (
             "trnm.expansion.marker",
@@ -1374,6 +1549,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             false,
             10,
             10,
+            RtsActorGlyphBody::ExpansionMarker,
+            RtsActorGlyphAccent::ExpansionCross,
+            1,
+            1,
+            false,
+            false,
         ),
     ]
     .into_iter()
@@ -1386,6 +1567,12 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
             selectable,
             health_bar_width,
             draw_priority,
+            glyph_body,
+            glyph_accent,
+            footprint_width_cells,
+            footprint_height_cells,
+            selection_ring,
+            shadow,
         )| {
             let label = first_contact_rules()
                 .into_iter()
@@ -1404,6 +1591,15 @@ pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationPr
                 selectable,
                 health_bar_width,
                 draw_priority,
+                glyph: RtsActorGlyphProfile {
+                    contract_version: TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT.to_string(),
+                    body: glyph_body,
+                    accent: glyph_accent,
+                    footprint_width_cells,
+                    footprint_height_cells,
+                    selection_ring,
+                    shadow,
+                },
             }
         },
     )
@@ -1666,6 +1862,10 @@ mod tests {
                 && profile.map_id == map.map_id
                 && map.rules.iter().any(|rule| rule.id == profile.rule_id)
                 && profile.health_bar_width >= 10
+                && profile.glyph.contract_version
+                    == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT
+                && profile.glyph.footprint_width_cells > 0
+                && profile.glyph.footprint_height_cells > 0
         }));
         let core = first_contact_actor_presentation_profile("trnm.command.core")
             .expect("command core presentation exists");
@@ -1673,15 +1873,29 @@ mod tests {
         assert_eq!(core.glyph_role, RtsActorGlyphRole::CommandCore);
         assert!(core.structure);
         assert_eq!(core.health_bar_width, 36);
+        assert_eq!(core.glyph.body, RtsActorGlyphBody::Structure);
+        assert_eq!(core.glyph.accent, RtsActorGlyphAccent::CommandSpire);
+        assert_eq!(core.glyph.footprint_width_cells, 2);
         let worker = first_contact_actor_presentation_profile("trnm.worker")
             .expect("worker presentation exists");
         assert_eq!(worker.color_role.as_str(), "worker");
         assert_eq!(worker.glyph_role.as_str(), "worker");
+        assert_eq!(worker.glyph.body.as_str(), "unit");
+        assert_eq!(worker.glyph.accent.as_str(), "worker_cargo");
+        assert!(worker.glyph.selection_ring);
         assert!(worker.selectable);
         assert!(!worker.structure);
         assert!(
             first_contact_actor_presentation_profile("trnm.flux.beacon").is_some_and(|profile| {
-                profile.structure && profile.color_role.as_str() == "objective"
+                profile.structure
+                    && profile.color_role.as_str() == "objective"
+                    && profile.glyph.body == RtsActorGlyphBody::ObjectiveBeacon
+            })
+        );
+        assert!(
+            first_contact_actor_presentation_profile("mpspawn").is_some_and(|profile| {
+                profile.glyph.body == RtsActorGlyphBody::SpawnPad
+                    && profile.glyph.accent == RtsActorGlyphAccent::OwnerStripe
             })
         );
     }
