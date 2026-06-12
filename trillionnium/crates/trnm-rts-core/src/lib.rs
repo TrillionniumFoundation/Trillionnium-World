@@ -2926,6 +2926,97 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_tech_transition_stream() {
+        let subjects = vec![
+            "bot_signal_scout".to_string(),
+            "bot_tech_lane".to_string(),
+            "bot_timing_force".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:recon:scan:early_signal_read@4,5",
+            "RTS:QUEUE:research:counter_tech_switch@signal_array",
+            "RTS:QUEUE:train:anti_air_timing",
+            "RTS:QUEUE:upgrade:siege_response_window@training_hall",
+            "RTS:ATTACK:upgrade_timing_push",
+            "RTS:QUEUE:objective:claim:terminal_tech_lock@6,5",
+        ];
+        let orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    2_600 + index as u32,
+                    "Bot0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-tech-transition",
+            "trnm-rts-core-bot-tech-transition-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let recon = &report.checkpoint.recon_intel;
+        let production = &report.checkpoint.production_lifecycle;
+        let tech = &report.checkpoint.tech_tree;
+        let objectives = &report.checkpoint.objectives;
+        let combat = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 6);
+        assert_eq!(report.checkpoint.actor_count, 3);
+        assert_eq!(report.checkpoint.final_frame, 2_605);
+        assert_eq!(recon.scan_order_count, 1);
+        assert!(recon.recon_ids.iter().any(|id| id == "early_signal_read"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "4,5"));
+        assert_eq!(production.train_order_count, 1);
+        assert!(production
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "anti_air_timing"));
+        assert_eq!(tech.tech_order_count, 2);
+        assert_eq!(tech.research_order_count, 1);
+        assert_eq!(tech.upgrade_order_count, 1);
+        assert!(tech
+            .researched_rule_ids
+            .iter()
+            .any(|rule| rule == "counter_tech_switch"));
+        assert!(tech
+            .upgraded_rule_ids
+            .iter()
+            .any(|rule| rule == "siege_response_window"));
+        assert_eq!(objectives.capture_order_count, 1);
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "terminal_tech_lock"));
+        assert_eq!(combat.attack_order_count, 1);
+        assert!(combat
+            .combat_target_actor_ids
+            .iter()
+            .any(|target| target == "upgrade_timing_push"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:capture:")
+                && event.contains(":target:terminal_tech_lock@6,5")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.recon_order_count, 1);
+            assert_eq!(actor.research_order_count, 1);
+            assert_eq!(actor.train_order_count, 1);
+            assert_eq!(actor.upgrade_order_count, 1);
+            assert_eq!(actor.attack_order_count, 1);
+            assert_eq!(actor.capture_order_count, 1);
+            assert_eq!(actor.target_actor_id.as_deref(), Some("terminal_tech_lock"));
+            assert_eq!(actor.target_tile, Some(RtsTile::new(6, 5)));
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),

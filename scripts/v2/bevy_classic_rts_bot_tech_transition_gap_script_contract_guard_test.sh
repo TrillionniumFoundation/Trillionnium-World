@@ -20,6 +20,9 @@ required_script_lines=(
   'openra_organic_bot_terminal_target_commit == "5f1bf76"'
   'tech_transition_signal_count >= 24'
   'final_tech_transition_state == "terminal_tech_lock_secured"'
+  'rts_bot_tech_transition_core_frame_order_gate == true'
+  'rts_bot_tech_transition_core_headless_replay_gate == true'
+  'rts_bot_tech_transition_core_headless_tech_order_count == 2'
   'tech_transition_gap_gate == true'
 )
 
@@ -44,6 +47,9 @@ required_source_lines=(
   'OPENRA_BOT_ECONOMY_TECH_COMMIT'
   'OPENRA_BOT_BEACON_PRESSURE_COMMIT'
   'OPENRA_ORGANIC_BOT_TERMINAL_COMMIT'
+  'RTS:QUEUE:objective:claim:terminal_tech_lock@6,5'
+  'rts_bot_tech_transition_core_frame_order_gate'
+  'rts_bot_tech_transition_core_headless_replay_gate'
   'tech_transition_gap_gate'
 )
 

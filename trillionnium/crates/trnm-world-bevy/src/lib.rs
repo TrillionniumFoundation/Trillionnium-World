@@ -70358,6 +70358,268 @@ pub fn native_classic_rts_bot_tech_transition_gap_evidence_json(preview_path: &s
     let openra_tech_transition_target_gate = OPENRA_BOT_ECONOMY_TECH_COMMIT == "f6c47d9"
         && OPENRA_BOT_BEACON_PRESSURE_COMMIT == "2b6f25b"
         && OPENRA_ORGANIC_BOT_TERMINAL_COMMIT == "5f1bf76";
+    let rts_bot_tech_transition_core_subject_actor_ids = string_vec([
+        "Multi2:trnm.signal.scout",
+        "Multi2:trnm.tech.lane",
+        "Multi2:trnm.timing.force",
+    ]);
+    let rts_bot_tech_transition_core_action_labels = [
+        "RTS:QUEUE:recon:scan:early_signal_read@4,5",
+        "RTS:QUEUE:research:counter_tech_switch@signal_array",
+        "RTS:QUEUE:train:anti_air_timing",
+        "RTS:QUEUE:upgrade:siege_response_window@training_hall",
+        "RTS:ATTACK:upgrade_timing_push",
+        "RTS:QUEUE:objective:claim:terminal_tech_lock@6,5",
+    ];
+    let mut rts_bot_tech_transition_core_frame_orders = Vec::new();
+    let mut rts_bot_tech_transition_core_frame_order_errors = Vec::new();
+    for (index, action_label) in rts_bot_tech_transition_core_action_labels
+        .iter()
+        .enumerate()
+    {
+        match RtsFrameOrder::from_live_command_label(
+            2_600 + index as u32,
+            "Multi2",
+            rts_bot_tech_transition_core_subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => {
+                if let Err(error) = order.validate() {
+                    rts_bot_tech_transition_core_frame_order_errors.push(format!(
+                        "bot_tech_transition_{index}:{action_label}:{error}"
+                    ));
+                } else {
+                    rts_bot_tech_transition_core_frame_orders.push(order);
+                }
+            }
+            Err(error) => rts_bot_tech_transition_core_frame_order_errors.push(format!(
+                "bot_tech_transition_{index}:{action_label}:{error}"
+            )),
+        }
+    }
+    let rts_bot_tech_transition_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-bot-tech-transition",
+        "trnm-rts-core-bot-tech-transition-rules-v1",
+        rts_bot_tech_transition_core_frame_orders.clone(),
+    );
+    let rts_bot_tech_transition_core_frame_order_stream_error =
+        rts_bot_tech_transition_core_frame_order_stream
+            .validate()
+            .err();
+    let rts_bot_tech_transition_core_frame_order_stream_sha256 =
+        rts_bot_tech_transition_core_frame_order_stream.sha256_hex();
+    let rts_bot_tech_transition_core_frame_order_kind_labels =
+        rts_bot_tech_transition_core_frame_orders
+            .iter()
+            .map(|order| order.kind.as_str())
+            .collect::<Vec<_>>();
+    let rts_bot_tech_transition_core_frame_order_values = rts_bot_tech_transition_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts bot tech transition order serializes"))
+        .collect::<Vec<_>>();
+    let rts_bot_tech_transition_core_frame_order_stream_value =
+        serde_json::to_value(&rts_bot_tech_transition_core_frame_order_stream)
+            .expect("rts bot tech transition stream serializes");
+    let rts_bot_tech_transition_core_frame_order_gate =
+        rts_bot_tech_transition_core_frame_order_errors.is_empty()
+            && rts_bot_tech_transition_core_frame_order_stream_error.is_none()
+            && rts_bot_tech_transition_core_frame_order_stream_sha256.len() == 64
+            && rts_bot_tech_transition_core_frame_orders.len() == 6
+            && rts_bot_tech_transition_core_frame_order_kind_labels
+                == ["recon", "research", "train", "upgrade", "attack", "capture"]
+            && rts_bot_tech_transition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Recon
+                        && order.target_rule_id.as_deref() == Some("scan")
+                        && order.target_actor_id.as_deref() == Some("early_signal_read")
+                        && order.target_tile == Some(RtsTile::new(4, 5))
+                })
+            && rts_bot_tech_transition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Research
+                        && order.target_rule_id.as_deref() == Some("counter_tech_switch")
+                        && order.target_actor_id.as_deref() == Some("signal_array")
+                })
+            && rts_bot_tech_transition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Train
+                        && order.target_rule_id.as_deref() == Some("anti_air_timing")
+                })
+            && rts_bot_tech_transition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Upgrade
+                        && order.target_rule_id.as_deref() == Some("siege_response_window")
+                        && order.target_actor_id.as_deref() == Some("training_hall")
+                })
+            && rts_bot_tech_transition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Attack
+                        && order.target_actor_id.as_deref() == Some("upgrade_timing_push")
+                })
+            && rts_bot_tech_transition_core_frame_orders
+                .iter()
+                .any(|order| {
+                    order.kind == RtsOrderKind::Capture
+                        && order.target_rule_id.as_deref() == Some("claim")
+                        && order.target_actor_id.as_deref() == Some("terminal_tech_lock")
+                        && order.target_tile == Some(RtsTile::new(6, 5))
+                });
+    let rts_bot_tech_transition_core_headless_replay_result =
+        rts_bot_tech_transition_core_frame_order_stream.replay_headless();
+    let (
+        rts_bot_tech_transition_core_headless_replay_report_value,
+        rts_bot_tech_transition_core_headless_checkpoint_sha256,
+        rts_bot_tech_transition_core_headless_replay_error,
+        rts_bot_tech_transition_core_headless_applied_order_count,
+        rts_bot_tech_transition_core_headless_actor_count,
+        rts_bot_tech_transition_core_headless_final_frame,
+        rts_bot_tech_transition_core_headless_event_log,
+        rts_bot_tech_transition_core_headless_recon_order_count,
+        rts_bot_tech_transition_core_headless_scan_order_count,
+        rts_bot_tech_transition_core_headless_recon_ids,
+        rts_bot_tech_transition_core_headless_recon_tile_ids,
+        rts_bot_tech_transition_core_headless_train_order_count,
+        rts_bot_tech_transition_core_headless_train_rule_ids,
+        rts_bot_tech_transition_core_headless_tech_order_count,
+        rts_bot_tech_transition_core_headless_research_order_count,
+        rts_bot_tech_transition_core_headless_upgrade_order_count,
+        rts_bot_tech_transition_core_headless_researched_rule_ids,
+        rts_bot_tech_transition_core_headless_upgraded_rule_ids,
+        rts_bot_tech_transition_core_headless_source_actor_ids,
+        rts_bot_tech_transition_core_headless_objective_order_count,
+        rts_bot_tech_transition_core_headless_capture_order_count,
+        rts_bot_tech_transition_core_headless_objective_ids,
+        rts_bot_tech_transition_core_headless_objective_tile_ids,
+        rts_bot_tech_transition_core_headless_objective_queue_ids,
+        rts_bot_tech_transition_core_headless_attack_order_count,
+        rts_bot_tech_transition_core_headless_combat_target_actor_ids,
+    ) = match rts_bot_tech_transition_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let recon = &checkpoint.recon_intel;
+            let production = &checkpoint.production_lifecycle;
+            let tech = &checkpoint.tech_tree;
+            let objectives = &checkpoint.objectives;
+            let combat = &checkpoint.tactical_combat;
+            (
+                serde_json::to_value(&report)
+                    .expect("rts bot tech transition replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                recon.recon_order_count,
+                recon.scan_order_count,
+                recon.recon_ids.clone(),
+                recon.recon_tile_ids.clone(),
+                production.train_order_count,
+                production.train_rule_ids.clone(),
+                tech.tech_order_count,
+                tech.research_order_count,
+                tech.upgrade_order_count,
+                tech.researched_rule_ids.clone(),
+                tech.upgraded_rule_ids.clone(),
+                tech.source_actor_ids.clone(),
+                objectives.objective_order_count,
+                objectives.capture_order_count,
+                objectives.objective_ids.clone(),
+                objectives.objective_tile_ids.clone(),
+                objectives.objective_queue_ids.clone(),
+                combat.attack_order_count,
+                combat.combat_target_actor_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            0,
+            Vec::new(),
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            0,
+            Vec::new(),
+        ),
+    };
+    let rts_bot_tech_transition_core_headless_replay_gate =
+        rts_bot_tech_transition_core_frame_order_gate
+            && rts_bot_tech_transition_core_headless_replay_error.is_none()
+            && rts_bot_tech_transition_core_headless_checkpoint_sha256.len() == 64
+            && rts_bot_tech_transition_core_headless_applied_order_count == 6
+            && rts_bot_tech_transition_core_headless_actor_count >= 3
+            && rts_bot_tech_transition_core_headless_final_frame == 2_605
+            && rts_bot_tech_transition_core_headless_recon_order_count == 1
+            && rts_bot_tech_transition_core_headless_scan_order_count == 1
+            && rts_bot_tech_transition_core_headless_recon_ids
+                .iter()
+                .any(|id| id == "early_signal_read")
+            && rts_bot_tech_transition_core_headless_recon_tile_ids
+                .iter()
+                .any(|tile| tile == "4,5")
+            && rts_bot_tech_transition_core_headless_train_order_count == 1
+            && rts_bot_tech_transition_core_headless_train_rule_ids
+                .iter()
+                .any(|rule| rule == "anti_air_timing")
+            && rts_bot_tech_transition_core_headless_tech_order_count == 2
+            && rts_bot_tech_transition_core_headless_research_order_count == 1
+            && rts_bot_tech_transition_core_headless_upgrade_order_count == 1
+            && rts_bot_tech_transition_core_headless_researched_rule_ids
+                .iter()
+                .any(|rule| rule == "counter_tech_switch")
+            && rts_bot_tech_transition_core_headless_upgraded_rule_ids
+                .iter()
+                .any(|rule| rule == "siege_response_window")
+            && rts_bot_tech_transition_core_headless_source_actor_ids
+                .iter()
+                .any(|source| source == "signal_array")
+            && rts_bot_tech_transition_core_headless_source_actor_ids
+                .iter()
+                .any(|source| source == "training_hall")
+            && rts_bot_tech_transition_core_headless_objective_order_count == 1
+            && rts_bot_tech_transition_core_headless_capture_order_count == 1
+            && rts_bot_tech_transition_core_headless_objective_ids
+                .iter()
+                .any(|id| id == "terminal_tech_lock")
+            && rts_bot_tech_transition_core_headless_objective_tile_ids
+                .iter()
+                .any(|tile| tile == "6,5")
+            && rts_bot_tech_transition_core_headless_objective_queue_ids
+                .iter()
+                .any(|queue| queue == "objective:claim:terminal_tech_lock@6,5")
+            && rts_bot_tech_transition_core_headless_attack_order_count == 1
+            && rts_bot_tech_transition_core_headless_combat_target_actor_ids
+                .iter()
+                .any(|target| target == "upgrade_timing_push")
+            && rts_bot_tech_transition_core_headless_event_log
+                .iter()
+                .any(|event| {
+                    event.contains(":kind:capture:")
+                        && event.contains(":target:terminal_tech_lock@6,5")
+                });
     let renderer_gate = non_background_pixels > 250_000
         && ai_wave_pixel_count > 80
         && ai_pressure_pixel_count > 120
@@ -70379,6 +70641,8 @@ pub fn native_classic_rts_bot_tech_transition_gap_evidence_json(preview_path: &s
     let green = write_gate
         && renderer_gate
         && tech_transition_gap_gate
+        && rts_bot_tech_transition_core_frame_order_gate
+        && rts_bot_tech_transition_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -70399,6 +70663,41 @@ pub fn native_classic_rts_bot_tech_transition_gap_evidence_json(preview_path: &s
         "openra_organic_bot_terminal_target_commit": OPENRA_ORGANIC_BOT_TERMINAL_COMMIT,
         "tech_transition_stage_count": tech_transition_stage_count,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_bot_tech_transition_core_subject_actor_ids": rts_bot_tech_transition_core_subject_actor_ids,
+        "rts_bot_tech_transition_core_action_labels": rts_bot_tech_transition_core_action_labels,
+        "rts_bot_tech_transition_core_frame_orders": rts_bot_tech_transition_core_frame_order_values,
+        "rts_bot_tech_transition_core_frame_order_stream": rts_bot_tech_transition_core_frame_order_stream_value,
+        "rts_bot_tech_transition_core_frame_order_stream_sha256": rts_bot_tech_transition_core_frame_order_stream_sha256,
+        "rts_bot_tech_transition_core_frame_order_kind_labels": rts_bot_tech_transition_core_frame_order_kind_labels,
+        "rts_bot_tech_transition_core_frame_order_errors": rts_bot_tech_transition_core_frame_order_errors,
+        "rts_bot_tech_transition_core_frame_order_stream_error": rts_bot_tech_transition_core_frame_order_stream_error,
+        "rts_bot_tech_transition_core_headless_replay_report": rts_bot_tech_transition_core_headless_replay_report_value,
+        "rts_bot_tech_transition_core_headless_checkpoint_sha256": rts_bot_tech_transition_core_headless_checkpoint_sha256,
+        "rts_bot_tech_transition_core_headless_replay_error": rts_bot_tech_transition_core_headless_replay_error,
+        "rts_bot_tech_transition_core_headless_applied_order_count": rts_bot_tech_transition_core_headless_applied_order_count,
+        "rts_bot_tech_transition_core_headless_actor_count": rts_bot_tech_transition_core_headless_actor_count,
+        "rts_bot_tech_transition_core_headless_final_frame": rts_bot_tech_transition_core_headless_final_frame,
+        "rts_bot_tech_transition_core_headless_event_log": rts_bot_tech_transition_core_headless_event_log,
+        "rts_bot_tech_transition_core_headless_recon_order_count": rts_bot_tech_transition_core_headless_recon_order_count,
+        "rts_bot_tech_transition_core_headless_scan_order_count": rts_bot_tech_transition_core_headless_scan_order_count,
+        "rts_bot_tech_transition_core_headless_recon_ids": rts_bot_tech_transition_core_headless_recon_ids,
+        "rts_bot_tech_transition_core_headless_recon_tile_ids": rts_bot_tech_transition_core_headless_recon_tile_ids,
+        "rts_bot_tech_transition_core_headless_train_order_count": rts_bot_tech_transition_core_headless_train_order_count,
+        "rts_bot_tech_transition_core_headless_train_rule_ids": rts_bot_tech_transition_core_headless_train_rule_ids,
+        "rts_bot_tech_transition_core_headless_tech_order_count": rts_bot_tech_transition_core_headless_tech_order_count,
+        "rts_bot_tech_transition_core_headless_research_order_count": rts_bot_tech_transition_core_headless_research_order_count,
+        "rts_bot_tech_transition_core_headless_upgrade_order_count": rts_bot_tech_transition_core_headless_upgrade_order_count,
+        "rts_bot_tech_transition_core_headless_researched_rule_ids": rts_bot_tech_transition_core_headless_researched_rule_ids,
+        "rts_bot_tech_transition_core_headless_upgraded_rule_ids": rts_bot_tech_transition_core_headless_upgraded_rule_ids,
+        "rts_bot_tech_transition_core_headless_source_actor_ids": rts_bot_tech_transition_core_headless_source_actor_ids,
+        "rts_bot_tech_transition_core_headless_objective_order_count": rts_bot_tech_transition_core_headless_objective_order_count,
+        "rts_bot_tech_transition_core_headless_capture_order_count": rts_bot_tech_transition_core_headless_capture_order_count,
+        "rts_bot_tech_transition_core_headless_objective_ids": rts_bot_tech_transition_core_headless_objective_ids,
+        "rts_bot_tech_transition_core_headless_objective_tile_ids": rts_bot_tech_transition_core_headless_objective_tile_ids,
+        "rts_bot_tech_transition_core_headless_objective_queue_ids": rts_bot_tech_transition_core_headless_objective_queue_ids,
+        "rts_bot_tech_transition_core_headless_attack_order_count": rts_bot_tech_transition_core_headless_attack_order_count,
+        "rts_bot_tech_transition_core_headless_combat_target_actor_ids": rts_bot_tech_transition_core_headless_combat_target_actor_ids,
         "tech_transition_signal_count": tech_transition_signal_count,
         "signal_read_count": signal_read_count,
         "counter_switch_count": counter_switch_count,
@@ -70433,9 +70732,11 @@ pub fn native_classic_rts_bot_tech_transition_gap_evidence_json(preview_path: &s
         "openra_tech_transition_target_gate": openra_tech_transition_target_gate,
         "renderer_gate": renderer_gate,
         "tech_transition_gap_gate": tech_transition_gap_gate,
+        "rts_bot_tech_transition_core_frame_order_gate": rts_bot_tech_transition_core_frame_order_gate,
+        "rts_bot_tech_transition_core_headless_replay_gate": rts_bot_tech_transition_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS bot tech-transition gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with signal read, counter tech switch, timing response, siege answer, upgrade window, and terminal tech lock vocabulary while keeping native OpenRA tech-switch AI parity unclaimed."
+        "source_of_truth": "Classic RTS bot tech-transition gap evidence binds Bevy to OpenRA bot economy/tech, beacon pressure, and organic terminal-victory targets with signal read, counter tech switch, timing response, siege answer, upgrade window, and terminal tech lock vocabulary, emits those tech-transition commands into trnm-rts-core, replays them through the Bevy-free headless reducer, and keeps native OpenRA tech-switch AI parity unclaimed."
     }))
     .expect("classic RTS bot tech transition gap evidence serializes")
 }

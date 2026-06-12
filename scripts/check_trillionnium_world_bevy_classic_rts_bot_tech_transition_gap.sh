@@ -49,6 +49,40 @@ jq -e '
   and (.final_command_queue | index("native_openra_tech_transition_ai:false") != null)
   and (.final_army_production_batch_ids | index("tech_transition:counter_tech_switch") != null)
   and (.final_army_production_batch_ids | index("tech_transition:terminal_tech_lock") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_bot_tech_transition_core_subject_actor_ids | length) == 3
+  and (.rts_bot_tech_transition_core_action_labels | length) == 6
+  and .rts_bot_tech_transition_core_frame_order_stream.map_id == "first-contact-basin-bot-tech-transition"
+  and .rts_bot_tech_transition_core_frame_order_stream.rules_id == "trnm-rts-core-bot-tech-transition-rules-v1"
+  and .rts_bot_tech_transition_core_frame_order_kind_labels == ["recon", "research", "train", "upgrade", "attack", "capture"]
+  and (.rts_bot_tech_transition_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_bot_tech_transition_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_bot_tech_transition_core_frame_order_errors | length) == 0
+  and .rts_bot_tech_transition_core_frame_order_stream_error == null
+  and .rts_bot_tech_transition_core_headless_replay_error == null
+  and .rts_bot_tech_transition_core_headless_applied_order_count == 6
+  and .rts_bot_tech_transition_core_headless_actor_count >= 3
+  and .rts_bot_tech_transition_core_headless_final_frame == 2605
+  and .rts_bot_tech_transition_core_headless_recon_order_count == 1
+  and .rts_bot_tech_transition_core_headless_scan_order_count == 1
+  and (.rts_bot_tech_transition_core_headless_recon_ids | index("early_signal_read") != null)
+  and (.rts_bot_tech_transition_core_headless_recon_tile_ids | index("4,5") != null)
+  and .rts_bot_tech_transition_core_headless_train_order_count == 1
+  and (.rts_bot_tech_transition_core_headless_train_rule_ids | index("anti_air_timing") != null)
+  and .rts_bot_tech_transition_core_headless_tech_order_count == 2
+  and .rts_bot_tech_transition_core_headless_research_order_count == 1
+  and .rts_bot_tech_transition_core_headless_upgrade_order_count == 1
+  and (.rts_bot_tech_transition_core_headless_researched_rule_ids | index("counter_tech_switch") != null)
+  and (.rts_bot_tech_transition_core_headless_upgraded_rule_ids | index("siege_response_window") != null)
+  and (.rts_bot_tech_transition_core_headless_source_actor_ids | index("signal_array") != null)
+  and (.rts_bot_tech_transition_core_headless_source_actor_ids | index("training_hall") != null)
+  and .rts_bot_tech_transition_core_headless_objective_order_count == 1
+  and .rts_bot_tech_transition_core_headless_capture_order_count == 1
+  and (.rts_bot_tech_transition_core_headless_objective_ids | index("terminal_tech_lock") != null)
+  and (.rts_bot_tech_transition_core_headless_objective_tile_ids | index("6,5") != null)
+  and (.rts_bot_tech_transition_core_headless_objective_queue_ids | index("objective:claim:terminal_tech_lock@6,5") != null)
+  and .rts_bot_tech_transition_core_headless_attack_order_count == 1
+  and (.rts_bot_tech_transition_core_headless_combat_target_actor_ids | index("upgrade_timing_push") != null)
   and .non_background_pixels > 250000
   and .ai_wave_pixel_count > 80
   and .ai_pressure_pixel_count > 120
@@ -68,6 +102,8 @@ jq -e '
   and .openra_tech_transition_target_gate == true
   and .renderer_gate == true
   and .tech_transition_gap_gate == true
+  and .rts_bot_tech_transition_core_frame_order_gate == true
+  and .rts_bot_tech_transition_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
