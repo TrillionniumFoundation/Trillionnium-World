@@ -80,6 +80,24 @@ jq -e '
   and (.rts_data_visual_telemetry_profile.unit_statuses[] | select(.tile.x == 8 and .tile.y == 8 and .role_badge == "W" and .role_color == "health" and .health_percent == 82 and .shield_percent == 44))
   and (.rts_data_visual_telemetry_profile.tactical_tracks[] | select(.from_tile.x == 11 and .from_tile.y == 8 and .to_tile.x == 16 and .to_tile.y == 9 and .color_role == "action_trail"))
   and .rts_data_visual_telemetry_gate == true
+  and .rts_data_player_screen_contract == "trnm_rts_data_first_contact_player_screen_v1"
+  and .rts_data_player_screen_profile.contract_version == "trnm_rts_data_first_contact_player_screen_v1"
+  and .rts_data_player_screen_profile.map_id == "first_contact_basin"
+  and .rts_data_player_screen_profile.room_id == "first-contact-basin"
+  and .rts_data_player_screen_profile.camera_focus_tile.x == 16
+  and .rts_data_player_screen_profile.camera_focus_tile.y == 16
+  and .rts_data_player_screen_profile.command_destination_tile.x == 16
+  and .rts_data_player_screen_profile.command_destination_tile.y == 9
+  and (.rts_data_player_screen_profile.command_queue | length) == 4
+  and (.rts_data_player_screen_profile.command_queue | index("build:trnm.flux.relay") != null)
+  and (.rts_data_player_screen_profile.command_queue | index("train:trnm.worker") != null)
+  and (.rts_data_player_screen_profile.command_queue | index("attack:trnm.flux.beacon") != null)
+  and (.rts_data_player_screen_profile.visible_tiles | length) == 64
+  and (.rts_data_player_screen_profile.fogged_tiles | length) == 6
+  and (.rts_data_player_screen_profile.ability_command_ids | length) == 6
+  and (.rts_data_player_screen_profile.ability_command_ids | index("relay") != null)
+  and (.rts_data_player_screen_profile.ability_command_ids | index("signal") != null)
+  and .rts_data_player_screen_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true

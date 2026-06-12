@@ -33,16 +33,18 @@ use trnm_rts_core::{
 use trnm_rts_data::{
     first_contact_actor_presentation_profile, first_contact_actor_presentation_profiles,
     first_contact_basin_map, first_contact_command_feedback_profile,
-    first_contact_opening_loop_profile, first_contact_player_startup_profiles,
-    first_contact_terrain_profile, first_contact_terrain_profiles,
-    first_contact_visual_telemetry_profile, RtsActorColorRole, RtsActorGlyphAccent,
-    RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
-    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsOpeningLoopProfile,
-    RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole, RtsVisualTelemetryColorRole,
-    TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
+    first_contact_opening_loop_profile, first_contact_player_screen_profile,
+    first_contact_player_startup_profiles, first_contact_terrain_profile,
+    first_contact_terrain_profiles, first_contact_visual_telemetry_profile, RtsActorColorRole,
+    RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
+    RtsFirstContactPlayerScreenProfile, RtsFirstContactVisualTelemetryProfile, RtsMapActor,
+    RtsOpeningLoopProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole,
+    RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT,
 };
@@ -28322,41 +28324,37 @@ fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
     let mut runtime = classic_product_alignment_runtime();
-    runtime.coins = 890;
-    runtime.xp = 92;
-    runtime.rts_camera_focus_tile_id = Some("16,16".to_string());
-    runtime.rts_camera_zoom_percent = 100;
-    runtime.rts_group_command_state = "secure relay beacon".to_string();
-    runtime.rts_command_queue = string_vec([
-        "move:16,9",
-        "build:trnm.flux.relay",
-        "train:trnm.worker",
-        "attack:trnm.flux.beacon",
-    ]);
-    runtime.rts_visible_tile_ids = string_vec([
-        "12,12", "13,12", "14,12", "15,12", "16,12", "17,12", "18,12", "19,12", "12,13", "13,13",
-        "14,13", "15,13", "16,13", "17,13", "18,13", "19,13", "12,14", "13,14", "14,14", "15,14",
-        "16,14", "17,14", "18,14", "19,14", "12,15", "13,15", "14,15", "15,15", "16,15", "17,15",
-        "18,15", "19,15", "12,16", "13,16", "14,16", "15,16", "16,16", "17,16", "18,16", "19,16",
-        "12,17", "13,17", "14,17", "15,17", "16,17", "17,17", "18,17", "19,17", "12,18", "13,18",
-        "14,18", "15,18", "16,18", "17,18", "18,18", "19,18", "12,19", "13,19", "14,19", "15,19",
-        "16,19", "17,19", "18,19", "19,19",
-    ]);
-    runtime.rts_fogged_tile_ids = string_vec(["1,1", "2,1", "31,1", "32,1", "1,32", "32,32"]);
-    runtime.rts_selection_box_tile_ids = string_vec(["14,11", "15,11", "15,12", "17,12"]);
-    runtime.rts_group_route_tile_ids = string_vec(["14,11", "15,11", "16,10", "16,9"]);
-    runtime.rts_terrain_route_tile_ids = string_vec(["13,12", "14,12", "15,11", "16,10", "16,9"]);
-    runtime.rts_command_destination_tile = Some("16,9".to_string());
-    runtime.rts_attack_target_id = Some("trnm.flux.beacon".to_string());
-    runtime.rts_training_progress_percent = 64;
-    runtime.rts_build_progress_percent = 42;
-    runtime.rts_ai_pressure_percent = 37;
-    runtime.rts_visibility_percent = 76;
-    runtime.rts_enemy_pressure_warning_percent = 24;
-    runtime.rts_army_supply_used = 12;
-    runtime.rts_army_supply_cap = 22;
-    runtime.last_feedback = "Group 1 is securing the first relay beacon".to_string();
-    runtime.objective_status = "secure first relay beacon and hold the center lane".to_string();
+    let profile = classic_first_contact_player_screen_profile();
+    runtime.map_scene = profile.map_id.clone();
+    runtime.current_room_id = profile.room_id.clone();
+    runtime.coins = profile.coins;
+    runtime.xp = profile.xp;
+    runtime.rts_camera_focus_tile_id =
+        Some(classic_first_contact_tile_id(profile.camera_focus_tile));
+    runtime.rts_camera_zoom_percent = profile.camera_zoom_percent;
+    runtime.rts_group_command_state = profile.group_command_state.clone();
+    runtime.rts_command_queue = profile.command_queue.clone();
+    runtime.rts_visible_tile_ids = classic_first_contact_tile_ids(&profile.visible_tiles);
+    runtime.rts_fogged_tile_ids = classic_first_contact_tile_ids(&profile.fogged_tiles);
+    runtime.rts_selection_box_tile_ids =
+        classic_first_contact_tile_ids(&profile.selection_box_tiles);
+    runtime.rts_group_route_tile_ids = classic_first_contact_tile_ids(&profile.group_route_tiles);
+    runtime.rts_terrain_route_tile_ids =
+        classic_first_contact_tile_ids(&profile.terrain_route_tiles);
+    runtime.rts_command_destination_tile = Some(classic_first_contact_tile_id(
+        profile.command_destination_tile,
+    ));
+    runtime.rts_attack_target_id = Some(profile.attack_target_rule_id.clone());
+    runtime.rts_training_progress_percent = profile.training_progress_percent;
+    runtime.rts_build_progress_percent = profile.build_progress_percent;
+    runtime.rts_ai_pressure_percent = profile.ai_pressure_percent;
+    runtime.rts_visibility_percent = profile.visibility_percent;
+    runtime.rts_enemy_pressure_warning_percent = profile.enemy_pressure_warning_percent;
+    runtime.rts_army_supply_used = profile.army_supply_used;
+    runtime.rts_army_supply_cap = profile.army_supply_cap;
+    runtime.rts_ability_command_ids = profile.ability_command_ids.clone();
+    runtime.last_feedback = profile.last_feedback.clone();
+    runtime.objective_status = profile.objective_status.clone();
     runtime
 }
 
@@ -28601,7 +28599,81 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
                 track.from_tile == opening_profile.active_relay_tile
                     && track.to_tile == opening_profile.active_beacon_tile
             });
-    let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
+    let player_screen_profile = classic_first_contact_player_screen_profile();
+    let player_screen_runtime = classic_first_contact_player_screen_runtime();
+    let player_screen_camera_focus_tile_id =
+        classic_first_contact_tile_id(player_screen_profile.camera_focus_tile);
+    let rts_data_player_screen_gate = player_screen_profile.contract_version
+        == TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
+        && player_screen_profile.map_id == map_model.map_id
+        && player_screen_profile.room_id == "first-contact-basin"
+        && player_screen_profile.camera_zoom_percent > 0
+        && map_model
+            .bounds
+            .contains(player_screen_profile.camera_focus_tile)
+        && player_screen_profile.command_destination_tile == opening_profile.active_beacon_tile
+        && map_model
+            .rules
+            .iter()
+            .any(|rule| rule.id == player_screen_profile.attack_target_rule_id)
+        && player_screen_profile
+            .command_queue
+            .iter()
+            .any(|command| command == "build:trnm.flux.relay")
+        && player_screen_profile
+            .command_queue
+            .iter()
+            .any(|command| command == "train:trnm.worker")
+        && player_screen_profile
+            .command_queue
+            .iter()
+            .any(|command| command == "attack:trnm.flux.beacon")
+        && player_screen_profile.visible_tiles.len() == 64
+        && player_screen_profile
+            .visible_tiles
+            .iter()
+            .all(|tile| map_model.bounds.contains(*tile))
+        && player_screen_profile
+            .fogged_tiles
+            .iter()
+            .all(|tile| map_model.bounds.contains(*tile))
+        && player_screen_profile
+            .selection_box_tiles
+            .iter()
+            .all(|tile| map_model.bounds.contains(*tile))
+        && player_screen_profile
+            .group_route_tiles
+            .iter()
+            .any(|tile| *tile == opening_profile.active_beacon_tile)
+        && player_screen_profile
+            .terrain_route_tiles
+            .iter()
+            .all(|tile| map_model.bounds.contains(*tile))
+        && player_screen_profile.training_progress_percent <= 100
+        && player_screen_profile.build_progress_percent <= 100
+        && player_screen_profile.ai_pressure_percent <= 100
+        && player_screen_profile.visibility_percent <= 100
+        && player_screen_profile.enemy_pressure_warning_percent <= 100
+        && player_screen_profile.army_supply_used <= player_screen_profile.army_supply_cap
+        && player_screen_profile.ability_command_ids.len() == 6
+        && player_screen_profile
+            .ability_command_ids
+            .iter()
+            .any(|ability| ability == "relay")
+        && player_screen_profile
+            .ability_command_ids
+            .iter()
+            .any(|ability| ability == "signal")
+        && !player_screen_profile.last_feedback.is_empty()
+        && !player_screen_profile.objective_status.is_empty();
+    let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin"
+        && player_screen_runtime.map_scene == player_screen_profile.map_id
+        && player_screen_runtime.current_room_id == player_screen_profile.room_id
+        && player_screen_runtime.rts_command_queue == player_screen_profile.command_queue
+        && player_screen_runtime.rts_visible_tile_ids.len()
+            == player_screen_profile.visible_tiles.len()
+        && player_screen_runtime.rts_camera_focus_tile_id.as_deref()
+            == Some(player_screen_camera_focus_tile_id.as_str());
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
     let rts_data_map_summary =
         serde_json::to_value(&map_summary).expect("RTS data map summary serializes");
@@ -28617,6 +28689,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data actor presentation profiles serialize");
     let rts_data_visual_telemetry_profile = serde_json::to_value(&visual_telemetry_profile)
         .expect("RTS data visual telemetry profile serializes");
+    let rts_data_player_screen_profile = serde_json::to_value(&player_screen_profile)
+        .expect("RTS data player screen profile serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28628,6 +28702,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_player_startup_gate
         && rts_data_actor_presentation_gate
         && rts_data_visual_telemetry_gate
+        && rts_data_player_screen_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28671,18 +28746,21 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_actor_presentation_profiles": rts_data_actor_presentation_profiles,
         "rts_data_visual_telemetry_contract": TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT,
         "rts_data_visual_telemetry_profile": rts_data_visual_telemetry_profile,
+        "rts_data_player_screen_contract": TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT,
+        "rts_data_player_screen_profile": rts_data_player_screen_profile,
         "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
         "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
         "rts_data_player_startup_gate": rts_data_player_startup_gate,
         "rts_data_actor_presentation_gate": rts_data_actor_presentation_gate,
         "rts_data_visual_telemetry_gate": rts_data_visual_telemetry_gate,
+        "rts_data_player_screen_gate": rts_data_player_screen_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/visual telemetry vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -85505,6 +85583,20 @@ fn classic_first_contact_tile_tuple(tile: RtsTile) -> (i32, i32) {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_tile_id(tile: RtsTile) -> String {
+    classic_rts_tile_id(classic_first_contact_tile_tuple(tile))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tile_ids(tiles: &[RtsTile]) -> Vec<String> {
+    tiles
+        .iter()
+        .copied()
+        .map(classic_first_contact_tile_id)
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_opening_loop() -> RtsOpeningLoopProfile {
     first_contact_opening_loop_profile()
 }
@@ -85517,6 +85609,11 @@ fn classic_first_contact_command_feedback() -> RtsCommandFeedbackProfile {
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_player_startups() -> Vec<RtsPlayerStartupProfile> {
     first_contact_player_startup_profiles()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfile {
+    first_contact_player_screen_profile()
 }
 
 #[cfg(not(target_os = "android"))]

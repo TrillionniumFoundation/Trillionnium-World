@@ -22,6 +22,8 @@ pub const TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT: &str =
     "trnm_rts_data_first_contact_actor_glyph_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT: &str =
     "trnm_rts_data_first_contact_visual_telemetry_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT: &str =
+    "trnm_rts_data_first_contact_player_screen_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -418,6 +420,36 @@ pub struct RtsFirstContactVisualTelemetryProfile {
     pub map_id: String,
     pub unit_statuses: Vec<RtsUnitStatusTelemetry>,
     pub tactical_tracks: Vec<RtsTacticalTrackProfile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactPlayerScreenProfile {
+    pub contract_version: String,
+    pub map_id: String,
+    pub room_id: String,
+    pub coins: u64,
+    pub xp: u64,
+    pub camera_focus_tile: RtsTile,
+    pub camera_zoom_percent: u8,
+    pub group_command_state: String,
+    pub command_queue: Vec<String>,
+    pub visible_tiles: Vec<RtsTile>,
+    pub fogged_tiles: Vec<RtsTile>,
+    pub selection_box_tiles: Vec<RtsTile>,
+    pub group_route_tiles: Vec<RtsTile>,
+    pub terrain_route_tiles: Vec<RtsTile>,
+    pub command_destination_tile: RtsTile,
+    pub attack_target_rule_id: String,
+    pub training_progress_percent: u8,
+    pub build_progress_percent: u8,
+    pub ai_pressure_percent: u8,
+    pub visibility_percent: u8,
+    pub enemy_pressure_warning_percent: u8,
+    pub army_supply_used: u8,
+    pub army_supply_cap: u8,
+    pub ability_command_ids: Vec<String>,
+    pub last_feedback: String,
+    pub objective_status: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1733,6 +1765,78 @@ pub fn first_contact_visual_telemetry_profile() -> RtsFirstContactVisualTelemetr
     }
 }
 
+pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfile {
+    let mut visible_tiles = Vec::new();
+    for y in 12..=19 {
+        for x in 12..=19 {
+            visible_tiles.push(RtsTile::new(x, y));
+        }
+    }
+    RtsFirstContactPlayerScreenProfile {
+        contract_version: TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT.to_string(),
+        map_id: "first_contact_basin".to_string(),
+        room_id: "first-contact-basin".to_string(),
+        coins: 890,
+        xp: 92,
+        camera_focus_tile: RtsTile::new(16, 16),
+        camera_zoom_percent: 100,
+        group_command_state: "secure relay beacon".to_string(),
+        command_queue: vec![
+            "move:16,9".to_string(),
+            "build:trnm.flux.relay".to_string(),
+            "train:trnm.worker".to_string(),
+            "attack:trnm.flux.beacon".to_string(),
+        ],
+        visible_tiles,
+        fogged_tiles: vec![
+            RtsTile::new(1, 1),
+            RtsTile::new(2, 1),
+            RtsTile::new(31, 1),
+            RtsTile::new(32, 1),
+            RtsTile::new(1, 32),
+            RtsTile::new(32, 32),
+        ],
+        selection_box_tiles: vec![
+            RtsTile::new(14, 11),
+            RtsTile::new(15, 11),
+            RtsTile::new(15, 12),
+            RtsTile::new(17, 12),
+        ],
+        group_route_tiles: vec![
+            RtsTile::new(14, 11),
+            RtsTile::new(15, 11),
+            RtsTile::new(16, 10),
+            RtsTile::new(16, 9),
+        ],
+        terrain_route_tiles: vec![
+            RtsTile::new(13, 12),
+            RtsTile::new(14, 12),
+            RtsTile::new(15, 11),
+            RtsTile::new(16, 10),
+            RtsTile::new(16, 9),
+        ],
+        command_destination_tile: RtsTile::new(16, 9),
+        attack_target_rule_id: "trnm.flux.beacon".to_string(),
+        training_progress_percent: 64,
+        build_progress_percent: 42,
+        ai_pressure_percent: 37,
+        visibility_percent: 76,
+        enemy_pressure_warning_percent: 24,
+        army_supply_used: 12,
+        army_supply_cap: 22,
+        ability_command_ids: vec![
+            "worker".to_string(),
+            "scout".to_string(),
+            "warden".to_string(),
+            "relay".to_string(),
+            "core".to_string(),
+            "signal".to_string(),
+        ],
+        last_feedback: "Group 1 is securing the first relay beacon".to_string(),
+        objective_status: "secure first relay beacon and hold the center lane".to_string(),
+    }
+}
+
 fn first_contact_lane_tile(tile: RtsTile) -> bool {
     let x = tile.x;
     let y = tile.y;
@@ -2050,5 +2154,67 @@ mod tests {
                 && track.to_tile == opening.active_beacon_tile
                 && track.color_role == RtsVisualTelemetryColorRole::ActionTrail
         }));
+    }
+
+    #[test]
+    fn first_contact_player_screen_profile_binds_live_runtime_defaults() {
+        let map = first_contact_basin_map();
+        let opening = first_contact_opening_loop_profile();
+        let profile = first_contact_player_screen_profile();
+        assert_eq!(
+            profile.contract_version,
+            TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
+        );
+        assert_eq!(profile.map_id, map.map_id);
+        assert_eq!(profile.room_id, "first-contact-basin");
+        assert_eq!(profile.camera_focus_tile, RtsTile::new(16, 16));
+        assert!(map.bounds.contains(profile.camera_focus_tile));
+        assert_eq!(profile.command_destination_tile, opening.active_beacon_tile);
+        assert!(profile
+            .command_queue
+            .iter()
+            .any(|command| command == "build:trnm.flux.relay"));
+        assert!(profile
+            .command_queue
+            .iter()
+            .any(|command| command == "train:trnm.worker"));
+        assert!(profile
+            .command_queue
+            .iter()
+            .any(|command| command == "attack:trnm.flux.beacon"));
+        assert!(map
+            .rules
+            .iter()
+            .any(|rule| rule.id == profile.attack_target_rule_id));
+        assert_eq!(profile.visible_tiles.len(), 64);
+        assert!(profile
+            .visible_tiles
+            .iter()
+            .all(|tile| map.bounds.contains(*tile)));
+        assert_eq!(profile.fogged_tiles.len(), 6);
+        assert!(profile
+            .fogged_tiles
+            .iter()
+            .all(|tile| map.bounds.contains(*tile)));
+        assert!(profile
+            .selection_box_tiles
+            .iter()
+            .all(|tile| map.bounds.contains(*tile)));
+        assert!(profile
+            .group_route_tiles
+            .iter()
+            .any(|tile| *tile == opening.active_beacon_tile));
+        assert!(profile.training_progress_percent <= 100);
+        assert!(profile.build_progress_percent <= 100);
+        assert!(profile.ai_pressure_percent <= 100);
+        assert!(profile.visibility_percent <= 100);
+        assert!(profile.enemy_pressure_warning_percent <= 100);
+        assert!(profile.army_supply_used <= profile.army_supply_cap);
+        assert_eq!(
+            profile.ability_command_ids,
+            vec!["worker", "scout", "warden", "relay", "core", "signal"]
+        );
+        assert!(profile.last_feedback.contains("relay beacon"));
+        assert!(profile.objective_status.contains("center lane"));
     }
 }
