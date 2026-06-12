@@ -32,11 +32,12 @@ use trnm_rts_core::{
 #[cfg(not(target_os = "android"))]
 use trnm_rts_data::{
     first_contact_basin_map, first_contact_command_feedback_profile,
-    first_contact_opening_loop_profile, first_contact_terrain_profile,
-    first_contact_terrain_profiles, RtsCommandFeedbackProfile, RtsMapActor, RtsOpeningLoopProfile,
-    RtsRule, RtsRuleKind, RtsTerrainRole, TRNM_RTS_DATA_CONTRACT,
-    TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
+    first_contact_opening_loop_profile, first_contact_player_startup_profiles,
+    first_contact_terrain_profile, first_contact_terrain_profiles, RtsCommandFeedbackProfile,
+    RtsMapActor, RtsOpeningLoopProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
+    RtsTerrainRole, TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT,
 };
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
@@ -28494,6 +28495,37 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && map_model
             .bounds
             .contains(command_feedback_profile.blocked_tile);
+    let player_startup_profiles = classic_first_contact_player_startups();
+    let rts_data_player_startup_gate = player_startup_profiles.len() == 4
+        && player_startup_profiles.iter().all(|startup| {
+            startup.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT
+                && startup.map_id == map_model.map_id
+                && map_model.bounds.contains(startup.spawn_tile)
+                && map_model.players.iter().any(|player| {
+                    player.id == startup.player_id
+                        && player.playable
+                        && player.faction == startup.faction
+                })
+                && map_model.actors.iter().any(|actor| {
+                    actor.rule_id == "mpspawn"
+                        && actor.owner == startup.player_id
+                        && actor.tile == startup.spawn_tile
+                })
+                && map_model
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.command_core_rule_id)
+                && map_model
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.worker_rule_id)
+                && map_model
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.faction_unit_rule_id)
+                && startup.opening_beacon_tile == opening_profile.active_beacon_tile
+                && startup.opening_relay_tile == opening_profile.active_relay_tile
+        });
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
     let rts_data_map_summary =
@@ -28504,6 +28536,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         serde_json::to_value(&opening_profile).expect("RTS data opening profile serializes");
     let rts_data_command_feedback_profile = serde_json::to_value(&command_feedback_profile)
         .expect("RTS data command feedback profile serializes");
+    let rts_data_player_startup_profiles = serde_json::to_value(&player_startup_profiles)
+        .expect("RTS data player startup profiles serialize");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28512,6 +28546,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_terrain_profile_gate
         && rts_data_opening_profile_gate
         && rts_data_command_feedback_gate
+        && rts_data_player_startup_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28549,8 +28584,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_terrain_profile_gate": rts_data_terrain_profile_gate,
         "rts_data_opening_profile": rts_data_opening_profile,
         "rts_data_command_feedback_profile": rts_data_command_feedback_profile,
+        "rts_data_player_startup_profiles": rts_data_player_startup_profiles,
         "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
         "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
+        "rts_data_player_startup_gate": rts_data_player_startup_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -85376,6 +85413,33 @@ fn classic_first_contact_command_feedback() -> RtsCommandFeedbackProfile {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_startups() -> Vec<RtsPlayerStartupProfile> {
+    first_contact_player_startup_profiles()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_openra_like_static_rule_id(rule_id: &str) -> Option<&'static str> {
+    match rule_id {
+        "mpspawn" => Some("mpspawn"),
+        "trnm.worker" => Some("trnm.worker"),
+        "trnm.horizon.scout" => Some("trnm.horizon.scout"),
+        "trnm.horizon.skimmer" => Some("trnm.horizon.skimmer"),
+        "trnm.forge.warden" => Some("trnm.forge.warden"),
+        "trnm.forge.bastion" => Some("trnm.forge.bastion"),
+        "trnm.striker" => Some("trnm.striker"),
+        "trnm.command.core" => Some("trnm.command.core"),
+        "trnm.flux.relay" => Some("trnm.flux.relay"),
+        "trnm.assembly.pad" => Some("trnm.assembly.pad"),
+        "trnm.signal.array" => Some("trnm.signal.array"),
+        "trnm.sentinel.node" => Some("trnm.sentinel.node"),
+        "trnm.flux.beacon" => Some("trnm.flux.beacon"),
+        "trnm.flux.bloom" => Some("trnm.flux.bloom"),
+        "trnm.map.detail" => Some("trnm.map.detail"),
+        _ => None,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_rule_panel_label(rule: &RtsRule) -> String {
     match rule.id.as_str() {
         "trnm.worker" => "WORKER".to_string(),
@@ -86366,29 +86430,35 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             )
         })
         .collect::<Vec<_>>();
-    let player_startups = [
-        ("Multi0", "horizon", (8, 8), "trnm.horizon.scout", "multi0"),
-        ("Multi1", "forge", (25, 25), "trnm.forge.warden", "multi1"),
-        ("Multi2", "horizon", (25, 8), "trnm.horizon.scout", "multi2"),
-        ("Multi3", "forge", (8, 25), "trnm.forge.warden", "multi3"),
-    ];
-    for (owner, _faction, spawn, faction_unit, prefix) in player_startups {
+    for startup in classic_first_contact_player_startups() {
+        let owner = classic_first_contact_actor_owner_from_rts_data(&startup.player_id);
+        let spawn = classic_first_contact_tile_tuple(startup.spawn_tile);
+        let prefix = startup.actor_id_prefix.as_str();
+        let command_core_rule = classic_openra_like_static_rule_id(&startup.command_core_rule_id)
+            .unwrap_or("trnm.command.core");
+        let worker_rule =
+            classic_openra_like_static_rule_id(&startup.worker_rule_id).unwrap_or("trnm.worker");
+        let faction_unit = classic_openra_like_static_rule_id(&startup.faction_unit_rule_id)
+            .unwrap_or("trnm.horizon.scout");
+        let opening_harvest_tile = classic_first_contact_tile_tuple(startup.opening_harvest_tile);
+        let opening_relay_tile = classic_first_contact_tile_tuple(startup.opening_relay_tile);
+        let opening_beacon_tile = classic_first_contact_tile_tuple(startup.opening_beacon_tile);
         actors.push(classic_openra_like_actor(
             format!("{prefix}.command.core"),
-            "trnm.command.core",
+            command_core_rule,
             owner,
             spawn,
             None,
         ));
         actors.push(classic_openra_like_actor(
             format!("{prefix}.worker.0"),
-            "trnm.worker",
+            worker_rule,
             owner,
             (spawn.0 + 1, spawn.1),
             Some(if owner == "Multi0" {
                 TrnmOpenRaLikeOrder {
                     kind: TrnmOpenRaLikeOrderKind::Harvest,
-                    target_tile: Some((10, 10)),
+                    target_tile: Some(opening_harvest_tile),
                     target_id: Some("map.actor10"),
                     rule_id: Some("trnm.flux.bloom"),
                 }
@@ -86403,13 +86473,13 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         ));
         actors.push(classic_openra_like_actor(
             format!("{prefix}.worker.1"),
-            "trnm.worker",
+            worker_rule,
             owner,
             (spawn.0, spawn.1 + 1),
             Some(if owner == "Multi0" {
                 TrnmOpenRaLikeOrder {
                     kind: TrnmOpenRaLikeOrderKind::Build,
-                    target_tile: Some((11, 8)),
+                    target_tile: Some(opening_relay_tile),
                     target_id: Some("multi0.flux.relay"),
                     rule_id: Some("trnm.flux.relay"),
                 }
@@ -86430,7 +86500,7 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
             Some(if owner == "Multi0" {
                 TrnmOpenRaLikeOrder {
                     kind: TrnmOpenRaLikeOrderKind::Move,
-                    target_tile: Some((16, 9)),
+                    target_tile: Some(opening_beacon_tile),
                     target_id: Some("map.actor15"),
                     rule_id: None,
                 }

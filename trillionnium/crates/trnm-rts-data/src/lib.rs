@@ -14,6 +14,8 @@ pub const TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT: &str =
     "trnm_rts_data_first_contact_opening_profile_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT: &str =
     "trnm_rts_data_first_contact_command_feedback_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT: &str =
+    "trnm_rts_data_first_contact_player_startup_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -186,6 +188,22 @@ pub struct RtsCommandFeedbackProfile {
     pub queued_after: u8,
     pub command_ack_progress: u8,
     pub cooldown_progress: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsPlayerStartupProfile {
+    pub contract_version: String,
+    pub map_id: String,
+    pub player_id: String,
+    pub faction: String,
+    pub actor_id_prefix: String,
+    pub spawn_tile: RtsTile,
+    pub command_core_rule_id: String,
+    pub worker_rule_id: String,
+    pub faction_unit_rule_id: String,
+    pub opening_harvest_tile: RtsTile,
+    pub opening_relay_tile: RtsTile,
+    pub opening_beacon_tile: RtsTile,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1108,6 +1126,60 @@ pub fn first_contact_command_feedback_profile() -> RtsCommandFeedbackProfile {
     }
 }
 
+pub fn first_contact_player_startup_profiles() -> Vec<RtsPlayerStartupProfile> {
+    let opening = first_contact_opening_loop_profile();
+    [
+        (
+            "Multi0",
+            "horizon",
+            "multi0",
+            RtsTile::new(8, 8),
+            "trnm.horizon.scout",
+        ),
+        (
+            "Multi1",
+            "forge",
+            "multi1",
+            RtsTile::new(25, 25),
+            "trnm.forge.warden",
+        ),
+        (
+            "Multi2",
+            "horizon",
+            "multi2",
+            RtsTile::new(25, 8),
+            "trnm.horizon.scout",
+        ),
+        (
+            "Multi3",
+            "forge",
+            "multi3",
+            RtsTile::new(8, 25),
+            "trnm.forge.warden",
+        ),
+    ]
+    .into_iter()
+    .map(
+        |(player_id, faction, actor_id_prefix, spawn_tile, faction_unit_rule_id)| {
+            RtsPlayerStartupProfile {
+                contract_version: TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT.to_string(),
+                map_id: "first_contact_basin".to_string(),
+                player_id: player_id.to_string(),
+                faction: faction.to_string(),
+                actor_id_prefix: actor_id_prefix.to_string(),
+                spawn_tile,
+                command_core_rule_id: "trnm.command.core".to_string(),
+                worker_rule_id: "trnm.worker".to_string(),
+                faction_unit_rule_id: faction_unit_rule_id.to_string(),
+                opening_harvest_tile: RtsTile::new(10, 10),
+                opening_relay_tile: opening.active_relay_tile,
+                opening_beacon_tile: opening.active_beacon_tile,
+            }
+        },
+    )
+    .collect()
+}
+
 fn first_contact_lane_tile(tile: RtsTile) -> bool {
     let x = tile.x;
     let y = tile.y;
@@ -1297,5 +1369,52 @@ mod tests {
         assert_eq!(feedback.selected_group, "GROUP 1");
         assert!(feedback.queued_after > feedback.queued_before);
         assert!(feedback.command_ack_progress > feedback.cooldown_progress);
+    }
+
+    #[test]
+    fn first_contact_player_startups_bind_spawn_players_and_rules() {
+        let map = first_contact_basin_map();
+        let startups = first_contact_player_startup_profiles();
+        assert_eq!(startups.len(), 4);
+        assert!(startups.iter().all(|startup| {
+            startup.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT
+                && startup.map_id == map.map_id
+                && map.players.iter().any(|player| {
+                    player.id == startup.player_id
+                        && player.playable
+                        && player.faction == startup.faction
+                })
+                && map.actors.iter().any(|actor| {
+                    actor.rule_id == "mpspawn"
+                        && actor.owner == startup.player_id
+                        && actor.tile == startup.spawn_tile
+                })
+                && map
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.command_core_rule_id)
+                && map
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.worker_rule_id)
+                && map
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.faction_unit_rule_id)
+        }));
+        let multi0 = startups
+            .iter()
+            .find(|startup| startup.player_id == "Multi0")
+            .expect("Multi0 startup exists");
+        assert_eq!(multi0.spawn_tile, RtsTile::new(8, 8));
+        assert_eq!(multi0.opening_harvest_tile, RtsTile::new(10, 10));
+        assert_eq!(
+            multi0.opening_beacon_tile,
+            first_contact_opening_loop_profile().active_beacon_tile
+        );
+        assert_eq!(
+            multi0.opening_relay_tile,
+            first_contact_opening_loop_profile().active_relay_tile
+        );
     }
 }

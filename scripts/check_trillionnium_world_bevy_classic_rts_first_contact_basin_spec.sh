@@ -58,6 +58,12 @@ jq -e '
   and .rts_data_command_feedback_profile.blocked_tile.y == 16
   and .rts_data_opening_profile_gate == true
   and .rts_data_command_feedback_gate == true
+  and (.rts_data_player_startup_profiles | length) == 4
+  and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi0" and .faction == "horizon" and .spawn_tile.x == 8 and .spawn_tile.y == 8 and .faction_unit_rule_id == "trnm.horizon.scout"))
+  and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi1" and .faction == "forge" and .spawn_tile.x == 25 and .spawn_tile.y == 25 and .faction_unit_rule_id == "trnm.forge.warden"))
+  and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi2" and .faction == "horizon" and .spawn_tile.x == 25 and .spawn_tile.y == 8 and .faction_unit_rule_id == "trnm.horizon.scout"))
+  and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi3" and .faction == "forge" and .spawn_tile.x == 8 and .spawn_tile.y == 25 and .faction_unit_rule_id == "trnm.forge.warden"))
+  and .rts_data_player_startup_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true
