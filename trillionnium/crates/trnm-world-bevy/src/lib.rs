@@ -5408,6 +5408,11 @@ fn native_bool_env_enabled_with_default(key: &str, default: bool) -> bool {
         .unwrap_or(default)
 }
 
+#[cfg(not(target_os = "android"))]
+fn classic_player_screen_mode_enabled() -> bool {
+    native_bool_env_enabled("TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN")
+}
+
 fn native_usize_env_or(key: &str, default: usize) -> usize {
     env::var(key)
         .ok()
@@ -28239,6 +28244,7 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
 fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
     NativeFirstPlayableRuntime {
         map_scene: "first_contact_basin".to_string(),
+        current_room_id: "first-contact-basin".to_string(),
         coins: 144,
         xp: 88,
         facing_direction: "west".to_string(),
@@ -28294,6 +28300,47 @@ fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
                 .to_string(),
         ..Default::default()
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
+    let mut runtime = classic_product_alignment_runtime();
+    runtime.coins = 890;
+    runtime.xp = 92;
+    runtime.rts_camera_focus_tile_id = Some("16,16".to_string());
+    runtime.rts_camera_zoom_percent = 100;
+    runtime.rts_group_command_state = "secure relay beacon".to_string();
+    runtime.rts_command_queue = string_vec([
+        "move:16,9",
+        "build:trnm.flux.relay",
+        "train:trnm.worker",
+        "attack:trnm.flux.beacon",
+    ]);
+    runtime.rts_visible_tile_ids = string_vec([
+        "12,12", "13,12", "14,12", "15,12", "16,12", "17,12", "18,12", "19,12", "12,13", "13,13",
+        "14,13", "15,13", "16,13", "17,13", "18,13", "19,13", "12,14", "13,14", "14,14", "15,14",
+        "16,14", "17,14", "18,14", "19,14", "12,15", "13,15", "14,15", "15,15", "16,15", "17,15",
+        "18,15", "19,15", "12,16", "13,16", "14,16", "15,16", "16,16", "17,16", "18,16", "19,16",
+        "12,17", "13,17", "14,17", "15,17", "16,17", "17,17", "18,17", "19,17", "12,18", "13,18",
+        "14,18", "15,18", "16,18", "17,18", "18,18", "19,18", "12,19", "13,19", "14,19", "15,19",
+        "16,19", "17,19", "18,19", "19,19",
+    ]);
+    runtime.rts_fogged_tile_ids = string_vec(["1,1", "2,1", "31,1", "32,1", "1,32", "32,32"]);
+    runtime.rts_selection_box_tile_ids = string_vec(["14,11", "15,11", "15,12", "17,12"]);
+    runtime.rts_group_route_tile_ids = string_vec(["14,11", "15,11", "16,10", "16,9"]);
+    runtime.rts_terrain_route_tile_ids = string_vec(["13,12", "14,12", "15,11", "16,10", "16,9"]);
+    runtime.rts_command_destination_tile = Some("16,9".to_string());
+    runtime.rts_attack_target_id = Some("trnm.flux.beacon".to_string());
+    runtime.rts_training_progress_percent = 64;
+    runtime.rts_build_progress_percent = 42;
+    runtime.rts_ai_pressure_percent = 37;
+    runtime.rts_visibility_percent = 76;
+    runtime.rts_enemy_pressure_warning_percent = 24;
+    runtime.rts_army_supply_used = 12;
+    runtime.rts_army_supply_cap = 22;
+    runtime.last_feedback = "Group 1 is securing the first relay beacon".to_string();
+    runtime.objective_status = "secure first relay beacon and hold the center lane".to_string();
+    runtime
 }
 
 #[cfg(not(target_os = "android"))]
@@ -80319,14 +80366,17 @@ fn run_native_classic_low_spec_client(mut world: WorldState, actor_id: &str) {
         "TRNM_WORLD_BEVY_CLASSIC_PRODUCT_ALIGNMENT_START",
         false,
     );
-    let (default_width, default_height) = if product_alignment_start {
+    let player_screen_start = classic_player_screen_mode_enabled();
+    let (default_width, default_height) = if product_alignment_start && !player_screen_start {
         (960, 540)
     } else {
         (1280, 720)
     };
     let width = native_usize_env_or("TRNM_WORLD_BEVY_CLASSIC_WIDTH", default_width);
     let height = native_usize_env_or("TRNM_WORLD_BEVY_CLASSIC_HEIGHT", default_height);
-    let mut first_playable = if product_alignment_start {
+    let mut first_playable = if player_screen_start {
+        classic_first_contact_player_screen_runtime()
+    } else if product_alignment_start {
         classic_product_alignment_runtime()
     } else {
         classic_openra_style_skirmish_runtime()
@@ -84605,14 +84655,16 @@ fn classic_draw_scene(
         if danger { 0x8a342e } else { 0x2f5d75 },
     );
     if scene_id == "first_contact_basin" {
-        classic_draw_first_contact_top_overlay(
-            buffer,
-            width,
-            height,
-            runtime,
-            assets,
-            &player_frame,
-        );
+        if !classic_player_screen_mode_enabled() {
+            classic_draw_first_contact_top_overlay(
+                buffer,
+                width,
+                height,
+                runtime,
+                assets,
+                &player_frame,
+            );
+        }
     } else {
         classic_draw_model_overlay(
             buffer,
@@ -84758,7 +84810,10 @@ fn classic_draw_scene(
     if let Some(status_stage) = classic_rts_unit_status_portrait_stage(Some(runtime)) {
         classic_draw_rts_unit_status_portrait_overlay(buffer, width, height, runtime, status_stage);
     }
-    if openra_shell_drawn && scene_id == "first_contact_basin" {
+    if openra_shell_drawn
+        && scene_id == "first_contact_basin"
+        && !classic_player_screen_mode_enabled()
+    {
         classic_draw_rts_product_alignment_hud(buffer, width, height, runtime);
     }
 }
@@ -94245,12 +94300,25 @@ fn classic_draw_first_contact_basin_scene(
     height: usize,
     runtime: &NativeFirstPlayableRuntime,
 ) {
-    let map_x = 24_i32;
-    let map_y = 110_i32;
-    let available_w = (width as i32 - 266).max(374);
+    let player_screen = classic_player_screen_mode_enabled();
+    let map_x = if player_screen { 16_i32 } else { 24_i32 };
+    let map_y = if player_screen { 54_i32 } else { 110_i32 };
+    let available_w = if player_screen {
+        (width as i32 - 292).max(374)
+    } else {
+        (width as i32 - 266).max(374)
+    };
     let available_h = (height as i32 - 158 - map_y).max(238);
-    let cell_w = (available_w / 34).clamp(10, 22);
-    let cell_h = (available_h / 34).clamp(7, 14);
+    let cell_w = if player_screen {
+        (available_w / 34).clamp(12, 28)
+    } else {
+        (available_w / 34).clamp(10, 22)
+    };
+    let cell_h = if player_screen {
+        (available_h / 34).clamp(8, 15)
+    } else {
+        (available_h / 34).clamp(7, 14)
+    };
     let map_w = cell_w * 34;
     let map_h = cell_h * 34;
     let core_world = classic_first_contact_openra_like_core_preview_world();
@@ -94395,284 +94463,286 @@ fn classic_draw_first_contact_basin_scene(
         }
     }
     classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
-    classic_draw_first_contact_tactical_viewport(
-        buffer,
-        width,
-        height,
-        map_x + (map_w / 2) - 204,
-        map_y + 12,
-        408,
-        196,
-    );
+    if !player_screen {
+        classic_draw_first_contact_tactical_viewport(
+            buffer,
+            width,
+            height,
+            map_x + (map_w / 2) - 204,
+            map_y + 12,
+            408,
+            196,
+        );
 
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        map_x,
-        map_y - 18,
-        "FIRST CONTACT BASIN  34x34  BOUNDS 1,1,32,32  SOURCE mods/trnm/maps/first-contact-basin/map.yaml",
-        1,
-        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-    );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            map_x,
+            map_y - 18,
+            "FIRST CONTACT BASIN  34x34  BOUNDS 1,1,32,32  SOURCE mods/trnm/maps/first-contact-basin/map.yaml",
+            1,
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        );
 
-    let panel_x = (map_x + map_w + 18).min((width as i32 - 236).max(404));
-    let panel_y = 110_i32;
-    let panel_w = (width as i32 - panel_x - 18).max(210);
-    classic_draw_panel_frame(
-        buffer,
-        width,
-        height,
-        panel_x,
-        panel_y,
-        panel_w,
-        (height as i32 - 190).max(188),
-        CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
-    );
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 10,
-        "MAP-FIRST ALIGNMENT",
-        1,
-        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-    );
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 30,
-        "FIRST CONTACT BASIN",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    let rows = [
-        ("ACTORS", CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len()),
-        (
-            "SPAWNS",
-            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
-                .count(),
-        ),
-        (
-            "FLUX",
-            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
-                .count(),
-        ),
-        (
-            "BEACONS",
-            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
-                .count(),
-        ),
-        (
-            "EXPANSIONS",
-            CLASSIC_FIRST_CONTACT_BASIN_ACTORS
-                .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
-                .count(),
-        ),
-    ];
-    for (index, (label, value)) in rows.iter().enumerate() {
-        let y = panel_y + 54 + index as i32 * 20;
+        let panel_x = (map_x + map_w + 18).min((width as i32 - 236).max(404));
+        let panel_y = 110_i32;
+        let panel_w = (width as i32 - panel_x - 18).max(210);
+        classic_draw_panel_frame(
+            buffer,
+            width,
+            height,
+            panel_x,
+            panel_y,
+            panel_w,
+            (height as i32 - 190).max(188),
+            CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 12,
+            panel_y + 10,
+            "MAP-FIRST ALIGNMENT",
+            1,
+            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            panel_x + 12,
+            panel_y + 30,
+            "FIRST CONTACT BASIN",
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        let rows = [
+            ("ACTORS", CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len()),
+            (
+                "SPAWNS",
+                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                    .iter()
+                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
+                    .count(),
+            ),
+            (
+                "FLUX",
+                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                    .iter()
+                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
+                    .count(),
+            ),
+            (
+                "BEACONS",
+                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                    .iter()
+                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
+                    .count(),
+            ),
+            (
+                "EXPANSIONS",
+                CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+                    .iter()
+                    .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
+                    .count(),
+            ),
+        ];
+        for (index, (label, value)) in rows.iter().enumerate() {
+            let y = panel_y + 54 + index as i32 * 20;
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                panel_x + 12,
+                y - 3,
+                panel_w - 24,
+                18,
+                0x17251d,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + 18,
+                y,
+                label,
+                1,
+                CLASSIC_HUD_MUTED_TEXT_COLOR,
+            );
+            classic_draw_text(
+                buffer,
+                width,
+                height,
+                panel_x + panel_w - 52,
+                y,
+                &value.to_string(),
+                1,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+            );
+        }
+        classic_draw_first_contact_rule_panel(buffer, width, height, panel_x, panel_y, panel_w);
+        classic_draw_first_contact_runtime_core_panel(
+            buffer,
+            width,
+            height,
+            panel_x,
+            panel_y + 254,
+            panel_w,
+            &core_world,
+        );
+
+        let pressure_w = ((runtime.rts_ai_pressure_percent.min(100) as i32) * (panel_w - 28)) / 100;
         classic_draw_rect(
             buffer,
             width,
             height,
             panel_x + 12,
-            y - 3,
+            panel_y + 152,
             panel_w - 24,
-            18,
-            0x17251d,
+            6,
+            CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            panel_x + 12,
+            panel_y + 152,
+            pressure_w,
+            6,
+            CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
+        );
+
+        let selection_x = 18_i32;
+        let selection_y = (height as i32 - 90).max(map_y + 170);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            selection_x,
+            selection_y,
+            380,
+            72,
+            CLASSIC_RTS_FIDELITY_PANEL_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            selection_x,
+            selection_y,
+            380,
+            3,
+            CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            selection_x,
+            selection_y + 69,
+            380,
+            3,
+            CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR,
         );
         classic_draw_text(
             buffer,
             width,
             height,
-            panel_x + 18,
-            y,
-            label,
+            selection_x + 86,
+            selection_y + 12,
+            "SELECTED GROUP 1 / 4",
             1,
-            CLASSIC_HUD_MUTED_TEXT_COLOR,
+            CLASSIC_HUD_TEXT_COLOR,
         );
         classic_draw_text(
             buffer,
             width,
             height,
-            panel_x + panel_w - 52,
-            y,
-            &value.to_string(),
+            selection_x + 86,
+            selection_y + 30,
+            "WORKER + SCOUT SECURE BEACON",
             1,
             CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
         );
-    }
-    classic_draw_first_contact_rule_panel(buffer, width, height, panel_x, panel_y, panel_w);
-    classic_draw_first_contact_runtime_core_panel(
-        buffer,
-        width,
-        height,
-        panel_x,
-        panel_y + 254,
-        panel_w,
-        &core_world,
-    );
-
-    let pressure_w = ((runtime.rts_ai_pressure_percent.min(100) as i32) * (panel_w - 28)) / 100;
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 152,
-        panel_w - 24,
-        6,
-        CLASSIC_RTS_PRODUCTION_SLOT_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        panel_x + 12,
-        panel_y + 152,
-        pressure_w,
-        6,
-        CLASSIC_RTS_AI_PRESSURE_BAR_COLOR,
-    );
-
-    let selection_x = 18_i32;
-    let selection_y = (height as i32 - 90).max(map_y + 170);
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        selection_x,
-        selection_y,
-        380,
-        72,
-        CLASSIC_RTS_FIDELITY_PANEL_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        selection_x,
-        selection_y,
-        380,
-        3,
-        CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        selection_x,
-        selection_y + 69,
-        380,
-        3,
-        CLASSIC_RTS_FIDELITY_PANEL_EDGE_COLOR,
-    );
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        selection_x + 86,
-        selection_y + 12,
-        "SELECTED GROUP 1 / 4",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_text(
-        buffer,
-        width,
-        height,
-        selection_x + 86,
-        selection_y + 30,
-        "WORKER + SCOUT SECURE BEACON",
-        1,
-        CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-    );
-    for (index, x) in [selection_x + 14, selection_x + 308].iter().enumerate() {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            *x,
-            selection_y + 10,
-            58,
-            54,
-            CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            *x + 4,
-            selection_y + 14,
-            50,
-            46,
-            CLASSIC_RTS_FIDELITY_PORTRAIT_BG_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            *x + 18,
-            selection_y + 20,
-            22,
-            30,
-            CLASSIC_RTS_FIDELITY_PORTRAIT_LIGHT_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            *x + 15,
-            selection_y + 36,
-            28,
-            4,
-            CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            *x + 21,
-            selection_y + 23,
-            16,
-            4,
-            CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            *x + 12,
-            selection_y + 44,
-            34,
-            4,
-            CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            *x + 12,
-            selection_y + 52,
-            34,
-            4,
-            if index == 0 {
-                CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR
-            } else {
-                CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR
-            },
-        );
+        for (index, x) in [selection_x + 14, selection_x + 308].iter().enumerate() {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                *x,
+                selection_y + 10,
+                58,
+                54,
+                CLASSIC_RTS_FIDELITY_MODEL_EDGE_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                *x + 4,
+                selection_y + 14,
+                50,
+                46,
+                CLASSIC_RTS_FIDELITY_PORTRAIT_BG_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                *x + 18,
+                selection_y + 20,
+                22,
+                30,
+                CLASSIC_RTS_FIDELITY_PORTRAIT_LIGHT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                *x + 15,
+                selection_y + 36,
+                28,
+                4,
+                CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                *x + 21,
+                selection_y + 23,
+                16,
+                4,
+                CLASSIC_RTS_FIDELITY_MODEL_HIGHLIGHT_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                *x + 12,
+                selection_y + 44,
+                34,
+                4,
+                CLASSIC_RTS_FIDELITY_ANIMATION_GHOST_COLOR,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                *x + 12,
+                selection_y + 52,
+                34,
+                4,
+                if index == 0 {
+                    CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR
+                } else {
+                    CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR
+                },
+            );
+        }
     }
 }
 

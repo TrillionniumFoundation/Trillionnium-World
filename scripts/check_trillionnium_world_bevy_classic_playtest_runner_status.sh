@@ -48,6 +48,9 @@ CLASSIC_RENDERER_VALUE=""
 CLASSIC_FPS_VALUE=""
 CLASSIC_MANIFEST_VALUE=""
 CLASSIC_OVERRIDE_DIR_VALUE=""
+PLAYER_SCREEN_VALUE=""
+WINIT_UNIX_BACKEND_VALUE=""
+WAYLAND_DISPLAY_VALUE=""
 
 if [[ "$MAIN_PID" -gt 0 && -d "/proc/$MAIN_PID" ]]; then
   if [[ -r "/proc/$MAIN_PID/cmdline" ]]; then
@@ -60,6 +63,9 @@ if [[ "$MAIN_PID" -gt 0 && -d "/proc/$MAIN_PID" ]]; then
   CLASSIC_FPS_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_FPS)"
   CLASSIC_MANIFEST_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST)"
   CLASSIC_OVERRIDE_DIR_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR)"
+  PLAYER_SCREEN_VALUE="$(proc_env_value "$MAIN_PID" TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN)"
+  WINIT_UNIX_BACKEND_VALUE="$(proc_env_value "$MAIN_PID" WINIT_UNIX_BACKEND)"
+  WAYLAND_DISPLAY_VALUE="$(proc_env_value "$MAIN_PID" WAYLAND_DISPLAY)"
 fi
 
 CMD0="$(jq -r '.[0] // ""' <<<"$CMDLINE_JSON")"
@@ -70,12 +76,18 @@ ENV_JSON="$(jq -n \
   --arg classic_fps "$CLASSIC_FPS_VALUE" \
   --arg classic_asset_manifest "$CLASSIC_MANIFEST_VALUE" \
   --arg classic_asset_override_dir "$CLASSIC_OVERRIDE_DIR_VALUE" \
+  --arg classic_player_screen "$PLAYER_SCREEN_VALUE" \
+  --arg winit_unix_backend "$WINIT_UNIX_BACKEND_VALUE" \
+  --arg wayland_display "$WAYLAND_DISPLAY_VALUE" \
   '{
     TRNM_WORLD_BEVY_LOW_SPEC: $low_spec,
     TRNM_WORLD_BEVY_CLASSIC_RENDERER: $classic_renderer,
     TRNM_WORLD_BEVY_CLASSIC_FPS: $classic_fps,
     TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST: $classic_asset_manifest,
-    TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR: $classic_asset_override_dir
+    TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR: $classic_asset_override_dir,
+    TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN: $classic_player_screen,
+    WINIT_UNIX_BACKEND: $winit_unix_backend,
+    WAYLAND_DISPLAY: $wayland_display
   }')"
 
 SERVICE_PROCESS_GATE=false
@@ -91,6 +103,16 @@ fi
 CLASSIC_ENV_GATE=false
 if [[ "$LOW_SPEC_VALUE" == "1" && "$CLASSIC_RENDERER_VALUE" == "1" && "$CLASSIC_FPS_VALUE" == "30" ]]; then
   CLASSIC_ENV_GATE=true
+fi
+
+PLAYER_SCREEN_ENV_GATE=false
+if [[ "$PLAYER_SCREEN_VALUE" == "1" ]]; then
+  PLAYER_SCREEN_ENV_GATE=true
+fi
+
+X11_BACKEND_GATE=false
+if [[ "$WINIT_UNIX_BACKEND_VALUE" == "x11" && -z "$WAYLAND_DISPLAY_VALUE" ]]; then
+  X11_BACKEND_GATE=true
 fi
 
 MANIFEST_GATE=false
@@ -115,7 +137,7 @@ if grep -qiE '(^|[[:space:]])/[^[:space:]]*/CEX(/|[[:space:]]|$)|(^|[[:space:]])
 fi
 
 GREEN=false
-if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CEX_PATH_GATE" == "true" ]]; then
+if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" && "$X11_BACKEND_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CEX_PATH_GATE" == "true" ]]; then
   GREEN=true
 fi
 
@@ -150,6 +172,8 @@ jq -n \
   --argjson service_process_gate "$SERVICE_PROCESS_GATE" \
   --argjson release_binary_gate "$RELEASE_BINARY_GATE" \
   --argjson classic_env_gate "$CLASSIC_ENV_GATE" \
+  --argjson player_screen_env_gate "$PLAYER_SCREEN_ENV_GATE" \
+  --argjson x11_backend_gate "$X11_BACKEND_GATE" \
   --argjson manifest_gate "$MANIFEST_GATE" \
   --argjson override_dir_gate "$OVERRIDE_DIR_GATE" \
   --argjson workdir_gate "$WORKDIR_GATE" \
@@ -180,12 +204,14 @@ jq -n \
       service_process_gate: $service_process_gate,
       release_binary_gate: $release_binary_gate,
       classic_env_gate: $classic_env_gate,
+      player_screen_env_gate: $player_screen_env_gate,
+      x11_backend_gate: $x11_backend_gate,
       manifest_gate: $manifest_gate,
       override_dir_gate: $override_dir_gate,
       workdir_gate: $workdir_gate,
       cex_path_gate: $cex_path_gate
     },
-    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic renderer manifest; CEX paths are explicitly rejected."
+    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, and classic renderer manifest; CEX paths are explicitly rejected."
   }' >"$SUMMARY"
 
 jq -e '
@@ -200,11 +226,16 @@ jq -e '
   and .runtime.selected_environment.TRNM_WORLD_BEVY_LOW_SPEC == "1"
   and .runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_RENDERER == "1"
   and .runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_FPS == "30"
+  and .runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN == "1"
+  and .runtime.selected_environment.WINIT_UNIX_BACKEND == "x11"
+  and .runtime.selected_environment.WAYLAND_DISPLAY == ""
   and (.runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST | contains("/assets/trnm-world/classic/manifest.json"))
   and (.runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR | contains("/assets/trnm-world/classic/art-pack-v1"))
   and .gates.service_process_gate == true
   and .gates.release_binary_gate == true
   and .gates.classic_env_gate == true
+  and .gates.player_screen_env_gate == true
+  and .gates.x11_backend_gate == true
   and .gates.manifest_gate == true
   and .gates.override_dir_gate == true
   and .gates.workdir_gate == true
