@@ -25,6 +25,14 @@ jq -e '
   and .active_beacon_tile.y == 9
   and .active_relay_tile.x == 11
   and .active_relay_tile.y == 8
+  and .rts_data_opening_profile_contract == "trnm_rts_data_first_contact_opening_profile_v1"
+  and .rts_data_command_feedback_contract == "trnm_rts_data_first_contact_command_feedback_v1"
+  and .rts_data_opening_profile_gate == true
+  and .rts_data_command_feedback_gate == true
+  and .rts_data_command_feedback_target_tile.x == 16
+  and .rts_data_command_feedback_target_tile.y == 9
+  and .rts_data_command_feedback_blocked_tile.x == 15
+  and .rts_data_command_feedback_blocked_tile.y == 16
   and .opening_actions == [
     "worker_harvest_flux",
     "build_flux_relay",

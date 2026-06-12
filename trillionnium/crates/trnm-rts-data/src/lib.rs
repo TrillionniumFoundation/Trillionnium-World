@@ -10,6 +10,10 @@ use trnm_rts_core::RtsTile;
 
 pub const TRNM_RTS_DATA_CONTRACT: &str = "trnm_rts_data_map_model_v1";
 pub const TRNM_RTS_DATA_SOURCE_MANIFEST_CONTRACT: &str = "trnm_rts_data_source_manifest_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT: &str =
+    "trnm_rts_data_first_contact_opening_profile_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT: &str =
+    "trnm_rts_data_first_contact_command_feedback_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -154,6 +158,37 @@ pub struct RtsTerrainTileProfile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOpeningLoopProfile {
+    pub contract_version: String,
+    pub map_id: String,
+    pub flux_bank: u32,
+    pub worker_cargo: u32,
+    pub worker_capacity: u32,
+    pub relay_build_progress: u8,
+    pub beacon_capture_progress: u8,
+    pub worker_train_progress: u8,
+    pub scout_train_progress: u8,
+    pub active_beacon_tile: RtsTile,
+    pub active_relay_tile: RtsTile,
+    pub opening_actions: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsCommandFeedbackProfile {
+    pub contract_version: String,
+    pub map_id: String,
+    pub selected_group: String,
+    pub active_order: String,
+    pub target_tile: RtsTile,
+    pub blocked_tile: RtsTile,
+    pub blocked_reason: String,
+    pub queued_before: u8,
+    pub queued_after: u8,
+    pub command_ack_progress: u8,
+    pub cooldown_progress: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsMapModel {
     pub contract_version: String,
     pub map_id: String,
@@ -266,6 +301,10 @@ impl RtsMapModel {
             .iter()
             .filter(|actor| actor.rule_id == rule_id)
             .count()
+    }
+
+    pub fn rule_count_by_kind(&self, kind: RtsRuleKind) -> usize {
+        self.rules.iter().filter(|rule| rule.kind == kind).count()
     }
 
     pub fn canonical_sha256(&self) -> String {
@@ -1027,6 +1066,48 @@ pub fn first_contact_terrain_profiles() -> Vec<RtsTerrainTileProfile> {
         .collect()
 }
 
+pub fn first_contact_opening_loop_profile() -> RtsOpeningLoopProfile {
+    RtsOpeningLoopProfile {
+        contract_version: TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT.to_string(),
+        map_id: "first_contact_basin".to_string(),
+        flux_bank: 340,
+        worker_cargo: 8,
+        worker_capacity: 12,
+        relay_build_progress: 58,
+        beacon_capture_progress: 42,
+        worker_train_progress: 76,
+        scout_train_progress: 34,
+        active_beacon_tile: RtsTile::new(16, 9),
+        active_relay_tile: RtsTile::new(11, 8),
+        opening_actions: [
+            "worker_harvest_flux",
+            "build_flux_relay",
+            "train_worker",
+            "train_horizon_scout",
+            "secure_flux_beacon",
+        ]
+        .iter()
+        .map(|action| (*action).to_string())
+        .collect(),
+    }
+}
+
+pub fn first_contact_command_feedback_profile() -> RtsCommandFeedbackProfile {
+    RtsCommandFeedbackProfile {
+        contract_version: TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT.to_string(),
+        map_id: "first_contact_basin".to_string(),
+        selected_group: "GROUP 1".to_string(),
+        active_order: "SECURE BEACON".to_string(),
+        target_tile: RtsTile::new(16, 9),
+        blocked_tile: RtsTile::new(15, 16),
+        blocked_reason: "MID VENT BLOCKED".to_string(),
+        queued_before: 2,
+        queued_after: 3,
+        command_ack_progress: 86,
+        cooldown_progress: 32,
+    }
+}
+
 fn first_contact_lane_tile(tile: RtsTile) -> bool {
     let x = tile.x;
     let y = tile.y;
@@ -1157,5 +1238,64 @@ mod tests {
                 .count()
                 >= 76
         );
+    }
+
+    #[test]
+    fn first_contact_opening_profile_binds_real_map_rules() {
+        let map = first_contact_basin_map();
+        let opening = first_contact_opening_loop_profile();
+        assert_eq!(
+            opening.contract_version,
+            TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT
+        );
+        assert_eq!(opening.map_id, map.map_id);
+        assert!(map.bounds.contains(opening.active_beacon_tile));
+        assert!(map.bounds.contains(opening.active_relay_tile));
+        assert!(map.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.flux.beacon" && actor.tile == opening.active_beacon_tile
+        }));
+        assert!(map.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.expansion.marker" && actor.tile == opening.active_relay_tile
+        }));
+        assert!(map.rules.iter().any(|rule| {
+            rule.id == "trnm.worker"
+                && rule.cost == 200
+                && opening.flux_bank >= rule.cost
+                && rule.build_duration == Some(100)
+        }));
+        assert!(map.rules.iter().any(|rule| {
+            rule.id == "trnm.horizon.scout"
+                && rule.speed == Some(92)
+                && opening.scout_train_progress >= 30
+        }));
+        assert_eq!(
+            opening.opening_actions,
+            vec![
+                "worker_harvest_flux",
+                "build_flux_relay",
+                "train_worker",
+                "train_horizon_scout",
+                "secure_flux_beacon",
+            ]
+        );
+    }
+
+    #[test]
+    fn first_contact_command_feedback_profile_targets_playable_tiles() {
+        let map = first_contact_basin_map();
+        let feedback = first_contact_command_feedback_profile();
+        assert_eq!(
+            feedback.contract_version,
+            TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT
+        );
+        assert_eq!(feedback.map_id, map.map_id);
+        assert!(map.bounds.contains(feedback.target_tile));
+        assert!(map.bounds.contains(feedback.blocked_tile));
+        assert!(map.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.flux.beacon" && actor.tile == feedback.target_tile
+        }));
+        assert_eq!(feedback.selected_group, "GROUP 1");
+        assert!(feedback.queued_after > feedback.queued_before);
+        assert!(feedback.command_ack_progress > feedback.cooldown_progress);
     }
 }

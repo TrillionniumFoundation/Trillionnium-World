@@ -45,6 +45,19 @@ jq -e '
   and .rts_data_terrain_profile_samples.base_pad.base_pad == true
   and .rts_data_terrain_profile_samples.resource_zone.resource_zone == true
   and .rts_data_terrain_profile_gate == true
+  and .rts_data_opening_profile.contract_version == "trnm_rts_data_first_contact_opening_profile_v1"
+  and .rts_data_opening_profile.map_id == "first_contact_basin"
+  and .rts_data_opening_profile.active_beacon_tile.x == 16
+  and .rts_data_opening_profile.active_beacon_tile.y == 9
+  and .rts_data_opening_profile.active_relay_tile.x == 11
+  and .rts_data_opening_profile.active_relay_tile.y == 8
+  and .rts_data_command_feedback_profile.contract_version == "trnm_rts_data_first_contact_command_feedback_v1"
+  and .rts_data_command_feedback_profile.target_tile.x == 16
+  and .rts_data_command_feedback_profile.target_tile.y == 9
+  and .rts_data_command_feedback_profile.blocked_tile.x == 15
+  and .rts_data_command_feedback_profile.blocked_tile.y == 16
+  and .rts_data_opening_profile_gate == true
+  and .rts_data_command_feedback_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true

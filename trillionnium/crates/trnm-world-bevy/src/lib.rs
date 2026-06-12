@@ -31,8 +31,12 @@ use trnm_rts_core::{
 };
 #[cfg(not(target_os = "android"))]
 use trnm_rts_data::{
-    first_contact_basin_map, first_contact_terrain_profile, first_contact_terrain_profiles,
-    RtsMapActor, RtsRuleKind, RtsTerrainRole, TRNM_RTS_DATA_CONTRACT,
+    first_contact_basin_map, first_contact_command_feedback_profile,
+    first_contact_opening_loop_profile, first_contact_terrain_profile,
+    first_contact_terrain_profiles, RtsCommandFeedbackProfile, RtsMapActor, RtsOpeningLoopProfile,
+    RtsRule, RtsRuleKind, RtsTerrainRole, TRNM_RTS_DATA_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
 };
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
@@ -28468,18 +28472,46 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .count()
             >= 76
         && first_contact_terrain_profile(RtsTile::new(16, 16)).height == 2;
+    let opening_profile = classic_first_contact_opening_loop();
+    let command_feedback_profile = classic_first_contact_command_feedback();
+    let rts_data_opening_profile_gate = opening_profile.contract_version
+        == TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT
+        && opening_profile.map_id == map_model.map_id
+        && map_model
+            .bounds
+            .contains(opening_profile.active_beacon_tile)
+        && map_model.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.flux.beacon" && actor.tile == opening_profile.active_beacon_tile
+        })
+        && map_model.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.expansion.marker"
+                && actor.tile == opening_profile.active_relay_tile
+        });
+    let rts_data_command_feedback_gate = command_feedback_profile.contract_version
+        == TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT
+        && command_feedback_profile.map_id == map_model.map_id
+        && command_feedback_profile.target_tile == opening_profile.active_beacon_tile
+        && map_model
+            .bounds
+            .contains(command_feedback_profile.blocked_tile);
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
     let rts_data_map_summary =
         serde_json::to_value(&map_summary).expect("RTS data map summary serializes");
     let rts_data_source_manifest = serde_json::to_value(&map_model.source_manifest)
         .expect("RTS data source manifest serializes");
+    let rts_data_opening_profile =
+        serde_json::to_value(&opening_profile).expect("RTS data opening profile serializes");
+    let rts_data_command_feedback_profile = serde_json::to_value(&command_feedback_profile)
+        .expect("RTS data command feedback profile serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
         && rts_data_consumer_gate
         && bevy_map_model_adapter_gate
         && rts_data_terrain_profile_gate
+        && rts_data_opening_profile_gate
+        && rts_data_command_feedback_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28515,6 +28547,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             "resource_zone": first_contact_terrain_profile(RtsTile::new(12, 16)),
         },
         "rts_data_terrain_profile_gate": rts_data_terrain_profile_gate,
+        "rts_data_opening_profile": rts_data_opening_profile,
+        "rts_data_command_feedback_profile": rts_data_command_feedback_profile,
+        "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
+        "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -28528,16 +28564,28 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
 
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_opening_loop_evidence_json() -> String {
-    let opening = CLASSIC_FIRST_CONTACT_OPENING_LOOP;
-    let worker_rule = CLASSIC_FIRST_CONTACT_RULES
-        .iter()
-        .find(|rule| rule.id == "trnm.worker");
-    let scout_rule = CLASSIC_FIRST_CONTACT_RULES
+    let map_model = first_contact_basin_map();
+    let opening = classic_first_contact_opening_loop();
+    let worker_rule = map_model.rules.iter().find(|rule| rule.id == "trnm.worker");
+    let scout_rule = map_model
+        .rules
         .iter()
         .find(|rule| rule.id == "trnm.horizon.scout");
-    let relay_rule = CLASSIC_FIRST_CONTACT_RULES
+    let relay_rule = map_model
+        .rules
         .iter()
         .find(|rule| rule.id == "trnm.flux.relay");
+    let feedback = classic_first_contact_command_feedback();
+    let rts_data_opening_profile_gate = opening.contract_version
+        == TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT
+        && opening.map_id == map_model.map_id
+        && map_model.bounds.contains(opening.active_beacon_tile)
+        && map_model.bounds.contains(opening.active_relay_tile);
+    let rts_data_command_feedback_gate = feedback.contract_version
+        == TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT
+        && feedback.map_id == map_model.map_id
+        && feedback.target_tile == opening.active_beacon_tile
+        && map_model.bounds.contains(feedback.blocked_tile);
     let economy_gate = opening.flux_bank >= 300
         && opening.worker_cargo > 0
         && opening.worker_cargo <= opening.worker_capacity
@@ -28551,13 +28599,11 @@ pub fn native_classic_rts_first_contact_opening_loop_evidence_json() -> String {
         && relay_rule
             .is_some_and(|rule| rule.cost == 500 && rule.queue == "Building" && rule.hp == 70000);
     let objective_gate = opening.beacon_capture_progress >= 40
-        && CLASSIC_FIRST_CONTACT_BASIN_ACTORS.iter().any(|actor| {
-            actor.kind == ClassicFirstContactActorKind::Beacon
-                && actor.tile == opening.active_beacon_tile
+        && map_model.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.flux.beacon" && actor.tile == opening.active_beacon_tile
         })
-        && CLASSIC_FIRST_CONTACT_BASIN_ACTORS.iter().any(|actor| {
-            actor.kind == ClassicFirstContactActorKind::ExpansionMarker
-                && actor.tile == opening.active_relay_tile
+        && map_model.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.expansion.marker" && actor.tile == opening.active_relay_tile
         });
     let runtime_gate = classic_product_alignment_runtime()
         .rts_command_queue
@@ -28571,11 +28617,17 @@ pub fn native_classic_rts_first_contact_opening_loop_evidence_json() -> String {
             .rts_command_queue
             .iter()
             .any(|command| command == "attack:trnm.flux.beacon");
-    let green = economy_gate && production_gate && build_gate && objective_gate && runtime_gate;
+    let green = rts_data_opening_profile_gate
+        && rts_data_command_feedback_gate
+        && economy_gate
+        && production_gate
+        && build_gate
+        && objective_gate
+        && runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT,
         "green": green,
-        "map_id": "first_contact_basin",
+        "map_id": opening.map_id,
         "flux_bank": opening.flux_bank,
         "worker_cargo": opening.worker_cargo,
         "worker_capacity": opening.worker_capacity,
@@ -28583,15 +28635,15 @@ pub fn native_classic_rts_first_contact_opening_loop_evidence_json() -> String {
         "beacon_capture_progress": opening.beacon_capture_progress,
         "worker_train_progress": opening.worker_train_progress,
         "scout_train_progress": opening.scout_train_progress,
-        "active_beacon_tile": {"x": opening.active_beacon_tile.0, "y": opening.active_beacon_tile.1},
-        "active_relay_tile": {"x": opening.active_relay_tile.0, "y": opening.active_relay_tile.1},
-        "opening_actions": [
-            "worker_harvest_flux",
-            "build_flux_relay",
-            "train_worker",
-            "train_horizon_scout",
-            "secure_flux_beacon"
-        ],
+        "active_beacon_tile": {"x": opening.active_beacon_tile.x, "y": opening.active_beacon_tile.y},
+        "active_relay_tile": {"x": opening.active_relay_tile.x, "y": opening.active_relay_tile.y},
+        "opening_actions": opening.opening_actions,
+        "rts_data_opening_profile_contract": TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
+        "rts_data_command_feedback_contract": TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
+        "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
+        "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
+        "rts_data_command_feedback_target_tile": {"x": feedback.target_tile.x, "y": feedback.target_tile.y},
+        "rts_data_command_feedback_blocked_tile": {"x": feedback.blocked_tile.x, "y": feedback.blocked_tile.y},
         "economy_gate": economy_gate,
         "production_gate": production_gate,
         "build_gate": build_gate,
@@ -85309,52 +85361,31 @@ fn classic_first_contact_actor_from_rts_data_actor(
 }
 
 #[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ClassicFirstContactRuleKind {
-    Unit,
-    Building,
+fn classic_first_contact_tile_tuple(tile: RtsTile) -> (i32, i32) {
+    (tile.x, tile.y)
 }
 
 #[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone, Copy)]
-struct ClassicFirstContactRule {
-    id: &'static str,
-    label: &'static str,
-    kind: ClassicFirstContactRuleKind,
-    faction: &'static str,
-    cost: u32,
-    hp: u32,
-    speed: Option<u32>,
-    build_duration: Option<u32>,
-    queue: &'static str,
+fn classic_first_contact_opening_loop() -> RtsOpeningLoopProfile {
+    first_contact_opening_loop_profile()
 }
 
 #[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone, Copy)]
-struct ClassicFirstContactOpeningLoop {
-    flux_bank: u32,
-    worker_cargo: u32,
-    worker_capacity: u32,
-    relay_build_progress: u8,
-    beacon_capture_progress: u8,
-    worker_train_progress: u8,
-    scout_train_progress: u8,
-    active_beacon_tile: (i32, i32),
-    active_relay_tile: (i32, i32),
+fn classic_first_contact_command_feedback() -> RtsCommandFeedbackProfile {
+    first_contact_command_feedback_profile()
 }
 
 #[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone, Copy)]
-struct ClassicFirstContactCommandFeedback {
-    selected_group: &'static str,
-    active_order: &'static str,
-    target_tile: (i32, i32),
-    blocked_tile: (i32, i32),
-    blocked_reason: &'static str,
-    queued_before: u8,
-    queued_after: u8,
-    command_ack_progress: u8,
-    cooldown_progress: u8,
+fn classic_first_contact_rule_panel_label(rule: &RtsRule) -> String {
+    match rule.id.as_str() {
+        "trnm.worker" => "WORKER".to_string(),
+        "trnm.horizon.scout" => "H-SCOUT".to_string(),
+        "trnm.forge.warden" => "F-WARDEN".to_string(),
+        "trnm.striker" => "STRIKER".to_string(),
+        "trnm.command.core" => "COMMAND".to_string(),
+        "trnm.flux.relay" => "RELAY".to_string(),
+        _ => rule.label.to_ascii_uppercase(),
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -85749,34 +85780,6 @@ struct TrnmOpenRaLikeSourcePolicy {
 }
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_OPENING_LOOP: ClassicFirstContactOpeningLoop =
-    ClassicFirstContactOpeningLoop {
-        flux_bank: 340,
-        worker_cargo: 8,
-        worker_capacity: 12,
-        relay_build_progress: 58,
-        beacon_capture_progress: 42,
-        worker_train_progress: 76,
-        scout_train_progress: 34,
-        active_beacon_tile: (16, 9),
-        active_relay_tile: (11, 8),
-    };
-
-#[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK: ClassicFirstContactCommandFeedback =
-    ClassicFirstContactCommandFeedback {
-        selected_group: "GROUP 1",
-        active_order: "SECURE BEACON",
-        target_tile: (16, 9),
-        blocked_tile: (15, 16),
-        blocked_reason: "MID VENT BLOCKED",
-        queued_before: 2,
-        queued_after: 3,
-        command_ack_progress: 86,
-        cooldown_progress: 32,
-    };
-
-#[cfg(not(target_os = "android"))]
 const TRNM_OPENRA_LIKE_UNIT_TRAITS: &[TrnmOpenRaLikeTrait] = &[
     TrnmOpenRaLikeTrait::Selectable,
     TrnmOpenRaLikeTrait::Mobile,
@@ -86046,76 +86049,6 @@ const TRNM_OPENRA_LIKE_SOURCE_POLICY: TrnmOpenRaLikeSourcePolicy = TrnmOpenRaLik
     warcraft_iii_asset_copied: false,
     uses_trillionnium_owned_mod_data: true,
 };
-
-#[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_RULES: &[ClassicFirstContactRule] = &[
-    ClassicFirstContactRule {
-        id: "trnm.worker",
-        label: "WORKER",
-        kind: ClassicFirstContactRuleKind::Unit,
-        faction: "shared",
-        cost: 200,
-        hp: 8000,
-        speed: Some(64),
-        build_duration: Some(100),
-        queue: "Unit",
-    },
-    ClassicFirstContactRule {
-        id: "trnm.horizon.scout",
-        label: "H-SCOUT",
-        kind: ClassicFirstContactRuleKind::Unit,
-        faction: "horizon",
-        cost: 250,
-        hp: 9000,
-        speed: Some(92),
-        build_duration: Some(125),
-        queue: "Unit",
-    },
-    ClassicFirstContactRule {
-        id: "trnm.forge.warden",
-        label: "F-WARDEN",
-        kind: ClassicFirstContactRuleKind::Unit,
-        faction: "forge",
-        cost: 300,
-        hp: 18000,
-        speed: Some(56),
-        build_duration: Some(150),
-        queue: "Unit",
-    },
-    ClassicFirstContactRule {
-        id: "trnm.striker",
-        label: "STRIKER",
-        kind: ClassicFirstContactRuleKind::Unit,
-        faction: "shared",
-        cost: 400,
-        hp: 13000,
-        speed: Some(64),
-        build_duration: Some(175),
-        queue: "Unit",
-    },
-    ClassicFirstContactRule {
-        id: "trnm.command.core",
-        label: "COMMAND",
-        kind: ClassicFirstContactRuleKind::Building,
-        faction: "shared",
-        cost: 1600,
-        hp: 70000,
-        speed: None,
-        build_duration: None,
-        queue: "Building/Unit",
-    },
-    ClassicFirstContactRule {
-        id: "trnm.flux.relay",
-        label: "RELAY",
-        kind: ClassicFirstContactRuleKind::Building,
-        faction: "shared",
-        cost: 500,
-        hp: 70000,
-        speed: None,
-        build_duration: None,
-        queue: "Building",
-    },
-];
 
 #[cfg(not(target_os = "android"))]
 const CLASSIC_FIRST_CONTACT_BASIN_ACTORS: &[ClassicFirstContactActor] = &[
@@ -93224,7 +93157,9 @@ fn classic_draw_first_contact_opening_actions(
     cell_w: i32,
     cell_h: i32,
 ) {
-    let opening = CLASSIC_FIRST_CONTACT_OPENING_LOOP;
+    let opening = classic_first_contact_opening_loop();
+    let active_beacon_tile = classic_first_contact_tile_tuple(opening.active_beacon_tile);
+    let active_relay_tile = classic_first_contact_tile_tuple(opening.active_relay_tile);
     let action_paths = [
         (
             (8, 8),
@@ -93237,8 +93172,8 @@ fn classic_draw_first_contact_opening_actions(
             CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
         ),
         (
-            opening.active_relay_tile,
-            opening.active_beacon_tile,
+            active_relay_tile,
+            active_beacon_tile,
             CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
         ),
     ];
@@ -93263,7 +93198,7 @@ fn classic_draw_first_contact_opening_actions(
     }
 
     let (relay_x, relay_y) =
-        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, opening.active_relay_tile);
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, active_relay_tile);
     for level in 0..3 {
         classic_draw_rect(
             buffer,
@@ -93310,7 +93245,7 @@ fn classic_draw_first_contact_opening_actions(
     }
 
     let (beacon_x, beacon_y) =
-        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, opening.active_beacon_tile);
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, active_beacon_tile);
     for ring in 0..3 {
         classic_draw_rect(
             buffer,
@@ -93422,7 +93357,8 @@ fn classic_draw_first_contact_unit_state_layers(
 
     let (worker_x, worker_y) =
         classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (8, 8));
-    for pip in 0..CLASSIC_FIRST_CONTACT_OPENING_LOOP.worker_cargo.min(6) {
+    let opening = classic_first_contact_opening_loop();
+    for pip in 0..opening.worker_cargo.min(6) {
         classic_draw_rect(
             buffer,
             width,
@@ -93452,7 +93388,7 @@ fn classic_draw_first_contact_unit_state_layers(
         height,
         core_x - cell_w + 2,
         core_y + cell_h + 20,
-        (CLASSIC_FIRST_CONTACT_OPENING_LOOP.worker_train_progress as i32 * (cell_w * 3 - 4)) / 100,
+        (opening.worker_train_progress as i32 * (cell_w * 3 - 4)) / 100,
         2,
         CLASSIC_RTS_PRODUCTION_SPAWN_TRAINING_TICK_COLOR,
     );
@@ -93571,12 +93507,13 @@ fn classic_draw_first_contact_combat_phase_layers(
         );
     }
 
+    let opening = classic_first_contact_opening_loop();
     let relay = classic_first_contact_tile_screen(
         map_x,
         map_y,
         cell_w,
         cell_h,
-        CLASSIC_FIRST_CONTACT_OPENING_LOOP.active_relay_tile,
+        classic_first_contact_tile_tuple(opening.active_relay_tile),
     );
     let core = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (8, 8));
     for step in 0..=7 {
@@ -93661,11 +93598,11 @@ fn classic_draw_first_contact_command_feedback_layers(
     cell_w: i32,
     cell_h: i32,
 ) {
-    let feedback = CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK;
-    let target =
-        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, feedback.target_tile);
-    let blocked =
-        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, feedback.blocked_tile);
+    let feedback = classic_first_contact_command_feedback();
+    let target_tile = classic_first_contact_tile_tuple(feedback.target_tile);
+    let blocked_tile = classic_first_contact_tile_tuple(feedback.blocked_tile);
+    let target = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
+    let blocked = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, blocked_tile);
     let selected_origin = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (8, 8));
     let scout_origin = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (25, 8));
 
@@ -93831,7 +93768,7 @@ fn classic_draw_first_contact_command_feedback_layers(
         height,
         hud_x + 8,
         hud_y + 38,
-        feedback.blocked_reason,
+        &feedback.blocked_reason,
         1,
         CLASSIC_RTS_SELECTION_FEEDBACK_ERROR_COLOR,
     );
@@ -94395,8 +94332,9 @@ fn classic_draw_first_contact_model_identity_layers(
         );
     }
 
+    let opening = classic_first_contact_opening_loop();
     let relays = [
-        CLASSIC_FIRST_CONTACT_OPENING_LOOP.active_relay_tile,
+        classic_first_contact_tile_tuple(opening.active_relay_tile),
         (22, 25),
     ];
     for tile in relays {
@@ -94590,6 +94528,8 @@ fn classic_draw_first_contact_tactical_viewport(
     view_w: i32,
     view_h: i32,
 ) {
+    let feedback = classic_first_contact_command_feedback();
+    let target_tile = classic_first_contact_tile_tuple(feedback.target_tile);
     classic_draw_rect(
         buffer,
         width,
@@ -94648,7 +94588,7 @@ fn classic_draw_first_contact_tactical_viewport(
                 classic_darken(CLASSIC_RTS_TACTICAL_VIEWPORT_TILE_COLOR, 1, 6)
             };
             classic_draw_iso_diamond(buffer, width, height, cx, top_y, tile_w, tile_h, color);
-            if world == CLASSIC_FIRST_CONTACT_COMMAND_FEEDBACK.target_tile {
+            if world == target_tile {
                 classic_draw_rect(
                     buffer,
                     width,
@@ -94875,7 +94815,8 @@ fn classic_draw_first_contact_rule_panel(
     panel_y: i32,
     panel_w: i32,
 ) {
-    let opening = CLASSIC_FIRST_CONTACT_OPENING_LOOP;
+    let opening = classic_first_contact_opening_loop();
+    let map_model = first_contact_basin_map();
     let opening_y = panel_y + 170;
     classic_draw_text(
         buffer,
@@ -94972,14 +94913,8 @@ fn classic_draw_first_contact_rule_panel(
     }
 
     let rule_y = panel_y + 250;
-    let unit_count = CLASSIC_FIRST_CONTACT_RULES
-        .iter()
-        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Unit)
-        .count();
-    let building_count = CLASSIC_FIRST_CONTACT_RULES
-        .iter()
-        .filter(|rule| rule.kind == ClassicFirstContactRuleKind::Building)
-        .count();
+    let unit_count = map_model.rule_count_by_kind(RtsRuleKind::Unit);
+    let building_count = map_model.rule_count_by_kind(RtsRuleKind::Structure);
     classic_draw_text(
         buffer,
         width,
@@ -95000,14 +94935,21 @@ fn classic_draw_first_contact_rule_panel(
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
-    for (index, rule) in CLASSIC_FIRST_CONTACT_RULES.iter().take(2).enumerate() {
+    for (index, rule) in map_model
+        .rules
+        .iter()
+        .filter(|rule| matches!(rule.kind, RtsRuleKind::Unit | RtsRuleKind::Structure))
+        .take(2)
+        .enumerate()
+    {
         debug_assert!(!rule.id.is_empty());
         let y = rule_y + 20 + index as i32 * 18;
-        let row_color = if rule.kind == ClassicFirstContactRuleKind::Building {
+        let row_color = if rule.kind == RtsRuleKind::Structure {
             0x1f2e28
         } else {
             0x17251d
         };
+        let label = classic_first_contact_rule_panel_label(rule);
         classic_draw_rect(
             buffer,
             width,
@@ -95024,7 +94966,7 @@ fn classic_draw_first_contact_rule_panel(
             height,
             panel_x + 16,
             y,
-            rule.label,
+            &label,
             1,
             if rule.faction == "horizon" {
                 0x91d6a0
@@ -95037,7 +94979,7 @@ fn classic_draw_first_contact_rule_panel(
         let speed_or_queue = rule
             .speed
             .map(|speed| format!("S{speed}"))
-            .unwrap_or_else(|| classic_catalog_text_label(rule.queue, 4));
+            .unwrap_or_else(|| classic_catalog_text_label(&rule.queue, 4));
         let build = rule
             .build_duration
             .map(|duration| format!("T{duration}"))
