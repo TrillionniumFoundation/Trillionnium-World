@@ -31,6 +31,36 @@ jq -e '
   and .openra_parity_target_commit == "5f1bf76"
   and .openra_parity_target_natural_terminal == true
   and (.stage_summaries | length) == 4
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_bot_terminal_loop_core_subject_actor_ids | length) == 4
+  and .rts_bot_terminal_loop_core_player_ids == ["Multi0", "Multi1", "Multi2", "Multi2"]
+  and .rts_bot_terminal_loop_core_frame_ticks == [0, 900, 1800, 3000]
+  and (.rts_bot_terminal_loop_core_action_labels | length) == 4
+  and .rts_bot_terminal_loop_core_frame_order_stream.map_id == "first-contact-basin-bot-terminal-loop"
+  and .rts_bot_terminal_loop_core_frame_order_stream.rules_id == "trnm-rts-core-bot-terminal-loop-rules-v1"
+  and .rts_bot_terminal_loop_core_frame_order_kind_labels == ["recon", "capture", "capture", "capture"]
+  and (.rts_bot_terminal_loop_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_bot_terminal_loop_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_bot_terminal_loop_core_frame_order_errors | length) == 0
+  and .rts_bot_terminal_loop_core_frame_order_stream_error == null
+  and .rts_bot_terminal_loop_core_headless_replay_error == null
+  and .rts_bot_terminal_loop_core_headless_applied_order_count == 4
+  and .rts_bot_terminal_loop_core_headless_player_count >= 3
+  and .rts_bot_terminal_loop_core_headless_actor_count == 4
+  and .rts_bot_terminal_loop_core_headless_final_frame == 3000
+  and .rts_bot_terminal_loop_core_headless_recon_order_count == 1
+  and .rts_bot_terminal_loop_core_headless_scout_order_count == 1
+  and (.rts_bot_terminal_loop_core_headless_recon_ids | index("bot_opening_scout") != null)
+  and (.rts_bot_terminal_loop_core_headless_recon_tile_ids | index("6,5") != null)
+  and .rts_bot_terminal_loop_core_headless_objective_order_count == 3
+  and .rts_bot_terminal_loop_core_headless_capture_order_count == 3
+  and (.rts_bot_terminal_loop_core_headless_objective_ids | index("relay_beacon_1") != null)
+  and (.rts_bot_terminal_loop_core_headless_objective_ids | index("relay_beacon_2") != null)
+  and (.rts_bot_terminal_loop_core_headless_objective_ids | index("relay_beacon_3") != null)
+  and (.rts_bot_terminal_loop_core_headless_objective_tile_ids | index("6,5") != null)
+  and (.rts_bot_terminal_loop_core_headless_objective_tile_ids | index("6,4") != null)
+  and (.rts_bot_terminal_loop_core_headless_objective_tile_ids | index("7,5") != null)
+  and (.rts_bot_terminal_loop_core_headless_objective_queue_ids | index("objective:claim:relay_beacon_3@7,5") != null)
   and (.final_objective_tile_ids | length) == 4
   and .final_objective_owner_state == "bot:Multi2:beacons=2"
   and .final_objective_result_state == "terminal_victory:Multi2:2_of_4_beacons"
@@ -52,6 +82,8 @@ jq -e '
   and .terminal_result_gate == true
   and .renderer_gate == true
   and .bevy_terminal_rule_simulation_gate == true
+  and .rts_bot_terminal_loop_core_frame_order_gate == true
+  and .rts_bot_terminal_loop_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

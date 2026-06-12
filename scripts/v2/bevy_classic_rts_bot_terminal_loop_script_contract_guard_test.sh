@@ -21,6 +21,9 @@ required_script_lines=(
   'openra_parity_target_commit == "5f1bf76"'
   'forced_capture_hook_enabled == false'
   'forced_surrender_hook_enabled == false'
+  'rts_bot_terminal_loop_core_frame_order_gate == true'
+  'rts_bot_terminal_loop_core_headless_replay_gate == true'
+  'rts_bot_terminal_loop_core_headless_capture_order_count == 3'
   'bevy_terminal_rule_simulation_gate == true'
 )
 
@@ -42,6 +45,9 @@ required_source_lines=(
   'deterministic_bot_terminal_rule_simulation'
   'bot_control_2_of_4_flux_beacons_for_3000_ticks'
   'bevy_terminal_rule_simulation_gate'
+  'RTS:QUEUE:objective:claim:relay_beacon_3@7,5'
+  'rts_bot_terminal_loop_core_frame_order_gate'
+  'rts_bot_terminal_loop_core_headless_replay_gate'
   'forced_capture_hook_enabled'
   'forced_surrender_hook_enabled'
 )

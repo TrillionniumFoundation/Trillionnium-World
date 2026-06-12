@@ -3117,6 +3117,113 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_bot_terminal_loop_stream() {
+        let bot_roster = vec![
+            "Multi0:worker".to_string(),
+            "Multi1:horizon_scout".to_string(),
+            "Multi2:forge_warden".to_string(),
+            "Multi3:striker".to_string(),
+        ];
+        let specs = [
+            (
+                0_u32,
+                "Multi0",
+                bot_roster.clone(),
+                "RTS:QUEUE:recon:scout:bot_opening_scout@6,5",
+            ),
+            (
+                900_u32,
+                "Multi1",
+                vec!["Multi1:horizon_scout".to_string()],
+                "RTS:QUEUE:objective:claim:relay_beacon_1@6,5",
+            ),
+            (
+                1_800_u32,
+                "Multi2",
+                vec!["Multi2:forge_warden".to_string()],
+                "RTS:QUEUE:objective:claim:relay_beacon_2@6,4",
+            ),
+            (
+                3_000_u32,
+                "Multi2",
+                vec!["Multi2:forge_warden".to_string()],
+                "RTS:QUEUE:objective:claim:relay_beacon_3@7,5",
+            ),
+        ];
+        let orders = specs
+            .iter()
+            .map(|(frame, player_id, subjects, label)| {
+                RtsFrameOrder::from_live_command_label(*frame, *player_id, subjects.clone(), label)
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-bot-terminal-loop",
+            "trnm-rts-core-bot-terminal-loop-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let recon = &report.checkpoint.recon_intel;
+        let objectives = &report.checkpoint.objectives;
+
+        assert_eq!(report.checkpoint.applied_order_count, 4);
+        assert_eq!(report.checkpoint.player_count, 3);
+        assert_eq!(report.checkpoint.actor_count, 4);
+        assert_eq!(report.checkpoint.final_frame, 3_000);
+        assert_eq!(recon.recon_order_count, 1);
+        assert_eq!(recon.scout_order_count, 1);
+        assert!(recon.recon_ids.iter().any(|id| id == "bot_opening_scout"));
+        assert!(recon.recon_tile_ids.iter().any(|tile| tile == "6,5"));
+        assert_eq!(objectives.objective_order_count, 3);
+        assert_eq!(objectives.capture_order_count, 3);
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_1"));
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_2"));
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_3"));
+        assert!(objectives
+            .objective_tile_ids
+            .iter()
+            .any(|tile| tile == "6,5"));
+        assert!(objectives
+            .objective_tile_ids
+            .iter()
+            .any(|tile| tile == "6,4"));
+        assert!(objectives
+            .objective_tile_ids
+            .iter()
+            .any(|tile| tile == "7,5"));
+        assert!(objectives
+            .objective_queue_ids
+            .iter()
+            .any(|queue| queue == "objective:claim:relay_beacon_3@7,5"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains("frame:3000")
+                && event.contains(":kind:capture:")
+                && event.contains(":target:relay_beacon_3@7,5")));
+
+        let multi2 = report
+            .checkpoint
+            .actors
+            .iter()
+            .find(|actor| actor.actor_id == "Multi2:forge_warden")
+            .expect("Multi2 terminal winner actor is present");
+        assert_eq!(multi2.capture_order_count, 2);
+        assert_eq!(multi2.target_actor_id.as_deref(), Some("relay_beacon_3"));
+        assert_eq!(multi2.target_tile, Some(RtsTile::new(7, 5)));
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),
