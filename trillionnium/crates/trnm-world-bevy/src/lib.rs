@@ -28711,7 +28711,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         })
         && player_screen_chrome.selection_panel_title == "SELECTION"
         && player_screen_chrome.command_panel_title == "COMMANDS"
+        && player_screen_chrome.command_slot_fallback_id == "hold"
         && player_screen_chrome.order_queue_title == "ORDER QUEUE"
+        && player_screen_chrome.order_queue_empty_label == "NO ORDERS"
+        && player_screen_chrome.order_queue_visible_count == 5
+        && player_screen_chrome.order_queue_label_max_chars == 32
         && player_screen_chrome.group_summary_prefix == "GROUP"
         && player_screen_chrome.group_summary_suffix == "UNITS SELECTED";
     let rts_data_player_screen_gate = player_screen_profile.contract_version
@@ -107699,6 +107703,10 @@ fn classic_draw_openra_style_rts_shell(
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
+    let command_slot_fallback_id = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_slot_fallback_id.as_str())
+        .unwrap_or("hold");
     for index in 0..12 {
         let x = command_x + (index % 6) as i32 * 58;
         let y = bottom_y + 30 + (index / 6) as i32 * 46;
@@ -107706,7 +107714,7 @@ fn classic_draw_openra_style_rts_shell(
             .rts_ability_command_ids
             .get(index % runtime.rts_ability_command_ids.len().max(1))
             .map(String::as_str)
-            .unwrap_or("hold");
+            .unwrap_or(command_slot_fallback_id);
         let active = runtime.rts_active_ability_id.as_deref() == Some(ability);
         let sent = runtime
             .rts_command_queue
@@ -107846,7 +107854,27 @@ fn classic_draw_openra_style_rts_shell(
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
-    for (index, order) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+    let order_queue_empty_label = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.order_queue_empty_label.as_str())
+        .unwrap_or("NO ORDERS");
+    let order_queue_visible_count = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.order_queue_visible_count.max(1) as usize)
+        .unwrap_or(5);
+    let order_queue_label_max_chars = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| usize::from(chrome.order_queue_label_max_chars.max(1)))
+        .unwrap_or(32);
+    let mut rendered_order_count = 0_usize;
+    for (index, order) in runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .take(order_queue_visible_count)
+        .enumerate()
+    {
+        rendered_order_count += 1;
         let y = bottom_y + 32 + index as i32 * 18;
         let chip_color = classic_rts_order_queue_chip_color(order);
         classic_draw_rect(
@@ -107875,13 +107903,35 @@ fn classic_draw_openra_style_rts_shell(
             height,
             queue_x + 10,
             y + 4,
-            &classic_catalog_text_label(&order_label, 32),
+            &classic_catalog_text_label(&order_label, order_queue_label_max_chars),
             1,
             if order.starts_with("feedback:blocked:") {
                 CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
             } else {
                 CLASSIC_HUD_TEXT_COLOR
             },
+        );
+    }
+    if rendered_order_count == 0 {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            queue_x,
+            bottom_y + 32,
+            220,
+            14,
+            0x111b14,
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            queue_x + 10,
+            bottom_y + 36,
+            &classic_catalog_text_label(order_queue_empty_label, order_queue_label_max_chars),
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
         );
     }
     true

@@ -539,7 +539,11 @@ pub struct RtsFirstContactPlayerScreenChromeProfile {
     pub tactics_rows: Vec<RtsPlayerScreenTacticsRowProfile>,
     pub selection_panel_title: String,
     pub command_panel_title: String,
+    pub command_slot_fallback_id: String,
     pub order_queue_title: String,
+    pub order_queue_empty_label: String,
+    pub order_queue_visible_count: u8,
+    pub order_queue_label_max_chars: u8,
     pub group_summary_prefix: String,
     pub group_summary_suffix: String,
 }
@@ -1992,7 +1996,11 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             ],
             selection_panel_title: "SELECTION".to_string(),
             command_panel_title: "COMMANDS".to_string(),
+            command_slot_fallback_id: "hold".to_string(),
             order_queue_title: "ORDER QUEUE".to_string(),
+            order_queue_empty_label: "NO ORDERS".to_string(),
+            order_queue_visible_count: 5,
+            order_queue_label_max_chars: 32,
             group_summary_prefix: "GROUP".to_string(),
             group_summary_suffix: "UNITS SELECTED".to_string(),
         },
@@ -2479,7 +2487,11 @@ mod tests {
         }));
         assert_eq!(profile.chrome.selection_panel_title, "SELECTION");
         assert_eq!(profile.chrome.command_panel_title, "COMMANDS");
+        assert_eq!(profile.chrome.command_slot_fallback_id, "hold");
         assert_eq!(profile.chrome.order_queue_title, "ORDER QUEUE");
+        assert_eq!(profile.chrome.order_queue_empty_label, "NO ORDERS");
+        assert_eq!(profile.chrome.order_queue_visible_count, 5);
+        assert_eq!(profile.chrome.order_queue_label_max_chars, 32);
         assert_eq!(profile.chrome.group_summary_prefix, "GROUP");
         assert_eq!(profile.chrome.group_summary_suffix, "UNITS SELECTED");
         assert_eq!(profile.camera_focus_tile, RtsTile::new(16, 16));

@@ -132,7 +132,11 @@ jq -e '
   and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "build" and .label == "BUILD" and .empty_label == "NONE"))
   and .rts_data_player_screen_chrome_profile.selection_panel_title == "SELECTION"
   and .rts_data_player_screen_chrome_profile.command_panel_title == "COMMANDS"
+  and .rts_data_player_screen_chrome_profile.command_slot_fallback_id == "hold"
   and .rts_data_player_screen_chrome_profile.order_queue_title == "ORDER QUEUE"
+  and .rts_data_player_screen_chrome_profile.order_queue_empty_label == "NO ORDERS"
+  and .rts_data_player_screen_chrome_profile.order_queue_visible_count == 5
+  and .rts_data_player_screen_chrome_profile.order_queue_label_max_chars == 32
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
   and .rts_data_player_screen_chrome_gate == true
