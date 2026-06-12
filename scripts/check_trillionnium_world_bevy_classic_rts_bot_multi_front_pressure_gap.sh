@@ -49,6 +49,33 @@ jq -e '
   and (.final_command_queue | index("native_openra_multi_front_ai:false") != null)
   and (.final_army_production_batch_ids | index("multi_front:decoy_beacon_pressure") != null)
   and (.final_army_production_batch_ids | index("multi_front:collapse_to_terminal") != null)
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and (.rts_bot_multi_front_core_subject_actor_ids | length) == 3
+  and (.rts_bot_multi_front_core_action_labels | length) == 7
+  and .rts_bot_multi_front_core_frame_order_stream.map_id == "first-contact-basin-bot-multi-front-pressure"
+  and .rts_bot_multi_front_core_frame_order_stream.rules_id == "trnm-rts-core-bot-multi-front-pressure-rules-v1"
+  and .rts_bot_multi_front_core_frame_order_kind_labels == ["recon", "move", "attack", "move", "move", "attack", "move"]
+  and (.rts_bot_multi_front_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_bot_multi_front_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_bot_multi_front_core_frame_order_errors | length) == 0
+  and .rts_bot_multi_front_core_frame_order_stream_error == null
+  and .rts_bot_multi_front_core_headless_replay_error == null
+  and .rts_bot_multi_front_core_headless_applied_order_count == 7
+  and .rts_bot_multi_front_core_headless_actor_count >= 3
+  and .rts_bot_multi_front_core_headless_final_frame == 2206
+  and .rts_bot_multi_front_core_headless_recon_order_count == 1
+  and .rts_bot_multi_front_core_headless_scout_order_count == 1
+  and (.rts_bot_multi_front_core_headless_recon_ids | index("dual_scout_lane_probe") != null)
+  and (.rts_bot_multi_front_core_headless_recon_tile_ids | index("4,5") != null)
+  and .rts_bot_multi_front_core_headless_attack_order_count == 2
+  and .rts_bot_multi_front_core_headless_micro_move_order_count == 4
+  and (.rts_bot_multi_front_core_headless_combat_target_actor_ids | index("decoy_beacon_pressure") != null)
+  and (.rts_bot_multi_front_core_headless_combat_target_actor_ids | index("simultaneous_expand_hit") != null)
+  and (.rts_bot_multi_front_core_headless_combat_target_tile_ids | index("9,2") != null)
+  and (.rts_bot_multi_front_core_headless_combat_formation_ids | index("split_lane_probe") != null)
+  and (.rts_bot_multi_front_core_headless_combat_formation_ids | index("main_force_rotate") != null)
+  and (.rts_bot_multi_front_core_headless_combat_formation_ids | index("reinforce_cross_map") != null)
+  and (.rts_bot_multi_front_core_headless_combat_formation_ids | index("collapse_to_terminal") != null)
   and .non_background_pixels > 250000
   and .ai_wave_pixel_count > 80
   and .ai_pressure_pixel_count > 120
@@ -68,6 +95,8 @@ jq -e '
   and .openra_multi_front_pressure_target_gate == true
   and .renderer_gate == true
   and .multi_front_pressure_gap_gate == true
+  and .rts_bot_multi_front_core_frame_order_gate == true
+  and .rts_bot_multi_front_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

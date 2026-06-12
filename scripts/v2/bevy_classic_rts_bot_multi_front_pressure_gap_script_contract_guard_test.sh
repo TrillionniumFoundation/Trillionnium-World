@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_multi_front_pressure_gap.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+CORE="$ROOT/trillionnium/crates/trnm-rts-core/src/lib.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
 READINESS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
 
@@ -20,6 +21,10 @@ required_script_lines=(
   'openra_organic_bot_terminal_target_commit == "5f1bf76"'
   'multi_front_signal_count >= 24'
   'final_multi_front_state == "terminal_collapse_secured"'
+  'rts_bot_multi_front_core_frame_order_gate == true'
+  'rts_bot_multi_front_core_headless_replay_gate == true'
+  'rts_bot_multi_front_core_headless_attack_order_count == 2'
+  'rts_bot_multi_front_core_headless_micro_move_order_count == 4'
   'multi_front_pressure_gap_gate == true'
 )
 
@@ -44,11 +49,22 @@ required_source_lines=(
   'OPENRA_BOT_ECONOMY_TECH_COMMIT'
   'OPENRA_BOT_BEACON_PRESSURE_COMMIT'
   'OPENRA_ORGANIC_BOT_TERMINAL_COMMIT'
+  'RtsFrameOrder::from_live_command_label'
+  'first-contact-basin-bot-multi-front-pressure'
+  'trnm-rts-core-bot-multi-front-pressure-rules-v1'
+  'dual_scout_lane_probe'
+  'decoy_beacon_pressure'
+  'main_force_rotate'
+  'reinforce_cross_map'
+  'simultaneous_expand_hit'
+  'collapse_to_terminal'
   'multi_front_pressure_gap_gate'
+  'rts_bot_multi_front_core_frame_order_gate'
+  'rts_bot_multi_front_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$CORE" "$MAIN"; then
     echo "[FAIL] missing classic RTS bot multi-front pressure gap source line: $line" >&2
     exit 1
   fi
