@@ -16,6 +16,8 @@ pub const TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT: &str =
     "trnm_rts_data_first_contact_command_feedback_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT: &str =
     "trnm_rts_data_first_contact_player_startup_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT: &str =
+    "trnm_rts_data_first_contact_actor_presentation_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -204,6 +206,80 @@ pub struct RtsPlayerStartupProfile {
     pub opening_harvest_tile: RtsTile,
     pub opening_relay_tile: RtsTile,
     pub opening_beacon_tile: RtsTile,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsActorColorRole {
+    Worker,
+    Scout,
+    Warden,
+    Striker,
+    CommandCore,
+    FluxRelay,
+    Objective,
+    Resource,
+    MapDetail,
+}
+
+impl RtsActorColorRole {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Worker => "worker",
+            Self::Scout => "scout",
+            Self::Warden => "warden",
+            Self::Striker => "striker",
+            Self::CommandCore => "command_core",
+            Self::FluxRelay => "flux_relay",
+            Self::Objective => "objective",
+            Self::Resource => "resource",
+            Self::MapDetail => "map_detail",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsActorGlyphRole {
+    Worker,
+    Scout,
+    Warden,
+    Striker,
+    CommandCore,
+    FluxRelay,
+    Beacon,
+    Resource,
+    MapDetail,
+}
+
+impl RtsActorGlyphRole {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Worker => "worker",
+            Self::Scout => "scout",
+            Self::Warden => "warden",
+            Self::Striker => "striker",
+            Self::CommandCore => "command_core",
+            Self::FluxRelay => "flux_relay",
+            Self::Beacon => "beacon",
+            Self::Resource => "resource",
+            Self::MapDetail => "map_detail",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsActorPresentationProfile {
+    pub contract_version: String,
+    pub map_id: String,
+    pub rule_id: String,
+    pub label: String,
+    pub color_role: RtsActorColorRole,
+    pub glyph_role: RtsActorGlyphRole,
+    pub structure: bool,
+    pub selectable: bool,
+    pub health_bar_width: u8,
+    pub draw_priority: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1180,6 +1256,168 @@ pub fn first_contact_player_startup_profiles() -> Vec<RtsPlayerStartupProfile> {
     .collect()
 }
 
+pub fn first_contact_actor_presentation_profiles() -> Vec<RtsActorPresentationProfile> {
+    [
+        (
+            "trnm.worker",
+            RtsActorColorRole::Worker,
+            RtsActorGlyphRole::Worker,
+            false,
+            true,
+            18,
+            42,
+        ),
+        (
+            "trnm.horizon.scout",
+            RtsActorColorRole::Scout,
+            RtsActorGlyphRole::Scout,
+            false,
+            true,
+            18,
+            45,
+        ),
+        (
+            "trnm.forge.warden",
+            RtsActorColorRole::Warden,
+            RtsActorGlyphRole::Warden,
+            false,
+            true,
+            20,
+            46,
+        ),
+        (
+            "trnm.striker",
+            RtsActorColorRole::Striker,
+            RtsActorGlyphRole::Striker,
+            false,
+            true,
+            18,
+            47,
+        ),
+        (
+            "trnm.command.core",
+            RtsActorColorRole::CommandCore,
+            RtsActorGlyphRole::CommandCore,
+            true,
+            true,
+            36,
+            70,
+        ),
+        (
+            "trnm.flux.relay",
+            RtsActorColorRole::FluxRelay,
+            RtsActorGlyphRole::FluxRelay,
+            true,
+            true,
+            30,
+            62,
+        ),
+        (
+            "trnm.flux.beacon",
+            RtsActorColorRole::Objective,
+            RtsActorGlyphRole::Beacon,
+            true,
+            true,
+            28,
+            58,
+        ),
+        (
+            "trnm.flux.bloom",
+            RtsActorColorRole::Resource,
+            RtsActorGlyphRole::Resource,
+            false,
+            false,
+            12,
+            20,
+        ),
+        (
+            "trnm.map.ridge",
+            RtsActorColorRole::MapDetail,
+            RtsActorGlyphRole::MapDetail,
+            false,
+            false,
+            10,
+            10,
+        ),
+        (
+            "trnm.flux.vent",
+            RtsActorColorRole::MapDetail,
+            RtsActorGlyphRole::MapDetail,
+            false,
+            false,
+            10,
+            10,
+        ),
+        (
+            "trnm.lane.marker",
+            RtsActorColorRole::MapDetail,
+            RtsActorGlyphRole::MapDetail,
+            false,
+            false,
+            10,
+            10,
+        ),
+        (
+            "trnm.beacon.ring",
+            RtsActorColorRole::MapDetail,
+            RtsActorGlyphRole::MapDetail,
+            false,
+            false,
+            10,
+            10,
+        ),
+        (
+            "trnm.expansion.marker",
+            RtsActorColorRole::MapDetail,
+            RtsActorGlyphRole::MapDetail,
+            false,
+            false,
+            10,
+            10,
+        ),
+    ]
+    .into_iter()
+    .map(
+        |(
+            rule_id,
+            color_role,
+            glyph_role,
+            structure,
+            selectable,
+            health_bar_width,
+            draw_priority,
+        )| {
+            let label = first_contact_rules()
+                .into_iter()
+                .find(|rule| rule.id == rule_id)
+                .map(|rule| rule.label)
+                .unwrap_or_else(|| rule_id.to_string());
+            RtsActorPresentationProfile {
+                contract_version: TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT
+                    .to_string(),
+                map_id: "first_contact_basin".to_string(),
+                rule_id: rule_id.to_string(),
+                label,
+                color_role,
+                glyph_role,
+                structure,
+                selectable,
+                health_bar_width,
+                draw_priority,
+            }
+        },
+    )
+    .collect()
+}
+
+pub fn first_contact_actor_presentation_profile(
+    rule_id: &str,
+) -> Option<RtsActorPresentationProfile> {
+    first_contact_actor_presentation_profiles()
+        .into_iter()
+        .find(|profile| profile.rule_id == rule_id)
+}
+
 fn first_contact_lane_tile(tile: RtsTile) -> bool {
     let x = tile.x;
     let y = tile.y;
@@ -1415,6 +1653,36 @@ mod tests {
         assert_eq!(
             multi0.opening_relay_tile,
             first_contact_opening_loop_profile().active_relay_tile
+        );
+    }
+
+    #[test]
+    fn first_contact_actor_presentations_bind_visible_rules() {
+        let map = first_contact_basin_map();
+        let profiles = first_contact_actor_presentation_profiles();
+        assert!(profiles.len() >= 8);
+        assert!(profiles.iter().all(|profile| {
+            profile.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT
+                && profile.map_id == map.map_id
+                && map.rules.iter().any(|rule| rule.id == profile.rule_id)
+                && profile.health_bar_width >= 10
+        }));
+        let core = first_contact_actor_presentation_profile("trnm.command.core")
+            .expect("command core presentation exists");
+        assert_eq!(core.color_role, RtsActorColorRole::CommandCore);
+        assert_eq!(core.glyph_role, RtsActorGlyphRole::CommandCore);
+        assert!(core.structure);
+        assert_eq!(core.health_bar_width, 36);
+        let worker = first_contact_actor_presentation_profile("trnm.worker")
+            .expect("worker presentation exists");
+        assert_eq!(worker.color_role.as_str(), "worker");
+        assert_eq!(worker.glyph_role.as_str(), "worker");
+        assert!(worker.selectable);
+        assert!(!worker.structure);
+        assert!(
+            first_contact_actor_presentation_profile("trnm.flux.beacon").is_some_and(|profile| {
+                profile.structure && profile.color_role.as_str() == "objective"
+            })
         );
     }
 }

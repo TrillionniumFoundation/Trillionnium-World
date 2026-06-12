@@ -31,11 +31,14 @@ use trnm_rts_core::{
 };
 #[cfg(not(target_os = "android"))]
 use trnm_rts_data::{
+    first_contact_actor_presentation_profile, first_contact_actor_presentation_profiles,
     first_contact_basin_map, first_contact_command_feedback_profile,
     first_contact_opening_loop_profile, first_contact_player_startup_profiles,
-    first_contact_terrain_profile, first_contact_terrain_profiles, RtsCommandFeedbackProfile,
-    RtsMapActor, RtsOpeningLoopProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
-    RtsTerrainRole, TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
+    first_contact_terrain_profile, first_contact_terrain_profiles, RtsActorColorRole,
+    RtsActorPresentationProfile, RtsCommandFeedbackProfile, RtsMapActor, RtsOpeningLoopProfile,
+    RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole, TRNM_RTS_DATA_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT,
 };
@@ -28526,6 +28529,30 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
                 && startup.opening_beacon_tile == opening_profile.active_beacon_tile
                 && startup.opening_relay_tile == opening_profile.active_relay_tile
         });
+    let actor_presentation_profiles = classic_first_contact_actor_presentations();
+    let rts_data_actor_presentation_gate = actor_presentation_profiles.len() >= 8
+        && actor_presentation_profiles.iter().all(|profile| {
+            profile.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT
+                && profile.map_id == map_model.map_id
+                && profile.health_bar_width >= 10
+                && map_model
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == profile.rule_id)
+        })
+        && classic_first_contact_actor_presentation("trnm.worker").is_some_and(|profile| {
+            profile.color_role == RtsActorColorRole::Worker
+                && !profile.structure
+                && profile.selectable
+        })
+        && classic_first_contact_actor_presentation("trnm.command.core").is_some_and(|profile| {
+            profile.color_role == RtsActorColorRole::CommandCore
+                && profile.structure
+                && profile.health_bar_width >= 32
+        })
+        && classic_first_contact_actor_presentation("trnm.flux.beacon").is_some_and(|profile| {
+            profile.color_role == RtsActorColorRole::Objective && profile.structure
+        });
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
     let rts_data_map_summary =
@@ -28538,6 +28565,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data command feedback profile serializes");
     let rts_data_player_startup_profiles = serde_json::to_value(&player_startup_profiles)
         .expect("RTS data player startup profiles serialize");
+    let rts_data_actor_presentation_profiles = serde_json::to_value(&actor_presentation_profiles)
+        .expect("RTS data actor presentation profiles serialize");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28547,6 +28576,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_opening_profile_gate
         && rts_data_command_feedback_gate
         && rts_data_player_startup_gate
+        && rts_data_actor_presentation_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28585,9 +28615,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_opening_profile": rts_data_opening_profile,
         "rts_data_command_feedback_profile": rts_data_command_feedback_profile,
         "rts_data_player_startup_profiles": rts_data_player_startup_profiles,
+        "rts_data_actor_presentation_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
+        "rts_data_actor_presentation_profiles": rts_data_actor_presentation_profiles,
         "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
         "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
         "rts_data_player_startup_gate": rts_data_player_startup_gate,
+        "rts_data_actor_presentation_gate": rts_data_actor_presentation_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -85418,6 +85451,16 @@ fn classic_first_contact_player_startups() -> Vec<RtsPlayerStartupProfile> {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_actor_presentations() -> Vec<RtsActorPresentationProfile> {
+    first_contact_actor_presentation_profiles()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_actor_presentation(rule_id: &str) -> Option<RtsActorPresentationProfile> {
+    first_contact_actor_presentation_profile(rule_id)
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_static_rule_id(rule_id: &str) -> Option<&'static str> {
     match rule_id {
         "mpspawn" => Some("mpspawn"),
@@ -92551,17 +92594,25 @@ fn classic_openra_like_world_snapshot_json(world: &TrnmOpenRaLikeWorld) -> Value
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_runtime_actor_color(actor: &TrnmOpenRaLikeActorState) -> u32 {
-    match actor.rule_id {
-        "trnm.worker" => CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
-        "trnm.horizon.scout" => CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
-        "trnm.forge.warden" => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
-        "trnm.striker" => CLASSIC_RTS_DAMAGE_TICK_COLOR,
-        "trnm.command.core" => CLASSIC_RTS_TECH_BASE_COLOR,
-        "trnm.flux.relay" => CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
-        "trnm.flux.beacon" => CLASSIC_RTS_OBJECTIVE_COLOR,
-        _ => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+fn classic_first_contact_actor_color_role_color(role: RtsActorColorRole) -> u32 {
+    match role {
+        RtsActorColorRole::Worker => CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+        RtsActorColorRole::Scout => CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+        RtsActorColorRole::Warden => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+        RtsActorColorRole::Striker => CLASSIC_RTS_DAMAGE_TICK_COLOR,
+        RtsActorColorRole::CommandCore => CLASSIC_RTS_TECH_BASE_COLOR,
+        RtsActorColorRole::FluxRelay => CLASSIC_RTS_STRUCTURE_SCAFFOLD_COLOR,
+        RtsActorColorRole::Objective => CLASSIC_RTS_OBJECTIVE_COLOR,
+        RtsActorColorRole::Resource => CLASSIC_RTS_HARVEST_NODE_COLOR,
+        RtsActorColorRole::MapDetail => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_color(actor: &TrnmOpenRaLikeActorState) -> u32 {
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| classic_first_contact_actor_color_role_color(profile.color_role))
+        .unwrap_or(CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92575,12 +92626,27 @@ fn classic_first_contact_runtime_actor_health_percent(actor: &TrnmOpenRaLikeActo
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_runtime_actor_is_structure(actor: &TrnmOpenRaLikeActorState) -> bool {
-    classic_openra_like_rule_for(actor.rule_id).is_some_and(|rule| {
-        matches!(
-            rule.kind,
-            TrnmOpenRaLikeEntityKind::Structure | TrnmOpenRaLikeEntityKind::Objective
-        )
-    })
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| profile.structure)
+        .unwrap_or_else(|| {
+            classic_openra_like_rule_for(actor.rule_id).is_some_and(|rule| {
+                matches!(
+                    rule.kind,
+                    TrnmOpenRaLikeEntityKind::Structure | TrnmOpenRaLikeEntityKind::Objective
+                )
+            })
+        })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_runtime_actor_health_bar_width(
+    actor: &TrnmOpenRaLikeActorState,
+    fallback_width: i32,
+) -> i32 {
+    classic_first_contact_actor_presentation(actor.rule_id)
+        .map(|profile| i32::from(profile.health_bar_width))
+        .unwrap_or(fallback_width)
+        .clamp(8, fallback_width.max(8))
 }
 
 #[cfg(not(target_os = "android"))]
@@ -92884,7 +92950,7 @@ fn classic_draw_first_contact_actor_glyph(
         height,
         base_x,
         center_y + size_h / 2 + 2,
-        size_w.max(10),
+        classic_first_contact_runtime_actor_health_bar_width(actor, size_w.max(10)),
         classic_first_contact_runtime_actor_health_percent(actor),
         color,
     );
