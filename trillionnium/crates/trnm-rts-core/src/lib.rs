@@ -3317,6 +3317,119 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_autonomous_bot_skirmish_stream() {
+        let specs = [
+            (
+                0_u32,
+                "Multi0",
+                vec!["Multi0:worker".to_string()],
+                "RTS:QUEUE:harvest:gold_vein",
+            ),
+            (
+                420_u32,
+                "Multi1",
+                vec!["Multi1:horizon_scout".to_string()],
+                "RTS:QUEUE:recon:scout:beacon_ring@6,5",
+            ),
+            (
+                900_u32,
+                "Multi1",
+                vec!["Multi1:horizon_scout".to_string()],
+                "RTS:QUEUE:objective:claim:relay_beacon_1@6,5",
+            ),
+            (
+                1_440_u32,
+                "Multi2",
+                vec!["Multi2:forge_warden".to_string()],
+                "RTS:QUEUE:train:trnm.forge_bastion",
+            ),
+            (
+                2_160_u32,
+                "Multi2",
+                vec![
+                    "Multi2:forge_warden".to_string(),
+                    "Multi2:forge_bastion".to_string(),
+                ],
+                "RTS:ATTACK:beacon_lane_fight",
+            ),
+            (
+                2_400_u32,
+                "Multi2",
+                vec!["Multi2:forge_warden".to_string()],
+                "RTS:QUEUE:objective:claim:relay_beacon_2@6,4",
+            ),
+            (
+                3_000_u32,
+                "Multi2",
+                vec!["Multi2:forge_bastion".to_string()],
+                "RTS:QUEUE:objective:claim:relay_beacon_3@7,5",
+            ),
+        ];
+        let orders = specs
+            .iter()
+            .map(|(frame, player_id, subjects, label)| {
+                RtsFrameOrder::from_live_command_label(*frame, *player_id, subjects.clone(), label)
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-autonomous-bot-skirmish",
+            "trnm-rts-core-autonomous-bot-skirmish-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let objectives = &report.checkpoint.objectives;
+        let lifecycle = &report.checkpoint.production_lifecycle;
+        let recon = &report.checkpoint.recon_intel;
+        let tactical = &report.checkpoint.tactical_combat;
+
+        assert_eq!(report.checkpoint.applied_order_count, 7);
+        assert_eq!(report.checkpoint.player_count, 3);
+        assert_eq!(report.checkpoint.actor_count, 4);
+        assert_eq!(report.checkpoint.final_frame, 3_000);
+        assert_eq!(objectives.capture_order_count, 3);
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_1"));
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_2"));
+        assert!(objectives
+            .objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_3"));
+        assert!(objectives
+            .objective_tile_ids
+            .iter()
+            .any(|tile| tile == "7,5"));
+        assert_eq!(lifecycle.train_order_count, 1);
+        assert!(lifecycle
+            .train_rule_ids
+            .iter()
+            .any(|rule| rule == "trnm.forge_bastion"));
+        assert_eq!(recon.recon_order_count, 1);
+        assert_eq!(recon.scout_order_count, 1);
+        assert!(recon.recon_ids.iter().any(|id| id == "beacon_ring"));
+        assert_eq!(tactical.attack_order_count, 1);
+        assert!(tactical
+            .combat_target_actor_ids
+            .iter()
+            .any(|actor| actor == "beacon_lane_fight"));
+        assert!(report
+            .checkpoint
+            .actors
+            .iter()
+            .any(|actor| actor.actor_id == "Multi0:worker" && actor.harvest_order_count == 1));
+        assert!(report.checkpoint.event_log.iter().any(|event| {
+            event.contains("frame:3000")
+                && event.contains(":kind:capture:")
+                && event.contains(":target:relay_beacon_3@7,5")
+        }));
+    }
+
+    #[test]
     fn headless_replay_tracks_recon_intel_stream() {
         let subjects = vec![
             "square_guard_patrol".to_string(),

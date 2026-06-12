@@ -29,6 +29,32 @@ jq -e '
   and .bevy_terminal_parity_claimed == false
   and .openra_parity_target_commit == "5f1bf76"
   and .openra_parity_target_natural_terminal == true
+  and .rts_core_contract == "trnm_rts_core_frame_order_v1"
+  and .rts_autonomous_bot_core_frame_order_stream.map_id == "first-contact-basin-autonomous-bot-skirmish"
+  and .rts_autonomous_bot_core_frame_order_stream.rules_id == "trnm-rts-core-autonomous-bot-skirmish-rules-v1"
+  and .rts_autonomous_bot_core_frame_order_kind_labels == ["harvest", "recon", "capture", "train", "attack", "capture", "capture"]
+  and .rts_autonomous_bot_core_frame_ticks == [0, 420, 900, 1440, 2160, 2400, 3000]
+  and (.rts_autonomous_bot_core_frame_order_stream_sha256 | type == "string" and length == 64)
+  and (.rts_autonomous_bot_core_headless_checkpoint_sha256 | type == "string" and length == 64)
+  and (.rts_autonomous_bot_core_frame_order_errors | length) == 0
+  and .rts_autonomous_bot_core_frame_order_stream_error == null
+  and .rts_autonomous_bot_core_headless_replay_error == null
+  and .rts_autonomous_bot_core_headless_applied_order_count == 7
+  and .rts_autonomous_bot_core_headless_player_count >= 3
+  and .rts_autonomous_bot_core_headless_actor_count == 4
+  and .rts_autonomous_bot_core_headless_final_frame == 3000
+  and .rts_autonomous_bot_core_headless_harvest_actor_order_count == 1
+  and .rts_autonomous_bot_core_headless_recon_order_count == 1
+  and .rts_autonomous_bot_core_headless_train_order_count == 1
+  and .rts_autonomous_bot_core_headless_attack_order_count == 1
+  and .rts_autonomous_bot_core_headless_capture_order_count == 3
+  and (.rts_autonomous_bot_core_headless_objective_ids | index("relay_beacon_1") != null)
+  and (.rts_autonomous_bot_core_headless_objective_ids | index("relay_beacon_2") != null)
+  and (.rts_autonomous_bot_core_headless_objective_ids | index("relay_beacon_3") != null)
+  and (.rts_autonomous_bot_core_headless_objective_tile_ids | index("7,5") != null)
+  and (.rts_autonomous_bot_core_headless_train_rule_ids | index("trnm.forge_bastion") != null)
+  and (.rts_autonomous_bot_core_headless_recon_ids | index("beacon_ring") != null)
+  and (.rts_autonomous_bot_core_headless_combat_target_actor_ids | index("beacon_lane_fight") != null)
   and (.stage_summaries | length) == 6
   and (.final_objective_tile_ids | length) == 4
   and .final_objective_owner_state == "bot:Multi2:beacons=2"
@@ -68,6 +94,8 @@ jq -e '
   and .terminal_gate == true
   and .renderer_gate == true
   and .autonomous_bot_skirmish_gate == true
+  and .rts_autonomous_bot_core_frame_order_gate == true
+  and .rts_autonomous_bot_core_headless_replay_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

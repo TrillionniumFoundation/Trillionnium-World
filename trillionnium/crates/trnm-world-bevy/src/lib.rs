@@ -50393,6 +50393,243 @@ pub fn native_classic_rts_autonomous_bot_skirmish_evidence_json(preview_path: &s
             "combat_event_log": runtime.rts_combat_event_log.clone(),
         }));
     }
+    let rts_autonomous_bot_core_specs = [
+        (
+            0_u32,
+            "Multi0",
+            vec!["Multi0:worker".to_string()],
+            "RTS:QUEUE:harvest:gold_vein",
+        ),
+        (
+            420_u32,
+            "Multi1",
+            vec!["Multi1:horizon_scout".to_string()],
+            "RTS:QUEUE:recon:scout:beacon_ring@6,5",
+        ),
+        (
+            900_u32,
+            "Multi1",
+            vec!["Multi1:horizon_scout".to_string()],
+            "RTS:QUEUE:objective:claim:relay_beacon_1@6,5",
+        ),
+        (
+            1_440_u32,
+            "Multi2",
+            vec!["Multi2:forge_warden".to_string()],
+            "RTS:QUEUE:train:trnm.forge_bastion",
+        ),
+        (
+            2_160_u32,
+            "Multi2",
+            vec![
+                "Multi2:forge_warden".to_string(),
+                "Multi2:forge_bastion".to_string(),
+            ],
+            "RTS:ATTACK:beacon_lane_fight",
+        ),
+        (
+            2_400_u32,
+            "Multi2",
+            vec!["Multi2:forge_warden".to_string()],
+            "RTS:QUEUE:objective:claim:relay_beacon_2@6,4",
+        ),
+        (
+            TERMINAL_HOLD_TICKS,
+            "Multi2",
+            vec!["Multi2:forge_bastion".to_string()],
+            "RTS:QUEUE:objective:claim:relay_beacon_3@7,5",
+        ),
+    ];
+    let mut rts_autonomous_bot_core_frame_order_errors = Vec::new();
+    let mut rts_autonomous_bot_core_frame_orders = Vec::new();
+    let mut rts_autonomous_bot_core_player_ids = Vec::new();
+    let mut rts_autonomous_bot_core_frame_ticks = Vec::new();
+    let mut rts_autonomous_bot_core_action_labels = Vec::new();
+    for (index, (frame, player_id, subject_actor_ids, action_label)) in
+        rts_autonomous_bot_core_specs.iter().enumerate()
+    {
+        rts_autonomous_bot_core_player_ids.push((*player_id).to_string());
+        rts_autonomous_bot_core_frame_ticks.push(*frame);
+        rts_autonomous_bot_core_action_labels.push((*action_label).to_string());
+        match RtsFrameOrder::from_live_command_label(
+            *frame,
+            *player_id,
+            subject_actor_ids.clone(),
+            action_label,
+        ) {
+            Ok(order) => rts_autonomous_bot_core_frame_orders.push(order),
+            Err(error) => rts_autonomous_bot_core_frame_order_errors
+                .push(format!("autonomous_bot_{index}:{action_label}:{error}")),
+        }
+    }
+    let rts_autonomous_bot_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-autonomous-bot-skirmish",
+        "trnm-rts-core-autonomous-bot-skirmish-rules-v1",
+        rts_autonomous_bot_core_frame_orders.clone(),
+    );
+    let rts_autonomous_bot_core_frame_order_stream_error =
+        rts_autonomous_bot_core_frame_order_stream.validate().err();
+    let rts_autonomous_bot_core_frame_order_stream_sha256 =
+        rts_autonomous_bot_core_frame_order_stream.sha256_hex();
+    let rts_autonomous_bot_core_frame_order_kind_labels = rts_autonomous_bot_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_autonomous_bot_core_frame_order_values = rts_autonomous_bot_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts autonomous bot order serializes"))
+        .collect::<Vec<_>>();
+    let rts_autonomous_bot_core_frame_order_stream_value =
+        serde_json::to_value(&rts_autonomous_bot_core_frame_order_stream)
+            .expect("rts autonomous bot stream serializes");
+    let rts_autonomous_bot_core_expected_frame_ticks =
+        vec![0, 420, 900, 1_440, 2_160, 2_400, TERMINAL_HOLD_TICKS];
+    let rts_autonomous_bot_core_frame_order_gate = rts_autonomous_bot_core_frame_order_errors
+        .is_empty()
+        && rts_autonomous_bot_core_frame_order_stream_error.is_none()
+        && rts_autonomous_bot_core_frame_order_stream_sha256.len() == 64
+        && rts_autonomous_bot_core_frame_orders.len() == 7
+        && rts_autonomous_bot_core_frame_order_kind_labels
+            == [
+                "harvest", "recon", "capture", "train", "attack", "capture", "capture",
+            ]
+        && rts_autonomous_bot_core_frame_ticks == rts_autonomous_bot_core_expected_frame_ticks
+        && rts_autonomous_bot_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Harvest
+                && order.player_id == "Multi0"
+                && order.target_actor_id.as_deref() == Some("gold_vein")
+        })
+        && rts_autonomous_bot_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Recon
+                && order.player_id == "Multi1"
+                && order.target_actor_id.as_deref() == Some("beacon_ring")
+                && order.target_tile == Some(RtsTile::new(6, 5))
+        })
+        && rts_autonomous_bot_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Train
+                && order.player_id == "Multi2"
+                && order.target_rule_id.as_deref() == Some("trnm.forge_bastion")
+        })
+        && rts_autonomous_bot_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Attack
+                && order.player_id == "Multi2"
+                && order.target_actor_id.as_deref() == Some("beacon_lane_fight")
+        })
+        && rts_autonomous_bot_core_frame_orders
+            .iter()
+            .filter(|order| order.kind == RtsOrderKind::Capture && order.target_actor_id.is_some())
+            .count()
+            == 3;
+    let rts_autonomous_bot_core_headless_replay_result =
+        rts_autonomous_bot_core_frame_order_stream.replay_headless();
+    let (
+        rts_autonomous_bot_core_headless_replay_report_value,
+        rts_autonomous_bot_core_headless_checkpoint_sha256,
+        rts_autonomous_bot_core_headless_replay_error,
+        rts_autonomous_bot_core_headless_applied_order_count,
+        rts_autonomous_bot_core_headless_player_count,
+        rts_autonomous_bot_core_headless_actor_count,
+        rts_autonomous_bot_core_headless_final_frame,
+        rts_autonomous_bot_core_headless_harvest_actor_order_count,
+        rts_autonomous_bot_core_headless_recon_order_count,
+        rts_autonomous_bot_core_headless_train_order_count,
+        rts_autonomous_bot_core_headless_attack_order_count,
+        rts_autonomous_bot_core_headless_capture_order_count,
+        rts_autonomous_bot_core_headless_objective_ids,
+        rts_autonomous_bot_core_headless_objective_tile_ids,
+        rts_autonomous_bot_core_headless_train_rule_ids,
+        rts_autonomous_bot_core_headless_recon_ids,
+        rts_autonomous_bot_core_headless_combat_target_actor_ids,
+        rts_autonomous_bot_core_headless_event_log,
+    ) = match rts_autonomous_bot_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            (
+                serde_json::to_value(&report).expect("rts autonomous bot replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.player_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint
+                    .actors
+                    .iter()
+                    .map(|actor| actor.harvest_order_count)
+                    .sum::<u32>(),
+                checkpoint.recon_intel.recon_order_count,
+                checkpoint.production_lifecycle.train_order_count,
+                checkpoint.tactical_combat.attack_order_count,
+                checkpoint.objectives.capture_order_count,
+                checkpoint.objectives.objective_ids.clone(),
+                checkpoint.objectives.objective_tile_ids.clone(),
+                checkpoint.production_lifecycle.train_rule_ids.clone(),
+                checkpoint.recon_intel.recon_ids.clone(),
+                checkpoint.tactical_combat.combat_target_actor_ids.clone(),
+                checkpoint.event_log.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_autonomous_bot_core_headless_replay_gate = rts_autonomous_bot_core_frame_order_gate
+        && rts_autonomous_bot_core_headless_replay_error.is_none()
+        && rts_autonomous_bot_core_headless_checkpoint_sha256.len() == 64
+        && rts_autonomous_bot_core_headless_applied_order_count == 7
+        && rts_autonomous_bot_core_headless_player_count >= 3
+        && rts_autonomous_bot_core_headless_actor_count == BOT_SLOT_COUNT as u32
+        && rts_autonomous_bot_core_headless_final_frame == TERMINAL_HOLD_TICKS
+        && rts_autonomous_bot_core_headless_harvest_actor_order_count == 1
+        && rts_autonomous_bot_core_headless_recon_order_count == 1
+        && rts_autonomous_bot_core_headless_train_order_count == 1
+        && rts_autonomous_bot_core_headless_attack_order_count == 1
+        && rts_autonomous_bot_core_headless_capture_order_count == 3
+        && rts_autonomous_bot_core_headless_objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_1")
+        && rts_autonomous_bot_core_headless_objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_2")
+        && rts_autonomous_bot_core_headless_objective_ids
+            .iter()
+            .any(|id| id == "relay_beacon_3")
+        && rts_autonomous_bot_core_headless_objective_tile_ids
+            .iter()
+            .any(|tile| tile == "7,5")
+        && rts_autonomous_bot_core_headless_train_rule_ids
+            .iter()
+            .any(|rule| rule == "trnm.forge_bastion")
+        && rts_autonomous_bot_core_headless_recon_ids
+            .iter()
+            .any(|id| id == "beacon_ring")
+        && rts_autonomous_bot_core_headless_combat_target_actor_ids
+            .iter()
+            .any(|actor| actor == "beacon_lane_fight")
+        && rts_autonomous_bot_core_headless_event_log
+            .iter()
+            .any(|event| {
+                event.contains("frame:3000")
+                    && event.contains(":kind:capture:")
+                    && event.contains(":target:relay_beacon_3@7,5")
+            });
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
@@ -50469,6 +50706,8 @@ pub fn native_classic_rts_autonomous_bot_skirmish_evidence_json(preview_path: &s
     let green = write_gate
         && renderer_gate
         && autonomous_bot_skirmish_gate
+        && rts_autonomous_bot_core_frame_order_gate
+        && rts_autonomous_bot_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -50492,6 +50731,34 @@ pub fn native_classic_rts_autonomous_bot_skirmish_evidence_json(preview_path: &s
         "openra_parity_target_commit": "5f1bf76",
         "openra_parity_target_natural_terminal": true,
         "stage_summaries": stage_summaries,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_autonomous_bot_core_player_ids": rts_autonomous_bot_core_player_ids,
+        "rts_autonomous_bot_core_frame_ticks": rts_autonomous_bot_core_frame_ticks,
+        "rts_autonomous_bot_core_action_labels": rts_autonomous_bot_core_action_labels,
+        "rts_autonomous_bot_core_frame_orders": rts_autonomous_bot_core_frame_order_values,
+        "rts_autonomous_bot_core_frame_order_stream": rts_autonomous_bot_core_frame_order_stream_value,
+        "rts_autonomous_bot_core_frame_order_stream_sha256": rts_autonomous_bot_core_frame_order_stream_sha256,
+        "rts_autonomous_bot_core_frame_order_kind_labels": rts_autonomous_bot_core_frame_order_kind_labels,
+        "rts_autonomous_bot_core_frame_order_errors": rts_autonomous_bot_core_frame_order_errors,
+        "rts_autonomous_bot_core_frame_order_stream_error": rts_autonomous_bot_core_frame_order_stream_error,
+        "rts_autonomous_bot_core_headless_replay_report": rts_autonomous_bot_core_headless_replay_report_value,
+        "rts_autonomous_bot_core_headless_checkpoint_sha256": rts_autonomous_bot_core_headless_checkpoint_sha256,
+        "rts_autonomous_bot_core_headless_replay_error": rts_autonomous_bot_core_headless_replay_error,
+        "rts_autonomous_bot_core_headless_applied_order_count": rts_autonomous_bot_core_headless_applied_order_count,
+        "rts_autonomous_bot_core_headless_player_count": rts_autonomous_bot_core_headless_player_count,
+        "rts_autonomous_bot_core_headless_actor_count": rts_autonomous_bot_core_headless_actor_count,
+        "rts_autonomous_bot_core_headless_final_frame": rts_autonomous_bot_core_headless_final_frame,
+        "rts_autonomous_bot_core_headless_harvest_actor_order_count": rts_autonomous_bot_core_headless_harvest_actor_order_count,
+        "rts_autonomous_bot_core_headless_recon_order_count": rts_autonomous_bot_core_headless_recon_order_count,
+        "rts_autonomous_bot_core_headless_train_order_count": rts_autonomous_bot_core_headless_train_order_count,
+        "rts_autonomous_bot_core_headless_attack_order_count": rts_autonomous_bot_core_headless_attack_order_count,
+        "rts_autonomous_bot_core_headless_capture_order_count": rts_autonomous_bot_core_headless_capture_order_count,
+        "rts_autonomous_bot_core_headless_objective_ids": rts_autonomous_bot_core_headless_objective_ids,
+        "rts_autonomous_bot_core_headless_objective_tile_ids": rts_autonomous_bot_core_headless_objective_tile_ids,
+        "rts_autonomous_bot_core_headless_train_rule_ids": rts_autonomous_bot_core_headless_train_rule_ids,
+        "rts_autonomous_bot_core_headless_recon_ids": rts_autonomous_bot_core_headless_recon_ids,
+        "rts_autonomous_bot_core_headless_combat_target_actor_ids": rts_autonomous_bot_core_headless_combat_target_actor_ids,
+        "rts_autonomous_bot_core_headless_event_log": rts_autonomous_bot_core_headless_event_log,
         "final_objective_tile_ids": runtime.rts_objective_tile_ids,
         "final_objective_owner_state": runtime.rts_objective_owner_state,
         "final_objective_result_state": runtime.rts_objective_result_state,
@@ -50528,9 +50795,11 @@ pub fn native_classic_rts_autonomous_bot_skirmish_evidence_json(preview_path: &s
         "terminal_gate": terminal_gate,
         "renderer_gate": renderer_gate,
         "autonomous_bot_skirmish_gate": autonomous_bot_skirmish_gate,
+        "rts_autonomous_bot_core_frame_order_gate": rts_autonomous_bot_core_frame_order_gate,
+        "rts_autonomous_bot_core_headless_replay_gate": rts_autonomous_bot_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS autonomous bot skirmish evidence advances the Bevy path beyond a bare terminal rule by rendering a no-player-input bot timeline for economy, scouting, Beacon control, production, combat, and 2-of-4 terminal victory, while still not claiming OpenRA natural-match parity."
+        "source_of_truth": "Classic RTS autonomous bot skirmish evidence advances the Bevy path beyond a bare terminal rule by rendering a no-player-input bot timeline for economy, scouting, Beacon control, production, combat, and 2-of-4 terminal victory, emits the autonomous bot economy/recon/capture/train/attack/capture timeline into trnm-rts-core, replays it through the Bevy-free headless reducer, and still does not claim OpenRA natural-match parity."
     }))
     .expect("classic RTS autonomous bot skirmish evidence serializes")
 }
