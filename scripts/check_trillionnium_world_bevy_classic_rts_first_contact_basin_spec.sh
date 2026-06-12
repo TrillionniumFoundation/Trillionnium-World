@@ -84,6 +84,23 @@ jq -e '
   and .rts_data_player_screen_profile.contract_version == "trnm_rts_data_first_contact_player_screen_v1"
   and .rts_data_player_screen_profile.map_id == "first_contact_basin"
   and .rts_data_player_screen_profile.room_id == "first-contact-basin"
+  and .rts_data_player_screen_profile.layout.player_map.map_origin_x == 16
+  and .rts_data_player_screen_profile.layout.player_map.map_origin_y == 54
+  and .rts_data_player_screen_profile.layout.player_map.right_reserved_px == 292
+  and .rts_data_player_screen_profile.layout.player_map.bottom_reserved_px == 158
+  and .rts_data_player_screen_profile.layout.player_map.cell_width.min == 12
+  and .rts_data_player_screen_profile.layout.player_map.cell_width.max == 28
+  and .rts_data_player_screen_profile.layout.player_map.cell_height.min == 8
+  and .rts_data_player_screen_profile.layout.player_map.cell_height.max == 15
+  and .rts_data_player_screen_layout_profile.player_map.map_origin_x == 16
+  and .rts_data_player_screen_layout_profile.spec_map.map_origin_x == 24
+  and .rts_data_player_screen_layout_profile.spec_map.map_origin_y == 110
+  and .rts_data_player_screen_layout_profile.spec_map.right_reserved_px == 266
+  and .rts_data_player_screen_layout_profile.spec_map.cell_width.min == 10
+  and .rts_data_player_screen_layout_profile.spec_map.cell_width.max == 22
+  and .rts_data_player_screen_layout_profile.map_outer_padding_px == 8
+  and .rts_data_player_screen_layout_profile.map_inner_padding_px == 4
+  and .rts_data_player_screen_layout_gate == true
   and .rts_data_player_screen_profile.camera_focus_tile.x == 16
   and .rts_data_player_screen_profile.camera_focus_tile.y == 16
   and .rts_data_player_screen_profile.command_destination_tile.x == 16

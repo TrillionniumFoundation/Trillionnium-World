@@ -28603,10 +28603,34 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let player_screen_runtime = classic_first_contact_player_screen_runtime();
     let player_screen_camera_focus_tile_id =
         classic_first_contact_tile_id(player_screen_profile.camera_focus_tile);
+    let player_screen_layout = player_screen_profile.layout;
+    let rts_data_player_screen_layout_gate = player_screen_layout.player_map.map_origin_x == 16
+        && player_screen_layout.player_map.map_origin_y == 54
+        && player_screen_layout.player_map.right_reserved_px == 292
+        && player_screen_layout.player_map.bottom_reserved_px == 158
+        && player_screen_layout.player_map.min_map_width_px == 374
+        && player_screen_layout.player_map.min_map_height_px == 238
+        && player_screen_layout.player_map.cell_width.min == 12
+        && player_screen_layout.player_map.cell_width.max == 28
+        && player_screen_layout.player_map.cell_height.min == 8
+        && player_screen_layout.player_map.cell_height.max == 15
+        && player_screen_layout.spec_map.map_origin_x == 24
+        && player_screen_layout.spec_map.map_origin_y == 110
+        && player_screen_layout.spec_map.right_reserved_px == 266
+        && player_screen_layout.spec_map.bottom_reserved_px == 158
+        && player_screen_layout.spec_map.min_map_width_px == 374
+        && player_screen_layout.spec_map.min_map_height_px == 238
+        && player_screen_layout.spec_map.cell_width.min == 10
+        && player_screen_layout.spec_map.cell_width.max == 22
+        && player_screen_layout.spec_map.cell_height.min == 7
+        && player_screen_layout.spec_map.cell_height.max == 14
+        && player_screen_layout.map_outer_padding_px == 8
+        && player_screen_layout.map_inner_padding_px == 4;
     let rts_data_player_screen_gate = player_screen_profile.contract_version
         == TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
         && player_screen_profile.map_id == map_model.map_id
         && player_screen_profile.room_id == "first-contact-basin"
+        && rts_data_player_screen_layout_gate
         && player_screen_profile.camera_zoom_percent > 0
         && map_model
             .bounds
@@ -28691,6 +28715,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data visual telemetry profile serializes");
     let rts_data_player_screen_profile = serde_json::to_value(&player_screen_profile)
         .expect("RTS data player screen profile serializes");
+    let rts_data_player_screen_layout_profile = serde_json::to_value(player_screen_layout)
+        .expect("RTS data player screen layout profile serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28702,6 +28728,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_player_startup_gate
         && rts_data_actor_presentation_gate
         && rts_data_visual_telemetry_gate
+        && rts_data_player_screen_layout_gate
         && rts_data_player_screen_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
@@ -28748,11 +28775,13 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_visual_telemetry_profile": rts_data_visual_telemetry_profile,
         "rts_data_player_screen_contract": TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT,
         "rts_data_player_screen_profile": rts_data_player_screen_profile,
+        "rts_data_player_screen_layout_profile": rts_data_player_screen_layout_profile,
         "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
         "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
         "rts_data_player_startup_gate": rts_data_player_startup_gate,
         "rts_data_actor_presentation_gate": rts_data_actor_presentation_gate,
         "rts_data_visual_telemetry_gate": rts_data_visual_telemetry_gate,
+        "rts_data_player_screen_layout_gate": rts_data_player_screen_layout_gate,
         "rts_data_player_screen_gate": rts_data_player_screen_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
@@ -28760,7 +28789,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -95442,50 +95471,50 @@ fn classic_draw_first_contact_basin_scene(
     runtime: &NativeFirstPlayableRuntime,
 ) {
     let player_screen = classic_player_screen_mode_enabled();
+    let player_screen_profile = classic_first_contact_player_screen_profile();
+    let screen_layout = if player_screen {
+        player_screen_profile.layout.player_map
+    } else {
+        player_screen_profile.layout.spec_map
+    };
     let map_model = first_contact_basin_map();
     let map_summary = map_model.summary();
     let map_width_tiles = map_model.width as i32;
     let map_height_tiles = map_model.height as i32;
-    let map_x = if player_screen { 16_i32 } else { 24_i32 };
-    let map_y = if player_screen { 54_i32 } else { 110_i32 };
-    let available_w = if player_screen {
-        (width as i32 - 292).max(374)
-    } else {
-        (width as i32 - 266).max(374)
-    };
-    let available_h = (height as i32 - 158 - map_y).max(238);
-    let cell_w = if player_screen {
-        (available_w / map_width_tiles).clamp(12, 28)
-    } else {
-        (available_w / map_width_tiles).clamp(10, 22)
-    };
-    let cell_h = if player_screen {
-        (available_h / map_height_tiles).clamp(8, 15)
-    } else {
-        (available_h / map_height_tiles).clamp(7, 14)
-    };
+    let map_x = screen_layout.map_origin_x;
+    let map_y = screen_layout.map_origin_y;
+    let available_w =
+        (width as i32 - screen_layout.right_reserved_px).max(screen_layout.min_map_width_px);
+    let available_h = (height as i32 - screen_layout.bottom_reserved_px - map_y)
+        .max(screen_layout.min_map_height_px);
+    let cell_w = (available_w / map_width_tiles)
+        .clamp(screen_layout.cell_width.min, screen_layout.cell_width.max);
+    let cell_h = (available_h / map_height_tiles)
+        .clamp(screen_layout.cell_height.min, screen_layout.cell_height.max);
     let map_w = cell_w * map_width_tiles;
     let map_h = cell_h * map_height_tiles;
     let core_world = classic_first_contact_openra_like_core_preview_world();
+    let outer_padding = player_screen_profile.layout.map_outer_padding_px;
+    let inner_padding = player_screen_profile.layout.map_inner_padding_px;
 
     classic_draw_rect(
         buffer,
         width,
         height,
-        map_x - 8,
-        map_y - 8,
-        map_w + 16,
-        map_h + 16,
+        map_x - outer_padding,
+        map_y - outer_padding,
+        map_w + outer_padding * 2,
+        map_h + outer_padding * 2,
         CLASSIC_RTS_PRODUCT_UI_CHROME_COLOR,
     );
     classic_draw_rect(
         buffer,
         width,
         height,
-        map_x - 4,
-        map_y - 4,
-        map_w + 8,
-        map_h + 8,
+        map_x - inner_padding,
+        map_y - inner_padding,
+        map_w + inner_padding * 2,
+        map_h + inner_padding * 2,
         0x0d1511,
     );
 

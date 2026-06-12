@@ -427,6 +427,7 @@ pub struct RtsFirstContactPlayerScreenProfile {
     pub contract_version: String,
     pub map_id: String,
     pub room_id: String,
+    pub layout: RtsFirstContactPlayerScreenLayoutProfile,
     pub coins: u64,
     pub xp: u64,
     pub camera_focus_tile: RtsTile,
@@ -450,6 +451,32 @@ pub struct RtsFirstContactPlayerScreenProfile {
     pub ability_command_ids: Vec<String>,
     pub last_feedback: String,
     pub objective_status: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsPixelClamp {
+    pub min: i32,
+    pub max: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactMapLayoutProfile {
+    pub map_origin_x: i32,
+    pub map_origin_y: i32,
+    pub right_reserved_px: i32,
+    pub bottom_reserved_px: i32,
+    pub min_map_width_px: i32,
+    pub min_map_height_px: i32,
+    pub cell_width: RtsPixelClamp,
+    pub cell_height: RtsPixelClamp,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactPlayerScreenLayoutProfile {
+    pub player_map: RtsFirstContactMapLayoutProfile,
+    pub spec_map: RtsFirstContactMapLayoutProfile,
+    pub map_outer_padding_px: i32,
+    pub map_inner_padding_px: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1776,6 +1803,30 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
         contract_version: TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT.to_string(),
         map_id: "first_contact_basin".to_string(),
         room_id: "first-contact-basin".to_string(),
+        layout: RtsFirstContactPlayerScreenLayoutProfile {
+            player_map: RtsFirstContactMapLayoutProfile {
+                map_origin_x: 16,
+                map_origin_y: 54,
+                right_reserved_px: 292,
+                bottom_reserved_px: 158,
+                min_map_width_px: 374,
+                min_map_height_px: 238,
+                cell_width: RtsPixelClamp { min: 12, max: 28 },
+                cell_height: RtsPixelClamp { min: 8, max: 15 },
+            },
+            spec_map: RtsFirstContactMapLayoutProfile {
+                map_origin_x: 24,
+                map_origin_y: 110,
+                right_reserved_px: 266,
+                bottom_reserved_px: 158,
+                min_map_width_px: 374,
+                min_map_height_px: 238,
+                cell_width: RtsPixelClamp { min: 10, max: 22 },
+                cell_height: RtsPixelClamp { min: 7, max: 14 },
+            },
+            map_outer_padding_px: 8,
+            map_inner_padding_px: 4,
+        },
         coins: 890,
         xp: 92,
         camera_focus_tile: RtsTile::new(16, 16),
@@ -2167,6 +2218,21 @@ mod tests {
         );
         assert_eq!(profile.map_id, map.map_id);
         assert_eq!(profile.room_id, "first-contact-basin");
+        assert_eq!(profile.layout.player_map.map_origin_x, 16);
+        assert_eq!(profile.layout.player_map.map_origin_y, 54);
+        assert_eq!(profile.layout.player_map.right_reserved_px, 292);
+        assert_eq!(profile.layout.player_map.bottom_reserved_px, 158);
+        assert_eq!(profile.layout.player_map.cell_width.min, 12);
+        assert_eq!(profile.layout.player_map.cell_width.max, 28);
+        assert_eq!(profile.layout.player_map.cell_height.min, 8);
+        assert_eq!(profile.layout.player_map.cell_height.max, 15);
+        assert_eq!(profile.layout.spec_map.map_origin_x, 24);
+        assert_eq!(profile.layout.spec_map.map_origin_y, 110);
+        assert_eq!(profile.layout.spec_map.right_reserved_px, 266);
+        assert_eq!(profile.layout.spec_map.cell_width.min, 10);
+        assert_eq!(profile.layout.spec_map.cell_width.max, 22);
+        assert_eq!(profile.layout.map_outer_padding_px, 8);
+        assert_eq!(profile.layout.map_inner_padding_px, 4);
         assert_eq!(profile.camera_focus_tile, RtsTile::new(16, 16));
         assert!(map.bounds.contains(profile.camera_focus_tile));
         assert_eq!(profile.command_destination_tile, opening.active_beacon_tile);
