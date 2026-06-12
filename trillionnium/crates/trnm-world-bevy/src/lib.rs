@@ -37,11 +37,12 @@ use trnm_rts_data::{
     first_contact_player_startup_profiles, first_contact_terrain_profile,
     first_contact_terrain_profiles, first_contact_visual_telemetry_profile, RtsActorColorRole,
     RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
-    RtsFirstContactPlayerScreenProfile, RtsFirstContactVisualTelemetryProfile, RtsMapActor,
-    RtsOpeningLoopProfile, RtsPlayerScreenBuildPaletteSlotProfile,
-    RtsPlayerScreenResourceReadoutKind, RtsPlayerScreenResourceReadoutProfile,
-    RtsPlayerScreenTacticsRowKind, RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile,
-    RtsRule, RtsRuleKind, RtsTerrainRole, RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
+    RtsFirstContactPlayerScreenChromeProfile, RtsFirstContactPlayerScreenProfile,
+    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsOpeningLoopProfile,
+    RtsPlayerScreenBuildPaletteSlotProfile, RtsPlayerScreenResourceReadoutKind,
+    RtsPlayerScreenResourceReadoutProfile, RtsPlayerScreenTacticsRowKind,
+    RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
+    RtsTerrainRole, RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
@@ -28631,6 +28632,13 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let player_screen_chrome = &player_screen_profile.chrome;
     let rts_data_player_screen_chrome_gate = player_screen_chrome.top_title == "TRNM RTS"
         && player_screen_chrome.skirmish_status_label == "LOCAL SKIRMISH  OWNED ASSETS"
+        && player_screen_chrome.tactical_view_title == "TACTICAL VIEW"
+        && player_screen_chrome.tactical_view_camera_prefix == "CAM"
+        && player_screen_chrome.tactical_view_zoom_prefix == "Z"
+        && player_screen_chrome.tactical_view_default_camera_tile
+            == player_screen_profile.camera_focus_tile
+        && player_screen_chrome.tactical_view_status_fallback == "GROUP 1  ATTACK QUEUED"
+        && player_screen_chrome.tactical_view_status_max_chars == 40
         && player_screen_chrome.resource_readouts.len() == 4
         && player_screen_chrome
             .resource_readouts
@@ -106644,6 +106652,22 @@ fn classic_tactical_status_label(runtime: &NativeFirstPlayableRuntime) -> String
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactical_status_label(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> String {
+    let status = if runtime.rts_group_command_state.is_empty() {
+        chrome.tactical_view_status_fallback.clone()
+    } else {
+        runtime.rts_group_command_state.replace('_', " ")
+    };
+    classic_catalog_text_label(
+        &status,
+        usize::from(chrome.tactical_view_status_max_chars.max(1)),
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_window_title(
     player_tile: (i32, i32),
     runtime: &NativeFirstPlayableRuntime,
@@ -106953,12 +106977,34 @@ fn classic_draw_openra_style_rts_shell(
         height,
         viewport_x + 16,
         viewport_y + 14,
-        &format!(
-            "TACTICAL VIEW  {}  CAM {} Z{}",
-            classic_tactical_status_label(runtime),
-            runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4"),
-            runtime.rts_camera_zoom_percent.max(1)
-        ),
+        &first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| {
+                let camera_tile = runtime
+                    .rts_camera_focus_tile_id
+                    .as_deref()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        classic_first_contact_tile_id(chrome.tactical_view_default_camera_tile)
+                    });
+                format!(
+                    "{}  {}  {} {} {}{}",
+                    chrome.tactical_view_title,
+                    classic_first_contact_tactical_status_label(runtime, chrome),
+                    chrome.tactical_view_camera_prefix,
+                    camera_tile,
+                    chrome.tactical_view_zoom_prefix,
+                    runtime.rts_camera_zoom_percent.max(1)
+                )
+            })
+            .unwrap_or_else(|| {
+                format!(
+                    "TACTICAL VIEW  {}  CAM {} Z{}",
+                    classic_tactical_status_label(runtime),
+                    runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4"),
+                    runtime.rts_camera_zoom_percent.max(1)
+                )
+            }),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );

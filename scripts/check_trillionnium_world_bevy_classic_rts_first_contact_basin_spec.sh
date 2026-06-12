@@ -103,6 +103,13 @@ jq -e '
   and .rts_data_player_screen_layout_gate == true
   and .rts_data_player_screen_profile.chrome.top_title == "TRNM RTS"
   and .rts_data_player_screen_profile.chrome.skirmish_status_label == "LOCAL SKIRMISH  OWNED ASSETS"
+  and .rts_data_player_screen_profile.chrome.tactical_view_title == "TACTICAL VIEW"
+  and .rts_data_player_screen_profile.chrome.tactical_view_camera_prefix == "CAM"
+  and .rts_data_player_screen_profile.chrome.tactical_view_zoom_prefix == "Z"
+  and .rts_data_player_screen_profile.chrome.tactical_view_default_camera_tile.x == 16
+  and .rts_data_player_screen_profile.chrome.tactical_view_default_camera_tile.y == 16
+  and .rts_data_player_screen_profile.chrome.tactical_view_status_fallback == "GROUP 1  ATTACK QUEUED"
+  and .rts_data_player_screen_profile.chrome.tactical_view_status_max_chars == 40
   and (.rts_data_player_screen_profile.chrome.resource_readouts | length) == 4
   and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "credits" and .label == "CRED"))
   and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "power" and .label == "PWR"))

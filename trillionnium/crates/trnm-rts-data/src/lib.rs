@@ -523,6 +523,12 @@ pub struct RtsPlayerScreenBuildPaletteSlotProfile {
 pub struct RtsFirstContactPlayerScreenChromeProfile {
     pub top_title: String,
     pub skirmish_status_label: String,
+    pub tactical_view_title: String,
+    pub tactical_view_camera_prefix: String,
+    pub tactical_view_zoom_prefix: String,
+    pub tactical_view_default_camera_tile: RtsTile,
+    pub tactical_view_status_fallback: String,
+    pub tactical_view_status_max_chars: u8,
     pub resource_readouts: Vec<RtsPlayerScreenResourceReadoutProfile>,
     pub radar_title: String,
     pub production_title: String,
@@ -1889,6 +1895,12 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
         chrome: RtsFirstContactPlayerScreenChromeProfile {
             top_title: "TRNM RTS".to_string(),
             skirmish_status_label: "LOCAL SKIRMISH  OWNED ASSETS".to_string(),
+            tactical_view_title: "TACTICAL VIEW".to_string(),
+            tactical_view_camera_prefix: "CAM".to_string(),
+            tactical_view_zoom_prefix: "Z".to_string(),
+            tactical_view_default_camera_tile: RtsTile::new(16, 16),
+            tactical_view_status_fallback: "GROUP 1  ATTACK QUEUED".to_string(),
+            tactical_view_status_max_chars: 40,
             resource_readouts: vec![
                 RtsPlayerScreenResourceReadoutProfile {
                     kind: RtsPlayerScreenResourceReadoutKind::Credits,
@@ -2395,6 +2407,18 @@ mod tests {
             profile.chrome.skirmish_status_label,
             "LOCAL SKIRMISH  OWNED ASSETS"
         );
+        assert_eq!(profile.chrome.tactical_view_title, "TACTICAL VIEW");
+        assert_eq!(profile.chrome.tactical_view_camera_prefix, "CAM");
+        assert_eq!(profile.chrome.tactical_view_zoom_prefix, "Z");
+        assert_eq!(
+            profile.chrome.tactical_view_default_camera_tile,
+            RtsTile::new(16, 16)
+        );
+        assert_eq!(
+            profile.chrome.tactical_view_status_fallback,
+            "GROUP 1  ATTACK QUEUED"
+        );
+        assert_eq!(profile.chrome.tactical_view_status_max_chars, 40);
         assert_eq!(profile.chrome.resource_readouts.len(), 4);
         assert!(profile.chrome.resource_readouts.iter().any(|readout| {
             readout.kind == RtsPlayerScreenResourceReadoutKind::Credits && readout.label == "CRED"
