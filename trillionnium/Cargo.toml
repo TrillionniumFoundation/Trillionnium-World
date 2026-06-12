@@ -15,6 +15,7 @@ members = [
   "crates/trnm-world-domain",
   "crates/trnm-world-command",
   "crates/trnm-rts-core",
+  "crates/trnm-rts-data",
   "crates/trnm-world-projection",
   "crates/trnm-world-map-provider",
   "crates/trnm-world-ui-fragments",
