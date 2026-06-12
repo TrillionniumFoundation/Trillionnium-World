@@ -48848,6 +48848,8 @@ pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str)
     let mut action_labels = Vec::new();
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
+    let mut rts_ai_skirmish_core_frame_orders = Vec::new();
+    let mut rts_ai_skirmish_core_frame_order_errors = Vec::new();
 
     for (index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
@@ -48868,6 +48870,37 @@ pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str)
         }
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
+        }
+        if action_label.starts_with("RTS:QUEUE:")
+            || action_label.starts_with("RTS:MOVE:")
+            || action_label.starts_with("RTS:ATTACK:")
+            || action_label.starts_with("RTS:ABILITY:")
+        {
+            let subject_actor_ids = if runtime.rts_selected_unit_ids.is_empty() {
+                vec!["selected_rts_group".to_string()]
+            } else {
+                runtime.rts_selected_unit_ids.clone()
+            };
+            match RtsFrameOrder::from_live_command_label(
+                520 + rts_ai_skirmish_core_frame_orders.len() as u32,
+                "Multi0",
+                subject_actor_ids,
+                &action_label,
+            ) {
+                Ok(mut order) => {
+                    if order.kind == RtsOrderKind::Ability && order.target_actor_id.is_none() {
+                        order.target_actor_id = runtime.rts_attack_target_id.clone();
+                    }
+                    if let Err(error) = order.validate() {
+                        rts_ai_skirmish_core_frame_order_errors
+                            .push(format!("ai_skirmish_{index}:{action_label}:{error}"));
+                    } else {
+                        rts_ai_skirmish_core_frame_orders.push(order);
+                    }
+                }
+                Err(error) => rts_ai_skirmish_core_frame_order_errors
+                    .push(format!("ai_skirmish_{index}:{action_label}:{error}")),
+            }
         }
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -48916,6 +48949,141 @@ pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str)
             "command_queue": runtime.rts_command_queue.clone(),
         }));
     }
+
+    let rts_ai_skirmish_core_frame_order_stream = RtsFrameOrderStream::new(
+        "first-contact-basin-ai-skirmish-pressure",
+        "trnm-rts-core-ai-skirmish-pressure-rules-v1",
+        rts_ai_skirmish_core_frame_orders.clone(),
+    );
+    let rts_ai_skirmish_core_frame_order_stream_error =
+        rts_ai_skirmish_core_frame_order_stream.validate().err();
+    let rts_ai_skirmish_core_frame_order_stream_sha256 =
+        rts_ai_skirmish_core_frame_order_stream.sha256_hex();
+    let rts_ai_skirmish_core_frame_order_kind_labels = rts_ai_skirmish_core_frame_orders
+        .iter()
+        .map(|order| order.kind.as_str())
+        .collect::<Vec<_>>();
+    let rts_ai_skirmish_core_frame_order_values = rts_ai_skirmish_core_frame_orders
+        .iter()
+        .map(|order| serde_json::to_value(order).expect("rts AI skirmish order serializes"))
+        .collect::<Vec<_>>();
+    let rts_ai_skirmish_core_frame_order_stream_value =
+        serde_json::to_value(&rts_ai_skirmish_core_frame_order_stream)
+            .expect("rts AI skirmish stream serializes");
+    let rts_ai_skirmish_core_frame_order_gate = rts_ai_skirmish_core_frame_order_errors.is_empty()
+        && rts_ai_skirmish_core_frame_order_stream_error.is_none()
+        && rts_ai_skirmish_core_frame_order_stream_sha256.len() == 64
+        && rts_ai_skirmish_core_frame_orders.len() == 4
+        && rts_ai_skirmish_core_frame_order_kind_labels == ["queue", "move", "attack", "ability"]
+        && rts_ai_skirmish_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Queue
+                && order.queue_id.as_deref() == Some("ai:skirmish_wave")
+        })
+        && rts_ai_skirmish_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Move
+                && order.target_tile == Some(RtsTile::new(8, 4))
+                && order.formation_id.as_deref() == Some("wedge")
+        })
+        && rts_ai_skirmish_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Attack
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+        })
+        && rts_ai_skirmish_core_frame_orders.iter().any(|order| {
+            order.kind == RtsOrderKind::Ability
+                && order.target_rule_id.as_deref() == Some("guard_break")
+                && order.target_actor_id.as_deref() == Some("arena_creep_attack")
+        });
+    let rts_ai_skirmish_core_headless_replay_result =
+        rts_ai_skirmish_core_frame_order_stream.replay_headless();
+    let (
+        rts_ai_skirmish_core_headless_replay_report_value,
+        rts_ai_skirmish_core_headless_checkpoint_sha256,
+        rts_ai_skirmish_core_headless_replay_error,
+        rts_ai_skirmish_core_headless_applied_order_count,
+        rts_ai_skirmish_core_headless_actor_count,
+        rts_ai_skirmish_core_headless_final_frame,
+        rts_ai_skirmish_core_headless_event_log,
+        rts_ai_skirmish_core_headless_queue_order_count,
+        rts_ai_skirmish_core_headless_micro_move_order_count,
+        rts_ai_skirmish_core_headless_attack_order_count,
+        rts_ai_skirmish_core_headless_ability_order_count,
+        rts_ai_skirmish_core_headless_combat_target_actor_ids,
+        rts_ai_skirmish_core_headless_combat_target_tile_ids,
+        rts_ai_skirmish_core_headless_combat_formation_ids,
+        rts_ai_skirmish_core_headless_ability_rule_ids,
+    ) = match rts_ai_skirmish_core_headless_replay_result {
+        Ok(report) => {
+            let checkpoint = &report.checkpoint;
+            let queue_order_count = checkpoint
+                .actors
+                .iter()
+                .filter(|actor| actor.queue_id.as_deref() == Some("ai:skirmish_wave"))
+                .count() as u32;
+            (
+                serde_json::to_value(&report).expect("rts AI skirmish replay report serializes"),
+                report.checkpoint_sha256.clone(),
+                None,
+                checkpoint.applied_order_count,
+                checkpoint.actor_count,
+                checkpoint.final_frame,
+                checkpoint.event_log.clone(),
+                queue_order_count,
+                checkpoint.tactical_combat.micro_move_order_count,
+                checkpoint.tactical_combat.attack_order_count,
+                checkpoint.abilities.ability_order_count,
+                checkpoint.tactical_combat.combat_target_actor_ids.clone(),
+                checkpoint.tactical_combat.combat_target_tile_ids.clone(),
+                checkpoint.tactical_combat.combat_formation_ids.clone(),
+                checkpoint.abilities.ability_rule_ids.clone(),
+            )
+        }
+        Err(error) => (
+            Value::Null,
+            String::new(),
+            Some(error),
+            0,
+            0,
+            0,
+            Vec::new(),
+            0,
+            0,
+            0,
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let rts_ai_skirmish_core_headless_replay_gate = rts_ai_skirmish_core_frame_order_gate
+        && rts_ai_skirmish_core_headless_replay_error.is_none()
+        && rts_ai_skirmish_core_headless_checkpoint_sha256.len() == 64
+        && rts_ai_skirmish_core_headless_applied_order_count == 4
+        && rts_ai_skirmish_core_headless_actor_count >= 4
+        && rts_ai_skirmish_core_headless_final_frame == 523
+        && rts_ai_skirmish_core_headless_queue_order_count >= 1
+        && rts_ai_skirmish_core_headless_micro_move_order_count == 1
+        && rts_ai_skirmish_core_headless_attack_order_count == 1
+        && rts_ai_skirmish_core_headless_ability_order_count == 1
+        && rts_ai_skirmish_core_headless_combat_target_actor_ids
+            .iter()
+            .any(|actor| actor == "arena_creep_attack")
+        && rts_ai_skirmish_core_headless_combat_target_tile_ids
+            .iter()
+            .any(|tile| tile == "8,4")
+        && rts_ai_skirmish_core_headless_combat_formation_ids
+            .iter()
+            .any(|formation| formation == "wedge")
+        && rts_ai_skirmish_core_headless_ability_rule_ids
+            .iter()
+            .any(|rule| rule == "guard_break")
+        && rts_ai_skirmish_core_headless_event_log.iter().any(|event| {
+            event.contains(":kind:queue:") && event.contains(":target:ai:skirmish_wave")
+        })
+        && rts_ai_skirmish_core_headless_event_log.iter().any(|event| {
+            event.contains(":kind:ability:")
+                && event.contains(":target:guard_break@arena_creep_attack")
+        });
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
@@ -48980,6 +49148,8 @@ pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str)
         && ai_pressure_resolution_gate
         && ai_retreat_gate
         && player_response_gate
+        && rts_ai_skirmish_core_frame_order_gate
+        && rts_ai_skirmish_core_headless_replay_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -49007,6 +49177,28 @@ pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str)
         "final_target_health_percent": runtime.rts_target_health_percent,
         "final_command_queue": runtime.rts_command_queue,
         "final_combat_event_log": runtime.rts_combat_event_log,
+        "rts_core_contract": TRNM_RTS_CORE_CONTRACT,
+        "rts_ai_skirmish_core_frame_orders": rts_ai_skirmish_core_frame_order_values,
+        "rts_ai_skirmish_core_frame_order_stream": rts_ai_skirmish_core_frame_order_stream_value,
+        "rts_ai_skirmish_core_frame_order_stream_sha256": rts_ai_skirmish_core_frame_order_stream_sha256,
+        "rts_ai_skirmish_core_frame_order_kind_labels": rts_ai_skirmish_core_frame_order_kind_labels,
+        "rts_ai_skirmish_core_frame_order_errors": rts_ai_skirmish_core_frame_order_errors,
+        "rts_ai_skirmish_core_frame_order_stream_error": rts_ai_skirmish_core_frame_order_stream_error,
+        "rts_ai_skirmish_core_headless_replay_report": rts_ai_skirmish_core_headless_replay_report_value,
+        "rts_ai_skirmish_core_headless_checkpoint_sha256": rts_ai_skirmish_core_headless_checkpoint_sha256,
+        "rts_ai_skirmish_core_headless_replay_error": rts_ai_skirmish_core_headless_replay_error,
+        "rts_ai_skirmish_core_headless_applied_order_count": rts_ai_skirmish_core_headless_applied_order_count,
+        "rts_ai_skirmish_core_headless_actor_count": rts_ai_skirmish_core_headless_actor_count,
+        "rts_ai_skirmish_core_headless_final_frame": rts_ai_skirmish_core_headless_final_frame,
+        "rts_ai_skirmish_core_headless_event_log": rts_ai_skirmish_core_headless_event_log,
+        "rts_ai_skirmish_core_headless_queue_order_count": rts_ai_skirmish_core_headless_queue_order_count,
+        "rts_ai_skirmish_core_headless_micro_move_order_count": rts_ai_skirmish_core_headless_micro_move_order_count,
+        "rts_ai_skirmish_core_headless_attack_order_count": rts_ai_skirmish_core_headless_attack_order_count,
+        "rts_ai_skirmish_core_headless_ability_order_count": rts_ai_skirmish_core_headless_ability_order_count,
+        "rts_ai_skirmish_core_headless_combat_target_actor_ids": rts_ai_skirmish_core_headless_combat_target_actor_ids,
+        "rts_ai_skirmish_core_headless_combat_target_tile_ids": rts_ai_skirmish_core_headless_combat_target_tile_ids,
+        "rts_ai_skirmish_core_headless_combat_formation_ids": rts_ai_skirmish_core_headless_combat_formation_ids,
+        "rts_ai_skirmish_core_headless_ability_rule_ids": rts_ai_skirmish_core_headless_ability_rule_ids,
         "non_background_pixels": non_background_pixels,
         "ai_wave_pixel_count": ai_wave_pixel_count,
         "ai_pressure_pixel_count": ai_pressure_pixel_count,
@@ -49019,9 +49211,11 @@ pub fn native_classic_rts_ai_skirmish_pressure_evidence_json(preview_path: &str)
         "ai_pressure_resolution_gate": ai_pressure_resolution_gate,
         "ai_retreat_gate": ai_retreat_gate,
         "player_response_gate": player_response_gate,
+        "rts_ai_skirmish_core_frame_order_gate": rts_ai_skirmish_core_frame_order_gate,
+        "rts_ai_skirmish_core_headless_replay_gate": rts_ai_skirmish_core_headless_replay_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS AI skirmish pressure evidence drives an AI wave, pressure lane, player counter-line, retreat marker, and ability response through live native input before rendering those overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS AI skirmish pressure evidence drives an AI wave, pressure lane, player counter-line, retreat marker, and ability response through live native input, emits the AI pressure command sequence into trnm-rts-core, replays queue/move/attack/ability through the Bevy-free headless reducer, and renders those overlays through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS AI skirmish pressure evidence serializes")
 }

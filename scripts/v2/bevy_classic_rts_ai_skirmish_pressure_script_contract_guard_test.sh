@@ -15,6 +15,11 @@ required_script_lines=(
   'input_path == "apply_live_native_action_with_source(classic_rts_ai_skirmish_pressure_input)"'
   'RTS:QUEUE:ai:skirmish_wave'
   'RTS:ABILITY:guard_break'
+  'rts_core_contract == "trnm_rts_core_frame_order_v1"'
+  'rts_ai_skirmish_core_frame_order_gate == true'
+  'rts_ai_skirmish_core_headless_replay_gate == true'
+  'rts_ai_skirmish_core_headless_attack_order_count == 1'
+  'rts_ai_skirmish_core_headless_ability_order_count == 1'
   'ai_wave_gate == true'
   'ai_counter_gate == true'
   'ai_pressure_resolution_gate == true'
@@ -46,6 +51,8 @@ required_source_lines=(
   'CLASSIC_RTS_AI_COUNTER_COLOR'
   'CLASSIC_RTS_AI_RETREAT_COLOR'
   'CLASSIC_RTS_AI_PRESSURE_BAR_COLOR'
+  'rts_ai_skirmish_core_frame_order_gate'
+  'rts_ai_skirmish_core_headless_replay_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -64,6 +71,8 @@ required_readiness_lines=(
   'rts_ai_skirmish_pressure_resolution_gate'
   'rts_ai_skirmish_pressure_retreat_gate'
   'rts_ai_skirmish_player_response_gate'
+  'rts_ai_skirmish_pressure_core_frame_order_gate'
+  'rts_ai_skirmish_pressure_core_headless_replay_gate'
   'rts_ai_skirmish_pressure_pixel_count'
 )
 

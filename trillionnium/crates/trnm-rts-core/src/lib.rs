@@ -2168,6 +2168,99 @@ mod tests {
     }
 
     #[test]
+    fn headless_replay_tracks_ai_skirmish_pressure_stream() {
+        let subjects = vec![
+            "player".to_string(),
+            "square_guard_patrol".to_string(),
+            "square_worker_carry".to_string(),
+            "square_creep_wander".to_string(),
+        ];
+        let labels = [
+            "RTS:QUEUE:ai:skirmish_wave",
+            "RTS:MOVE:8,4:wedge",
+            "RTS:ATTACK:arena_creep_attack",
+            "RTS:ABILITY:guard_break",
+        ];
+        let mut orders = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                RtsFrameOrder::from_live_command_label(
+                    520 + index as u32,
+                    "Multi0",
+                    subjects.clone(),
+                    label,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let guard_break = orders
+            .iter_mut()
+            .find(|order| order.kind == RtsOrderKind::Ability)
+            .unwrap();
+        guard_break.target_actor_id = Some("arena_creep_attack".to_string());
+        guard_break.validate().unwrap();
+
+        let stream = RtsFrameOrderStream::new(
+            "first-contact-basin-ai-skirmish-pressure",
+            "trnm-rts-core-ai-skirmish-pressure-rules-v1",
+            orders,
+        );
+        let report = stream.replay_headless().unwrap();
+        let tactical = &report.checkpoint.tactical_combat;
+        let abilities = &report.checkpoint.abilities;
+
+        assert_eq!(report.checkpoint.applied_order_count, 4);
+        assert_eq!(report.checkpoint.final_frame, 523);
+        assert_eq!(report.checkpoint.actor_count, 4);
+        assert_eq!(tactical.micro_move_order_count, 1);
+        assert_eq!(tactical.attack_order_count, 1);
+        assert_eq!(abilities.ability_order_count, 1);
+        assert!(tactical
+            .combat_target_tile_ids
+            .iter()
+            .any(|tile| tile == "8,4"));
+        assert!(tactical
+            .combat_formation_ids
+            .iter()
+            .any(|formation| formation == "wedge"));
+        assert!(tactical
+            .combat_target_actor_ids
+            .iter()
+            .any(|actor| actor == "arena_creep_attack"));
+        assert!(abilities
+            .ability_rule_ids
+            .iter()
+            .any(|rule| rule == "guard_break"));
+        assert!(abilities
+            .target_actor_ids
+            .iter()
+            .any(|actor| actor == "arena_creep_attack"));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:queue:")
+                && event.contains(":target:ai:skirmish_wave")));
+        assert!(report
+            .checkpoint
+            .event_log
+            .iter()
+            .any(|event| event.contains(":kind:ability:")
+                && event.contains(":target:guard_break@arena_creep_attack")));
+
+        for actor in &report.checkpoint.actors {
+            assert_eq!(actor.queue_id.as_deref(), Some("ai:skirmish_wave"));
+            assert_eq!(actor.tile, Some(RtsTile::new(8, 4)));
+            assert_eq!(actor.formation_id.as_deref(), Some("wedge"));
+            assert_eq!(actor.attack_order_count, 1);
+            assert_eq!(actor.ability_order_count, 1);
+            assert_eq!(actor.target_actor_id.as_deref(), Some("arena_creep_attack"));
+            assert_eq!(actor.target_rule_id.as_deref(), Some("guard_break"));
+        }
+    }
+
+    #[test]
     fn headless_replay_tracks_objective_victory_stream() {
         let subjects = vec![
             "player".to_string(),

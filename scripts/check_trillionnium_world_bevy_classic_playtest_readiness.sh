@@ -2510,6 +2510,8 @@ jq -n \
       rts_ai_skirmish_pressure_resolution_gate: $rts_ai[0].ai_pressure_resolution_gate,
       rts_ai_skirmish_pressure_retreat_gate: $rts_ai[0].ai_retreat_gate,
       rts_ai_skirmish_player_response_gate: $rts_ai[0].player_response_gate,
+      rts_ai_skirmish_pressure_core_frame_order_gate: $rts_ai[0].rts_ai_skirmish_core_frame_order_gate,
+      rts_ai_skirmish_pressure_core_headless_replay_gate: $rts_ai[0].rts_ai_skirmish_core_headless_replay_gate,
       rts_objective_victory_loop_live_input_gate: $rts_objective[0].live_objective_input_gate,
       rts_objective_victory_loop_marker_gate: $rts_objective[0].objective_marker_gate,
       rts_objective_victory_loop_capture_gate: $rts_objective[0].capture_progress_gate,
@@ -4914,6 +4916,8 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_ai_skirmish_pressure_resolution_gate == true
   and .gates.rts_ai_skirmish_pressure_retreat_gate == true
   and .gates.rts_ai_skirmish_player_response_gate == true
+  and .gates.rts_ai_skirmish_pressure_core_frame_order_gate == true
+  and .gates.rts_ai_skirmish_pressure_core_headless_replay_gate == true
   and .gates.rts_objective_victory_loop_live_input_gate == true
   and .gates.rts_objective_victory_loop_marker_gate == true
   and .gates.rts_objective_victory_loop_capture_gate == true
