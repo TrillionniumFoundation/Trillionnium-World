@@ -101,6 +101,19 @@ jq -e '
   and .rts_data_player_screen_layout_profile.map_outer_padding_px == 8
   and .rts_data_player_screen_layout_profile.map_inner_padding_px == 4
   and .rts_data_player_screen_layout_gate == true
+  and .rts_data_player_screen_profile.chrome.tactics_title == "TACTICS"
+  and (.rts_data_player_screen_profile.chrome.tactics_rows | length) == 5
+  and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "order" and .label == "ORDER" and .max_value_chars == 20))
+  and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "target" and .label == "TARGET" and .empty_label == "NONE"))
+  and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "camera" and .label == "CAM" and .empty_label == "-"))
+  and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "queue" and .label == "QUEUE"))
+  and (.rts_data_player_screen_profile.chrome.tactics_rows[] | select(.kind == "build" and .label == "BUILD" and .empty_label == "NONE"))
+  and .rts_data_player_screen_chrome_profile.selection_panel_title == "SELECTION"
+  and .rts_data_player_screen_chrome_profile.command_panel_title == "COMMANDS"
+  and .rts_data_player_screen_chrome_profile.order_queue_title == "ORDER QUEUE"
+  and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
+  and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
+  and .rts_data_player_screen_chrome_gate == true
   and .rts_data_player_screen_profile.camera_focus_tile.x == 16
   and .rts_data_player_screen_profile.camera_focus_tile.y == 16
   and .rts_data_player_screen_profile.command_destination_tile.x == 16

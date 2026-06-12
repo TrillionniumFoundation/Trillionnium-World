@@ -428,6 +428,7 @@ pub struct RtsFirstContactPlayerScreenProfile {
     pub map_id: String,
     pub room_id: String,
     pub layout: RtsFirstContactPlayerScreenLayoutProfile,
+    pub chrome: RtsFirstContactPlayerScreenChromeProfile,
     pub coins: u64,
     pub xp: u64,
     pub camera_focus_tile: RtsTile,
@@ -477,6 +478,35 @@ pub struct RtsFirstContactPlayerScreenLayoutProfile {
     pub spec_map: RtsFirstContactMapLayoutProfile,
     pub map_outer_padding_px: i32,
     pub map_inner_padding_px: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsPlayerScreenTacticsRowKind {
+    Order,
+    Target,
+    Camera,
+    Queue,
+    Build,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsPlayerScreenTacticsRowProfile {
+    pub kind: RtsPlayerScreenTacticsRowKind,
+    pub label: String,
+    pub max_value_chars: u8,
+    pub empty_label: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactPlayerScreenChromeProfile {
+    pub tactics_title: String,
+    pub tactics_rows: Vec<RtsPlayerScreenTacticsRowProfile>,
+    pub selection_panel_title: String,
+    pub command_panel_title: String,
+    pub order_queue_title: String,
+    pub group_summary_prefix: String,
+    pub group_summary_suffix: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1827,6 +1857,46 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             map_outer_padding_px: 8,
             map_inner_padding_px: 4,
         },
+        chrome: RtsFirstContactPlayerScreenChromeProfile {
+            tactics_title: "TACTICS".to_string(),
+            tactics_rows: vec![
+                RtsPlayerScreenTacticsRowProfile {
+                    kind: RtsPlayerScreenTacticsRowKind::Order,
+                    label: "ORDER".to_string(),
+                    max_value_chars: 20,
+                    empty_label: "HOLD".to_string(),
+                },
+                RtsPlayerScreenTacticsRowProfile {
+                    kind: RtsPlayerScreenTacticsRowKind::Target,
+                    label: "TARGET".to_string(),
+                    max_value_chars: 18,
+                    empty_label: "NONE".to_string(),
+                },
+                RtsPlayerScreenTacticsRowProfile {
+                    kind: RtsPlayerScreenTacticsRowKind::Camera,
+                    label: "CAM".to_string(),
+                    max_value_chars: 12,
+                    empty_label: "-".to_string(),
+                },
+                RtsPlayerScreenTacticsRowProfile {
+                    kind: RtsPlayerScreenTacticsRowKind::Queue,
+                    label: "QUEUE".to_string(),
+                    max_value_chars: 20,
+                    empty_label: "READY".to_string(),
+                },
+                RtsPlayerScreenTacticsRowProfile {
+                    kind: RtsPlayerScreenTacticsRowKind::Build,
+                    label: "BUILD".to_string(),
+                    max_value_chars: 14,
+                    empty_label: "NONE".to_string(),
+                },
+            ],
+            selection_panel_title: "SELECTION".to_string(),
+            command_panel_title: "COMMANDS".to_string(),
+            order_queue_title: "ORDER QUEUE".to_string(),
+            group_summary_prefix: "GROUP".to_string(),
+            group_summary_suffix: "UNITS SELECTED".to_string(),
+        },
         coins: 890,
         xp: 92,
         camera_focus_tile: RtsTile::new(16, 16),
@@ -2233,6 +2303,36 @@ mod tests {
         assert_eq!(profile.layout.spec_map.cell_width.max, 22);
         assert_eq!(profile.layout.map_outer_padding_px, 8);
         assert_eq!(profile.layout.map_inner_padding_px, 4);
+        assert_eq!(profile.chrome.tactics_title, "TACTICS");
+        assert_eq!(profile.chrome.tactics_rows.len(), 5);
+        assert!(profile.chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Order
+                && row.label == "ORDER"
+                && row.max_value_chars == 20
+        }));
+        assert!(profile.chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Target
+                && row.label == "TARGET"
+                && row.empty_label == "NONE"
+        }));
+        assert!(profile.chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Camera
+                && row.label == "CAM"
+                && row.empty_label == "-"
+        }));
+        assert!(profile.chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Queue && row.label == "QUEUE"
+        }));
+        assert!(profile.chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Build
+                && row.label == "BUILD"
+                && row.empty_label == "NONE"
+        }));
+        assert_eq!(profile.chrome.selection_panel_title, "SELECTION");
+        assert_eq!(profile.chrome.command_panel_title, "COMMANDS");
+        assert_eq!(profile.chrome.order_queue_title, "ORDER QUEUE");
+        assert_eq!(profile.chrome.group_summary_prefix, "GROUP");
+        assert_eq!(profile.chrome.group_summary_suffix, "UNITS SELECTED");
         assert_eq!(profile.camera_focus_tile, RtsTile::new(16, 16));
         assert!(map.bounds.contains(profile.camera_focus_tile));
         assert_eq!(profile.command_destination_tile, opening.active_beacon_tile);

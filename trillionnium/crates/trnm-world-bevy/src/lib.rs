@@ -38,9 +38,9 @@ use trnm_rts_data::{
     first_contact_terrain_profiles, first_contact_visual_telemetry_profile, RtsActorColorRole,
     RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
     RtsFirstContactPlayerScreenProfile, RtsFirstContactVisualTelemetryProfile, RtsMapActor,
-    RtsOpeningLoopProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole,
-    RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
-    TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
+    RtsOpeningLoopProfile, RtsPlayerScreenTacticsRowKind, RtsPlayerScreenTacticsRowProfile,
+    RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole, RtsVisualTelemetryColorRole,
+    TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
@@ -28626,11 +28626,44 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_layout.spec_map.cell_height.max == 14
         && player_screen_layout.map_outer_padding_px == 8
         && player_screen_layout.map_inner_padding_px == 4;
+    let player_screen_chrome = &player_screen_profile.chrome;
+    let rts_data_player_screen_chrome_gate = player_screen_chrome.tactics_title == "TACTICS"
+        && player_screen_chrome.tactics_rows.len() == 5
+        && player_screen_chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Order
+                && row.label == "ORDER"
+                && row.max_value_chars == 20
+        })
+        && player_screen_chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Target
+                && row.label == "TARGET"
+                && row.empty_label == "NONE"
+        })
+        && player_screen_chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Camera
+                && row.label == "CAM"
+                && row.empty_label == "-"
+        })
+        && player_screen_chrome
+            .tactics_rows
+            .iter()
+            .any(|row| row.kind == RtsPlayerScreenTacticsRowKind::Queue && row.label == "QUEUE")
+        && player_screen_chrome.tactics_rows.iter().any(|row| {
+            row.kind == RtsPlayerScreenTacticsRowKind::Build
+                && row.label == "BUILD"
+                && row.empty_label == "NONE"
+        })
+        && player_screen_chrome.selection_panel_title == "SELECTION"
+        && player_screen_chrome.command_panel_title == "COMMANDS"
+        && player_screen_chrome.order_queue_title == "ORDER QUEUE"
+        && player_screen_chrome.group_summary_prefix == "GROUP"
+        && player_screen_chrome.group_summary_suffix == "UNITS SELECTED";
     let rts_data_player_screen_gate = player_screen_profile.contract_version
         == TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
         && player_screen_profile.map_id == map_model.map_id
         && player_screen_profile.room_id == "first-contact-basin"
         && rts_data_player_screen_layout_gate
+        && rts_data_player_screen_chrome_gate
         && player_screen_profile.camera_zoom_percent > 0
         && map_model
             .bounds
@@ -28717,6 +28750,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data player screen profile serializes");
     let rts_data_player_screen_layout_profile = serde_json::to_value(player_screen_layout)
         .expect("RTS data player screen layout profile serializes");
+    let rts_data_player_screen_chrome_profile = serde_json::to_value(player_screen_chrome)
+        .expect("RTS data player screen chrome profile serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28729,6 +28764,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_actor_presentation_gate
         && rts_data_visual_telemetry_gate
         && rts_data_player_screen_layout_gate
+        && rts_data_player_screen_chrome_gate
         && rts_data_player_screen_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
@@ -28776,12 +28812,14 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_player_screen_contract": TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT,
         "rts_data_player_screen_profile": rts_data_player_screen_profile,
         "rts_data_player_screen_layout_profile": rts_data_player_screen_layout_profile,
+        "rts_data_player_screen_chrome_profile": rts_data_player_screen_chrome_profile,
         "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
         "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
         "rts_data_player_startup_gate": rts_data_player_startup_gate,
         "rts_data_actor_presentation_gate": rts_data_actor_presentation_gate,
         "rts_data_visual_telemetry_gate": rts_data_visual_telemetry_gate,
         "rts_data_player_screen_layout_gate": rts_data_player_screen_layout_gate,
+        "rts_data_player_screen_chrome_gate": rts_data_player_screen_chrome_gate,
         "rts_data_player_screen_gate": rts_data_player_screen_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
@@ -28789,7 +28827,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -85673,6 +85711,62 @@ fn classic_first_contact_visual_telemetry_color(role: RtsVisualTelemetryColorRol
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactics_row_color(kind: RtsPlayerScreenTacticsRowKind) -> u32 {
+    match kind {
+        RtsPlayerScreenTacticsRowKind::Order => CLASSIC_ISO_CONTROL_GROUP_COLOR,
+        RtsPlayerScreenTacticsRowKind::Target => CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        RtsPlayerScreenTacticsRowKind::Camera => CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
+        RtsPlayerScreenTacticsRowKind::Queue => CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR,
+        RtsPlayerScreenTacticsRowKind::Build => CLASSIC_RTS_BUILD_PROGRESS_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tactics_row_value(
+    runtime: &NativeFirstPlayableRuntime,
+    row: &RtsPlayerScreenTacticsRowProfile,
+) -> String {
+    let max_chars = usize::from(row.max_value_chars.max(1));
+    match row.kind {
+        RtsPlayerScreenTacticsRowKind::Order => {
+            if runtime.rts_group_command_state.is_empty() {
+                row.empty_label.clone()
+            } else {
+                classic_catalog_text_label(&runtime.rts_group_command_state, max_chars)
+            }
+        }
+        RtsPlayerScreenTacticsRowKind::Target => runtime
+            .rts_attack_target_id
+            .as_deref()
+            .map(|target| classic_catalog_text_label(target, max_chars))
+            .unwrap_or_else(|| row.empty_label.clone()),
+        RtsPlayerScreenTacticsRowKind::Camera => runtime
+            .rts_camera_focus_tile_id
+            .as_deref()
+            .or(runtime.rts_minimap_command_tile_id.as_deref())
+            .map(str::to_string)
+            .unwrap_or_else(|| row.empty_label.clone()),
+        RtsPlayerScreenTacticsRowKind::Queue => {
+            let summary = classic_rts_sidebar_queue_summary(runtime);
+            if summary.is_empty() {
+                row.empty_label.clone()
+            } else {
+                classic_catalog_text_label(&summary, max_chars)
+            }
+        }
+        RtsPlayerScreenTacticsRowKind::Build => format!(
+            "{} {}",
+            runtime
+                .rts_building_blueprint_id
+                .as_deref()
+                .map(|id| classic_catalog_text_label(id, max_chars))
+                .unwrap_or_else(|| row.empty_label.clone()),
+            runtime.rts_building_progress_percent.min(100)
+        ),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_static_rule_id(rule_id: &str) -> Option<&'static str> {
     match rule_id {
         "mpspawn" => Some("mpspawn"),
@@ -106577,6 +106671,12 @@ fn classic_draw_openra_style_rts_shell(
         return false;
     }
 
+    let first_contact_player_chrome =
+        if classic_player_screen_mode_enabled() && scene_id == "first_contact_basin" {
+            Some(classic_first_contact_player_screen_profile().chrome)
+        } else {
+            None
+        };
     let width_i = width as i32;
     let height_i = height as i32;
     let sidebar_w = 264;
@@ -107089,92 +107189,63 @@ fn classic_draw_openra_style_rts_shell(
 
     let input_y = palette_y + 118;
     if classic_player_screen_mode_enabled() {
-        classic_draw_text(
-            buffer,
-            width,
-            height,
-            sidebar_x + 12,
-            input_y,
-            "TACTICS",
-            1,
-            CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
-        );
-        let compact_state_lines = [
-            (
-                "ORDER",
-                classic_catalog_text_label(&runtime.rts_group_command_state, 20),
-                CLASSIC_ISO_CONTROL_GROUP_COLOR,
-            ),
-            (
-                "TARGET",
-                runtime
-                    .rts_attack_target_id
-                    .as_deref()
-                    .map(|target| classic_catalog_text_label(target, 18))
-                    .unwrap_or_else(|| "NONE".to_string()),
-                CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
-            ),
-            (
-                "CAM",
-                runtime
-                    .rts_camera_focus_tile_id
-                    .as_deref()
-                    .or(runtime.rts_minimap_command_tile_id.as_deref())
-                    .unwrap_or("-")
-                    .to_string(),
-                CLASSIC_RTS_CAMERA_SYNC_VIEWPORT_COLOR,
-            ),
-            (
-                "QUEUE",
-                classic_catalog_text_label(&classic_rts_sidebar_queue_summary(runtime), 20),
-                CLASSIC_RTS_QUEUE_PREVIEW_SLOT_COLOR,
-            ),
-            (
-                "BUILD",
-                format!(
-                    "{} {}",
-                    runtime
-                        .rts_building_blueprint_id
-                        .as_deref()
-                        .map(|id| classic_catalog_text_label(id, 14))
-                        .unwrap_or_else(|| "NONE".to_string()),
-                    runtime.rts_building_progress_percent.min(100)
-                ),
-                CLASSIC_RTS_BUILD_PROGRESS_COLOR,
-            ),
-        ];
-        for (index, (label, value, color)) in compact_state_lines.iter().enumerate() {
-            let y = input_y + 18 + index as i32 * 22;
-            classic_draw_rect(
+        if let Some(chrome) = first_contact_player_chrome.as_ref() {
+            classic_draw_text(
                 buffer,
                 width,
                 height,
                 sidebar_x + 12,
-                y,
-                sidebar_w - 24,
-                18,
-                0x111b14,
+                input_y,
+                &chrome.tactics_title,
+                1,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
             );
-            classic_draw_rect(buffer, width, height, sidebar_x + 12, y, 4, 18, *color);
+            for (index, row) in chrome.tactics_rows.iter().enumerate() {
+                let y = input_y + 18 + index as i32 * 22;
+                let color = classic_first_contact_tactics_row_color(row.kind);
+                let value = classic_first_contact_tactics_row_value(runtime, row);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    sidebar_x + 12,
+                    y,
+                    sidebar_w - 24,
+                    18,
+                    0x111b14,
+                );
+                classic_draw_rect(buffer, width, height, sidebar_x + 12, y, 4, 18, color);
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    sidebar_x + 22,
+                    y + 5,
+                    &row.label,
+                    1,
+                    CLASSIC_HUD_MUTED_TEXT_COLOR,
+                );
+                classic_draw_text(
+                    buffer,
+                    width,
+                    height,
+                    sidebar_x + 76,
+                    y + 5,
+                    &value,
+                    1,
+                    CLASSIC_HUD_TEXT_COLOR,
+                );
+            }
+        } else {
             classic_draw_text(
                 buffer,
                 width,
                 height,
-                sidebar_x + 22,
-                y + 5,
-                label,
+                sidebar_x + 12,
+                input_y,
+                "TACTICS",
                 1,
-                CLASSIC_HUD_MUTED_TEXT_COLOR,
-            );
-            classic_draw_text(
-                buffer,
-                width,
-                height,
-                sidebar_x + 76,
-                y + 5,
-                value,
-                1,
-                CLASSIC_HUD_TEXT_COLOR,
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
             );
         }
     } else {
@@ -107333,7 +107404,10 @@ fn classic_draw_openra_style_rts_shell(
         height,
         20,
         bottom_y + 12,
-        "SELECTION",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.selection_panel_title.as_str())
+            .unwrap_or("SELECTION"),
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
@@ -107376,13 +107450,24 @@ fn classic_draw_openra_style_rts_shell(
         );
     }
     let group_id = runtime.rts_control_group_id.as_deref().unwrap_or("-");
+    let group_summary = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| {
+            format!(
+                "{} {group_id}  {} {}",
+                chrome.group_summary_prefix,
+                selected_units.len(),
+                chrome.group_summary_suffix
+            )
+        })
+        .unwrap_or_else(|| format!("GROUP {group_id}  {} UNITS SELECTED", selected_units.len()));
     classic_draw_text(
         buffer,
         width,
         height,
         20,
         bottom_y + 94,
-        &format!("GROUP {group_id}  {} UNITS SELECTED", selected_units.len()),
+        &group_summary,
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -107404,7 +107489,10 @@ fn classic_draw_openra_style_rts_shell(
         height,
         command_x,
         bottom_y + 12,
-        "COMMANDS",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.command_panel_title.as_str())
+            .unwrap_or("COMMANDS"),
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
@@ -107548,7 +107636,10 @@ fn classic_draw_openra_style_rts_shell(
         height,
         queue_x,
         bottom_y + 12,
-        "ORDER QUEUE",
+        first_contact_player_chrome
+            .as_ref()
+            .map(|chrome| chrome.order_queue_title.as_str())
+            .unwrap_or("ORDER QUEUE"),
         1,
         CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
     );
