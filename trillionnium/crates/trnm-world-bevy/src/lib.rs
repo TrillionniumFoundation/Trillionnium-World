@@ -34,14 +34,17 @@ use trnm_rts_data::{
     first_contact_actor_presentation_profile, first_contact_actor_presentation_profiles,
     first_contact_basin_map, first_contact_command_feedback_profile,
     first_contact_opening_loop_profile, first_contact_player_startup_profiles,
-    first_contact_terrain_profile, first_contact_terrain_profiles, RtsActorColorRole,
-    RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
-    RtsMapActor, RtsOpeningLoopProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
-    RtsTerrainRole, TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
+    first_contact_terrain_profile, first_contact_terrain_profiles,
+    first_contact_visual_telemetry_profile, RtsActorColorRole, RtsActorGlyphAccent,
+    RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
+    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsOpeningLoopProfile,
+    RtsPlayerStartupProfile, RtsRule, RtsRuleKind, RtsTerrainRole, RtsVisualTelemetryColorRole,
+    TRNM_RTS_DATA_CONTRACT, TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT,
 };
 use trnm_world_api::{
     WorldAccountAuthDecision, WorldAccountProfile, WorldAccountSession, WorldApiCommandResponse,
@@ -28531,7 +28534,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
                 && startup.opening_relay_tile == opening_profile.active_relay_tile
         });
     let actor_presentation_profiles = classic_first_contact_actor_presentations();
-    let rts_data_actor_presentation_gate = actor_presentation_profiles.len() >= 8
+    let rts_data_actor_presentation_gate = actor_presentation_profiles.len() >= 13
         && actor_presentation_profiles.iter().all(|profile| {
             profile.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT
                 && profile.map_id == map_model.map_id
@@ -28568,6 +28571,36 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             profile.glyph.body == RtsActorGlyphBody::SpawnPad
                 && profile.glyph.accent == RtsActorGlyphAccent::OwnerStripe
         });
+    let visual_telemetry_profile = classic_first_contact_visual_telemetry();
+    let rts_data_visual_telemetry_gate = visual_telemetry_profile.contract_version
+        == TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT
+        && visual_telemetry_profile.map_id == map_model.map_id
+        && visual_telemetry_profile.unit_statuses.len() == 4
+        && visual_telemetry_profile.tactical_tracks.len() == 6
+        && visual_telemetry_profile.unit_statuses.iter().all(|status| {
+            map_model.bounds.contains(status.tile)
+                && status.health_percent <= 100
+                && status.shield_percent <= 100
+                && !status.role_badge.is_empty()
+        })
+        && visual_telemetry_profile
+            .tactical_tracks
+            .iter()
+            .all(|track| {
+                map_model.bounds.contains(track.from_tile)
+                    && map_model.bounds.contains(track.to_tile)
+            })
+        && visual_telemetry_profile.unit_statuses.iter().any(|status| {
+            status.tile == RtsTile::new(8, 8)
+                && status.role_color == RtsVisualTelemetryColorRole::Health
+        })
+        && visual_telemetry_profile
+            .tactical_tracks
+            .iter()
+            .any(|track| {
+                track.from_tile == opening_profile.active_relay_tile
+                    && track.to_tile == opening_profile.active_beacon_tile
+            });
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin";
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
     let rts_data_map_summary =
@@ -28582,6 +28615,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data player startup profiles serialize");
     let rts_data_actor_presentation_profiles = serde_json::to_value(&actor_presentation_profiles)
         .expect("RTS data actor presentation profiles serialize");
+    let rts_data_visual_telemetry_profile = serde_json::to_value(&visual_telemetry_profile)
+        .expect("RTS data visual telemetry profile serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28592,6 +28627,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_command_feedback_gate
         && rts_data_player_startup_gate
         && rts_data_actor_presentation_gate
+        && rts_data_visual_telemetry_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28633,17 +28669,20 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_actor_presentation_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
         "rts_data_actor_glyph_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
         "rts_data_actor_presentation_profiles": rts_data_actor_presentation_profiles,
+        "rts_data_visual_telemetry_contract": TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT,
+        "rts_data_visual_telemetry_profile": rts_data_visual_telemetry_profile,
         "rts_data_opening_profile_gate": rts_data_opening_profile_gate,
         "rts_data_command_feedback_gate": rts_data_command_feedback_gate,
         "rts_data_player_startup_gate": rts_data_player_startup_gate,
         "rts_data_actor_presentation_gate": rts_data_actor_presentation_gate,
+        "rts_data_visual_telemetry_gate": rts_data_visual_telemetry_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/visual telemetry vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -85491,6 +85530,23 @@ fn classic_first_contact_actor_presentation(rule_id: &str) -> Option<RtsActorPre
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_visual_telemetry() -> RtsFirstContactVisualTelemetryProfile {
+    first_contact_visual_telemetry_profile()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_visual_telemetry_color(role: RtsVisualTelemetryColorRole) -> u32 {
+    match role {
+        RtsVisualTelemetryColorRole::Health => CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
+        RtsVisualTelemetryColorRole::Mana => CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
+        RtsVisualTelemetryColorRole::Attack => CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
+        RtsVisualTelemetryColorRole::Confirm => CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
+        RtsVisualTelemetryColorRole::ActionTrail => CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR,
+        RtsVisualTelemetryColorRole::NpcAction => CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_openra_like_static_rule_id(rule_id: &str) -> Option<&'static str> {
     match rule_id {
         "mpspawn" => Some("mpspawn"),
@@ -93503,28 +93559,17 @@ fn classic_draw_first_contact_unit_state_layers(
     cell_w: i32,
     cell_h: i32,
 ) {
-    let unit_states = [
-        ((8, 8), 82, 44, "W", CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR),
-        ((25, 8), 76, 68, "S", CLASSIC_RTS_STATUS_MANA_BAR_COLOR),
-        (
-            (25, 25),
-            64,
-            22,
-            "R",
-            CLASSIC_RTS_SELECTION_FEEDBACK_ATTACK_COLOR,
-        ),
-        (
-            (8, 25),
-            91,
-            55,
-            "G",
-            CLASSIC_RTS_SELECTION_FEEDBACK_CONFIRM_COLOR,
-        ),
-    ];
-    for (tile, health, shield, role, role_color) in unit_states {
-        let (tile_x, tile_y) =
-            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let telemetry = classic_first_contact_visual_telemetry();
+    for status in telemetry.unit_statuses {
+        let (tile_x, tile_y) = classic_first_contact_tile_screen(
+            map_x,
+            map_y,
+            cell_w,
+            cell_h,
+            classic_first_contact_tile_tuple(status.tile),
+        );
         let bar_y = tile_y - cell_h - 13;
+        let role_color = classic_first_contact_visual_telemetry_color(status.role_color);
         classic_draw_rect(
             buffer,
             width,
@@ -93541,7 +93586,7 @@ fn classic_draw_first_contact_unit_state_layers(
             height,
             tile_x - cell_w / 2,
             bar_y,
-            (health * (cell_w * 2) / 100).max(4),
+            (i32::from(status.health_percent) * (cell_w * 2) / 100).max(4),
             2,
             CLASSIC_RTS_STATUS_HEALTH_BAR_COLOR,
         );
@@ -93551,7 +93596,7 @@ fn classic_draw_first_contact_unit_state_layers(
             height,
             tile_x - cell_w / 2,
             bar_y + 3,
-            (shield * (cell_w * 2) / 100).max(3),
+            (i32::from(status.shield_percent) * (cell_w * 2) / 100).max(3),
             1,
             CLASSIC_RTS_STATUS_MANA_BAR_COLOR,
         );
@@ -93571,7 +93616,7 @@ fn classic_draw_first_contact_unit_state_layers(
             height,
             tile_x + cell_w + 6,
             bar_y,
-            role,
+            &status.role_badge,
             1,
             role_color,
         );
@@ -95442,15 +95487,10 @@ fn classic_draw_first_contact_basin_scene(
         &core_world,
     );
 
-    let tactical_tracks: [((i32, i32), (i32, i32), u32); 6] = [
-        ((8, 8), (12, 16), CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR),
-        ((25, 25), (21, 16), CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR),
-        ((25, 8), (16, 12), CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR),
-        ((8, 25), (16, 21), CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR),
-        ((11, 8), (16, 9), CLASSIC_RTS_FIDELITY_ACTION_TRAIL_COLOR),
-        ((22, 25), (16, 24), CLASSIC_RTS_FIDELITY_NPC_ACTION_COLOR),
-    ];
-    for (from, to, color) in tactical_tracks {
+    for track in classic_first_contact_visual_telemetry().tactical_tracks {
+        let from = classic_first_contact_tile_tuple(track.from_tile);
+        let to = classic_first_contact_tile_tuple(track.to_tile);
+        let color = classic_first_contact_visual_telemetry_color(track.color_role);
         let steps = ((to.0 - from.0).abs().max((to.1 - from.1).abs())).max(1);
         for step in 0..=steps {
             let x = from.0 + (to.0 - from.0) * step / steps;

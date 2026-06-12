@@ -20,6 +20,8 @@ pub const TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT: &str =
     "trnm_rts_data_first_contact_actor_presentation_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT: &str =
     "trnm_rts_data_first_contact_actor_glyph_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT: &str =
+    "trnm_rts_data_first_contact_visual_telemetry_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -368,6 +370,54 @@ pub struct RtsActorPresentationProfile {
     pub health_bar_width: u8,
     pub draw_priority: u8,
     pub glyph: RtsActorGlyphProfile,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsVisualTelemetryColorRole {
+    Health,
+    Mana,
+    Attack,
+    Confirm,
+    ActionTrail,
+    NpcAction,
+}
+
+impl RtsVisualTelemetryColorRole {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Health => "health",
+            Self::Mana => "mana",
+            Self::Attack => "attack",
+            Self::Confirm => "confirm",
+            Self::ActionTrail => "action_trail",
+            Self::NpcAction => "npc_action",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsUnitStatusTelemetry {
+    pub tile: RtsTile,
+    pub role_badge: String,
+    pub health_percent: u8,
+    pub shield_percent: u8,
+    pub role_color: RtsVisualTelemetryColorRole,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsTacticalTrackProfile {
+    pub from_tile: RtsTile,
+    pub to_tile: RtsTile,
+    pub color_role: RtsVisualTelemetryColorRole,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactVisualTelemetryProfile {
+    pub contract_version: String,
+    pub map_id: String,
+    pub unit_statuses: Vec<RtsUnitStatusTelemetry>,
+    pub tactical_tracks: Vec<RtsTacticalTrackProfile>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1614,6 +1664,75 @@ pub fn first_contact_actor_presentation_profile(
         .find(|profile| profile.rule_id == rule_id)
 }
 
+pub fn first_contact_visual_telemetry_profile() -> RtsFirstContactVisualTelemetryProfile {
+    RtsFirstContactVisualTelemetryProfile {
+        contract_version: TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT.to_string(),
+        map_id: "first_contact_basin".to_string(),
+        unit_statuses: vec![
+            RtsUnitStatusTelemetry {
+                tile: RtsTile::new(8, 8),
+                role_badge: "W".to_string(),
+                health_percent: 82,
+                shield_percent: 44,
+                role_color: RtsVisualTelemetryColorRole::Health,
+            },
+            RtsUnitStatusTelemetry {
+                tile: RtsTile::new(25, 8),
+                role_badge: "S".to_string(),
+                health_percent: 76,
+                shield_percent: 68,
+                role_color: RtsVisualTelemetryColorRole::Mana,
+            },
+            RtsUnitStatusTelemetry {
+                tile: RtsTile::new(25, 25),
+                role_badge: "R".to_string(),
+                health_percent: 64,
+                shield_percent: 22,
+                role_color: RtsVisualTelemetryColorRole::Attack,
+            },
+            RtsUnitStatusTelemetry {
+                tile: RtsTile::new(8, 25),
+                role_badge: "G".to_string(),
+                health_percent: 91,
+                shield_percent: 55,
+                role_color: RtsVisualTelemetryColorRole::Confirm,
+            },
+        ],
+        tactical_tracks: vec![
+            RtsTacticalTrackProfile {
+                from_tile: RtsTile::new(8, 8),
+                to_tile: RtsTile::new(12, 16),
+                color_role: RtsVisualTelemetryColorRole::ActionTrail,
+            },
+            RtsTacticalTrackProfile {
+                from_tile: RtsTile::new(25, 25),
+                to_tile: RtsTile::new(21, 16),
+                color_role: RtsVisualTelemetryColorRole::NpcAction,
+            },
+            RtsTacticalTrackProfile {
+                from_tile: RtsTile::new(25, 8),
+                to_tile: RtsTile::new(16, 12),
+                color_role: RtsVisualTelemetryColorRole::ActionTrail,
+            },
+            RtsTacticalTrackProfile {
+                from_tile: RtsTile::new(8, 25),
+                to_tile: RtsTile::new(16, 21),
+                color_role: RtsVisualTelemetryColorRole::NpcAction,
+            },
+            RtsTacticalTrackProfile {
+                from_tile: RtsTile::new(11, 8),
+                to_tile: RtsTile::new(16, 9),
+                color_role: RtsVisualTelemetryColorRole::ActionTrail,
+            },
+            RtsTacticalTrackProfile {
+                from_tile: RtsTile::new(22, 25),
+                to_tile: RtsTile::new(16, 24),
+                color_role: RtsVisualTelemetryColorRole::NpcAction,
+            },
+        ],
+    }
+}
+
 fn first_contact_lane_tile(tile: RtsTile) -> bool {
     let x = tile.x;
     let y = tile.y;
@@ -1898,5 +2017,38 @@ mod tests {
                     && profile.glyph.accent == RtsActorGlyphAccent::OwnerStripe
             })
         );
+    }
+
+    #[test]
+    fn first_contact_visual_telemetry_binds_playable_overlay_tiles() {
+        let map = first_contact_basin_map();
+        let profile = first_contact_visual_telemetry_profile();
+        assert_eq!(
+            profile.contract_version,
+            TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT
+        );
+        assert_eq!(profile.map_id, map.map_id);
+        assert_eq!(profile.unit_statuses.len(), 4);
+        assert_eq!(profile.tactical_tracks.len(), 6);
+        assert!(profile.unit_statuses.iter().all(|status| {
+            map.bounds.contains(status.tile)
+                && !status.role_badge.is_empty()
+                && status.health_percent <= 100
+                && status.shield_percent <= 100
+        }));
+        assert!(profile.tactical_tracks.iter().all(|track| {
+            map.bounds.contains(track.from_tile) && map.bounds.contains(track.to_tile)
+        }));
+        assert!(profile.unit_statuses.iter().any(|status| {
+            status.tile == RtsTile::new(8, 8)
+                && status.role_badge == "W"
+                && status.role_color.as_str() == "health"
+        }));
+        let opening = first_contact_opening_loop_profile();
+        assert!(profile.tactical_tracks.iter().any(|track| {
+            track.from_tile == opening.active_relay_tile
+                && track.to_tile == opening.active_beacon_tile
+                && track.color_role == RtsVisualTelemetryColorRole::ActionTrail
+        }));
     }
 }
