@@ -666,6 +666,48 @@ pub fn rts_enemy_pressure_lane_tiles_for_wave(wave_id: &str) -> Vec<String> {
     }
 }
 
+pub fn rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
+    if objective_id == "relay_beacon" {
+        rts_string_vec(["6,5", "6,4", "7,5", "9,2"])
+    } else if objective_id == "forest_relay" {
+        rts_string_vec(["8,3", "9,2", "9,3"])
+    } else {
+        vec![tile_id.to_string()]
+    }
+}
+
+pub fn rts_creep_camp_tiles_for_id(camp_id: &str, tile_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        rts_string_vec(["8,3", "8,2", "9,3", "9,2"])
+    } else {
+        vec![tile_id.to_string()]
+    }
+}
+
+pub fn rts_terrain_route_tiles_for_camp(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        rts_string_vec(["5,5", "6,5", "7,4", "8,3"])
+    } else {
+        rts_string_vec(["5,5", "6,5"])
+    }
+}
+
+pub fn rts_terrain_choke_tiles_for_camp(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        rts_string_vec(["7,4", "7,3", "8,4"])
+    } else {
+        rts_string_vec(["6,5"])
+    }
+}
+
+pub fn rts_expansion_tiles_for_camp(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        rts_string_vec(["9,2", "10,2", "10,3"])
+    } else {
+        rts_string_vec(["8,3"])
+    }
+}
+
 pub fn rts_command_queue_path_preview_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -980,6 +1022,30 @@ mod tests {
         assert_eq!(
             rts_enemy_pressure_lane_tiles_for_wave("raider_wave"),
             vec!["10,2", "9,3", "8,4", "7,4", "6,5"]
+        );
+    }
+
+    #[test]
+    fn objective_and_terrain_route_adapter_preserves_first_contact_tiles() {
+        assert_eq!(
+            rts_objective_tiles_for_id("relay_beacon", "6,5"),
+            vec!["6,5", "6,4", "7,5", "9,2"]
+        );
+        assert_eq!(
+            rts_creep_camp_tiles_for_id("forest_creep_camp", "8,3"),
+            vec!["8,3", "8,2", "9,3", "9,2"]
+        );
+        assert_eq!(
+            rts_terrain_route_tiles_for_camp("forest_creep_camp"),
+            vec!["5,5", "6,5", "7,4", "8,3"]
+        );
+        assert_eq!(
+            rts_terrain_choke_tiles_for_camp("forest_creep_camp"),
+            vec!["7,4", "7,3", "8,4"]
+        );
+        assert_eq!(
+            rts_expansion_tiles_for_camp("forest_creep_camp"),
+            vec!["9,2", "10,2", "10,3"]
         );
     }
 }

@@ -141791,13 +141791,7 @@ fn classic_rts_objective_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
-    if objective_id == "relay_beacon" {
-        string_vec(["6,5", "6,4", "7,5", "9,2"])
-    } else if objective_id == "forest_relay" {
-        string_vec(["8,3", "9,2", "9,3"])
-    } else {
-        vec![tile_id.to_string()]
-    }
+    rts_bevy_runtime::rts_objective_tiles_for_id(objective_id, tile_id)
 }
 
 fn classic_rts_creep_camp_parts(kind_hint: &str, command: &str) -> (String, String, String) {
@@ -141820,11 +141814,7 @@ fn classic_rts_creep_camp_parts(kind_hint: &str, command: &str) -> (String, Stri
 }
 
 fn classic_rts_creep_camp_tiles_for_id(camp_id: &str, tile_id: &str) -> Vec<String> {
-    if camp_id == "forest_creep_camp" {
-        string_vec(["8,3", "8,2", "9,3", "9,2"])
-    } else {
-        vec![tile_id.to_string()]
-    }
+    rts_bevy_runtime::rts_creep_camp_tiles_for_id(camp_id, tile_id)
 }
 
 fn classic_rts_creep_camp_units_for_id(camp_id: &str) -> Vec<String> {
@@ -141836,27 +141826,15 @@ fn classic_rts_creep_camp_units_for_id(camp_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_terrain_route_tiles_for_camp(camp_id: &str) -> Vec<String> {
-    if camp_id == "forest_creep_camp" {
-        string_vec(["5,5", "6,5", "7,4", "8,3"])
-    } else {
-        string_vec(["5,5", "6,5"])
-    }
+    rts_bevy_runtime::rts_terrain_route_tiles_for_camp(camp_id)
 }
 
 fn classic_rts_terrain_choke_tiles_for_camp(camp_id: &str) -> Vec<String> {
-    if camp_id == "forest_creep_camp" {
-        string_vec(["7,4", "7,3", "8,4"])
-    } else {
-        string_vec(["6,5"])
-    }
+    rts_bevy_runtime::rts_terrain_choke_tiles_for_camp(camp_id)
 }
 
 fn classic_rts_expansion_tiles_for_camp(camp_id: &str) -> Vec<String> {
-    if camp_id == "forest_creep_camp" {
-        string_vec(["9,2", "10,2", "10,3"])
-    } else {
-        string_vec(["8,3"])
-    }
+    rts_bevy_runtime::rts_expansion_tiles_for_camp(camp_id)
 }
 
 fn classic_rts_recon_parts(command: &str) -> (String, String, String) {
