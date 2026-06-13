@@ -83426,22 +83426,41 @@ fn classic_rts_bottom_action_from_point(
         return None;
     }
     let command_x = 360;
-    for index in 0..12 {
-        let x = command_x + (index % 6) as i32 * 58;
-        let y = layout.bottom_y + 30 + (index / 6) as i32 * 46;
+    let first_contact_chrome = classic_first_contact_player_screen_chrome_for_runtime(runtime);
+    let command_grid_slot_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_grid_slot_count.max(1) as usize)
+        .unwrap_or(12);
+    let command_grid_column_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_grid_column_count.max(1) as usize)
+        .unwrap_or(6);
+    for index in 0..command_grid_slot_count {
+        let x = command_x + (index % command_grid_column_count) as i32 * 58;
+        let y = layout.bottom_y + 30 + (index / command_grid_column_count) as i32 * 46;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 48, 38) {
-            let ability = runtime
-                .rts_ability_command_ids
-                .get(index % runtime.rts_ability_command_ids.len().max(1))
-                .cloned()
-                .unwrap_or_else(|| "hold".to_string());
+            let ability = classic_rts_command_slot_id_for_index(
+                runtime,
+                first_contact_chrome.as_ref(),
+                index,
+            );
             return Some(NativeControlAction::RtsAbilityCommand {
                 ability_id: ability,
             });
         }
     }
     let queue_x = command_x + 374;
-    for (index, order) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+    let order_queue_visible_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.order_queue_visible_count.max(1) as usize)
+        .unwrap_or(5);
+    for (index, order) in runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .take(order_queue_visible_count)
+        .enumerate()
+    {
         let y = layout.bottom_y + 32 + index as i32 * 18;
         if classic_point_in_rect(mouse_x, mouse_y, queue_x, y, 220, 14) {
             return classic_rts_action_from_order_entry(runtime, order);
@@ -83500,15 +83519,24 @@ fn classic_rts_bottom_hover_preview_from_point(
     mouse_y: i32,
 ) -> Option<ClassicRtsHoverPreview> {
     let command_x = 360;
-    for index in 0..12 {
-        let x = command_x + (index % 6) as i32 * 58;
-        let y = layout.bottom_y + 30 + (index / 6) as i32 * 46;
+    let first_contact_chrome = classic_first_contact_player_screen_chrome_for_runtime(runtime);
+    let command_grid_slot_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_grid_slot_count.max(1) as usize)
+        .unwrap_or(12);
+    let command_grid_column_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_grid_column_count.max(1) as usize)
+        .unwrap_or(6);
+    for index in 0..command_grid_slot_count {
+        let x = command_x + (index % command_grid_column_count) as i32 * 58;
+        let y = layout.bottom_y + 30 + (index / command_grid_column_count) as i32 * 46;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 48, 38) {
-            let ability_id = runtime
-                .rts_ability_command_ids
-                .get(index % runtime.rts_ability_command_ids.len().max(1))
-                .cloned()
-                .unwrap_or_else(|| "hold".to_string());
+            let ability_id = classic_rts_command_slot_id_for_index(
+                runtime,
+                first_contact_chrome.as_ref(),
+                index,
+            );
             return Some(classic_rts_hover_preview_from_action(
                 runtime,
                 "classic_rts_mouse_command_bar",
@@ -83520,7 +83548,17 @@ fn classic_rts_bottom_hover_preview_from_point(
         }
     }
     let queue_x = command_x + 374;
-    for (index, order) in runtime.rts_command_queue.iter().rev().take(5).enumerate() {
+    let order_queue_visible_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.order_queue_visible_count.max(1) as usize)
+        .unwrap_or(5);
+    for (index, order) in runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .take(order_queue_visible_count)
+        .enumerate()
+    {
         let y = layout.bottom_y + 32 + index as i32 * 18;
         if classic_point_in_rect(mouse_x, mouse_y, queue_x, y, 220, 14) {
             let action = classic_rts_action_from_order_entry(runtime, order)?;
@@ -83535,6 +83573,42 @@ fn classic_rts_bottom_hover_preview_from_point(
         }
     }
     None
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_screen_chrome_for_runtime(
+    runtime: &NativeFirstPlayableRuntime,
+) -> Option<RtsFirstContactPlayerScreenChromeProfile> {
+    if classic_player_screen_mode_enabled() && runtime.map_scene == "first_contact_basin" {
+        Some(classic_first_contact_player_screen_profile().chrome)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_command_slot_id_for_index(
+    runtime: &NativeFirstPlayableRuntime,
+    first_contact_chrome: Option<&RtsFirstContactPlayerScreenChromeProfile>,
+    index: usize,
+) -> String {
+    let fallback_id = first_contact_chrome
+        .map(|chrome| chrome.command_slot_fallback_id.as_str())
+        .unwrap_or("hold");
+    first_contact_chrome
+        .and_then(|chrome| {
+            chrome
+                .command_grid_slot_ids
+                .get(index % chrome.command_grid_slot_ids.len().max(1))
+        })
+        .cloned()
+        .or_else(|| {
+            runtime
+                .rts_ability_command_ids
+                .get(index % runtime.rts_ability_command_ids.len().max(1))
+                .cloned()
+        })
+        .unwrap_or_else(|| fallback_id.to_string())
 }
 
 #[cfg(not(target_os = "android"))]
