@@ -28340,6 +28340,7 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
     runtime.rts_production_queue = profile.production_queue.clone();
     runtime.rts_build_queue = profile.build_queue.clone();
     runtime.rts_unit_health_percents = profile.unit_health_percents.clone();
+    runtime.rts_active_ability_id = Some(profile.active_ability_id.clone());
     runtime.rts_visible_tile_ids = classic_first_contact_tile_ids(&profile.visible_tiles);
     runtime.rts_fogged_tile_ids = classic_first_contact_tile_ids(&profile.fogged_tiles);
     runtime.rts_selection_box_tile_ids =
@@ -28796,6 +28797,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .unit_health_percents
             .iter()
             .all(|percent| *percent <= 100)
+        && player_screen_profile.active_ability_id == "worker"
+        && player_screen_chrome
+            .command_grid_slot_ids
+            .iter()
+            .any(|ability| ability == &player_screen_profile.active_ability_id)
         && player_screen_profile.visible_tiles.len() == 64
         && player_screen_profile
             .visible_tiles
@@ -28833,6 +28839,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_runtime.rts_build_queue == player_screen_profile.build_queue
         && player_screen_runtime.rts_unit_health_percents
             == player_screen_profile.unit_health_percents
+        && player_screen_runtime.rts_active_ability_id.as_deref()
+            == Some(player_screen_profile.active_ability_id.as_str())
         && player_screen_runtime.rts_visible_tile_ids.len()
             == player_screen_profile.visible_tiles.len()
         && player_screen_runtime.rts_camera_focus_tile_id.as_deref()

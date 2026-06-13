@@ -174,6 +174,8 @@ jq -e '
   and (.rts_data_player_screen_profile.build_queue | index("build:watch_tower") != null)
   and (.rts_data_player_screen_profile.build_queue | index("upgrade:training_hall") != null)
   and .rts_data_player_screen_profile.unit_health_percents == [96,78,71,34]
+  and .rts_data_player_screen_profile.active_ability_id == "worker"
+  and (.rts_data_player_screen_chrome_profile.command_grid_slot_ids | index("worker") != null)
   and (.rts_data_player_screen_profile.visible_tiles | length) == 64
   and (.rts_data_player_screen_profile.fogged_tiles | length) == 6
   and .rts_data_player_screen_gate == true
