@@ -265,6 +265,15 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.enemy_flank_tile_sample.y == 4
   and .rts_evidence_bevy_runtime_adapter.player_hold_tiles_sample == ["8,3","9,3","9,4","10,3"]
   and .rts_evidence_bevy_runtime_adapter.inner_lane_tiles_sample == ["10,3","11,2","11,3","12,3","12,4"]
+  and .rts_evidence_bevy_runtime_adapter.inner_gate_tile_sample.x == 11
+  and .rts_evidence_bevy_runtime_adapter.inner_gate_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.signal_lock_tile_sample.x == 12
+  and .rts_evidence_bevy_runtime_adapter.signal_lock_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.inner_defenders_sample == ["inner_guard_alpha","inner_guard_beta","signal_lancer"]
+  and .rts_evidence_bevy_runtime_adapter.supply_convoy_sample == ["convoy_cart","field_medic","ammo_runner"]
+  and .rts_evidence_bevy_runtime_adapter.split_squad_tiles_sample == ["10,4","11,4","12,4","12,3"]
+  and .rts_evidence_bevy_runtime_adapter.inner_core_tile_sample.x == 12
+  and .rts_evidence_bevy_runtime_adapter.inner_core_tile_sample.y == 3
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

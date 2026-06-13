@@ -142036,48 +142036,23 @@ fn classic_rts_inner_lane_tiles_for_id(lane_id: &str, tile_id: &str) -> Vec<Stri
 }
 
 fn classic_rts_inner_gate_tile_for_id(gate_id: &str) -> (i32, i32) {
-    match gate_id {
-        "inner_latch" => (11, 3),
-        "signal_lock" => (12, 3),
-        _ => (11, 3),
-    }
+    rts_bevy_runtime::rts_inner_gate_tile_for_id(gate_id)
 }
 
 fn classic_rts_inner_defenders_for_id(defender_id: &str) -> Vec<String> {
-    if defender_id == "second_line" {
-        string_vec(["inner_guard_alpha", "inner_guard_beta", "signal_lancer"])
-    } else {
-        vec![format!("{defender_id}_guard")]
-    }
+    rts_bevy_runtime::rts_inner_defenders_for_id(defender_id)
 }
 
 fn classic_rts_supply_convoy_for_id(convoy_id: &str) -> Vec<String> {
-    if convoy_id == "relay_convoy" {
-        string_vec(["convoy_cart", "field_medic", "ammo_runner"])
-    } else {
-        vec![format!("{convoy_id}_cart")]
-    }
+    rts_bevy_runtime::rts_supply_convoy_for_id(convoy_id)
 }
 
 fn classic_rts_split_squad_tiles_for_id(split_id: &str, tile_id: &str) -> Vec<String> {
-    if split_id == "flank_team" {
-        string_vec(["10,4", "11,4", "12,4", "12,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 4));
-        vec![
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-            format!("{},{}", tile.0 + 2, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_split_squad_tiles_for_id(split_id, tile_id)
 }
 
 fn classic_rts_inner_core_tile_for_id(core_id: &str) -> (i32, i32) {
-    match core_id {
-        "signal_core" => (12, 3),
-        "relay_core" => (12, 4),
-        _ => (12, 3),
-    }
+    rts_bevy_runtime::rts_inner_core_tile_for_id(core_id)
 }
 
 fn classic_rts_central_keep_route_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {

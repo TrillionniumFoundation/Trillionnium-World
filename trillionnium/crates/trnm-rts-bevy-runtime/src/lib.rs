@@ -1031,6 +1031,51 @@ pub fn rts_inner_lane_tiles_for_id(lane_id: &str, tile_id: &str) -> Vec<String> 
     }
 }
 
+pub fn rts_inner_gate_tile_for_id(gate_id: &str) -> (i32, i32) {
+    match gate_id {
+        "inner_latch" => (11, 3),
+        "signal_lock" => (12, 3),
+        _ => (11, 3),
+    }
+}
+
+pub fn rts_inner_defenders_for_id(defender_id: &str) -> Vec<String> {
+    if defender_id == "second_line" {
+        rts_string_vec(["inner_guard_alpha", "inner_guard_beta", "signal_lancer"])
+    } else {
+        vec![format!("{defender_id}_guard")]
+    }
+}
+
+pub fn rts_supply_convoy_for_id(convoy_id: &str) -> Vec<String> {
+    if convoy_id == "relay_convoy" {
+        rts_string_vec(["convoy_cart", "field_medic", "ammo_runner"])
+    } else {
+        vec![format!("{convoy_id}_cart")]
+    }
+}
+
+pub fn rts_split_squad_tiles_for_id(split_id: &str, tile_id: &str) -> Vec<String> {
+    if split_id == "flank_team" {
+        rts_string_vec(["10,4", "11,4", "12,4", "12,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((10, 4));
+        vec![
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+            format!("{},{}", tile.0 + 2, tile.1),
+        ]
+    }
+}
+
+pub fn rts_inner_core_tile_for_id(core_id: &str) -> (i32, i32) {
+    match core_id {
+        "signal_core" => (12, 3),
+        "relay_core" => (12, 4),
+        _ => (12, 3),
+    }
+}
+
 pub fn rts_central_keep_route_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
     if target_id == "central_keep" {
         rts_string_vec(["12,3", "12,4", "13,4", "13,3", "14,3"])
@@ -1585,6 +1630,21 @@ mod tests {
             rts_inner_lane_tiles_for_id("inner_lane", "11,2"),
             vec!["10,3", "11,2", "11,3", "12,3", "12,4"]
         );
+        assert_eq!(rts_inner_gate_tile_for_id("inner_latch"), (11, 3));
+        assert_eq!(rts_inner_gate_tile_for_id("signal_lock"), (12, 3));
+        assert_eq!(
+            rts_inner_defenders_for_id("second_line"),
+            vec!["inner_guard_alpha", "inner_guard_beta", "signal_lancer"]
+        );
+        assert_eq!(
+            rts_supply_convoy_for_id("relay_convoy"),
+            vec!["convoy_cart", "field_medic", "ammo_runner"]
+        );
+        assert_eq!(
+            rts_split_squad_tiles_for_id("flank_team", "10,4"),
+            vec!["10,4", "11,4", "12,4", "12,3"]
+        );
+        assert_eq!(rts_inner_core_tile_for_id("signal_core"), (12, 3));
     }
 
     #[test]
