@@ -167,6 +167,12 @@ jq -e '
   and (.rts_data_player_screen_profile.command_queue | index("build:trnm.flux.relay") != null)
   and (.rts_data_player_screen_profile.command_queue | index("train:trnm.worker") != null)
   and (.rts_data_player_screen_profile.command_queue | index("attack:trnm.flux.beacon") != null)
+  and (.rts_data_player_screen_profile.production_queue | length) == 3
+  and (.rts_data_player_screen_profile.production_queue | index("train:guard") != null)
+  and (.rts_data_player_screen_profile.production_queue | index("upgrade:signal_blade") != null)
+  and (.rts_data_player_screen_profile.build_queue | length) == 2
+  and (.rts_data_player_screen_profile.build_queue | index("build:watch_tower") != null)
+  and (.rts_data_player_screen_profile.build_queue | index("upgrade:training_hall") != null)
   and (.rts_data_player_screen_profile.visible_tiles | length) == 64
   and (.rts_data_player_screen_profile.fogged_tiles | length) == 6
   and .rts_data_player_screen_gate == true
