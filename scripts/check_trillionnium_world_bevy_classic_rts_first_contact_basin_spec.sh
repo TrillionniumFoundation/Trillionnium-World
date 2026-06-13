@@ -181,6 +181,11 @@ jq -e '
   and (.rts_data_player_screen_profile.visible_tiles | length) == 64
   and (.rts_data_player_screen_profile.fogged_tiles | length) == 6
   and .rts_data_player_screen_gate == true
+  and .rts_evidence_contract == "trnm_rts_evidence_v1"
+  and .rts_evidence_bevy_runtime_adapter.contract_version == "trnm_rts_evidence_bevy_runtime_adapter_v1"
+  and .rts_evidence_bevy_runtime_adapter.runtime_contract == "trnm_rts_bevy_runtime_adapter_v1"
+  and .rts_evidence_bevy_runtime_adapter.green == true
+  and .rts_evidence_bevy_runtime_adapter_gate == true
   and .rts_bevy_runtime_adapter_contract == "trnm_rts_bevy_runtime_adapter_v1"
   and .rts_bevy_runtime_adapter_gate == true
   and .rts_bevy_runtime_minimap_cell_sample.x == 134

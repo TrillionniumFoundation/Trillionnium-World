@@ -1,0 +1,10 @@
+[package]
+name = "trnm-rts-evidence"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+trnm-rts-bevy-runtime = { path = "../trnm-rts-bevy-runtime" }

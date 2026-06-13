@@ -5183,6 +5183,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "trnm-rts-evidence"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "trnm-rts-bevy-runtime",
+]
+
+[[package]]
 name = "trnm-state"
 version = "0.1.0"
 dependencies = [
@@ -5243,6 +5251,7 @@ dependencies = [
  "trnm-rts-bevy-runtime",
  "trnm-rts-core",
  "trnm-rts-data",
+ "trnm-rts-evidence",
  "trnm-world-api",
  "trnm-world-command",
  "trnm-world-domain",

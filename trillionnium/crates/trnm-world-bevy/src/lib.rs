@@ -28724,30 +28724,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data player screen layout profile serializes");
     let rts_data_player_screen_chrome_profile = serde_json::to_value(player_screen_chrome)
         .expect("RTS data player screen chrome profile serializes");
-    let rts_runtime_adapter_preview_queue =
-        vec!["command_queue_path_preview:queue_stack".to_string()];
-    let rts_bevy_runtime_adapter_gate = rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_CONTRACT
-        == "trnm_rts_bevy_runtime_adapter_v1"
-        && rts_bevy_runtime::rts_minimap_cell_origin(10, 20, 4, 5, (32, 32)) == (134, 175)
-        && rts_bevy_runtime::rts_command_queue_path_preview_stage(
-            &[],
-            &rts_runtime_adapter_preview_queue,
-            0,
-        ) == Some("queue_stack")
-        && rts_bevy_runtime::rts_runtime_hit_test_grid(
-            RtsRuntimeGridSpec {
-                origin_x: 360,
-                origin_y: 572,
-                columns: 6,
-                count: 12,
-                stride_x: 58,
-                stride_y: 46,
-                slot_width: 48,
-                slot_height: 38,
-            },
-            363,
-            575,
-        ) == Some(0);
+    let rts_evidence_bevy_runtime_adapter =
+        trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence();
+    let rts_evidence_bevy_runtime_adapter_value =
+        serde_json::to_value(&rts_evidence_bevy_runtime_adapter)
+            .expect("RTS Bevy runtime adapter evidence serializes");
+    let rts_bevy_runtime_adapter_gate = rts_evidence_bevy_runtime_adapter.green;
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28818,27 +28800,17 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_player_screen_layout_gate": rts_data_player_screen_layout_gate,
         "rts_data_player_screen_chrome_gate": rts_data_player_screen_chrome_gate,
         "rts_data_player_screen_gate": rts_data_player_screen_gate,
-        "rts_bevy_runtime_adapter_contract": rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+        "rts_evidence_contract": trnm_rts_evidence::TRNM_RTS_EVIDENCE_CONTRACT,
+        "rts_evidence_bevy_runtime_adapter": rts_evidence_bevy_runtime_adapter_value,
+        "rts_evidence_bevy_runtime_adapter_gate": rts_evidence_bevy_runtime_adapter.green,
+        "rts_bevy_runtime_adapter_contract": rts_evidence_bevy_runtime_adapter.runtime_contract,
         "rts_bevy_runtime_adapter_gate": rts_bevy_runtime_adapter_gate,
         "rts_bevy_runtime_minimap_cell_sample": {
-            "x": rts_bevy_runtime::rts_minimap_cell_origin(10, 20, 4, 5, (32, 32)).0,
-            "y": rts_bevy_runtime::rts_minimap_cell_origin(10, 20, 4, 5, (32, 32)).1,
+            "x": rts_evidence_bevy_runtime_adapter.minimap_cell_sample.x,
+            "y": rts_evidence_bevy_runtime_adapter.minimap_cell_sample.y,
         },
-        "rts_bevy_runtime_path_preview_sample": rts_bevy_runtime::rts_command_queue_path_preview_stage(&[], &rts_runtime_adapter_preview_queue, 0),
-        "rts_bevy_runtime_command_grid_hit_sample": rts_bevy_runtime::rts_runtime_hit_test_grid(
-            RtsRuntimeGridSpec {
-                origin_x: 360,
-                origin_y: 572,
-                columns: 6,
-                count: 12,
-                stride_x: 58,
-                stride_y: 46,
-                slot_width: 48,
-                slot_height: 38,
-            },
-            363,
-            575,
-        ),
+        "rts_bevy_runtime_path_preview_sample": rts_evidence_bevy_runtime_adapter.path_preview_sample.as_deref(),
+        "rts_bevy_runtime_command_grid_hit_sample": rts_evidence_bevy_runtime_adapter.command_grid_hit_sample,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
