@@ -17946,7 +17946,10 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         ]),
         rts_command_queue: string_vec(["select_group_1", "move:7,4", "formation:diamond"]),
         rts_command_destination_tile: Some("7,4".to_string()),
-        rts_visible_tile_ids: string_vec(["5,5", "6,5", "7,4", "4,5", "5,4", "8,4"]),
+        rts_visible_tile_ids: string_vec([
+            "4,4", "5,4", "6,4", "7,4", "8,4", "9,4", "4,5", "5,5", "6,5", "7,5", "8,5", "9,5",
+            "4,6", "5,6", "6,6", "7,6", "8,6", "9,6", "5,7", "6,7", "7,7", "8,7",
+        ]),
         rts_fogged_tile_ids: string_vec(["0,0", "1,0", "10,7", "11,7"]),
         rts_production_queue: string_vec(["train:worker", "train:guard"]),
         rts_build_queue: string_vec(["build:scout_tower"]),
@@ -17981,7 +17984,10 @@ pub fn native_classic_rts_control_loop_evidence_json(preview_path: &str) -> Stri
         rts_command_queue: string_vec(["select_group_1", "attack:arena_creep_attack"]),
         rts_command_destination_tile: Some("6,5".to_string()),
         rts_attack_target_id: Some("arena_creep_attack".to_string()),
-        rts_visible_tile_ids: string_vec(["5,5", "6,5", "6,4", "7,5", "5,4", "4,5"]),
+        rts_visible_tile_ids: string_vec([
+            "4,4", "5,4", "6,4", "7,4", "8,4", "9,4", "4,5", "5,5", "6,5", "7,5", "8,5", "9,5",
+            "4,6", "5,6", "6,6", "7,6", "8,6", "9,6", "5,7", "6,7", "7,7", "8,7",
+        ]),
         rts_fogged_tile_ids: string_vec(["0,7", "1,7", "10,0", "11,0"]),
         rts_production_queue: string_vec(["train:guard", "train:creep_hunter"]),
         rts_build_queue: string_vec(["upgrade:training_hall"]),
@@ -25401,6 +25407,10 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
 
     capture_stage!(2, "in_match_hud", "IN-MATCH HUD", HUD_COLOR, 0, 0, 0);
 
+    // Keep this evidence focused on live command acceptance after the campaign handoff.
+    runtime.rts_resource_spend_log.clear();
+    runtime.coins = runtime.coins.max(1_800);
+
     let mut live_command_feedback_delta = 0_usize;
     let mut live_command_accepted_delta = 0_usize;
     for outcome in [
@@ -28341,6 +28351,7 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
     runtime.rts_build_queue = profile.build_queue.clone();
     runtime.rts_unit_health_percents = profile.unit_health_percents.clone();
     runtime.rts_active_ability_id = Some(profile.active_ability_id.clone());
+    runtime.rts_ability_cooldown_percents = profile.ability_cooldown_percents.clone();
     runtime.rts_visible_tile_ids = classic_first_contact_tile_ids(&profile.visible_tiles);
     runtime.rts_fogged_tile_ids = classic_first_contact_tile_ids(&profile.fogged_tiles);
     runtime.rts_selection_box_tile_ids =
@@ -28802,6 +28813,13 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .command_grid_slot_ids
             .iter()
             .any(|ability| ability == &player_screen_profile.active_ability_id)
+        && player_screen_profile.ability_cooldown_percents == vec![0, 0, 16, 0, 42, 25]
+        && player_screen_profile.ability_cooldown_percents.len()
+            == player_screen_chrome.command_grid_slot_ids.len()
+        && player_screen_profile
+            .ability_cooldown_percents
+            .iter()
+            .all(|percent| *percent <= 100)
         && player_screen_profile.visible_tiles.len() == 64
         && player_screen_profile
             .visible_tiles
@@ -28841,6 +28859,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             == player_screen_profile.unit_health_percents
         && player_screen_runtime.rts_active_ability_id.as_deref()
             == Some(player_screen_profile.active_ability_id.as_str())
+        && player_screen_runtime.rts_ability_cooldown_percents
+            == player_screen_profile.ability_cooldown_percents
         && player_screen_runtime.rts_visible_tile_ids.len()
             == player_screen_profile.visible_tiles.len()
         && player_screen_runtime.rts_camera_focus_tile_id.as_deref()

@@ -439,6 +439,7 @@ pub struct RtsFirstContactPlayerScreenProfile {
     pub build_queue: Vec<String>,
     pub unit_health_percents: Vec<u8>,
     pub active_ability_id: String,
+    pub ability_cooldown_percents: Vec<u8>,
     pub visible_tiles: Vec<RtsTile>,
     pub fogged_tiles: Vec<RtsTile>,
     pub selection_box_tiles: Vec<RtsTile>,
@@ -2064,6 +2065,7 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
         ],
         unit_health_percents: vec![96, 78, 71, 34],
         active_ability_id: "worker".to_string(),
+        ability_cooldown_percents: vec![0, 0, 16, 0, 42, 25],
         visible_tiles,
         fogged_tiles: vec![
             RtsTile::new(1, 1),
@@ -2588,6 +2590,15 @@ mod tests {
             .command_grid_slot_ids
             .iter()
             .any(|ability| ability == &profile.active_ability_id));
+        assert_eq!(profile.ability_cooldown_percents, vec![0, 0, 16, 0, 42, 25]);
+        assert_eq!(
+            profile.ability_cooldown_percents.len(),
+            profile.chrome.command_grid_slot_ids.len()
+        );
+        assert!(profile
+            .ability_cooldown_percents
+            .iter()
+            .all(|percent| *percent <= 100));
         assert!(map
             .rules
             .iter()
