@@ -18,6 +18,7 @@ members = [
   "crates/trnm-rts-data",
   "crates/trnm-rts-bevy-runtime",
   "crates/trnm-rts-evidence",
+  "crates/trnm-rts-online",
   "crates/trnm-world-projection",
   "crates/trnm-world-map-provider",
   "crates/trnm-world-ui-fragments",

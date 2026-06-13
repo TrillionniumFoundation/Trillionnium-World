@@ -41,6 +41,7 @@ trnm-rts-bevy-runtime = { path = "../trnm-rts-bevy-runtime" }
 trnm-rts-core = { path = "../trnm-rts-core" }
 trnm-rts-data = { path = "../trnm-rts-data" }
 trnm-rts-evidence = { path = "../trnm-rts-evidence" }
+trnm-rts-online = { path = "../trnm-rts-online" }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 minifb = "0.27"

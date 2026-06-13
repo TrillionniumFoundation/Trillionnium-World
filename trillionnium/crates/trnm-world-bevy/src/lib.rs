@@ -28730,6 +28730,26 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         serde_json::to_value(&rts_evidence_bevy_runtime_adapter)
             .expect("RTS Bevy runtime adapter evidence serializes");
     let rts_bevy_runtime_adapter_gate = rts_evidence_bevy_runtime_adapter.green;
+    let rts_online_protocol_fixture = trnm_rts_online::first_contact_online_protocol_fixture();
+    let rts_online_protocol_gate = rts_online_protocol_fixture.green
+        && rts_online_protocol_fixture.envelope.map_id.as_str() == map_model.map_id.as_str()
+        && rts_online_protocol_fixture.lifecycle.map_id.as_str() == map_model.map_id.as_str()
+        && rts_online_protocol_fixture.envelope.update_sha256.len() == 64
+        && rts_online_protocol_fixture
+            .envelope
+            .scope
+            .visible_chunks
+            .len()
+            == 3
+        && rts_online_protocol_fixture
+            .envelope
+            .scope
+            .visible_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "trnm.flux.beacon.center")
+        && rts_online_protocol_fixture.lifecycle.bot_count == 1;
+    let rts_online_protocol_fixture_value = serde_json::to_value(&rts_online_protocol_fixture)
+        .expect("RTS online protocol fixture serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28745,6 +28765,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_player_screen_chrome_gate
         && rts_data_player_screen_gate
         && rts_bevy_runtime_adapter_gate
+        && rts_online_protocol_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28811,6 +28832,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         },
         "rts_bevy_runtime_path_preview_sample": rts_evidence_bevy_runtime_adapter.path_preview_sample.as_deref(),
         "rts_bevy_runtime_command_grid_hit_sample": rts_evidence_bevy_runtime_adapter.command_grid_hit_sample,
+        "rts_online_contract": trnm_rts_online::TRNM_RTS_ONLINE_CONTRACT,
+        "rts_online_protocol_fixture": rts_online_protocol_fixture_value,
+        "rts_online_protocol_gate": rts_online_protocol_gate,
+        "rts_online_update_envelope_sha256": rts_online_protocol_fixture.envelope.update_sha256.as_str(),
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,

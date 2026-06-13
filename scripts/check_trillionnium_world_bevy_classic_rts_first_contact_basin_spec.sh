@@ -192,6 +192,17 @@ jq -e '
   and .rts_bevy_runtime_minimap_cell_sample.y == 175
   and .rts_bevy_runtime_path_preview_sample == "queue_stack"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
+  and .rts_online_contract == "trnm_rts_online_protocol_v1"
+  and .rts_online_protocol_fixture.contract_version == "trnm_rts_online_first_contact_fixture_v1"
+  and .rts_online_protocol_fixture.green == true
+  and .rts_online_protocol_fixture.envelope.map_id == "first_contact_basin"
+  and (.rts_online_protocol_fixture.envelope.update_sha256 | length) == 64
+  and (.rts_online_protocol_fixture.envelope.scope.visible_chunks | length) == 3
+  and (.rts_online_protocol_fixture.envelope.scope.fogged_chunks | length) == 2
+  and (.rts_online_protocol_fixture.envelope.scope.visible_actor_ids | index("trnm.flux.beacon.center") != null)
+  and .rts_online_protocol_fixture.lifecycle.phase == "playing"
+  and .rts_online_protocol_fixture.lifecycle.bot_count == 1
+  and .rts_online_protocol_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true
