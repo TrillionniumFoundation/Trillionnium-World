@@ -142146,24 +142146,11 @@ fn classic_rts_tier_two_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_siege_units_for_id(unit_id: &str) -> Vec<String> {
-    if unit_id == "stonebreak_cart" {
-        string_vec(["stonebreak_cart"])
-    } else {
-        vec![unit_id.to_string()]
-    }
+    rts_bevy_runtime::rts_siege_units_for_id(unit_id)
 }
 
 fn classic_rts_siege_push_route_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
-    if target_id == "stonebreak_cart" || tile_id == "10,3" {
-        string_vec(["9,2", "9,3", "10,3", "10,2", "11,2", "10,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
-        vec![
-            "9,2".to_string(),
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_siege_push_route_tiles_for_target(target_id, tile_id)
 }
 
 fn classic_rts_enemy_fortification_tile_for_id(fortification_id: &str) -> (i32, i32) {
@@ -142175,16 +142162,7 @@ fn classic_rts_enemy_fortification_tile_for_id(fortification_id: &str) -> (i32, 
 }
 
 fn classic_rts_siege_breach_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
-    if target_id == "gate_bulwark" {
-        string_vec(["9,3", "10,3", "10,2", "11,2", "10,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_siege_breach_tiles_for_target(target_id, tile_id)
 }
 
 fn classic_rts_enemy_repair_units_for_target(target_id: &str) -> Vec<String> {
@@ -142225,16 +142203,7 @@ fn classic_rts_player_hold_tiles_for_id(hold_id: &str, tile_id: &str) -> Vec<Str
 }
 
 fn classic_rts_inner_lane_tiles_for_id(lane_id: &str, tile_id: &str) -> Vec<String> {
-    if lane_id == "inner_lane" {
-        string_vec(["10,3", "11,2", "11,3", "12,3", "12,4"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((11, 2));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_inner_lane_tiles_for_id(lane_id, tile_id)
 }
 
 fn classic_rts_inner_gate_tile_for_id(gate_id: &str) -> (i32, i32) {

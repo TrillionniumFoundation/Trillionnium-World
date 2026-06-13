@@ -222,6 +222,10 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.terrain_route_tiles_sample == ["5,5","6,5","7,4","8,3"]
   and .rts_evidence_bevy_runtime_adapter.terrain_choke_tiles_sample == ["7,4","7,3","8,4"]
   and .rts_evidence_bevy_runtime_adapter.expansion_tiles_sample == ["9,2","10,2","10,3"]
+  and .rts_evidence_bevy_runtime_adapter.siege_units_sample == ["stonebreak_cart"]
+  and .rts_evidence_bevy_runtime_adapter.siege_push_route_tiles_sample == ["9,2","9,3","10,3","10,2","11,2","10,3"]
+  and .rts_evidence_bevy_runtime_adapter.siege_breach_tiles_sample == ["9,3","10,3","10,2","11,2","10,3"]
+  and .rts_evidence_bevy_runtime_adapter.inner_lane_tiles_sample == ["10,3","11,2","11,3","12,3","12,4"]
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

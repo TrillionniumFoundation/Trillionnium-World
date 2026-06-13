@@ -9,12 +9,14 @@ use trnm_rts_bevy_runtime::{
     rts_command_queue_path_preview_stage, rts_contact_flash_tiles_for_target,
     rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
     rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
-    rts_engagement_tiles_for_target, rts_expansion_tiles_for_camp, rts_minimap_cell_origin,
-    rts_objective_tiles_for_id, rts_projectile_id_for_ability,
+    rts_engagement_tiles_for_target, rts_expansion_tiles_for_camp, rts_inner_lane_tiles_for_id,
+    rts_minimap_cell_origin, rts_objective_tiles_for_id, rts_projectile_id_for_ability,
     rts_projectile_trail_tiles_for_target, rts_runtime_hit_test_grid, rts_runtime_tile_line,
-    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
-    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, RtsRuntimeGridSpec,
-    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_siege_breach_tiles_for_target, rts_siege_push_route_tiles_for_target,
+    rts_siege_units_for_id, rts_target_priority_ids_for_target, rts_target_tile_for_id,
+    rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
+    rts_threat_levels_for_target, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
+    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -55,6 +57,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub terrain_route_tiles_sample: Vec<String>,
     pub terrain_choke_tiles_sample: Vec<String>,
     pub expansion_tiles_sample: Vec<String>,
+    pub siege_units_sample: Vec<String>,
+    pub siege_push_route_tiles_sample: Vec<String>,
+    pub siege_breach_tiles_sample: Vec<String>,
+    pub inner_lane_tiles_sample: Vec<String>,
     pub source_of_truth: String,
 }
 
@@ -98,6 +104,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let terrain_route_tiles = rts_terrain_route_tiles_for_camp("forest_creep_camp");
     let terrain_choke_tiles = rts_terrain_choke_tiles_for_camp("forest_creep_camp");
     let expansion_tiles = rts_expansion_tiles_for_camp("forest_creep_camp");
+    let siege_units = rts_siege_units_for_id("stonebreak_cart");
+    let siege_push_route_tiles = rts_siege_push_route_tiles_for_target("gate_bulwark", "10,3");
+    let siege_breach_tiles = rts_siege_breach_tiles_for_target("gate_bulwark", "10,3");
+    let inner_lane_tiles = rts_inner_lane_tiles_for_id("inner_lane", "11,2");
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -135,7 +145,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && creep_camp_tiles == vec!["8,3", "8,2", "9,3", "9,2"]
         && terrain_route_tiles == vec!["5,5", "6,5", "7,4", "8,3"]
         && terrain_choke_tiles == vec!["7,4", "7,3", "8,4"]
-        && expansion_tiles == vec!["9,2", "10,2", "10,3"];
+        && expansion_tiles == vec!["9,2", "10,2", "10,3"]
+        && siege_units == vec!["stonebreak_cart"]
+        && siege_push_route_tiles == vec!["9,2", "9,3", "10,3", "10,2", "11,2", "10,3"]
+        && siege_breach_tiles == vec!["9,3", "10,3", "10,2", "11,2", "10,3"]
+        && inner_lane_tiles == vec!["10,3", "11,2", "11,3", "12,3", "12,4"];
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -170,7 +184,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         terrain_route_tiles_sample: terrain_route_tiles,
         terrain_choke_tiles_sample: terrain_choke_tiles,
         expansion_tiles_sample: expansion_tiles,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, objective, and terrain-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        siege_units_sample: siege_units,
+        siege_push_route_tiles_sample: siege_push_route_tiles,
+        siege_breach_tiles_sample: siege_breach_tiles,
+        inner_lane_tiles_sample: inner_lane_tiles,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -264,5 +282,18 @@ mod tests {
             vec!["7,4", "7,3", "8,4"]
         );
         assert_eq!(evidence.expansion_tiles_sample, vec!["9,2", "10,2", "10,3"]);
+        assert_eq!(evidence.siege_units_sample, vec!["stonebreak_cart"]);
+        assert_eq!(
+            evidence.siege_push_route_tiles_sample,
+            vec!["9,2", "9,3", "10,3", "10,2", "11,2", "10,3"]
+        );
+        assert_eq!(
+            evidence.siege_breach_tiles_sample,
+            vec!["9,3", "10,3", "10,2", "11,2", "10,3"]
+        );
+        assert_eq!(
+            evidence.inner_lane_tiles_sample,
+            vec!["10,3", "11,2", "11,3", "12,3", "12,4"]
+        );
     }
 }

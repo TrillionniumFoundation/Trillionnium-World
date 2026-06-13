@@ -423,6 +423,11 @@ fn rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
     tiles
 }
 
+fn rts_parse_tile_id(value: &str) -> Option<(i32, i32)> {
+    let (x, y) = value.split_once(',')?;
+    Some((x.parse().ok()?, y.parse().ok()?))
+}
+
 pub fn rts_move_follow_target(formation: &str) -> Option<&str> {
     formation
         .strip_prefix("follow:")
@@ -705,6 +710,53 @@ pub fn rts_expansion_tiles_for_camp(camp_id: &str) -> Vec<String> {
         rts_string_vec(["9,2", "10,2", "10,3"])
     } else {
         rts_string_vec(["8,3"])
+    }
+}
+
+pub fn rts_siege_units_for_id(unit_id: &str) -> Vec<String> {
+    if unit_id == "stonebreak_cart" {
+        rts_string_vec(["stonebreak_cart"])
+    } else {
+        vec![unit_id.to_string()]
+    }
+}
+
+pub fn rts_siege_push_route_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "stonebreak_cart" || tile_id == "10,3" {
+        rts_string_vec(["9,2", "9,3", "10,3", "10,2", "11,2", "10,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((10, 3));
+        vec![
+            "9,2".to_string(),
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+        ]
+    }
+}
+
+pub fn rts_siege_breach_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "gate_bulwark" {
+        rts_string_vec(["9,3", "10,3", "10,2", "11,2", "10,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((10, 3));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
+    }
+}
+
+pub fn rts_inner_lane_tiles_for_id(lane_id: &str, tile_id: &str) -> Vec<String> {
+    if lane_id == "inner_lane" {
+        rts_string_vec(["10,3", "11,2", "11,3", "12,3", "12,4"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((11, 2));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
     }
 }
 
@@ -1046,6 +1098,26 @@ mod tests {
         assert_eq!(
             rts_expansion_tiles_for_camp("forest_creep_camp"),
             vec!["9,2", "10,2", "10,3"]
+        );
+    }
+
+    #[test]
+    fn siege_and_inner_lane_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_siege_units_for_id("stonebreak_cart"),
+            vec!["stonebreak_cart"]
+        );
+        assert_eq!(
+            rts_siege_push_route_tiles_for_target("gate_bulwark", "10,3"),
+            vec!["9,2", "9,3", "10,3", "10,2", "11,2", "10,3"]
+        );
+        assert_eq!(
+            rts_siege_breach_tiles_for_target("gate_bulwark", "10,3"),
+            vec!["9,3", "10,3", "10,2", "11,2", "10,3"]
+        );
+        assert_eq!(
+            rts_inner_lane_tiles_for_id("inner_lane", "11,2"),
+            vec!["10,3", "11,2", "11,3", "12,3", "12,4"]
         );
     }
 }
