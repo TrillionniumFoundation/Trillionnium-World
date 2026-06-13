@@ -83387,9 +83387,18 @@ fn classic_rts_sidebar_action_from_point(
         return None;
     }
     let prod_y = layout.radar_y + layout.radar_h + 16;
-    for index in 0..4 {
-        let x = layout.sidebar_x + 12 + (index % 2) as i32 * 116;
-        let y = prod_y + 18 + (index / 2) as i32 * 34;
+    let first_contact_chrome = classic_first_contact_player_screen_chrome_for_runtime(runtime);
+    let production_slot_visible_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.production_slot_visible_count.max(1) as usize)
+        .unwrap_or(4);
+    let production_slot_column_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.production_slot_column_count.max(1) as usize)
+        .unwrap_or(2);
+    for index in 0..production_slot_visible_count {
+        let x = layout.sidebar_x + 12 + (index % production_slot_column_count) as i32 * 116;
+        let y = prod_y + 18 + (index / production_slot_column_count) as i32 * 34;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 56, 18) {
             if matches!(button, MiniMouseButton::Right) {
                 return classic_rts_sidebar_cancel_action(runtime, index);
@@ -83400,11 +83409,20 @@ fn classic_rts_sidebar_action_from_point(
         }
     }
     let palette_y = prod_y + 98;
-    for index in 0..8 {
-        let x = layout.sidebar_x + 12 + (index % 4) as i32 * 58;
-        let y = palette_y + 18 + (index / 4) as i32 * 46;
+    let build_palette_visible_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.build_palette_visible_count.max(1) as usize)
+        .unwrap_or(8);
+    let build_palette_column_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.build_palette_column_count.max(1) as usize)
+        .unwrap_or(4);
+    for index in 0..build_palette_visible_count {
+        let x = layout.sidebar_x + 12 + (index % build_palette_column_count) as i32 * 58;
+        let y = palette_y + 18 + (index / build_palette_column_count) as i32 * 46;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 46, 36) {
-            let queue_id = classic_rts_build_palette_queue_id(index);
+            let queue_id =
+                classic_rts_build_palette_queue_id_for_index(first_contact_chrome.as_ref(), index);
             if matches!(button, MiniMouseButton::Right) {
                 return classic_rts_palette_cancel_action(runtime, &queue_id);
             }
@@ -83477,9 +83495,18 @@ fn classic_rts_sidebar_hover_preview_from_point(
     mouse_y: i32,
 ) -> Option<ClassicRtsHoverPreview> {
     let prod_y = layout.radar_y + layout.radar_h + 16;
-    for index in 0..4 {
-        let x = layout.sidebar_x + 12 + (index % 2) as i32 * 116;
-        let y = prod_y + 18 + (index / 2) as i32 * 34;
+    let first_contact_chrome = classic_first_contact_player_screen_chrome_for_runtime(runtime);
+    let production_slot_visible_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.production_slot_visible_count.max(1) as usize)
+        .unwrap_or(4);
+    let production_slot_column_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.production_slot_column_count.max(1) as usize)
+        .unwrap_or(2);
+    for index in 0..production_slot_visible_count {
+        let x = layout.sidebar_x + 12 + (index % production_slot_column_count) as i32 * 116;
+        let y = prod_y + 18 + (index / production_slot_column_count) as i32 * 34;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 56, 18) {
             let queue_id = classic_rts_production_slot_queue_id(runtime, index);
             return Some(classic_rts_hover_preview_from_action(
@@ -83493,11 +83520,20 @@ fn classic_rts_sidebar_hover_preview_from_point(
         }
     }
     let palette_y = prod_y + 98;
-    for index in 0..8 {
-        let x = layout.sidebar_x + 12 + (index % 4) as i32 * 58;
-        let y = palette_y + 18 + (index / 4) as i32 * 46;
+    let build_palette_visible_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.build_palette_visible_count.max(1) as usize)
+        .unwrap_or(8);
+    let build_palette_column_count = first_contact_chrome
+        .as_ref()
+        .map(|chrome| chrome.build_palette_column_count.max(1) as usize)
+        .unwrap_or(4);
+    for index in 0..build_palette_visible_count {
+        let x = layout.sidebar_x + 12 + (index % build_palette_column_count) as i32 * 58;
+        let y = palette_y + 18 + (index / build_palette_column_count) as i32 * 46;
         if classic_point_in_rect(mouse_x, mouse_y, x, y, 46, 36) {
-            let queue_id = classic_rts_build_palette_queue_id(index);
+            let queue_id =
+                classic_rts_build_palette_queue_id_for_index(first_contact_chrome.as_ref(), index);
             return Some(classic_rts_hover_preview_from_action(
                 runtime,
                 "classic_rts_mouse_sidebar",
@@ -83609,6 +83645,19 @@ fn classic_rts_command_slot_id_for_index(
                 .cloned()
         })
         .unwrap_or_else(|| fallback_id.to_string())
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_build_palette_queue_id_for_index(
+    first_contact_chrome: Option<&RtsFirstContactPlayerScreenChromeProfile>,
+    index: usize,
+) -> String {
+    first_contact_chrome
+        .and_then(|chrome| {
+            classic_first_contact_build_palette_slot(&chrome.build_palette_slots, index)
+                .map(|slot| slot.queue_id.clone())
+        })
+        .unwrap_or_else(|| classic_rts_build_palette_queue_id(index))
 }
 
 #[cfg(not(target_os = "android"))]
