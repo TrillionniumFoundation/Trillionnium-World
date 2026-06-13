@@ -404,6 +404,10 @@ pub fn rts_runtime_tile_id(tile: (i32, i32)) -> String {
     format!("{},{}", tile.0, tile.1)
 }
 
+fn rts_string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
+    values.into_iter().map(str::to_string).collect()
+}
+
 fn rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
@@ -489,6 +493,136 @@ pub fn rts_disperse_slots_for_destination(destination_tile: (i32, i32)) -> Vec<S
         ]
     } else {
         Vec::new()
+    }
+}
+
+pub fn rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        rts_string_vec(["9,3", "10,3", "10,2", "11,2"])
+    } else if target_id == "forest_creep_camp" {
+        rts_string_vec(["8,3", "8,2", "9,3", "7,3"])
+    } else if target_id == "square_creep_wander" {
+        rts_string_vec(["8,4", "9,4", "9,3", "10,4"])
+    } else if target_id == "arena_creep_attack" {
+        rts_string_vec(["6,5", "6,4", "7,5", "5,5"])
+    } else {
+        rts_string_vec(["6,5", "6,4"])
+    }
+}
+
+pub fn rts_contact_flash_tiles_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        rts_string_vec(["10,3", "10,2", "11,2"])
+    } else if target_id == "forest_creep_camp" {
+        rts_string_vec(["8,3", "9,3"])
+    } else if target_id == "square_creep_wander" {
+        rts_string_vec(["9,4", "10,4"])
+    } else if target_id == "arena_creep_attack" {
+        rts_string_vec(["6,5", "6,4"])
+    } else {
+        rts_string_vec(["6,5"])
+    }
+}
+
+pub fn rts_target_tile_for_id(target_id: &str, fallback_index: usize) -> (i32, i32) {
+    match target_id {
+        "arena_creep_attack" => (6, 5),
+        "arena_guard_support" => (6, 4),
+        "arena_worker_support" => (7, 5),
+        "forest_creep_camp" => (8, 3),
+        "forest_stalker_support" => (8, 2),
+        "forest_shaman_support" => (9, 3),
+        "square_creep_wander" => (9, 4),
+        "enemy_watch_post" => (10, 2),
+        "enemy_barracks" => (10, 3),
+        "enemy_resource_vault" => (11, 2),
+        _ => (6 + fallback_index as i32, 5),
+    }
+}
+
+pub fn rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        rts_string_vec(["enemy_barracks", "enemy_watch_post", "enemy_resource_vault"])
+    } else if target_id == "forest_creep_camp" {
+        rts_string_vec([
+            "forest_creep_camp",
+            "forest_stalker_support",
+            "forest_shaman_support",
+        ])
+    } else if target_id == "arena_creep_attack" {
+        rts_string_vec([
+            "arena_creep_attack",
+            "arena_guard_support",
+            "arena_worker_support",
+        ])
+    } else if target_id == "square_creep_wander" {
+        rts_string_vec([
+            "square_creep_wander",
+            "forest_creep_camp",
+            "arena_creep_attack",
+        ])
+    } else {
+        vec![target_id.to_string()]
+    }
+}
+
+pub fn rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
+    if target_id == "enemy_barracks" {
+        vec![88, 66, 41]
+    } else if target_id == "forest_creep_camp" {
+        vec![92, 70, 46]
+    } else if target_id == "square_creep_wander" {
+        vec![86, 54, 28]
+    } else if target_id == "arena_creep_attack" {
+        vec![100, 64, 32]
+    } else {
+        vec![72]
+    }
+}
+
+pub fn rts_projectile_trail_tiles_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        rts_string_vec(["7,4", "8,4", "9,3", "10,3"])
+    } else if target_id == "forest_creep_camp" {
+        rts_string_vec(["5,5", "6,5", "7,4", "8,3"])
+    } else if target_id == "square_creep_wander" {
+        rts_string_vec(["5,5", "6,5", "8,4", "9,4"])
+    } else if target_id == "arena_creep_attack" {
+        rts_string_vec(["5,5", "5,4", "6,4", "6,5"])
+    } else {
+        rts_string_vec(["5,5", "6,5"])
+    }
+}
+
+pub fn rts_ability_effect_tiles_for_target(target_id: &str, ability_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" && ability_id == "guard_break" {
+        rts_string_vec(["10,3", "10,2", "11,2", "9,3"])
+    } else if target_id == "forest_creep_camp" && ability_id == "guard_break" {
+        rts_string_vec(["8,3", "8,2", "9,3", "7,3"])
+    } else if target_id == "forest_creep_camp" {
+        rts_string_vec(["8,3", "8,2", "9,3"])
+    } else if target_id == "arena_creep_attack" && ability_id == "guard_break" {
+        rts_string_vec(["6,5", "6,4", "7,5", "5,5"])
+    } else if target_id == "arena_creep_attack" {
+        rts_string_vec(["6,5", "6,4", "7,5"])
+    } else {
+        vec![target_id.to_string()]
+    }
+}
+
+pub fn rts_damage_ticks_for_ability(ability_id: &str) -> Vec<u8> {
+    match ability_id {
+        "guard_break" => vec![16, 21, 35],
+        "focus_fire" => vec![28],
+        _ => vec![18],
+    }
+}
+
+pub fn rts_projectile_id_for_ability(ability_id: &str) -> &'static str {
+    match ability_id {
+        "guard_break" => "guard_break_bolt",
+        "focus_fire" => "focus_fire_volley",
+        _ => "guard_volley",
     }
 }
 
@@ -741,6 +875,47 @@ mod tests {
         assert_eq!(
             rts_command_queue_path_preview_stage(&[], &["other".to_string()], 0),
             None
+        );
+    }
+
+    #[test]
+    fn combat_target_adapter_preserves_first_contact_semantics() {
+        assert_eq!(
+            rts_engagement_tiles_for_target("enemy_barracks"),
+            vec!["9,3", "10,3", "10,2", "11,2"]
+        );
+        assert_eq!(
+            rts_contact_flash_tiles_for_target("arena_creep_attack"),
+            vec!["6,5", "6,4"]
+        );
+        assert_eq!(rts_target_tile_for_id("forest_shaman_support", 0), (9, 3));
+        assert_eq!(
+            rts_target_priority_ids_for_target("arena_creep_attack"),
+            vec![
+                "arena_creep_attack",
+                "arena_guard_support",
+                "arena_worker_support"
+            ]
+        );
+        assert_eq!(
+            rts_projectile_trail_tiles_for_target("forest_creep_camp"),
+            vec!["5,5", "6,5", "7,4", "8,3"]
+        );
+        assert_eq!(
+            rts_ability_effect_tiles_for_target("enemy_barracks", "guard_break"),
+            vec!["10,3", "10,2", "11,2", "9,3"]
+        );
+        assert_eq!(
+            rts_threat_levels_for_target("enemy_barracks"),
+            vec![88, 66, 41]
+        );
+        assert_eq!(
+            rts_damage_ticks_for_ability("guard_break"),
+            vec![16, 21, 35]
+        );
+        assert_eq!(
+            rts_projectile_id_for_ability("guard_break"),
+            "guard_break_bolt"
         );
     }
 }

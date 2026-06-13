@@ -202,6 +202,16 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.tile_line_sample[8].step_index == 8
   and .rts_evidence_bevy_runtime_adapter.tile_line_sample[8].tile_x == 12
   and .rts_evidence_bevy_runtime_adapter.tile_line_sample[8].tile_y == 16
+  and .rts_evidence_bevy_runtime_adapter.combat_engagement_tiles_sample == ["9,3","10,3","10,2","11,2"]
+  and .rts_evidence_bevy_runtime_adapter.combat_flash_tiles_sample == ["6,5","6,4"]
+  and .rts_evidence_bevy_runtime_adapter.combat_target_tile_sample.x == 9
+  and .rts_evidence_bevy_runtime_adapter.combat_target_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.combat_target_priority_sample == ["arena_creep_attack","arena_guard_support","arena_worker_support"]
+  and .rts_evidence_bevy_runtime_adapter.combat_projectile_trail_sample == ["5,5","6,5","7,4","8,3"]
+  and .rts_evidence_bevy_runtime_adapter.combat_ability_effect_tiles_sample == ["10,3","10,2","11,2","9,3"]
+  and .rts_evidence_bevy_runtime_adapter.combat_threat_levels_sample == [88,66,41]
+  and .rts_evidence_bevy_runtime_adapter.combat_damage_ticks_sample == [16,21,35]
+  and .rts_evidence_bevy_runtime_adapter.combat_projectile_id_sample == "guard_break_bolt"
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28
