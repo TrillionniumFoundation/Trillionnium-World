@@ -449,7 +449,6 @@ pub struct RtsFirstContactPlayerScreenProfile {
     pub enemy_pressure_warning_percent: u8,
     pub army_supply_used: u8,
     pub army_supply_cap: u8,
-    pub ability_command_ids: Vec<String>,
     pub last_feedback: String,
     pub objective_status: String,
 }
@@ -547,6 +546,7 @@ pub struct RtsFirstContactPlayerScreenChromeProfile {
     pub command_panel_title: String,
     pub command_grid_slot_count: u8,
     pub command_grid_column_count: u8,
+    pub command_grid_slot_ids: Vec<String>,
     pub command_slot_fallback_id: String,
     pub order_queue_title: String,
     pub order_queue_empty_label: String,
@@ -2018,6 +2018,14 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             command_panel_title: "COMMANDS".to_string(),
             command_grid_slot_count: 12,
             command_grid_column_count: 6,
+            command_grid_slot_ids: vec![
+                "worker".to_string(),
+                "scout".to_string(),
+                "warden".to_string(),
+                "relay".to_string(),
+                "core".to_string(),
+                "signal".to_string(),
+            ],
             command_slot_fallback_id: "hold".to_string(),
             order_queue_title: "ORDER QUEUE".to_string(),
             order_queue_empty_label: "NO ORDERS".to_string(),
@@ -2074,14 +2082,6 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
         enemy_pressure_warning_percent: 24,
         army_supply_used: 12,
         army_supply_cap: 22,
-        ability_command_ids: vec![
-            "worker".to_string(),
-            "scout".to_string(),
-            "warden".to_string(),
-            "relay".to_string(),
-            "core".to_string(),
-            "signal".to_string(),
-        ],
         last_feedback: "Group 1 is securing the first relay beacon".to_string(),
         objective_status: "secure first relay beacon and hold the center lane".to_string(),
     }
@@ -2522,6 +2522,10 @@ mod tests {
         assert_eq!(profile.chrome.command_panel_title, "COMMANDS");
         assert_eq!(profile.chrome.command_grid_slot_count, 12);
         assert_eq!(profile.chrome.command_grid_column_count, 6);
+        assert_eq!(
+            profile.chrome.command_grid_slot_ids,
+            vec!["worker", "scout", "warden", "relay", "core", "signal"]
+        );
         assert_eq!(profile.chrome.command_slot_fallback_id, "hold");
         assert_eq!(profile.chrome.order_queue_title, "ORDER QUEUE");
         assert_eq!(profile.chrome.order_queue_empty_label, "NO ORDERS");
@@ -2572,10 +2576,6 @@ mod tests {
         assert!(profile.visibility_percent <= 100);
         assert!(profile.enemy_pressure_warning_percent <= 100);
         assert!(profile.army_supply_used <= profile.army_supply_cap);
-        assert_eq!(
-            profile.ability_command_ids,
-            vec!["worker", "scout", "warden", "relay", "core", "signal"]
-        );
         assert!(profile.last_feedback.contains("relay beacon"));
         assert!(profile.objective_status.contains("center lane"));
     }

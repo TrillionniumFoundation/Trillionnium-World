@@ -142,6 +142,9 @@ jq -e '
   and .rts_data_player_screen_chrome_profile.command_panel_title == "COMMANDS"
   and .rts_data_player_screen_chrome_profile.command_grid_slot_count == 12
   and .rts_data_player_screen_chrome_profile.command_grid_column_count == 6
+  and (.rts_data_player_screen_chrome_profile.command_grid_slot_ids | length) == 6
+  and (.rts_data_player_screen_chrome_profile.command_grid_slot_ids | index("relay") != null)
+  and (.rts_data_player_screen_chrome_profile.command_grid_slot_ids | index("signal") != null)
   and .rts_data_player_screen_chrome_profile.command_slot_fallback_id == "hold"
   and .rts_data_player_screen_chrome_profile.order_queue_title == "ORDER QUEUE"
   and .rts_data_player_screen_chrome_profile.order_queue_empty_label == "NO ORDERS"
@@ -164,9 +167,6 @@ jq -e '
   and (.rts_data_player_screen_profile.command_queue | index("attack:trnm.flux.beacon") != null)
   and (.rts_data_player_screen_profile.visible_tiles | length) == 64
   and (.rts_data_player_screen_profile.fogged_tiles | length) == 6
-  and (.rts_data_player_screen_profile.ability_command_ids | length) == 6
-  and (.rts_data_player_screen_profile.ability_command_ids | index("relay") != null)
-  and (.rts_data_player_screen_profile.ability_command_ids | index("signal") != null)
   and .rts_data_player_screen_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true

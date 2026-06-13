@@ -28355,7 +28355,7 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
     runtime.rts_enemy_pressure_warning_percent = profile.enemy_pressure_warning_percent;
     runtime.rts_army_supply_used = profile.army_supply_used;
     runtime.rts_army_supply_cap = profile.army_supply_cap;
-    runtime.rts_ability_command_ids = profile.ability_command_ids.clone();
+    runtime.rts_ability_command_ids = profile.chrome.command_grid_slot_ids.clone();
     runtime.last_feedback = profile.last_feedback.clone();
     runtime.objective_status = profile.objective_status.clone();
     runtime
@@ -28727,6 +28727,15 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_chrome.command_panel_title == "COMMANDS"
         && player_screen_chrome.command_grid_slot_count == 12
         && player_screen_chrome.command_grid_column_count == 6
+        && player_screen_chrome.command_grid_slot_ids.len() == 6
+        && player_screen_chrome
+            .command_grid_slot_ids
+            .iter()
+            .any(|ability| ability == "relay")
+        && player_screen_chrome
+            .command_grid_slot_ids
+            .iter()
+            .any(|ability| ability == "signal")
         && player_screen_chrome.command_slot_fallback_id == "hold"
         && player_screen_chrome.order_queue_title == "ORDER QUEUE"
         && player_screen_chrome.order_queue_empty_label == "NO ORDERS"
@@ -28788,15 +28797,6 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_profile.visibility_percent <= 100
         && player_screen_profile.enemy_pressure_warning_percent <= 100
         && player_screen_profile.army_supply_used <= player_screen_profile.army_supply_cap
-        && player_screen_profile.ability_command_ids.len() == 6
-        && player_screen_profile
-            .ability_command_ids
-            .iter()
-            .any(|ability| ability == "relay")
-        && player_screen_profile
-            .ability_command_ids
-            .iter()
-            .any(|ability| ability == "signal")
         && !player_screen_profile.last_feedback.is_empty()
         && !player_screen_profile.objective_status.is_empty();
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin"
@@ -107763,13 +107763,22 @@ fn classic_draw_openra_style_rts_shell(
         .as_ref()
         .map(|chrome| chrome.command_grid_column_count.max(1) as usize)
         .unwrap_or(6);
+    let command_grid_slot_ids = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.command_grid_slot_ids.as_slice())
+        .unwrap_or(&[]);
     for index in 0..command_grid_slot_count {
         let x = command_x + (index % command_grid_column_count) as i32 * 58;
         let y = bottom_y + 30 + (index / command_grid_column_count) as i32 * 46;
-        let ability = runtime
-            .rts_ability_command_ids
-            .get(index % runtime.rts_ability_command_ids.len().max(1))
+        let ability = command_grid_slot_ids
+            .get(index % command_grid_slot_ids.len().max(1))
             .map(String::as_str)
+            .or_else(|| {
+                runtime
+                    .rts_ability_command_ids
+                    .get(index % runtime.rts_ability_command_ids.len().max(1))
+                    .map(String::as_str)
+            })
             .unwrap_or(command_slot_fallback_id);
         let active = runtime.rts_active_ability_id.as_deref() == Some(ability);
         let sent = runtime
