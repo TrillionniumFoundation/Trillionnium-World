@@ -13,14 +13,16 @@ use trnm_rts_bevy_runtime::{
     rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id,
     rts_contact_flash_tiles_for_target, rts_counterattack_route_tiles_for_wave,
     rts_counterattack_units_for_wave, rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
-    rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
+    rts_enemy_flank_tile_for_index, rts_enemy_flank_units_for_id,
+    rts_enemy_fortification_tile_for_id, rts_enemy_pressure_lane_tiles_for_wave,
+    rts_enemy_pressure_wave_units_for_id, rts_enemy_repair_units_for_target,
     rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
     rts_enemy_units_for_recon, rts_engagement_tiles_for_target,
     rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id,
     rts_expansion_workers_for_line, rts_fog_reveal_tiles_for_recon,
     rts_guardian_counter_units_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
     rts_keep_claim_tiles_for_id, rts_loot_items_for_id, rts_minimap_cell_origin,
-    rts_objective_tiles_for_id, rts_player_army_unit_tile_for_id,
+    rts_objective_tiles_for_id, rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
     rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
     rts_projectile_trail_tiles_for_target, rts_runtime_hit_test_grid, rts_runtime_tile_line,
     rts_scout_route_tiles_for_recon, rts_siege_breach_tiles_for_target,
@@ -98,6 +100,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub siege_units_sample: Vec<String>,
     pub siege_push_route_tiles_sample: Vec<String>,
     pub siege_breach_tiles_sample: Vec<String>,
+    pub enemy_fortification_tile_sample: RtsEvidencePoint,
+    pub enemy_repair_units_sample: Vec<String>,
+    pub enemy_flank_units_sample: Vec<String>,
+    pub enemy_flank_tile_sample: RtsEvidencePoint,
+    pub player_hold_tiles_sample: Vec<String>,
     pub inner_lane_tiles_sample: Vec<String>,
     pub source_of_truth: String,
 }
@@ -172,6 +179,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let siege_units = rts_siege_units_for_id("stonebreak_cart");
     let siege_push_route_tiles = rts_siege_push_route_tiles_for_target("gate_bulwark", "10,3");
     let siege_breach_tiles = rts_siege_breach_tiles_for_target("gate_bulwark", "10,3");
+    let enemy_fortification_tile = rts_enemy_fortification_tile_for_id("gate_bulwark");
+    let enemy_repair_units = rts_enemy_repair_units_for_target("gate_bulwark");
+    let enemy_flank_units = rts_enemy_flank_units_for_id("ridge_sentries");
+    let enemy_flank_tile = rts_enemy_flank_tile_for_index(2);
+    let player_hold_tiles = rts_player_hold_tiles_for_id("shield_line", "9,3");
     let inner_lane_tiles = rts_inner_lane_tiles_for_id("inner_lane", "11,2");
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
@@ -267,6 +279,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && siege_units == vec!["stonebreak_cart"]
         && siege_push_route_tiles == vec!["9,2", "9,3", "10,3", "10,2", "11,2", "10,3"]
         && siege_breach_tiles == vec!["9,3", "10,3", "10,2", "11,2", "10,3"]
+        && enemy_fortification_tile == (10, 3)
+        && enemy_repair_units == vec!["repair_adept_alpha", "repair_adept_beta"]
+        && enemy_flank_units == vec!["ridge_sentry_left", "ridge_sentry_right", "ridge_sapper"]
+        && enemy_flank_tile == (8, 4)
+        && player_hold_tiles == vec!["8,3", "9,3", "9,4", "10,3"]
         && inner_lane_tiles == vec!["10,3", "11,2", "11,3", "12,3", "12,4"];
 
     RtsBevyRuntimeAdapterEvidence {
@@ -347,8 +364,19 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         siege_units_sample: siege_units,
         siege_push_route_tiles_sample: siege_push_route_tiles,
         siege_breach_tiles_sample: siege_breach_tiles,
+        enemy_fortification_tile_sample: RtsEvidencePoint {
+            x: enemy_fortification_tile.0,
+            y: enemy_fortification_tile.1,
+        },
+        enemy_repair_units_sample: enemy_repair_units,
+        enemy_flank_units_sample: enemy_flank_units,
+        enemy_flank_tile_sample: RtsEvidencePoint {
+            x: enemy_flank_tile.0,
+            y: enemy_flank_tile.1,
+        },
+        player_hold_tiles_sample: player_hold_tiles,
         inner_lane_tiles_sample: inner_lane_tiles,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, central-keep, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, central-keep, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -575,6 +603,26 @@ mod tests {
         assert_eq!(
             evidence.siege_breach_tiles_sample,
             vec!["9,3", "10,3", "10,2", "11,2", "10,3"]
+        );
+        assert_eq!(
+            evidence.enemy_fortification_tile_sample,
+            RtsEvidencePoint { x: 10, y: 3 }
+        );
+        assert_eq!(
+            evidence.enemy_repair_units_sample,
+            vec!["repair_adept_alpha", "repair_adept_beta"]
+        );
+        assert_eq!(
+            evidence.enemy_flank_units_sample,
+            vec!["ridge_sentry_left", "ridge_sentry_right", "ridge_sapper"]
+        );
+        assert_eq!(
+            evidence.enemy_flank_tile_sample,
+            RtsEvidencePoint { x: 8, y: 4 }
+        );
+        assert_eq!(
+            evidence.player_hold_tiles_sample,
+            vec!["8,3", "9,3", "9,4", "10,3"]
         );
         assert_eq!(
             evidence.inner_lane_tiles_sample,

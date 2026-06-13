@@ -142008,11 +142008,7 @@ fn classic_rts_siege_push_route_tiles_for_target(target_id: &str, tile_id: &str)
 }
 
 fn classic_rts_enemy_fortification_tile_for_id(fortification_id: &str) -> (i32, i32) {
-    match fortification_id {
-        "gate_bulwark" => (10, 3),
-        "watch_redoubt" => (10, 2),
-        _ => (10, 3),
-    }
+    rts_bevy_runtime::rts_enemy_fortification_tile_for_id(fortification_id)
 }
 
 fn classic_rts_siege_breach_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
@@ -142020,40 +142016,19 @@ fn classic_rts_siege_breach_tiles_for_target(target_id: &str, tile_id: &str) -> 
 }
 
 fn classic_rts_enemy_repair_units_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "gate_bulwark" {
-        string_vec(["repair_adept_alpha", "repair_adept_beta"])
-    } else {
-        vec![format!("{target_id}_repair_adept")]
-    }
+    rts_bevy_runtime::rts_enemy_repair_units_for_target(target_id)
 }
 
 fn classic_rts_enemy_flank_units_for_id(flank_id: &str) -> Vec<String> {
-    if flank_id == "ridge_sentries" {
-        string_vec(["ridge_sentry_left", "ridge_sentry_right", "ridge_sapper"])
-    } else {
-        vec![format!("{flank_id}_flanker")]
-    }
+    rts_bevy_runtime::rts_enemy_flank_units_for_id(flank_id)
 }
 
 fn classic_rts_enemy_flank_tile_for_index(index: usize) -> (i32, i32) {
-    match index % 3 {
-        0 => (9, 4),
-        1 => (10, 4),
-        _ => (8, 4),
-    }
+    rts_bevy_runtime::rts_enemy_flank_tile_for_index(index)
 }
 
 fn classic_rts_player_hold_tiles_for_id(hold_id: &str, tile_id: &str) -> Vec<String> {
-    if hold_id == "shield_line" {
-        string_vec(["8,3", "9,3", "9,4", "10,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((9, 3));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_player_hold_tiles_for_id(hold_id, tile_id)
 }
 
 fn classic_rts_inner_lane_tiles_for_id(lane_id: &str, tile_id: &str) -> Vec<String> {

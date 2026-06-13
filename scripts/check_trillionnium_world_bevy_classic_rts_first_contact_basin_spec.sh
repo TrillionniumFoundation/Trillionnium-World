@@ -257,6 +257,13 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.siege_units_sample == ["stonebreak_cart"]
   and .rts_evidence_bevy_runtime_adapter.siege_push_route_tiles_sample == ["9,2","9,3","10,3","10,2","11,2","10,3"]
   and .rts_evidence_bevy_runtime_adapter.siege_breach_tiles_sample == ["9,3","10,3","10,2","11,2","10,3"]
+  and .rts_evidence_bevy_runtime_adapter.enemy_fortification_tile_sample.x == 10
+  and .rts_evidence_bevy_runtime_adapter.enemy_fortification_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.enemy_repair_units_sample == ["repair_adept_alpha","repair_adept_beta"]
+  and .rts_evidence_bevy_runtime_adapter.enemy_flank_units_sample == ["ridge_sentry_left","ridge_sentry_right","ridge_sapper"]
+  and .rts_evidence_bevy_runtime_adapter.enemy_flank_tile_sample.x == 8
+  and .rts_evidence_bevy_runtime_adapter.enemy_flank_tile_sample.y == 4
+  and .rts_evidence_bevy_runtime_adapter.player_hold_tiles_sample == ["8,3","9,3","9,4","10,3"]
   and .rts_evidence_bevy_runtime_adapter.inner_lane_tiles_sample == ["10,3","11,2","11,3","12,3","12,4"]
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
