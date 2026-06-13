@@ -141910,36 +141910,15 @@ fn classic_rts_army_command_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_army_units_for_batch(batch_id: &str) -> Vec<String> {
-    match batch_id {
-        "guard_pair" => string_vec(["relay_guard_alpha", "relay_guard_beta"]),
-        "wayfinder_pair" => string_vec(["wayfinder_scout", "wayfinder_signal"]),
-        "mixed_vanguard" => string_vec([
-            "relay_guard_alpha",
-            "relay_guard_beta",
-            "wayfinder_scout",
-            "field_mender",
-        ]),
-        _ => vec![batch_id.to_string()],
-    }
+    rts_bevy_runtime::rts_army_units_for_batch(batch_id)
 }
 
 fn classic_rts_army_rally_tiles_for_id(rally_id: &str) -> Vec<String> {
-    match rally_id {
-        "forward_watch" => string_vec(["5,5", "6,5", "7,4", "8,4", "8,3"]),
-        "forest_relay" => string_vec(["5,5", "6,4", "7,4", "8,3", "9,2"]),
-        _ => string_vec(["5,5", "6,5", "7,4"]),
-    }
+    rts_bevy_runtime::rts_army_rally_tiles_for_id(rally_id)
 }
 
 fn classic_rts_player_army_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
-    match unit_id {
-        "relay_guard_alpha" => (6, 5),
-        "relay_guard_beta" => (7, 5),
-        "wayfinder_scout" => (7, 4),
-        "wayfinder_signal" => (8, 4),
-        "field_mender" => (6, 4),
-        _ => (6 + (index as i32 % 3), 5 - (index as i32 / 3)),
-    }
+    rts_bevy_runtime::rts_player_army_unit_tile_for_id(unit_id, index)
 }
 
 fn classic_rts_base_assault_parts(command: &str) -> (String, String, String) {

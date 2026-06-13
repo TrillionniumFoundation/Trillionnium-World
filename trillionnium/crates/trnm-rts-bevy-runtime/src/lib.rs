@@ -864,6 +864,39 @@ pub fn rts_counterattack_route_tiles_for_wave(wave_id: &str, tile_id: &str) -> V
     }
 }
 
+pub fn rts_army_units_for_batch(batch_id: &str) -> Vec<String> {
+    match batch_id {
+        "guard_pair" => rts_string_vec(["relay_guard_alpha", "relay_guard_beta"]),
+        "wayfinder_pair" => rts_string_vec(["wayfinder_scout", "wayfinder_signal"]),
+        "mixed_vanguard" => rts_string_vec([
+            "relay_guard_alpha",
+            "relay_guard_beta",
+            "wayfinder_scout",
+            "field_mender",
+        ]),
+        _ => vec![batch_id.to_string()],
+    }
+}
+
+pub fn rts_army_rally_tiles_for_id(rally_id: &str) -> Vec<String> {
+    match rally_id {
+        "forward_watch" => rts_string_vec(["5,5", "6,5", "7,4", "8,4", "8,3"]),
+        "forest_relay" => rts_string_vec(["5,5", "6,4", "7,4", "8,3", "9,2"]),
+        _ => rts_string_vec(["5,5", "6,5", "7,4"]),
+    }
+}
+
+pub fn rts_player_army_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
+    match unit_id {
+        "relay_guard_alpha" => (6, 5),
+        "relay_guard_beta" => (7, 5),
+        "wayfinder_scout" => (7, 4),
+        "wayfinder_signal" => (8, 4),
+        "field_mender" => (6, 4),
+        _ => (6 + (index as i32 % 3), 5 - (index as i32 / 3)),
+    }
+}
+
 pub fn rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
     if objective_id == "relay_beacon" {
         rts_string_vec(["6,5", "6,4", "7,5", "9,2"])
@@ -1430,6 +1463,25 @@ mod tests {
             rts_counterattack_route_tiles_for_wave("counter_wave", "8,3"),
             vec!["11,2", "10,2", "9,3", "8,3", "7,4", "9,2"]
         );
+    }
+
+    #[test]
+    fn army_production_rally_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_army_units_for_batch("mixed_vanguard"),
+            vec![
+                "relay_guard_alpha",
+                "relay_guard_beta",
+                "wayfinder_scout",
+                "field_mender"
+            ]
+        );
+        assert_eq!(
+            rts_army_rally_tiles_for_id("forward_watch"),
+            vec!["5,5", "6,5", "7,4", "8,4", "8,3"]
+        );
+        assert_eq!(rts_player_army_unit_tile_for_id("field_mender", 3), (6, 4));
+        assert_eq!(rts_player_army_unit_tile_for_id("custom_guard", 4), (7, 4));
     }
 
     #[test]

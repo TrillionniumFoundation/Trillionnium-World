@@ -237,6 +237,10 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.expansion_workers_sample == ["expansion_worker_alpha","expansion_worker_beta","expansion_worker_gamma"]
   and .rts_evidence_bevy_runtime_adapter.counterattack_units_sample == ["counter_raider_alpha","counter_raider_beta","counter_sapper"]
   and .rts_evidence_bevy_runtime_adapter.counterattack_route_tiles_sample == ["11,2","10,2","9,3","8,3","7,4","9,2"]
+  and .rts_evidence_bevy_runtime_adapter.army_units_sample == ["relay_guard_alpha","relay_guard_beta","wayfinder_scout","field_mender"]
+  and .rts_evidence_bevy_runtime_adapter.army_rally_tiles_sample == ["5,5","6,5","7,4","8,4","8,3"]
+  and .rts_evidence_bevy_runtime_adapter.player_army_unit_tile_sample.x == 6
+  and .rts_evidence_bevy_runtime_adapter.player_army_unit_tile_sample.y == 4
   and .rts_evidence_bevy_runtime_adapter.central_keep_route_tiles_sample == ["12,3","12,4","13,4","13,3","14,3"]
   and .rts_evidence_bevy_runtime_adapter.central_keep_tile_sample.x == 13
   and .rts_evidence_bevy_runtime_adapter.central_keep_tile_sample.y == 3
