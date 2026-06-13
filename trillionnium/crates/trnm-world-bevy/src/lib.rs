@@ -142127,79 +142127,31 @@ fn classic_rts_inner_core_tile_for_id(core_id: &str) -> (i32, i32) {
 }
 
 fn classic_rts_central_keep_route_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
-    if target_id == "central_keep" {
-        string_vec(["12,3", "12,4", "13,4", "13,3", "14,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((13, 3));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_central_keep_route_tiles_for_id(target_id, tile_id)
 }
 
 fn classic_rts_central_keep_tile_for_id(target_id: &str) -> (i32, i32) {
-    match target_id {
-        "central_keep" => (13, 3),
-        "mirror_ward" => (13, 3),
-        _ => (13, 3),
-    }
+    rts_bevy_runtime::rts_central_keep_tile_for_id(target_id)
 }
 
 fn classic_rts_boss_guard_units_for_id(guard_id: &str) -> Vec<String> {
-    if guard_id == "warden_line" {
-        string_vec(["keep_warden_alpha", "keep_warden_beta", "ward_sentinel"])
-    } else {
-        vec![format!("{guard_id}_warden")]
-    }
+    rts_bevy_runtime::rts_boss_guard_units_for_id(guard_id)
 }
 
 fn classic_rts_player_siege_line_tiles_for_id(line_id: &str, tile_id: &str) -> Vec<String> {
-    if line_id == "final_line" {
-        string_vec(["11,4", "12,4", "13,4", "12,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((12, 4));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_player_siege_line_tiles_for_id(line_id, tile_id)
 }
 
 fn classic_rts_keep_breach_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
-    if target_id == "central_keep" {
-        string_vec(["13,3", "13,4", "14,3", "14,4"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((13, 3));
-        vec![
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-            format!("{},{}", tile.0, tile.1 + 1),
-        ]
-    }
+    rts_bevy_runtime::rts_keep_breach_tiles_for_id(target_id, tile_id)
 }
 
 fn classic_rts_guardian_counter_units_for_id(counter_id: &str) -> Vec<String> {
-    if counter_id == "high_warden" {
-        string_vec(["high_warden", "ward_lancer", "last_mirror_guard"])
-    } else {
-        vec![format!("{counter_id}_counter_guard")]
-    }
+    rts_bevy_runtime::rts_guardian_counter_units_for_id(counter_id)
 }
 
 fn classic_rts_keep_claim_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
-    if target_id == "central_keep" {
-        string_vec(["12,3", "13,3", "14,3", "13,4"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((13, 3));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_keep_claim_tiles_for_id(target_id, tile_id)
 }
 
 fn classic_rts_restored_zones_for_id(zone_id: &str) -> Vec<String> {

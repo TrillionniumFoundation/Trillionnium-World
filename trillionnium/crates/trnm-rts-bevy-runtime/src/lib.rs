@@ -953,6 +953,82 @@ pub fn rts_inner_lane_tiles_for_id(lane_id: &str, tile_id: &str) -> Vec<String> 
     }
 }
 
+pub fn rts_central_keep_route_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "central_keep" {
+        rts_string_vec(["12,3", "12,4", "13,4", "13,3", "14,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((13, 3));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
+    }
+}
+
+pub fn rts_central_keep_tile_for_id(target_id: &str) -> (i32, i32) {
+    match target_id {
+        "central_keep" => (13, 3),
+        "mirror_ward" => (13, 3),
+        _ => (13, 3),
+    }
+}
+
+pub fn rts_boss_guard_units_for_id(guard_id: &str) -> Vec<String> {
+    if guard_id == "warden_line" {
+        rts_string_vec(["keep_warden_alpha", "keep_warden_beta", "ward_sentinel"])
+    } else {
+        vec![format!("{guard_id}_warden")]
+    }
+}
+
+pub fn rts_player_siege_line_tiles_for_id(line_id: &str, tile_id: &str) -> Vec<String> {
+    if line_id == "final_line" {
+        rts_string_vec(["11,4", "12,4", "13,4", "12,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((12, 4));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
+    }
+}
+
+pub fn rts_keep_breach_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "central_keep" {
+        rts_string_vec(["13,3", "13,4", "14,3", "14,4"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((13, 3));
+        vec![
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+            format!("{},{}", tile.0, tile.1 + 1),
+        ]
+    }
+}
+
+pub fn rts_guardian_counter_units_for_id(counter_id: &str) -> Vec<String> {
+    if counter_id == "high_warden" {
+        rts_string_vec(["high_warden", "ward_lancer", "last_mirror_guard"])
+    } else {
+        vec![format!("{counter_id}_counter_guard")]
+    }
+}
+
+pub fn rts_keep_claim_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "central_keep" {
+        rts_string_vec(["12,3", "13,3", "14,3", "13,4"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((13, 3));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
+    }
+}
+
 pub fn rts_command_queue_path_preview_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -1397,6 +1473,35 @@ mod tests {
         assert_eq!(
             rts_inner_lane_tiles_for_id("inner_lane", "11,2"),
             vec!["10,3", "11,2", "11,3", "12,3", "12,4"]
+        );
+    }
+
+    #[test]
+    fn central_keep_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_central_keep_route_tiles_for_id("central_keep", "13,3"),
+            vec!["12,3", "12,4", "13,4", "13,3", "14,3"]
+        );
+        assert_eq!(rts_central_keep_tile_for_id("central_keep"), (13, 3));
+        assert_eq!(
+            rts_boss_guard_units_for_id("warden_line"),
+            vec!["keep_warden_alpha", "keep_warden_beta", "ward_sentinel"]
+        );
+        assert_eq!(
+            rts_player_siege_line_tiles_for_id("final_line", "12,4"),
+            vec!["11,4", "12,4", "13,4", "12,3"]
+        );
+        assert_eq!(
+            rts_keep_breach_tiles_for_id("central_keep", "13,3"),
+            vec!["13,3", "13,4", "14,3", "14,4"]
+        );
+        assert_eq!(
+            rts_guardian_counter_units_for_id("high_warden"),
+            vec!["high_warden", "ward_lancer", "last_mirror_guard"]
+        );
+        assert_eq!(
+            rts_keep_claim_tiles_for_id("central_keep", "13,3"),
+            vec!["12,3", "13,3", "14,3", "13,4"]
         );
     }
 }
