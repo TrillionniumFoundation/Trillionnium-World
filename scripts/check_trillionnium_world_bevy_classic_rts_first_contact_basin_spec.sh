@@ -274,6 +274,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.split_squad_tiles_sample == ["10,4","11,4","12,4","12,3"]
   and .rts_evidence_bevy_runtime_adapter.inner_core_tile_sample.x == 12
   and .rts_evidence_bevy_runtime_adapter.inner_core_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.restored_zones_sample == ["central_keep","signal_core","inner_lane","forest_relay"]
+  and .rts_evidence_bevy_runtime_adapter.rebuild_structures_sample == ["signal_core","inner_latch","mirror_ward"]
+  and .rts_evidence_bevy_runtime_adapter.garrison_units_sample == ["mirror_guard_alpha","signal_lancer","field_engineer"]
+  and .rts_evidence_bevy_runtime_adapter.open_world_route_tiles_sample == ["13,3","12,3","11,3","10,2","9,2"]
+  and .rts_evidence_bevy_runtime_adapter.open_world_panels_sample == ["room_panel:league-coliseum","task_panel:task-fixture-first-route","combat_panel:league-coliseum","save_panel:post_rts_restore"]
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

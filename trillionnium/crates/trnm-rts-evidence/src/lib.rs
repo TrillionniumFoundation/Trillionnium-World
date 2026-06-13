@@ -19,13 +19,15 @@ use trnm_rts_bevy_runtime::{
     rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
     rts_enemy_units_for_recon, rts_engagement_tiles_for_target,
     rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id,
-    rts_expansion_workers_for_line, rts_fog_reveal_tiles_for_recon,
+    rts_expansion_workers_for_line, rts_fog_reveal_tiles_for_recon, rts_garrison_units_for_id,
     rts_guardian_counter_units_for_id, rts_inner_core_tile_for_id, rts_inner_defenders_for_id,
     rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
     rts_keep_claim_tiles_for_id, rts_loot_items_for_id, rts_minimap_cell_origin,
-    rts_objective_tiles_for_id, rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
+    rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
+    rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
     rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
-    rts_projectile_trail_tiles_for_target, rts_runtime_hit_test_grid, rts_runtime_tile_line,
+    rts_projectile_trail_tiles_for_target, rts_rebuild_structures_for_id,
+    rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
     rts_scout_route_tiles_for_recon, rts_siege_breach_tiles_for_target,
     rts_siege_push_route_tiles_for_target, rts_siege_units_for_id, rts_split_squad_tiles_for_id,
     rts_supply_convoy_for_id, rts_target_priority_ids_for_target, rts_target_tile_for_id,
@@ -114,6 +116,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub supply_convoy_sample: Vec<String>,
     pub split_squad_tiles_sample: Vec<String>,
     pub inner_core_tile_sample: RtsEvidencePoint,
+    pub restored_zones_sample: Vec<String>,
+    pub rebuild_structures_sample: Vec<String>,
+    pub garrison_units_sample: Vec<String>,
+    pub open_world_route_tiles_sample: Vec<String>,
+    pub open_world_panels_sample: Vec<String>,
     pub source_of_truth: String,
 }
 
@@ -199,6 +206,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let supply_convoy = rts_supply_convoy_for_id("relay_convoy");
     let split_squad_tiles = rts_split_squad_tiles_for_id("flank_team", "10,4");
     let inner_core_tile = rts_inner_core_tile_for_id("signal_core");
+    let restored_zones = rts_restored_zones_for_id("mirror_city");
+    let rebuild_structures = rts_rebuild_structures_for_id("signal_core");
+    let garrison_units = rts_garrison_units_for_id("central_keep");
+    let open_world_route_tiles = rts_open_world_route_tiles_for_id("league-coliseum");
+    let open_world_panels = rts_open_world_panels_for_room("league-coliseum");
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -304,7 +316,18 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && inner_defenders == vec!["inner_guard_alpha", "inner_guard_beta", "signal_lancer"]
         && supply_convoy == vec!["convoy_cart", "field_medic", "ammo_runner"]
         && split_squad_tiles == vec!["10,4", "11,4", "12,4", "12,3"]
-        && inner_core_tile == (12, 3);
+        && inner_core_tile == (12, 3)
+        && restored_zones == vec!["central_keep", "signal_core", "inner_lane", "forest_relay"]
+        && rebuild_structures == vec!["signal_core", "inner_latch", "mirror_ward"]
+        && garrison_units == vec!["mirror_guard_alpha", "signal_lancer", "field_engineer"]
+        && open_world_route_tiles == vec!["13,3", "12,3", "11,3", "10,2", "9,2"]
+        && open_world_panels
+            == vec![
+                "room_panel:league-coliseum",
+                "task_panel:task-fixture-first-route",
+                "combat_panel:league-coliseum",
+                "save_panel:post_rts_restore",
+            ];
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -411,7 +434,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             x: inner_core_tile.0,
             y: inner_core_tile.1,
         },
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        restored_zones_sample: restored_zones,
+        rebuild_structures_sample: rebuild_structures,
+        garrison_units_sample: garrison_units,
+        open_world_route_tiles_sample: open_world_route_tiles,
+        open_world_panels_sample: open_world_panels,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -686,6 +714,31 @@ mod tests {
         assert_eq!(
             evidence.inner_core_tile_sample,
             RtsEvidencePoint { x: 12, y: 3 }
+        );
+        assert_eq!(
+            evidence.restored_zones_sample,
+            vec!["central_keep", "signal_core", "inner_lane", "forest_relay"]
+        );
+        assert_eq!(
+            evidence.rebuild_structures_sample,
+            vec!["signal_core", "inner_latch", "mirror_ward"]
+        );
+        assert_eq!(
+            evidence.garrison_units_sample,
+            vec!["mirror_guard_alpha", "signal_lancer", "field_engineer"]
+        );
+        assert_eq!(
+            evidence.open_world_route_tiles_sample,
+            vec!["13,3", "12,3", "11,3", "10,2", "9,2"]
+        );
+        assert_eq!(
+            evidence.open_world_panels_sample,
+            vec![
+                "room_panel:league-coliseum",
+                "task_panel:task-fixture-first-route",
+                "combat_panel:league-coliseum",
+                "save_panel:post_rts_restore"
+            ]
         );
     }
 }

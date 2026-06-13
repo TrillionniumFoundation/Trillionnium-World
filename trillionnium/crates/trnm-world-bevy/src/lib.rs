@@ -142084,47 +142084,23 @@ fn classic_rts_keep_claim_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<St
 }
 
 fn classic_rts_restored_zones_for_id(zone_id: &str) -> Vec<String> {
-    if zone_id == "mirror_city" {
-        string_vec(["central_keep", "signal_core", "inner_lane", "forest_relay"])
-    } else {
-        vec![zone_id.to_string()]
-    }
+    rts_bevy_runtime::rts_restored_zones_for_id(zone_id)
 }
 
 fn classic_rts_rebuild_structures_for_id(structure_id: &str) -> Vec<String> {
-    if structure_id == "signal_core" {
-        string_vec(["signal_core", "inner_latch", "mirror_ward"])
-    } else {
-        vec![structure_id.to_string()]
-    }
+    rts_bevy_runtime::rts_rebuild_structures_for_id(structure_id)
 }
 
 fn classic_rts_garrison_units_for_id(garrison_id: &str) -> Vec<String> {
-    if garrison_id == "central_keep" {
-        string_vec(["mirror_guard_alpha", "signal_lancer", "field_engineer"])
-    } else {
-        vec![format!("{garrison_id}_garrison")]
-    }
+    rts_bevy_runtime::rts_garrison_units_for_id(garrison_id)
 }
 
 fn classic_rts_open_world_route_tiles_for_id(route_id: &str) -> Vec<String> {
-    match route_id {
-        "after_action" | "league-coliseum" => string_vec(["13,3", "12,3", "11,3", "10,2", "9,2"]),
-        _ => string_vec(["13,3", "12,3", "11,3"]),
-    }
+    rts_bevy_runtime::rts_open_world_route_tiles_for_id(route_id)
 }
 
 fn classic_rts_open_world_panels_for_room(room_id: &str) -> Vec<String> {
-    if room_id == "league-coliseum" {
-        string_vec([
-            "room_panel:league-coliseum",
-            "task_panel:task-fixture-first-route",
-            "combat_panel:league-coliseum",
-            "save_panel:post_rts_restore",
-        ])
-    } else {
-        vec![format!("room_panel:{room_id}")]
-    }
+    rts_bevy_runtime::rts_open_world_panels_for_room(room_id)
 }
 
 fn classic_rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {

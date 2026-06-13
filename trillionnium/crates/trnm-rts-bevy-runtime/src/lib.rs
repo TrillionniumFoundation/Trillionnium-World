@@ -1152,6 +1152,52 @@ pub fn rts_keep_claim_tiles_for_id(target_id: &str, tile_id: &str) -> Vec<String
     }
 }
 
+pub fn rts_restored_zones_for_id(zone_id: &str) -> Vec<String> {
+    if zone_id == "mirror_city" {
+        rts_string_vec(["central_keep", "signal_core", "inner_lane", "forest_relay"])
+    } else {
+        vec![zone_id.to_string()]
+    }
+}
+
+pub fn rts_rebuild_structures_for_id(structure_id: &str) -> Vec<String> {
+    if structure_id == "signal_core" {
+        rts_string_vec(["signal_core", "inner_latch", "mirror_ward"])
+    } else {
+        vec![structure_id.to_string()]
+    }
+}
+
+pub fn rts_garrison_units_for_id(garrison_id: &str) -> Vec<String> {
+    if garrison_id == "central_keep" {
+        rts_string_vec(["mirror_guard_alpha", "signal_lancer", "field_engineer"])
+    } else {
+        vec![format!("{garrison_id}_garrison")]
+    }
+}
+
+pub fn rts_open_world_route_tiles_for_id(route_id: &str) -> Vec<String> {
+    match route_id {
+        "after_action" | "league-coliseum" => {
+            rts_string_vec(["13,3", "12,3", "11,3", "10,2", "9,2"])
+        }
+        _ => rts_string_vec(["13,3", "12,3", "11,3"]),
+    }
+}
+
+pub fn rts_open_world_panels_for_room(room_id: &str) -> Vec<String> {
+    if room_id == "league-coliseum" {
+        rts_string_vec([
+            "room_panel:league-coliseum",
+            "task_panel:task-fixture-first-route",
+            "combat_panel:league-coliseum",
+            "save_panel:post_rts_restore",
+        ])
+    } else {
+        vec![format!("room_panel:{room_id}")]
+    }
+}
+
 pub fn rts_command_queue_path_preview_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -1673,6 +1719,35 @@ mod tests {
         assert_eq!(
             rts_keep_claim_tiles_for_id("central_keep", "13,3"),
             vec!["12,3", "13,3", "14,3", "13,4"]
+        );
+    }
+
+    #[test]
+    fn restoration_open_world_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_restored_zones_for_id("mirror_city"),
+            vec!["central_keep", "signal_core", "inner_lane", "forest_relay"]
+        );
+        assert_eq!(
+            rts_rebuild_structures_for_id("signal_core"),
+            vec!["signal_core", "inner_latch", "mirror_ward"]
+        );
+        assert_eq!(
+            rts_garrison_units_for_id("central_keep"),
+            vec!["mirror_guard_alpha", "signal_lancer", "field_engineer"]
+        );
+        assert_eq!(
+            rts_open_world_route_tiles_for_id("league-coliseum"),
+            vec!["13,3", "12,3", "11,3", "10,2", "9,2"]
+        );
+        assert_eq!(
+            rts_open_world_panels_for_room("league-coliseum"),
+            vec![
+                "room_panel:league-coliseum",
+                "task_panel:task-fixture-first-route",
+                "combat_panel:league-coliseum",
+                "save_panel:post_rts_restore"
+            ]
         );
     }
 }
