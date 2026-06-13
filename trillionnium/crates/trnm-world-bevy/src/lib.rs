@@ -141852,74 +141852,27 @@ fn classic_rts_recon_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_scout_route_tiles_for_recon(recon_id: &str) -> Vec<String> {
-    if recon_id == "enemy_base" {
-        string_vec(["5,5", "6,4", "7,4", "8,3", "9,2", "10,2"])
-    } else if recon_id == "watchtower_scan" {
-        string_vec(["5,5", "6,5", "7,4"])
-    } else {
-        string_vec(["5,5", "6,5", "7,5"])
-    }
+    rts_bevy_runtime::rts_scout_route_tiles_for_recon(recon_id)
 }
 
 fn classic_rts_fog_reveal_tiles_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
-    if recon_id == "enemy_base" && kind == "mark" {
-        string_vec([
-            "7,4", "8,3", "8,2", "9,2", "9,3", "10,2", "10,3", "11,1", "11,2",
-        ])
-    } else if recon_id == "enemy_base" && kind == "sweep" {
-        string_vec(["7,4", "8,3", "9,2", "9,3", "10,2", "10,3", "11,2"])
-    } else if recon_id == "enemy_base" {
-        string_vec(["7,4", "8,3", "9,2", "10,2"])
-    } else if recon_id == "watchtower_scan" {
-        string_vec(["6,4", "7,4", "7,3", "8,3", "8,2"])
-    } else {
-        string_vec(["5,5", "6,5", "7,5"])
-    }
+    rts_bevy_runtime::rts_fog_reveal_tiles_for_recon(recon_id, kind)
 }
 
 fn classic_rts_enemy_structures_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
-    if recon_id == "enemy_base" && kind == "mark" {
-        string_vec(["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"])
-    } else if recon_id == "enemy_base" && kind == "sweep" {
-        string_vec(["enemy_watch_post", "enemy_barracks"])
-    } else if recon_id == "enemy_base" || recon_id == "watchtower_scan" {
-        string_vec(["enemy_watch_post"])
-    } else {
-        Vec::new()
-    }
+    rts_bevy_runtime::rts_enemy_structures_for_recon(recon_id, kind)
 }
 
 fn classic_rts_enemy_units_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
-    if recon_id == "enemy_base" && kind == "mark" {
-        string_vec(["enemy_scout", "enemy_worker", "enemy_guard"])
-    } else if recon_id == "enemy_base" && kind == "sweep" {
-        string_vec(["enemy_scout", "enemy_worker"])
-    } else if recon_id == "enemy_base" || recon_id == "watchtower_scan" {
-        string_vec(["enemy_scout"])
-    } else {
-        Vec::new()
-    }
+    rts_bevy_runtime::rts_enemy_units_for_recon(recon_id, kind)
 }
 
 fn classic_rts_enemy_structure_tile_for_id(structure_id: &str, index: usize) -> (i32, i32) {
-    match structure_id {
-        "enemy_watch_post" => (10, 2),
-        "enemy_barracks" => (10, 3),
-        "enemy_resource_vault" => (11, 2),
-        _ => (10 + (index as i32 % 2), 2 + (index as i32 % 2)),
-    }
+    rts_bevy_runtime::rts_enemy_structure_tile_for_id(structure_id, index)
 }
 
 fn classic_rts_enemy_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
-    match unit_id {
-        "enemy_scout" => (9, 2),
-        "enemy_worker" => (10, 3),
-        "enemy_guard" => (11, 2),
-        "enemy_raider" => (9, 3),
-        "enemy_signal_guard" => (10, 3),
-        "enemy_sapper" => (11, 2),
-        _ => (9 + (index as i32 % 3), 2),
-    }
+    rts_bevy_runtime::rts_enemy_unit_tile_for_id(unit_id, index)
 }
 
 fn classic_rts_enemy_pressure_wave_units_for_id(wave_id: &str) -> Vec<String> {

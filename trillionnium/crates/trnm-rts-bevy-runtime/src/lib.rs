@@ -671,6 +671,77 @@ pub fn rts_enemy_pressure_lane_tiles_for_wave(wave_id: &str) -> Vec<String> {
     }
 }
 
+pub fn rts_scout_route_tiles_for_recon(recon_id: &str) -> Vec<String> {
+    if recon_id == "enemy_base" {
+        rts_string_vec(["5,5", "6,4", "7,4", "8,3", "9,2", "10,2"])
+    } else if recon_id == "watchtower_scan" {
+        rts_string_vec(["5,5", "6,5", "7,4"])
+    } else {
+        rts_string_vec(["5,5", "6,5", "7,5"])
+    }
+}
+
+pub fn rts_fog_reveal_tiles_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
+    if recon_id == "enemy_base" && kind == "mark" {
+        rts_string_vec([
+            "7,4", "8,3", "8,2", "9,2", "9,3", "10,2", "10,3", "11,1", "11,2",
+        ])
+    } else if recon_id == "enemy_base" && kind == "sweep" {
+        rts_string_vec(["7,4", "8,3", "9,2", "9,3", "10,2", "10,3", "11,2"])
+    } else if recon_id == "enemy_base" {
+        rts_string_vec(["7,4", "8,3", "9,2", "10,2"])
+    } else if recon_id == "watchtower_scan" {
+        rts_string_vec(["6,4", "7,4", "7,3", "8,3", "8,2"])
+    } else {
+        rts_string_vec(["5,5", "6,5", "7,5"])
+    }
+}
+
+pub fn rts_enemy_structures_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
+    if recon_id == "enemy_base" && kind == "mark" {
+        rts_string_vec(["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"])
+    } else if recon_id == "enemy_base" && kind == "sweep" {
+        rts_string_vec(["enemy_watch_post", "enemy_barracks"])
+    } else if recon_id == "enemy_base" || recon_id == "watchtower_scan" {
+        rts_string_vec(["enemy_watch_post"])
+    } else {
+        Vec::new()
+    }
+}
+
+pub fn rts_enemy_units_for_recon(recon_id: &str, kind: &str) -> Vec<String> {
+    if recon_id == "enemy_base" && kind == "mark" {
+        rts_string_vec(["enemy_scout", "enemy_worker", "enemy_guard"])
+    } else if recon_id == "enemy_base" && kind == "sweep" {
+        rts_string_vec(["enemy_scout", "enemy_worker"])
+    } else if recon_id == "enemy_base" || recon_id == "watchtower_scan" {
+        rts_string_vec(["enemy_scout"])
+    } else {
+        Vec::new()
+    }
+}
+
+pub fn rts_enemy_structure_tile_for_id(structure_id: &str, index: usize) -> (i32, i32) {
+    match structure_id {
+        "enemy_watch_post" => (10, 2),
+        "enemy_barracks" => (10, 3),
+        "enemy_resource_vault" => (11, 2),
+        _ => (10 + (index as i32 % 2), 2 + (index as i32 % 2)),
+    }
+}
+
+pub fn rts_enemy_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
+    match unit_id {
+        "enemy_scout" => (9, 2),
+        "enemy_worker" => (10, 3),
+        "enemy_guard" => (11, 2),
+        "enemy_raider" => (9, 3),
+        "enemy_signal_guard" => (10, 3),
+        "enemy_sapper" => (11, 2),
+        _ => (9 + (index as i32 % 3), 2),
+    }
+}
+
 pub fn rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
     if objective_id == "relay_beacon" {
         rts_string_vec(["6,5", "6,4", "7,5", "9,2"])
@@ -1075,6 +1146,31 @@ mod tests {
             rts_enemy_pressure_lane_tiles_for_wave("raider_wave"),
             vec!["10,2", "9,3", "8,4", "7,4", "6,5"]
         );
+    }
+
+    #[test]
+    fn recon_intel_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_scout_route_tiles_for_recon("enemy_base"),
+            vec!["5,5", "6,4", "7,4", "8,3", "9,2", "10,2"]
+        );
+        assert_eq!(
+            rts_fog_reveal_tiles_for_recon("enemy_base", "mark"),
+            vec!["7,4", "8,3", "8,2", "9,2", "9,3", "10,2", "10,3", "11,1", "11,2"]
+        );
+        assert_eq!(
+            rts_enemy_structures_for_recon("enemy_base", "mark"),
+            vec!["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"]
+        );
+        assert_eq!(
+            rts_enemy_units_for_recon("enemy_base", "mark"),
+            vec!["enemy_scout", "enemy_worker", "enemy_guard"]
+        );
+        assert_eq!(
+            rts_enemy_structure_tile_for_id("enemy_resource_vault", 2),
+            (11, 2)
+        );
+        assert_eq!(rts_enemy_unit_tile_for_id("enemy_guard", 2), (11, 2));
     }
 
     #[test]
