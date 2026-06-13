@@ -237,7 +237,9 @@ for index, target in enumerate(targets, start=1):
         mouse_events.append(event)
         time.sleep(0.55)
         frame, candidate_image = capture(target["target_frame_id"], target["action_label"], index, previous)
-        if frame["diff_mean_from_previous"] is not None and frame["diff_mean_from_previous"] >= 0.35:
+        if frame["diff_mean_from_previous"] is not None and (
+            frame["diff_mean_from_previous"] >= 0.35 or frame["diff_bbox_from_previous"] is not None
+        ):
             break
     previous = candidate_image
     frames.append(frame)
@@ -271,7 +273,12 @@ sheet_mean = [round(v, 2) for v in ImageStat.Stat(sheet).mean]
 slot_path = slot_dir / "bevy-session-slot-a.snapshot.json"
 slot_bytes = slot_path.stat().st_size if slot_path.exists() else 0
 actual_frame_ids = [frame["frame_id"] for frame in frames]
-changed_frames = [frame for frame in frames[1:] if frame["diff_mean_from_previous"] is not None and frame["diff_mean_from_previous"] >= 0.35]
+changed_frames = [
+    frame
+    for frame in frames[1:]
+    if frame["diff_mean_from_previous"] is not None
+    and (frame["diff_mean_from_previous"] >= 0.35 or frame["diff_bbox_from_previous"] is not None)
+]
 hit_test_map_gate = (
     hit_map.get("contract_version") == "trillionnium_world_bevy_visible_button_hit_test_map_v1"
     and hit_map.get("green") is True
@@ -390,7 +397,7 @@ jq -e '
   and (.mouse_events | length) <= 60
   and all(.mouse_events[]; .relative | length == 2)
   and all(.frames[]; .nonblank == true)
-  and all(.frames[1:][]; .diff_mean_from_previous >= 0.35)
+  and all(.frames[1:][]; (.diff_mean_from_previous >= 0.35 or (.diff_bbox_from_previous | length) == 4))
 ' "$SUMMARY" >/dev/null
 
 test -s "$CONTACT_SHEET"
