@@ -16,6 +16,7 @@ members = [
   "crates/trnm-world-command",
   "crates/trnm-rts-core",
   "crates/trnm-rts-data",
+  "crates/trnm-rts-bevy-runtime",
   "crates/trnm-world-projection",
   "crates/trnm-world-map-provider",
   "crates/trnm-world-ui-fragments",

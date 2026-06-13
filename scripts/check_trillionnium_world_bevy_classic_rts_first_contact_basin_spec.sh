@@ -181,6 +181,12 @@ jq -e '
   and (.rts_data_player_screen_profile.visible_tiles | length) == 64
   and (.rts_data_player_screen_profile.fogged_tiles | length) == 6
   and .rts_data_player_screen_gate == true
+  and .rts_bevy_runtime_adapter_contract == "trnm_rts_bevy_runtime_adapter_v1"
+  and .rts_bevy_runtime_adapter_gate == true
+  and .rts_bevy_runtime_minimap_cell_sample.x == 134
+  and .rts_bevy_runtime_minimap_cell_sample.y == 175
+  and .rts_bevy_runtime_path_preview_sample == "queue_stack"
+  and .rts_bevy_runtime_command_grid_hit_sample == 0
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true

@@ -5157,6 +5157,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "trnm-rts-bevy-runtime"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "trnm-rts-core"
 version = "0.1.0"
 dependencies = [
@@ -5233,6 +5240,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "trnm-rts-bevy-runtime",
  "trnm-rts-core",
  "trnm-rts-data",
  "trnm-world-api",

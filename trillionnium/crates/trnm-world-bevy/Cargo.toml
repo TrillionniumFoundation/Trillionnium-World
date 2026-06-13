@@ -37,6 +37,7 @@ trnm-world-command = { path = "../trnm-world-command" }
 trnm-world-domain = { path = "../trnm-world-domain" }
 trnm-world-map-provider = { path = "../trnm-world-map-provider" }
 trnm-world-projection = { path = "../trnm-world-projection" }
+trnm-rts-bevy-runtime = { path = "../trnm-rts-bevy-runtime" }
 trnm-rts-core = { path = "../trnm-rts-core" }
 trnm-rts-data = { path = "../trnm-rts-data" }
 

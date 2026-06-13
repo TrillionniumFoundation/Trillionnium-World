@@ -26,6 +26,12 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use trnm_rts_bevy_runtime as rts_bevy_runtime;
+pub use trnm_rts_bevy_runtime::{
+    RtsCameraMinimapViewportRect, RtsScrollableMapCameraConfig, RtsScrollableMapCameraState,
+    RtsScrollableMapCameraStep,
+};
+use trnm_rts_bevy_runtime::{RtsRuntimeGridSpec, RtsRuntimeVec2};
 use trnm_rts_core::{
     RtsFrameOrder, RtsFrameOrderStream, RtsOrderKind, RtsTile, TRNM_RTS_CORE_CONTRACT,
 };
@@ -1367,58 +1373,6 @@ pub struct BevyWorldLayout {
     pub node_positions: HashMap<String, Vec3>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct RtsScrollableMapCameraState {
-    pub center_x: f32,
-    pub center_y: f32,
-    pub zoom: f32,
-}
-
-impl Default for RtsScrollableMapCameraState {
-    fn default() -> Self {
-        Self {
-            center_x: 0.0,
-            center_y: 0.0,
-            zoom: 1.0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RtsScrollableMapCameraConfig {
-    pub min_x: f32,
-    pub max_x: f32,
-    pub min_y: f32,
-    pub max_y: f32,
-    pub min_zoom: f32,
-    pub max_zoom: f32,
-    pub keyboard_speed: f32,
-    pub edge_speed: f32,
-    pub drag_world_units_per_pixel: f32,
-    pub wheel_zoom_step: f32,
-    pub edge_band_pixels: f32,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RtsScrollableMapCameraStep {
-    pub source: String,
-    pub before: RtsScrollableMapCameraState,
-    pub after: RtsScrollableMapCameraState,
-    pub pan_delta_x: f32,
-    pub pan_delta_y: f32,
-    pub zoom_delta: f32,
-    pub clamped: bool,
-    pub minimap_tile_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RtsCameraMinimapViewportRect {
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
-}
-
 #[derive(Debug, Clone, PartialEq, Default, Component)]
 pub struct BevyRtsScrollableMapCamera {
     pub state: RtsScrollableMapCameraState,
@@ -1430,33 +1384,28 @@ pub struct BevyWorldScrollableMapAnchor {
     pub base_scale: Vec3,
 }
 
-pub const CLASSIC_RTS_LARGE_MAP_WIDTH_TILES: i32 = 34;
-pub const CLASSIC_RTS_LARGE_MAP_HEIGHT_TILES: i32 = 34;
-pub const CLASSIC_RTS_LARGE_MAP_MIN_TILE: i32 = 1;
-pub const CLASSIC_RTS_LARGE_MAP_MAX_X: i32 = 32;
-pub const CLASSIC_RTS_LARGE_MAP_MAX_Y: i32 = 32;
-const CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_X: i32 = 17;
-const CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_Y: i32 = 17;
-const CLASSIC_RTS_LARGE_MAP_TILE_WORLD_W: f32 = 72.0;
-const CLASSIC_RTS_LARGE_MAP_TILE_WORLD_H: f32 = 48.0;
+pub const CLASSIC_RTS_LARGE_MAP_WIDTH_TILES: i32 =
+    rts_bevy_runtime::TRNM_RTS_RUNTIME_MAP_WIDTH_TILES;
+pub const CLASSIC_RTS_LARGE_MAP_HEIGHT_TILES: i32 =
+    rts_bevy_runtime::TRNM_RTS_RUNTIME_MAP_HEIGHT_TILES;
+pub const CLASSIC_RTS_LARGE_MAP_MIN_TILE: i32 = rts_bevy_runtime::TRNM_RTS_RUNTIME_MAP_MIN_TILE;
+pub const CLASSIC_RTS_LARGE_MAP_MAX_X: i32 = rts_bevy_runtime::TRNM_RTS_RUNTIME_MAP_MAX_X;
+pub const CLASSIC_RTS_LARGE_MAP_MAX_Y: i32 = rts_bevy_runtime::TRNM_RTS_RUNTIME_MAP_MAX_Y;
 
 fn classic_rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
-    (
-        tile.0
-            .clamp(CLASSIC_RTS_LARGE_MAP_MIN_TILE, CLASSIC_RTS_LARGE_MAP_MAX_X),
-        tile.1
-            .clamp(CLASSIC_RTS_LARGE_MAP_MIN_TILE, CLASSIC_RTS_LARGE_MAP_MAX_Y),
-    )
+    rts_bevy_runtime::rts_large_map_clamp_tile(tile)
+}
+
+fn classic_vec2_from_rts(vec: RtsRuntimeVec2) -> Vec2 {
+    Vec2::new(vec.x, vec.y)
+}
+
+fn classic_vec2_to_rts(vec: Vec2) -> RtsRuntimeVec2 {
+    RtsRuntimeVec2::new(vec.x, vec.y)
 }
 
 fn classic_rts_large_map_tile_to_camera_center(tile: (i32, i32)) -> Vec2 {
-    let tile = classic_rts_large_map_clamp_tile(tile);
-    Vec2::new(
-        (tile.0 - CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_X) as f32
-            * CLASSIC_RTS_LARGE_MAP_TILE_WORLD_W,
-        -((tile.1 - CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_Y) as f32)
-            * CLASSIC_RTS_LARGE_MAP_TILE_WORLD_H,
-    )
+    classic_vec2_from_rts(rts_bevy_runtime::rts_large_map_tile_to_camera_center(tile))
 }
 
 #[cfg(not(target_os = "android"))]
@@ -1467,56 +1416,28 @@ fn classic_rts_minimap_cell_origin(
     cell_h: i32,
     tile: (i32, i32),
 ) -> (i32, i32) {
-    let tile = classic_rts_large_map_clamp_tile(tile);
-    (
-        origin_x + (tile.0 - CLASSIC_RTS_LARGE_MAP_MIN_TILE) * cell_w,
-        origin_y + (tile.1 - CLASSIC_RTS_LARGE_MAP_MIN_TILE) * cell_h,
-    )
+    rts_bevy_runtime::rts_minimap_cell_origin(origin_x, origin_y, cell_w, cell_h, tile)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_large_map_cell_col(tile: (i32, i32)) -> i32 {
-    classic_rts_large_map_clamp_tile(tile).0 - CLASSIC_RTS_LARGE_MAP_MIN_TILE
+    rts_bevy_runtime::rts_large_map_cell_col(tile)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_large_map_cell_row(tile: (i32, i32)) -> i32 {
-    classic_rts_large_map_clamp_tile(tile).1 - CLASSIC_RTS_LARGE_MAP_MIN_TILE
+    rts_bevy_runtime::rts_large_map_cell_row(tile)
 }
 
 pub fn rts_scrollable_map_camera_config() -> RtsScrollableMapCameraConfig {
-    let min_camera = classic_rts_large_map_tile_to_camera_center((
-        CLASSIC_RTS_LARGE_MAP_MIN_TILE,
-        CLASSIC_RTS_LARGE_MAP_MAX_Y,
-    ));
-    let max_camera = classic_rts_large_map_tile_to_camera_center((
-        CLASSIC_RTS_LARGE_MAP_MAX_X,
-        CLASSIC_RTS_LARGE_MAP_MIN_TILE,
-    ));
-    RtsScrollableMapCameraConfig {
-        min_x: min_camera.x,
-        max_x: max_camera.x,
-        min_y: min_camera.y,
-        max_y: max_camera.y,
-        min_zoom: 0.66,
-        max_zoom: 1.85,
-        keyboard_speed: 280.0,
-        edge_speed: 360.0,
-        drag_world_units_per_pixel: 1.15,
-        wheel_zoom_step: 0.12,
-        edge_band_pixels: 24.0,
-    }
+    rts_bevy_runtime::rts_scrollable_map_camera_config()
 }
 
 pub fn clamp_rts_scrollable_map_camera_state(
     state: RtsScrollableMapCameraState,
     config: RtsScrollableMapCameraConfig,
 ) -> RtsScrollableMapCameraState {
-    RtsScrollableMapCameraState {
-        center_x: state.center_x.clamp(config.min_x, config.max_x),
-        center_y: state.center_y.clamp(config.min_y, config.max_y),
-        zoom: state.zoom.clamp(config.min_zoom, config.max_zoom),
-    }
+    rts_bevy_runtime::clamp_rts_scrollable_map_camera_state(state, config)
 }
 
 pub fn apply_rts_scrollable_map_camera_input(
@@ -1527,37 +1448,19 @@ pub fn apply_rts_scrollable_map_camera_input(
     zoom_delta: f32,
     minimap_jump: Option<(&str, Vec2)>,
 ) -> RtsScrollableMapCameraStep {
-    let mut next = state;
-    if let Some((_tile_id, center)) = minimap_jump {
-        next.center_x = center.x;
-        next.center_y = center.y;
-    } else {
-        next.center_x += pan_delta.x;
-        next.center_y += pan_delta.y;
-    }
-    next.zoom += zoom_delta;
-    let clamped_next = clamp_rts_scrollable_map_camera_state(next, config);
-    RtsScrollableMapCameraStep {
-        source: source.to_string(),
-        before: state,
-        after: clamped_next,
-        pan_delta_x: pan_delta.x,
-        pan_delta_y: pan_delta.y,
+    let minimap_jump = minimap_jump.map(|(tile_id, center)| (tile_id, classic_vec2_to_rts(center)));
+    rts_bevy_runtime::apply_rts_scrollable_map_camera_input(
+        source,
+        state,
+        config,
+        classic_vec2_to_rts(pan_delta),
         zoom_delta,
-        clamped: (clamped_next.center_x - next.center_x).abs() > f32::EPSILON
-            || (clamped_next.center_y - next.center_y).abs() > f32::EPSILON
-            || (clamped_next.zoom - next.zoom).abs() > f32::EPSILON,
-        minimap_tile_id: minimap_jump.map(|(tile_id, _)| tile_id.to_string()),
-    }
+        minimap_jump,
+    )
 }
 
 pub fn rts_scrollable_map_camera_focus_tile(state: RtsScrollableMapCameraState) -> (i32, i32) {
-    classic_rts_large_map_clamp_tile((
-        (state.center_x / CLASSIC_RTS_LARGE_MAP_TILE_WORLD_W).round() as i32
-            + CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_X,
-        (-state.center_y / CLASSIC_RTS_LARGE_MAP_TILE_WORLD_H).round() as i32
-            + CLASSIC_RTS_LARGE_MAP_CAMERA_ORIGIN_Y,
-    ))
+    rts_bevy_runtime::rts_scrollable_map_camera_focus_tile(state)
 }
 
 pub fn rts_camera_minimap_viewport_rect(
@@ -1565,38 +1468,11 @@ pub fn rts_camera_minimap_viewport_rect(
     minimap_width: i32,
     minimap_height: i32,
 ) -> RtsCameraMinimapViewportRect {
-    let config = rts_scrollable_map_camera_config();
-    let normalized_x =
-        ((state.center_x - config.min_x) / (config.max_x - config.min_x)).clamp(0.0, 1.0);
-    let normalized_y =
-        ((state.center_y - config.min_y) / (config.max_y - config.min_y)).clamp(0.0, 1.0);
-    let width = ((minimap_width as f32 * 0.28) / state.zoom).round() as i32;
-    let height = ((minimap_height as f32 * 0.34) / state.zoom).round() as i32;
-    let width = width.clamp(18, (minimap_width - 8).max(18));
-    let height = height.clamp(14, (minimap_height - 8).max(14));
-    let max_x = (minimap_width - width).max(0);
-    let max_y = (minimap_height - height).max(0);
-    RtsCameraMinimapViewportRect {
-        x: ((normalized_x * max_x as f32).round() as i32).clamp(0, max_x),
-        y: (((1.0 - normalized_y) * max_y as f32).round() as i32).clamp(0, max_y),
-        width,
-        height,
-    }
+    rts_bevy_runtime::rts_camera_minimap_viewport_rect(state, minimap_width, minimap_height)
 }
 
 pub fn rts_camera_minimap_revealed_tiles(focus_tile: (i32, i32)) -> Vec<String> {
-    let mut tile_ids = Vec::new();
-    for y_delta in -1..=1 {
-        for x_delta in -1..=1 {
-            let (tile_x, tile_y) =
-                classic_rts_large_map_clamp_tile((focus_tile.0 + x_delta, focus_tile.1 + y_delta));
-            let tile_id = format!("{tile_x},{tile_y}");
-            if !tile_ids.contains(&tile_id) {
-                tile_ids.push(tile_id);
-            }
-        }
-    }
-    tile_ids
+    rts_bevy_runtime::rts_camera_minimap_revealed_tiles(focus_tile)
 }
 
 pub fn rts_camera_minimap_selection_follow_step(
@@ -1605,18 +1481,16 @@ pub fn rts_camera_minimap_selection_follow_step(
     selected_unit_id: &str,
     selected_unit_center: Vec2,
 ) -> RtsScrollableMapCameraStep {
-    apply_rts_scrollable_map_camera_input(
+    rts_bevy_runtime::rts_camera_minimap_selection_follow_step(
         source,
         state,
-        rts_scrollable_map_camera_config(),
-        Vec2::ZERO,
-        0.0,
-        Some((selected_unit_id, selected_unit_center)),
+        selected_unit_id,
+        classic_vec2_to_rts(selected_unit_center),
     )
 }
 
 pub fn rts_scrollable_map_viewport_center() -> Vec2 {
-    classic_rts_large_map_tile_to_camera_center((8, 8))
+    classic_vec2_from_rts(rts_bevy_runtime::rts_scrollable_map_viewport_center())
 }
 
 fn is_scrollable_map_surface_role(role: &str) -> bool {
@@ -15304,49 +15178,13 @@ fn classic_draw_rts_camera_minimap_sync_overlay(
 fn classic_rts_command_queue_path_preview_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("command_queue_path_preview:cancel_repath") {
-                return Some("cancel_repath");
-            }
-            if event.contains("command_queue_path_preview:build_reservation") {
-                return Some("build_reservation");
-            }
-            if event.contains("command_queue_path_preview:attack_focus") {
-                return Some("attack_focus");
-            }
-            if event.contains("command_queue_path_preview:rally_chain") {
-                return Some("rally_chain");
-            }
-            if event.contains("command_queue_path_preview:shift_waypoints") {
-                return Some("shift_waypoints");
-            }
-            if event.contains("command_queue_path_preview:queue_stack") {
-                return Some("queue_stack");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("command_queue_path_preview:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "queue_stack",
-            1 => "shift_waypoints",
-            2 => "rally_chain",
-            3 => "attack_focus",
-            4 => "build_reservation",
-            _ => "cancel_repath",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_command_queue_path_preview_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -28886,6 +28724,30 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data player screen layout profile serializes");
     let rts_data_player_screen_chrome_profile = serde_json::to_value(player_screen_chrome)
         .expect("RTS data player screen chrome profile serializes");
+    let rts_runtime_adapter_preview_queue =
+        vec!["command_queue_path_preview:queue_stack".to_string()];
+    let rts_bevy_runtime_adapter_gate = rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_CONTRACT
+        == "trnm_rts_bevy_runtime_adapter_v1"
+        && rts_bevy_runtime::rts_minimap_cell_origin(10, 20, 4, 5, (32, 32)) == (134, 175)
+        && rts_bevy_runtime::rts_command_queue_path_preview_stage(
+            &[],
+            &rts_runtime_adapter_preview_queue,
+            0,
+        ) == Some("queue_stack")
+        && rts_bevy_runtime::rts_runtime_hit_test_grid(
+            RtsRuntimeGridSpec {
+                origin_x: 360,
+                origin_y: 572,
+                columns: 6,
+                count: 12,
+                stride_x: 58,
+                stride_y: 46,
+                slot_width: 48,
+                slot_height: 38,
+            },
+            363,
+            575,
+        ) == Some(0);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -28900,6 +28762,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_player_screen_layout_gate
         && rts_data_player_screen_chrome_gate
         && rts_data_player_screen_gate
+        && rts_bevy_runtime_adapter_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -28955,6 +28818,27 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_player_screen_layout_gate": rts_data_player_screen_layout_gate,
         "rts_data_player_screen_chrome_gate": rts_data_player_screen_chrome_gate,
         "rts_data_player_screen_gate": rts_data_player_screen_gate,
+        "rts_bevy_runtime_adapter_contract": rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+        "rts_bevy_runtime_adapter_gate": rts_bevy_runtime_adapter_gate,
+        "rts_bevy_runtime_minimap_cell_sample": {
+            "x": rts_bevy_runtime::rts_minimap_cell_origin(10, 20, 4, 5, (32, 32)).0,
+            "y": rts_bevy_runtime::rts_minimap_cell_origin(10, 20, 4, 5, (32, 32)).1,
+        },
+        "rts_bevy_runtime_path_preview_sample": rts_bevy_runtime::rts_command_queue_path_preview_stage(&[], &rts_runtime_adapter_preview_queue, 0),
+        "rts_bevy_runtime_command_grid_hit_sample": rts_bevy_runtime::rts_runtime_hit_test_grid(
+            RtsRuntimeGridSpec {
+                origin_x: 360,
+                origin_y: 572,
+                columns: 6,
+                count: 12,
+                stride_x: 58,
+                stride_y: 46,
+                slot_width: 48,
+                slot_height: 38,
+            },
+            363,
+            575,
+        ),
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -83454,17 +83338,26 @@ fn classic_rts_sidebar_action_from_point(
         .as_ref()
         .map(|chrome| chrome.production_slot_column_count.max(1) as usize)
         .unwrap_or(2);
-    for index in 0..production_slot_visible_count {
-        let x = layout.sidebar_x + 12 + (index % production_slot_column_count) as i32 * 116;
-        let y = prod_y + 18 + (index / production_slot_column_count) as i32 * 34;
-        if classic_point_in_rect(mouse_x, mouse_y, x, y, 56, 18) {
-            if matches!(button, MiniMouseButton::Right) {
-                return classic_rts_sidebar_cancel_action(runtime, index);
-            }
-            return Some(NativeControlAction::RtsQueueProduction {
-                queue_id: classic_rts_production_slot_queue_id(runtime, index),
-            });
+    if let Some(index) = rts_bevy_runtime::rts_runtime_hit_test_grid(
+        RtsRuntimeGridSpec {
+            origin_x: layout.sidebar_x + 12,
+            origin_y: prod_y + 18,
+            columns: production_slot_column_count,
+            count: production_slot_visible_count,
+            stride_x: 116,
+            stride_y: 34,
+            slot_width: 56,
+            slot_height: 18,
+        },
+        mouse_x,
+        mouse_y,
+    ) {
+        if matches!(button, MiniMouseButton::Right) {
+            return classic_rts_sidebar_cancel_action(runtime, index);
         }
+        return Some(NativeControlAction::RtsQueueProduction {
+            queue_id: classic_rts_production_slot_queue_id(runtime, index),
+        });
     }
     let palette_y = prod_y + 98;
     let build_palette_visible_count = first_contact_chrome
@@ -83475,17 +83368,26 @@ fn classic_rts_sidebar_action_from_point(
         .as_ref()
         .map(|chrome| chrome.build_palette_column_count.max(1) as usize)
         .unwrap_or(4);
-    for index in 0..build_palette_visible_count {
-        let x = layout.sidebar_x + 12 + (index % build_palette_column_count) as i32 * 58;
-        let y = palette_y + 18 + (index / build_palette_column_count) as i32 * 46;
-        if classic_point_in_rect(mouse_x, mouse_y, x, y, 46, 36) {
-            let queue_id =
-                classic_rts_build_palette_queue_id_for_index(first_contact_chrome.as_ref(), index);
-            if matches!(button, MiniMouseButton::Right) {
-                return classic_rts_palette_cancel_action(runtime, &queue_id);
-            }
-            return Some(NativeControlAction::RtsQueueProduction { queue_id });
+    if let Some(index) = rts_bevy_runtime::rts_runtime_hit_test_grid(
+        RtsRuntimeGridSpec {
+            origin_x: layout.sidebar_x + 12,
+            origin_y: palette_y + 18,
+            columns: build_palette_column_count,
+            count: build_palette_visible_count,
+            stride_x: 58,
+            stride_y: 46,
+            slot_width: 46,
+            slot_height: 36,
+        },
+        mouse_x,
+        mouse_y,
+    ) {
+        let queue_id =
+            classic_rts_build_palette_queue_id_for_index(first_contact_chrome.as_ref(), index);
+        if matches!(button, MiniMouseButton::Right) {
+            return classic_rts_palette_cancel_action(runtime, &queue_id);
         }
+        return Some(NativeControlAction::RtsQueueProduction { queue_id });
     }
     None
 }
@@ -83511,19 +83413,25 @@ fn classic_rts_bottom_action_from_point(
         .as_ref()
         .map(|chrome| chrome.command_grid_column_count.max(1) as usize)
         .unwrap_or(6);
-    for index in 0..command_grid_slot_count {
-        let x = command_x + (index % command_grid_column_count) as i32 * 58;
-        let y = layout.bottom_y + 30 + (index / command_grid_column_count) as i32 * 46;
-        if classic_point_in_rect(mouse_x, mouse_y, x, y, 48, 38) {
-            let ability = classic_rts_command_slot_id_for_index(
-                runtime,
-                first_contact_chrome.as_ref(),
-                index,
-            );
-            return Some(NativeControlAction::RtsAbilityCommand {
-                ability_id: ability,
-            });
-        }
+    if let Some(index) = rts_bevy_runtime::rts_runtime_hit_test_grid(
+        RtsRuntimeGridSpec {
+            origin_x: command_x,
+            origin_y: layout.bottom_y + 30,
+            columns: command_grid_column_count,
+            count: command_grid_slot_count,
+            stride_x: 58,
+            stride_y: 46,
+            slot_width: 48,
+            slot_height: 38,
+        },
+        mouse_x,
+        mouse_y,
+    ) {
+        let ability =
+            classic_rts_command_slot_id_for_index(runtime, first_contact_chrome.as_ref(), index);
+        return Some(NativeControlAction::RtsAbilityCommand {
+            ability_id: ability,
+        });
     }
     let queue_x = command_x + 374;
     let order_queue_visible_count = first_contact_chrome
@@ -83562,20 +83470,29 @@ fn classic_rts_sidebar_hover_preview_from_point(
         .as_ref()
         .map(|chrome| chrome.production_slot_column_count.max(1) as usize)
         .unwrap_or(2);
-    for index in 0..production_slot_visible_count {
-        let x = layout.sidebar_x + 12 + (index % production_slot_column_count) as i32 * 116;
-        let y = prod_y + 18 + (index / production_slot_column_count) as i32 * 34;
-        if classic_point_in_rect(mouse_x, mouse_y, x, y, 56, 18) {
-            let queue_id = classic_rts_production_slot_queue_id(runtime, index);
-            return Some(classic_rts_hover_preview_from_action(
-                runtime,
-                "classic_rts_mouse_sidebar",
-                None,
-                Some(queue_id.clone()),
-                "sidebar_queue",
-                NativeControlAction::RtsQueueProduction { queue_id },
-            ));
-        }
+    if let Some(index) = rts_bevy_runtime::rts_runtime_hit_test_grid(
+        RtsRuntimeGridSpec {
+            origin_x: layout.sidebar_x + 12,
+            origin_y: prod_y + 18,
+            columns: production_slot_column_count,
+            count: production_slot_visible_count,
+            stride_x: 116,
+            stride_y: 34,
+            slot_width: 56,
+            slot_height: 18,
+        },
+        mouse_x,
+        mouse_y,
+    ) {
+        let queue_id = classic_rts_production_slot_queue_id(runtime, index);
+        return Some(classic_rts_hover_preview_from_action(
+            runtime,
+            "classic_rts_mouse_sidebar",
+            None,
+            Some(queue_id.clone()),
+            "sidebar_queue",
+            NativeControlAction::RtsQueueProduction { queue_id },
+        ));
     }
     let palette_y = prod_y + 98;
     let build_palette_visible_count = first_contact_chrome
@@ -83586,21 +83503,30 @@ fn classic_rts_sidebar_hover_preview_from_point(
         .as_ref()
         .map(|chrome| chrome.build_palette_column_count.max(1) as usize)
         .unwrap_or(4);
-    for index in 0..build_palette_visible_count {
-        let x = layout.sidebar_x + 12 + (index % build_palette_column_count) as i32 * 58;
-        let y = palette_y + 18 + (index / build_palette_column_count) as i32 * 46;
-        if classic_point_in_rect(mouse_x, mouse_y, x, y, 46, 36) {
-            let queue_id =
-                classic_rts_build_palette_queue_id_for_index(first_contact_chrome.as_ref(), index);
-            return Some(classic_rts_hover_preview_from_action(
-                runtime,
-                "classic_rts_mouse_sidebar",
-                None,
-                Some(queue_id.clone()),
-                "build_palette",
-                NativeControlAction::RtsQueueProduction { queue_id },
-            ));
-        }
+    if let Some(index) = rts_bevy_runtime::rts_runtime_hit_test_grid(
+        RtsRuntimeGridSpec {
+            origin_x: layout.sidebar_x + 12,
+            origin_y: palette_y + 18,
+            columns: build_palette_column_count,
+            count: build_palette_visible_count,
+            stride_x: 58,
+            stride_y: 46,
+            slot_width: 46,
+            slot_height: 36,
+        },
+        mouse_x,
+        mouse_y,
+    ) {
+        let queue_id =
+            classic_rts_build_palette_queue_id_for_index(first_contact_chrome.as_ref(), index);
+        return Some(classic_rts_hover_preview_from_action(
+            runtime,
+            "classic_rts_mouse_sidebar",
+            None,
+            Some(queue_id.clone()),
+            "build_palette",
+            NativeControlAction::RtsQueueProduction { queue_id },
+        ));
     }
     None
 }
@@ -83622,24 +83548,30 @@ fn classic_rts_bottom_hover_preview_from_point(
         .as_ref()
         .map(|chrome| chrome.command_grid_column_count.max(1) as usize)
         .unwrap_or(6);
-    for index in 0..command_grid_slot_count {
-        let x = command_x + (index % command_grid_column_count) as i32 * 58;
-        let y = layout.bottom_y + 30 + (index / command_grid_column_count) as i32 * 46;
-        if classic_point_in_rect(mouse_x, mouse_y, x, y, 48, 38) {
-            let ability_id = classic_rts_command_slot_id_for_index(
-                runtime,
-                first_contact_chrome.as_ref(),
-                index,
-            );
-            return Some(classic_rts_hover_preview_from_action(
-                runtime,
-                "classic_rts_mouse_command_bar",
-                None,
-                None,
-                "command_button",
-                NativeControlAction::RtsAbilityCommand { ability_id },
-            ));
-        }
+    if let Some(index) = rts_bevy_runtime::rts_runtime_hit_test_grid(
+        RtsRuntimeGridSpec {
+            origin_x: command_x,
+            origin_y: layout.bottom_y + 30,
+            columns: command_grid_column_count,
+            count: command_grid_slot_count,
+            stride_x: 58,
+            stride_y: 46,
+            slot_width: 48,
+            slot_height: 38,
+        },
+        mouse_x,
+        mouse_y,
+    ) {
+        let ability_id =
+            classic_rts_command_slot_id_for_index(runtime, first_contact_chrome.as_ref(), index);
+        return Some(classic_rts_hover_preview_from_action(
+            runtime,
+            "classic_rts_mouse_command_bar",
+            None,
+            None,
+            "command_button",
+            NativeControlAction::RtsAbilityCommand { ability_id },
+        ));
     }
     let queue_x = command_x + 374;
     let order_queue_visible_count = first_contact_chrome
@@ -141690,22 +141622,15 @@ fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {
 }
 
 fn classic_rts_move_follow_target(formation: &str) -> Option<&str> {
-    formation
-        .strip_prefix("follow:")
-        .map(str::trim)
-        .filter(|target_id| !target_id.is_empty())
+    rts_bevy_runtime::rts_move_follow_target(formation)
 }
 
 fn classic_rts_move_formation_kind(formation: &str) -> &str {
-    if classic_rts_move_follow_target(formation).is_some() {
-        "follow"
-    } else {
-        formation
-    }
+    rts_bevy_runtime::rts_move_formation_kind(formation)
 }
 
 fn classic_rts_tile_id(tile: (i32, i32)) -> String {
-    format!("{},{}", tile.0, tile.1)
+    rts_bevy_runtime::rts_runtime_tile_id(tile)
 }
 
 fn classic_rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
@@ -141724,46 +141649,22 @@ fn classic_rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String
 }
 
 fn classic_rts_path_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
-    if destination_tile == (8, 4) {
-        string_vec(["6,5", "7,5", "8,4"])
-    } else if destination_tile == (9, 2) {
-        string_vec(["6,5", "7,4", "8,3", "9,2"])
-    } else {
-        classic_rts_line_path_tiles((5, 5), destination_tile)
-    }
+    rts_bevy_runtime::rts_path_tiles_for_destination(destination_tile)
 }
 
 fn classic_rts_blocked_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
-    if destination_tile == (8, 4) {
-        string_vec(["7,4"])
-    } else {
-        Vec::new()
-    }
+    rts_bevy_runtime::rts_blocked_tiles_for_destination(destination_tile)
 }
 
 fn classic_rts_formation_slots_for_destination(
     destination_tile: (i32, i32),
     formation: &str,
 ) -> Vec<String> {
-    let (x, y) = destination_tile;
-    let slots = match formation {
-        "line" => [(x - 1, y), (x, y), (x + 1, y), (x + 2, y)],
-        "rally" => [(x - 1, y + 1), (x, y), (x + 1, y), (x, y + 1)],
-        "split" => [(x - 1, y), (x + 1, y), (x - 1, y + 1), (x + 1, y + 1)],
-        "wedge" => [(x, y), (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)],
-        _ => [(x, y), (x - 1, y), (x, y + 1), (x + 1, y)],
-    };
-    slots.into_iter().map(classic_rts_tile_id).collect()
+    rts_bevy_runtime::rts_formation_slots_for_destination(destination_tile, formation)
 }
 
 fn classic_rts_disperse_slots_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
-    if destination_tile == (8, 4) {
-        string_vec(["6,5", "7,5", "8,4", "8,5"])
-    } else if destination_tile == (6, 5) {
-        string_vec(["5,5", "6,4", "6,6", "7,5"])
-    } else {
-        Vec::new()
-    }
+    rts_bevy_runtime::rts_disperse_slots_for_destination(destination_tile)
 }
 
 fn classic_rts_engagement_tiles_for_target(target_id: &str) -> Vec<String> {

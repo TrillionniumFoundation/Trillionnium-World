@@ -1,0 +1,532 @@
+//! Bevy-free RTS runtime adapter math for camera, minimap, path preview, and UI hit tests.
+//!
+//! This crate is intentionally small: it owns deterministic adapter calculations while
+//! `trnm-world-bevy` keeps renderer colors, pixels, assets, and Bevy integration.
+
+use serde::{Deserialize, Serialize};
+
+pub const TRNM_RTS_BEVY_RUNTIME_CONTRACT: &str = "trnm_rts_bevy_runtime_adapter_v1";
+
+pub const TRNM_RTS_RUNTIME_MAP_WIDTH_TILES: i32 = 34;
+pub const TRNM_RTS_RUNTIME_MAP_HEIGHT_TILES: i32 = 34;
+pub const TRNM_RTS_RUNTIME_MAP_MIN_TILE: i32 = 1;
+pub const TRNM_RTS_RUNTIME_MAP_MAX_X: i32 = 32;
+pub const TRNM_RTS_RUNTIME_MAP_MAX_Y: i32 = 32;
+pub const TRNM_RTS_RUNTIME_CAMERA_ORIGIN_X: i32 = 17;
+pub const TRNM_RTS_RUNTIME_CAMERA_ORIGIN_Y: i32 = 17;
+pub const TRNM_RTS_RUNTIME_TILE_WORLD_W: f32 = 72.0;
+pub const TRNM_RTS_RUNTIME_TILE_WORLD_H: f32 = 48.0;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct RtsRuntimeVec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl RtsRuntimeVec2 {
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+
+    pub const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RtsScrollableMapCameraState {
+    pub center_x: f32,
+    pub center_y: f32,
+    pub zoom: f32,
+}
+
+impl Default for RtsScrollableMapCameraState {
+    fn default() -> Self {
+        Self {
+            center_x: 0.0,
+            center_y: 0.0,
+            zoom: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RtsScrollableMapCameraConfig {
+    pub min_x: f32,
+    pub max_x: f32,
+    pub min_y: f32,
+    pub max_y: f32,
+    pub min_zoom: f32,
+    pub max_zoom: f32,
+    pub keyboard_speed: f32,
+    pub edge_speed: f32,
+    pub drag_world_units_per_pixel: f32,
+    pub wheel_zoom_step: f32,
+    pub edge_band_pixels: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RtsScrollableMapCameraStep {
+    pub source: String,
+    pub before: RtsScrollableMapCameraState,
+    pub after: RtsScrollableMapCameraState,
+    pub pan_delta_x: f32,
+    pub pan_delta_y: f32,
+    pub zoom_delta: f32,
+    pub clamped: bool,
+    pub minimap_tile_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsCameraMinimapViewportRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsRuntimeRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsRuntimeGridSpec {
+    pub origin_x: i32,
+    pub origin_y: i32,
+    pub columns: usize,
+    pub count: usize,
+    pub stride_x: i32,
+    pub stride_y: i32,
+    pub slot_width: i32,
+    pub slot_height: i32,
+}
+
+pub fn rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
+    (
+        tile.0
+            .clamp(TRNM_RTS_RUNTIME_MAP_MIN_TILE, TRNM_RTS_RUNTIME_MAP_MAX_X),
+        tile.1
+            .clamp(TRNM_RTS_RUNTIME_MAP_MIN_TILE, TRNM_RTS_RUNTIME_MAP_MAX_Y),
+    )
+}
+
+pub fn rts_large_map_tile_to_camera_center(tile: (i32, i32)) -> RtsRuntimeVec2 {
+    let tile = rts_large_map_clamp_tile(tile);
+    RtsRuntimeVec2::new(
+        (tile.0 - TRNM_RTS_RUNTIME_CAMERA_ORIGIN_X) as f32 * TRNM_RTS_RUNTIME_TILE_WORLD_W,
+        -((tile.1 - TRNM_RTS_RUNTIME_CAMERA_ORIGIN_Y) as f32) * TRNM_RTS_RUNTIME_TILE_WORLD_H,
+    )
+}
+
+pub fn rts_minimap_cell_origin(
+    origin_x: i32,
+    origin_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+) -> (i32, i32) {
+    let tile = rts_large_map_clamp_tile(tile);
+    (
+        origin_x + (tile.0 - TRNM_RTS_RUNTIME_MAP_MIN_TILE) * cell_w,
+        origin_y + (tile.1 - TRNM_RTS_RUNTIME_MAP_MIN_TILE) * cell_h,
+    )
+}
+
+pub fn rts_large_map_cell_col(tile: (i32, i32)) -> i32 {
+    rts_large_map_clamp_tile(tile).0 - TRNM_RTS_RUNTIME_MAP_MIN_TILE
+}
+
+pub fn rts_large_map_cell_row(tile: (i32, i32)) -> i32 {
+    rts_large_map_clamp_tile(tile).1 - TRNM_RTS_RUNTIME_MAP_MIN_TILE
+}
+
+pub fn rts_scrollable_map_camera_config() -> RtsScrollableMapCameraConfig {
+    let min_camera = rts_large_map_tile_to_camera_center((
+        TRNM_RTS_RUNTIME_MAP_MIN_TILE,
+        TRNM_RTS_RUNTIME_MAP_MAX_Y,
+    ));
+    let max_camera = rts_large_map_tile_to_camera_center((
+        TRNM_RTS_RUNTIME_MAP_MAX_X,
+        TRNM_RTS_RUNTIME_MAP_MIN_TILE,
+    ));
+    RtsScrollableMapCameraConfig {
+        min_x: min_camera.x,
+        max_x: max_camera.x,
+        min_y: min_camera.y,
+        max_y: max_camera.y,
+        min_zoom: 0.66,
+        max_zoom: 1.85,
+        keyboard_speed: 280.0,
+        edge_speed: 360.0,
+        drag_world_units_per_pixel: 1.15,
+        wheel_zoom_step: 0.12,
+        edge_band_pixels: 24.0,
+    }
+}
+
+pub fn clamp_rts_scrollable_map_camera_state(
+    state: RtsScrollableMapCameraState,
+    config: RtsScrollableMapCameraConfig,
+) -> RtsScrollableMapCameraState {
+    RtsScrollableMapCameraState {
+        center_x: state.center_x.clamp(config.min_x, config.max_x),
+        center_y: state.center_y.clamp(config.min_y, config.max_y),
+        zoom: state.zoom.clamp(config.min_zoom, config.max_zoom),
+    }
+}
+
+pub fn apply_rts_scrollable_map_camera_input(
+    source: &str,
+    state: RtsScrollableMapCameraState,
+    config: RtsScrollableMapCameraConfig,
+    pan_delta: RtsRuntimeVec2,
+    zoom_delta: f32,
+    minimap_jump: Option<(&str, RtsRuntimeVec2)>,
+) -> RtsScrollableMapCameraStep {
+    let mut next = state;
+    if let Some((_tile_id, center)) = minimap_jump {
+        next.center_x = center.x;
+        next.center_y = center.y;
+    } else {
+        next.center_x += pan_delta.x;
+        next.center_y += pan_delta.y;
+    }
+    next.zoom += zoom_delta;
+    let clamped_next = clamp_rts_scrollable_map_camera_state(next, config);
+    RtsScrollableMapCameraStep {
+        source: source.to_string(),
+        before: state,
+        after: clamped_next,
+        pan_delta_x: pan_delta.x,
+        pan_delta_y: pan_delta.y,
+        zoom_delta,
+        clamped: (clamped_next.center_x - next.center_x).abs() > f32::EPSILON
+            || (clamped_next.center_y - next.center_y).abs() > f32::EPSILON
+            || (clamped_next.zoom - next.zoom).abs() > f32::EPSILON,
+        minimap_tile_id: minimap_jump.map(|(tile_id, _)| tile_id.to_string()),
+    }
+}
+
+pub fn rts_scrollable_map_camera_focus_tile(state: RtsScrollableMapCameraState) -> (i32, i32) {
+    rts_large_map_clamp_tile((
+        (state.center_x / TRNM_RTS_RUNTIME_TILE_WORLD_W).round() as i32
+            + TRNM_RTS_RUNTIME_CAMERA_ORIGIN_X,
+        (-state.center_y / TRNM_RTS_RUNTIME_TILE_WORLD_H).round() as i32
+            + TRNM_RTS_RUNTIME_CAMERA_ORIGIN_Y,
+    ))
+}
+
+pub fn rts_camera_minimap_viewport_rect(
+    state: RtsScrollableMapCameraState,
+    minimap_width: i32,
+    minimap_height: i32,
+) -> RtsCameraMinimapViewportRect {
+    let config = rts_scrollable_map_camera_config();
+    let normalized_x =
+        ((state.center_x - config.min_x) / (config.max_x - config.min_x)).clamp(0.0, 1.0);
+    let normalized_y =
+        ((state.center_y - config.min_y) / (config.max_y - config.min_y)).clamp(0.0, 1.0);
+    let width = ((minimap_width as f32 * 0.28) / state.zoom).round() as i32;
+    let height = ((minimap_height as f32 * 0.34) / state.zoom).round() as i32;
+    let width = width.clamp(18, (minimap_width - 8).max(18));
+    let height = height.clamp(14, (minimap_height - 8).max(14));
+    let max_x = (minimap_width - width).max(0);
+    let max_y = (minimap_height - height).max(0);
+    RtsCameraMinimapViewportRect {
+        x: ((normalized_x * max_x as f32).round() as i32).clamp(0, max_x),
+        y: (((1.0 - normalized_y) * max_y as f32).round() as i32).clamp(0, max_y),
+        width,
+        height,
+    }
+}
+
+pub fn rts_camera_minimap_revealed_tiles(focus_tile: (i32, i32)) -> Vec<String> {
+    let mut tile_ids = Vec::new();
+    for y_delta in -1..=1 {
+        for x_delta in -1..=1 {
+            let (tile_x, tile_y) =
+                rts_large_map_clamp_tile((focus_tile.0 + x_delta, focus_tile.1 + y_delta));
+            let tile_id = rts_runtime_tile_id((tile_x, tile_y));
+            if !tile_ids.contains(&tile_id) {
+                tile_ids.push(tile_id);
+            }
+        }
+    }
+    tile_ids
+}
+
+pub fn rts_camera_minimap_selection_follow_step(
+    source: &str,
+    state: RtsScrollableMapCameraState,
+    selected_unit_id: &str,
+    selected_unit_center: RtsRuntimeVec2,
+) -> RtsScrollableMapCameraStep {
+    apply_rts_scrollable_map_camera_input(
+        source,
+        state,
+        rts_scrollable_map_camera_config(),
+        RtsRuntimeVec2::ZERO,
+        0.0,
+        Some((selected_unit_id, selected_unit_center)),
+    )
+}
+
+pub fn rts_scrollable_map_viewport_center() -> RtsRuntimeVec2 {
+    rts_large_map_tile_to_camera_center((8, 8))
+}
+
+pub fn rts_runtime_tile_id(tile: (i32, i32)) -> String {
+    format!("{},{}", tile.0, tile.1)
+}
+
+fn rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    let dx = end.0 - start.0;
+    let dy = end.1 - start.1;
+    let steps = dx.abs().max(dy.abs()).max(1);
+    let mut tiles = Vec::new();
+    for step in 1..=steps {
+        let tile = (start.0 + (dx * step) / steps, start.1 + (dy * step) / steps);
+        let tile_id = rts_runtime_tile_id(tile);
+        if tiles.last() != Some(&tile_id) {
+            tiles.push(tile_id);
+        }
+    }
+    tiles
+}
+
+pub fn rts_move_follow_target(formation: &str) -> Option<&str> {
+    formation
+        .strip_prefix("follow:")
+        .map(str::trim)
+        .filter(|target_id| !target_id.is_empty())
+}
+
+pub fn rts_move_formation_kind(formation: &str) -> &str {
+    if rts_move_follow_target(formation).is_some() {
+        "follow"
+    } else {
+        formation
+    }
+}
+
+pub fn rts_path_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
+    if destination_tile == (8, 4) {
+        vec!["6,5".to_string(), "7,5".to_string(), "8,4".to_string()]
+    } else if destination_tile == (9, 2) {
+        vec![
+            "6,5".to_string(),
+            "7,4".to_string(),
+            "8,3".to_string(),
+            "9,2".to_string(),
+        ]
+    } else {
+        rts_line_path_tiles((5, 5), destination_tile)
+    }
+}
+
+pub fn rts_blocked_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
+    if destination_tile == (8, 4) {
+        vec!["7,4".to_string()]
+    } else {
+        Vec::new()
+    }
+}
+
+pub fn rts_formation_slots_for_destination(
+    destination_tile: (i32, i32),
+    formation: &str,
+) -> Vec<String> {
+    let (x, y) = destination_tile;
+    let slots = match formation {
+        "line" => [(x - 1, y), (x, y), (x + 1, y), (x + 2, y)],
+        "rally" => [(x - 1, y + 1), (x, y), (x + 1, y), (x, y + 1)],
+        "split" => [(x - 1, y), (x + 1, y), (x - 1, y + 1), (x + 1, y + 1)],
+        "wedge" => [(x, y), (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)],
+        _ => [(x, y), (x - 1, y), (x, y + 1), (x + 1, y)],
+    };
+    slots.into_iter().map(rts_runtime_tile_id).collect()
+}
+
+pub fn rts_disperse_slots_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
+    if destination_tile == (8, 4) {
+        vec![
+            "6,5".to_string(),
+            "7,5".to_string(),
+            "8,4".to_string(),
+            "8,5".to_string(),
+        ]
+    } else if destination_tile == (6, 5) {
+        vec![
+            "5,5".to_string(),
+            "6,4".to_string(),
+            "6,6".to_string(),
+            "7,5".to_string(),
+        ]
+    } else {
+        Vec::new()
+    }
+}
+
+pub fn rts_command_queue_path_preview_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev().chain(command_queue.iter().rev()) {
+        if event.contains("command_queue_path_preview:cancel_repath") {
+            return Some("cancel_repath");
+        }
+        if event.contains("command_queue_path_preview:build_reservation") {
+            return Some("build_reservation");
+        }
+        if event.contains("command_queue_path_preview:attack_focus") {
+            return Some("attack_focus");
+        }
+        if event.contains("command_queue_path_preview:rally_chain") {
+            return Some("rally_chain");
+        }
+        if event.contains("command_queue_path_preview:shift_waypoints") {
+            return Some("shift_waypoints");
+        }
+        if event.contains("command_queue_path_preview:queue_stack") {
+            return Some("queue_stack");
+        }
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("command_queue_path_preview:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "queue_stack",
+        1 => "shift_waypoints",
+        2 => "rally_chain",
+        3 => "attack_focus",
+        4 => "build_reservation",
+        _ => "cancel_repath",
+    })
+}
+
+pub fn rts_runtime_point_in_rect(mouse_x: i32, mouse_y: i32, rect: RtsRuntimeRect) -> bool {
+    mouse_x >= rect.x
+        && mouse_x < rect.x + rect.width
+        && mouse_y >= rect.y
+        && mouse_y < rect.y + rect.height
+}
+
+pub fn rts_runtime_grid_slot_rect(
+    spec: RtsRuntimeGridSpec,
+    index: usize,
+) -> Option<RtsRuntimeRect> {
+    if spec.count == 0 || spec.columns == 0 || index >= spec.count {
+        return None;
+    }
+    Some(RtsRuntimeRect {
+        x: spec.origin_x + (index % spec.columns) as i32 * spec.stride_x,
+        y: spec.origin_y + (index / spec.columns) as i32 * spec.stride_y,
+        width: spec.slot_width,
+        height: spec.slot_height,
+    })
+}
+
+pub fn rts_runtime_hit_test_grid(
+    spec: RtsRuntimeGridSpec,
+    mouse_x: i32,
+    mouse_y: i32,
+) -> Option<usize> {
+    (0..spec.count).find(|index| {
+        rts_runtime_grid_slot_rect(spec, *index)
+            .is_some_and(|rect| rts_runtime_point_in_rect(mouse_x, mouse_y, rect))
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn camera_adapter_clamps_focus_and_projects_minimap() {
+        let config = rts_scrollable_map_camera_config();
+        let start = RtsScrollableMapCameraState::default();
+        let step = apply_rts_scrollable_map_camera_input(
+            "shift_keyboard_pan",
+            start,
+            config,
+            RtsRuntimeVec2::new(200.0, -120.0),
+            0.35,
+            None,
+        );
+
+        assert_eq!(step.source, "shift_keyboard_pan");
+        assert!(step.after.zoom > start.zoom);
+        let focus = rts_scrollable_map_camera_focus_tile(step.after);
+        assert!(focus.0 >= TRNM_RTS_RUNTIME_MAP_MIN_TILE);
+        assert!(focus.1 >= TRNM_RTS_RUNTIME_MAP_MIN_TILE);
+
+        let viewport = rts_camera_minimap_viewport_rect(step.after, 150, 106);
+        assert!(viewport.width >= 18);
+        assert!(viewport.height >= 14);
+        assert!(viewport.x >= 0);
+        assert!(viewport.y >= 0);
+    }
+
+    #[test]
+    fn minimap_grid_and_hit_tests_are_deterministic() {
+        assert_eq!(rts_minimap_cell_origin(10, 20, 4, 5, (1, 1)), (10, 20));
+        assert_eq!(rts_minimap_cell_origin(10, 20, 4, 5, (32, 32)), (134, 175));
+        assert_eq!(rts_large_map_cell_col((32, 10)), 31);
+        assert_eq!(rts_large_map_cell_row((8, 32)), 31);
+
+        let spec = RtsRuntimeGridSpec {
+            origin_x: 360,
+            origin_y: 572,
+            columns: 6,
+            count: 12,
+            stride_x: 58,
+            stride_y: 46,
+            slot_width: 48,
+            slot_height: 38,
+        };
+        assert_eq!(rts_runtime_hit_test_grid(spec, 363, 575), Some(0));
+        assert_eq!(
+            rts_runtime_hit_test_grid(spec, 360 + 58 * 5 + 8, 575),
+            Some(5)
+        );
+        assert_eq!(rts_runtime_hit_test_grid(spec, 999, 575), None);
+    }
+
+    #[test]
+    fn path_preview_adapter_preserves_command_semantics() {
+        assert_eq!(
+            rts_move_follow_target("follow:worker_alpha"),
+            Some("worker_alpha")
+        );
+        assert_eq!(rts_move_formation_kind("follow:worker_alpha"), "follow");
+        assert_eq!(
+            rts_path_tiles_for_destination((8, 4)),
+            vec!["6,5", "7,5", "8,4"]
+        );
+        assert_eq!(rts_blocked_tiles_for_destination((8, 4)), vec!["7,4"]);
+        assert_eq!(
+            rts_formation_slots_for_destination((8, 4), "rally"),
+            vec!["7,5", "8,4", "9,4", "8,5"]
+        );
+        assert_eq!(
+            rts_disperse_slots_for_destination((6, 5)),
+            vec!["5,5", "6,4", "6,6", "7,5"]
+        );
+
+        let command_queue = vec!["command_queue_path_preview:shift_waypoints".to_string()];
+        assert_eq!(
+            rts_command_queue_path_preview_stage(&[], &command_queue, 5),
+            Some("shift_waypoints")
+        );
+        assert_eq!(
+            rts_command_queue_path_preview_stage(&[], &["other".to_string()], 0),
+            None
+        );
+    }
+}
