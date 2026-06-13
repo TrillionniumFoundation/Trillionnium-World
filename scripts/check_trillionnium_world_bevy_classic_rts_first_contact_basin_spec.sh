@@ -139,6 +139,8 @@ jq -e '
   and (.rts_data_player_screen_chrome_profile.selection_card_frame_ids | length) == 5
   and (.rts_data_player_screen_chrome_profile.selection_card_frame_ids | index("actor_player_idle_south") != null)
   and (.rts_data_player_screen_chrome_profile.selection_card_frame_ids | index("prop_banner") != null)
+  and .rts_data_player_screen_chrome_profile.selection_card_health_fallback_percent == 80
+  and .rts_data_player_screen_chrome_profile.selection_feedback_label_max_chars == 62
   and .rts_data_player_screen_chrome_profile.command_panel_title == "COMMANDS"
   and .rts_data_player_screen_chrome_profile.command_grid_slot_count == 12
   and .rts_data_player_screen_chrome_profile.command_grid_column_count == 6

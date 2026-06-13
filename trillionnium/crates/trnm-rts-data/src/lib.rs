@@ -543,6 +543,8 @@ pub struct RtsFirstContactPlayerScreenChromeProfile {
     pub selection_panel_title: String,
     pub selection_card_visible_count: u8,
     pub selection_card_frame_ids: Vec<String>,
+    pub selection_card_health_fallback_percent: u8,
+    pub selection_feedback_label_max_chars: u8,
     pub command_panel_title: String,
     pub command_grid_slot_count: u8,
     pub command_grid_column_count: u8,
@@ -2015,6 +2017,8 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
                 "actor_enemy_idle".to_string(),
                 "prop_banner".to_string(),
             ],
+            selection_card_health_fallback_percent: 80,
+            selection_feedback_label_max_chars: 62,
             command_panel_title: "COMMANDS".to_string(),
             command_grid_slot_count: 12,
             command_grid_column_count: 6,
@@ -2519,6 +2523,8 @@ mod tests {
             "actor_player_idle_south"
         );
         assert_eq!(profile.chrome.selection_card_frame_ids[4], "prop_banner");
+        assert_eq!(profile.chrome.selection_card_health_fallback_percent, 80);
+        assert_eq!(profile.chrome.selection_feedback_label_max_chars, 62);
         assert_eq!(profile.chrome.command_panel_title, "COMMANDS");
         assert_eq!(profile.chrome.command_grid_slot_count, 12);
         assert_eq!(profile.chrome.command_grid_column_count, 6);

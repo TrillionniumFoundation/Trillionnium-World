@@ -28724,6 +28724,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .selection_card_frame_ids
             .iter()
             .any(|frame| frame == "prop_banner")
+        && player_screen_chrome.selection_card_health_fallback_percent == 80
+        && player_screen_chrome.selection_feedback_label_max_chars == 62
         && player_screen_chrome.command_panel_title == "COMMANDS"
         && player_screen_chrome.command_grid_slot_count == 12
         && player_screen_chrome.command_grid_column_count == 6
@@ -107663,6 +107665,10 @@ fn classic_draw_openra_style_rts_shell(
         .as_ref()
         .map(|chrome| chrome.selection_card_frame_ids.as_slice())
         .unwrap_or(&[]);
+    let selection_card_health_fallback_percent = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| chrome.selection_card_health_fallback_percent.min(100))
+        .unwrap_or(80);
     for index in 0..selected_units.len().min(selection_card_visible_count) {
         let x = 20 + index as i32 * 58;
         let y = bottom_y + 30;
@@ -107691,7 +107697,7 @@ fn classic_draw_openra_style_rts_shell(
             .rts_unit_health_percents
             .get(index)
             .copied()
-            .unwrap_or(80);
+            .unwrap_or(selection_card_health_fallback_percent);
         classic_draw_rect(buffer, width, height, x + 6, y + 45, 36, 4, 0x26331f);
         classic_draw_rect(
             buffer,
@@ -107732,7 +107738,13 @@ fn classic_draw_openra_style_rts_shell(
         height,
         20,
         bottom_y + 112,
-        &classic_catalog_text_label(&runtime.last_feedback, 62),
+        &classic_catalog_text_label(
+            &runtime.last_feedback,
+            first_contact_player_chrome
+                .as_ref()
+                .map(|chrome| usize::from(chrome.selection_feedback_label_max_chars.max(1)))
+                .unwrap_or(62),
+        ),
         1,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
