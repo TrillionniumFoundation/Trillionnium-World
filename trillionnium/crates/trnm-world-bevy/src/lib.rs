@@ -141979,23 +141979,11 @@ fn classic_rts_commander_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_commander_aura_tiles_for_id(commander_id: &str) -> Vec<String> {
-    if commander_id == "mirror_captain" {
-        string_vec(["6,5", "7,4", "8,4", "9,3", "10,3"])
-    } else {
-        string_vec(["5,5", "6,5", "7,4"])
-    }
+    rts_bevy_runtime::rts_commander_aura_tiles_for_id(commander_id)
 }
 
 fn classic_rts_loot_items_for_id(source_id: &str) -> Vec<String> {
-    if source_id == "enemy_barracks" {
-        string_vec([
-            "barracks_map_cache",
-            "field_banner_relic",
-            "repair_kit_crate",
-        ])
-    } else {
-        vec![format!("{source_id}_field_cache")]
-    }
+    rts_bevy_runtime::rts_loot_items_for_id(source_id)
 }
 
 fn classic_rts_expansion_parts(command: &str) -> (String, String, String) {
@@ -142005,63 +141993,23 @@ fn classic_rts_expansion_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_expansion_tiles_for_id(expansion_id: &str, tile_id: &str) -> Vec<String> {
-    if expansion_id == "forest_relay" {
-        string_vec(["8,2", "9,2", "10,2", "9,3", "10,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((9, 2));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0 + 1, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_expansion_tiles_for_id(expansion_id, tile_id)
 }
 
 fn classic_rts_expansion_structure_tile_for_id(structure_id: &str) -> (i32, i32) {
-    match structure_id {
-        "relay_outpost" => (9, 2),
-        "relay_foundry" => (9, 2),
-        "relay_storehouse" => (10, 2),
-        "watch_lantern" => (8, 3),
-        _ => (9, 2),
-    }
+    rts_bevy_runtime::rts_expansion_structure_tile_for_id(structure_id)
 }
 
 fn classic_rts_expansion_workers_for_line(line_id: &str) -> Vec<String> {
-    if line_id == "gold_line" {
-        string_vec([
-            "expansion_worker_alpha",
-            "expansion_worker_beta",
-            "expansion_worker_gamma",
-        ])
-    } else {
-        vec![format!("{line_id}_worker")]
-    }
+    rts_bevy_runtime::rts_expansion_workers_for_line(line_id)
 }
 
 fn classic_rts_counterattack_units_for_wave(wave_id: &str) -> Vec<String> {
-    if wave_id == "counter_wave" {
-        string_vec([
-            "counter_raider_alpha",
-            "counter_raider_beta",
-            "counter_sapper",
-        ])
-    } else {
-        vec![format!("{wave_id}_raider")]
-    }
+    rts_bevy_runtime::rts_counterattack_units_for_wave(wave_id)
 }
 
 fn classic_rts_counterattack_route_tiles_for_wave(wave_id: &str, tile_id: &str) -> Vec<String> {
-    if wave_id == "counter_wave" {
-        string_vec(["11,2", "10,2", "9,3", tile_id, "7,4", "9,2"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((8, 3));
-        vec![
-            format!("{},{}", tile.0 + 2, tile.1.saturating_sub(1)),
-            format!("{},{}", tile.0 + 1, tile.1),
-            format!("{},{}", tile.0, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_counterattack_route_tiles_for_wave(wave_id, tile_id)
 }
 
 fn classic_rts_tier_two_parts(command: &str) -> (String, String, String) {

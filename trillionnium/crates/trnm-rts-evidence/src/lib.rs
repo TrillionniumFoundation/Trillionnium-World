@@ -8,19 +8,22 @@ use trnm_rts_bevy_runtime::{
     rts_aftermath_smoke_tiles_for_id, rts_ai_counter_tiles_for_pressure,
     rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure,
     rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
-    rts_command_queue_path_preview_stage, rts_contact_flash_tiles_for_target,
-    rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
+    rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id,
+    rts_contact_flash_tiles_for_target, rts_counterattack_route_tiles_for_wave,
+    rts_counterattack_units_for_wave, rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
     rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
     rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
-    rts_enemy_units_for_recon, rts_engagement_tiles_for_target, rts_expansion_tiles_for_camp,
-    rts_fog_reveal_tiles_for_recon, rts_inner_lane_tiles_for_id, rts_minimap_cell_origin,
-    rts_objective_tiles_for_id, rts_projectile_id_for_ability,
-    rts_projectile_trail_tiles_for_target, rts_runtime_hit_test_grid, rts_runtime_tile_line,
-    rts_scout_route_tiles_for_recon, rts_siege_breach_tiles_for_target,
-    rts_siege_push_route_tiles_for_target, rts_siege_units_for_id,
-    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
-    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, RtsRuntimeGridSpec,
-    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_enemy_units_for_recon, rts_engagement_tiles_for_target,
+    rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id,
+    rts_expansion_workers_for_line, rts_fog_reveal_tiles_for_recon, rts_inner_lane_tiles_for_id,
+    rts_loot_items_for_id, rts_minimap_cell_origin, rts_objective_tiles_for_id,
+    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target,
+    rts_runtime_hit_test_grid, rts_runtime_tile_line, rts_scout_route_tiles_for_recon,
+    rts_siege_breach_tiles_for_target, rts_siege_push_route_tiles_for_target,
+    rts_siege_units_for_id, rts_target_priority_ids_for_target, rts_target_tile_for_id,
+    rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
+    rts_threat_levels_for_target, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
+    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -66,6 +69,13 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub base_assault_targets_sample: Vec<String>,
     pub aftermath_debris_tiles_sample: Vec<String>,
     pub aftermath_smoke_tiles_sample: Vec<String>,
+    pub commander_aura_tiles_sample: Vec<String>,
+    pub commander_loot_items_sample: Vec<String>,
+    pub expansion_claim_tiles_sample: Vec<String>,
+    pub expansion_structure_tile_sample: RtsEvidencePoint,
+    pub expansion_workers_sample: Vec<String>,
+    pub counterattack_units_sample: Vec<String>,
+    pub counterattack_route_tiles_sample: Vec<String>,
     pub objective_tiles_sample: Vec<String>,
     pub creep_camp_tiles_sample: Vec<String>,
     pub terrain_route_tiles_sample: Vec<String>,
@@ -123,6 +133,13 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let base_assault_targets = rts_base_assault_targets_for_id("enemy_barracks");
     let aftermath_debris_tiles = rts_aftermath_debris_tiles_for_id("enemy_barracks", "10,3");
     let aftermath_smoke_tiles = rts_aftermath_smoke_tiles_for_id("enemy_barracks", "10,3");
+    let commander_aura_tiles = rts_commander_aura_tiles_for_id("mirror_captain");
+    let commander_loot_items = rts_loot_items_for_id("enemy_barracks");
+    let expansion_claim_tiles = rts_expansion_tiles_for_id("forest_relay", "9,2");
+    let expansion_structure_tile = rts_expansion_structure_tile_for_id("watch_lantern");
+    let expansion_workers = rts_expansion_workers_for_line("gold_line");
+    let counterattack_units = rts_counterattack_units_for_wave("counter_wave");
+    let counterattack_route_tiles = rts_counterattack_route_tiles_for_wave("counter_wave", "8,3");
     let objective_tiles = rts_objective_tiles_for_id("relay_beacon", "6,5");
     let creep_camp_tiles = rts_creep_camp_tiles_for_id("forest_creep_camp", "8,3");
     let terrain_route_tiles = rts_terrain_route_tiles_for_camp("forest_creep_camp");
@@ -180,6 +197,28 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             == vec!["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"]
         && aftermath_debris_tiles == vec!["9,3", "10,3", "10,4", "11,3"]
         && aftermath_smoke_tiles == vec!["10,2", "10,3", "11,3"]
+        && commander_aura_tiles == vec!["6,5", "7,4", "8,4", "9,3", "10,3"]
+        && commander_loot_items
+            == vec![
+                "barracks_map_cache",
+                "field_banner_relic",
+                "repair_kit_crate",
+            ]
+        && expansion_claim_tiles == vec!["8,2", "9,2", "10,2", "9,3", "10,3"]
+        && expansion_structure_tile == (8, 3)
+        && expansion_workers
+            == vec![
+                "expansion_worker_alpha",
+                "expansion_worker_beta",
+                "expansion_worker_gamma",
+            ]
+        && counterattack_units
+            == vec![
+                "counter_raider_alpha",
+                "counter_raider_beta",
+                "counter_sapper",
+            ]
+        && counterattack_route_tiles == vec!["11,2", "10,2", "9,3", "8,3", "7,4", "9,2"]
         && objective_tiles == vec!["6,5", "6,4", "7,5", "9,2"]
         && creep_camp_tiles == vec!["8,3", "8,2", "9,3", "9,2"]
         && terrain_route_tiles == vec!["5,5", "6,5", "7,4", "8,3"]
@@ -234,6 +273,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         base_assault_targets_sample: base_assault_targets,
         aftermath_debris_tiles_sample: aftermath_debris_tiles,
         aftermath_smoke_tiles_sample: aftermath_smoke_tiles,
+        commander_aura_tiles_sample: commander_aura_tiles,
+        commander_loot_items_sample: commander_loot_items,
+        expansion_claim_tiles_sample: expansion_claim_tiles,
+        expansion_structure_tile_sample: RtsEvidencePoint {
+            x: expansion_structure_tile.0,
+            y: expansion_structure_tile.1,
+        },
+        expansion_workers_sample: expansion_workers,
+        counterattack_units_sample: counterattack_units,
+        counterattack_route_tiles_sample: counterattack_route_tiles,
         objective_tiles_sample: objective_tiles,
         creep_camp_tiles_sample: creep_camp_tiles,
         terrain_route_tiles_sample: terrain_route_tiles,
@@ -243,7 +292,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         siege_push_route_tiles_sample: siege_push_route_tiles,
         siege_breach_tiles_sample: siege_breach_tiles,
         inner_lane_tiles_sample: inner_lane_tiles,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -359,6 +408,46 @@ mod tests {
         assert_eq!(
             evidence.aftermath_smoke_tiles_sample,
             vec!["10,2", "10,3", "11,3"]
+        );
+        assert_eq!(
+            evidence.commander_aura_tiles_sample,
+            vec!["6,5", "7,4", "8,4", "9,3", "10,3"]
+        );
+        assert_eq!(
+            evidence.commander_loot_items_sample,
+            vec![
+                "barracks_map_cache",
+                "field_banner_relic",
+                "repair_kit_crate"
+            ]
+        );
+        assert_eq!(
+            evidence.expansion_claim_tiles_sample,
+            vec!["8,2", "9,2", "10,2", "9,3", "10,3"]
+        );
+        assert_eq!(
+            evidence.expansion_structure_tile_sample,
+            RtsEvidencePoint { x: 8, y: 3 }
+        );
+        assert_eq!(
+            evidence.expansion_workers_sample,
+            vec![
+                "expansion_worker_alpha",
+                "expansion_worker_beta",
+                "expansion_worker_gamma"
+            ]
+        );
+        assert_eq!(
+            evidence.counterattack_units_sample,
+            vec![
+                "counter_raider_alpha",
+                "counter_raider_beta",
+                "counter_sapper"
+            ]
+        );
+        assert_eq!(
+            evidence.counterattack_route_tiles_sample,
+            vec!["11,2", "10,2", "9,3", "8,3", "7,4", "9,2"]
         );
         assert_eq!(
             evidence.objective_tiles_sample,

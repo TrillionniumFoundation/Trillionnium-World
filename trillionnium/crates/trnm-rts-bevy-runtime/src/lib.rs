@@ -784,6 +784,86 @@ pub fn rts_aftermath_smoke_tiles_for_id(structure_id: &str, tile_id: &str) -> Ve
     }
 }
 
+pub fn rts_commander_aura_tiles_for_id(commander_id: &str) -> Vec<String> {
+    if commander_id == "mirror_captain" {
+        rts_string_vec(["6,5", "7,4", "8,4", "9,3", "10,3"])
+    } else {
+        rts_string_vec(["5,5", "6,5", "7,4"])
+    }
+}
+
+pub fn rts_loot_items_for_id(source_id: &str) -> Vec<String> {
+    if source_id == "enemy_barracks" {
+        rts_string_vec([
+            "barracks_map_cache",
+            "field_banner_relic",
+            "repair_kit_crate",
+        ])
+    } else {
+        vec![format!("{source_id}_field_cache")]
+    }
+}
+
+pub fn rts_expansion_tiles_for_id(expansion_id: &str, tile_id: &str) -> Vec<String> {
+    if expansion_id == "forest_relay" {
+        rts_string_vec(["8,2", "9,2", "10,2", "9,3", "10,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((9, 2));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0 + 1, tile.1),
+        ]
+    }
+}
+
+pub fn rts_expansion_structure_tile_for_id(structure_id: &str) -> (i32, i32) {
+    match structure_id {
+        "relay_outpost" => (9, 2),
+        "relay_foundry" => (9, 2),
+        "relay_storehouse" => (10, 2),
+        "watch_lantern" => (8, 3),
+        _ => (9, 2),
+    }
+}
+
+pub fn rts_expansion_workers_for_line(line_id: &str) -> Vec<String> {
+    if line_id == "gold_line" {
+        rts_string_vec([
+            "expansion_worker_alpha",
+            "expansion_worker_beta",
+            "expansion_worker_gamma",
+        ])
+    } else {
+        vec![format!("{line_id}_worker")]
+    }
+}
+
+pub fn rts_counterattack_units_for_wave(wave_id: &str) -> Vec<String> {
+    if wave_id == "counter_wave" {
+        rts_string_vec([
+            "counter_raider_alpha",
+            "counter_raider_beta",
+            "counter_sapper",
+        ])
+    } else {
+        vec![format!("{wave_id}_raider")]
+    }
+}
+
+pub fn rts_counterattack_route_tiles_for_wave(wave_id: &str, tile_id: &str) -> Vec<String> {
+    if wave_id == "counter_wave" {
+        rts_string_vec(["11,2", "10,2", "9,3", tile_id, "7,4", "9,2"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((8, 3));
+        vec![
+            format!("{},{}", tile.0 + 2, tile.1.saturating_sub(1)),
+            format!("{},{}", tile.0 + 1, tile.1),
+            format!("{},{}", tile.0, tile.1),
+        ]
+    }
+}
+
 pub fn rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
     if objective_id == "relay_beacon" {
         rts_string_vec(["6,5", "6,4", "7,5", "9,2"])
@@ -1232,6 +1312,47 @@ mod tests {
         assert_eq!(
             rts_aftermath_smoke_tiles_for_id("enemy_barracks", "10,3"),
             vec!["10,2", "10,3", "11,3"]
+        );
+    }
+
+    #[test]
+    fn commander_and_expansion_counterattack_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_commander_aura_tiles_for_id("mirror_captain"),
+            vec!["6,5", "7,4", "8,4", "9,3", "10,3"]
+        );
+        assert_eq!(
+            rts_loot_items_for_id("enemy_barracks"),
+            vec![
+                "barracks_map_cache",
+                "field_banner_relic",
+                "repair_kit_crate"
+            ]
+        );
+        assert_eq!(
+            rts_expansion_tiles_for_id("forest_relay", "9,2"),
+            vec!["8,2", "9,2", "10,2", "9,3", "10,3"]
+        );
+        assert_eq!(rts_expansion_structure_tile_for_id("watch_lantern"), (8, 3));
+        assert_eq!(
+            rts_expansion_workers_for_line("gold_line"),
+            vec![
+                "expansion_worker_alpha",
+                "expansion_worker_beta",
+                "expansion_worker_gamma"
+            ]
+        );
+        assert_eq!(
+            rts_counterattack_units_for_wave("counter_wave"),
+            vec![
+                "counter_raider_alpha",
+                "counter_raider_beta",
+                "counter_sapper"
+            ]
+        );
+        assert_eq!(
+            rts_counterattack_route_tiles_for_wave("counter_wave", "8,3"),
+            vec!["11,2", "10,2", "9,3", "8,3", "7,4", "9,2"]
         );
     }
 
