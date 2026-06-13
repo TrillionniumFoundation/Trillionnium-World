@@ -142104,28 +142104,15 @@ fn classic_rts_open_world_panels_for_room(room_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
-    match unit_id {
-        "stonebreak_cart" => (9, 3),
-        _ => (9 + (index as i32 % 2), 3),
-    }
+    rts_bevy_runtime::rts_siege_unit_tile_for_id(unit_id, index)
 }
 
 fn classic_rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
-    match node_id {
-        "gold_vein" => (3, 3),
-        "lumber_copse" => (8, 3),
-        "forest_relay_gold" => (10, 2),
-        _ => (4, 4),
-    }
+    rts_bevy_runtime::rts_harvest_tile_for_node(node_id)
 }
 
 fn classic_rts_dropoff_tile_for_structure(structure_id: &str) -> (i32, i32) {
-    match structure_id {
-        "town_hall" => (5, 5),
-        "lumber_mill" => (7, 5),
-        "relay_outpost" => (9, 2),
-        _ => (5, 5),
-    }
+    rts_bevy_runtime::rts_dropoff_tile_for_structure(structure_id)
 }
 
 fn classic_rts_build_parts(queue_id: &str) -> (String, String) {
@@ -142151,32 +142138,15 @@ fn classic_rts_structure_parts(
 }
 
 fn classic_rts_build_site_tiles(tile_id: &str) -> Vec<String> {
-    if tile_id == "7,4" {
-        string_vec(["7,4", "7,5", "8,4"])
-    } else if tile_id == "8,4" {
-        string_vec(["8,4", "8,5", "9,4"])
-    } else {
-        vec![tile_id.to_string()]
-    }
+    rts_bevy_runtime::rts_build_site_tiles(tile_id)
 }
 
 fn classic_rts_structure_tile_for_id(structure_id: &str) -> (i32, i32) {
-    match structure_id {
-        "watch_tower" => (7, 4),
-        "scout_tower" => (8, 4),
-        "town_hall" => (5, 5),
-        "training_hall" => (4, 3),
-        "signal_spire" => (6, 3),
-        _ => (7, 4),
-    }
+    rts_bevy_runtime::rts_structure_tile_for_id(structure_id)
 }
 
 fn classic_rts_unlock_unit_tile_for_id(unit_id: &str) -> (i32, i32) {
-    match unit_id {
-        "relay_guard" => (7, 5),
-        "wayfinder" => (4, 5),
-        _ => (6, 5),
-    }
+    rts_bevy_runtime::rts_unlock_unit_tile_for_id(unit_id)
 }
 
 fn classic_rts_tech_parts(

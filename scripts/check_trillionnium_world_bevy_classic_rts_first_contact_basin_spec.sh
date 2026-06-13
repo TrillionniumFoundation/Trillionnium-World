@@ -279,6 +279,17 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.garrison_units_sample == ["mirror_guard_alpha","signal_lancer","field_engineer"]
   and .rts_evidence_bevy_runtime_adapter.open_world_route_tiles_sample == ["13,3","12,3","11,3","10,2","9,2"]
   and .rts_evidence_bevy_runtime_adapter.open_world_panels_sample == ["room_panel:league-coliseum","task_panel:task-fixture-first-route","combat_panel:league-coliseum","save_panel:post_rts_restore"]
+  and .rts_evidence_bevy_runtime_adapter.siege_unit_tile_sample.x == 9
+  and .rts_evidence_bevy_runtime_adapter.siege_unit_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.harvest_tile_sample.x == 3
+  and .rts_evidence_bevy_runtime_adapter.harvest_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.dropoff_tile_sample.x == 5
+  and .rts_evidence_bevy_runtime_adapter.dropoff_tile_sample.y == 5
+  and .rts_evidence_bevy_runtime_adapter.build_site_tiles_sample == ["7,4","7,5","8,4"]
+  and .rts_evidence_bevy_runtime_adapter.structure_tile_sample.x == 4
+  and .rts_evidence_bevy_runtime_adapter.structure_tile_sample.y == 3
+  and .rts_evidence_bevy_runtime_adapter.unlock_unit_tile_sample.x == 7
+  and .rts_evidence_bevy_runtime_adapter.unlock_unit_tile_sample.y == 5
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

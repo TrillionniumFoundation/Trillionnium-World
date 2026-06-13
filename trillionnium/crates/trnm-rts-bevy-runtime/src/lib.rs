@@ -1198,6 +1198,58 @@ pub fn rts_open_world_panels_for_room(room_id: &str) -> Vec<String> {
     }
 }
 
+pub fn rts_siege_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
+    match unit_id {
+        "stonebreak_cart" => (9, 3),
+        _ => (9 + (index as i32 % 2), 3),
+    }
+}
+
+pub fn rts_harvest_tile_for_node(node_id: &str) -> (i32, i32) {
+    match node_id {
+        "gold_vein" => (3, 3),
+        "lumber_copse" => (8, 3),
+        "forest_relay_gold" => (10, 2),
+        _ => (4, 4),
+    }
+}
+
+pub fn rts_dropoff_tile_for_structure(structure_id: &str) -> (i32, i32) {
+    match structure_id {
+        "town_hall" => (5, 5),
+        "lumber_mill" => (7, 5),
+        "relay_outpost" => (9, 2),
+        _ => (5, 5),
+    }
+}
+
+pub fn rts_build_site_tiles(tile_id: &str) -> Vec<String> {
+    match tile_id {
+        "7,4" => rts_string_vec(["7,4", "7,5", "8,4"]),
+        "8,4" => rts_string_vec(["8,4", "8,5", "9,4"]),
+        _ => vec![tile_id.to_string()],
+    }
+}
+
+pub fn rts_structure_tile_for_id(structure_id: &str) -> (i32, i32) {
+    match structure_id {
+        "watch_tower" => (7, 4),
+        "scout_tower" => (8, 4),
+        "town_hall" => (5, 5),
+        "training_hall" => (4, 3),
+        "signal_spire" => (6, 3),
+        _ => (7, 4),
+    }
+}
+
+pub fn rts_unlock_unit_tile_for_id(unit_id: &str) -> (i32, i32) {
+    match unit_id {
+        "relay_guard" => (7, 5),
+        "wayfinder" => (4, 5),
+        _ => (6, 5),
+    }
+}
+
 pub fn rts_command_queue_path_preview_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -1749,5 +1801,15 @@ mod tests {
                 "save_panel:post_rts_restore"
             ]
         );
+    }
+
+    #[test]
+    fn economy_tech_placement_adapter_preserves_first_contact_tiles() {
+        assert_eq!(rts_siege_unit_tile_for_id("stonebreak_cart", 0), (9, 3));
+        assert_eq!(rts_harvest_tile_for_node("gold_vein"), (3, 3));
+        assert_eq!(rts_dropoff_tile_for_structure("town_hall"), (5, 5));
+        assert_eq!(rts_build_site_tiles("7,4"), vec!["7,4", "7,5", "8,4"]);
+        assert_eq!(rts_structure_tile_for_id("training_hall"), (4, 3));
+        assert_eq!(rts_unlock_unit_tile_for_id("relay_guard"), (7, 5));
     }
 }
