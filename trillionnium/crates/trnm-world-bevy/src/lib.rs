@@ -70565,6 +70565,7 @@ pub fn native_classic_rts_bot_multi_front_pressure_gap_evidence_json(preview_pat
     .expect("classic RTS bot multi-front pressure gap evidence serializes")
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_bot_expansion_control_gap_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -71287,6 +71288,7 @@ pub fn native_classic_rts_bot_expansion_control_gap_evidence_json(preview_path: 
     .expect("classic RTS bot expansion control gap evidence serializes")
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_bot_tech_transition_gap_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -72036,6 +72038,7 @@ pub fn native_classic_rts_bot_tech_transition_gap_evidence_json(preview_path: &s
     .expect("classic RTS bot tech transition gap evidence serializes")
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_bot_army_composition_gap_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 640;
     const PANEL_HEIGHT: usize = 360;
@@ -80444,7 +80447,6 @@ fn classic_catalog_role_label(role: &str) -> String {
     classic_catalog_text_label(role, 20)
 }
 
-#[cfg(not(target_os = "android"))]
 fn classic_catalog_text_label(text: &str, max_chars: usize) -> String {
     text.replace('_', " ")
         .split_whitespace()

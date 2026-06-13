@@ -66,7 +66,7 @@ require_cmd() {
 }
 
 latest_matching_file() {
-  find "$@" -type f 2>/dev/null | sort -V | tail -n1
+  find "$@" \( -type f -o -type l \) 2>/dev/null | sort -V | tail -n1
 }
 
 write_summary() {
