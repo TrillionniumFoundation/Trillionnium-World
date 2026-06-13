@@ -192,6 +192,19 @@ jq -e '
   and .rts_bevy_runtime_minimap_cell_sample.y == 175
   and .rts_bevy_runtime_path_preview_sample == "queue_stack"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
+  and .rts_bevy_runtime_map_projection.map_x == 16
+  and .rts_bevy_runtime_map_projection.map_y == 54
+  and .rts_bevy_runtime_map_projection.cell_w == 28
+  and .rts_bevy_runtime_map_projection.cell_h == 14
+  and .rts_bevy_runtime_map_projection.map_w == 952
+  and .rts_bevy_runtime_map_projection.map_h == 476
+  and .rts_bevy_runtime_tile_rect_sample.x == 464
+  and .rts_bevy_runtime_tile_rect_sample.y == 278
+  and .rts_bevy_runtime_tile_rect_sample.width == 28
+  and .rts_bevy_runtime_tile_rect_sample.height == 14
+  and .rts_bevy_runtime_terrain_seed_sample.surface_seed == 12
+  and .rts_bevy_runtime_terrain_seed_sample.detail_seed == 20
+  and .rts_bevy_runtime_map_projection_gate == true
   and .rts_online_contract == "trnm_rts_online_protocol_v1"
   and .rts_online_protocol_fixture.contract_version == "trnm_rts_online_first_contact_fixture_v1"
   and .rts_online_protocol_fixture.green == true

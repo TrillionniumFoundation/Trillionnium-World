@@ -103,6 +103,40 @@ pub struct RtsRuntimeGridSpec {
     pub slot_height: i32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsRuntimeMapLayoutInput {
+    pub viewport_width: i32,
+    pub viewport_height: i32,
+    pub map_width_tiles: i32,
+    pub map_height_tiles: i32,
+    pub map_origin_x: i32,
+    pub map_origin_y: i32,
+    pub right_reserved_px: i32,
+    pub bottom_reserved_px: i32,
+    pub min_map_width_px: i32,
+    pub min_map_height_px: i32,
+    pub cell_width_min: i32,
+    pub cell_width_max: i32,
+    pub cell_height_min: i32,
+    pub cell_height_max: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsRuntimeMapProjection {
+    pub map_x: i32,
+    pub map_y: i32,
+    pub cell_w: i32,
+    pub cell_h: i32,
+    pub map_w: i32,
+    pub map_h: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsRuntimeTerrainSeeds {
+    pub surface_seed: i32,
+    pub detail_seed: i32,
+}
+
 pub fn rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
     (
         tile.0
@@ -110,6 +144,64 @@ pub fn rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
         tile.1
             .clamp(TRNM_RTS_RUNTIME_MAP_MIN_TILE, TRNM_RTS_RUNTIME_MAP_MAX_Y),
     )
+}
+
+pub fn rts_runtime_map_projection(input: RtsRuntimeMapLayoutInput) -> RtsRuntimeMapProjection {
+    let map_width_tiles = input.map_width_tiles.max(1);
+    let map_height_tiles = input.map_height_tiles.max(1);
+    let available_w = (input.viewport_width - input.right_reserved_px).max(input.min_map_width_px);
+    let available_h = (input.viewport_height - input.bottom_reserved_px - input.map_origin_y)
+        .max(input.min_map_height_px);
+    let cell_w = (available_w / map_width_tiles)
+        .clamp(input.cell_width_min, input.cell_width_max)
+        .max(1);
+    let cell_h = (available_h / map_height_tiles)
+        .clamp(input.cell_height_min, input.cell_height_max)
+        .max(1);
+    RtsRuntimeMapProjection {
+        map_x: input.map_origin_x,
+        map_y: input.map_origin_y,
+        cell_w,
+        cell_h,
+        map_w: cell_w * map_width_tiles,
+        map_h: cell_h * map_height_tiles,
+    }
+}
+
+pub fn rts_runtime_tile_screen_origin(
+    origin_x: i32,
+    origin_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+) -> (i32, i32) {
+    (origin_x + tile.0 * cell_w, origin_y + tile.1 * cell_h)
+}
+
+pub fn rts_runtime_tile_screen_rect(
+    projection: RtsRuntimeMapProjection,
+    tile: (i32, i32),
+) -> RtsRuntimeRect {
+    let (x, y) = rts_runtime_tile_screen_origin(
+        projection.map_x,
+        projection.map_y,
+        projection.cell_w,
+        projection.cell_h,
+        tile,
+    );
+    RtsRuntimeRect {
+        x,
+        y,
+        width: projection.cell_w,
+        height: projection.cell_h,
+    }
+}
+
+pub fn rts_runtime_terrain_seeds(tile: (i32, i32)) -> RtsRuntimeTerrainSeeds {
+    RtsRuntimeTerrainSeeds {
+        surface_seed: (tile.0 * 37 + tile.1 * 19 + (tile.0 - tile.1).abs() * 11) % 17,
+        detail_seed: (tile.0 * 13 + tile.1 * 17 + (tile.0 - tile.1).abs() * 7) % 23,
+    }
 }
 
 pub fn rts_large_map_tile_to_camera_center(tile: (i32, i32)) -> RtsRuntimeVec2 {
@@ -496,6 +588,54 @@ mod tests {
             Some(5)
         );
         assert_eq!(rts_runtime_hit_test_grid(spec, 999, 575), None);
+    }
+
+    #[test]
+    fn map_projection_and_terrain_seeds_match_first_contact_layout() {
+        let projection = rts_runtime_map_projection(RtsRuntimeMapLayoutInput {
+            viewport_width: 1280,
+            viewport_height: 720,
+            map_width_tiles: 34,
+            map_height_tiles: 34,
+            map_origin_x: 16,
+            map_origin_y: 54,
+            right_reserved_px: 292,
+            bottom_reserved_px: 158,
+            min_map_width_px: 374,
+            min_map_height_px: 238,
+            cell_width_min: 12,
+            cell_width_max: 28,
+            cell_height_min: 8,
+            cell_height_max: 15,
+        });
+
+        assert_eq!(
+            projection,
+            RtsRuntimeMapProjection {
+                map_x: 16,
+                map_y: 54,
+                cell_w: 28,
+                cell_h: 14,
+                map_w: 952,
+                map_h: 476,
+            }
+        );
+        assert_eq!(
+            rts_runtime_tile_screen_rect(projection, (16, 16)),
+            RtsRuntimeRect {
+                x: 464,
+                y: 278,
+                width: 28,
+                height: 14,
+            }
+        );
+        assert_eq!(
+            rts_runtime_terrain_seeds((16, 16)),
+            RtsRuntimeTerrainSeeds {
+                surface_seed: 12,
+                detail_seed: 20,
+            }
+        );
     }
 
     #[test]
