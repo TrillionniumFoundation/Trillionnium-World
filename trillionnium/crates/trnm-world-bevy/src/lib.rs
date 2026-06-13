@@ -93947,12 +93947,14 @@ fn classic_draw_first_contact_opening_actions(
         ),
     ];
     for (from, to, color) in action_paths {
-        let steps = ((to.0 - from.0).abs().max((to.1 - from.1).abs())).max(1);
-        for step in 0..=steps {
-            let x = from.0 + (to.0 - from.0) * step / steps;
-            let y = from.1 + (to.1 - from.1) * step / steps;
-            let (tile_x, tile_y) =
-                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (x, y));
+        for step in rts_bevy_runtime::rts_runtime_tile_line(from, to) {
+            let (tile_x, tile_y) = classic_first_contact_tile_screen(
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                (step.tile_x, step.tile_y),
+            );
             classic_draw_rect(
                 buffer,
                 width,
@@ -94218,15 +94220,17 @@ fn classic_draw_first_contact_combat_phase_layers(
         ),
     ];
     for (from, to, color) in contacts {
-        let steps = ((to.0 - from.0).abs().max((to.1 - from.1).abs())).max(1);
-        for step in 0..=steps {
-            if step % 2 == 1 {
+        for step in rts_bevy_runtime::rts_runtime_tile_line(from, to) {
+            if step.step_index % 2 == 1 {
                 continue;
             }
-            let x = from.0 + (to.0 - from.0) * step / steps;
-            let y = from.1 + (to.1 - from.1) * step / steps;
-            let (tile_x, tile_y) =
-                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (x, y));
+            let (tile_x, tile_y) = classic_first_contact_tile_screen(
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                (step.tile_x, step.tile_y),
+            );
             classic_draw_rect(
                 buffer,
                 width,
@@ -95993,12 +95997,14 @@ fn classic_draw_first_contact_basin_scene(
         let from = classic_first_contact_tile_tuple(track.from_tile);
         let to = classic_first_contact_tile_tuple(track.to_tile);
         let color = classic_first_contact_visual_telemetry_color(track.color_role);
-        let steps = ((to.0 - from.0).abs().max((to.1 - from.1).abs())).max(1);
-        for step in 0..=steps {
-            let x = from.0 + (to.0 - from.0) * step / steps;
-            let y = from.1 + (to.1 - from.1) * step / steps;
-            let (tile_x, tile_y) =
-                classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, (x, y));
+        for step in rts_bevy_runtime::rts_runtime_tile_line(from, to) {
+            let (tile_x, tile_y) = classic_first_contact_tile_screen(
+                map_x,
+                map_y,
+                cell_w,
+                cell_h,
+                (step.tile_x, step.tile_y),
+            );
             classic_draw_rect(
                 buffer,
                 width,

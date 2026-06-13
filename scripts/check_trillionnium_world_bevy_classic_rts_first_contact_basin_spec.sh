@@ -192,6 +192,16 @@ jq -e '
   and .rts_bevy_runtime_minimap_cell_sample.y == 175
   and .rts_bevy_runtime_path_preview_sample == "queue_stack"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
+  and (.rts_evidence_bevy_runtime_adapter.tile_line_sample | length) == 9
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[0].step_index == 0
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[0].tile_x == 8
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[0].tile_y == 8
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[4].step_index == 4
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[4].tile_x == 10
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[4].tile_y == 12
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[8].step_index == 8
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[8].tile_x == 12
+  and .rts_evidence_bevy_runtime_adapter.tile_line_sample[8].tile_y == 16
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

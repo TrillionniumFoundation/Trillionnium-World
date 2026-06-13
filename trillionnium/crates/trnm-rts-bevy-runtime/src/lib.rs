@@ -137,6 +137,14 @@ pub struct RtsRuntimeTerrainSeeds {
     pub detail_seed: i32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsRuntimeTileLineStep {
+    pub step_index: i32,
+    pub step_count: i32,
+    pub tile_x: i32,
+    pub tile_y: i32,
+}
+
 pub fn rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
     (
         tile.0
@@ -202,6 +210,29 @@ pub fn rts_runtime_terrain_seeds(tile: (i32, i32)) -> RtsRuntimeTerrainSeeds {
         surface_seed: (tile.0 * 37 + tile.1 * 19 + (tile.0 - tile.1).abs() * 11) % 17,
         detail_seed: (tile.0 * 13 + tile.1 * 17 + (tile.0 - tile.1).abs() * 7) % 23,
     }
+}
+
+pub fn rts_runtime_tile_line(from: (i32, i32), to: (i32, i32)) -> Vec<RtsRuntimeTileLineStep> {
+    let dx = to.0 - from.0;
+    let dy = to.1 - from.1;
+    let steps = dx.abs().max(dy.abs());
+    if steps == 0 {
+        return vec![RtsRuntimeTileLineStep {
+            step_index: 0,
+            step_count: 0,
+            tile_x: from.0,
+            tile_y: from.1,
+        }];
+    }
+
+    (0..=steps)
+        .map(|step| RtsRuntimeTileLineStep {
+            step_index: step,
+            step_count: steps,
+            tile_x: from.0 + (dx * step) / steps,
+            tile_y: from.1 + (dy * step) / steps,
+        })
+        .collect()
 }
 
 pub fn rts_large_map_tile_to_camera_center(tile: (i32, i32)) -> RtsRuntimeVec2 {
@@ -635,6 +666,49 @@ mod tests {
                 surface_seed: 12,
                 detail_seed: 20,
             }
+        );
+    }
+
+    #[test]
+    fn tile_line_adapter_matches_first_contact_track_steps() {
+        let line = rts_runtime_tile_line((8, 8), (12, 16));
+
+        assert_eq!(line.len(), 9);
+        assert_eq!(
+            line[0],
+            RtsRuntimeTileLineStep {
+                step_index: 0,
+                step_count: 8,
+                tile_x: 8,
+                tile_y: 8,
+            }
+        );
+        assert_eq!(
+            line[4],
+            RtsRuntimeTileLineStep {
+                step_index: 4,
+                step_count: 8,
+                tile_x: 10,
+                tile_y: 12,
+            }
+        );
+        assert_eq!(
+            line[8],
+            RtsRuntimeTileLineStep {
+                step_index: 8,
+                step_count: 8,
+                tile_x: 12,
+                tile_y: 16,
+            }
+        );
+        assert_eq!(
+            rts_runtime_tile_line((5, 5), (5, 5)),
+            vec![RtsRuntimeTileLineStep {
+                step_index: 0,
+                step_count: 0,
+                tile_x: 5,
+                tile_y: 5,
+            }]
         );
     }
 
