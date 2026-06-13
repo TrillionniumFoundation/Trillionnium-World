@@ -141949,20 +141949,11 @@ fn classic_rts_base_assault_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_base_assault_path_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
-    if target_id == "enemy_barracks" {
-        string_vec(["5,5", "6,5", "7,4", "8,4", "9,3", tile_id])
-    } else {
-        let target_tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
-        classic_rts_line_path_tiles((5, 5), target_tile)
-    }
+    rts_bevy_runtime::rts_base_assault_path_tiles_for_target(target_id, tile_id)
 }
 
 fn classic_rts_base_assault_targets_for_id(target_id: &str) -> Vec<String> {
-    if target_id == "enemy_barracks" {
-        string_vec(["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"])
-    } else {
-        vec![target_id.to_string()]
-    }
+    rts_bevy_runtime::rts_base_assault_targets_for_id(target_id)
 }
 
 fn classic_rts_aftermath_parts(command: &str) -> (String, String, String) {
@@ -141972,28 +141963,11 @@ fn classic_rts_aftermath_parts(command: &str) -> (String, String, String) {
 }
 
 fn classic_rts_aftermath_debris_tiles_for_id(structure_id: &str, tile_id: &str) -> Vec<String> {
-    if structure_id == "enemy_barracks" {
-        string_vec(["9,3", "10,3", "10,4", "11,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
-        vec![
-            format!("{},{}", tile.0.saturating_sub(1), tile.1),
-            format!("{},{}", tile.0, tile.1),
-            format!("{},{}", tile.0, tile.1 + 1),
-        ]
-    }
+    rts_bevy_runtime::rts_aftermath_debris_tiles_for_id(structure_id, tile_id)
 }
 
 fn classic_rts_aftermath_smoke_tiles_for_id(structure_id: &str, tile_id: &str) -> Vec<String> {
-    if structure_id == "enemy_barracks" {
-        string_vec(["10,2", "10,3", "11,3"])
-    } else {
-        let tile = classic_parse_rts_tile(tile_id).unwrap_or((10, 3));
-        vec![
-            format!("{},{}", tile.0, tile.1.saturating_sub(1)),
-            format!("{},{}", tile.0, tile.1),
-        ]
-    }
+    rts_bevy_runtime::rts_aftermath_smoke_tiles_for_id(structure_id, tile_id)
 }
 
 fn classic_rts_commander_parts(command: &str) -> (String, String, String) {

@@ -742,6 +742,48 @@ pub fn rts_enemy_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32) {
     }
 }
 
+pub fn rts_base_assault_path_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        rts_string_vec(["5,5", "6,5", "7,4", "8,4", "9,3", tile_id])
+    } else {
+        let target_tile = rts_parse_tile_id(tile_id).unwrap_or((10, 3));
+        rts_line_path_tiles((5, 5), target_tile)
+    }
+}
+
+pub fn rts_base_assault_targets_for_id(target_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        rts_string_vec(["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"])
+    } else {
+        vec![target_id.to_string()]
+    }
+}
+
+pub fn rts_aftermath_debris_tiles_for_id(structure_id: &str, tile_id: &str) -> Vec<String> {
+    if structure_id == "enemy_barracks" {
+        rts_string_vec(["9,3", "10,3", "10,4", "11,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((10, 3));
+        vec![
+            format!("{},{}", tile.0.saturating_sub(1), tile.1),
+            format!("{},{}", tile.0, tile.1),
+            format!("{},{}", tile.0, tile.1 + 1),
+        ]
+    }
+}
+
+pub fn rts_aftermath_smoke_tiles_for_id(structure_id: &str, tile_id: &str) -> Vec<String> {
+    if structure_id == "enemy_barracks" {
+        rts_string_vec(["10,2", "10,3", "11,3"])
+    } else {
+        let tile = rts_parse_tile_id(tile_id).unwrap_or((10, 3));
+        vec![
+            format!("{},{}", tile.0, tile.1.saturating_sub(1)),
+            format!("{},{}", tile.0, tile.1),
+        ]
+    }
+}
+
 pub fn rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
     if objective_id == "relay_beacon" {
         rts_string_vec(["6,5", "6,4", "7,5", "9,2"])
@@ -1171,6 +1213,26 @@ mod tests {
             (11, 2)
         );
         assert_eq!(rts_enemy_unit_tile_for_id("enemy_guard", 2), (11, 2));
+    }
+
+    #[test]
+    fn base_assault_and_aftermath_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_base_assault_path_tiles_for_target("enemy_barracks", "10,3"),
+            vec!["5,5", "6,5", "7,4", "8,4", "9,3", "10,3"]
+        );
+        assert_eq!(
+            rts_base_assault_targets_for_id("enemy_barracks"),
+            vec!["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"]
+        );
+        assert_eq!(
+            rts_aftermath_debris_tiles_for_id("enemy_barracks", "10,3"),
+            vec!["9,3", "10,3", "10,4", "11,3"]
+        );
+        assert_eq!(
+            rts_aftermath_smoke_tiles_for_id("enemy_barracks", "10,3"),
+            vec!["10,2", "10,3", "11,3"]
+        );
     }
 
     #[test]

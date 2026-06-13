@@ -4,8 +4,10 @@
 
 use serde::{Deserialize, Serialize};
 use trnm_rts_bevy_runtime::{
-    rts_ability_effect_tiles_for_target, rts_ai_counter_tiles_for_pressure,
+    rts_ability_effect_tiles_for_target, rts_aftermath_debris_tiles_for_id,
+    rts_aftermath_smoke_tiles_for_id, rts_ai_counter_tiles_for_pressure,
     rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure,
+    rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
     rts_command_queue_path_preview_stage, rts_contact_flash_tiles_for_target,
     rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
     rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
@@ -60,6 +62,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub recon_enemy_units_sample: Vec<String>,
     pub recon_enemy_structure_tile_sample: RtsEvidencePoint,
     pub recon_enemy_unit_tile_sample: RtsEvidencePoint,
+    pub base_assault_path_tiles_sample: Vec<String>,
+    pub base_assault_targets_sample: Vec<String>,
+    pub aftermath_debris_tiles_sample: Vec<String>,
+    pub aftermath_smoke_tiles_sample: Vec<String>,
     pub objective_tiles_sample: Vec<String>,
     pub creep_camp_tiles_sample: Vec<String>,
     pub terrain_route_tiles_sample: Vec<String>,
@@ -113,6 +119,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let recon_enemy_units = rts_enemy_units_for_recon("enemy_base", "mark");
     let recon_enemy_structure_tile = rts_enemy_structure_tile_for_id("enemy_resource_vault", 2);
     let recon_enemy_unit_tile = rts_enemy_unit_tile_for_id("enemy_guard", 2);
+    let base_assault_path_tiles = rts_base_assault_path_tiles_for_target("enemy_barracks", "10,3");
+    let base_assault_targets = rts_base_assault_targets_for_id("enemy_barracks");
+    let aftermath_debris_tiles = rts_aftermath_debris_tiles_for_id("enemy_barracks", "10,3");
+    let aftermath_smoke_tiles = rts_aftermath_smoke_tiles_for_id("enemy_barracks", "10,3");
     let objective_tiles = rts_objective_tiles_for_id("relay_beacon", "6,5");
     let creep_camp_tiles = rts_creep_camp_tiles_for_id("forest_creep_camp", "8,3");
     let terrain_route_tiles = rts_terrain_route_tiles_for_camp("forest_creep_camp");
@@ -165,6 +175,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && recon_enemy_units == vec!["enemy_scout", "enemy_worker", "enemy_guard"]
         && recon_enemy_structure_tile == (11, 2)
         && recon_enemy_unit_tile == (11, 2)
+        && base_assault_path_tiles == vec!["5,5", "6,5", "7,4", "8,4", "9,3", "10,3"]
+        && base_assault_targets
+            == vec!["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"]
+        && aftermath_debris_tiles == vec!["9,3", "10,3", "10,4", "11,3"]
+        && aftermath_smoke_tiles == vec!["10,2", "10,3", "11,3"]
         && objective_tiles == vec!["6,5", "6,4", "7,5", "9,2"]
         && creep_camp_tiles == vec!["8,3", "8,2", "9,3", "9,2"]
         && terrain_route_tiles == vec!["5,5", "6,5", "7,4", "8,3"]
@@ -215,6 +230,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             x: recon_enemy_unit_tile.0,
             y: recon_enemy_unit_tile.1,
         },
+        base_assault_path_tiles_sample: base_assault_path_tiles,
+        base_assault_targets_sample: base_assault_targets,
+        aftermath_debris_tiles_sample: aftermath_debris_tiles,
+        aftermath_smoke_tiles_sample: aftermath_smoke_tiles,
         objective_tiles_sample: objective_tiles,
         creep_camp_tiles_sample: creep_camp_tiles,
         terrain_route_tiles_sample: terrain_route_tiles,
@@ -224,7 +243,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         siege_push_route_tiles_sample: siege_push_route_tiles,
         siege_breach_tiles_sample: siege_breach_tiles,
         inner_lane_tiles_sample: inner_lane_tiles,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -324,6 +343,22 @@ mod tests {
         assert_eq!(
             evidence.recon_enemy_unit_tile_sample,
             RtsEvidencePoint { x: 11, y: 2 }
+        );
+        assert_eq!(
+            evidence.base_assault_path_tiles_sample,
+            vec!["5,5", "6,5", "7,4", "8,4", "9,3", "10,3"]
+        );
+        assert_eq!(
+            evidence.base_assault_targets_sample,
+            vec!["enemy_watch_post", "enemy_barracks", "enemy_resource_vault"]
+        );
+        assert_eq!(
+            evidence.aftermath_debris_tiles_sample,
+            vec!["9,3", "10,3", "10,4", "11,3"]
+        );
+        assert_eq!(
+            evidence.aftermath_smoke_tiles_sample,
+            vec!["10,2", "10,3", "11,3"]
         );
         assert_eq!(
             evidence.objective_tiles_sample,
