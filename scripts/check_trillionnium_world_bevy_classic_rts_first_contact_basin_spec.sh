@@ -212,6 +212,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.combat_threat_levels_sample == [88,66,41]
   and .rts_evidence_bevy_runtime_adapter.combat_damage_ticks_sample == [16,21,35]
   and .rts_evidence_bevy_runtime_adapter.combat_projectile_id_sample == "guard_break_bolt"
+  and .rts_evidence_bevy_runtime_adapter.ai_pressure_wave_units_sample == ["lane_scout","mirror_raider","siege_runner"]
+  and .rts_evidence_bevy_runtime_adapter.ai_pressure_tiles_sample == ["9,3","8,4","7,4","6,5"]
+  and .rts_evidence_bevy_runtime_adapter.ai_pressure_counter_tiles_sample == ["5,5","6,5","6,4","7,5"]
+  and .rts_evidence_bevy_runtime_adapter.enemy_pressure_wave_units_sample == ["enemy_raider","enemy_signal_guard","enemy_sapper"]
+  and .rts_evidence_bevy_runtime_adapter.enemy_pressure_lane_tiles_sample == ["10,2","9,3","8,4","7,4","6,5"]
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

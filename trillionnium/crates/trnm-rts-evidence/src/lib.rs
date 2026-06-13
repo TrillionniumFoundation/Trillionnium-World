@@ -4,12 +4,15 @@
 
 use serde::{Deserialize, Serialize};
 use trnm_rts_bevy_runtime::{
-    rts_ability_effect_tiles_for_target, rts_command_queue_path_preview_stage,
-    rts_contact_flash_tiles_for_target, rts_damage_ticks_for_ability,
-    rts_engagement_tiles_for_target, rts_minimap_cell_origin, rts_projectile_id_for_ability,
-    rts_projectile_trail_tiles_for_target, rts_runtime_hit_test_grid, rts_runtime_tile_line,
-    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_threat_levels_for_target,
-    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_ability_effect_tiles_for_target, rts_ai_counter_tiles_for_pressure,
+    rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure,
+    rts_command_queue_path_preview_stage, rts_contact_flash_tiles_for_target,
+    rts_damage_ticks_for_ability, rts_enemy_pressure_lane_tiles_for_wave,
+    rts_enemy_pressure_wave_units_for_id, rts_engagement_tiles_for_target, rts_minimap_cell_origin,
+    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target,
+    rts_runtime_hit_test_grid, rts_runtime_tile_line, rts_target_priority_ids_for_target,
+    rts_target_tile_for_id, rts_threat_levels_for_target, RtsRuntimeGridSpec,
+    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -40,6 +43,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub combat_threat_levels_sample: Vec<u8>,
     pub combat_damage_ticks_sample: Vec<u8>,
     pub combat_projectile_id_sample: String,
+    pub ai_pressure_wave_units_sample: Vec<String>,
+    pub ai_pressure_tiles_sample: Vec<String>,
+    pub ai_pressure_counter_tiles_sample: Vec<String>,
+    pub enemy_pressure_wave_units_sample: Vec<String>,
+    pub enemy_pressure_lane_tiles_sample: Vec<String>,
     pub source_of_truth: String,
 }
 
@@ -73,6 +81,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let combat_threat_levels = rts_threat_levels_for_target("enemy_barracks");
     let combat_damage_ticks = rts_damage_ticks_for_ability("guard_break");
     let combat_projectile_id = rts_projectile_id_for_ability("guard_break");
+    let ai_pressure_wave_units = rts_ai_wave_unit_ids_for_pressure("skirmish_wave");
+    let ai_pressure_tiles = rts_ai_pressure_tiles_for_pressure("skirmish_wave");
+    let ai_pressure_counter_tiles = rts_ai_counter_tiles_for_pressure("skirmish_wave");
+    let enemy_pressure_wave_units = rts_enemy_pressure_wave_units_for_id("raider_wave");
+    let enemy_pressure_lane_tiles = rts_enemy_pressure_lane_tiles_for_wave("raider_wave");
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -100,7 +113,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && combat_ability_effect_tiles == vec!["10,3", "10,2", "11,2", "9,3"]
         && combat_threat_levels == vec![88, 66, 41]
         && combat_damage_ticks == vec![16, 21, 35]
-        && combat_projectile_id == "guard_break_bolt";
+        && combat_projectile_id == "guard_break_bolt"
+        && ai_pressure_wave_units == vec!["lane_scout", "mirror_raider", "siege_runner"]
+        && ai_pressure_tiles == vec!["9,3", "8,4", "7,4", "6,5"]
+        && ai_pressure_counter_tiles == vec!["5,5", "6,5", "6,4", "7,5"]
+        && enemy_pressure_wave_units == vec!["enemy_raider", "enemy_signal_guard", "enemy_sapper"]
+        && enemy_pressure_lane_tiles == vec!["10,2", "9,3", "8,4", "7,4", "6,5"];
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -125,7 +143,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         combat_threat_levels_sample: combat_threat_levels,
         combat_damage_ticks_sample: combat_damage_ticks,
         combat_projectile_id_sample: combat_projectile_id.to_string(),
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, and ability-effect samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        ai_pressure_wave_units_sample: ai_pressure_wave_units,
+        ai_pressure_tiles_sample: ai_pressure_tiles,
+        ai_pressure_counter_tiles_sample: ai_pressure_counter_tiles,
+        enemy_pressure_wave_units_sample: enemy_pressure_wave_units,
+        enemy_pressure_lane_tiles_sample: enemy_pressure_lane_tiles,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, and AI-pressure samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -182,5 +205,25 @@ mod tests {
         assert_eq!(evidence.combat_threat_levels_sample, vec![88, 66, 41]);
         assert_eq!(evidence.combat_damage_ticks_sample, vec![16, 21, 35]);
         assert_eq!(evidence.combat_projectile_id_sample, "guard_break_bolt");
+        assert_eq!(
+            evidence.ai_pressure_wave_units_sample,
+            vec!["lane_scout", "mirror_raider", "siege_runner"]
+        );
+        assert_eq!(
+            evidence.ai_pressure_tiles_sample,
+            vec!["9,3", "8,4", "7,4", "6,5"]
+        );
+        assert_eq!(
+            evidence.ai_pressure_counter_tiles_sample,
+            vec!["5,5", "6,5", "6,4", "7,5"]
+        );
+        assert_eq!(
+            evidence.enemy_pressure_wave_units_sample,
+            vec!["enemy_raider", "enemy_signal_guard", "enemy_sapper"]
+        );
+        assert_eq!(
+            evidence.enemy_pressure_lane_tiles_sample,
+            vec!["10,2", "9,3", "8,4", "7,4", "6,5"]
+        );
     }
 }

@@ -141769,27 +141769,15 @@ fn classic_rts_projectile_id_for_ability(ability_id: &str) -> &'static str {
 }
 
 fn classic_rts_ai_wave_unit_ids_for_pressure(pressure_id: &str) -> Vec<String> {
-    if pressure_id == "skirmish_wave" {
-        string_vec(["lane_scout", "mirror_raider", "siege_runner"])
-    } else {
-        string_vec(["lane_scout"])
-    }
+    rts_bevy_runtime::rts_ai_wave_unit_ids_for_pressure(pressure_id)
 }
 
 fn classic_rts_ai_pressure_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
-    if pressure_id == "skirmish_wave" {
-        string_vec(["9,3", "8,4", "7,4", "6,5"])
-    } else {
-        string_vec(["8,4", "7,4"])
-    }
+    rts_bevy_runtime::rts_ai_pressure_tiles_for_pressure(pressure_id)
 }
 
 fn classic_rts_ai_counter_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
-    if pressure_id == "skirmish_wave" {
-        string_vec(["5,5", "6,5", "6,4", "7,5"])
-    } else {
-        string_vec(["5,5", "6,5"])
-    }
+    rts_bevy_runtime::rts_ai_counter_tiles_for_pressure(pressure_id)
 }
 
 fn classic_rts_objective_parts(command: &str) -> (String, String, String) {
@@ -141957,19 +141945,11 @@ fn classic_rts_enemy_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i32)
 }
 
 fn classic_rts_enemy_pressure_wave_units_for_id(wave_id: &str) -> Vec<String> {
-    if wave_id == "raider_wave" {
-        string_vec(["enemy_raider", "enemy_signal_guard", "enemy_sapper"])
-    } else {
-        string_vec(["enemy_raider"])
-    }
+    rts_bevy_runtime::rts_enemy_pressure_wave_units_for_id(wave_id)
 }
 
 fn classic_rts_enemy_pressure_lane_tiles_for_wave(wave_id: &str) -> Vec<String> {
-    if wave_id == "raider_wave" {
-        string_vec(["10,2", "9,3", "8,4", "7,4", "6,5"])
-    } else {
-        string_vec(["9,3", "8,4"])
-    }
+    rts_bevy_runtime::rts_enemy_pressure_lane_tiles_for_wave(wave_id)
 }
 
 fn classic_rts_enemy_command_parts(

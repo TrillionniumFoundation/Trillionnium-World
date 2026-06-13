@@ -626,6 +626,46 @@ pub fn rts_projectile_id_for_ability(ability_id: &str) -> &'static str {
     }
 }
 
+pub fn rts_ai_wave_unit_ids_for_pressure(pressure_id: &str) -> Vec<String> {
+    if pressure_id == "skirmish_wave" {
+        rts_string_vec(["lane_scout", "mirror_raider", "siege_runner"])
+    } else {
+        rts_string_vec(["lane_scout"])
+    }
+}
+
+pub fn rts_ai_pressure_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
+    if pressure_id == "skirmish_wave" {
+        rts_string_vec(["9,3", "8,4", "7,4", "6,5"])
+    } else {
+        rts_string_vec(["8,4", "7,4"])
+    }
+}
+
+pub fn rts_ai_counter_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
+    if pressure_id == "skirmish_wave" {
+        rts_string_vec(["5,5", "6,5", "6,4", "7,5"])
+    } else {
+        rts_string_vec(["5,5", "6,5"])
+    }
+}
+
+pub fn rts_enemy_pressure_wave_units_for_id(wave_id: &str) -> Vec<String> {
+    if wave_id == "raider_wave" {
+        rts_string_vec(["enemy_raider", "enemy_signal_guard", "enemy_sapper"])
+    } else {
+        rts_string_vec(["enemy_raider"])
+    }
+}
+
+pub fn rts_enemy_pressure_lane_tiles_for_wave(wave_id: &str) -> Vec<String> {
+    if wave_id == "raider_wave" {
+        rts_string_vec(["10,2", "9,3", "8,4", "7,4", "6,5"])
+    } else {
+        rts_string_vec(["9,3", "8,4"])
+    }
+}
+
 pub fn rts_command_queue_path_preview_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -916,6 +956,30 @@ mod tests {
         assert_eq!(
             rts_projectile_id_for_ability("guard_break"),
             "guard_break_bolt"
+        );
+    }
+
+    #[test]
+    fn ai_pressure_adapter_preserves_first_contact_routes() {
+        assert_eq!(
+            rts_ai_wave_unit_ids_for_pressure("skirmish_wave"),
+            vec!["lane_scout", "mirror_raider", "siege_runner"]
+        );
+        assert_eq!(
+            rts_ai_pressure_tiles_for_pressure("skirmish_wave"),
+            vec!["9,3", "8,4", "7,4", "6,5"]
+        );
+        assert_eq!(
+            rts_ai_counter_tiles_for_pressure("skirmish_wave"),
+            vec!["5,5", "6,5", "6,4", "7,5"]
+        );
+        assert_eq!(
+            rts_enemy_pressure_wave_units_for_id("raider_wave"),
+            vec!["enemy_raider", "enemy_signal_guard", "enemy_sapper"]
+        );
+        assert_eq!(
+            rts_enemy_pressure_lane_tiles_for_wave("raider_wave"),
+            vec!["10,2", "9,3", "8,4", "7,4", "6,5"]
         );
     }
 }
