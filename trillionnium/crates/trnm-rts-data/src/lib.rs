@@ -437,6 +437,7 @@ pub struct RtsFirstContactPlayerScreenProfile {
     pub command_queue: Vec<String>,
     pub production_queue: Vec<String>,
     pub build_queue: Vec<String>,
+    pub unit_health_percents: Vec<u8>,
     pub visible_tiles: Vec<RtsTile>,
     pub fogged_tiles: Vec<RtsTile>,
     pub selection_box_tiles: Vec<RtsTile>,
@@ -2060,6 +2061,7 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             "build:watch_tower".to_string(),
             "upgrade:training_hall".to_string(),
         ],
+        unit_health_percents: vec![96, 78, 71, 34],
         visible_tiles,
         fogged_tiles: vec![
             RtsTile::new(1, 1),
@@ -2573,6 +2575,11 @@ mod tests {
             profile.build_queue,
             vec!["build:watch_tower", "upgrade:training_hall"]
         );
+        assert_eq!(profile.unit_health_percents, vec![96, 78, 71, 34]);
+        assert!(profile
+            .unit_health_percents
+            .iter()
+            .all(|percent| *percent <= 100));
         assert!(map
             .rules
             .iter()

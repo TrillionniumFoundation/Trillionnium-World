@@ -28339,6 +28339,7 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
     runtime.rts_command_queue = profile.command_queue.clone();
     runtime.rts_production_queue = profile.production_queue.clone();
     runtime.rts_build_queue = profile.build_queue.clone();
+    runtime.rts_unit_health_percents = profile.unit_health_percents.clone();
     runtime.rts_visible_tile_ids = classic_first_contact_tile_ids(&profile.visible_tiles);
     runtime.rts_fogged_tile_ids = classic_first_contact_tile_ids(&profile.fogged_tiles);
     runtime.rts_selection_box_tile_ids =
@@ -28790,6 +28791,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .build_queue
             .iter()
             .any(|queue| queue == "upgrade:training_hall")
+        && player_screen_profile.unit_health_percents == vec![96, 78, 71, 34]
+        && player_screen_profile
+            .unit_health_percents
+            .iter()
+            .all(|percent| *percent <= 100)
         && player_screen_profile.visible_tiles.len() == 64
         && player_screen_profile
             .visible_tiles
@@ -28825,6 +28831,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_runtime.rts_command_queue == player_screen_profile.command_queue
         && player_screen_runtime.rts_production_queue == player_screen_profile.production_queue
         && player_screen_runtime.rts_build_queue == player_screen_profile.build_queue
+        && player_screen_runtime.rts_unit_health_percents
+            == player_screen_profile.unit_health_percents
         && player_screen_runtime.rts_visible_tile_ids.len()
             == player_screen_profile.visible_tiles.len()
         && player_screen_runtime.rts_camera_focus_tile_id.as_deref()
