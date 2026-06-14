@@ -19,11 +19,12 @@ use trnm_rts_bevy_runtime::{
     rts_command_execution_target_label, rts_command_execution_target_tile,
     rts_command_feedback_lifecycle_stage, rts_command_feedback_strip_stage,
     rts_command_history_prune_visible, rts_command_history_visible,
-    rts_command_queue_path_preview_stage, rts_command_slot_id_for_index,
-    rts_command_stamp_for_ability, rts_command_stamp_for_move, rts_command_stamp_for_selection,
-    rts_command_surface_stage, rts_commander_aura_tiles_for_id, rts_commander_parts,
-    rts_contact_flash_tiles_for_target, rts_control_group_hotkey_feedback_stage,
-    rts_control_group_hotkey_slot, rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_command_queue_path_preview_stage, rts_command_queue_path_preview_stage_fixtures,
+    rts_command_slot_id_for_index, rts_command_stamp_for_ability, rts_command_stamp_for_move,
+    rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
+    rts_commander_parts, rts_contact_flash_tiles_for_target,
+    rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
+    rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
@@ -98,6 +99,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub camera_minimap_revealed_union_count_sample: usize,
     pub camera_minimap_zoom_rect_area_sample: i32,
     pub path_preview_sample: Option<String>,
+    pub command_queue_path_preview_stage_count_sample: usize,
+    pub command_queue_path_preview_action_kinds_sample: Vec<String>,
+    pub command_queue_path_preview_action_payloads_sample: Vec<String>,
+    pub command_queue_path_preview_history_entries_sample: Vec<String>,
     pub formation_move_preview_stage_sample: Option<String>,
     pub formation_move_execution_stage_sample: Option<String>,
     pub local_obstruction_recovery_stage_sample: Option<String>,
@@ -317,6 +322,19 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let preview_queue = vec!["command_queue_path_preview:queue_stack".to_string()];
     let path_preview =
         rts_command_queue_path_preview_stage(&[], &preview_queue, 0).map(str::to_string);
+    let command_queue_path_preview_fixtures = rts_command_queue_path_preview_stage_fixtures();
+    let command_queue_path_preview_action_kinds = command_queue_path_preview_fixtures
+        .iter()
+        .map(|fixture| fixture.action.kind.clone())
+        .collect::<Vec<_>>();
+    let command_queue_path_preview_action_payloads = command_queue_path_preview_fixtures
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let command_queue_path_preview_history_entries = command_queue_path_preview_fixtures
+        .iter()
+        .map(|fixture| fixture.history_entry.clone())
+        .collect::<Vec<_>>();
     let formation_preview_stage = rts_formation_move_preview_stage(
         &["formation_move_preview:commit_spacing".to_string()],
         &["formation_move_preview:destination_ghost".to_string()],
@@ -896,6 +914,34 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && camera_minimap_revealed_union.len() == 35
         && camera_minimap_zoom_rect_area == 308
         && path_preview.as_deref() == Some("queue_stack")
+        && command_queue_path_preview_fixtures.len() == 6
+        && command_queue_path_preview_action_kinds
+            == [
+                "select-control-group",
+                "move",
+                "move",
+                "attack",
+                "queue",
+                "queue",
+            ]
+        && command_queue_path_preview_action_payloads
+            == [
+                "box:frontline",
+                "8,4:line",
+                "9,2:rally",
+                "arena_creep_attack",
+                "build:watch_tower@7,4",
+                "cancel:build:0",
+            ]
+        && command_queue_path_preview_history_entries
+            == [
+                "command_queue_path_preview:queue_stack",
+                "command_queue_path_preview:shift_waypoints",
+                "command_queue_path_preview:rally_chain",
+                "command_queue_path_preview:attack_focus",
+                "command_queue_path_preview:build_reservation",
+                "command_queue_path_preview:cancel_repath",
+            ]
         && formation_preview_stage.as_deref() == Some("commit_spacing")
         && formation_execution_stage.as_deref() == Some("arrival_lock")
         && local_obstruction_stage.as_deref() == Some("flow_resume")
@@ -1204,6 +1250,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         camera_minimap_revealed_union_count_sample: camera_minimap_revealed_union.len(),
         camera_minimap_zoom_rect_area_sample: camera_minimap_zoom_rect_area,
         path_preview_sample: path_preview,
+        command_queue_path_preview_stage_count_sample: command_queue_path_preview_fixtures.len(),
+        command_queue_path_preview_action_kinds_sample: command_queue_path_preview_action_kinds,
+        command_queue_path_preview_action_payloads_sample: command_queue_path_preview_action_payloads,
+        command_queue_path_preview_history_entries_sample:
+            command_queue_path_preview_history_entries,
         formation_move_preview_stage_sample: formation_preview_stage,
         formation_move_execution_stage_sample: formation_execution_stage,
         local_obstruction_recovery_stage_sample: local_obstruction_stage,
@@ -1484,6 +1535,40 @@ mod tests {
         assert_eq!(evidence.camera_minimap_revealed_union_count_sample, 35);
         assert_eq!(evidence.camera_minimap_zoom_rect_area_sample, 308);
         assert_eq!(evidence.path_preview_sample.as_deref(), Some("queue_stack"));
+        assert_eq!(evidence.command_queue_path_preview_stage_count_sample, 6);
+        assert_eq!(
+            evidence.command_queue_path_preview_action_kinds_sample,
+            vec![
+                "select-control-group",
+                "move",
+                "move",
+                "attack",
+                "queue",
+                "queue"
+            ]
+        );
+        assert_eq!(
+            evidence.command_queue_path_preview_action_payloads_sample,
+            vec![
+                "box:frontline",
+                "8,4:line",
+                "9,2:rally",
+                "arena_creep_attack",
+                "build:watch_tower@7,4",
+                "cancel:build:0"
+            ]
+        );
+        assert_eq!(
+            evidence.command_queue_path_preview_history_entries_sample,
+            vec![
+                "command_queue_path_preview:queue_stack",
+                "command_queue_path_preview:shift_waypoints",
+                "command_queue_path_preview:rally_chain",
+                "command_queue_path_preview:attack_focus",
+                "command_queue_path_preview:build_reservation",
+                "command_queue_path_preview:cancel_repath"
+            ]
+        );
         assert_eq!(
             evidence.formation_move_preview_stage_sample.as_deref(),
             Some("commit_spacing")

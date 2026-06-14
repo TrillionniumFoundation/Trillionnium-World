@@ -200,6 +200,10 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.camera_minimap_revealed_union_count_sample == 35
   and .rts_evidence_bevy_runtime_adapter.camera_minimap_zoom_rect_area_sample == 308
   and .rts_bevy_runtime_path_preview_sample == "queue_stack"
+  and .rts_evidence_bevy_runtime_adapter.command_queue_path_preview_stage_count_sample == 6
+  and .rts_evidence_bevy_runtime_adapter.command_queue_path_preview_action_kinds_sample == ["select-control-group","move","move","attack","queue","queue"]
+  and .rts_evidence_bevy_runtime_adapter.command_queue_path_preview_action_payloads_sample == ["box:frontline","8,4:line","9,2:rally","arena_creep_attack","build:watch_tower@7,4","cancel:build:0"]
+  and .rts_evidence_bevy_runtime_adapter.command_queue_path_preview_history_entries_sample == ["command_queue_path_preview:queue_stack","command_queue_path_preview:shift_waypoints","command_queue_path_preview:rally_chain","command_queue_path_preview:attack_focus","command_queue_path_preview:build_reservation","command_queue_path_preview:cancel_repath"]
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_stage_sample == "commit_spacing"
   and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"
   and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_sample == "flow_resume"

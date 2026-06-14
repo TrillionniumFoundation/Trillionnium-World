@@ -162,6 +162,16 @@ pub struct RtsOrderQueueReplayAction {
     pub payload: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsCommandQueuePathPreviewStageFixture {
+    pub stage: String,
+    pub action: RtsOrderQueueReplayAction,
+    pub history_entry: String,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeMapLayoutInput {
     pub viewport_width: i32,
@@ -3392,6 +3402,52 @@ pub fn rts_command_queue_path_preview_stage(
     })
 }
 
+pub fn rts_command_queue_path_preview_input_source() -> &'static str {
+    "classic_rts_command_queue_path_preview_input"
+}
+
+pub fn rts_command_queue_path_preview_renderer_path() -> &'static str {
+    "classic_draw_scene+classic_draw_rts_command_queue_path_preview_overlay"
+}
+
+pub fn rts_command_queue_path_preview_preview_surface() -> &'static str {
+    "queue_stack+shift_waypoints+rally_chain+attack_focus+build_reservation+cancel_repath"
+}
+
+pub fn rts_command_queue_path_preview_stage_fixtures() -> Vec<RtsCommandQueuePathPreviewStageFixture>
+{
+    [
+        ("queue_stack", "select-control-group", "box:frontline"),
+        ("shift_waypoints", "move", "8,4:line"),
+        ("rally_chain", "move", "9,2:rally"),
+        ("attack_focus", "attack", "arena_creep_attack"),
+        ("build_reservation", "queue", "build:watch_tower@7,4"),
+        ("cancel_repath", "queue", "cancel:build:0"),
+    ]
+    .into_iter()
+    .map(
+        |(stage, kind, payload)| RtsCommandQueuePathPreviewStageFixture {
+            stage: stage.to_string(),
+            action: RtsOrderQueueReplayAction {
+                kind: kind.to_string(),
+                payload: payload.to_string(),
+            },
+            history_entry: format!("command_queue_path_preview:{stage}"),
+            input_source: rts_command_queue_path_preview_input_source().to_string(),
+            renderer_path: rts_command_queue_path_preview_renderer_path().to_string(),
+            preview_surface: rts_command_queue_path_preview_preview_surface().to_string(),
+        },
+    )
+    .collect()
+}
+
+pub fn rts_command_queue_path_preview_stage_ids() -> Vec<String> {
+    rts_command_queue_path_preview_stage_fixtures()
+        .into_iter()
+        .map(|fixture| fixture.stage)
+        .collect()
+}
+
 pub fn rts_formation_move_preview_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -4334,6 +4390,42 @@ mod tests {
         assert_eq!(
             rts_command_queue_path_preview_stage(&[], &["other".to_string()], 0),
             None
+        );
+
+        let fixtures = rts_command_queue_path_preview_stage_fixtures();
+        assert_eq!(
+            fixtures
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "queue_stack",
+                "shift_waypoints",
+                "rally_chain",
+                "attack_focus",
+                "build_reservation",
+                "cancel_repath"
+            ]
+        );
+        assert_eq!(
+            fixtures
+                .iter()
+                .map(|fixture| fixture.action.kind.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "select-control-group",
+                "move",
+                "move",
+                "attack",
+                "queue",
+                "queue"
+            ]
+        );
+        assert_eq!(
+            fixtures
+                .last()
+                .map(|fixture| fixture.history_entry.as_str()),
+            Some("command_queue_path_preview:cancel_repath")
         );
     }
 
