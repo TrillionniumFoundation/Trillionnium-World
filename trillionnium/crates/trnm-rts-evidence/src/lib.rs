@@ -7,9 +7,10 @@ use trnm_rts_bevy_runtime::{
     rts_ability_effect_tiles_for_target, rts_aftermath_debris_tiles_for_id,
     rts_aftermath_smoke_tiles_for_id, rts_ai_counter_tiles_for_pressure,
     rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure,
-    rts_army_rally_tiles_for_id, rts_army_units_for_batch, rts_base_assault_path_tiles_for_target,
-    rts_base_assault_targets_for_id, rts_boss_guard_units_for_id, rts_build_site_tiles,
-    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
+    rts_army_rally_tiles_for_id, rts_army_units_for_batch, rts_available_gold,
+    rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
+    rts_blocked_feedback_player_label, rts_boss_guard_units_for_id, rts_build_parts,
+    rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
     rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id,
     rts_contact_flash_tiles_for_target, rts_counterattack_route_tiles_for_wave,
     rts_counterattack_units_for_wave, rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
@@ -26,7 +27,8 @@ use trnm_rts_bevy_runtime::{
     rts_minimap_cell_origin, rts_objective_tiles_for_id, rts_open_world_panels_for_room,
     rts_open_world_route_tiles_for_id, rts_player_army_unit_tile_for_id,
     rts_player_hold_tiles_for_id, rts_player_siege_line_tiles_for_id,
-    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target,
+    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
+    rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
     rts_rebuild_structures_for_id, rts_restored_zones_for_id, rts_runtime_hit_test_grid,
     rts_runtime_tile_line, rts_scout_route_tiles_for_recon, rts_siege_breach_tiles_for_target,
     rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
@@ -127,6 +129,13 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub build_site_tiles_sample: Vec<String>,
     pub structure_tile_sample: RtsEvidencePoint,
     pub unlock_unit_tile_sample: RtsEvidencePoint,
+    pub queue_gold_cost_sample: u64,
+    pub queue_available_gold_sample: u64,
+    pub queue_affordable_sample: bool,
+    pub queue_build_parts_sample: Vec<String>,
+    pub queue_production_lane_sample: bool,
+    pub queue_feedback_chip_sample: String,
+    pub queue_blocked_feedback_label_sample: String,
     pub source_of_truth: String,
 }
 
@@ -223,6 +232,17 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let build_site_tiles = rts_build_site_tiles("7,4");
     let structure_tile = rts_structure_tile_for_id("training_hall");
     let unlock_unit_tile = rts_unlock_unit_tile_for_id("relay_guard");
+    let queue_resource_spend_log = vec!["commit:1200g:prior_queue_pressure".to_string()];
+    let queue_gold_cost = rts_queue_gold_cost("build:watch_tower@7,4");
+    let queue_available_gold = rts_available_gold(0, &queue_resource_spend_log);
+    let queue_affordable =
+        rts_queue_is_affordable(0, &queue_resource_spend_log, "build:watch_tower@7,4");
+    let queue_build_parts = rts_build_parts("build:watch_tower@7,4");
+    let queue_production_lane = rts_queue_uses_production_lane("train:worker");
+    let queue_feedback_chip = rts_queue_feedback_chip("build:watch_tower@7,4");
+    let queue_blocked_feedback_label = rts_blocked_feedback_player_label(
+        "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4",
+    );
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -345,7 +365,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && dropoff_tile == (5, 5)
         && build_site_tiles == vec!["7,4", "7,5", "8,4"]
         && structure_tile == (4, 3)
-        && unlock_unit_tile == (7, 5);
+        && unlock_unit_tile == (7, 5)
+        && queue_gold_cost == 210
+        && queue_available_gold == 40
+        && !queue_affordable
+        && queue_build_parts == ("watch_tower".to_string(), "7,4".to_string())
+        && queue_production_lane
+        && queue_feedback_chip == "feedback:build_placed:watch_tower@7,4"
+        && queue_blocked_feedback_label == "QUEUE LOCK NEED 210G";
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -478,7 +505,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             x: unlock_unit_tile.0,
             y: unlock_unit_tile.1,
         },
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        queue_gold_cost_sample: queue_gold_cost,
+        queue_available_gold_sample: queue_available_gold,
+        queue_affordable_sample: queue_affordable,
+        queue_build_parts_sample: vec![queue_build_parts.0, queue_build_parts.1],
+        queue_production_lane_sample: queue_production_lane,
+        queue_feedback_chip_sample: queue_feedback_chip,
+        queue_blocked_feedback_label_sample: queue_blocked_feedback_label,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -799,6 +833,22 @@ mod tests {
         assert_eq!(
             evidence.unlock_unit_tile_sample,
             RtsEvidencePoint { x: 7, y: 5 }
+        );
+        assert_eq!(evidence.queue_gold_cost_sample, 210);
+        assert_eq!(evidence.queue_available_gold_sample, 40);
+        assert!(!evidence.queue_affordable_sample);
+        assert_eq!(
+            evidence.queue_build_parts_sample,
+            vec!["watch_tower", "7,4"]
+        );
+        assert!(evidence.queue_production_lane_sample);
+        assert_eq!(
+            evidence.queue_feedback_chip_sample,
+            "feedback:build_placed:watch_tower@7,4"
+        );
+        assert_eq!(
+            evidence.queue_blocked_feedback_label_sample,
+            "QUEUE LOCK NEED 210G"
         );
     }
 }

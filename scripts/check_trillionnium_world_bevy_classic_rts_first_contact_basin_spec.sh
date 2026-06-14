@@ -290,6 +290,13 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.structure_tile_sample.y == 3
   and .rts_evidence_bevy_runtime_adapter.unlock_unit_tile_sample.x == 7
   and .rts_evidence_bevy_runtime_adapter.unlock_unit_tile_sample.y == 5
+  and .rts_evidence_bevy_runtime_adapter.queue_gold_cost_sample == 210
+  and .rts_evidence_bevy_runtime_adapter.queue_available_gold_sample == 40
+  and .rts_evidence_bevy_runtime_adapter.queue_affordable_sample == false
+  and .rts_evidence_bevy_runtime_adapter.queue_build_parts_sample == ["watch_tower","7,4"]
+  and .rts_evidence_bevy_runtime_adapter.queue_production_lane_sample == true
+  and .rts_evidence_bevy_runtime_adapter.queue_feedback_chip_sample == "feedback:build_placed:watch_tower@7,4"
+  and .rts_evidence_bevy_runtime_adapter.queue_blocked_feedback_label_sample == "QUEUE LOCK NEED 210G"
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

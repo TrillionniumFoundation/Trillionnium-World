@@ -83893,86 +83893,36 @@ fn classic_rts_action_from_order_entry(
 }
 
 fn classic_rts_queue_gold_cost(queue_id: &str) -> u64 {
-    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id);
-    let item_id = queue_id
-        .split_once('@')
-        .map(|(item_id, _)| item_id)
-        .unwrap_or(queue_id);
-    match item_id {
-        "train:worker" => 80,
-        "train:guard" => 140,
-        "train:scout" => 110,
-        "build:watch_tower" => 210,
-        "build:training_hall" => 260,
-        "build:signal_spire" => 320,
-        "build:power_node" => 160,
-        "build:refinery" => 240,
-        "build:command_post" => 300,
-        "build:radar_spire" => 220,
-        "build:wall" => 60,
-        "build:relay" | "build:scout_tower" => 180,
-        "upgrade:signal_blade" | "upgrade:training_hall" => 210,
-        "harvest:gold_vein" | "harvest:lumber_copse" => 0,
-        _ if item_id.starts_with("complete:") => 0,
-        _ if item_id.starts_with("cancel:") => 0,
-        _ if item_id.starts_with("repair:") => 45,
-        _ => 120,
-    }
+    rts_bevy_runtime::rts_queue_gold_cost(queue_id)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_queue_cost_label(queue_id: &str) -> String {
-    let cost = classic_rts_queue_gold_cost(queue_id);
-    if cost == 0 {
-        "-".to_string()
-    } else {
-        cost.to_string()
-    }
+    rts_bevy_runtime::rts_queue_cost_label(queue_id)
 }
 
-#[cfg(not(target_os = "android"))]
-fn classic_rts_log_gold_amount(entry: &str) -> u64 {
-    entry
-        .split(':')
-        .filter_map(|part| part.trim().strip_suffix('g'))
-        .filter_map(|amount| {
-            amount
-                .trim_start_matches(|value| value == '+' || value == '-')
-                .parse::<u64>()
-                .ok()
-        })
-        .sum()
-}
-
-#[cfg(not(target_os = "android"))]
+#[cfg(test)]
 fn classic_rts_resource_gold_commitment(runtime: &NativeFirstPlayableRuntime) -> u64 {
-    runtime
-        .rts_resource_spend_log
-        .iter()
-        .map(|entry| classic_rts_log_gold_amount(entry))
-        .sum()
+    rts_bevy_runtime::rts_resource_gold_commitment(&runtime.rts_resource_spend_log)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_available_gold(runtime: &NativeFirstPlayableRuntime) -> u64 {
-    let gross_gold = 620_u64.saturating_add(runtime.coins);
-    let commitment = classic_rts_resource_gold_commitment(runtime);
-    gross_gold.saturating_sub(commitment.min(gross_gold.saturating_sub(40)))
+    rts_bevy_runtime::rts_available_gold(runtime.coins, &runtime.rts_resource_spend_log)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_queue_is_affordable(runtime: &NativeFirstPlayableRuntime, queue_id: &str) -> bool {
-    classic_rts_queue_gold_cost(queue_id) <= classic_rts_available_gold(runtime)
+    rts_bevy_runtime::rts_queue_is_affordable(
+        runtime.coins,
+        &runtime.rts_resource_spend_log,
+        queue_id,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_queue_requires_affordability_check(queue_id: &str) -> bool {
-    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id).trim();
-    queue_id.starts_with("build:")
-        || queue_id.starts_with("train:")
-        || queue_id.starts_with("upgrade:")
-        || queue_id.starts_with("research:")
-        || queue_id.starts_with("repair:")
+    rts_bevy_runtime::rts_queue_requires_affordability_check(queue_id)
 }
 
 fn classic_rts_queue_unaffordable_reason(
@@ -142116,12 +142066,7 @@ fn classic_rts_dropoff_tile_for_structure(structure_id: &str) -> (i32, i32) {
 }
 
 fn classic_rts_build_parts(queue_id: &str) -> (String, String) {
-    let payload = queue_id.strip_prefix("build:").unwrap_or(queue_id);
-    if let Some((structure_id, tile_id)) = payload.split_once('@') {
-        (structure_id.to_string(), tile_id.to_string())
-    } else {
-        (payload.to_string(), "7,4".to_string())
-    }
+    rts_bevy_runtime::rts_build_parts(queue_id)
 }
 
 fn classic_rts_structure_parts(
@@ -142129,12 +142074,7 @@ fn classic_rts_structure_parts(
     prefix: &str,
     fallback_tile_id: &str,
 ) -> (String, String) {
-    let payload = queue_id.strip_prefix(prefix).unwrap_or(queue_id);
-    if let Some((structure_id, tile_id)) = payload.split_once('@') {
-        (structure_id.to_string(), tile_id.to_string())
-    } else {
-        (payload.to_string(), fallback_tile_id.to_string())
-    }
+    rts_bevy_runtime::rts_structure_parts(queue_id, prefix, fallback_tile_id)
 }
 
 fn classic_rts_build_site_tiles(tile_id: &str) -> Vec<String> {
@@ -142154,12 +142094,7 @@ fn classic_rts_tech_parts(
     prefix: &str,
     fallback_source_id: &str,
 ) -> (String, String) {
-    let payload = queue_id.strip_prefix(prefix).unwrap_or(queue_id);
-    if let Some((tech_id, source_id)) = payload.split_once('@') {
-        (tech_id.to_string(), source_id.to_string())
-    } else {
-        (payload.to_string(), fallback_source_id.to_string())
-    }
+    rts_bevy_runtime::rts_tech_parts(queue_id, prefix, fallback_source_id)
 }
 
 fn apply_classic_rts_select_group_runtime(
@@ -144427,12 +144362,7 @@ fn ensure_classic_rts_mirror_city_restoration_ready(
 }
 
 fn classic_rts_queue_uses_production_lane(queue_id: &str) -> bool {
-    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id);
-    !queue_id.starts_with("build:")
-        && !queue_id.starts_with("cancel:")
-        && !queue_id.starts_with("complete:")
-        && !queue_id.starts_with("harvest:")
-        && !queue_id.starts_with("repair:")
+    rts_bevy_runtime::rts_queue_uses_production_lane(queue_id)
 }
 
 fn apply_classic_rts_queue_cancel_runtime(
@@ -144497,60 +144427,15 @@ fn apply_classic_rts_queue_cancel_runtime(
 }
 
 fn classic_rts_queue_feedback_chip(queue_id: &str) -> String {
-    let queue_id = queue_id.strip_prefix("queue:").unwrap_or(queue_id);
-    if let Some(unit_id) = queue_id.strip_prefix("train:") {
-        format!("feedback:train_queued:{unit_id}")
-    } else if queue_id.starts_with("build:") {
-        let (structure_id, tile_id) = classic_rts_build_parts(queue_id);
-        format!("feedback:build_placed:{structure_id}@{tile_id}")
-    } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
-        format!("feedback:harvest_assigned:{node_id}")
-    } else if queue_id.starts_with("upgrade:") {
-        let (upgrade_id, source_id) = classic_rts_tech_parts(queue_id, "upgrade:", "training_hall");
-        format!("feedback:upgrade_queued:{upgrade_id}@{source_id}")
-    } else if queue_id.starts_with("research:") {
-        let (tech_id, source_id) = classic_rts_tech_parts(queue_id, "research:", "town_hall");
-        format!("feedback:research_queued:{tech_id}@{source_id}")
-    } else {
-        format!("feedback:queue_accepted:{queue_id}")
-    }
+    rts_bevy_runtime::rts_queue_feedback_chip(queue_id)
 }
 
 fn classic_rts_rejection_feedback_chip(action_label: &str, reason: &str) -> String {
-    let action_kind = action_label
-        .strip_prefix("RTS:")
-        .and_then(|label| label.split(':').next())
-        .filter(|label| !label.trim().is_empty())
-        .unwrap_or("action")
-        .to_ascii_lowercase();
-    format!("feedback:blocked:{action_kind}:{reason}")
+    rts_bevy_runtime::rts_rejection_feedback_chip(action_label, reason)
 }
 
 fn classic_rts_input_source_player_label(input_source: &str, action_label: &str) -> &'static str {
-    let normalized = input_source.to_ascii_lowercase();
-    if normalized.contains("mouse_sidebar") {
-        "SIDEBAR"
-    } else if normalized.contains("mouse_command_bar") {
-        "COMMAND BAR"
-    } else if normalized.contains("mouse_minimap") {
-        "MINIMAP"
-    } else if normalized.contains("mouse_bottom_panel") {
-        "BOTTOM PANEL"
-    } else if normalized.contains("mouse_viewport") {
-        "MAP"
-    } else if normalized.contains("mouse_drag") {
-        "DRAG"
-    } else if normalized.contains("hotkey") {
-        "HOTKEY"
-    } else if normalized.contains("keyboard") {
-        "KEYBOARD"
-    } else if action_label.starts_with("RTS:QUEUE") {
-        "SIDEBAR"
-    } else if action_label.starts_with("RTS:MOVE") || action_label.starts_with("RTS:ATTACK") {
-        "MAP"
-    } else {
-        "COMMAND"
-    }
+    rts_bevy_runtime::rts_input_source_player_label(input_source, action_label)
 }
 
 fn classic_rts_blocked_feedback_toast(
@@ -144558,12 +144443,7 @@ fn classic_rts_blocked_feedback_toast(
     action_label: &str,
     reason: &str,
 ) -> String {
-    let chip = classic_rts_rejection_feedback_chip(action_label, reason);
-    format!(
-        "Input blocked: {} {}",
-        classic_rts_input_source_player_label(input_source, action_label),
-        classic_rts_blocked_feedback_player_label(&chip)
-    )
+    rts_bevy_runtime::rts_blocked_feedback_toast(input_source, action_label, reason)
 }
 
 fn classic_rts_hover_player_label(
@@ -144646,45 +144526,15 @@ fn classic_rts_hover_player_label(
 }
 
 fn classic_rts_should_emit_rejection_feedback_chip(input_source: &str) -> bool {
-    !input_source.contains("bot_executor")
+    rts_bevy_runtime::rts_should_emit_rejection_feedback_chip(input_source)
 }
 
 fn classic_rts_executable_command_queue_snapshot(queue: &[String]) -> Vec<String> {
-    queue
-        .iter()
-        .filter(|entry| !entry.starts_with("feedback:blocked:"))
-        .cloned()
-        .collect()
+    rts_bevy_runtime::rts_executable_command_queue_snapshot(queue)
 }
 
 fn classic_rts_blocked_feedback_player_label(chip: &str) -> String {
-    let blocked = chip.strip_prefix("feedback:blocked:").unwrap_or(chip);
-    if let Some(queue_id) = blocked.strip_prefix("queue:rts_queue_unaffordable:") {
-        return format!("QUEUE LOCK NEED {}G", classic_rts_queue_gold_cost(queue_id));
-    }
-    if blocked == "queue:rts_queue_id_required" {
-        return "QUEUE LOCK PICK ITEM".to_string();
-    }
-    if blocked == "select:rts_group_id_required" {
-        return "SELECT LOCK GROUP ID".to_string();
-    }
-    if blocked == "attack:rts_attack_target_required" {
-        return "ATTACK LOCK PICK TARGET".to_string();
-    }
-    if blocked == "ability:rts_attack_required_before_ability" {
-        return "ABILITY LOCK NEED TARGET".to_string();
-    }
-    if blocked == "move:rts_group_selection_required" {
-        return "MOVE LOCK SELECT UNITS".to_string();
-    }
-    if blocked.starts_with("move:rts_invalid_tile:") {
-        return "MOVE LOCK INVALID TILE".to_string();
-    }
-    blocked
-        .replace("rts_", "")
-        .replace(':', " ")
-        .replace('_', " ")
-        .to_ascii_uppercase()
+    rts_bevy_runtime::rts_blocked_feedback_player_label(chip)
 }
 
 fn classic_rts_order_queue_chip_color(order: &str) -> u32 {
