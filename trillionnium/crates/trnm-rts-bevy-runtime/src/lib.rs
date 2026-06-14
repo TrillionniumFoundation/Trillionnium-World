@@ -423,7 +423,7 @@ fn rts_push_unique_string(values: &mut Vec<String>, value: &str) {
     }
 }
 
-fn rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+pub fn rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
     let steps = dx.abs().max(dy.abs()).max(1);
@@ -523,6 +523,22 @@ pub fn rts_selectable_unit_at_tile(tile: (i32, i32)) -> Option<&'static str> {
             (allegiance_priority, *priority, *unit_id)
         })
         .map(|(unit_id, _, _, _)| unit_id)
+}
+
+pub fn rts_selection_clear_parts(group_id: &str) -> Option<(String, Option<String>, String)> {
+    let payload = group_id.strip_prefix("clear:")?;
+    if let Some(tile_id) = payload.strip_prefix("empty@") {
+        return Some(("empty".to_string(), None, tile_id.to_string()));
+    }
+    if let Some(hostile_payload) = payload.strip_prefix("hostile:") {
+        let (unit_id, tile_id) = hostile_payload.split_once('@')?;
+        return Some((
+            "hostile".to_string(),
+            Some(unit_id.to_string()),
+            tile_id.to_string(),
+        ));
+    }
+    None
 }
 
 pub fn rts_selection_tiles_for_units(unit_ids: &[String]) -> Vec<String> {
@@ -684,6 +700,20 @@ pub fn rts_move_follow_target(formation: &str) -> Option<&str> {
         .filter(|target_id| !target_id.is_empty())
 }
 
+pub fn rts_move_command_parts(command_id: &str) -> (&str, &str) {
+    let command_payload = command_id.strip_prefix("minimap:").unwrap_or(command_id);
+    let mut parts = command_payload.splitn(2, ':');
+    let tile_id = parts
+        .next()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("7,4");
+    let formation = parts
+        .next()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("diamond");
+    (tile_id, formation)
+}
+
 pub fn rts_move_formation_kind(formation: &str) -> &str {
     if rts_move_follow_target(formation).is_some() {
         "follow"
@@ -817,6 +847,19 @@ pub fn rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
         ])
     } else {
         vec![target_id.to_string()]
+    }
+}
+
+pub fn rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
+    if target_id == "enemy_barracks" {
+        rts_army_units_for_batch("mixed_vanguard")
+    } else if target_id == "forest_creep_camp"
+        || target_id == "arena_creep_attack"
+        || target_id == "square_creep_wander"
+    {
+        rts_default_group_units()
+    } else {
+        rts_string_vec(["player", "square_guard_patrol"])
     }
 }
 
@@ -1146,6 +1189,109 @@ pub fn rts_player_army_unit_tile_for_id(unit_id: &str, index: usize) -> (i32, i3
     }
 }
 
+pub fn rts_objective_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("claim", command));
+    let (objective_id, tile_id) = payload.split_once('@').unwrap_or((payload, "6,5"));
+    (
+        kind.to_string(),
+        objective_id.to_string(),
+        tile_id.to_string(),
+    )
+}
+
+pub fn rts_creep_camp_parts(kind_hint: &str, command: &str) -> (String, String, String) {
+    let (kind, payload) = if kind_hint == "camp" {
+        command.split_once(':').unwrap_or(("clear", command))
+    } else {
+        (kind_hint, command)
+    };
+    let (camp_id, tile_id) = payload.split_once('@').unwrap_or((payload, "8,3"));
+    let normalized_camp_id = if camp_id == "creep_camp" {
+        "forest_creep_camp"
+    } else {
+        camp_id
+    };
+    (
+        kind.to_string(),
+        normalized_camp_id.to_string(),
+        tile_id.to_string(),
+    )
+}
+
+pub fn rts_recon_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("scout", command));
+    let (recon_id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,2"));
+    let normalized_recon_id = match recon_id {
+        "scout_enemy_base" => "enemy_base",
+        value => value,
+    };
+    (
+        kind.to_string(),
+        normalized_recon_id.to_string(),
+        tile_id.to_string(),
+    )
+}
+
+pub fn rts_enemy_command_parts(
+    command: &str,
+    fallback_kind: &str,
+    fallback_source: &str,
+) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or((fallback_kind, command));
+    let (id, source_id) = payload
+        .split_once('@')
+        .unwrap_or((payload, fallback_source));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+pub fn rts_counter_command_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("research", command));
+    let (id, source_id) = payload.split_once('@').unwrap_or((payload, "signal_spire"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+pub fn rts_army_command_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("train", command));
+    let (id, source_id) = payload
+        .split_once('@')
+        .unwrap_or((payload, "training_hall"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+pub fn rts_base_assault_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("breach", command));
+    let (target_id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,3"));
+    (kind.to_string(), target_id.to_string(), tile_id.to_string())
+}
+
+pub fn rts_aftermath_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("destroy", command));
+    let (id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,3"));
+    (kind.to_string(), id.to_string(), tile_id.to_string())
+}
+
+pub fn rts_commander_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("level", command));
+    let (id, source_id) = payload
+        .split_once('@')
+        .unwrap_or((payload, "mirror_captain"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+pub fn rts_expansion_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("claim", command));
+    let (id, source_id) = payload.split_once('@').unwrap_or((payload, "9,2"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
+pub fn rts_tier_two_parts(command: &str) -> (String, String, String) {
+    let (kind, payload) = command.split_once(':').unwrap_or(("tech", command));
+    let (id, source_id) = payload
+        .split_once('@')
+        .unwrap_or((payload, "relay_outpost"));
+    (kind.to_string(), id.to_string(), source_id.to_string())
+}
+
 pub fn rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
     if objective_id == "relay_beacon" {
         rts_string_vec(["6,5", "6,4", "7,5", "9,2"])
@@ -1161,6 +1307,14 @@ pub fn rts_creep_camp_tiles_for_id(camp_id: &str, tile_id: &str) -> Vec<String> 
         rts_string_vec(["8,3", "8,2", "9,3", "9,2"])
     } else {
         vec![tile_id.to_string()]
+    }
+}
+
+pub fn rts_creep_camp_units_for_id(camp_id: &str) -> Vec<String> {
+    if camp_id == "forest_creep_camp" {
+        rts_string_vec(["forest_alpha_creep", "forest_stalker", "forest_shaman"])
+    } else {
+        rts_string_vec(["camp_scout"])
     }
 }
 
@@ -2502,6 +2656,127 @@ mod tests {
                 &["player".to_string(), "square_worker_carry".to_string()],
             ),
             vec!["player", "square_worker_carry"]
+        );
+    }
+
+    #[test]
+    fn command_parts_adapter_preserves_first_contact_parsing() {
+        assert_eq!(
+            rts_selection_clear_parts("clear:hostile:square_creep_wander@9,4"),
+            Some((
+                "hostile".to_string(),
+                Some("square_creep_wander".to_string()),
+                "9,4".to_string()
+            ))
+        );
+        assert_eq!(
+            rts_move_command_parts("minimap:9,2:attack_move"),
+            ("9,2", "attack_move")
+        );
+        assert_eq!(
+            rts_line_path_tiles((5, 5), (8, 3)),
+            vec!["6,5", "7,4", "8,3"]
+        );
+        assert_eq!(
+            rts_focus_fire_units_for_target("enemy_barracks"),
+            vec![
+                "relay_guard_alpha",
+                "relay_guard_beta",
+                "wayfinder_scout",
+                "field_mender"
+            ]
+        );
+        assert_eq!(
+            rts_creep_camp_units_for_id("forest_creep_camp"),
+            vec!["forest_alpha_creep", "forest_stalker", "forest_shaman"]
+        );
+        assert_eq!(
+            rts_objective_parts("claim:relay_beacon@9,2"),
+            (
+                "claim".to_string(),
+                "relay_beacon".to_string(),
+                "9,2".to_string()
+            )
+        );
+        assert_eq!(
+            rts_creep_camp_parts("camp", "clear:creep_camp@8,3"),
+            (
+                "clear".to_string(),
+                "forest_creep_camp".to_string(),
+                "8,3".to_string()
+            )
+        );
+        assert_eq!(
+            rts_recon_parts("mark:scout_enemy_base@10,2"),
+            (
+                "mark".to_string(),
+                "enemy_base".to_string(),
+                "10,2".to_string()
+            )
+        );
+        assert_eq!(
+            rts_enemy_command_parts("pressure:counter_wave@enemy_gate", "pressure", "enemy_base"),
+            (
+                "pressure".to_string(),
+                "counter_wave".to_string(),
+                "enemy_gate".to_string()
+            )
+        );
+        assert_eq!(
+            rts_counter_command_parts("upgrade:signal_blade@training_hall"),
+            (
+                "upgrade".to_string(),
+                "signal_blade".to_string(),
+                "training_hall".to_string()
+            )
+        );
+        assert_eq!(
+            rts_army_command_parts("train:mixed_vanguard@training_hall"),
+            (
+                "train".to_string(),
+                "mixed_vanguard".to_string(),
+                "training_hall".to_string()
+            )
+        );
+        assert_eq!(
+            rts_base_assault_parts("breach:enemy_barracks@10,3"),
+            (
+                "breach".to_string(),
+                "enemy_barracks".to_string(),
+                "10,3".to_string()
+            )
+        );
+        assert_eq!(
+            rts_aftermath_parts("destroy:enemy_barracks@10,3"),
+            (
+                "destroy".to_string(),
+                "enemy_barracks".to_string(),
+                "10,3".to_string()
+            )
+        );
+        assert_eq!(
+            rts_commander_parts("level:mirror_captain@forest_relay"),
+            (
+                "level".to_string(),
+                "mirror_captain".to_string(),
+                "forest_relay".to_string()
+            )
+        );
+        assert_eq!(
+            rts_expansion_parts("claim:forest_relay@9,2"),
+            (
+                "claim".to_string(),
+                "forest_relay".to_string(),
+                "9,2".to_string()
+            )
+        );
+        assert_eq!(
+            rts_tier_two_parts("tech:stonebreak_cart@relay_outpost"),
+            (
+                "tech".to_string(),
+                "stonebreak_cart".to_string(),
+                "relay_outpost".to_string()
+            )
         );
     }
 

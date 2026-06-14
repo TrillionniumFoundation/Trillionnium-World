@@ -4,46 +4,49 @@
 
 use serde::{Deserialize, Serialize};
 use trnm_rts_bevy_runtime::{
-    rts_ability_effect_tiles_for_target, rts_aftermath_debris_tiles_for_id,
+    rts_ability_effect_tiles_for_target, rts_aftermath_debris_tiles_for_id, rts_aftermath_parts,
     rts_aftermath_smoke_tiles_for_id, rts_ai_counter_tiles_for_pressure,
-    rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure,
+    rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure, rts_army_command_parts,
     rts_army_rally_tiles_for_id, rts_army_units_for_batch, rts_available_gold,
-    rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
-    rts_blocked_feedback_player_label, rts_boss_guard_units_for_id, rts_build_parts,
-    rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
-    rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id,
+    rts_base_assault_parts, rts_base_assault_path_tiles_for_target,
+    rts_base_assault_targets_for_id, rts_blocked_feedback_player_label,
+    rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
+    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
+    rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id, rts_commander_parts,
     rts_contact_flash_tiles_for_target, rts_control_group_hotkey_slot,
-    rts_control_group_slot_summaries, rts_counterattack_route_tiles_for_wave,
-    rts_counterattack_units_for_wave, rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
+    rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
+    rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_damage_ticks_for_ability,
     rts_default_group_units, rts_default_units_for_control_group_slot, rts_drag_rejected_unit_ids,
-    rts_drag_selected_units, rts_dropoff_tile_for_structure, rts_enemy_flank_tile_for_index,
-    rts_enemy_flank_units_for_id, rts_enemy_fortification_tile_for_id,
-    rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
-    rts_enemy_repair_units_for_target, rts_enemy_structure_tile_for_id,
-    rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id, rts_enemy_units_for_recon,
-    rts_engagement_tiles_for_target, rts_expansion_structure_tile_for_id,
-    rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id, rts_expansion_workers_for_line,
+    rts_drag_selected_units, rts_dropoff_tile_for_structure, rts_enemy_command_parts,
+    rts_enemy_flank_tile_for_index, rts_enemy_flank_units_for_id,
+    rts_enemy_fortification_tile_for_id, rts_enemy_pressure_lane_tiles_for_wave,
+    rts_enemy_pressure_wave_units_for_id, rts_enemy_repair_units_for_target,
+    rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
+    rts_enemy_units_for_recon, rts_engagement_tiles_for_target, rts_expansion_parts,
+    rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id,
+    rts_expansion_workers_for_line, rts_focus_fire_units_for_target,
     rts_fog_reveal_tiles_for_recon, rts_garrison_units_for_id, rts_guardian_counter_units_for_id,
     rts_harvest_tile_for_node, rts_inner_core_tile_for_id, rts_inner_defenders_for_id,
     rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
-    rts_keep_claim_tiles_for_id, rts_loot_items_for_id, rts_merged_unit_ids,
-    rts_minimap_cell_origin, rts_objective_tiles_for_id, rts_open_world_panels_for_room,
-    rts_open_world_route_tiles_for_id, rts_player_army_unit_tile_for_id,
-    rts_player_hold_tiles_for_id, rts_player_siege_line_tiles_for_id,
-    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
-    rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
-    rts_rebuild_structures_for_id, rts_restored_zones_for_id, rts_runtime_hit_test_grid,
-    rts_runtime_tile_line, rts_same_class_units, rts_scout_route_tiles_for_recon,
-    rts_scripted_demo_pauses_queue_tick, rts_scripted_demo_stage_from_frame,
-    rts_scripted_demo_stage_id, rts_scripted_demo_stage_title, rts_selectable_unit_tile,
-    rts_selection_tiles_for_units, rts_siege_breach_tiles_for_target,
-    rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
-    rts_split_squad_tiles_for_id, rts_structure_tile_for_id, rts_supply_convoy_for_id,
-    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
-    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target,
-    rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
-    RtsControlGroupSlotSummary, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
-    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_keep_claim_tiles_for_id, rts_line_path_tiles, rts_loot_items_for_id, rts_merged_unit_ids,
+    rts_minimap_cell_origin, rts_move_command_parts, rts_objective_parts,
+    rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
+    rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
+    rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
+    rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
+    rts_queue_is_affordable, rts_queue_uses_production_lane, rts_rebuild_structures_for_id,
+    rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
+    rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
+    rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
+    rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_tiles_for_units,
+    rts_siege_breach_tiles_for_target, rts_siege_push_route_tiles_for_target,
+    rts_siege_unit_tile_for_id, rts_siege_units_for_id, rts_split_squad_tiles_for_id,
+    rts_structure_tile_for_id, rts_supply_convoy_for_id, rts_target_priority_ids_for_target,
+    rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
+    rts_threat_levels_for_target, rts_tier_two_parts, rts_units_from_control_group_assignment,
+    rts_unlock_unit_tile_for_id, RtsControlGroupSlotSummary, RtsRuntimeGridSpec,
+    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -159,6 +162,12 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub control_group_assignment_units_sample: Vec<String>,
     pub control_group_summary_slot_ten_sample: RtsControlGroupSlotSummary,
     pub control_group_merged_units_sample: Vec<String>,
+    pub selection_clear_parts_sample: Option<(String, Option<String>, String)>,
+    pub move_command_parts_sample: Vec<String>,
+    pub line_path_tiles_sample: Vec<String>,
+    pub focus_fire_units_sample: Vec<String>,
+    pub creep_camp_units_sample: Vec<String>,
+    pub command_parts_samples: Vec<Vec<String>>,
     pub source_of_truth: String,
 }
 
@@ -303,6 +312,31 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         &["player".to_string()],
         &["player".to_string(), "square_worker_carry".to_string()],
     );
+    let selection_clear_parts = rts_selection_clear_parts("clear:hostile:square_creep_wander@9,4");
+    let move_command_parts = rts_move_command_parts("minimap:9,2:attack_move");
+    let move_command_parts_sample = vec![
+        move_command_parts.0.to_string(),
+        move_command_parts.1.to_string(),
+    ];
+    let line_path_tiles = rts_line_path_tiles((5, 5), (8, 3));
+    let focus_fire_units = rts_focus_fire_units_for_target("enemy_barracks");
+    let creep_camp_units = rts_creep_camp_units_for_id("forest_creep_camp");
+    let command_parts_samples = vec![
+        rts_objective_parts("claim:relay_beacon@9,2"),
+        rts_creep_camp_parts("camp", "clear:creep_camp@8,3"),
+        rts_recon_parts("mark:scout_enemy_base@10,2"),
+        rts_enemy_command_parts("pressure:counter_wave@enemy_gate", "pressure", "enemy_base"),
+        rts_counter_command_parts("upgrade:signal_blade@training_hall"),
+        rts_army_command_parts("train:mixed_vanguard@training_hall"),
+        rts_base_assault_parts("breach:enemy_barracks@10,3"),
+        rts_aftermath_parts("destroy:enemy_barracks@10,3"),
+        rts_commander_parts("level:mirror_captain@forest_relay"),
+        rts_expansion_parts("claim:forest_relay@9,2"),
+        rts_tier_two_parts("tech:stonebreak_cart@relay_outpost"),
+    ]
+    .into_iter()
+    .map(|(kind, id, source_id)| vec![kind, id, source_id])
+    .collect::<Vec<_>>();
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -466,7 +500,37 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && control_group_summary_slot_ten.member_count == 2
         && control_group_summary_slot_ten.occupied
         && control_group_summary_slot_ten.active
-        && control_group_merged_units == vec!["player", "square_worker_carry"];
+        && control_group_merged_units == vec!["player", "square_worker_carry"]
+        && selection_clear_parts
+            == Some((
+                "hostile".to_string(),
+                Some("square_creep_wander".to_string()),
+                "9,4".to_string(),
+            ))
+        && move_command_parts_sample == vec!["9,2", "attack_move"]
+        && line_path_tiles == vec!["6,5", "7,4", "8,3"]
+        && focus_fire_units
+            == vec![
+                "relay_guard_alpha",
+                "relay_guard_beta",
+                "wayfinder_scout",
+                "field_mender",
+            ]
+        && creep_camp_units == vec!["forest_alpha_creep", "forest_stalker", "forest_shaman"]
+        && command_parts_samples
+            == vec![
+                vec!["claim", "relay_beacon", "9,2"],
+                vec!["clear", "forest_creep_camp", "8,3"],
+                vec!["mark", "enemy_base", "10,2"],
+                vec!["pressure", "counter_wave", "enemy_gate"],
+                vec!["upgrade", "signal_blade", "training_hall"],
+                vec!["train", "mixed_vanguard", "training_hall"],
+                vec!["breach", "enemy_barracks", "10,3"],
+                vec!["destroy", "enemy_barracks", "10,3"],
+                vec!["level", "mirror_captain", "forest_relay"],
+                vec!["claim", "forest_relay", "9,2"],
+                vec!["tech", "stonebreak_cart", "relay_outpost"],
+            ];
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -624,7 +688,13 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         control_group_assignment_units_sample: control_group_assignment_units,
         control_group_summary_slot_ten_sample: control_group_summary_slot_ten,
         control_group_merged_units_sample: control_group_merged_units,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        selection_clear_parts_sample: selection_clear_parts,
+        move_command_parts_sample,
+        line_path_tiles_sample: line_path_tiles,
+        focus_fire_units_sample: focus_fire_units,
+        creep_camp_units_sample: creep_camp_units,
+        command_parts_samples,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1027,6 +1097,48 @@ mod tests {
         assert_eq!(
             evidence.control_group_merged_units_sample,
             vec!["player", "square_worker_carry"]
+        );
+        assert_eq!(
+            evidence.selection_clear_parts_sample,
+            Some((
+                "hostile".to_string(),
+                Some("square_creep_wander".to_string()),
+                "9,4".to_string()
+            ))
+        );
+        assert_eq!(
+            evidence.move_command_parts_sample,
+            vec!["9,2", "attack_move"]
+        );
+        assert_eq!(evidence.line_path_tiles_sample, vec!["6,5", "7,4", "8,3"]);
+        assert_eq!(
+            evidence.focus_fire_units_sample,
+            vec![
+                "relay_guard_alpha",
+                "relay_guard_beta",
+                "wayfinder_scout",
+                "field_mender"
+            ]
+        );
+        assert_eq!(
+            evidence.creep_camp_units_sample,
+            vec!["forest_alpha_creep", "forest_stalker", "forest_shaman"]
+        );
+        assert_eq!(
+            evidence.command_parts_samples,
+            vec![
+                vec!["claim", "relay_beacon", "9,2"],
+                vec!["clear", "forest_creep_camp", "8,3"],
+                vec!["mark", "enemy_base", "10,2"],
+                vec!["pressure", "counter_wave", "enemy_gate"],
+                vec!["upgrade", "signal_blade", "training_hall"],
+                vec!["train", "mixed_vanguard", "training_hall"],
+                vec!["breach", "enemy_barracks", "10,3"],
+                vec!["destroy", "enemy_barracks", "10,3"],
+                vec!["level", "mirror_captain", "forest_relay"],
+                vec!["claim", "forest_relay", "9,2"],
+                vec!["tech", "stonebreak_cart", "relay_outpost"],
+            ]
         );
     }
 }

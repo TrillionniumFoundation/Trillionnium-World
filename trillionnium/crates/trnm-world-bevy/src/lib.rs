@@ -141367,19 +141367,7 @@ fn classic_rts_selectable_unit_at_tile(tile: (i32, i32)) -> Option<&'static str>
 }
 
 fn classic_rts_selection_clear_parts(group_id: &str) -> Option<(String, Option<String>, String)> {
-    let payload = group_id.strip_prefix("clear:")?;
-    if let Some(tile_id) = payload.strip_prefix("empty@") {
-        return Some(("empty".to_string(), None, tile_id.to_string()));
-    }
-    if let Some(hostile_payload) = payload.strip_prefix("hostile:") {
-        let (unit_id, tile_id) = hostile_payload.split_once('@')?;
-        return Some((
-            "hostile".to_string(),
-            Some(unit_id.to_string()),
-            tile_id.to_string(),
-        ));
-    }
-    None
+    rts_bevy_runtime::rts_selection_clear_parts(group_id)
 }
 
 fn classic_rts_selection_tiles_for_units(unit_ids: &[String]) -> Vec<String> {
@@ -141491,17 +141479,7 @@ fn classic_rts_drag_rejected_unit_ids(start: (i32, i32), end: (i32, i32)) -> Vec
 }
 
 fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {
-    let command_payload = command_id.strip_prefix("minimap:").unwrap_or(command_id);
-    let mut parts = command_payload.splitn(2, ':');
-    let tile_id = parts
-        .next()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or("7,4");
-    let formation = parts
-        .next()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or("diamond");
-    (tile_id, formation)
+    rts_bevy_runtime::rts_move_command_parts(command_id)
 }
 
 fn classic_rts_move_follow_target(formation: &str) -> Option<&str> {
@@ -141517,18 +141495,7 @@ fn classic_rts_tile_id(tile: (i32, i32)) -> String {
 }
 
 fn classic_rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
-    let dx = end.0 - start.0;
-    let dy = end.1 - start.1;
-    let steps = dx.abs().max(dy.abs()).max(1);
-    let mut tiles = Vec::new();
-    for step in 1..=steps {
-        let tile = (start.0 + (dx * step) / steps, start.1 + (dy * step) / steps);
-        let tile_id = classic_rts_tile_id(tile);
-        if tiles.last() != Some(&tile_id) {
-            tiles.push(tile_id);
-        }
-    }
-    tiles
+    rts_bevy_runtime::rts_line_path_tiles(start, end)
 }
 
 fn classic_rts_path_tiles_for_destination(destination_tile: (i32, i32)) -> Vec<String> {
@@ -141567,16 +141534,7 @@ fn classic_rts_target_priority_ids_for_target(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_focus_fire_units_for_target(target_id: &str) -> Vec<String> {
-    if target_id == "enemy_barracks" {
-        classic_rts_army_units_for_batch("mixed_vanguard")
-    } else if target_id == "forest_creep_camp"
-        || target_id == "arena_creep_attack"
-        || target_id == "square_creep_wander"
-    {
-        classic_rts_default_group_units()
-    } else {
-        string_vec(["player", "square_guard_patrol"])
-    }
+    rts_bevy_runtime::rts_focus_fire_units_for_target(target_id)
 }
 
 fn classic_rts_threat_levels_for_target(target_id: &str) -> Vec<u8> {
@@ -141612,13 +141570,7 @@ fn classic_rts_ai_counter_tiles_for_pressure(pressure_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_objective_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("claim", command));
-    let (objective_id, tile_id) = payload.split_once('@').unwrap_or((payload, "6,5"));
-    (
-        kind.to_string(),
-        objective_id.to_string(),
-        tile_id.to_string(),
-    )
+    rts_bevy_runtime::rts_objective_parts(command)
 }
 
 fn classic_rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<String> {
@@ -141626,22 +141578,7 @@ fn classic_rts_objective_tiles_for_id(objective_id: &str, tile_id: &str) -> Vec<
 }
 
 fn classic_rts_creep_camp_parts(kind_hint: &str, command: &str) -> (String, String, String) {
-    let (kind, payload) = if kind_hint == "camp" {
-        command.split_once(':').unwrap_or(("clear", command))
-    } else {
-        (kind_hint, command)
-    };
-    let (camp_id, tile_id) = payload.split_once('@').unwrap_or((payload, "8,3"));
-    let normalized_camp_id = if camp_id == "creep_camp" {
-        "forest_creep_camp"
-    } else {
-        camp_id
-    };
-    (
-        kind.to_string(),
-        normalized_camp_id.to_string(),
-        tile_id.to_string(),
-    )
+    rts_bevy_runtime::rts_creep_camp_parts(kind_hint, command)
 }
 
 fn classic_rts_creep_camp_tiles_for_id(camp_id: &str, tile_id: &str) -> Vec<String> {
@@ -141649,11 +141586,7 @@ fn classic_rts_creep_camp_tiles_for_id(camp_id: &str, tile_id: &str) -> Vec<Stri
 }
 
 fn classic_rts_creep_camp_units_for_id(camp_id: &str) -> Vec<String> {
-    if camp_id == "forest_creep_camp" {
-        string_vec(["forest_alpha_creep", "forest_stalker", "forest_shaman"])
-    } else {
-        string_vec(["camp_scout"])
-    }
+    rts_bevy_runtime::rts_creep_camp_units_for_id(camp_id)
 }
 
 fn classic_rts_terrain_route_tiles_for_camp(camp_id: &str) -> Vec<String> {
@@ -141669,17 +141602,7 @@ fn classic_rts_expansion_tiles_for_camp(camp_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_recon_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("scout", command));
-    let (recon_id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,2"));
-    let normalized_recon_id = match recon_id {
-        "scout_enemy_base" => "enemy_base",
-        value => value,
-    };
-    (
-        kind.to_string(),
-        normalized_recon_id.to_string(),
-        tile_id.to_string(),
-    )
+    rts_bevy_runtime::rts_recon_parts(command)
 }
 
 fn classic_rts_scout_route_tiles_for_recon(recon_id: &str) -> Vec<String> {
@@ -141719,25 +141642,15 @@ fn classic_rts_enemy_command_parts(
     fallback_kind: &str,
     fallback_source: &str,
 ) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or((fallback_kind, command));
-    let (id, source_id) = payload
-        .split_once('@')
-        .unwrap_or((payload, fallback_source));
-    (kind.to_string(), id.to_string(), source_id.to_string())
+    rts_bevy_runtime::rts_enemy_command_parts(command, fallback_kind, fallback_source)
 }
 
 fn classic_rts_counter_command_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("research", command));
-    let (id, source_id) = payload.split_once('@').unwrap_or((payload, "signal_spire"));
-    (kind.to_string(), id.to_string(), source_id.to_string())
+    rts_bevy_runtime::rts_counter_command_parts(command)
 }
 
 fn classic_rts_army_command_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("train", command));
-    let (id, source_id) = payload
-        .split_once('@')
-        .unwrap_or((payload, "training_hall"));
-    (kind.to_string(), id.to_string(), source_id.to_string())
+    rts_bevy_runtime::rts_army_command_parts(command)
 }
 
 fn classic_rts_army_units_for_batch(batch_id: &str) -> Vec<String> {
@@ -141753,9 +141666,7 @@ fn classic_rts_player_army_unit_tile_for_id(unit_id: &str, index: usize) -> (i32
 }
 
 fn classic_rts_base_assault_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("breach", command));
-    let (target_id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,3"));
-    (kind.to_string(), target_id.to_string(), tile_id.to_string())
+    rts_bevy_runtime::rts_base_assault_parts(command)
 }
 
 fn classic_rts_base_assault_path_tiles_for_target(target_id: &str, tile_id: &str) -> Vec<String> {
@@ -141767,9 +141678,7 @@ fn classic_rts_base_assault_targets_for_id(target_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_aftermath_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("destroy", command));
-    let (id, tile_id) = payload.split_once('@').unwrap_or((payload, "10,3"));
-    (kind.to_string(), id.to_string(), tile_id.to_string())
+    rts_bevy_runtime::rts_aftermath_parts(command)
 }
 
 fn classic_rts_aftermath_debris_tiles_for_id(structure_id: &str, tile_id: &str) -> Vec<String> {
@@ -141781,11 +141690,7 @@ fn classic_rts_aftermath_smoke_tiles_for_id(structure_id: &str, tile_id: &str) -
 }
 
 fn classic_rts_commander_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("level", command));
-    let (id, source_id) = payload
-        .split_once('@')
-        .unwrap_or((payload, "mirror_captain"));
-    (kind.to_string(), id.to_string(), source_id.to_string())
+    rts_bevy_runtime::rts_commander_parts(command)
 }
 
 fn classic_rts_commander_aura_tiles_for_id(commander_id: &str) -> Vec<String> {
@@ -141797,9 +141702,7 @@ fn classic_rts_loot_items_for_id(source_id: &str) -> Vec<String> {
 }
 
 fn classic_rts_expansion_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("claim", command));
-    let (id, source_id) = payload.split_once('@').unwrap_or((payload, "9,2"));
-    (kind.to_string(), id.to_string(), source_id.to_string())
+    rts_bevy_runtime::rts_expansion_parts(command)
 }
 
 fn classic_rts_expansion_tiles_for_id(expansion_id: &str, tile_id: &str) -> Vec<String> {
@@ -141823,11 +141726,7 @@ fn classic_rts_counterattack_route_tiles_for_wave(wave_id: &str, tile_id: &str) 
 }
 
 fn classic_rts_tier_two_parts(command: &str) -> (String, String, String) {
-    let (kind, payload) = command.split_once(':').unwrap_or(("tech", command));
-    let (id, source_id) = payload
-        .split_once('@')
-        .unwrap_or((payload, "relay_outpost"));
-    (kind.to_string(), id.to_string(), source_id.to_string())
+    rts_bevy_runtime::rts_tier_two_parts(command)
 }
 
 fn classic_rts_siege_units_for_id(unit_id: &str) -> Vec<String> {
