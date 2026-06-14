@@ -81359,14 +81359,7 @@ struct ClassicRtsDragSelectPreview {
 }
 
 #[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-struct ClassicRtsCommandStamp {
-    input_source: String,
-    kind: String,
-    tile_id: Option<String>,
-    target_id: Option<String>,
-    player_label: String,
-}
+type ClassicRtsCommandStamp = rts_bevy_runtime::RtsCommandStamp;
 
 #[cfg(not(target_os = "android"))]
 fn classic_poll_action(
@@ -83084,213 +83077,29 @@ fn classic_rts_command_stamp_for_action(
     input_source: &str,
     action: &NativeControlAction,
 ) -> Option<ClassicRtsCommandStamp> {
-    let action_label = native_control_action_label(action);
-    let source = classic_rts_input_source_player_label(input_source, &action_label);
     match action {
         NativeControlAction::RtsSelectControlGroup { group_id } => {
-            if let Some((clear_kind, unit_id, tile_id)) =
-                classic_rts_selection_clear_parts(group_id)
-            {
-                let select_label = if unit_id.is_some() {
-                    format!("SELECTION CLEARED {}", clear_kind.to_ascii_uppercase())
-                } else {
-                    "SELECTION CLEARED".to_string()
-                };
-                return Some(ClassicRtsCommandStamp {
-                    input_source: input_source.to_string(),
-                    kind: "select-clear".to_string(),
-                    tile_id: Some(tile_id),
-                    target_id: unit_id,
-                    player_label: format!("{source} {select_label}"),
-                });
-            }
-            let selected_count = runtime.rts_selected_unit_ids.len().max(1);
-            let unit_word = if selected_count == 1 { "UNIT" } else { "UNITS" };
-            let (kind, select_label, target_id) =
-                if let Some(slot) = group_id.strip_prefix("assign:") {
-                    (
-                        "control-group",
-                        format!("GROUP {slot} ASSIGNED"),
-                        Some(slot.to_string()),
-                    )
-                } else if let Some(slot) = group_id.strip_prefix("append:") {
-                    (
-                        "control-group",
-                        format!("GROUP {slot} APPENDED"),
-                        Some(slot.to_string()),
-                    )
-                } else if let Some(slot) = group_id.strip_prefix("recall:") {
-                    (
-                        "control-group",
-                        format!("GROUP {slot} RECALLED"),
-                        Some(slot.to_string()),
-                    )
-                } else if let Some(slot) = group_id.strip_prefix("recall_add:") {
-                    (
-                        "control-group",
-                        format!("GROUP {slot} ADDED"),
-                        Some(slot.to_string()),
-                    )
-                } else if let Some(slot) = group_id.strip_prefix("camera:") {
-                    (
-                        "control-group-camera",
-                        format!("GROUP {slot} CAMERA SNAP"),
-                        Some(slot.to_string()),
-                    )
-                } else if group_id.starts_with("shift:unit:") {
-                    ("select", "SHIFT SELECT".to_string(), Some(group_id.clone()))
-                } else if group_id.starts_with("double:unit:") {
-                    (
-                        "select",
-                        "DOUBLE SELECT".to_string(),
-                        Some(group_id.clone()),
-                    )
-                } else {
-                    ("select", "SELECT".to_string(), Some(group_id.clone()))
-                };
-            let player_label = if group_id.starts_with("camera:") {
-                format!("{source} {select_label}")
-            } else if kind == "select" {
-                format!("{source} {select_label} SENT {selected_count} {unit_word}")
-            } else {
-                format!("{source} {select_label} {selected_count} {unit_word}")
-            };
-            Some(ClassicRtsCommandStamp {
-                input_source: input_source.to_string(),
-                kind: kind.to_string(),
-                tile_id: None,
-                target_id,
-                player_label,
-            })
+            Some(rts_bevy_runtime::rts_command_stamp_for_selection(
+                input_source,
+                group_id,
+                runtime.rts_selected_unit_ids.len(),
+            ))
         }
-        NativeControlAction::RtsQueueProduction { queue_id } => {
-            let (kind, target_id, tile_id, item_label) = if queue_id.starts_with("build:") {
-                let (structure_id, tile_id) = classic_rts_build_parts(queue_id);
-                (
-                    "build",
-                    structure_id.clone(),
-                    Some(tile_id),
-                    classic_catalog_text_label(&structure_id.replace('_', " "), 20),
-                )
-            } else if let Some(unit_id) = queue_id.strip_prefix("train:") {
-                (
-                    "train",
-                    unit_id.to_string(),
-                    None,
-                    classic_catalog_text_label(&unit_id.replace('_', " "), 20),
-                )
-            } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
-                let tile_id = classic_rts_tile_id(classic_rts_harvest_tile_for_node(node_id));
-                (
-                    "harvest",
-                    node_id.to_string(),
-                    Some(tile_id),
-                    classic_catalog_text_label(&node_id.replace('_', " "), 20),
-                )
-            } else if queue_id.starts_with("upgrade:") {
-                let (upgrade_id, source_id) =
-                    classic_rts_tech_parts(queue_id, "upgrade:", "training_hall");
-                (
-                    "upgrade",
-                    upgrade_id.clone(),
-                    Some(classic_rts_tile_id(classic_rts_structure_tile_for_id(
-                        &source_id,
-                    ))),
-                    classic_catalog_text_label(&upgrade_id.replace('_', " "), 20),
-                )
-            } else {
-                (
-                    "queue",
-                    queue_id.to_string(),
-                    None,
-                    classic_catalog_text_label(&queue_id.replace('_', " "), 20),
-                )
-            };
-            let tile_suffix = tile_id
-                .as_deref()
-                .map(|tile| format!(" {tile}"))
-                .unwrap_or_default();
-            Some(ClassicRtsCommandStamp {
-                input_source: input_source.to_string(),
-                kind: kind.to_string(),
-                tile_id,
-                target_id: Some(target_id),
-                player_label: format!(
-                    "{source} {} SENT {item_label}{tile_suffix}",
-                    kind.to_ascii_uppercase()
-                ),
-            })
-        }
+        NativeControlAction::RtsQueueProduction { queue_id } => Some(
+            rts_bevy_runtime::rts_command_stamp_for_queue(input_source, queue_id),
+        ),
         NativeControlAction::RtsMoveCommand { command_id } => {
-            let (tile_id, formation) = classic_rts_move_command_parts(command_id);
-            classic_parse_rts_tile(tile_id)?;
-            let follow_target_id = classic_rts_move_follow_target(formation);
-            let formation_kind = classic_rts_move_formation_kind(formation);
-            let kind = if command_id.starts_with("minimap:") || formation_kind == "rally" {
-                "rally"
-            } else if formation_kind == "shift_waypoint" {
-                "waypoint"
-            } else if formation_kind == "attack_move" {
-                "attack-move"
-            } else if formation_kind == "patrol" {
-                "patrol"
-            } else if formation_kind == "hold" {
-                "hold"
-            } else if formation_kind == "stop" {
-                "stop"
-            } else if formation_kind == "follow" {
-                "follow"
-            } else {
-                "move"
-            };
-            let target_id = follow_target_id.map(ToOwned::to_owned);
-            let player_label = if let Some(target_id) = follow_target_id {
-                format!(
-                    "{source} FOLLOW SENT {}",
-                    classic_catalog_text_label(&target_id.replace('_', " "), 22)
-                )
-            } else {
-                format!(
-                    "{source} {} SENT {tile_id}",
-                    kind.replace('-', " ").to_ascii_uppercase()
-                )
-            };
-            Some(ClassicRtsCommandStamp {
-                input_source: input_source.to_string(),
-                kind: kind.to_string(),
-                tile_id: Some(tile_id.to_string()),
-                target_id,
-                player_label,
-            })
+            rts_bevy_runtime::rts_command_stamp_for_move(input_source, command_id)
         }
-        NativeControlAction::RtsAttackCommand { target_id } => {
-            let tile_id = classic_rts_tile_id(classic_rts_target_tile_for_id(target_id, 0));
-            Some(ClassicRtsCommandStamp {
-                input_source: input_source.to_string(),
-                kind: "attack".to_string(),
-                tile_id: Some(tile_id),
-                target_id: Some(target_id.clone()),
-                player_label: format!(
-                    "{source} ATTACK SENT {}",
-                    classic_catalog_text_label(&target_id.replace('_', " "), 22)
-                ),
-            })
-        }
+        NativeControlAction::RtsAttackCommand { target_id } => Some(
+            rts_bevy_runtime::rts_command_stamp_for_attack(input_source, target_id),
+        ),
         NativeControlAction::RtsAbilityCommand { ability_id } => {
-            let target_id = runtime.rts_attack_target_id.clone();
-            let tile_id = target_id
-                .as_deref()
-                .map(|target| classic_rts_tile_id(classic_rts_target_tile_for_id(target, 0)));
-            Some(ClassicRtsCommandStamp {
-                input_source: input_source.to_string(),
-                kind: "ability".to_string(),
-                tile_id,
-                target_id,
-                player_label: format!(
-                    "{source} ABILITY SENT {}",
-                    classic_catalog_text_label(&ability_id.replace('_', " "), 22)
-                ),
-            })
+            Some(rts_bevy_runtime::rts_command_stamp_for_ability(
+                input_source,
+                ability_id,
+                runtime.rts_attack_target_id.as_deref(),
+            ))
         }
         _ => None,
     }

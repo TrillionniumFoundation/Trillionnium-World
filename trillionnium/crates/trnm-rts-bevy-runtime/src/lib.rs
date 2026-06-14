@@ -103,6 +103,15 @@ pub struct RtsRuntimeGridSpec {
     pub slot_height: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsCommandStamp {
+    pub input_source: String,
+    pub kind: String,
+    pub tile_id: Option<String>,
+    pub target_id: Option<String>,
+    pub player_label: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeMapLayoutInput {
     pub viewport_width: i32,
@@ -411,6 +420,17 @@ pub fn rts_scrollable_map_viewport_center() -> RtsRuntimeVec2 {
 
 pub fn rts_runtime_tile_id(tile: (i32, i32)) -> String {
     format!("{},{}", tile.0, tile.1)
+}
+
+pub fn rts_catalog_text_label(text: &str, max_chars: usize) -> String {
+    text.replace('_', " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_uppercase()
+        .chars()
+        .take(max_chars)
+        .collect()
 }
 
 fn rts_string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
@@ -1826,6 +1846,221 @@ pub fn rts_input_source_player_label(input_source: &str, action_label: &str) -> 
     }
 }
 
+pub fn rts_command_stamp_for_selection(
+    input_source: &str,
+    group_id: &str,
+    selected_unit_count: usize,
+) -> RtsCommandStamp {
+    let source = rts_input_source_player_label(input_source, "RTS:SELECT");
+    if let Some((clear_kind, unit_id, tile_id)) = rts_selection_clear_parts(group_id) {
+        let select_label = if unit_id.is_some() {
+            format!("SELECTION CLEARED {}", clear_kind.to_ascii_uppercase())
+        } else {
+            "SELECTION CLEARED".to_string()
+        };
+        return RtsCommandStamp {
+            input_source: input_source.to_string(),
+            kind: "select-clear".to_string(),
+            tile_id: Some(tile_id),
+            target_id: unit_id,
+            player_label: format!("{source} {select_label}"),
+        };
+    }
+    let selected_count = selected_unit_count.max(1);
+    let unit_word = if selected_count == 1 { "UNIT" } else { "UNITS" };
+    let (kind, select_label, target_id) =
+        if let Some(slot) = rts_control_group_hotkey_slot(group_id, "assign:") {
+            (
+                "control-group",
+                format!("GROUP {slot} ASSIGNED"),
+                Some(slot),
+            )
+        } else if let Some(slot) = rts_control_group_hotkey_slot(group_id, "append:") {
+            (
+                "control-group",
+                format!("GROUP {slot} APPENDED"),
+                Some(slot),
+            )
+        } else if let Some(slot) = rts_control_group_hotkey_slot(group_id, "recall:") {
+            (
+                "control-group",
+                format!("GROUP {slot} RECALLED"),
+                Some(slot),
+            )
+        } else if let Some(slot) = rts_control_group_hotkey_slot(group_id, "recall_add:") {
+            ("control-group", format!("GROUP {slot} ADDED"), Some(slot))
+        } else if let Some(slot) = rts_control_group_hotkey_slot(group_id, "camera:") {
+            (
+                "control-group-camera",
+                format!("GROUP {slot} CAMERA SNAP"),
+                Some(slot),
+            )
+        } else if group_id.starts_with("shift:unit:") {
+            (
+                "select",
+                "SHIFT SELECT".to_string(),
+                Some(group_id.to_string()),
+            )
+        } else if group_id.starts_with("double:unit:") {
+            (
+                "select",
+                "DOUBLE SELECT".to_string(),
+                Some(group_id.to_string()),
+            )
+        } else {
+            ("select", "SELECT".to_string(), Some(group_id.to_string()))
+        };
+    let player_label = if group_id.starts_with("camera:") {
+        format!("{source} {select_label}")
+    } else if kind == "select" {
+        format!("{source} {select_label} SENT {selected_count} {unit_word}")
+    } else {
+        format!("{source} {select_label} {selected_count} {unit_word}")
+    };
+    RtsCommandStamp {
+        input_source: input_source.to_string(),
+        kind: kind.to_string(),
+        tile_id: None,
+        target_id,
+        player_label,
+    }
+}
+
+pub fn rts_command_stamp_for_queue(input_source: &str, queue_id: &str) -> RtsCommandStamp {
+    let source = rts_input_source_player_label(input_source, "RTS:QUEUE");
+    let (kind, target_id, tile_id, item_label) = if queue_id.starts_with("build:") {
+        let (structure_id, tile_id) = rts_build_parts(queue_id);
+        (
+            "build",
+            structure_id.clone(),
+            Some(tile_id),
+            rts_catalog_text_label(&structure_id, 20),
+        )
+    } else if let Some(unit_id) = queue_id.strip_prefix("train:") {
+        (
+            "train",
+            unit_id.to_string(),
+            None,
+            rts_catalog_text_label(unit_id, 20),
+        )
+    } else if let Some(node_id) = queue_id.strip_prefix("harvest:") {
+        (
+            "harvest",
+            node_id.to_string(),
+            Some(rts_runtime_tile_id(rts_harvest_tile_for_node(node_id))),
+            rts_catalog_text_label(node_id, 20),
+        )
+    } else if queue_id.starts_with("upgrade:") {
+        let (upgrade_id, source_id) = rts_tech_parts(queue_id, "upgrade:", "training_hall");
+        (
+            "upgrade",
+            upgrade_id.clone(),
+            Some(rts_runtime_tile_id(rts_structure_tile_for_id(&source_id))),
+            rts_catalog_text_label(&upgrade_id, 20),
+        )
+    } else {
+        (
+            "queue",
+            queue_id.to_string(),
+            None,
+            rts_catalog_text_label(queue_id, 20),
+        )
+    };
+    let tile_suffix = tile_id
+        .as_deref()
+        .map(|tile| format!(" {tile}"))
+        .unwrap_or_default();
+    RtsCommandStamp {
+        input_source: input_source.to_string(),
+        kind: kind.to_string(),
+        tile_id,
+        target_id: Some(target_id),
+        player_label: format!(
+            "{source} {} SENT {item_label}{tile_suffix}",
+            kind.to_ascii_uppercase()
+        ),
+    }
+}
+
+pub fn rts_command_stamp_for_move(input_source: &str, command_id: &str) -> Option<RtsCommandStamp> {
+    let source = rts_input_source_player_label(input_source, "RTS:MOVE");
+    let (tile_id, formation) = rts_move_command_parts(command_id);
+    rts_parse_tile_id(tile_id)?;
+    let follow_target_id = rts_move_follow_target(formation);
+    let formation_kind = rts_move_formation_kind(formation);
+    let kind = if command_id.starts_with("minimap:") || formation_kind == "rally" {
+        "rally"
+    } else if formation_kind == "shift_waypoint" {
+        "waypoint"
+    } else if formation_kind == "attack_move" {
+        "attack-move"
+    } else if formation_kind == "patrol" {
+        "patrol"
+    } else if formation_kind == "hold" {
+        "hold"
+    } else if formation_kind == "stop" {
+        "stop"
+    } else if formation_kind == "follow" {
+        "follow"
+    } else {
+        "move"
+    };
+    let target_id = follow_target_id.map(ToOwned::to_owned);
+    let player_label = if let Some(target_id) = follow_target_id {
+        format!(
+            "{source} FOLLOW SENT {}",
+            rts_catalog_text_label(target_id, 22)
+        )
+    } else {
+        format!(
+            "{source} {} SENT {tile_id}",
+            kind.replace('-', " ").to_ascii_uppercase()
+        )
+    };
+    Some(RtsCommandStamp {
+        input_source: input_source.to_string(),
+        kind: kind.to_string(),
+        tile_id: Some(tile_id.to_string()),
+        target_id,
+        player_label,
+    })
+}
+
+pub fn rts_command_stamp_for_attack(input_source: &str, target_id: &str) -> RtsCommandStamp {
+    let source = rts_input_source_player_label(input_source, "RTS:ATTACK");
+    RtsCommandStamp {
+        input_source: input_source.to_string(),
+        kind: "attack".to_string(),
+        tile_id: Some(rts_runtime_tile_id(rts_target_tile_for_id(target_id, 0))),
+        target_id: Some(target_id.to_string()),
+        player_label: format!(
+            "{source} ATTACK SENT {}",
+            rts_catalog_text_label(target_id, 22)
+        ),
+    }
+}
+
+pub fn rts_command_stamp_for_ability(
+    input_source: &str,
+    ability_id: &str,
+    attack_target_id: Option<&str>,
+) -> RtsCommandStamp {
+    let source = rts_input_source_player_label(input_source, "RTS:ABILITY");
+    let target_id = attack_target_id.map(ToOwned::to_owned);
+    let tile_id =
+        attack_target_id.map(|target_id| rts_runtime_tile_id(rts_target_tile_for_id(target_id, 0)));
+    RtsCommandStamp {
+        input_source: input_source.to_string(),
+        kind: "ability".to_string(),
+        tile_id,
+        target_id,
+        player_label: format!(
+            "{source} ABILITY SENT {}",
+            rts_catalog_text_label(ability_id, 22)
+        ),
+    }
+}
+
 pub fn rts_hover_target_preview_kind(affordance: &str) -> Option<&'static str> {
     if affordance.contains("attack") {
         Some("attack")
@@ -2874,6 +3109,39 @@ mod tests {
                 "blocked"
             ),
             "MAP CURSOR BLOCKED LOCK"
+        );
+    }
+
+    #[test]
+    fn command_stamp_adapter_preserves_first_contact_feedback_labels() {
+        let selection_stamp = rts_command_stamp_for_selection("classic_rts_hotkey", "assign:5", 2);
+        assert_eq!(selection_stamp.kind, "control-group");
+        assert_eq!(selection_stamp.target_id.as_deref(), Some("5"));
+        assert_eq!(
+            selection_stamp.player_label,
+            "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
+        );
+
+        let move_stamp = rts_command_stamp_for_move("classic_rts_mouse_viewport", "7,4:line")
+            .expect("valid move tile stamp");
+        assert_eq!(move_stamp.kind, "move");
+        assert_eq!(move_stamp.tile_id.as_deref(), Some("7,4"));
+        assert_eq!(move_stamp.player_label, "MAP MOVE SENT 7,4");
+
+        let ability_stamp = rts_command_stamp_for_ability(
+            "classic_rts_mouse_command_bar",
+            "focus_fire",
+            Some("arena_creep_attack"),
+        );
+        assert_eq!(ability_stamp.kind, "ability");
+        assert_eq!(ability_stamp.tile_id.as_deref(), Some("6,5"));
+        assert_eq!(
+            ability_stamp.target_id.as_deref(),
+            Some("arena_creep_attack")
+        );
+        assert_eq!(
+            ability_stamp.player_label,
+            "COMMAND BAR ABILITY SENT FOCUS FIRE"
         );
     }
 

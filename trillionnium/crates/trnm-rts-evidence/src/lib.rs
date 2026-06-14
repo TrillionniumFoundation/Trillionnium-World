@@ -12,8 +12,9 @@ use trnm_rts_bevy_runtime::{
     rts_base_assault_targets_for_id, rts_blocked_feedback_player_label,
     rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
     rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
-    rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id, rts_commander_parts,
-    rts_contact_flash_tiles_for_target, rts_control_group_hotkey_slot,
+    rts_command_queue_path_preview_stage, rts_command_stamp_for_ability,
+    rts_command_stamp_for_move, rts_command_stamp_for_selection, rts_commander_aura_tiles_for_id,
+    rts_commander_parts, rts_contact_flash_tiles_for_target, rts_control_group_hotkey_slot,
     rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
@@ -46,7 +47,7 @@ use trnm_rts_bevy_runtime::{
     rts_structure_tile_for_id, rts_supply_convoy_for_id, rts_target_priority_ids_for_target,
     rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
     rts_threat_levels_for_target, rts_tier_two_parts, rts_units_from_control_group_assignment,
-    rts_unlock_unit_tile_for_id, RtsControlGroupSlotSummary, RtsRuntimeGridSpec,
+    rts_unlock_unit_tile_for_id, RtsCommandStamp, RtsControlGroupSlotSummary, RtsRuntimeGridSpec,
     RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
@@ -169,6 +170,9 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub focus_fire_units_sample: Vec<String>,
     pub creep_camp_units_sample: Vec<String>,
     pub command_parts_samples: Vec<Vec<String>>,
+    pub selection_command_stamp_sample: RtsCommandStamp,
+    pub move_command_stamp_sample: RtsCommandStamp,
+    pub ability_command_stamp_sample: RtsCommandStamp,
     pub hover_target_preview_kind_sample: Option<String>,
     pub hover_cursor_kind_sample: String,
     pub hover_cursor_label_sample: String,
@@ -343,6 +347,15 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     .into_iter()
     .map(|(kind, id, source_id)| vec![kind, id, source_id])
     .collect::<Vec<_>>();
+    let selection_command_stamp =
+        rts_command_stamp_for_selection("classic_rts_hotkey", "assign:5", 2);
+    let move_command_stamp = rts_command_stamp_for_move("classic_rts_mouse_viewport", "7,4:line")
+        .expect("move command stamp sample");
+    let ability_command_stamp = rts_command_stamp_for_ability(
+        "classic_rts_mouse_command_bar",
+        "focus_fire",
+        Some("arena_creep_attack"),
+    );
     let hover_target_preview_kind =
         rts_hover_target_preview_kind("viewport_attack_target").map(str::to_string);
     let hover_cursor_kind =
@@ -555,6 +568,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 vec!["claim", "forest_relay", "9,2"],
                 vec!["tech", "stonebreak_cart", "relay_outpost"],
             ]
+        && selection_command_stamp.kind == "control-group"
+        && selection_command_stamp.target_id.as_deref() == Some("5")
+        && selection_command_stamp.player_label == "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
+        && move_command_stamp.kind == "move"
+        && move_command_stamp.tile_id.as_deref() == Some("7,4")
+        && move_command_stamp.player_label == "MAP MOVE SENT 7,4"
+        && ability_command_stamp.kind == "ability"
+        && ability_command_stamp.tile_id.as_deref() == Some("6,5")
+        && ability_command_stamp.target_id.as_deref() == Some("arena_creep_attack")
+        && ability_command_stamp.player_label == "COMMAND BAR ABILITY SENT FOCUS FIRE"
         && hover_target_preview_kind.as_deref() == Some("attack")
         && hover_cursor_kind == "ability"
         && hover_cursor_label == "COMMAND BAR CURSOR ABILITY READY"
@@ -723,12 +746,15 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         focus_fire_units_sample: focus_fire_units,
         creep_camp_units_sample: creep_camp_units,
         command_parts_samples,
+        selection_command_stamp_sample: selection_command_stamp,
+        move_command_stamp_sample: move_command_stamp,
+        ability_command_stamp_sample: ability_command_stamp,
         hover_target_preview_kind_sample: hover_target_preview_kind,
         hover_cursor_kind_sample: hover_cursor_kind.to_string(),
         hover_cursor_label_sample: hover_cursor_label,
         blocked_cursor_kind_sample: blocked_cursor_kind.to_string(),
         blocked_cursor_label_sample: blocked_cursor_label,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, hover/cursor affordance, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, hover/cursor affordance, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1173,6 +1199,40 @@ mod tests {
                 vec!["claim", "forest_relay", "9,2"],
                 vec!["tech", "stonebreak_cart", "relay_outpost"],
             ]
+        );
+        assert_eq!(
+            evidence.selection_command_stamp_sample.kind,
+            "control-group"
+        );
+        assert_eq!(
+            evidence.selection_command_stamp_sample.target_id.as_deref(),
+            Some("5")
+        );
+        assert_eq!(
+            evidence.selection_command_stamp_sample.player_label,
+            "HOTKEY GROUP 5 ASSIGNED 2 UNITS"
+        );
+        assert_eq!(evidence.move_command_stamp_sample.kind, "move");
+        assert_eq!(
+            evidence.move_command_stamp_sample.tile_id.as_deref(),
+            Some("7,4")
+        );
+        assert_eq!(
+            evidence.move_command_stamp_sample.player_label,
+            "MAP MOVE SENT 7,4"
+        );
+        assert_eq!(evidence.ability_command_stamp_sample.kind, "ability");
+        assert_eq!(
+            evidence.ability_command_stamp_sample.tile_id.as_deref(),
+            Some("6,5")
+        );
+        assert_eq!(
+            evidence.ability_command_stamp_sample.target_id.as_deref(),
+            Some("arena_creep_attack")
+        );
+        assert_eq!(
+            evidence.ability_command_stamp_sample.player_label,
+            "COMMAND BAR ABILITY SENT FOCUS FIRE"
         );
         assert_eq!(
             evidence.hover_target_preview_kind_sample.as_deref(),
