@@ -301,6 +301,13 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_from_frame_sample == 4
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_id_sample == "cancel_refund"
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_title_sample == "WORKER QUEUED"
+  and .rts_evidence_bevy_runtime_adapter.selection_default_units_sample == ["player", "square_guard_patrol", "square_worker_carry", "square_creep_wander"]
+  and .rts_evidence_bevy_runtime_adapter.selection_same_class_units_sample == ["player", "square_guard_front", "square_guard_patrol"]
+  and .rts_evidence_bevy_runtime_adapter.selection_guard_tile_sample.x == 7
+  and .rts_evidence_bevy_runtime_adapter.selection_guard_tile_sample.y == 5
+  and .rts_evidence_bevy_runtime_adapter.selection_drag_units_sample == ["player", "square_guard_front", "square_guard_patrol", "square_worker_carry", "square_worker_harvest"]
+  and .rts_evidence_bevy_runtime_adapter.selection_drag_rejected_units_sample == ["square_creep_wander"]
+  and .rts_evidence_bevy_runtime_adapter.selection_tiles_for_units_sample == ["5,4", "4,5"]
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

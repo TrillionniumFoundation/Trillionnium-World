@@ -408,6 +408,12 @@ fn rts_string_vec<const N: usize>(values: [&str; N]) -> Vec<String> {
     values.into_iter().map(str::to_string).collect()
 }
 
+fn rts_push_unique_string(values: &mut Vec<String>, value: &str) {
+    if !values.iter().any(|existing| existing == value) {
+        values.push(value.to_string());
+    }
+}
+
 fn rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
@@ -426,6 +432,153 @@ fn rts_line_path_tiles(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
 fn rts_parse_tile_id(value: &str) -> Option<(i32, i32)> {
     let (x, y) = value.split_once(',')?;
     Some((x.parse().ok()?, y.parse().ok()?))
+}
+
+pub fn rts_default_group_units() -> Vec<String> {
+    rts_string_vec([
+        "player",
+        "square_guard_patrol",
+        "square_worker_carry",
+        "square_creep_wander",
+    ])
+}
+
+pub fn rts_group_two_units() -> Vec<String> {
+    rts_string_vec(["square_guard_patrol", "square_creep_wander"])
+}
+
+pub fn rts_unit_selection_class(unit_id: &str) -> &'static str {
+    if unit_id.contains("guard") || unit_id == "player" {
+        "guard"
+    } else if unit_id.contains("worker") {
+        "worker"
+    } else if unit_id.contains("creep") {
+        "creep"
+    } else {
+        "unit"
+    }
+}
+
+pub fn rts_same_class_units(unit_id: &str) -> Vec<String> {
+    match rts_unit_selection_class(unit_id) {
+        "guard" => rts_string_vec(["player", "square_guard_front", "square_guard_patrol"]),
+        "worker" => rts_string_vec(["square_worker_carry", "square_worker_harvest"]),
+        "creep" => rts_string_vec(["square_creep_wander"]),
+        _ => vec![unit_id.to_string()],
+    }
+}
+
+fn rts_selectable_unit_entries() -> [(&'static str, (i32, i32), &'static str, u8); 6] {
+    [
+        ("player", (5, 4), "player", 0),
+        ("square_guard_front", (5, 4), "player", 1),
+        ("square_guard_patrol", (7, 5), "player", 2),
+        ("square_worker_carry", (4, 5), "player", 3),
+        ("square_worker_harvest", (8, 5), "player", 4),
+        ("square_creep_wander", (9, 4), "hostile", 20),
+    ]
+}
+
+pub fn rts_unit_allegiance(unit_id: &str) -> &'static str {
+    rts_selectable_unit_entries()
+        .into_iter()
+        .find_map(|(entry_unit_id, _, allegiance, _)| {
+            (entry_unit_id == unit_id).then_some(allegiance)
+        })
+        .unwrap_or("unknown")
+}
+
+pub fn rts_unit_is_player_owned(unit_id: &str) -> bool {
+    rts_unit_allegiance(unit_id) == "player"
+}
+
+pub fn rts_unit_selection_priority(unit_id: &str) -> u8 {
+    rts_selectable_unit_entries()
+        .into_iter()
+        .find_map(|(entry_unit_id, _, _, priority)| (entry_unit_id == unit_id).then_some(priority))
+        .unwrap_or(u8::MAX)
+}
+
+pub fn rts_selectable_unit_tile(unit_id: &str) -> Option<(i32, i32)> {
+    rts_selectable_unit_entries()
+        .into_iter()
+        .find_map(|(entry_unit_id, tile, _, _)| (entry_unit_id == unit_id).then_some(tile))
+}
+
+pub fn rts_selectable_unit_at_tile(tile: (i32, i32)) -> Option<&'static str> {
+    rts_selectable_unit_entries()
+        .into_iter()
+        .filter(|(_, unit_tile, _, _)| *unit_tile == tile)
+        .min_by_key(|(unit_id, _, allegiance, priority)| {
+            let allegiance_priority = if *allegiance == "player" { 0 } else { 1 };
+            (allegiance_priority, *priority, *unit_id)
+        })
+        .map(|(unit_id, _, _, _)| unit_id)
+}
+
+pub fn rts_selection_tiles_for_units(unit_ids: &[String]) -> Vec<String> {
+    let mut tiles = Vec::new();
+    for unit_id in unit_ids {
+        if let Some(tile) = rts_selectable_unit_tile(unit_id) {
+            rts_push_unique_string(&mut tiles, &rts_runtime_tile_id(tile));
+        }
+    }
+    tiles
+}
+
+pub fn rts_selection_box_tiles() -> Vec<String> {
+    rts_string_vec(["5,5", "6,5", "5,4", "6,4"])
+}
+
+pub fn rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32))> {
+    let payload = group_id.strip_prefix("drag:")?;
+    let (start, end) = payload.split_once("->")?;
+    Some((rts_parse_tile_id(start)?, rts_parse_tile_id(end)?))
+}
+
+pub fn rts_selection_box_tiles_between(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    let start = rts_large_map_clamp_tile(start);
+    let end = rts_large_map_clamp_tile(end);
+    let min_x = start.0.min(end.0);
+    let max_x = start.0.max(end.0);
+    let min_y = start.1.min(end.1);
+    let max_y = start.1.max(end.1);
+    let mut tiles = Vec::new();
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            tiles.push(rts_runtime_tile_id((x, y)));
+        }
+    }
+    tiles
+}
+
+pub fn rts_drag_selected_units(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    rts_drag_units_between(start, end, true)
+}
+
+pub fn rts_drag_rejected_unit_ids(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
+    rts_drag_units_between(start, end, false)
+        .into_iter()
+        .filter(|unit_id| !rts_unit_is_player_owned(unit_id))
+        .collect()
+}
+
+fn rts_drag_units_between(start: (i32, i32), end: (i32, i32), owned_only: bool) -> Vec<String> {
+    let start = rts_large_map_clamp_tile(start);
+    let end = rts_large_map_clamp_tile(end);
+    let min_x = start.0.min(end.0);
+    let max_x = start.0.max(end.0);
+    let min_y = start.1.min(end.1);
+    let max_y = start.1.max(end.1);
+    let mut selected = Vec::new();
+    for (unit_id, tile, _, _) in rts_selectable_unit_entries() {
+        if tile.0 >= min_x && tile.0 <= max_x && tile.1 >= min_y && tile.1 <= max_y {
+            if !owned_only || rts_unit_is_player_owned(unit_id) {
+                rts_push_unique_string(&mut selected, unit_id);
+            }
+        }
+    }
+    selected
 }
 
 pub fn rts_move_follow_target(formation: &str) -> Option<&str> {
@@ -2147,6 +2300,67 @@ mod tests {
                 "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"
             ),
             "QUEUE LOCK NEED 210G"
+        );
+    }
+
+    #[test]
+    fn selection_roster_adapter_preserves_first_contact_rules() {
+        assert_eq!(
+            rts_default_group_units(),
+            vec![
+                "player",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "square_creep_wander"
+            ]
+        );
+        assert_eq!(
+            rts_group_two_units(),
+            vec!["square_guard_patrol", "square_creep_wander"]
+        );
+        assert_eq!(rts_unit_selection_class("square_worker_carry"), "worker");
+        assert_eq!(
+            rts_same_class_units("player"),
+            vec!["player", "square_guard_front", "square_guard_patrol"]
+        );
+        assert_eq!(rts_unit_allegiance("square_creep_wander"), "hostile");
+        assert!(rts_unit_is_player_owned("square_worker_harvest"));
+        assert_eq!(rts_unit_selection_priority("square_creep_wander"), 20);
+        assert_eq!(
+            rts_selectable_unit_tile("square_guard_patrol"),
+            Some((7, 5))
+        );
+        assert_eq!(rts_selectable_unit_at_tile((5, 4)), Some("player"));
+        assert_eq!(
+            rts_selection_tiles_for_units(&[
+                "player".to_string(),
+                "square_guard_front".to_string(),
+                "square_worker_carry".to_string()
+            ]),
+            vec!["5,4", "4,5"]
+        );
+        assert_eq!(rts_selection_box_tiles(), vec!["5,5", "6,5", "5,4", "6,4"]);
+        assert_eq!(
+            rts_drag_selection_parts("drag:5,4->9,5"),
+            Some(((5, 4), (9, 5)))
+        );
+        assert_eq!(
+            rts_selection_box_tiles_between((5, 4), (6, 5)),
+            vec!["5,4", "6,4", "5,5", "6,5"]
+        );
+        assert_eq!(
+            rts_drag_selected_units((4, 4), (8, 5)),
+            vec![
+                "player",
+                "square_guard_front",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "square_worker_harvest"
+            ]
+        );
+        assert_eq!(
+            rts_drag_rejected_unit_ids((5, 4), (9, 5)),
+            vec!["square_creep_wander"]
         );
     }
 

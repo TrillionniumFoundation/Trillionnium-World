@@ -141331,85 +141331,39 @@ pub fn apply_native_first_playable_action(
 }
 
 fn classic_rts_default_group_units() -> Vec<String> {
-    string_vec([
-        "player",
-        "square_guard_patrol",
-        "square_worker_carry",
-        "square_creep_wander",
-    ])
+    rts_bevy_runtime::rts_default_group_units()
 }
 
 fn classic_rts_group_two_units() -> Vec<String> {
-    string_vec(["square_guard_patrol", "square_creep_wander"])
+    rts_bevy_runtime::rts_group_two_units()
 }
 
 fn classic_rts_unit_selection_class(unit_id: &str) -> &'static str {
-    if unit_id.contains("guard") || unit_id == "player" {
-        "guard"
-    } else if unit_id.contains("worker") {
-        "worker"
-    } else if unit_id.contains("creep") {
-        "creep"
-    } else {
-        "unit"
-    }
+    rts_bevy_runtime::rts_unit_selection_class(unit_id)
 }
 
 fn classic_rts_same_class_units(unit_id: &str) -> Vec<String> {
-    match classic_rts_unit_selection_class(unit_id) {
-        "guard" => string_vec(["player", "square_guard_front", "square_guard_patrol"]),
-        "worker" => string_vec(["square_worker_carry", "square_worker_harvest"]),
-        "creep" => string_vec(["square_creep_wander"]),
-        _ => vec![unit_id.to_string()],
-    }
-}
-
-fn classic_rts_selectable_unit_entries() -> [(&'static str, (i32, i32), &'static str, u8); 6] {
-    [
-        ("player", (5, 4), "player", 0),
-        ("square_guard_front", (5, 4), "player", 1),
-        ("square_guard_patrol", (7, 5), "player", 2),
-        ("square_worker_carry", (4, 5), "player", 3),
-        ("square_worker_harvest", (8, 5), "player", 4),
-        ("square_creep_wander", (9, 4), "hostile", 20),
-    ]
+    rts_bevy_runtime::rts_same_class_units(unit_id)
 }
 
 fn classic_rts_unit_allegiance(unit_id: &str) -> &'static str {
-    classic_rts_selectable_unit_entries()
-        .into_iter()
-        .find_map(|(entry_unit_id, _, allegiance, _)| {
-            (entry_unit_id == unit_id).then_some(allegiance)
-        })
-        .unwrap_or("unknown")
+    rts_bevy_runtime::rts_unit_allegiance(unit_id)
 }
 
 fn classic_rts_unit_is_player_owned(unit_id: &str) -> bool {
-    classic_rts_unit_allegiance(unit_id) == "player"
+    rts_bevy_runtime::rts_unit_is_player_owned(unit_id)
 }
 
 fn classic_rts_unit_selection_priority(unit_id: &str) -> u8 {
-    classic_rts_selectable_unit_entries()
-        .into_iter()
-        .find_map(|(entry_unit_id, _, _, priority)| (entry_unit_id == unit_id).then_some(priority))
-        .unwrap_or(u8::MAX)
+    rts_bevy_runtime::rts_unit_selection_priority(unit_id)
 }
 
 fn classic_rts_selectable_unit_tile(unit_id: &str) -> Option<(i32, i32)> {
-    classic_rts_selectable_unit_entries()
-        .into_iter()
-        .find_map(|(entry_unit_id, tile, _, _)| (entry_unit_id == unit_id).then_some(tile))
+    rts_bevy_runtime::rts_selectable_unit_tile(unit_id)
 }
 
 fn classic_rts_selectable_unit_at_tile(tile: (i32, i32)) -> Option<&'static str> {
-    classic_rts_selectable_unit_entries()
-        .into_iter()
-        .filter(|(_, unit_tile, _, _)| *unit_tile == tile)
-        .min_by_key(|(unit_id, _, allegiance, priority)| {
-            let allegiance_priority = if *allegiance == "player" { 0 } else { 1 };
-            (allegiance_priority, *priority, *unit_id)
-        })
-        .map(|(unit_id, _, _, _)| unit_id)
+    rts_bevy_runtime::rts_selectable_unit_at_tile(tile)
 }
 
 fn classic_rts_selection_clear_parts(group_id: &str) -> Option<(String, Option<String>, String)> {
@@ -141429,17 +141383,11 @@ fn classic_rts_selection_clear_parts(group_id: &str) -> Option<(String, Option<S
 }
 
 fn classic_rts_selection_tiles_for_units(unit_ids: &[String]) -> Vec<String> {
-    let mut tiles = Vec::new();
-    for unit_id in unit_ids {
-        if let Some(tile) = classic_rts_selectable_unit_tile(unit_id) {
-            push_unique_string(&mut tiles, &classic_rts_tile_id(tile));
-        }
-    }
-    tiles
+    rts_bevy_runtime::rts_selection_tiles_for_units(unit_ids)
 }
 
 fn classic_rts_selection_box_tiles() -> Vec<String> {
-    string_vec(["5,5", "6,5", "5,4", "6,4"])
+    rts_bevy_runtime::rts_selection_box_tiles()
 }
 
 fn classic_rts_control_group_hotkey_slot(group_id: &str, prefix: &str) -> Option<String> {
@@ -141555,58 +141503,19 @@ fn classic_rts_merged_unit_ids(base_units: &[String], extra_units: &[String]) ->
 }
 
 fn classic_rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32))> {
-    let payload = group_id.strip_prefix("drag:")?;
-    let (start, end) = payload.split_once("->")?;
-    Some((classic_parse_rts_tile(start)?, classic_parse_rts_tile(end)?))
+    rts_bevy_runtime::rts_drag_selection_parts(group_id)
 }
 
 fn classic_rts_selection_box_tiles_between(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
-    let start = classic_rts_large_map_clamp_tile(start);
-    let end = classic_rts_large_map_clamp_tile(end);
-    let min_x = start.0.min(end.0);
-    let max_x = start.0.max(end.0);
-    let min_y = start.1.min(end.1);
-    let max_y = start.1.max(end.1);
-    let mut tiles = Vec::new();
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
-            tiles.push(classic_rts_tile_id((x, y)));
-        }
-    }
-    tiles
+    rts_bevy_runtime::rts_selection_box_tiles_between(start, end)
 }
 
 fn classic_rts_drag_selected_units(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
-    classic_rts_drag_units_between(start, end, true)
+    rts_bevy_runtime::rts_drag_selected_units(start, end)
 }
 
 fn classic_rts_drag_rejected_unit_ids(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
-    classic_rts_drag_units_between(start, end, false)
-        .into_iter()
-        .filter(|unit_id| !classic_rts_unit_is_player_owned(unit_id))
-        .collect()
-}
-
-fn classic_rts_drag_units_between(
-    start: (i32, i32),
-    end: (i32, i32),
-    owned_only: bool,
-) -> Vec<String> {
-    let start = classic_rts_large_map_clamp_tile(start);
-    let end = classic_rts_large_map_clamp_tile(end);
-    let min_x = start.0.min(end.0);
-    let max_x = start.0.max(end.0);
-    let min_y = start.1.min(end.1);
-    let max_y = start.1.max(end.1);
-    let mut selected = Vec::new();
-    for (unit_id, tile, _, _) in classic_rts_selectable_unit_entries() {
-        if tile.0 >= min_x && tile.0 <= max_x && tile.1 >= min_y && tile.1 <= max_y {
-            if !owned_only || classic_rts_unit_is_player_owned(unit_id) {
-                push_unique_string(&mut selected, unit_id);
-            }
-        }
-    }
-    selected
+    rts_bevy_runtime::rts_drag_rejected_unit_ids(start, end)
 }
 
 fn classic_rts_move_command_parts(command_id: &str) -> (&str, &str) {

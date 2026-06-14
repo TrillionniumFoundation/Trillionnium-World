@@ -14,6 +14,7 @@ use trnm_rts_bevy_runtime::{
     rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id,
     rts_contact_flash_tiles_for_target, rts_counterattack_route_tiles_for_wave,
     rts_counterattack_units_for_wave, rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
+    rts_default_group_units, rts_drag_rejected_unit_ids, rts_drag_selected_units,
     rts_dropoff_tile_for_structure, rts_enemy_flank_tile_for_index, rts_enemy_flank_units_for_id,
     rts_enemy_fortification_tile_for_id, rts_enemy_pressure_lane_tiles_for_wave,
     rts_enemy_pressure_wave_units_for_id, rts_enemy_repair_units_for_target,
@@ -30,14 +31,15 @@ use trnm_rts_bevy_runtime::{
     rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
     rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
     rts_rebuild_structures_for_id, rts_restored_zones_for_id, rts_runtime_hit_test_grid,
-    rts_runtime_tile_line, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
-    rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
-    rts_siege_breach_tiles_for_target, rts_siege_push_route_tiles_for_target,
-    rts_siege_unit_tile_for_id, rts_siege_units_for_id, rts_split_squad_tiles_for_id,
-    rts_structure_tile_for_id, rts_supply_convoy_for_id, rts_target_priority_ids_for_target,
-    rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
-    rts_threat_levels_for_target, rts_unlock_unit_tile_for_id, RtsRuntimeGridSpec,
-    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_runtime_tile_line, rts_same_class_units, rts_scout_route_tiles_for_recon,
+    rts_scripted_demo_pauses_queue_tick, rts_scripted_demo_stage_from_frame,
+    rts_scripted_demo_stage_id, rts_scripted_demo_stage_title, rts_selectable_unit_tile,
+    rts_selection_tiles_for_units, rts_siege_breach_tiles_for_target,
+    rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
+    rts_split_squad_tiles_for_id, rts_structure_tile_for_id, rts_supply_convoy_for_id,
+    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
+    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, rts_unlock_unit_tile_for_id,
+    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -142,6 +144,12 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub scripted_demo_stage_from_frame_sample: Option<usize>,
     pub scripted_demo_stage_id_sample: String,
     pub scripted_demo_stage_title_sample: String,
+    pub selection_default_units_sample: Vec<String>,
+    pub selection_same_class_units_sample: Vec<String>,
+    pub selection_guard_tile_sample: Option<RtsEvidencePoint>,
+    pub selection_drag_units_sample: Vec<String>,
+    pub selection_drag_rejected_units_sample: Vec<String>,
+    pub selection_tiles_for_units_sample: Vec<String>,
     pub source_of_truth: String,
 }
 
@@ -255,6 +263,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 240);
     let scripted_demo_stage_id = rts_scripted_demo_stage_id(3);
     let scripted_demo_stage_title = rts_scripted_demo_stage_title(4);
+    let selection_default_units = rts_default_group_units();
+    let selection_same_class_units = rts_same_class_units("player");
+    let selection_guard_tile = rts_selectable_unit_tile("square_guard_patrol");
+    let selection_drag_units = rts_drag_selected_units((4, 4), (8, 5));
+    let selection_drag_rejected_units = rts_drag_rejected_unit_ids((5, 4), (9, 5));
+    let selection_tiles_for_units = rts_selection_tiles_for_units(&[
+        "player".to_string(),
+        "square_guard_front".to_string(),
+        "square_worker_carry".to_string(),
+    ]);
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -388,7 +406,27 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && scripted_demo_pauses_queue_tick
         && scripted_demo_stage_from_frame == Some(4)
         && scripted_demo_stage_id == "cancel_refund"
-        && scripted_demo_stage_title == "WORKER QUEUED";
+        && scripted_demo_stage_title == "WORKER QUEUED"
+        && selection_default_units
+            == vec![
+                "player",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "square_creep_wander",
+            ]
+        && selection_same_class_units
+            == vec!["player", "square_guard_front", "square_guard_patrol"]
+        && selection_guard_tile == Some((7, 5))
+        && selection_drag_units
+            == vec![
+                "player",
+                "square_guard_front",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "square_worker_harvest",
+            ]
+        && selection_drag_rejected_units == vec!["square_creep_wander"]
+        && selection_tiles_for_units == vec!["5,4", "4,5"];
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -532,7 +570,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         scripted_demo_stage_from_frame_sample: scripted_demo_stage_from_frame,
         scripted_demo_stage_id_sample: scripted_demo_stage_id.to_string(),
         scripted_demo_stage_title_sample: scripted_demo_stage_title.to_string(),
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        selection_default_units_sample: selection_default_units,
+        selection_same_class_units_sample: selection_same_class_units,
+        selection_guard_tile_sample: selection_guard_tile.map(|tile| RtsEvidencePoint {
+            x: tile.0,
+            y: tile.1,
+        }),
+        selection_drag_units_sample: selection_drag_units,
+        selection_drag_rejected_units_sample: selection_drag_rejected_units,
+        selection_tiles_for_units_sample: selection_tiles_for_units,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -874,5 +921,40 @@ mod tests {
         assert_eq!(evidence.scripted_demo_stage_from_frame_sample, Some(4));
         assert_eq!(evidence.scripted_demo_stage_id_sample, "cancel_refund");
         assert_eq!(evidence.scripted_demo_stage_title_sample, "WORKER QUEUED");
+        assert_eq!(
+            evidence.selection_default_units_sample,
+            vec![
+                "player",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "square_creep_wander"
+            ]
+        );
+        assert_eq!(
+            evidence.selection_same_class_units_sample,
+            vec!["player", "square_guard_front", "square_guard_patrol"]
+        );
+        assert_eq!(
+            evidence.selection_guard_tile_sample,
+            Some(RtsEvidencePoint { x: 7, y: 5 })
+        );
+        assert_eq!(
+            evidence.selection_drag_units_sample,
+            vec![
+                "player",
+                "square_guard_front",
+                "square_guard_patrol",
+                "square_worker_carry",
+                "square_worker_harvest"
+            ]
+        );
+        assert_eq!(
+            evidence.selection_drag_rejected_units_sample,
+            vec!["square_creep_wander"]
+        );
+        assert_eq!(
+            evidence.selection_tiles_for_units_sample,
+            vec!["5,4", "4,5"]
+        );
     }
 }
