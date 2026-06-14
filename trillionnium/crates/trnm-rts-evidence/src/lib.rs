@@ -14,13 +14,15 @@ use trnm_rts_bevy_runtime::{
     rts_blocked_feedback_chip_visible, rts_blocked_feedback_player_label,
     rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
     rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id, rts_combat_impact_stage,
-    rts_command_execution_feedback_kind, rts_command_feedback_lifecycle_stage,
-    rts_command_feedback_strip_stage, rts_command_history_prune_visible,
-    rts_command_history_visible, rts_command_queue_path_preview_stage,
-    rts_command_stamp_for_ability, rts_command_stamp_for_move, rts_command_stamp_for_selection,
-    rts_command_surface_stage, rts_commander_aura_tiles_for_id, rts_commander_parts,
-    rts_contact_flash_tiles_for_target, rts_control_group_hotkey_feedback_stage,
-    rts_control_group_hotkey_slot, rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_command_execution_feedback_kind, rts_command_execution_player_label,
+    rts_command_execution_target_label, rts_command_execution_target_tile,
+    rts_command_feedback_lifecycle_stage, rts_command_feedback_strip_stage,
+    rts_command_history_prune_visible, rts_command_history_visible,
+    rts_command_queue_path_preview_stage, rts_command_stamp_for_ability,
+    rts_command_stamp_for_move, rts_command_stamp_for_selection, rts_command_surface_stage,
+    rts_commander_aura_tiles_for_id, rts_commander_parts, rts_contact_flash_tiles_for_target,
+    rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
+    rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
@@ -219,6 +221,9 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub command_history_visible_sample: bool,
     pub command_history_prune_visible_sample: bool,
     pub command_execution_feedback_kind_samples: Vec<String>,
+    pub command_execution_target_label_samples: Vec<String>,
+    pub command_execution_player_label_samples: Vec<String>,
+    pub command_execution_target_tile_samples: Vec<RtsEvidencePoint>,
     pub hover_target_preview_kind_sample: Option<String>,
     pub hover_cursor_kind_sample: String,
     pub hover_cursor_label_sample: String,
@@ -577,6 +582,102 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     .into_iter()
     .map(|kind| kind.unwrap_or("none").to_string())
     .collect::<Vec<_>>();
+    let command_execution_harvest_nodes = vec!["gold_vein".to_string()];
+    let command_execution_harvest_queue = vec!["harvest:gold_vein->town_hall".to_string()];
+    let command_execution_target_label_samples = vec![
+        rts_command_execution_target_label(
+            "move",
+            None,
+            "idle",
+            "move:line",
+            &[],
+            &[],
+            Some("8,4"),
+        ),
+        rts_command_execution_target_label(
+            "follow",
+            None,
+            "following:player",
+            "follow:player",
+            &[],
+            &[],
+            None,
+        ),
+        rts_command_execution_target_label(
+            "attack",
+            Some("arena_creep_attack"),
+            "attack_move_advancing:forest_creep_camp",
+            "attack_move:10,3",
+            &[],
+            &[],
+            Some("8,4"),
+        ),
+        rts_command_execution_target_label(
+            "harvest",
+            None,
+            "idle",
+            "queue",
+            &command_execution_harvest_nodes,
+            &command_execution_harvest_queue,
+            None,
+        ),
+    ];
+    let command_execution_player_label_samples = vec![
+        rts_command_execution_player_label(
+            "move",
+            &command_execution_target_label_samples[0],
+            None,
+        ),
+        rts_command_execution_player_label(
+            "follow",
+            &command_execution_target_label_samples[1],
+            None,
+        ),
+        rts_command_execution_player_label(
+            "attack",
+            &command_execution_target_label_samples[2],
+            None,
+        ),
+        rts_command_execution_player_label(
+            "harvest",
+            &command_execution_target_label_samples[3],
+            Some("town_hall"),
+        ),
+    ];
+    let command_execution_target_tile_samples = vec![
+        rts_command_execution_target_tile("move", None, "idle", "move:line", &[], &[], Some("8,4"))
+            .expect("move target tile sample"),
+        rts_command_execution_target_tile(
+            "follow",
+            None,
+            "following:player",
+            "follow:player",
+            &[],
+            &[],
+            None,
+        )
+        .expect("follow target tile sample"),
+        rts_command_execution_target_tile(
+            "attack",
+            Some("arena_creep_attack"),
+            "attack_move_advancing:forest_creep_camp",
+            "attack_move:10,3",
+            &[],
+            &[],
+            Some("8,4"),
+        )
+        .expect("attack target tile sample"),
+        rts_command_execution_target_tile(
+            "harvest",
+            None,
+            "idle",
+            "queue",
+            &command_execution_harvest_nodes,
+            &command_execution_harvest_queue,
+            None,
+        )
+        .expect("harvest target tile sample"),
+    ];
     let hover_target_preview_kind =
         rts_hover_target_preview_kind("viewport_attack_target").map(str::to_string);
     let hover_cursor_kind =
@@ -895,6 +996,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && command_history_visible
         && command_history_prune_visible
         && command_execution_feedback_kind_samples == vec!["move", "follow", "attack", "harvest"]
+        && command_execution_target_label_samples
+            == vec!["8,4", "player", "arena_creep_attack", "gold_vein"]
+        && command_execution_player_label_samples
+            == vec![
+                "MOVE EXECUTING 8,4",
+                "FOLLOWING PLAYER",
+                "ATTACK FOCUS ARENA CREEP ATTACK",
+                "HARVEST GOLD VEIN TO TOWN HALL",
+            ]
+        && command_execution_target_tile_samples == vec![(8, 4), (5, 4), (6, 5), (3, 3)]
         && hover_target_preview_kind.as_deref() == Some("attack")
         && hover_cursor_kind == "ability"
         && hover_cursor_label == "COMMAND BAR CURSOR ABILITY READY"
@@ -1110,6 +1221,15 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         command_history_visible_sample: command_history_visible,
         command_history_prune_visible_sample: command_history_prune_visible,
         command_execution_feedback_kind_samples,
+        command_execution_target_label_samples,
+        command_execution_player_label_samples,
+        command_execution_target_tile_samples: command_execution_target_tile_samples
+            .into_iter()
+            .map(|tile| RtsEvidencePoint {
+                x: tile.0,
+                y: tile.1,
+            })
+            .collect(),
         hover_target_preview_kind_sample: hover_target_preview_kind,
         hover_cursor_kind_sample: hover_cursor_kind.to_string(),
         hover_cursor_label_sample: hover_cursor_label,
@@ -1126,7 +1246,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution target labels and tiles, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1689,6 +1809,28 @@ mod tests {
         assert_eq!(
             evidence.command_execution_feedback_kind_samples,
             vec!["move", "follow", "attack", "harvest"]
+        );
+        assert_eq!(
+            evidence.command_execution_target_label_samples,
+            vec!["8,4", "player", "arena_creep_attack", "gold_vein"]
+        );
+        assert_eq!(
+            evidence.command_execution_player_label_samples,
+            vec![
+                "MOVE EXECUTING 8,4",
+                "FOLLOWING PLAYER",
+                "ATTACK FOCUS ARENA CREEP ATTACK",
+                "HARVEST GOLD VEIN TO TOWN HALL"
+            ]
+        );
+        assert_eq!(
+            evidence.command_execution_target_tile_samples,
+            vec![
+                RtsEvidencePoint { x: 8, y: 4 },
+                RtsEvidencePoint { x: 5, y: 4 },
+                RtsEvidencePoint { x: 6, y: 5 },
+                RtsEvidencePoint { x: 3, y: 3 }
+            ]
         );
         assert_eq!(
             evidence.hover_target_preview_kind_sample.as_deref(),

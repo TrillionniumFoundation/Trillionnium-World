@@ -2425,6 +2425,102 @@ pub fn rts_command_execution_feedback_kind(
     }
 }
 
+pub fn rts_command_execution_target_label(
+    kind: &str,
+    attack_target_id: Option<&str>,
+    unit_response_state: &str,
+    group_command_state: &str,
+    harvest_node_ids: &[String],
+    command_queue: &[String],
+    command_destination_tile: Option<&str>,
+) -> String {
+    match kind {
+        "attack" => attack_target_id
+            .map(str::to_string)
+            .unwrap_or_else(|| "target".to_string()),
+        "follow" => unit_response_state
+            .strip_prefix("following:")
+            .map(str::to_string)
+            .or_else(|| {
+                group_command_state
+                    .strip_prefix("follow:")
+                    .and_then(|target| target.split('@').next())
+                    .map(str::to_string)
+            })
+            .unwrap_or_else(|| "unit".to_string()),
+        "harvest" => harvest_node_ids
+            .first()
+            .cloned()
+            .or_else(|| {
+                command_queue.iter().rev().find_map(|entry| {
+                    entry
+                        .strip_prefix("harvest:")
+                        .and_then(|value| value.split("->").next())
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_string)
+                })
+            })
+            .unwrap_or_else(|| "resource".to_string()),
+        _ => command_destination_tile
+            .map(str::to_string)
+            .unwrap_or_else(|| "destination".to_string()),
+    }
+}
+
+pub fn rts_command_execution_player_label(
+    kind: &str,
+    target_label: &str,
+    dropoff_structure_id: Option<&str>,
+) -> String {
+    let target_label = target_label.replace('_', " ").to_ascii_uppercase();
+    match kind {
+        "attack" => format!("ATTACK FOCUS {target_label}"),
+        "follow" => format!("FOLLOWING {target_label}"),
+        "harvest" => {
+            let dropoff = dropoff_structure_id
+                .unwrap_or("dropoff")
+                .replace('_', " ")
+                .to_ascii_uppercase();
+            format!("HARVEST {target_label} TO {dropoff}")
+        }
+        _ => format!("MOVE EXECUTING {target_label}"),
+    }
+}
+
+pub fn rts_command_execution_target_tile(
+    kind: &str,
+    attack_target_id: Option<&str>,
+    unit_response_state: &str,
+    group_command_state: &str,
+    harvest_node_ids: &[String],
+    command_queue: &[String],
+    command_destination_tile: Option<&str>,
+) -> Option<(i32, i32)> {
+    let destination_tile = command_destination_tile.and_then(rts_parse_tile_id);
+    match kind {
+        "attack" => attack_target_id
+            .map(|target_id| rts_target_tile_for_id(target_id, 0))
+            .or(destination_tile),
+        "follow" => {
+            let target_label = rts_command_execution_target_label(
+                kind,
+                attack_target_id,
+                unit_response_state,
+                group_command_state,
+                harvest_node_ids,
+                command_queue,
+                command_destination_tile,
+            );
+            rts_selectable_unit_tile(&target_label).or(destination_tile)
+        }
+        "harvest" => harvest_node_ids
+            .first()
+            .map(|node_id| rts_harvest_tile_for_node(node_id))
+            .or(destination_tile),
+        _ => destination_tile,
+    }
+}
+
 fn rts_recent_stage_from_events(
     markers: &[(&str, &'static str)],
     combat_events: &[String],
@@ -4236,6 +4332,84 @@ mod tests {
                 &["harvest:gold_vein".to_string()],
             ),
             Some("harvest")
+        );
+        let command_queue = vec!["harvest:gold_vein->town_hall".to_string()];
+        let harvest_nodes = vec!["gold_vein".to_string()];
+        assert_eq!(
+            rts_command_execution_target_label(
+                "attack",
+                Some("arena_creep_attack"),
+                "idle",
+                "",
+                &[],
+                &[],
+                Some("8,4"),
+            ),
+            "arena_creep_attack"
+        );
+        assert_eq!(
+            rts_command_execution_target_label(
+                "follow",
+                None,
+                "following:player",
+                "follow:square_guard_patrol@5,5",
+                &[],
+                &[],
+                None,
+            ),
+            "player"
+        );
+        assert_eq!(
+            rts_command_execution_target_label(
+                "harvest",
+                None,
+                "idle",
+                "",
+                &[],
+                &command_queue,
+                None,
+            ),
+            "gold_vein"
+        );
+        assert_eq!(
+            rts_command_execution_player_label("harvest", "gold_vein", Some("town_hall")),
+            "HARVEST GOLD VEIN TO TOWN HALL"
+        );
+        assert_eq!(
+            rts_command_execution_target_tile(
+                "attack",
+                Some("arena_creep_attack"),
+                "idle",
+                "",
+                &[],
+                &[],
+                Some("8,4"),
+            ),
+            Some((6, 5))
+        );
+        assert_eq!(
+            rts_command_execution_target_tile(
+                "follow",
+                None,
+                "following:player",
+                "",
+                &[],
+                &[],
+                None,
+            ),
+            Some((5, 4))
+        );
+        assert_eq!(
+            rts_command_execution_target_tile(
+                "harvest",
+                None,
+                "idle",
+                "",
+                &harvest_nodes,
+                &command_queue,
+                None,
+            ),
+            Some((3, 3))
         );
     }
 

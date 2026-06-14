@@ -80727,42 +80727,15 @@ fn classic_rts_command_execution_target_label(
     runtime: &NativeFirstPlayableRuntime,
     kind: &str,
 ) -> String {
-    match kind {
-        "attack" => runtime
-            .rts_attack_target_id
-            .clone()
-            .unwrap_or_else(|| "target".to_string()),
-        "follow" => runtime
-            .rts_unit_response_state
-            .strip_prefix("following:")
-            .map(str::to_string)
-            .or_else(|| {
-                runtime
-                    .rts_group_command_state
-                    .strip_prefix("follow:")
-                    .and_then(|target| target.split('@').next())
-                    .map(str::to_string)
-            })
-            .unwrap_or_else(|| "unit".to_string()),
-        "harvest" => runtime
-            .rts_harvest_node_ids
-            .first()
-            .cloned()
-            .or_else(|| {
-                runtime.rts_command_queue.iter().rev().find_map(|entry| {
-                    entry
-                        .strip_prefix("harvest:")
-                        .and_then(|value| value.split("->").next())
-                        .filter(|value| !value.is_empty())
-                        .map(str::to_string)
-                })
-            })
-            .unwrap_or_else(|| "resource".to_string()),
-        _ => runtime
-            .rts_command_destination_tile
-            .clone()
-            .unwrap_or_else(|| "destination".to_string()),
-    }
+    rts_bevy_runtime::rts_command_execution_target_label(
+        kind,
+        runtime.rts_attack_target_id.as_deref(),
+        &runtime.rts_unit_response_state,
+        &runtime.rts_group_command_state,
+        &runtime.rts_harvest_node_ids,
+        &runtime.rts_command_queue,
+        runtime.rts_command_destination_tile.as_deref(),
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -80770,23 +80743,12 @@ fn classic_rts_command_execution_player_label(
     runtime: &NativeFirstPlayableRuntime,
     kind: &str,
 ) -> String {
-    let target_label = classic_rts_command_execution_target_label(runtime, kind)
-        .replace('_', " ")
-        .to_ascii_uppercase();
-    match kind {
-        "attack" => format!("ATTACK FOCUS {target_label}"),
-        "follow" => format!("FOLLOWING {target_label}"),
-        "harvest" => {
-            let dropoff = runtime
-                .rts_dropoff_structure_id
-                .as_deref()
-                .unwrap_or("dropoff")
-                .replace('_', " ")
-                .to_ascii_uppercase();
-            format!("HARVEST {target_label} TO {dropoff}")
-        }
-        _ => format!("MOVE EXECUTING {target_label}"),
-    }
+    let target_label = classic_rts_command_execution_target_label(runtime, kind);
+    rts_bevy_runtime::rts_command_execution_player_label(
+        kind,
+        &target_label,
+        runtime.rts_dropoff_structure_id.as_deref(),
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -80794,27 +80756,15 @@ fn classic_rts_command_execution_target_tile(
     runtime: &NativeFirstPlayableRuntime,
     kind: &str,
 ) -> Option<(i32, i32)> {
-    let destination_tile = runtime
-        .rts_command_destination_tile
-        .as_deref()
-        .and_then(classic_parse_rts_tile);
-    match kind {
-        "attack" => runtime
-            .rts_attack_target_id
-            .as_deref()
-            .map(|target_id| classic_rts_target_tile_for_id(target_id, 0))
-            .or(destination_tile),
-        "follow" => {
-            let target_label = classic_rts_command_execution_target_label(runtime, kind);
-            classic_rts_selectable_unit_tile(&target_label).or(destination_tile)
-        }
-        "harvest" => runtime
-            .rts_harvest_node_ids
-            .first()
-            .map(|node_id| classic_rts_harvest_tile_for_node(node_id))
-            .or(destination_tile),
-        _ => destination_tile,
-    }
+    rts_bevy_runtime::rts_command_execution_target_tile(
+        kind,
+        runtime.rts_attack_target_id.as_deref(),
+        &runtime.rts_unit_response_state,
+        &runtime.rts_group_command_state,
+        &runtime.rts_harvest_node_ids,
+        &runtime.rts_command_queue,
+        runtime.rts_command_destination_tile.as_deref(),
+    )
 }
 
 #[cfg(not(target_os = "android"))]

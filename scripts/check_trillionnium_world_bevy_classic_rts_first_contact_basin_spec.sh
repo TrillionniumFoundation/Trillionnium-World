@@ -366,6 +366,9 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.command_history_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.command_history_prune_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.command_execution_feedback_kind_samples == ["move","follow","attack","harvest"]
+  and .rts_evidence_bevy_runtime_adapter.command_execution_target_label_samples == ["8,4","player","arena_creep_attack","gold_vein"]
+  and .rts_evidence_bevy_runtime_adapter.command_execution_player_label_samples == ["MOVE EXECUTING 8,4","FOLLOWING PLAYER","ATTACK FOCUS ARENA CREEP ATTACK","HARVEST GOLD VEIN TO TOWN HALL"]
+  and .rts_evidence_bevy_runtime_adapter.command_execution_target_tile_samples == [{"x":8,"y":4},{"x":5,"y":4},{"x":6,"y":5},{"x":3,"y":3}]
   and .rts_evidence_bevy_runtime_adapter.hover_target_preview_kind_sample == "attack"
   and .rts_evidence_bevy_runtime_adapter.hover_cursor_kind_sample == "ability"
   and .rts_evidence_bevy_runtime_adapter.hover_cursor_label_sample == "COMMAND BAR CURSOR ABILITY READY"
