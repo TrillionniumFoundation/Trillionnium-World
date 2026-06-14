@@ -16,22 +16,23 @@ use trnm_rts_bevy_runtime::{
     rts_contact_flash_tiles_for_target, rts_control_group_hotkey_slot,
     rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
-    rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_damage_ticks_for_ability,
-    rts_default_group_units, rts_default_units_for_control_group_slot, rts_drag_rejected_unit_ids,
-    rts_drag_selected_units, rts_dropoff_tile_for_structure, rts_enemy_command_parts,
-    rts_enemy_flank_tile_for_index, rts_enemy_flank_units_for_id,
-    rts_enemy_fortification_tile_for_id, rts_enemy_pressure_lane_tiles_for_wave,
-    rts_enemy_pressure_wave_units_for_id, rts_enemy_repair_units_for_target,
-    rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
-    rts_enemy_units_for_recon, rts_engagement_tiles_for_target, rts_expansion_parts,
-    rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id,
-    rts_expansion_workers_for_line, rts_focus_fire_units_for_target,
-    rts_fog_reveal_tiles_for_recon, rts_garrison_units_for_id, rts_guardian_counter_units_for_id,
-    rts_harvest_tile_for_node, rts_inner_core_tile_for_id, rts_inner_defenders_for_id,
-    rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
-    rts_keep_claim_tiles_for_id, rts_line_path_tiles, rts_loot_items_for_id, rts_merged_unit_ids,
-    rts_minimap_cell_origin, rts_move_command_parts, rts_objective_parts,
-    rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
+    rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
+    rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
+    rts_default_units_for_control_group_slot, rts_drag_rejected_unit_ids, rts_drag_selected_units,
+    rts_dropoff_tile_for_structure, rts_enemy_command_parts, rts_enemy_flank_tile_for_index,
+    rts_enemy_flank_units_for_id, rts_enemy_fortification_tile_for_id,
+    rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
+    rts_enemy_repair_units_for_target, rts_enemy_structure_tile_for_id,
+    rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id, rts_enemy_units_for_recon,
+    rts_engagement_tiles_for_target, rts_expansion_parts, rts_expansion_structure_tile_for_id,
+    rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id, rts_expansion_workers_for_line,
+    rts_focus_fire_units_for_target, rts_fog_reveal_tiles_for_recon, rts_garrison_units_for_id,
+    rts_guardian_counter_units_for_id, rts_harvest_tile_for_node, rts_hover_target_preview_kind,
+    rts_inner_core_tile_for_id, rts_inner_defenders_for_id, rts_inner_gate_tile_for_id,
+    rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id,
+    rts_line_path_tiles, rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin,
+    rts_move_command_parts, rts_objective_parts, rts_objective_tiles_for_id,
+    rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
     rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
     rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
     rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
@@ -168,6 +169,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub focus_fire_units_sample: Vec<String>,
     pub creep_camp_units_sample: Vec<String>,
     pub command_parts_samples: Vec<Vec<String>>,
+    pub hover_target_preview_kind_sample: Option<String>,
+    pub hover_cursor_kind_sample: String,
+    pub hover_cursor_label_sample: String,
+    pub blocked_cursor_kind_sample: String,
+    pub blocked_cursor_label_sample: String,
     pub source_of_truth: String,
 }
 
@@ -337,6 +343,24 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     .into_iter()
     .map(|(kind, id, source_id)| vec![kind, id, source_id])
     .collect::<Vec<_>>();
+    let hover_target_preview_kind =
+        rts_hover_target_preview_kind("viewport_attack_target").map(str::to_string);
+    let hover_cursor_kind =
+        rts_cursor_kind_for_hover_preview(true, "command_button", "RTS:ABILITY:focus_fire");
+    let hover_cursor_label = rts_cursor_label_for_hover_preview(
+        "classic_rts_mouse_command_bar",
+        "RTS:ABILITY:focus_fire",
+        true,
+        hover_cursor_kind,
+    );
+    let blocked_cursor_kind =
+        rts_cursor_kind_for_hover_preview(false, "viewport_move", "RTS:MOVE:4,3:line");
+    let blocked_cursor_label = rts_cursor_label_for_hover_preview(
+        "classic_rts_mouse_viewport",
+        "RTS:MOVE:4,3:line",
+        false,
+        blocked_cursor_kind,
+    );
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -530,7 +554,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 vec!["level", "mirror_captain", "forest_relay"],
                 vec!["claim", "forest_relay", "9,2"],
                 vec!["tech", "stonebreak_cart", "relay_outpost"],
-            ];
+            ]
+        && hover_target_preview_kind.as_deref() == Some("attack")
+        && hover_cursor_kind == "ability"
+        && hover_cursor_label == "COMMAND BAR CURSOR ABILITY READY"
+        && blocked_cursor_kind == "blocked"
+        && blocked_cursor_label == "MAP CURSOR BLOCKED LOCK";
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -694,7 +723,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         focus_fire_units_sample: focus_fire_units,
         creep_camp_units_sample: creep_camp_units,
         command_parts_samples,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        hover_target_preview_kind_sample: hover_target_preview_kind,
+        hover_cursor_kind_sample: hover_cursor_kind.to_string(),
+        hover_cursor_label_sample: hover_cursor_label,
+        blocked_cursor_kind_sample: blocked_cursor_kind.to_string(),
+        blocked_cursor_label_sample: blocked_cursor_label,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, hover/cursor affordance, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1139,6 +1173,20 @@ mod tests {
                 vec!["claim", "forest_relay", "9,2"],
                 vec!["tech", "stonebreak_cart", "relay_outpost"],
             ]
+        );
+        assert_eq!(
+            evidence.hover_target_preview_kind_sample.as_deref(),
+            Some("attack")
+        );
+        assert_eq!(evidence.hover_cursor_kind_sample, "ability");
+        assert_eq!(
+            evidence.hover_cursor_label_sample,
+            "COMMAND BAR CURSOR ABILITY READY"
+        );
+        assert_eq!(evidence.blocked_cursor_kind_sample, "blocked");
+        assert_eq!(
+            evidence.blocked_cursor_label_sample,
+            "MAP CURSOR BLOCKED LOCK"
         );
     }
 }

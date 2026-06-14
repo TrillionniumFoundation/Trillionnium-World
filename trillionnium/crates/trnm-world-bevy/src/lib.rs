@@ -81734,17 +81734,7 @@ fn classic_rts_viewport_tile_center(
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_hover_target_preview_kind(affordance: &str) -> Option<&'static str> {
-    if affordance.contains("attack") {
-        Some("attack")
-    } else if affordance.contains("harvest") {
-        Some("harvest")
-    } else if affordance.contains("follow") {
-        Some("follow")
-    } else if affordance.contains("move") {
-        Some("move")
-    } else {
-        None
-    }
+    rts_bevy_runtime::rts_hover_target_preview_kind(affordance)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -83005,28 +82995,11 @@ fn classic_rts_hover_preview_from_point(
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_cursor_kind_for_hover_preview(preview: &ClassicRtsHoverPreview) -> &'static str {
-    if !preview.accepted {
-        return "blocked";
-    }
-    if preview.affordance.contains("attack") {
-        "attack"
-    } else if preview.affordance.contains("harvest") {
-        "harvest"
-    } else if preview.affordance.contains("follow") {
-        "follow"
-    } else if preview.affordance.contains("build") || preview.affordance.contains("queue") {
-        "build"
-    } else if preview.affordance.contains("command_button") {
-        "ability"
-    } else if preview.affordance.contains("rally") || preview.affordance.contains("minimap") {
-        "rally"
-    } else if preview.affordance.contains("selection")
-        || preview.action_label.starts_with("RTS:SELECT:")
-    {
-        "select"
-    } else {
-        "move"
-    }
+    rts_bevy_runtime::rts_cursor_kind_for_hover_preview(
+        preview.accepted,
+        &preview.affordance,
+        &preview.action_label,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -83034,12 +83007,11 @@ fn classic_rts_cursor_label_for_hover_preview(
     preview: &ClassicRtsHoverPreview,
     cursor_kind: &str,
 ) -> String {
-    let source =
-        classic_rts_input_source_player_label(&preview.input_source, &preview.action_label);
-    let state = if preview.accepted { "READY" } else { "LOCK" };
-    format!(
-        "{source} CURSOR {} {state}",
-        cursor_kind.replace('-', " ").to_ascii_uppercase()
+    rts_bevy_runtime::rts_cursor_label_for_hover_preview(
+        &preview.input_source,
+        &preview.action_label,
+        preview.accepted,
+        cursor_kind,
     )
 }
 

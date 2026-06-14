@@ -1826,6 +1826,61 @@ pub fn rts_input_source_player_label(input_source: &str, action_label: &str) -> 
     }
 }
 
+pub fn rts_hover_target_preview_kind(affordance: &str) -> Option<&'static str> {
+    if affordance.contains("attack") {
+        Some("attack")
+    } else if affordance.contains("harvest") {
+        Some("harvest")
+    } else if affordance.contains("follow") {
+        Some("follow")
+    } else if affordance.contains("move") {
+        Some("move")
+    } else {
+        None
+    }
+}
+
+pub fn rts_cursor_kind_for_hover_preview(
+    accepted: bool,
+    affordance: &str,
+    action_label: &str,
+) -> &'static str {
+    if !accepted {
+        return "blocked";
+    }
+    if affordance.contains("attack") {
+        "attack"
+    } else if affordance.contains("harvest") {
+        "harvest"
+    } else if affordance.contains("follow") {
+        "follow"
+    } else if affordance.contains("build") || affordance.contains("queue") {
+        "build"
+    } else if affordance.contains("command_button") {
+        "ability"
+    } else if affordance.contains("rally") || affordance.contains("minimap") {
+        "rally"
+    } else if affordance.contains("selection") || action_label.starts_with("RTS:SELECT:") {
+        "select"
+    } else {
+        "move"
+    }
+}
+
+pub fn rts_cursor_label_for_hover_preview(
+    input_source: &str,
+    action_label: &str,
+    accepted: bool,
+    cursor_kind: &str,
+) -> String {
+    let source = rts_input_source_player_label(input_source, action_label);
+    let state = if accepted { "READY" } else { "LOCK" };
+    format!(
+        "{source} CURSOR {} {state}",
+        cursor_kind.replace('-', " ").to_ascii_uppercase()
+    )
+}
+
 pub fn rts_blocked_feedback_toast(input_source: &str, action_label: &str, reason: &str) -> String {
     let chip = rts_rejection_feedback_chip(action_label, reason);
     format!(
@@ -2777,6 +2832,48 @@ mod tests {
                 "stonebreak_cart".to_string(),
                 "relay_outpost".to_string()
             )
+        );
+    }
+
+    #[test]
+    fn hover_cursor_adapter_preserves_first_contact_affordances() {
+        assert_eq!(
+            rts_hover_target_preview_kind("viewport_attack_target"),
+            Some("attack")
+        );
+        assert_eq!(
+            rts_hover_target_preview_kind("viewport_harvest"),
+            Some("harvest")
+        );
+        assert_eq!(
+            rts_hover_target_preview_kind("viewport_follow"),
+            Some("follow")
+        );
+        assert_eq!(
+            rts_cursor_kind_for_hover_preview(true, "command_button", "RTS:ABILITY:focus_fire"),
+            "ability"
+        );
+        assert_eq!(
+            rts_cursor_label_for_hover_preview(
+                "classic_rts_mouse_command_bar",
+                "RTS:ABILITY:focus_fire",
+                true,
+                "ability"
+            ),
+            "COMMAND BAR CURSOR ABILITY READY"
+        );
+        assert_eq!(
+            rts_cursor_kind_for_hover_preview(false, "viewport_move", "RTS:MOVE:4,3:line"),
+            "blocked"
+        );
+        assert_eq!(
+            rts_cursor_label_for_hover_preview(
+                "classic_rts_mouse_viewport",
+                "RTS:MOVE:4,3:line",
+                false,
+                "blocked"
+            ),
+            "MAP CURSOR BLOCKED LOCK"
         );
     }
 

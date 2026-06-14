@@ -323,6 +323,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.focus_fire_units_sample == ["relay_guard_alpha", "relay_guard_beta", "wayfinder_scout", "field_mender"]
   and .rts_evidence_bevy_runtime_adapter.creep_camp_units_sample == ["forest_alpha_creep", "forest_stalker", "forest_shaman"]
   and .rts_evidence_bevy_runtime_adapter.command_parts_samples == [["claim", "relay_beacon", "9,2"], ["clear", "forest_creep_camp", "8,3"], ["mark", "enemy_base", "10,2"], ["pressure", "counter_wave", "enemy_gate"], ["upgrade", "signal_blade", "training_hall"], ["train", "mixed_vanguard", "training_hall"], ["breach", "enemy_barracks", "10,3"], ["destroy", "enemy_barracks", "10,3"], ["level", "mirror_captain", "forest_relay"], ["claim", "forest_relay", "9,2"], ["tech", "stonebreak_cart", "relay_outpost"]]
+  and .rts_evidence_bevy_runtime_adapter.hover_target_preview_kind_sample == "attack"
+  and .rts_evidence_bevy_runtime_adapter.hover_cursor_kind_sample == "ability"
+  and .rts_evidence_bevy_runtime_adapter.hover_cursor_label_sample == "COMMAND BAR CURSOR ABILITY READY"
+  and .rts_evidence_bevy_runtime_adapter.blocked_cursor_kind_sample == "blocked"
+  and .rts_evidence_bevy_runtime_adapter.blocked_cursor_label_sample == "MAP CURSOR BLOCKED LOCK"
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28
