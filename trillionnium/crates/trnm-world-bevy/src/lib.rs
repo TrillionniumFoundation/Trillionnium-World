@@ -16182,41 +16182,12 @@ fn classic_draw_rts_control_group_recall_override_preview_overlay(
 fn classic_rts_control_group_command_feedback_strip_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("control_group_command_feedback_strip:group_28_filtered") {
-                return Some("group_28_filtered");
-            }
-            if event.contains("control_group_command_feedback_strip:group_28_formation") {
-                return Some("group_28_formation");
-            }
-            if event.contains("control_group_command_feedback_strip:group_27_override") {
-                return Some("group_27_override");
-            }
-            if event.contains("control_group_command_feedback_strip:group_26_queued") {
-                return Some("group_26_queued");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("control_group_command_feedback_strip:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 4 {
-            0 => "group_26_queued",
-            1 => "group_27_override",
-            2 => "group_28_formation",
-            _ => "group_28_filtered",
-        });
-    }
-    None
+    let runtime = runtime?;
+    rts_bevy_runtime::rts_command_feedback_strip_stage(
+        runtime.combat_turn,
+        &runtime.rts_combat_event_log,
+        &runtime.rts_command_queue,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -16361,31 +16332,11 @@ fn classic_rts_control_group_command_feedback_lifecycle_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
     let runtime = runtime?;
-    for text in std::iter::once(runtime.rts_group_command_state.as_str()).chain(
-        runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-            .map(String::as_str),
-    ) {
-        if text.contains("control_group_command_feedback_lifecycle:cleared")
-            || text.contains("command_feedback_lifecycle:cleared")
-        {
-            return Some("cleared");
-        }
-        if text.contains("control_group_command_feedback_lifecycle:dimmed")
-            || text.contains("command_feedback_lifecycle:dimmed")
-        {
-            return Some("dimmed");
-        }
-        if text.contains("control_group_command_feedback_lifecycle:fresh")
-            || text.contains("command_feedback_lifecycle:fresh")
-        {
-            return Some("fresh");
-        }
-    }
-    None
+    rts_bevy_runtime::rts_command_feedback_lifecycle_stage(
+        &runtime.rts_group_command_state,
+        &runtime.rts_combat_event_log,
+        &runtime.rts_command_queue,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -16542,19 +16493,11 @@ fn classic_rts_control_group_command_history_visible(
     let Some(runtime) = runtime else {
         return false;
     };
-    std::iter::once(runtime.rts_group_command_state.as_str())
-        .chain(
-            runtime
-                .rts_combat_event_log
-                .iter()
-                .rev()
-                .chain(runtime.rts_command_queue.iter().rev())
-                .map(String::as_str),
-        )
-        .any(|text| {
-            text.contains("control_group_command_history:")
-                || text.contains("command_feedback_history:")
-        })
+    rts_bevy_runtime::rts_command_history_visible(
+        &runtime.rts_group_command_state,
+        &runtime.rts_combat_event_log,
+        &runtime.rts_command_queue,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -16564,20 +16507,11 @@ fn classic_rts_control_group_command_history_prune_visible(
     let Some(runtime) = runtime else {
         return false;
     };
-    std::iter::once(runtime.rts_group_command_state.as_str())
-        .chain(
-            runtime
-                .rts_combat_event_log
-                .iter()
-                .rev()
-                .chain(runtime.rts_command_queue.iter().rev())
-                .map(String::as_str),
-        )
-        .any(|text| {
-            text.contains("control_group_command_history_prune:")
-                || text.contains("command_history_prune:")
-                || text.contains("history_row_pruned:")
-        })
+    rts_bevy_runtime::rts_command_history_prune_visible(
+        &runtime.rts_group_command_state,
+        &runtime.rts_combat_event_log,
+        &runtime.rts_command_queue,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -81759,62 +81693,16 @@ fn classic_rts_command_execution_feedback_kind(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
     let runtime = runtime?;
-    if let Some(recent_feedback_chip) = runtime
-        .rts_command_queue
-        .iter()
-        .rev()
-        .find(|entry| entry.starts_with("feedback:"))
-    {
-        if recent_feedback_chip.starts_with("feedback:harvest_assigned:") {
-            return Some("harvest");
-        }
-        if recent_feedback_chip.starts_with("feedback:follow@") {
-            return Some("follow");
-        }
-        if recent_feedback_chip.starts_with("feedback:attack_move@") {
-            return Some("attack");
-        }
-        if recent_feedback_chip.starts_with("feedback:line@")
-            || recent_feedback_chip.starts_with("feedback:diamond@")
-            || recent_feedback_chip.starts_with("feedback:waypoint_queued@")
-            || recent_feedback_chip.starts_with("feedback:hold_position@")
-            || recent_feedback_chip.starts_with("feedback:patrol_route@")
-            || recent_feedback_chip.starts_with("feedback:rally_confirmed@")
-            || recent_feedback_chip.starts_with("feedback:stop_hold@")
-        {
-            return Some("move");
-        }
-    }
-    if runtime.rts_unit_response_state.starts_with("following:")
-        || runtime.rts_group_command_state.starts_with("follow:")
-        || runtime.rts_minimap_command_kind == "follow"
-    {
-        Some("follow")
-    } else if runtime.rts_unit_response_state.starts_with("engaged:")
-        || runtime
-            .rts_unit_response_state
-            .starts_with("attack_move_advancing:")
-        || runtime.rts_group_command_state.starts_with("attack_move:")
-    {
-        Some("attack")
-    } else if runtime.rts_command_destination_tile.is_some()
-        && runtime.rts_minimap_command_kind != "harvest"
-        && !runtime.rts_economy_state.starts_with("harvesting:")
-        && (!runtime.rts_path_tile_ids.is_empty() || !runtime.rts_group_route_tile_ids.is_empty())
-    {
-        Some("move")
-    } else if runtime.rts_minimap_command_kind == "harvest"
-        || runtime.rts_economy_state.starts_with("harvesting:")
-        || runtime
-            .rts_command_queue
-            .iter()
-            .rev()
-            .any(|entry| entry.starts_with("harvest:"))
-    {
-        Some("harvest")
-    } else {
-        None
-    }
+    rts_bevy_runtime::rts_command_execution_feedback_kind(
+        &runtime.rts_unit_response_state,
+        &runtime.rts_group_command_state,
+        &runtime.rts_economy_state,
+        runtime.rts_command_destination_tile.is_some(),
+        &runtime.rts_minimap_command_kind,
+        !runtime.rts_path_tile_ids.is_empty(),
+        !runtime.rts_group_route_tile_ids.is_empty(),
+        &runtime.rts_command_queue,
+    )
 }
 
 #[cfg(not(target_os = "android"))]

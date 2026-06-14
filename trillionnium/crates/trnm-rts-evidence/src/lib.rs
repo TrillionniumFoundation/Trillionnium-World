@@ -12,10 +12,12 @@ use trnm_rts_bevy_runtime::{
     rts_base_assault_targets_for_id, rts_blocked_feedback_player_label,
     rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
     rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
-    rts_command_queue_path_preview_stage, rts_command_stamp_for_ability,
-    rts_command_stamp_for_move, rts_command_stamp_for_selection, rts_commander_aura_tiles_for_id,
-    rts_commander_parts, rts_contact_flash_tiles_for_target, rts_control_group_hotkey_slot,
-    rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_command_execution_feedback_kind, rts_command_feedback_lifecycle_stage,
+    rts_command_feedback_strip_stage, rts_command_history_prune_visible,
+    rts_command_history_visible, rts_command_queue_path_preview_stage,
+    rts_command_stamp_for_ability, rts_command_stamp_for_move, rts_command_stamp_for_selection,
+    rts_commander_aura_tiles_for_id, rts_commander_parts, rts_contact_flash_tiles_for_target,
+    rts_control_group_hotkey_slot, rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
@@ -173,6 +175,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub selection_command_stamp_sample: RtsCommandStamp,
     pub move_command_stamp_sample: RtsCommandStamp,
     pub ability_command_stamp_sample: RtsCommandStamp,
+    pub command_feedback_strip_stage_sample: Option<String>,
+    pub command_feedback_lifecycle_stage_sample: Option<String>,
+    pub command_history_visible_sample: bool,
+    pub command_history_prune_visible_sample: bool,
+    pub command_execution_feedback_kind_samples: Vec<String>,
     pub hover_target_preview_kind_sample: Option<String>,
     pub hover_cursor_kind_sample: String,
     pub hover_cursor_label_sample: String,
@@ -356,6 +363,68 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         "focus_fire",
         Some("arena_creep_attack"),
     );
+    let command_feedback_queue = vec![
+        "queued_group_order:Multi0:26:move:2actors".to_string(),
+        "control_group_command_feedback_strip:group_27_override".to_string(),
+        "control_group_command_history:dimmed_history_retained".to_string(),
+        "history_row_pruned:25:old_queue:17,30:age16".to_string(),
+    ];
+    let command_feedback_events =
+        vec!["control_group_command_feedback_lifecycle:dimmed".to_string()];
+    let command_feedback_strip_stage =
+        rts_command_feedback_strip_stage(1, &[], &command_feedback_queue).map(str::to_string);
+    let command_feedback_lifecycle_stage =
+        rts_command_feedback_lifecycle_stage("", &command_feedback_events, &command_feedback_queue)
+            .map(str::to_string);
+    let command_history_visible =
+        rts_command_history_visible("", &command_feedback_events, &command_feedback_queue);
+    let command_history_prune_visible =
+        rts_command_history_prune_visible("", &command_feedback_events, &command_feedback_queue);
+    let command_execution_feedback_kind_samples = vec![
+        rts_command_execution_feedback_kind(
+            "idle",
+            "move:line",
+            "stable",
+            true,
+            "rally",
+            true,
+            false,
+            &["feedback:rally_confirmed@8,4".to_string()],
+        ),
+        rts_command_execution_feedback_kind(
+            "following:player",
+            "follow:player",
+            "stable",
+            false,
+            "follow",
+            false,
+            false,
+            &[],
+        ),
+        rts_command_execution_feedback_kind(
+            "attack_move_advancing:forest_creep_camp",
+            "attack_move:10,3",
+            "stable",
+            false,
+            "attack_move",
+            false,
+            false,
+            &[],
+        ),
+        rts_command_execution_feedback_kind(
+            "idle",
+            "queue",
+            "harvesting:gold_vein",
+            false,
+            "harvest",
+            false,
+            false,
+            &["harvest:gold_vein".to_string()],
+        ),
+    ]
+    .into_iter()
+    .map(|kind| kind.unwrap_or("none").to_string())
+    .collect::<Vec<_>>();
     let hover_target_preview_kind =
         rts_hover_target_preview_kind("viewport_attack_target").map(str::to_string);
     let hover_cursor_kind =
@@ -578,6 +647,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && ability_command_stamp.tile_id.as_deref() == Some("6,5")
         && ability_command_stamp.target_id.as_deref() == Some("arena_creep_attack")
         && ability_command_stamp.player_label == "COMMAND BAR ABILITY SENT FOCUS FIRE"
+        && command_feedback_strip_stage.as_deref() == Some("group_27_override")
+        && command_feedback_lifecycle_stage.as_deref() == Some("dimmed")
+        && command_history_visible
+        && command_history_prune_visible
+        && command_execution_feedback_kind_samples == vec!["move", "follow", "attack", "harvest"]
         && hover_target_preview_kind.as_deref() == Some("attack")
         && hover_cursor_kind == "ability"
         && hover_cursor_label == "COMMAND BAR CURSOR ABILITY READY"
@@ -749,12 +823,17 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_command_stamp_sample: selection_command_stamp,
         move_command_stamp_sample: move_command_stamp,
         ability_command_stamp_sample: ability_command_stamp,
+        command_feedback_strip_stage_sample: command_feedback_strip_stage,
+        command_feedback_lifecycle_stage_sample: command_feedback_lifecycle_stage,
+        command_history_visible_sample: command_history_visible,
+        command_history_prune_visible_sample: command_history_prune_visible,
+        command_execution_feedback_kind_samples,
         hover_target_preview_kind_sample: hover_target_preview_kind,
         hover_cursor_kind_sample: hover_cursor_kind.to_string(),
         hover_cursor_label_sample: hover_cursor_label,
         blocked_cursor_kind_sample: blocked_cursor_kind.to_string(),
         blocked_cursor_label_sample: blocked_cursor_label,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, hover/cursor affordance, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1233,6 +1312,20 @@ mod tests {
         assert_eq!(
             evidence.ability_command_stamp_sample.player_label,
             "COMMAND BAR ABILITY SENT FOCUS FIRE"
+        );
+        assert_eq!(
+            evidence.command_feedback_strip_stage_sample.as_deref(),
+            Some("group_27_override")
+        );
+        assert_eq!(
+            evidence.command_feedback_lifecycle_stage_sample.as_deref(),
+            Some("dimmed")
+        );
+        assert!(evidence.command_history_visible_sample);
+        assert!(evidence.command_history_prune_visible_sample);
+        assert_eq!(
+            evidence.command_execution_feedback_kind_samples,
+            vec!["move", "follow", "attack", "harvest"]
         );
         assert_eq!(
             evidence.hover_target_preview_kind_sample.as_deref(),

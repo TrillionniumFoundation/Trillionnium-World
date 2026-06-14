@@ -333,6 +333,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.ability_command_stamp_sample.tile_id == "6,5"
   and .rts_evidence_bevy_runtime_adapter.ability_command_stamp_sample.target_id == "arena_creep_attack"
   and .rts_evidence_bevy_runtime_adapter.ability_command_stamp_sample.player_label == "COMMAND BAR ABILITY SENT FOCUS FIRE"
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_strip_stage_sample == "group_27_override"
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_stage_sample == "dimmed"
+  and .rts_evidence_bevy_runtime_adapter.command_history_visible_sample == true
+  and .rts_evidence_bevy_runtime_adapter.command_history_prune_visible_sample == true
+  and .rts_evidence_bevy_runtime_adapter.command_execution_feedback_kind_samples == ["move","follow","attack","harvest"]
   and .rts_evidence_bevy_runtime_adapter.hover_target_preview_kind_sample == "attack"
   and .rts_evidence_bevy_runtime_adapter.hover_cursor_kind_sample == "ability"
   and .rts_evidence_bevy_runtime_adapter.hover_cursor_label_sample == "COMMAND BAR CURSOR ABILITY READY"

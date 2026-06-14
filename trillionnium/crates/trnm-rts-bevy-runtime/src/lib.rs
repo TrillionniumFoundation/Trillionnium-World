@@ -2137,6 +2137,161 @@ pub fn rts_executable_command_queue_snapshot(queue: &[String]) -> Vec<String> {
         .collect()
 }
 
+pub fn rts_command_feedback_strip_stage(
+    combat_turn: u8,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev().chain(command_queue.iter().rev()) {
+        if event.contains("control_group_command_feedback_strip:group_28_filtered") {
+            return Some("group_28_filtered");
+        }
+        if event.contains("control_group_command_feedback_strip:group_28_formation") {
+            return Some("group_28_formation");
+        }
+        if event.contains("control_group_command_feedback_strip:group_27_override") {
+            return Some("group_27_override");
+        }
+        if event.contains("control_group_command_feedback_strip:group_26_queued") {
+            return Some("group_26_queued");
+        }
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("control_group_command_feedback_strip:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 4 {
+        0 => "group_26_queued",
+        1 => "group_27_override",
+        2 => "group_28_formation",
+        _ => "group_28_filtered",
+    })
+}
+
+fn rts_feedback_lifecycle_texts<'a>(
+    group_command_state: &'a str,
+    combat_events: &'a [String],
+    command_queue: &'a [String],
+) -> impl Iterator<Item = &'a str> {
+    std::iter::once(group_command_state)
+        .chain(combat_events.iter().rev().map(String::as_str))
+        .chain(command_queue.iter().rev().map(String::as_str))
+}
+
+pub fn rts_command_feedback_lifecycle_stage(
+    group_command_state: &str,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    for text in rts_feedback_lifecycle_texts(group_command_state, combat_events, command_queue) {
+        if text.contains("control_group_command_feedback_lifecycle:cleared")
+            || text.contains("command_feedback_lifecycle:cleared")
+        {
+            return Some("cleared");
+        }
+        if text.contains("control_group_command_feedback_lifecycle:dimmed")
+            || text.contains("command_feedback_lifecycle:dimmed")
+        {
+            return Some("dimmed");
+        }
+        if text.contains("control_group_command_feedback_lifecycle:fresh")
+            || text.contains("command_feedback_lifecycle:fresh")
+        {
+            return Some("fresh");
+        }
+    }
+    None
+}
+
+pub fn rts_command_history_visible(
+    group_command_state: &str,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> bool {
+    rts_feedback_lifecycle_texts(group_command_state, combat_events, command_queue).any(|text| {
+        text.contains("control_group_command_history:")
+            || text.contains("command_feedback_history:")
+    })
+}
+
+pub fn rts_command_history_prune_visible(
+    group_command_state: &str,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> bool {
+    rts_feedback_lifecycle_texts(group_command_state, combat_events, command_queue).any(|text| {
+        text.contains("control_group_command_history_prune:")
+            || text.contains("command_history_prune:")
+            || text.contains("history_row_pruned:")
+    })
+}
+
+pub fn rts_command_execution_feedback_kind(
+    unit_response_state: &str,
+    group_command_state: &str,
+    economy_state: &str,
+    command_destination_tile_present: bool,
+    minimap_command_kind: &str,
+    has_path_tiles: bool,
+    has_group_route_tiles: bool,
+    command_queue: &[String],
+) -> Option<&'static str> {
+    if let Some(recent_feedback_chip) = command_queue
+        .iter()
+        .rev()
+        .find(|entry| entry.starts_with("feedback:"))
+    {
+        if recent_feedback_chip.starts_with("feedback:harvest_assigned:") {
+            return Some("harvest");
+        }
+        if recent_feedback_chip.starts_with("feedback:follow@") {
+            return Some("follow");
+        }
+        if recent_feedback_chip.starts_with("feedback:attack_move@") {
+            return Some("attack");
+        }
+        if recent_feedback_chip.starts_with("feedback:line@")
+            || recent_feedback_chip.starts_with("feedback:diamond@")
+            || recent_feedback_chip.starts_with("feedback:waypoint_queued@")
+            || recent_feedback_chip.starts_with("feedback:hold_position@")
+            || recent_feedback_chip.starts_with("feedback:patrol_route@")
+            || recent_feedback_chip.starts_with("feedback:rally_confirmed@")
+            || recent_feedback_chip.starts_with("feedback:stop_hold@")
+        {
+            return Some("move");
+        }
+    }
+    if unit_response_state.starts_with("following:")
+        || group_command_state.starts_with("follow:")
+        || minimap_command_kind == "follow"
+    {
+        Some("follow")
+    } else if unit_response_state.starts_with("engaged:")
+        || unit_response_state.starts_with("attack_move_advancing:")
+        || group_command_state.starts_with("attack_move:")
+    {
+        Some("attack")
+    } else if command_destination_tile_present
+        && minimap_command_kind != "harvest"
+        && !economy_state.starts_with("harvesting:")
+        && (has_path_tiles || has_group_route_tiles)
+    {
+        Some("move")
+    } else if minimap_command_kind == "harvest"
+        || economy_state.starts_with("harvesting:")
+        || command_queue
+            .iter()
+            .rev()
+            .any(|entry| entry.starts_with("harvest:"))
+    {
+        Some("harvest")
+    } else {
+        None
+    }
+}
+
 pub fn rts_blocked_feedback_player_label(chip: &str) -> String {
     let blocked = chip.strip_prefix("feedback:blocked:").unwrap_or(chip);
     if let Some(queue_id) = blocked.strip_prefix("queue:rts_queue_unaffordable:") {
@@ -2840,6 +2995,109 @@ mod tests {
                 "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"
             ),
             "QUEUE LOCK NEED 210G"
+        );
+    }
+
+    #[test]
+    fn command_feedback_adapter_preserves_first_contact_lifecycle() {
+        let strip_queue = vec![
+            "queued_group_order:Multi0:26:move:2actors".to_string(),
+            "control_group_command_feedback_strip:group_27_override".to_string(),
+        ];
+        let strip_events =
+            vec!["control_group_command_feedback_strip:group_28_filtered".to_string()];
+        assert_eq!(
+            rts_command_feedback_strip_stage(0, &strip_events, &strip_queue),
+            Some("group_28_filtered")
+        );
+        assert_eq!(
+            rts_command_feedback_strip_stage(
+                2,
+                &[],
+                &["control_group_command_feedback_strip:".into()]
+            ),
+            Some("group_28_formation")
+        );
+        assert_eq!(rts_command_feedback_strip_stage(1, &[], &[]), None);
+
+        let lifecycle_events = vec!["control_group_command_feedback_lifecycle:dimmed".to_string()];
+        let lifecycle_queue = vec![
+            "control_group_command_history:dimmed_history_retained".to_string(),
+            "history_row_pruned:25:old_queue:17,30:age16".to_string(),
+        ];
+        assert_eq!(
+            rts_command_feedback_lifecycle_stage(
+                "command_feedback_lifecycle:fresh",
+                &lifecycle_events,
+                &lifecycle_queue,
+            ),
+            Some("fresh")
+        );
+        assert_eq!(
+            rts_command_feedback_lifecycle_stage("", &lifecycle_events, &lifecycle_queue),
+            Some("dimmed")
+        );
+        assert!(rts_command_history_visible(
+            "",
+            &lifecycle_events,
+            &lifecycle_queue,
+        ));
+        assert!(rts_command_history_prune_visible(
+            "",
+            &lifecycle_events,
+            &lifecycle_queue,
+        ));
+        assert_eq!(
+            rts_command_execution_feedback_kind(
+                "idle",
+                "move:line",
+                "stable",
+                true,
+                "rally",
+                true,
+                false,
+                &["feedback:rally_confirmed@8,4".to_string()],
+            ),
+            Some("move")
+        );
+        assert_eq!(
+            rts_command_execution_feedback_kind(
+                "following:player",
+                "follow:player",
+                "stable",
+                false,
+                "follow",
+                false,
+                false,
+                &[],
+            ),
+            Some("follow")
+        );
+        assert_eq!(
+            rts_command_execution_feedback_kind(
+                "attack_move_advancing:forest_creep_camp",
+                "attack_move:10,3",
+                "stable",
+                false,
+                "attack_move",
+                false,
+                false,
+                &[],
+            ),
+            Some("attack")
+        );
+        assert_eq!(
+            rts_command_execution_feedback_kind(
+                "idle",
+                "queue",
+                "harvesting:gold_vein",
+                false,
+                "harvest",
+                false,
+                false,
+                &["harvest:gold_vein".to_string()],
+            ),
+            Some("harvest")
         );
     }
 
