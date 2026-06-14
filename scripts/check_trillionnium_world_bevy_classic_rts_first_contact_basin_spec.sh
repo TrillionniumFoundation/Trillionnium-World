@@ -199,6 +199,8 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.locomotion_blend_stage_sample == "formation_slide"
   and .rts_evidence_bevy_runtime_adapter.npc_transition_stage_sample == "hit_recover"
   and .rts_evidence_bevy_runtime_adapter.depth_readability_stage_sample == "target_priority"
+  and .rts_evidence_bevy_runtime_adapter.structure_modeling_stage_sample == "repair_beam"
+  and .rts_evidence_bevy_runtime_adapter.environment_life_stage_sample == "resource_glint"
   and .rts_evidence_bevy_runtime_adapter.action_cadence_attack_mark_count_sample == 22
   and .rts_evidence_bevy_runtime_adapter.action_cadence_carry_mark_count_sample == 8
   and .rts_evidence_bevy_runtime_adapter.action_cadence_idle_mark_count_sample == 4

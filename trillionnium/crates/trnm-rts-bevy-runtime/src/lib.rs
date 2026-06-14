@@ -3374,6 +3374,76 @@ pub fn rts_depth_readability_stage(
     })
 }
 
+pub fn rts_structure_modeling_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("structure:repair_beam", "repair_beam"),
+            ("structure:damage_crack", "damage_crack"),
+            ("structure:production_glow", "production_glow"),
+            ("structure:construction_spark", "construction_spark"),
+            ("structure:scaffold", "scaffold"),
+            ("structure:foundation_shadow", "foundation_shadow"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("structure:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "foundation_shadow",
+        1 => "scaffold",
+        2 => "construction_spark",
+        3 => "production_glow",
+        4 => "damage_crack",
+        _ => "repair_beam",
+    })
+}
+
+pub fn rts_environment_life_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("environment:ambient_dust", "ambient_dust"),
+            ("environment:resource_glint", "resource_glint"),
+            ("environment:banner_flutter", "banner_flutter"),
+            ("environment:water_shimmer", "water_shimmer"),
+            ("environment:torch_flicker", "torch_flicker"),
+            ("environment:tree_sway", "tree_sway"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("environment:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "tree_sway",
+        1 => "torch_flicker",
+        2 => "water_shimmer",
+        3 => "banner_flutter",
+        4 => "resource_glint",
+        _ => "ambient_dust",
+    })
+}
+
 pub fn rts_runtime_point_in_rect(mouse_x: i32, mouse_y: i32, rect: RtsRuntimeRect) -> bool {
     mouse_x >= rect.x
         && mouse_x < rect.x + rect.width
@@ -4661,7 +4731,21 @@ mod tests {
             rts_depth_readability_stage(&[], &["depth:cycle".to_string()], 4),
             Some("path_occlusion")
         );
+        assert_eq!(
+            rts_structure_modeling_stage(
+                &["structure:repair_beam".to_string()],
+                &["structure:foundation_shadow".to_string()],
+                0,
+            ),
+            Some("repair_beam")
+        );
+        assert_eq!(
+            rts_environment_life_stage(&[], &["environment:cycle".to_string()], 4),
+            Some("resource_glint")
+        );
         assert_eq!(rts_npc_behavior_stage(&[], &[], 0), None);
+        assert_eq!(rts_structure_modeling_stage(&[], &[], 0), None);
+        assert_eq!(rts_environment_life_stage(&[], &[], 0), None);
     }
 
     #[test]

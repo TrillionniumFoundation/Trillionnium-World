@@ -11439,44 +11439,13 @@ fn classic_draw_rts_depth_readability_marks(
 fn classic_rts_structure_modeling_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("structure:repair_beam") {
-                return Some("repair_beam");
-            }
-            if event.contains("structure:damage_crack") {
-                return Some("damage_crack");
-            }
-            if event.contains("structure:production_glow") {
-                return Some("production_glow");
-            }
-            if event.contains("structure:construction_spark") {
-                return Some("construction_spark");
-            }
-            if event.contains("structure:scaffold") {
-                return Some("scaffold");
-            }
-            if event.contains("structure:foundation_shadow") {
-                return Some("foundation_shadow");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("structure:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "foundation_shadow",
-            1 => "scaffold",
-            2 => "construction_spark",
-            3 => "production_glow",
-            4 => "damage_crack",
-            _ => "repair_beam",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_structure_modeling_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -11656,44 +11625,13 @@ fn classic_draw_rts_structure_modeling_scene_overlay(
 fn classic_rts_environment_life_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("environment:ambient_dust") {
-                return Some("ambient_dust");
-            }
-            if event.contains("environment:resource_glint") {
-                return Some("resource_glint");
-            }
-            if event.contains("environment:banner_flutter") {
-                return Some("banner_flutter");
-            }
-            if event.contains("environment:water_shimmer") {
-                return Some("water_shimmer");
-            }
-            if event.contains("environment:torch_flicker") {
-                return Some("torch_flicker");
-            }
-            if event.contains("environment:tree_sway") {
-                return Some("tree_sway");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("environment:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "tree_sway",
-            1 => "torch_flicker",
-            2 => "water_shimmer",
-            3 => "banner_flutter",
-            4 => "resource_glint",
-            _ => "ambient_dust",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_environment_life_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
