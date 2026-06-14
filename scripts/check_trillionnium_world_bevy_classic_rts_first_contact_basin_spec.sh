@@ -190,6 +190,15 @@ jq -e '
   and .rts_bevy_runtime_adapter_gate == true
   and .rts_bevy_runtime_minimap_cell_sample.x == 134
   and .rts_bevy_runtime_minimap_cell_sample.y == 175
+  and .rts_evidence_bevy_runtime_adapter.scroll_camera_stage_count_sample == 6
+  and .rts_evidence_bevy_runtime_adapter.scroll_camera_first_focus_tile_sample == {"x":9,"y":7}
+  and .rts_evidence_bevy_runtime_adapter.scroll_camera_minimap_jump_tile_sample == "minimap_cursor_jump"
+  and .rts_evidence_bevy_runtime_adapter.scroll_camera_bounds_clamped_sample == true
+  and .rts_evidence_bevy_runtime_adapter.camera_minimap_stage_count_sample == 6
+  and .rts_evidence_bevy_runtime_adapter.camera_minimap_viewport_rect_sample == {"x":19,"y":8,"width":33,"height":19}
+  and .rts_evidence_bevy_runtime_adapter.camera_minimap_selection_follow_tile_sample == "mirror_captain"
+  and .rts_evidence_bevy_runtime_adapter.camera_minimap_revealed_union_count_sample == 35
+  and .rts_evidence_bevy_runtime_adapter.camera_minimap_zoom_rect_area_sample == 308
   and .rts_bevy_runtime_path_preview_sample == "queue_stack"
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_stage_sample == "commit_spacing"
   and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"

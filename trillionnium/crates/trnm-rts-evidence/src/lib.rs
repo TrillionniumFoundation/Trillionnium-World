@@ -13,17 +13,17 @@ use trnm_rts_bevy_runtime::{
     rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
     rts_blocked_feedback_chip_visible, rts_blocked_feedback_player_label,
     rts_boss_guard_units_for_id, rts_build_palette_queue_id_for_slot, rts_build_parts,
-    rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
-    rts_combat_impact_stage, rts_command_execution_feedback_kind,
-    rts_command_execution_player_label, rts_command_execution_target_label,
-    rts_command_execution_target_tile, rts_command_feedback_lifecycle_stage,
-    rts_command_feedback_strip_stage, rts_command_history_prune_visible,
-    rts_command_history_visible, rts_command_queue_path_preview_stage,
-    rts_command_slot_id_for_index, rts_command_stamp_for_ability, rts_command_stamp_for_move,
-    rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
-    rts_commander_parts, rts_contact_flash_tiles_for_target,
-    rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
-    rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_build_site_tiles, rts_camera_minimap_sync_stage_summaries,
+    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id, rts_combat_impact_stage,
+    rts_command_execution_feedback_kind, rts_command_execution_player_label,
+    rts_command_execution_target_label, rts_command_execution_target_tile,
+    rts_command_feedback_lifecycle_stage, rts_command_feedback_strip_stage,
+    rts_command_history_prune_visible, rts_command_history_visible,
+    rts_command_queue_path_preview_stage, rts_command_slot_id_for_index,
+    rts_command_stamp_for_ability, rts_command_stamp_for_move, rts_command_stamp_for_selection,
+    rts_command_surface_stage, rts_commander_aura_tiles_for_id, rts_commander_parts,
+    rts_contact_flash_tiles_for_target, rts_control_group_hotkey_feedback_stage,
+    rts_control_group_hotkey_slot, rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
@@ -55,20 +55,21 @@ use trnm_rts_bevy_runtime::{
     rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
     rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
     rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
-    rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_command_feedback_stage,
-    rts_selection_tiles_for_units, rts_sidebar_cancel_queue_id, rts_sidebar_queue_summary,
-    rts_sidebar_slot_status_label, rts_siege_breach_tiles_for_target,
-    rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
-    rts_spawned_unit_id_from_queue, rts_split_squad_tiles_for_id, rts_structure_id_from_queue,
-    rts_structure_modeling_stage, rts_structure_tile_for_id, rts_supply_convoy_for_id,
-    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
-    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, rts_tier_two_parts,
-    rts_unit_model_depth_marks, rts_unit_status_energy_percent, rts_unit_status_health_percent,
-    rts_unit_status_portrait_stage, rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
+    rts_scrollable_map_camera_stage_summaries, rts_selectable_unit_tile, rts_selection_clear_parts,
+    rts_selection_command_feedback_stage, rts_selection_tiles_for_units,
+    rts_sidebar_cancel_queue_id, rts_sidebar_queue_summary, rts_sidebar_slot_status_label,
+    rts_siege_breach_tiles_for_target, rts_siege_push_route_tiles_for_target,
+    rts_siege_unit_tile_for_id, rts_siege_units_for_id, rts_spawned_unit_id_from_queue,
+    rts_split_squad_tiles_for_id, rts_structure_id_from_queue, rts_structure_modeling_stage,
+    rts_structure_tile_for_id, rts_supply_convoy_for_id, rts_target_priority_ids_for_target,
+    rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
+    rts_threat_levels_for_target, rts_tier_two_parts, rts_unit_model_depth_marks,
+    rts_unit_status_energy_percent, rts_unit_status_health_percent, rts_unit_status_portrait_stage,
+    rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
     rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
-    rts_worker_harvest_animation_stage, RtsCommandStamp, RtsControlGroupSlotSummary,
-    RtsOrderQueueReplayAction, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
-    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_worker_harvest_animation_stage, RtsCameraMinimapViewportRect, RtsCommandStamp,
+    RtsControlGroupSlotSummary, RtsOrderQueueReplayAction, RtsRuntimeGridSpec,
+    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -87,6 +88,15 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub runtime_contract: String,
     pub green: bool,
     pub minimap_cell_sample: RtsEvidencePoint,
+    pub scroll_camera_stage_count_sample: usize,
+    pub scroll_camera_first_focus_tile_sample: RtsEvidencePoint,
+    pub scroll_camera_minimap_jump_tile_sample: Option<String>,
+    pub scroll_camera_bounds_clamped_sample: bool,
+    pub camera_minimap_stage_count_sample: usize,
+    pub camera_minimap_viewport_rect_sample: RtsCameraMinimapViewportRect,
+    pub camera_minimap_selection_follow_tile_sample: Option<String>,
+    pub camera_minimap_revealed_union_count_sample: usize,
+    pub camera_minimap_zoom_rect_area_sample: i32,
     pub path_preview_sample: Option<String>,
     pub formation_move_preview_stage_sample: Option<String>,
     pub formation_move_execution_stage_sample: Option<String>,
@@ -265,6 +275,45 @@ pub struct RtsBevyRuntimeAdapterEvidence {
 
 pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvidence {
     let minimap_cell = rts_minimap_cell_origin(10, 20, 4, 5, (32, 32));
+    let scroll_camera_stage_summaries = rts_scrollable_map_camera_stage_summaries();
+    let scroll_camera_first_focus_tile = scroll_camera_stage_summaries
+        .first()
+        .map(|summary| summary.focus_tile)
+        .unwrap_or_default();
+    let scroll_camera_minimap_jump_tile = scroll_camera_stage_summaries
+        .iter()
+        .find(|summary| summary.stage == "minimap_jump")
+        .and_then(|summary| summary.step.minimap_tile_id.clone());
+    let scroll_camera_bounds_clamped = scroll_camera_stage_summaries
+        .iter()
+        .any(|summary| summary.stage == "bounds_clamp" && summary.step.clamped);
+    let camera_minimap_stage_summaries = rts_camera_minimap_sync_stage_summaries();
+    let camera_minimap_viewport_rect = camera_minimap_stage_summaries
+        .first()
+        .map(|summary| summary.viewport_rect)
+        .unwrap_or(RtsCameraMinimapViewportRect {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+        });
+    let camera_minimap_selection_follow_tile = camera_minimap_stage_summaries
+        .iter()
+        .find(|summary| summary.stage == "selection_follow")
+        .and_then(|summary| summary.step.minimap_tile_id.clone());
+    let mut camera_minimap_revealed_union = Vec::new();
+    for summary in &camera_minimap_stage_summaries {
+        for tile_id in &summary.revealed_tile_ids {
+            if !camera_minimap_revealed_union.contains(tile_id) {
+                camera_minimap_revealed_union.push(tile_id.clone());
+            }
+        }
+    }
+    let camera_minimap_zoom_rect_area = camera_minimap_stage_summaries
+        .iter()
+        .find(|summary| summary.stage == "zoom_sync")
+        .map(|summary| summary.viewport_rect_area)
+        .unwrap_or_default();
     let preview_queue = vec!["command_queue_path_preview:queue_stack".to_string()];
     let path_preview =
         rts_command_queue_path_preview_stage(&[], &preview_queue, 0).map(str::to_string);
@@ -834,6 +883,18 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     .map(str::to_string);
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
+        && scroll_camera_stage_summaries.len() == 6
+        && scroll_camera_first_focus_tile == (9, 7)
+        && scroll_camera_minimap_jump_tile.as_deref() == Some("minimap_cursor_jump")
+        && scroll_camera_bounds_clamped
+        && camera_minimap_stage_summaries.len() == 6
+        && camera_minimap_viewport_rect.x == 19
+        && camera_minimap_viewport_rect.y == 8
+        && camera_minimap_viewport_rect.width == 33
+        && camera_minimap_viewport_rect.height == 19
+        && camera_minimap_selection_follow_tile.as_deref() == Some("mirror_captain")
+        && camera_minimap_revealed_union.len() == 35
+        && camera_minimap_zoom_rect_area == 308
         && path_preview.as_deref() == Some("queue_stack")
         && formation_preview_stage.as_deref() == Some("commit_spacing")
         && formation_execution_stage.as_deref() == Some("arrival_lock")
@@ -1130,6 +1191,18 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             x: minimap_cell.0,
             y: minimap_cell.1,
         },
+        scroll_camera_stage_count_sample: scroll_camera_stage_summaries.len(),
+        scroll_camera_first_focus_tile_sample: RtsEvidencePoint {
+            x: scroll_camera_first_focus_tile.0,
+            y: scroll_camera_first_focus_tile.1,
+        },
+        scroll_camera_minimap_jump_tile_sample: scroll_camera_minimap_jump_tile,
+        scroll_camera_bounds_clamped_sample: scroll_camera_bounds_clamped,
+        camera_minimap_stage_count_sample: camera_minimap_stage_summaries.len(),
+        camera_minimap_viewport_rect_sample: camera_minimap_viewport_rect,
+        camera_minimap_selection_follow_tile_sample: camera_minimap_selection_follow_tile,
+        camera_minimap_revealed_union_count_sample: camera_minimap_revealed_union.len(),
+        camera_minimap_zoom_rect_area_sample: camera_minimap_zoom_rect_area,
         path_preview_sample: path_preview,
         formation_move_preview_stage_sample: formation_preview_stage,
         formation_move_execution_stage_sample: formation_execution_stage,
@@ -1360,7 +1433,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, order-queue replay actions, command feedback lifecycle/history/execution target labels and tiles, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, scrollable camera/minimap sync, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, order-queue replay actions, command feedback lifecycle/history/execution target labels and tiles, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1382,6 +1455,34 @@ mod tests {
             evidence.minimap_cell_sample,
             RtsEvidencePoint { x: 134, y: 175 }
         );
+        assert_eq!(evidence.scroll_camera_stage_count_sample, 6);
+        assert_eq!(
+            evidence.scroll_camera_first_focus_tile_sample,
+            RtsEvidencePoint { x: 9, y: 7 }
+        );
+        assert_eq!(
+            evidence.scroll_camera_minimap_jump_tile_sample.as_deref(),
+            Some("minimap_cursor_jump")
+        );
+        assert!(evidence.scroll_camera_bounds_clamped_sample);
+        assert_eq!(evidence.camera_minimap_stage_count_sample, 6);
+        assert_eq!(
+            evidence.camera_minimap_viewport_rect_sample,
+            RtsCameraMinimapViewportRect {
+                x: 19,
+                y: 8,
+                width: 33,
+                height: 19,
+            }
+        );
+        assert_eq!(
+            evidence
+                .camera_minimap_selection_follow_tile_sample
+                .as_deref(),
+            Some("mirror_captain")
+        );
+        assert_eq!(evidence.camera_minimap_revealed_union_count_sample, 35);
+        assert_eq!(evidence.camera_minimap_zoom_rect_area_sample, 308);
         assert_eq!(evidence.path_preview_sample.as_deref(), Some("queue_stack"));
         assert_eq!(
             evidence.formation_move_preview_stage_sample.as_deref(),

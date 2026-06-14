@@ -37525,77 +37525,22 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
     const PANEL_HEIGHT: usize = 360;
     const PREVIEW_COLUMNS: usize = 3;
     const PREVIEW_ROWS: usize = 2;
-    type ScrollCameraStage = (
-        &'static str,
-        &'static str,
-        Vec2,
-        f32,
-        Option<(&'static str, Vec2)>,
-    );
     let assets = load_classic_runtime_assets();
     let config = rts_scrollable_map_camera_config();
-    let stages: [ScrollCameraStage; 6] = [
-        (
-            "keyboard_pan",
-            "shift_keyboard_pan",
-            Vec2::new(84.0, 42.0),
-            0.0,
-            None,
-        ),
-        (
-            "edge_scroll",
-            "edge_scroll",
-            Vec2::new(config.edge_speed * 0.20, -config.edge_speed * 0.12),
-            0.0,
-            None,
-        ),
-        (
-            "middle_mouse_drag",
-            "middle_mouse_drag",
-            Vec2::new(-128.0, 68.0),
-            0.0,
-            None,
-        ),
-        ("wheel_zoom", "wheel_zoom", Vec2::ZERO, 0.28, None),
-        (
-            "minimap_jump",
-            "minimap_jump",
-            Vec2::ZERO,
-            0.0,
-            Some(("minimap_cursor_jump", Vec2::new(260.0, -140.0))),
-        ),
-        (
-            "bounds_clamp",
-            "shift_keyboard_pan+wheel_zoom",
-            Vec2::new(980.0, 720.0),
-            2.6,
-            None,
-        ),
-    ];
+    let runtime_stage_summaries = rts_bevy_runtime::rts_scrollable_map_camera_stage_summaries();
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
     let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
-    let mut camera_state = RtsScrollableMapCameraState {
-        center_x: rts_scrollable_map_viewport_center().x,
-        center_y: rts_scrollable_map_viewport_center().y,
-        zoom: 1.0,
-    };
+    let mut camera_state = rts_bevy_runtime::rts_scrollable_map_default_camera_state();
     let mut stage_summaries = Vec::new();
     let mut input_sources = HashSet::new();
 
-    for (index, (stage, source, pan_delta, zoom_delta, minimap_jump)) in stages.iter().enumerate() {
-        input_sources.insert((*source).to_string());
-        let step = apply_rts_scrollable_map_camera_input(
-            source,
-            camera_state,
-            config,
-            *pan_delta,
-            *zoom_delta,
-            *minimap_jump,
-        );
+    for (index, summary) in runtime_stage_summaries.iter().enumerate() {
+        input_sources.insert(summary.source.clone());
+        let step = &summary.step;
         camera_state = step.after;
-        let focus_tile = rts_scrollable_map_camera_focus_tile(step.after);
+        let focus_tile = summary.focus_tile;
         let runtime = NativeFirstPlayableRuntime {
             map_scene: "mirror_city_square".to_string(),
             coins: 625,
@@ -37610,13 +37555,10 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
                 "square_worker_carry",
                 "field_engineer",
             ]),
-            rts_command_destination_tile: Some(format!("{},{}", focus_tile.0, focus_tile.1)),
+            rts_command_destination_tile: summary.command_destination_tile.clone(),
             rts_minimap_command_tile_id: step.minimap_tile_id.clone(),
-            rts_command_queue: vec![
-                (*source).to_string(),
-                "scrollable_map_camera:viewport_update".to_string(),
-            ],
-            last_feedback: format!("RTS scroll camera stage: {stage}"),
+            rts_command_queue: summary.command_queue.clone(),
+            last_feedback: format!("RTS scroll camera stage: {}", summary.stage),
             ..Default::default()
         };
         frame_pixels.fill(0x0b0d0c_u32);
@@ -37633,7 +37575,7 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
             PANEL_WIDTH,
             PANEL_HEIGHT,
             &step,
-            stage,
+            &summary.stage,
             focus_tile,
         );
         let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
@@ -37654,13 +37596,13 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
             preview_height,
             offset_x + 12,
             offset_y + PANEL_HEIGHT as i32 - 138,
-            &format!("SCROLL CAMERA {} {}", index + 1, stage),
+            &format!("SCROLL CAMERA {} {}", index + 1, summary.stage),
             1,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
         stage_summaries.push(json!({
-            "stage": stage,
-            "source": source,
+            "stage": summary.stage,
+            "source": summary.source,
             "before": step.before,
             "after": step.after,
             "pan_delta_x": step.pan_delta_x,
@@ -37672,8 +37614,8 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
                 "x": focus_tile.0,
                 "y": focus_tile.1,
             },
-            "command_destination_tile": runtime.rts_command_destination_tile,
-            "command_queue": runtime.rts_command_queue,
+            "command_destination_tile": summary.command_destination_tile,
+            "command_queue": summary.command_queue,
             "renderer_path": "classic_draw_scene+classic_draw_rts_scrollable_map_overlay",
             "input_handler": "update_native_rts_scrollable_map_camera",
             "projection_path": "apply_native_rts_scrollable_map_view",
@@ -37826,7 +37768,7 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
                 .and_then(|value| value.as_bool())
                 .unwrap_or(false)
     });
-    let scene_renderer_gate = stage_summaries.len() == stages.len()
+    let scene_renderer_gate = stage_summaries.len() == runtime_stage_summaries.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
@@ -37870,7 +37812,7 @@ pub fn native_classic_rts_scrollable_map_evidence_json(preview_path: &str) -> St
         "projection_path": "apply_native_rts_scrollable_map_view",
         "surface_role_filter": "is_scrollable_map_surface_role",
         "native_runtime_path": "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view",
-        "input_action_count": stages.len(),
+        "input_action_count": runtime_stage_summaries.len(),
         "large_map": {
             "map_width_tiles": CLASSIC_RTS_LARGE_MAP_WIDTH_TILES,
             "map_height_tiles": CLASSIC_RTS_LARGE_MAP_HEIGHT_TILES,
@@ -37933,128 +37875,36 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
     const PANEL_HEIGHT: usize = 360;
     const PREVIEW_COLUMNS: usize = 3;
     const PREVIEW_ROWS: usize = 2;
-    type CameraMinimapStage = (
-        &'static str,
-        &'static str,
-        Vec2,
-        f32,
-        Option<(&'static str, Vec2)>,
-        &'static str,
-        &'static str,
-    );
     let assets = load_classic_runtime_assets();
     let config = rts_scrollable_map_camera_config();
-    let stages: [CameraMinimapStage; 6] = [
-        (
-            "viewport_rect",
-            "camera_viewport_rect",
-            Vec2::new(0.0, 0.0),
-            0.0,
-            None,
-            "mirror_captain",
-            "1",
-        ),
-        (
-            "fog_reveal",
-            "edge_scroll",
-            Vec2::new(92.0, -54.0),
-            0.0,
-            None,
-            "mirror_captain",
-            "1",
-        ),
-        (
-            "selection_follow",
-            "selection_follow",
-            Vec2::ZERO,
-            0.0,
-            Some(("mirror_captain", Vec2::new(210.0, -96.0))),
-            "mirror_captain",
-            "1",
-        ),
-        (
-            "control_group_recall",
-            "control_group_recall_camera",
-            Vec2::new(-68.0, 58.0),
-            0.0,
-            None,
-            "field_engineer",
-            "2",
-        ),
-        (
-            "route_projection",
-            "minimap_route_projection",
-            Vec2::ZERO,
-            0.0,
-            Some(("minimap_route_target", Vec2::new(340.0, -128.0))),
-            "signal_lancer",
-            "2",
-        ),
-        (
-            "zoom_sync",
-            "wheel_zoom",
-            Vec2::ZERO,
-            0.52,
-            None,
-            "mirror_captain",
-            "1",
-        ),
-    ];
+    let runtime_stage_summaries = rts_bevy_runtime::rts_camera_minimap_sync_stage_summaries();
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
     let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
-    let mut camera_state = RtsScrollableMapCameraState {
-        center_x: rts_scrollable_map_viewport_center().x,
-        center_y: rts_scrollable_map_viewport_center().y,
-        zoom: 1.0,
-    };
+    let mut camera_state = rts_bevy_runtime::rts_scrollable_map_default_camera_state();
     let mut stage_summaries = Vec::new();
     let mut input_sources = HashSet::new();
     let mut viewport_rects = Vec::new();
     let mut revealed_tile_union = HashSet::new();
 
-    for (
-        index,
-        (stage, source, pan_delta, zoom_delta, minimap_jump, selected_unit_id, control_group_id),
-    ) in stages.iter().enumerate()
-    {
-        input_sources.insert((*source).to_string());
-        let step = if *source == "selection_follow" {
-            let (_, unit_center) =
-                minimap_jump.expect("selection follow stage carries selected unit center");
-            rts_camera_minimap_selection_follow_step(
-                source,
-                camera_state,
-                selected_unit_id,
-                unit_center,
-            )
-        } else {
-            apply_rts_scrollable_map_camera_input(
-                source,
-                camera_state,
-                config,
-                *pan_delta,
-                *zoom_delta,
-                *minimap_jump,
-            )
-        };
+    for (index, summary) in runtime_stage_summaries.iter().enumerate() {
+        input_sources.insert(summary.source.clone());
+        let step = &summary.step;
         camera_state = step.after;
-        let focus_tile = rts_scrollable_map_camera_focus_tile(step.after);
-        let viewport_rect = rts_camera_minimap_viewport_rect(step.after, 117, 56);
-        let revealed_tile_ids = rts_camera_minimap_revealed_tiles(focus_tile);
-        for tile_id in &revealed_tile_ids {
+        let focus_tile = summary.focus_tile;
+        let viewport_rect = summary.viewport_rect;
+        for tile_id in &summary.revealed_tile_ids {
             revealed_tile_union.insert(tile_id.clone());
         }
-        viewport_rects.push((*stage, viewport_rect));
-        let command_destination_tile = Some(format!("{},{}", focus_tile.0, focus_tile.1));
+        viewport_rects.push((summary.stage.clone(), viewport_rect));
         let runtime = NativeFirstPlayableRuntime {
             map_scene: "mirror_city_square".to_string(),
             coins: 625,
             xp: 48,
             facing_direction: "east".to_string(),
             walk_cycle_frame: index as u8 % 4,
-            rts_control_group_id: Some((*control_group_id).to_string()),
+            rts_control_group_id: Some(summary.control_group_id.clone()),
             rts_active_control_group_ids: string_vec(["1", "2"]),
             rts_selected_unit_ids: string_vec([
                 "mirror_captain",
@@ -38063,17 +37913,10 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
                 "field_engineer",
                 "signal_lancer",
             ]),
-            rts_command_destination_tile: command_destination_tile.clone(),
-            rts_minimap_command_tile_id: step
-                .minimap_tile_id
-                .clone()
-                .or_else(|| command_destination_tile.clone()),
-            rts_command_queue: vec![
-                (*source).to_string(),
-                format!("camera_minimap_sync:{stage}"),
-                format!("reveal_tiles:{}", revealed_tile_ids.len()),
-            ],
-            last_feedback: format!("RTS camera minimap sync stage: {stage}"),
+            rts_command_destination_tile: summary.command_destination_tile.clone(),
+            rts_minimap_command_tile_id: summary.minimap_command_tile_id.clone(),
+            rts_command_queue: summary.command_queue.clone(),
+            last_feedback: format!("RTS camera minimap sync stage: {}", summary.stage),
             ..Default::default()
         };
         frame_pixels.fill(0x0b0d0c_u32);
@@ -38090,12 +37933,12 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
             PANEL_WIDTH,
             PANEL_HEIGHT,
             &step,
-            stage,
+            &summary.stage,
             viewport_rect,
             focus_tile,
-            &revealed_tile_ids,
-            selected_unit_id,
-            control_group_id,
+            &summary.revealed_tile_ids,
+            &summary.selected_unit_id,
+            &summary.control_group_id,
         );
         let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
         let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
@@ -38115,13 +37958,13 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
             preview_height,
             offset_x + 12,
             offset_y + PANEL_HEIGHT as i32 - 138,
-            &format!("CAMERA MINIMAP {} {}", index + 1, stage),
+            &format!("CAMERA MINIMAP {} {}", index + 1, summary.stage),
             1,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
         stage_summaries.push(json!({
-            "stage": stage,
-            "source": source,
+            "stage": summary.stage,
+            "source": summary.source,
             "before": step.before,
             "after": step.after,
             "pan_delta_x": step.pan_delta_x,
@@ -38134,13 +37977,13 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
                 "y": focus_tile.1,
             },
             "viewport_rect": viewport_rect,
-            "viewport_rect_area": viewport_rect.width * viewport_rect.height,
-            "revealed_tile_ids": revealed_tile_ids,
-            "selected_unit_id": selected_unit_id,
-            "control_group_id": control_group_id,
-            "command_destination_tile": runtime.rts_command_destination_tile,
-            "minimap_command_tile_id": runtime.rts_minimap_command_tile_id,
-            "command_queue": runtime.rts_command_queue,
+            "viewport_rect_area": summary.viewport_rect_area,
+            "revealed_tile_ids": summary.revealed_tile_ids,
+            "selected_unit_id": summary.selected_unit_id,
+            "control_group_id": summary.control_group_id,
+            "command_destination_tile": summary.command_destination_tile,
+            "minimap_command_tile_id": summary.minimap_command_tile_id,
+            "command_queue": summary.command_queue,
             "renderer_path": "classic_draw_scene+classic_draw_rts_camera_minimap_sync_overlay",
             "runtime_path": "apply_rts_scrollable_map_camera_input+rts_camera_minimap_viewport_rect+rts_camera_minimap_revealed_tiles",
             "selection_follow_path": "rts_camera_minimap_selection_follow_step",
@@ -38270,7 +38113,7 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
     let zoom_rect_sync_gate = viewport_area_for_stage("zoom_sync")
         .zip(viewport_area_for_stage("viewport_rect"))
         .is_some_and(|(zoom_area, viewport_area)| zoom_area < viewport_area);
-    let minimap_runtime_gate = stage_summaries.len() == stages.len()
+    let minimap_runtime_gate = stage_summaries.len() == runtime_stage_summaries.len()
         && stage_summaries.iter().all(|summary| {
             let zoom_ok = summary
                 .get("after")
@@ -38297,7 +38140,7 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
                 });
             zoom_ok && focus_x_ok && focus_y_ok
         });
-    let scene_renderer_gate = stage_summaries.len() == stages.len()
+    let scene_renderer_gate = stage_summaries.len() == runtime_stage_summaries.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
@@ -38337,7 +38180,7 @@ pub fn native_classic_rts_camera_minimap_sync_evidence_json(preview_path: &str) 
         "runtime_path": "apply_rts_scrollable_map_camera_input+rts_camera_minimap_viewport_rect+rts_camera_minimap_revealed_tiles",
         "selection_follow_path": "rts_camera_minimap_selection_follow_step",
         "native_runtime_path": "update_native_rts_scrollable_map_camera+apply_native_rts_scrollable_map_view+rts_camera_minimap_viewport_rect",
-        "input_action_count": stages.len(),
+        "input_action_count": runtime_stage_summaries.len(),
         "large_map": {
             "map_width_tiles": CLASSIC_RTS_LARGE_MAP_WIDTH_TILES,
             "map_height_tiles": CLASSIC_RTS_LARGE_MAP_HEIGHT_TILES,

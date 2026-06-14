@@ -75,12 +75,38 @@ pub struct RtsScrollableMapCameraStep {
     pub minimap_tile_id: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RtsScrollableMapCameraStageSummary {
+    pub stage: String,
+    pub source: String,
+    pub step: RtsScrollableMapCameraStep,
+    pub focus_tile: (i32, i32),
+    pub command_destination_tile: Option<String>,
+    pub command_queue: Vec<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsCameraMinimapViewportRect {
     pub x: i32,
     pub y: i32,
     pub width: i32,
     pub height: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RtsCameraMinimapSyncStageSummary {
+    pub stage: String,
+    pub source: String,
+    pub step: RtsScrollableMapCameraStep,
+    pub focus_tile: (i32, i32),
+    pub viewport_rect: RtsCameraMinimapViewportRect,
+    pub viewport_rect_area: i32,
+    pub revealed_tile_ids: Vec<String>,
+    pub selected_unit_id: String,
+    pub control_group_id: String,
+    pub command_destination_tile: Option<String>,
+    pub minimap_command_tile_id: Option<String>,
+    pub command_queue: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -440,6 +466,220 @@ pub fn rts_camera_minimap_selection_follow_step(
 
 pub fn rts_scrollable_map_viewport_center() -> RtsRuntimeVec2 {
     rts_large_map_tile_to_camera_center((8, 8))
+}
+
+pub fn rts_scrollable_map_default_camera_state() -> RtsScrollableMapCameraState {
+    let center = rts_scrollable_map_viewport_center();
+    RtsScrollableMapCameraState {
+        center_x: center.x,
+        center_y: center.y,
+        zoom: 1.0,
+    }
+}
+
+pub fn rts_scrollable_map_camera_stage_summaries() -> Vec<RtsScrollableMapCameraStageSummary> {
+    let config = rts_scrollable_map_camera_config();
+    let stages: Vec<(
+        &str,
+        &str,
+        RtsRuntimeVec2,
+        f32,
+        Option<(&str, RtsRuntimeVec2)>,
+    )> = vec![
+        (
+            "keyboard_pan",
+            "shift_keyboard_pan",
+            RtsRuntimeVec2::new(84.0, 42.0),
+            0.0,
+            None,
+        ),
+        (
+            "edge_scroll",
+            "edge_scroll",
+            RtsRuntimeVec2::new(config.edge_speed * 0.20, -config.edge_speed * 0.12),
+            0.0,
+            None,
+        ),
+        (
+            "middle_mouse_drag",
+            "middle_mouse_drag",
+            RtsRuntimeVec2::new(-128.0, 68.0),
+            0.0,
+            None,
+        ),
+        ("wheel_zoom", "wheel_zoom", RtsRuntimeVec2::ZERO, 0.28, None),
+        (
+            "minimap_jump",
+            "minimap_jump",
+            RtsRuntimeVec2::ZERO,
+            0.0,
+            Some(("minimap_cursor_jump", RtsRuntimeVec2::new(260.0, -140.0))),
+        ),
+        (
+            "bounds_clamp",
+            "shift_keyboard_pan+wheel_zoom",
+            RtsRuntimeVec2::new(980.0, 720.0),
+            2.6,
+            None,
+        ),
+    ];
+    let mut camera_state = rts_scrollable_map_default_camera_state();
+    stages
+        .into_iter()
+        .map(|(stage, source, pan_delta, zoom_delta, minimap_jump)| {
+            let step = apply_rts_scrollable_map_camera_input(
+                source,
+                camera_state,
+                config,
+                pan_delta,
+                zoom_delta,
+                minimap_jump,
+            );
+            camera_state = step.after;
+            let focus_tile = rts_scrollable_map_camera_focus_tile(step.after);
+            RtsScrollableMapCameraStageSummary {
+                stage: stage.to_string(),
+                source: source.to_string(),
+                step,
+                focus_tile,
+                command_destination_tile: Some(rts_runtime_tile_id(focus_tile)),
+                command_queue: vec![
+                    source.to_string(),
+                    "scrollable_map_camera:viewport_update".to_string(),
+                ],
+            }
+        })
+        .collect()
+}
+
+pub fn rts_camera_minimap_sync_stage_summaries() -> Vec<RtsCameraMinimapSyncStageSummary> {
+    let config = rts_scrollable_map_camera_config();
+    let stages: Vec<(
+        &str,
+        &str,
+        RtsRuntimeVec2,
+        f32,
+        Option<(&str, RtsRuntimeVec2)>,
+        &str,
+        &str,
+    )> = vec![
+        (
+            "viewport_rect",
+            "camera_viewport_rect",
+            RtsRuntimeVec2::ZERO,
+            0.0,
+            None,
+            "mirror_captain",
+            "1",
+        ),
+        (
+            "fog_reveal",
+            "edge_scroll",
+            RtsRuntimeVec2::new(92.0, -54.0),
+            0.0,
+            None,
+            "mirror_captain",
+            "1",
+        ),
+        (
+            "selection_follow",
+            "selection_follow",
+            RtsRuntimeVec2::ZERO,
+            0.0,
+            Some(("mirror_captain", RtsRuntimeVec2::new(210.0, -96.0))),
+            "mirror_captain",
+            "1",
+        ),
+        (
+            "control_group_recall",
+            "control_group_recall_camera",
+            RtsRuntimeVec2::new(-68.0, 58.0),
+            0.0,
+            None,
+            "field_engineer",
+            "2",
+        ),
+        (
+            "route_projection",
+            "minimap_route_projection",
+            RtsRuntimeVec2::ZERO,
+            0.0,
+            Some(("minimap_route_target", RtsRuntimeVec2::new(340.0, -128.0))),
+            "signal_lancer",
+            "2",
+        ),
+        (
+            "zoom_sync",
+            "wheel_zoom",
+            RtsRuntimeVec2::ZERO,
+            0.52,
+            None,
+            "mirror_captain",
+            "1",
+        ),
+    ];
+    let mut camera_state = rts_scrollable_map_default_camera_state();
+    stages
+        .into_iter()
+        .map(
+            |(
+                stage,
+                source,
+                pan_delta,
+                zoom_delta,
+                minimap_jump,
+                selected_unit_id,
+                control_group_id,
+            )| {
+                let step = if source == "selection_follow" {
+                    let (_, unit_center) =
+                        minimap_jump.expect("selection follow stage carries selected unit center");
+                    rts_camera_minimap_selection_follow_step(
+                        source,
+                        camera_state,
+                        selected_unit_id,
+                        unit_center,
+                    )
+                } else {
+                    apply_rts_scrollable_map_camera_input(
+                        source,
+                        camera_state,
+                        config,
+                        pan_delta,
+                        zoom_delta,
+                        minimap_jump,
+                    )
+                };
+                camera_state = step.after;
+                let focus_tile = rts_scrollable_map_camera_focus_tile(step.after);
+                let viewport_rect = rts_camera_minimap_viewport_rect(step.after, 117, 56);
+                let revealed_tile_ids = rts_camera_minimap_revealed_tiles(focus_tile);
+                let command_destination_tile = Some(rts_runtime_tile_id(focus_tile));
+                let minimap_command_tile_id = step
+                    .minimap_tile_id
+                    .clone()
+                    .or_else(|| command_destination_tile.clone());
+                RtsCameraMinimapSyncStageSummary {
+                    stage: stage.to_string(),
+                    source: source.to_string(),
+                    step,
+                    focus_tile,
+                    viewport_rect,
+                    viewport_rect_area: viewport_rect.width * viewport_rect.height,
+                    revealed_tile_ids: revealed_tile_ids.clone(),
+                    selected_unit_id: selected_unit_id.to_string(),
+                    control_group_id: control_group_id.to_string(),
+                    command_destination_tile,
+                    minimap_command_tile_id,
+                    command_queue: vec![
+                        source.to_string(),
+                        format!("camera_minimap_sync:{stage}"),
+                        format!("reveal_tiles:{}", revealed_tile_ids.len()),
+                    ],
+                }
+            },
+        )
+        .collect()
 }
 
 pub fn rts_runtime_tile_id(tile: (i32, i32)) -> String {
@@ -5597,5 +5837,57 @@ mod tests {
         );
 
         assert!(rts_unit_model_depth_marks("actor_player_idle_south").is_empty());
+    }
+
+    #[test]
+    fn scrollable_map_stage_summaries_preserve_camera_contract() {
+        let summaries = rts_scrollable_map_camera_stage_summaries();
+
+        assert_eq!(summaries.len(), 6);
+        assert_eq!(summaries[0].stage, "keyboard_pan");
+        assert_eq!(summaries[0].source, "shift_keyboard_pan");
+        assert_eq!(summaries[0].focus_tile, (9, 7));
+        assert_eq!(
+            summaries[0].command_destination_tile.as_deref(),
+            Some("9,7")
+        );
+        assert_eq!(
+            summaries[4].step.minimap_tile_id.as_deref(),
+            Some("minimap_cursor_jump")
+        );
+        assert_eq!(summaries[4].focus_tile, (21, 20));
+        assert!(summaries[5].step.clamped);
+        assert_eq!(summaries[5].focus_tile.0, TRNM_RTS_RUNTIME_MAP_MAX_X);
+        assert!(summaries
+            .iter()
+            .all(|summary| summary.command_queue.len() == 2));
+    }
+
+    #[test]
+    fn camera_minimap_stage_summaries_preserve_sync_contract() {
+        let summaries = rts_camera_minimap_sync_stage_summaries();
+
+        assert_eq!(summaries.len(), 6);
+        assert_eq!(summaries[0].stage, "viewport_rect");
+        assert_eq!(summaries[0].focus_tile, (8, 8));
+        assert_eq!(summaries[0].viewport_rect.width, 33);
+        assert_eq!(summaries[0].viewport_rect.height, 19);
+        assert!(summaries
+            .iter()
+            .all(|summary| summary.revealed_tile_ids.len() >= 4));
+        assert_eq!(
+            summaries[2].step.minimap_tile_id.as_deref(),
+            Some("mirror_captain")
+        );
+        assert_eq!(summaries[2].focus_tile, (20, 19));
+        assert_eq!(summaries[3].control_group_id, "2");
+        assert_eq!(
+            summaries[4].minimap_command_tile_id.as_deref(),
+            Some("minimap_route_target")
+        );
+        assert!(
+            summaries[5].viewport_rect_area < summaries[0].viewport_rect_area,
+            "zoom stage should shrink the minimap viewport rect"
+        );
     }
 }
