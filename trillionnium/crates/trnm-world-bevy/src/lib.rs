@@ -144595,39 +144595,19 @@ fn apply_classic_rts_scripted_demo_runtime(
 }
 
 fn classic_rts_scripted_demo_pauses_queue_tick(demo_id: &str) -> bool {
-    matches!(
-        demo_id,
-        "queue_cancel_refund" | "queue_cancel_refund_sequence"
-    )
+    rts_bevy_runtime::rts_scripted_demo_pauses_queue_tick(demo_id)
 }
 
 fn classic_rts_scripted_demo_stage_from_frame(demo_id: &str, frame_tick: u64) -> Option<usize> {
-    match demo_id {
-        "queue_cancel_refund_sequence" => Some(((frame_tick / 60) % 5) as usize),
-        _ => None,
-    }
+    rts_bevy_runtime::rts_scripted_demo_stage_from_frame(demo_id, frame_tick)
 }
 
 fn classic_rts_scripted_demo_stage_id(stage: usize) -> &'static str {
-    match stage {
-        0 => "drag_select_frontline",
-        1 => "rally_path_minimap",
-        2 => "watch_tower_footprint",
-        3 => "cancel_refund",
-        4 => "queued_worker_ready",
-        _ => "unknown",
-    }
+    rts_bevy_runtime::rts_scripted_demo_stage_id(stage)
 }
 
 fn classic_rts_scripted_demo_stage_title(stage: usize) -> &'static str {
-    match stage {
-        0 => "DRAG SELECT",
-        1 => "RALLY / MINIMAP",
-        2 => "BUILD FOOTPRINT",
-        3 => "CANCEL / REFUND",
-        4 => "WORKER QUEUED",
-        _ => "UNKNOWN",
-    }
+    rts_bevy_runtime::rts_scripted_demo_stage_title(stage)
 }
 
 fn apply_classic_rts_scripted_demo_stage_runtime(

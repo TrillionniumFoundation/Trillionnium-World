@@ -1474,6 +1474,42 @@ pub fn rts_blocked_feedback_player_label(chip: &str) -> String {
         .to_ascii_uppercase()
 }
 
+pub fn rts_scripted_demo_pauses_queue_tick(demo_id: &str) -> bool {
+    matches!(
+        demo_id,
+        "queue_cancel_refund" | "queue_cancel_refund_sequence"
+    )
+}
+
+pub fn rts_scripted_demo_stage_from_frame(demo_id: &str, frame_tick: u64) -> Option<usize> {
+    match demo_id {
+        "queue_cancel_refund_sequence" => Some(((frame_tick / 60) % 5) as usize),
+        _ => None,
+    }
+}
+
+pub fn rts_scripted_demo_stage_id(stage: usize) -> &'static str {
+    match stage {
+        0 => "drag_select_frontline",
+        1 => "rally_path_minimap",
+        2 => "watch_tower_footprint",
+        3 => "cancel_refund",
+        4 => "queued_worker_ready",
+        _ => "unknown",
+    }
+}
+
+pub fn rts_scripted_demo_stage_title(stage: usize) -> &'static str {
+    match stage {
+        0 => "DRAG SELECT",
+        1 => "RALLY / MINIMAP",
+        2 => "BUILD FOOTPRINT",
+        3 => "CANCEL / REFUND",
+        4 => "WORKER QUEUED",
+        _ => "UNKNOWN",
+    }
+}
+
 pub fn rts_command_queue_path_preview_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -2112,5 +2148,36 @@ mod tests {
             ),
             "QUEUE LOCK NEED 210G"
         );
+    }
+
+    #[test]
+    fn scripted_demo_timeline_adapter_preserves_queue_cancel_sequence() {
+        assert!(rts_scripted_demo_pauses_queue_tick("queue_cancel_refund"));
+        assert!(rts_scripted_demo_pauses_queue_tick(
+            "queue_cancel_refund_sequence"
+        ));
+        assert!(!rts_scripted_demo_pauses_queue_tick("live_player_flow"));
+        assert_eq!(
+            rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 0),
+            Some(0)
+        );
+        assert_eq!(
+            rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 60),
+            Some(1)
+        );
+        assert_eq!(
+            rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 240),
+            Some(4)
+        );
+        assert_eq!(
+            rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 300),
+            Some(0)
+        );
+        assert_eq!(
+            rts_scripted_demo_stage_from_frame("queue_cancel_refund", 60),
+            None
+        );
+        assert_eq!(rts_scripted_demo_stage_id(3), "cancel_refund");
+        assert_eq!(rts_scripted_demo_stage_title(4), "WORKER QUEUED");
     }
 }

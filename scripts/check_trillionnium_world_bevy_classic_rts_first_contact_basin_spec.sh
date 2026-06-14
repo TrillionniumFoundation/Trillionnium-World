@@ -297,6 +297,10 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.queue_production_lane_sample == true
   and .rts_evidence_bevy_runtime_adapter.queue_feedback_chip_sample == "feedback:build_placed:watch_tower@7,4"
   and .rts_evidence_bevy_runtime_adapter.queue_blocked_feedback_label_sample == "QUEUE LOCK NEED 210G"
+  and .rts_evidence_bevy_runtime_adapter.scripted_demo_pauses_queue_tick_sample == true
+  and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_from_frame_sample == 4
+  and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_id_sample == "cancel_refund"
+  and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_title_sample == "WORKER QUEUED"
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

@@ -30,12 +30,14 @@ use trnm_rts_bevy_runtime::{
     rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
     rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
     rts_rebuild_structures_for_id, rts_restored_zones_for_id, rts_runtime_hit_test_grid,
-    rts_runtime_tile_line, rts_scout_route_tiles_for_recon, rts_siege_breach_tiles_for_target,
-    rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
-    rts_split_squad_tiles_for_id, rts_structure_tile_for_id, rts_supply_convoy_for_id,
-    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
-    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, rts_unlock_unit_tile_for_id,
-    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_runtime_tile_line, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
+    rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
+    rts_siege_breach_tiles_for_target, rts_siege_push_route_tiles_for_target,
+    rts_siege_unit_tile_for_id, rts_siege_units_for_id, rts_split_squad_tiles_for_id,
+    rts_structure_tile_for_id, rts_supply_convoy_for_id, rts_target_priority_ids_for_target,
+    rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
+    rts_threat_levels_for_target, rts_unlock_unit_tile_for_id, RtsRuntimeGridSpec,
+    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -136,6 +138,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub queue_production_lane_sample: bool,
     pub queue_feedback_chip_sample: String,
     pub queue_blocked_feedback_label_sample: String,
+    pub scripted_demo_pauses_queue_tick_sample: bool,
+    pub scripted_demo_stage_from_frame_sample: Option<usize>,
+    pub scripted_demo_stage_id_sample: String,
+    pub scripted_demo_stage_title_sample: String,
     pub source_of_truth: String,
 }
 
@@ -243,6 +249,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let queue_blocked_feedback_label = rts_blocked_feedback_player_label(
         "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4",
     );
+    let scripted_demo_pauses_queue_tick =
+        rts_scripted_demo_pauses_queue_tick("queue_cancel_refund_sequence");
+    let scripted_demo_stage_from_frame =
+        rts_scripted_demo_stage_from_frame("queue_cancel_refund_sequence", 240);
+    let scripted_demo_stage_id = rts_scripted_demo_stage_id(3);
+    let scripted_demo_stage_title = rts_scripted_demo_stage_title(4);
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -372,7 +384,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && queue_build_parts == ("watch_tower".to_string(), "7,4".to_string())
         && queue_production_lane
         && queue_feedback_chip == "feedback:build_placed:watch_tower@7,4"
-        && queue_blocked_feedback_label == "QUEUE LOCK NEED 210G";
+        && queue_blocked_feedback_label == "QUEUE LOCK NEED 210G"
+        && scripted_demo_pauses_queue_tick
+        && scripted_demo_stage_from_frame == Some(4)
+        && scripted_demo_stage_id == "cancel_refund"
+        && scripted_demo_stage_title == "WORKER QUEUED";
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -512,7 +528,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         queue_production_lane_sample: queue_production_lane,
         queue_feedback_chip_sample: queue_feedback_chip,
         queue_blocked_feedback_label_sample: queue_blocked_feedback_label,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        scripted_demo_pauses_queue_tick_sample: scripted_demo_pauses_queue_tick,
+        scripted_demo_stage_from_frame_sample: scripted_demo_stage_from_frame,
+        scripted_demo_stage_id_sample: scripted_demo_stage_id.to_string(),
+        scripted_demo_stage_title_sample: scripted_demo_stage_title.to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -850,5 +870,9 @@ mod tests {
             evidence.queue_blocked_feedback_label_sample,
             "QUEUE LOCK NEED 210G"
         );
+        assert!(evidence.scripted_demo_pauses_queue_tick_sample);
+        assert_eq!(evidence.scripted_demo_stage_from_frame_sample, Some(4));
+        assert_eq!(evidence.scripted_demo_stage_id_sample, "cancel_refund");
+        assert_eq!(evidence.scripted_demo_stage_title_sample, "WORKER QUEUED");
     }
 }
