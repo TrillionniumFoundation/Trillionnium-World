@@ -30,19 +30,21 @@ use trnm_rts_bevy_runtime::{
     rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id, rts_enemy_units_for_recon,
     rts_engagement_tiles_for_target, rts_expansion_parts, rts_expansion_structure_tile_for_id,
     rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id, rts_expansion_workers_for_line,
-    rts_focus_fire_units_for_target, rts_fog_reveal_tiles_for_recon, rts_garrison_units_for_id,
-    rts_guardian_counter_units_for_id, rts_harvest_tile_for_node, rts_hover_target_preview_kind,
-    rts_inner_core_tile_for_id, rts_inner_defenders_for_id, rts_inner_gate_tile_for_id,
-    rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id,
-    rts_line_path_tiles, rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin,
-    rts_move_command_parts, rts_objective_parts, rts_objective_tiles_for_id,
-    rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
-    rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
-    rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
-    rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
-    rts_queue_is_affordable, rts_queue_uses_production_lane, rts_rebuild_structures_for_id,
-    rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
-    rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
+    rts_focus_fire_units_for_target, rts_fog_reveal_tiles_for_recon,
+    rts_formation_move_execution_stage, rts_formation_move_preview_stage,
+    rts_garrison_units_for_id, rts_guardian_counter_units_for_id, rts_harvest_tile_for_node,
+    rts_hover_target_preview_kind, rts_inner_core_tile_for_id, rts_inner_defenders_for_id,
+    rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
+    rts_keep_claim_tiles_for_id, rts_line_path_tiles, rts_local_obstruction_recovery_stage,
+    rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts,
+    rts_objective_parts, rts_objective_tiles_for_id, rts_open_world_panels_for_room,
+    rts_open_world_route_tiles_for_id, rts_player_army_unit_tile_for_id,
+    rts_player_hold_tiles_for_id, rts_player_siege_line_tiles_for_id,
+    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
+    rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
+    rts_rebuild_structures_for_id, rts_recon_parts, rts_restored_zones_for_id,
+    rts_runtime_hit_test_grid, rts_runtime_tile_line, rts_same_class_units,
+    rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
     rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
     rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_command_feedback_stage,
     rts_selection_tiles_for_units, rts_siege_breach_tiles_for_target,
@@ -74,6 +76,9 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub green: bool,
     pub minimap_cell_sample: RtsEvidencePoint,
     pub path_preview_sample: Option<String>,
+    pub formation_move_preview_stage_sample: Option<String>,
+    pub formation_move_execution_stage_sample: Option<String>,
+    pub local_obstruction_recovery_stage_sample: Option<String>,
     pub command_grid_hit_sample: Option<usize>,
     pub tile_line_sample: Vec<RtsRuntimeTileLineStep>,
     pub combat_engagement_tiles_sample: Vec<String>,
@@ -205,6 +210,24 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let preview_queue = vec!["command_queue_path_preview:queue_stack".to_string()];
     let path_preview =
         rts_command_queue_path_preview_stage(&[], &preview_queue, 0).map(str::to_string);
+    let formation_preview_stage = rts_formation_move_preview_stage(
+        &["formation_move_preview:commit_spacing".to_string()],
+        &["formation_move_preview:destination_ghost".to_string()],
+        0,
+    )
+    .map(str::to_string);
+    let formation_execution_stage = rts_formation_move_execution_stage(
+        &["formation_move_execution:arrival_lock".to_string()],
+        &["formation_move_execution:slot_claim".to_string()],
+        0,
+    )
+    .map(str::to_string);
+    let local_obstruction_stage = rts_local_obstruction_recovery_stage(
+        &["local_obstruction_recovery:flow_resume".to_string()],
+        &["local_obstruction_recovery:detect_block".to_string()],
+        0,
+    )
+    .map(str::to_string);
     let command_grid_hit = rts_runtime_hit_test_grid(
         RtsRuntimeGridSpec {
             origin_x: 360,
@@ -494,6 +517,9 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
+        && formation_preview_stage.as_deref() == Some("commit_spacing")
+        && formation_execution_stage.as_deref() == Some("arrival_lock")
+        && local_obstruction_stage.as_deref() == Some("flow_resume")
         && command_grid_hit == Some(0)
         && tile_line.len() == 9
         && tile_line.first().is_some_and(|step| {
@@ -723,6 +749,9 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             y: minimap_cell.1,
         },
         path_preview_sample: path_preview,
+        formation_move_preview_stage_sample: formation_preview_stage,
+        formation_move_execution_stage_sample: formation_execution_stage,
+        local_obstruction_recovery_stage_sample: local_obstruction_stage,
         command_grid_hit_sample: command_grid_hit,
         tile_line_sample: tile_line,
         combat_engagement_tiles_sample: combat_engagement_tiles,
@@ -897,7 +926,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -920,6 +949,18 @@ mod tests {
             RtsEvidencePoint { x: 134, y: 175 }
         );
         assert_eq!(evidence.path_preview_sample.as_deref(), Some("queue_stack"));
+        assert_eq!(
+            evidence.formation_move_preview_stage_sample.as_deref(),
+            Some("commit_spacing")
+        );
+        assert_eq!(
+            evidence.formation_move_execution_stage_sample.as_deref(),
+            Some("arrival_lock")
+        );
+        assert_eq!(
+            evidence.local_obstruction_recovery_stage_sample.as_deref(),
+            Some("flow_resume")
+        );
         assert_eq!(evidence.command_grid_hit_sample, Some(0));
         assert_eq!(evidence.tile_line_sample.len(), 9);
         assert_eq!(evidence.tile_line_sample[4].tile_x, 10);

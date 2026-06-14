@@ -15263,49 +15263,13 @@ fn classic_draw_rts_command_queue_path_preview_overlay(
 fn classic_rts_formation_move_preview_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("formation_move_preview:commit_spacing") {
-                return Some("commit_spacing");
-            }
-            if event.contains("formation_move_preview:split_avoidance") {
-                return Some("split_avoidance");
-            }
-            if event.contains("formation_move_preview:collision_avoidance") {
-                return Some("collision_avoidance");
-            }
-            if event.contains("formation_move_preview:line_reflow") {
-                return Some("line_reflow");
-            }
-            if event.contains("formation_move_preview:wedge_spacing") {
-                return Some("wedge_spacing");
-            }
-            if event.contains("formation_move_preview:destination_ghost") {
-                return Some("destination_ghost");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("formation_move_preview:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "destination_ghost",
-            1 => "wedge_spacing",
-            2 => "line_reflow",
-            3 => "collision_avoidance",
-            4 => "split_avoidance",
-            _ => "commit_spacing",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_formation_move_preview_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -16623,49 +16587,13 @@ fn classic_draw_rts_blocked_feedback_chip_overlay(
 fn classic_rts_formation_move_execution_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("formation_move_execution:arrival_lock") {
-                return Some("arrival_lock");
-            }
-            if event.contains("formation_move_execution:blocked_reroute") {
-                return Some("blocked_reroute");
-            }
-            if event.contains("formation_move_execution:crowd_avoidance") {
-                return Some("crowd_avoidance");
-            }
-            if event.contains("formation_move_execution:stagger_step") {
-                return Some("stagger_step");
-            }
-            if event.contains("formation_move_execution:path_reservation") {
-                return Some("path_reservation");
-            }
-            if event.contains("formation_move_execution:slot_claim") {
-                return Some("slot_claim");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("formation_move_execution:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "slot_claim",
-            1 => "path_reservation",
-            2 => "stagger_step",
-            3 => "crowd_avoidance",
-            4 => "blocked_reroute",
-            _ => "arrival_lock",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_formation_move_execution_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -16965,45 +16893,13 @@ fn classic_draw_rts_formation_move_execution_overlay(
 fn classic_rts_local_obstruction_recovery_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("local_obstruction_recovery:flow_resume") {
-                return Some("flow_resume");
-            }
-            if event.contains("local_obstruction_recovery:gap_claim") {
-                return Some("gap_claim");
-            }
-            if event.contains("local_obstruction_recovery:side_step") {
-                return Some("side_step");
-            }
-            if event.contains("local_obstruction_recovery:hold_queue") {
-                return Some("hold_queue");
-            }
-            if event.contains("local_obstruction_recovery:detect_block") {
-                return Some("detect_block");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("local_obstruction_recovery:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 5 {
-            0 => "detect_block",
-            1 => "hold_queue",
-            2 => "side_step",
-            3 => "gap_claim",
-            _ => "flow_resume",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_local_obstruction_recovery_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]

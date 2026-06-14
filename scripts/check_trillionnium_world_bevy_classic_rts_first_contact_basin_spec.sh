@@ -191,6 +191,9 @@ jq -e '
   and .rts_bevy_runtime_minimap_cell_sample.x == 134
   and .rts_bevy_runtime_minimap_cell_sample.y == 175
   and .rts_bevy_runtime_path_preview_sample == "queue_stack"
+  and .rts_evidence_bevy_runtime_adapter.formation_move_preview_stage_sample == "commit_spacing"
+  and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"
+  and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_sample == "flow_resume"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
   and (.rts_evidence_bevy_runtime_adapter.tile_line_sample | length) == 9
   and .rts_evidence_bevy_runtime_adapter.tile_line_sample[0].step_index == 0

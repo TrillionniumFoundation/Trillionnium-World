@@ -2647,6 +2647,125 @@ pub fn rts_command_queue_path_preview_stage(
     })
 }
 
+pub fn rts_formation_move_preview_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev().chain(command_queue.iter().rev()) {
+        if event.contains("formation_move_preview:commit_spacing") {
+            return Some("commit_spacing");
+        }
+        if event.contains("formation_move_preview:split_avoidance") {
+            return Some("split_avoidance");
+        }
+        if event.contains("formation_move_preview:collision_avoidance") {
+            return Some("collision_avoidance");
+        }
+        if event.contains("formation_move_preview:line_reflow") {
+            return Some("line_reflow");
+        }
+        if event.contains("formation_move_preview:wedge_spacing") {
+            return Some("wedge_spacing");
+        }
+        if event.contains("formation_move_preview:destination_ghost") {
+            return Some("destination_ghost");
+        }
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("formation_move_preview:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "destination_ghost",
+        1 => "wedge_spacing",
+        2 => "line_reflow",
+        3 => "collision_avoidance",
+        4 => "split_avoidance",
+        _ => "commit_spacing",
+    })
+}
+
+pub fn rts_formation_move_execution_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev().chain(command_queue.iter().rev()) {
+        if event.contains("formation_move_execution:arrival_lock") {
+            return Some("arrival_lock");
+        }
+        if event.contains("formation_move_execution:blocked_reroute") {
+            return Some("blocked_reroute");
+        }
+        if event.contains("formation_move_execution:crowd_avoidance") {
+            return Some("crowd_avoidance");
+        }
+        if event.contains("formation_move_execution:stagger_step") {
+            return Some("stagger_step");
+        }
+        if event.contains("formation_move_execution:path_reservation") {
+            return Some("path_reservation");
+        }
+        if event.contains("formation_move_execution:slot_claim") {
+            return Some("slot_claim");
+        }
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("formation_move_execution:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "slot_claim",
+        1 => "path_reservation",
+        2 => "stagger_step",
+        3 => "crowd_avoidance",
+        4 => "blocked_reroute",
+        _ => "arrival_lock",
+    })
+}
+
+pub fn rts_local_obstruction_recovery_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev().chain(command_queue.iter().rev()) {
+        if event.contains("local_obstruction_recovery:flow_resume") {
+            return Some("flow_resume");
+        }
+        if event.contains("local_obstruction_recovery:gap_claim") {
+            return Some("gap_claim");
+        }
+        if event.contains("local_obstruction_recovery:side_step") {
+            return Some("side_step");
+        }
+        if event.contains("local_obstruction_recovery:hold_queue") {
+            return Some("hold_queue");
+        }
+        if event.contains("local_obstruction_recovery:detect_block") {
+            return Some("detect_block");
+        }
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("local_obstruction_recovery:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 5 {
+        0 => "detect_block",
+        1 => "hold_queue",
+        2 => "side_step",
+        3 => "gap_claim",
+        _ => "flow_resume",
+    })
+}
+
 pub fn rts_runtime_point_in_rect(mouse_x: i32, mouse_y: i32, rect: RtsRuntimeRect) -> bool {
     mouse_x >= rect.x
         && mouse_x < rect.x + rect.width
@@ -3452,6 +3571,52 @@ mod tests {
             Some("ability_hotkey_ack")
         );
         assert_eq!(rts_control_group_hotkey_feedback_stage(0, &[], &[]), None);
+
+        assert_eq!(
+            rts_formation_move_preview_stage(
+                &["formation_move_preview:commit_spacing".to_string()],
+                &["formation_move_preview:destination_ghost".to_string()],
+                0,
+            ),
+            Some("commit_spacing")
+        );
+        assert_eq!(
+            rts_formation_move_preview_stage(&[], &["formation_move_preview:".to_string()], 3,),
+            Some("collision_avoidance")
+        );
+        assert_eq!(rts_formation_move_preview_stage(&[], &[], 0), None);
+
+        assert_eq!(
+            rts_formation_move_execution_stage(
+                &["formation_move_execution:arrival_lock".to_string()],
+                &["formation_move_execution:slot_claim".to_string()],
+                0,
+            ),
+            Some("arrival_lock")
+        );
+        assert_eq!(
+            rts_formation_move_execution_stage(&[], &["formation_move_execution:".to_string()], 4,),
+            Some("blocked_reroute")
+        );
+        assert_eq!(rts_formation_move_execution_stage(&[], &[], 0), None);
+
+        assert_eq!(
+            rts_local_obstruction_recovery_stage(
+                &["local_obstruction_recovery:flow_resume".to_string()],
+                &["local_obstruction_recovery:detect_block".to_string()],
+                0,
+            ),
+            Some("flow_resume")
+        );
+        assert_eq!(
+            rts_local_obstruction_recovery_stage(
+                &[],
+                &["local_obstruction_recovery:".to_string()],
+                2,
+            ),
+            Some("side_step")
+        );
+        assert_eq!(rts_local_obstruction_recovery_stage(&[], &[], 0), None);
     }
 
     #[test]
