@@ -12,19 +12,21 @@ use trnm_rts_bevy_runtime::{
     rts_blocked_feedback_player_label, rts_boss_guard_units_for_id, rts_build_parts,
     rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
     rts_command_queue_path_preview_stage, rts_commander_aura_tiles_for_id,
-    rts_contact_flash_tiles_for_target, rts_counterattack_route_tiles_for_wave,
+    rts_contact_flash_tiles_for_target, rts_control_group_hotkey_slot,
+    rts_control_group_slot_summaries, rts_counterattack_route_tiles_for_wave,
     rts_counterattack_units_for_wave, rts_creep_camp_tiles_for_id, rts_damage_ticks_for_ability,
-    rts_default_group_units, rts_drag_rejected_unit_ids, rts_drag_selected_units,
-    rts_dropoff_tile_for_structure, rts_enemy_flank_tile_for_index, rts_enemy_flank_units_for_id,
-    rts_enemy_fortification_tile_for_id, rts_enemy_pressure_lane_tiles_for_wave,
-    rts_enemy_pressure_wave_units_for_id, rts_enemy_repair_units_for_target,
-    rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
-    rts_enemy_units_for_recon, rts_engagement_tiles_for_target,
-    rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id,
-    rts_expansion_workers_for_line, rts_fog_reveal_tiles_for_recon, rts_garrison_units_for_id,
-    rts_guardian_counter_units_for_id, rts_harvest_tile_for_node, rts_inner_core_tile_for_id,
-    rts_inner_defenders_for_id, rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id,
-    rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id, rts_loot_items_for_id,
+    rts_default_group_units, rts_default_units_for_control_group_slot, rts_drag_rejected_unit_ids,
+    rts_drag_selected_units, rts_dropoff_tile_for_structure, rts_enemy_flank_tile_for_index,
+    rts_enemy_flank_units_for_id, rts_enemy_fortification_tile_for_id,
+    rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
+    rts_enemy_repair_units_for_target, rts_enemy_structure_tile_for_id,
+    rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id, rts_enemy_units_for_recon,
+    rts_engagement_tiles_for_target, rts_expansion_structure_tile_for_id,
+    rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id, rts_expansion_workers_for_line,
+    rts_fog_reveal_tiles_for_recon, rts_garrison_units_for_id, rts_guardian_counter_units_for_id,
+    rts_harvest_tile_for_node, rts_inner_core_tile_for_id, rts_inner_defenders_for_id,
+    rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
+    rts_keep_claim_tiles_for_id, rts_loot_items_for_id, rts_merged_unit_ids,
     rts_minimap_cell_origin, rts_objective_tiles_for_id, rts_open_world_panels_for_room,
     rts_open_world_route_tiles_for_id, rts_player_army_unit_tile_for_id,
     rts_player_hold_tiles_for_id, rts_player_siege_line_tiles_for_id,
@@ -38,8 +40,10 @@ use trnm_rts_bevy_runtime::{
     rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
     rts_split_squad_tiles_for_id, rts_structure_tile_for_id, rts_supply_convoy_for_id,
     rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
-    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, rts_unlock_unit_tile_for_id,
-    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target,
+    rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
+    RtsControlGroupSlotSummary, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
+    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -150,6 +154,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub selection_drag_units_sample: Vec<String>,
     pub selection_drag_rejected_units_sample: Vec<String>,
     pub selection_tiles_for_units_sample: Vec<String>,
+    pub control_group_hotkey_slot_sample: Option<String>,
+    pub control_group_default_slot_three_units_sample: Vec<String>,
+    pub control_group_assignment_units_sample: Vec<String>,
+    pub control_group_summary_slot_ten_sample: RtsControlGroupSlotSummary,
+    pub control_group_merged_units_sample: Vec<String>,
     pub source_of_truth: String,
 }
 
@@ -273,6 +282,27 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         "square_guard_front".to_string(),
         "square_worker_carry".to_string(),
     ]);
+    let control_group_assignments = vec![
+        "2:player|square_guard_patrol".to_string(),
+        "10:camera:square_worker_carry|square_worker_harvest".to_string(),
+    ];
+    let control_group_active_ids = vec!["10".to_string()];
+    let control_group_hotkey_slot = rts_control_group_hotkey_slot("assign:10", "assign:");
+    let control_group_default_slot_three_units = rts_default_units_for_control_group_slot("3");
+    let control_group_assignment_units =
+        rts_units_from_control_group_assignment(&control_group_assignments, "10");
+    let control_group_summary_slot_ten = rts_control_group_slot_summaries(
+        &control_group_assignments,
+        &control_group_active_ids,
+        Some("2"),
+    )
+    .into_iter()
+    .find(|summary| summary.slot == "10")
+    .expect("slot 10 summary");
+    let control_group_merged_units = rts_merged_unit_ids(
+        &["player".to_string()],
+        &["player".to_string(), "square_worker_carry".to_string()],
+    );
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -426,7 +456,17 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 "square_worker_harvest",
             ]
         && selection_drag_rejected_units == vec!["square_creep_wander"]
-        && selection_tiles_for_units == vec!["5,4", "4,5"];
+        && selection_tiles_for_units == vec!["5,4", "4,5"]
+        && control_group_hotkey_slot.as_deref() == Some("10")
+        && control_group_default_slot_three_units
+            == vec!["square_worker_carry", "square_worker_harvest"]
+        && control_group_assignment_units == vec!["square_worker_carry", "square_worker_harvest"]
+        && control_group_summary_slot_ten.slot == "10"
+        && control_group_summary_slot_ten.key_label == "0"
+        && control_group_summary_slot_ten.member_count == 2
+        && control_group_summary_slot_ten.occupied
+        && control_group_summary_slot_ten.active
+        && control_group_merged_units == vec!["player", "square_worker_carry"];
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -579,7 +619,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_drag_units_sample: selection_drag_units,
         selection_drag_rejected_units_sample: selection_drag_rejected_units,
         selection_tiles_for_units_sample: selection_tiles_for_units,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        control_group_hotkey_slot_sample: control_group_hotkey_slot,
+        control_group_default_slot_three_units_sample: control_group_default_slot_three_units,
+        control_group_assignment_units_sample: control_group_assignment_units,
+        control_group_summary_slot_ten_sample: control_group_summary_slot_ten,
+        control_group_merged_units_sample: control_group_merged_units,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -955,6 +1000,33 @@ mod tests {
         assert_eq!(
             evidence.selection_tiles_for_units_sample,
             vec!["5,4", "4,5"]
+        );
+        assert_eq!(
+            evidence.control_group_hotkey_slot_sample.as_deref(),
+            Some("10")
+        );
+        assert_eq!(
+            evidence.control_group_default_slot_three_units_sample,
+            vec!["square_worker_carry", "square_worker_harvest"]
+        );
+        assert_eq!(
+            evidence.control_group_assignment_units_sample,
+            vec!["square_worker_carry", "square_worker_harvest"]
+        );
+        assert_eq!(evidence.control_group_summary_slot_ten_sample.slot, "10");
+        assert_eq!(
+            evidence.control_group_summary_slot_ten_sample.key_label,
+            "0"
+        );
+        assert_eq!(
+            evidence.control_group_summary_slot_ten_sample.member_count,
+            2
+        );
+        assert!(evidence.control_group_summary_slot_ten_sample.occupied);
+        assert!(evidence.control_group_summary_slot_ten_sample.active);
+        assert_eq!(
+            evidence.control_group_merged_units_sample,
+            vec!["player", "square_worker_carry"]
         );
     }
 }

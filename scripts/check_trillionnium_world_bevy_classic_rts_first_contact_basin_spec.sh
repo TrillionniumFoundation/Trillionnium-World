@@ -308,6 +308,15 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.selection_drag_units_sample == ["player", "square_guard_front", "square_guard_patrol", "square_worker_carry", "square_worker_harvest"]
   and .rts_evidence_bevy_runtime_adapter.selection_drag_rejected_units_sample == ["square_creep_wander"]
   and .rts_evidence_bevy_runtime_adapter.selection_tiles_for_units_sample == ["5,4", "4,5"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_hotkey_slot_sample == "10"
+  and .rts_evidence_bevy_runtime_adapter.control_group_default_slot_three_units_sample == ["square_worker_carry", "square_worker_harvest"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_assignment_units_sample == ["square_worker_carry", "square_worker_harvest"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_summary_slot_ten_sample.slot == "10"
+  and .rts_evidence_bevy_runtime_adapter.control_group_summary_slot_ten_sample.key_label == "0"
+  and .rts_evidence_bevy_runtime_adapter.control_group_summary_slot_ten_sample.member_count == 2
+  and .rts_evidence_bevy_runtime_adapter.control_group_summary_slot_ten_sample.occupied == true
+  and .rts_evidence_bevy_runtime_adapter.control_group_summary_slot_ten_sample.active == true
+  and .rts_evidence_bevy_runtime_adapter.control_group_merged_units_sample == ["player", "square_worker_carry"]
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

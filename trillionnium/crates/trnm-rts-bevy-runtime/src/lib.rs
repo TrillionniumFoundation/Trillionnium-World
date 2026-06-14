@@ -145,6 +145,15 @@ pub struct RtsRuntimeTileLineStep {
     pub tile_y: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupSlotSummary {
+    pub slot: String,
+    pub key_label: String,
+    pub member_count: usize,
+    pub occupied: bool,
+    pub active: bool,
+}
+
 pub fn rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
     (
         tile.0
@@ -528,6 +537,93 @@ pub fn rts_selection_tiles_for_units(unit_ids: &[String]) -> Vec<String> {
 
 pub fn rts_selection_box_tiles() -> Vec<String> {
     rts_string_vec(["5,5", "6,5", "5,4", "6,4"])
+}
+
+pub fn rts_control_group_hotkey_slot(group_id: &str, prefix: &str) -> Option<String> {
+    group_id
+        .strip_prefix(prefix)
+        .map(str::trim)
+        .filter(|slot| !slot.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+pub fn rts_default_units_for_control_group_slot(slot: &str) -> Vec<String> {
+    match slot {
+        "2" => rts_group_two_units(),
+        "3" => rts_string_vec(["square_worker_carry", "square_worker_harvest"]),
+        _ => rts_default_group_units(),
+    }
+}
+
+pub fn rts_units_from_control_group_assignment(assignments: &[String], slot: &str) -> Vec<String> {
+    let prefix = format!("{slot}:");
+    for assignment in assignments.iter().rev() {
+        let Some(payload) = assignment.strip_prefix(&prefix) else {
+            continue;
+        };
+        let unit_payload = payload.rsplit(':').next().unwrap_or(payload);
+        let units = unit_payload
+            .split('|')
+            .map(str::trim)
+            .filter(|unit| !unit.is_empty())
+            .filter(|unit| rts_selectable_unit_tile(unit).is_some())
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        if !units.is_empty() {
+            return units;
+        }
+    }
+    Vec::new()
+}
+
+pub fn rts_control_group_slot_label(slot: &str) -> &str {
+    if slot == "10" {
+        "0"
+    } else {
+        slot
+    }
+}
+
+pub fn rts_control_group_slot_member_count(assignments: &[String], slot: &str) -> usize {
+    rts_units_from_control_group_assignment(assignments, slot).len()
+}
+
+pub fn rts_control_group_slot_is_active(
+    active_group_ids: &[String],
+    current_group_id: Option<&str>,
+    slot: &str,
+) -> bool {
+    active_group_ids.iter().any(|group| group == slot) || current_group_id == Some(slot)
+}
+
+pub fn rts_control_group_slot_summaries(
+    assignments: &[String],
+    active_group_ids: &[String],
+    current_group_id: Option<&str>,
+) -> Vec<RtsControlGroupSlotSummary> {
+    (1..=10)
+        .map(|slot_index| {
+            let slot = slot_index.to_string();
+            let member_count = rts_control_group_slot_member_count(assignments, &slot);
+            let active =
+                rts_control_group_slot_is_active(active_group_ids, current_group_id, &slot);
+            RtsControlGroupSlotSummary {
+                key_label: rts_control_group_slot_label(&slot).to_string(),
+                slot,
+                member_count,
+                occupied: member_count > 0,
+                active,
+            }
+        })
+        .collect()
+}
+
+pub fn rts_merged_unit_ids(base_units: &[String], extra_units: &[String]) -> Vec<String> {
+    let mut merged = base_units.to_vec();
+    for unit_id in extra_units {
+        rts_push_unique_string(&mut merged, unit_id);
+    }
+    merged
 }
 
 pub fn rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32))> {
@@ -2361,6 +2457,51 @@ mod tests {
         assert_eq!(
             rts_drag_rejected_unit_ids((5, 4), (9, 5)),
             vec!["square_creep_wander"]
+        );
+    }
+
+    #[test]
+    fn control_group_roster_adapter_preserves_first_contact_slots() {
+        let assignments = vec![
+            "2:player|square_guard_patrol".to_string(),
+            "10:camera:square_worker_carry|square_worker_harvest".to_string(),
+        ];
+        let active_group_ids = vec!["10".to_string()];
+
+        assert_eq!(
+            rts_control_group_hotkey_slot("assign:10", "assign:").as_deref(),
+            Some("10")
+        );
+        assert_eq!(
+            rts_default_units_for_control_group_slot("3"),
+            vec!["square_worker_carry", "square_worker_harvest"]
+        );
+        assert_eq!(
+            rts_units_from_control_group_assignment(&assignments, "10"),
+            vec!["square_worker_carry", "square_worker_harvest"]
+        );
+        assert_eq!(rts_control_group_slot_label("10"), "0");
+        assert_eq!(rts_control_group_slot_member_count(&assignments, "10"), 2);
+        assert!(rts_control_group_slot_is_active(
+            &active_group_ids,
+            Some("2"),
+            "10"
+        ));
+
+        let slot_ten = rts_control_group_slot_summaries(&assignments, &active_group_ids, Some("2"))
+            .into_iter()
+            .find(|summary| summary.slot == "10")
+            .expect("slot 10 summary");
+        assert_eq!(slot_ten.key_label, "0");
+        assert_eq!(slot_ten.member_count, 2);
+        assert!(slot_ten.occupied);
+        assert!(slot_ten.active);
+        assert_eq!(
+            rts_merged_unit_ids(
+                &["player".to_string()],
+                &["player".to_string(), "square_worker_carry".to_string()],
+            ),
+            vec!["player", "square_worker_carry"]
         );
     }
 

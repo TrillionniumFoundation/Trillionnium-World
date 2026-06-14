@@ -141391,86 +141391,62 @@ fn classic_rts_selection_box_tiles() -> Vec<String> {
 }
 
 fn classic_rts_control_group_hotkey_slot(group_id: &str, prefix: &str) -> Option<String> {
-    group_id
-        .strip_prefix(prefix)
-        .map(str::trim)
-        .filter(|slot| !slot.is_empty())
-        .map(ToOwned::to_owned)
+    rts_bevy_runtime::rts_control_group_hotkey_slot(group_id, prefix)
 }
 
 fn classic_rts_default_units_for_control_group_slot(slot: &str) -> Vec<String> {
-    match slot {
-        "2" => classic_rts_group_two_units(),
-        "3" => string_vec(["square_worker_carry", "square_worker_harvest"]),
-        _ => classic_rts_default_group_units(),
-    }
+    rts_bevy_runtime::rts_default_units_for_control_group_slot(slot)
 }
 
 fn classic_rts_units_from_control_group_assignment(
     assignments: &[String],
     slot: &str,
 ) -> Vec<String> {
-    let prefix = format!("{slot}:");
-    for assignment in assignments.iter().rev() {
-        let Some(payload) = assignment.strip_prefix(&prefix) else {
-            continue;
-        };
-        let unit_payload = payload.rsplit(':').next().unwrap_or(payload);
-        let units = unit_payload
-            .split('|')
-            .map(str::trim)
-            .filter(|unit| !unit.is_empty())
-            .filter(|unit| classic_rts_selectable_unit_tile(unit).is_some())
-            .map(ToOwned::to_owned)
-            .collect::<Vec<_>>();
-        if !units.is_empty() {
-            return units;
-        }
-    }
-    Vec::new()
+    rts_bevy_runtime::rts_units_from_control_group_assignment(assignments, slot)
 }
 
 fn classic_rts_control_group_slot_label(slot: &str) -> &str {
-    if slot == "10" {
-        "0"
-    } else {
-        slot
-    }
+    rts_bevy_runtime::rts_control_group_slot_label(slot)
 }
 
 fn classic_rts_control_group_slot_member_count(
     runtime: &NativeFirstPlayableRuntime,
     slot: &str,
 ) -> usize {
-    classic_rts_units_from_control_group_assignment(&runtime.rts_control_group_assignments, slot)
-        .len()
+    rts_bevy_runtime::rts_control_group_slot_member_count(
+        &runtime.rts_control_group_assignments,
+        slot,
+    )
 }
 
 fn classic_rts_control_group_slot_is_active(
     runtime: &NativeFirstPlayableRuntime,
     slot: &str,
 ) -> bool {
-    runtime
-        .rts_active_control_group_ids
-        .iter()
-        .any(|group| group == slot)
-        || runtime.rts_control_group_id.as_deref() == Some(slot)
+    rts_bevy_runtime::rts_control_group_slot_is_active(
+        &runtime.rts_active_control_group_ids,
+        runtime.rts_control_group_id.as_deref(),
+        slot,
+    )
 }
 
 fn classic_rts_control_group_slot_summaries(runtime: &NativeFirstPlayableRuntime) -> Vec<Value> {
-    (1..=10)
-        .map(|slot_index| {
-            let slot = slot_index.to_string();
-            let member_count = classic_rts_control_group_slot_member_count(runtime, &slot);
-            json!({
-                "slot": slot,
-                "key_label": classic_rts_control_group_slot_label(&slot),
-                "member_count": member_count,
-                "occupied": member_count > 0,
-                "active": classic_rts_control_group_slot_is_active(runtime, &slot),
-            })
+    rts_bevy_runtime::rts_control_group_slot_summaries(
+        &runtime.rts_control_group_assignments,
+        &runtime.rts_active_control_group_ids,
+        runtime.rts_control_group_id.as_deref(),
+    )
+    .into_iter()
+    .map(|summary| {
+        json!({
+            "slot": summary.slot,
+            "key_label": summary.key_label,
+            "member_count": summary.member_count,
+            "occupied": summary.occupied,
+            "active": summary.active,
         })
-        .collect()
+    })
+    .collect()
 }
 
 fn replace_classic_rts_control_group_assignment(
@@ -141495,11 +141471,7 @@ fn replace_classic_rts_control_group_assignment_tagged(
 }
 
 fn classic_rts_merged_unit_ids(base_units: &[String], extra_units: &[String]) -> Vec<String> {
-    let mut merged = base_units.to_vec();
-    for unit_id in extra_units {
-        push_unique_string(&mut merged, unit_id);
-    }
-    merged
+    rts_bevy_runtime::rts_merged_unit_ids(base_units, extra_units)
 }
 
 fn classic_rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32))> {
