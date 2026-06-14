@@ -194,6 +194,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_stage_sample == "commit_spacing"
   and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"
   and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_sample == "flow_resume"
+  and .rts_evidence_bevy_runtime_adapter.npc_behavior_stage_sample == "creep_retreat"
+  and .rts_evidence_bevy_runtime_adapter.combat_impact_stage_sample == "damage_tick"
+  and .rts_evidence_bevy_runtime_adapter.locomotion_blend_stage_sample == "formation_slide"
+  and .rts_evidence_bevy_runtime_adapter.npc_transition_stage_sample == "hit_recover"
+  and .rts_evidence_bevy_runtime_adapter.depth_readability_stage_sample == "target_priority"
   and .rts_evidence_bevy_runtime_adapter.command_surface_stage_sample == "target_queue"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
   and (.rts_evidence_bevy_runtime_adapter.tile_line_sample | length) == 9

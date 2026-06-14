@@ -12,7 +12,7 @@ use trnm_rts_bevy_runtime::{
     rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
     rts_blocked_feedback_chip_visible, rts_blocked_feedback_player_label,
     rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
-    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
+    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id, rts_combat_impact_stage,
     rts_command_execution_feedback_kind, rts_command_feedback_lifecycle_stage,
     rts_command_feedback_strip_stage, rts_command_history_prune_visible,
     rts_command_history_visible, rts_command_queue_path_preview_stage,
@@ -23,29 +23,30 @@ use trnm_rts_bevy_runtime::{
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
-    rts_default_units_for_control_group_slot, rts_drag_rejected_unit_ids, rts_drag_selected_units,
-    rts_dropoff_tile_for_structure, rts_enemy_command_parts, rts_enemy_flank_tile_for_index,
-    rts_enemy_flank_units_for_id, rts_enemy_fortification_tile_for_id,
-    rts_enemy_pressure_lane_tiles_for_wave, rts_enemy_pressure_wave_units_for_id,
-    rts_enemy_repair_units_for_target, rts_enemy_structure_tile_for_id,
-    rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id, rts_enemy_units_for_recon,
-    rts_engagement_tiles_for_target, rts_expansion_parts, rts_expansion_structure_tile_for_id,
-    rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id, rts_expansion_workers_for_line,
-    rts_focus_fire_units_for_target, rts_fog_reveal_tiles_for_recon,
-    rts_formation_move_execution_stage, rts_formation_move_preview_stage,
-    rts_garrison_units_for_id, rts_guardian_counter_units_for_id, rts_harvest_tile_for_node,
-    rts_hover_target_preview_kind, rts_inner_core_tile_for_id, rts_inner_defenders_for_id,
-    rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
-    rts_keep_claim_tiles_for_id, rts_line_path_tiles, rts_local_obstruction_recovery_stage,
-    rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts,
-    rts_objective_parts, rts_objective_tiles_for_id, rts_open_world_panels_for_room,
-    rts_open_world_route_tiles_for_id, rts_player_army_unit_tile_for_id,
-    rts_player_hold_tiles_for_id, rts_player_siege_line_tiles_for_id,
-    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
-    rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
-    rts_rebuild_structures_for_id, rts_recon_parts, rts_restored_zones_for_id,
-    rts_runtime_hit_test_grid, rts_runtime_tile_line, rts_same_class_units,
-    rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
+    rts_default_units_for_control_group_slot, rts_depth_readability_stage,
+    rts_drag_rejected_unit_ids, rts_drag_selected_units, rts_dropoff_tile_for_structure,
+    rts_enemy_command_parts, rts_enemy_flank_tile_for_index, rts_enemy_flank_units_for_id,
+    rts_enemy_fortification_tile_for_id, rts_enemy_pressure_lane_tiles_for_wave,
+    rts_enemy_pressure_wave_units_for_id, rts_enemy_repair_units_for_target,
+    rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
+    rts_enemy_units_for_recon, rts_engagement_tiles_for_target, rts_expansion_parts,
+    rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp, rts_expansion_tiles_for_id,
+    rts_expansion_workers_for_line, rts_focus_fire_units_for_target,
+    rts_fog_reveal_tiles_for_recon, rts_formation_move_execution_stage,
+    rts_formation_move_preview_stage, rts_garrison_units_for_id, rts_guardian_counter_units_for_id,
+    rts_harvest_tile_for_node, rts_hover_target_preview_kind, rts_inner_core_tile_for_id,
+    rts_inner_defenders_for_id, rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id,
+    rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id, rts_line_path_tiles,
+    rts_local_obstruction_recovery_stage, rts_locomotion_blend_stage, rts_loot_items_for_id,
+    rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts, rts_npc_behavior_stage,
+    rts_npc_transition_stage, rts_objective_parts, rts_objective_tiles_for_id,
+    rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
+    rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
+    rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
+    rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
+    rts_queue_is_affordable, rts_queue_uses_production_lane, rts_rebuild_structures_for_id,
+    rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
+    rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
     rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
     rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_command_feedback_stage,
     rts_selection_tiles_for_units, rts_siege_breach_tiles_for_target,
@@ -80,6 +81,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub formation_move_preview_stage_sample: Option<String>,
     pub formation_move_execution_stage_sample: Option<String>,
     pub local_obstruction_recovery_stage_sample: Option<String>,
+    pub npc_behavior_stage_sample: Option<String>,
+    pub combat_impact_stage_sample: Option<String>,
+    pub locomotion_blend_stage_sample: Option<String>,
+    pub npc_transition_stage_sample: Option<String>,
+    pub depth_readability_stage_sample: Option<String>,
     pub command_surface_stage_sample: Option<String>,
     pub command_grid_hit_sample: Option<usize>,
     pub tile_line_sample: Vec<RtsRuntimeTileLineStep>,
@@ -231,6 +237,26 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         0,
     )
     .map(str::to_string);
+    let npc_behavior_stage = rts_npc_behavior_stage(
+        &["behavior:creep_retreat".to_string()],
+        &["behavior:guard_patrol".to_string()],
+        0,
+    )
+    .map(str::to_string);
+    let combat_impact_stage =
+        rts_combat_impact_stage(&[], &["impact:damage_tick".to_string()], 1).map(str::to_string);
+    let locomotion_blend_stage =
+        rts_locomotion_blend_stage(&["locomotion:formation_slide".to_string()], &[], 0)
+            .map(str::to_string);
+    let npc_transition_stage = rts_npc_transition_stage(
+        &["transition:hit_recover".to_string()],
+        &["transition:alert_turn".to_string()],
+        0,
+    )
+    .map(str::to_string);
+    let depth_readability_stage =
+        rts_depth_readability_stage(&["depth:target_priority".to_string()], &[], 0)
+            .map(str::to_string);
     let command_surface_stage = rts_command_surface_stage(
         7,
         &["surface:target_queue".to_string()],
@@ -533,6 +559,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && formation_preview_stage.as_deref() == Some("commit_spacing")
         && formation_execution_stage.as_deref() == Some("arrival_lock")
         && local_obstruction_stage.as_deref() == Some("flow_resume")
+        && npc_behavior_stage.as_deref() == Some("creep_retreat")
+        && combat_impact_stage.as_deref() == Some("damage_tick")
+        && locomotion_blend_stage.as_deref() == Some("formation_slide")
+        && npc_transition_stage.as_deref() == Some("hit_recover")
+        && depth_readability_stage.as_deref() == Some("target_priority")
         && command_surface_stage.as_deref() == Some("target_queue")
         && command_grid_hit == Some(0)
         && tile_line.len() == 9
@@ -767,6 +798,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         formation_move_preview_stage_sample: formation_preview_stage,
         formation_move_execution_stage_sample: formation_execution_stage,
         local_obstruction_recovery_stage_sample: local_obstruction_stage,
+        npc_behavior_stage_sample: npc_behavior_stage,
+        combat_impact_stage_sample: combat_impact_stage,
+        locomotion_blend_stage_sample: locomotion_blend_stage,
+        npc_transition_stage_sample: npc_transition_stage,
+        depth_readability_stage_sample: depth_readability_stage,
         command_surface_stage_sample: command_surface_stage,
         command_grid_hit_sample: command_grid_hit,
         tile_line_sample: tile_line,
@@ -943,7 +979,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -977,6 +1013,26 @@ mod tests {
         assert_eq!(
             evidence.local_obstruction_recovery_stage_sample.as_deref(),
             Some("flow_resume")
+        );
+        assert_eq!(
+            evidence.npc_behavior_stage_sample.as_deref(),
+            Some("creep_retreat")
+        );
+        assert_eq!(
+            evidence.combat_impact_stage_sample.as_deref(),
+            Some("damage_tick")
+        );
+        assert_eq!(
+            evidence.locomotion_blend_stage_sample.as_deref(),
+            Some("formation_slide")
+        );
+        assert_eq!(
+            evidence.npc_transition_stage_sample.as_deref(),
+            Some("hit_recover")
+        );
+        assert_eq!(
+            evidence.depth_readability_stage_sample.as_deref(),
+            Some("target_priority")
         );
         assert_eq!(
             evidence.command_surface_stage_sample.as_deref(),

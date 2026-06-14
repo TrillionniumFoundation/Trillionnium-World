@@ -2805,6 +2805,181 @@ pub fn rts_local_obstruction_recovery_stage(
     })
 }
 
+pub fn rts_npc_behavior_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("behavior:guard_patrol", "guard_patrol"),
+            ("behavior:guard_engage", "guard_engage"),
+            ("behavior:worker_work", "worker_work"),
+            ("behavior:worker_carry", "worker_carry"),
+            ("behavior:creep_stalk", "creep_stalk"),
+            ("behavior:creep_retreat", "creep_retreat"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("behavior:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "guard_patrol",
+        1 => "guard_engage",
+        2 => "worker_work",
+        3 => "worker_carry",
+        4 => "creep_stalk",
+        _ => "creep_retreat",
+    })
+}
+
+pub fn rts_combat_impact_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("impact:victory_settle", "victory_settle"),
+            ("impact:corpse_dissolve", "corpse_dissolve"),
+            ("impact:death_fall", "death_fall"),
+            ("impact:damage_tick", "damage_tick"),
+            ("impact:stagger", "stagger"),
+            ("impact:hit_flash", "hit_flash"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("impact:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "hit_flash",
+        1 => "stagger",
+        2 => "damage_tick",
+        3 => "death_fall",
+        4 => "corpse_dissolve",
+        _ => "victory_settle",
+    })
+}
+
+pub fn rts_locomotion_blend_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    walk_cycle_frame: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("locomotion:arrival_brake", "arrival_brake"),
+            ("locomotion:formation_slide", "formation_slide"),
+            ("locomotion:turn_arc", "turn_arc"),
+            ("locomotion:footstep_right", "footstep_right"),
+            ("locomotion:footstep_left", "footstep_left"),
+            ("locomotion:path_commit", "path_commit"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("locomotion:"))
+    {
+        return None;
+    }
+    Some(match walk_cycle_frame % 6 {
+        0 => "path_commit",
+        1 => "footstep_left",
+        2 => "footstep_right",
+        3 => "turn_arc",
+        4 => "formation_slide",
+        _ => "arrival_brake",
+    })
+}
+
+pub fn rts_npc_transition_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("transition:retreat_resume", "retreat_resume"),
+            ("transition:hit_recover", "hit_recover"),
+            ("transition:stalk_pounce", "stalk_pounce"),
+            ("transition:work_carry", "work_carry"),
+            ("transition:patrol_engage", "patrol_engage"),
+            ("transition:alert_turn", "alert_turn"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("transition:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "alert_turn",
+        1 => "patrol_engage",
+        2 => "work_carry",
+        3 => "stalk_pounce",
+        4 => "hit_recover",
+        _ => "retreat_resume",
+    })
+}
+
+pub fn rts_depth_readability_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("depth:terrain_cutaway", "terrain_cutaway"),
+            ("depth:path_occlusion", "path_occlusion"),
+            ("depth:target_priority", "target_priority"),
+            ("depth:building_mask", "building_mask"),
+            ("depth:behind_silhouette", "behind_silhouette"),
+            ("depth:foreground_canopy", "foreground_canopy"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("depth:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "foreground_canopy",
+        1 => "behind_silhouette",
+        2 => "building_mask",
+        3 => "target_priority",
+        4 => "path_occlusion",
+        _ => "terrain_cutaway",
+    })
+}
+
 pub fn rts_runtime_point_in_rect(mouse_x: i32, mouse_y: i32, rect: RtsRuntimeRect) -> bool {
     mouse_x >= rect.x
         && mouse_x < rect.x + rect.width
@@ -4012,5 +4187,38 @@ mod tests {
         );
         assert_eq!(rts_scripted_demo_stage_id(3), "cancel_refund");
         assert_eq!(rts_scripted_demo_stage_title(4), "WORKER QUEUED");
+    }
+
+    #[test]
+    fn scene_stage_adapter_preserves_first_contact_event_precedence() {
+        assert_eq!(
+            rts_npc_behavior_stage(
+                &["behavior:creep_retreat".to_string()],
+                &["behavior:guard_patrol".to_string()],
+                0,
+            ),
+            Some("creep_retreat")
+        );
+        assert_eq!(
+            rts_combat_impact_stage(&[], &["impact:damage_tick".to_string()], 1),
+            Some("damage_tick")
+        );
+        assert_eq!(
+            rts_locomotion_blend_stage(&[], &["locomotion:cycle".to_string()], 5),
+            Some("arrival_brake")
+        );
+        assert_eq!(
+            rts_npc_transition_stage(
+                &["transition:hit_recover".to_string()],
+                &["transition:alert_turn".to_string()],
+                0,
+            ),
+            Some("hit_recover")
+        );
+        assert_eq!(
+            rts_depth_readability_stage(&[], &["depth:cycle".to_string()], 4),
+            Some("path_occlusion")
+        );
+        assert_eq!(rts_npc_behavior_stage(&[], &[], 0), None);
     }
 }

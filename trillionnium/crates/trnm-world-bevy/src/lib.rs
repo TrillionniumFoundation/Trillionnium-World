@@ -10725,44 +10725,13 @@ fn classic_draw_rts_action_sequence_marks(
 fn classic_rts_npc_behavior_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("behavior:guard_patrol") {
-                return Some("guard_patrol");
-            }
-            if event.contains("behavior:guard_engage") {
-                return Some("guard_engage");
-            }
-            if event.contains("behavior:worker_work") {
-                return Some("worker_work");
-            }
-            if event.contains("behavior:worker_carry") {
-                return Some("worker_carry");
-            }
-            if event.contains("behavior:creep_stalk") {
-                return Some("creep_stalk");
-            }
-            if event.contains("behavior:creep_retreat") {
-                return Some("creep_retreat");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("behavior:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "guard_patrol",
-            1 => "guard_engage",
-            2 => "worker_work",
-            3 => "worker_carry",
-            4 => "creep_stalk",
-            _ => "creep_retreat",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_npc_behavior_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -10961,44 +10930,13 @@ fn classic_draw_rts_npc_behavior_marks(
 fn classic_rts_combat_impact_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("impact:victory_settle") {
-                return Some("victory_settle");
-            }
-            if event.contains("impact:corpse_dissolve") {
-                return Some("corpse_dissolve");
-            }
-            if event.contains("impact:death_fall") {
-                return Some("death_fall");
-            }
-            if event.contains("impact:damage_tick") {
-                return Some("damage_tick");
-            }
-            if event.contains("impact:stagger") {
-                return Some("stagger");
-            }
-            if event.contains("impact:hit_flash") {
-                return Some("hit_flash");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("impact:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "hit_flash",
-            1 => "stagger",
-            2 => "damage_tick",
-            3 => "death_fall",
-            4 => "corpse_dissolve",
-            _ => "victory_settle",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_combat_impact_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -11207,44 +11145,13 @@ fn classic_draw_rts_combat_impact_marks(
 fn classic_rts_locomotion_blend_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("locomotion:arrival_brake") {
-                return Some("arrival_brake");
-            }
-            if event.contains("locomotion:formation_slide") {
-                return Some("formation_slide");
-            }
-            if event.contains("locomotion:turn_arc") {
-                return Some("turn_arc");
-            }
-            if event.contains("locomotion:footstep_right") {
-                return Some("footstep_right");
-            }
-            if event.contains("locomotion:footstep_left") {
-                return Some("footstep_left");
-            }
-            if event.contains("locomotion:path_commit") {
-                return Some("path_commit");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("locomotion:"))
-        {
-            return None;
-        }
-        return Some(match runtime.walk_cycle_frame % 6 {
-            0 => "path_commit",
-            1 => "footstep_left",
-            2 => "footstep_right",
-            3 => "turn_arc",
-            4 => "formation_slide",
-            _ => "arrival_brake",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_locomotion_blend_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.walk_cycle_frame,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -11492,44 +11399,13 @@ fn classic_draw_rts_locomotion_blend_marks(
 fn classic_rts_npc_transition_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("transition:retreat_resume") {
-                return Some("retreat_resume");
-            }
-            if event.contains("transition:hit_recover") {
-                return Some("hit_recover");
-            }
-            if event.contains("transition:stalk_pounce") {
-                return Some("stalk_pounce");
-            }
-            if event.contains("transition:work_carry") {
-                return Some("work_carry");
-            }
-            if event.contains("transition:patrol_engage") {
-                return Some("patrol_engage");
-            }
-            if event.contains("transition:alert_turn") {
-                return Some("alert_turn");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("transition:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "alert_turn",
-            1 => "patrol_engage",
-            2 => "work_carry",
-            3 => "stalk_pounce",
-            4 => "hit_recover",
-            _ => "retreat_resume",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_npc_transition_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -11740,44 +11616,13 @@ fn classic_draw_rts_npc_transition_marks(
 fn classic_rts_depth_readability_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("depth:terrain_cutaway") {
-                return Some("terrain_cutaway");
-            }
-            if event.contains("depth:path_occlusion") {
-                return Some("path_occlusion");
-            }
-            if event.contains("depth:target_priority") {
-                return Some("target_priority");
-            }
-            if event.contains("depth:building_mask") {
-                return Some("building_mask");
-            }
-            if event.contains("depth:behind_silhouette") {
-                return Some("behind_silhouette");
-            }
-            if event.contains("depth:foreground_canopy") {
-                return Some("foreground_canopy");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("depth:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "foreground_canopy",
-            1 => "behind_silhouette",
-            2 => "building_mask",
-            3 => "target_priority",
-            4 => "path_occlusion",
-            _ => "terrain_cutaway",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_depth_readability_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
