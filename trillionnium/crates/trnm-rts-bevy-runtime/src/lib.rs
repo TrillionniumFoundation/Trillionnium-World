@@ -92,6 +92,12 @@ pub struct RtsRuntimeRect {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsUnitModelDepthMark {
+    pub kind: String,
+    pub rect: RtsRuntimeRect,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsActionCadenceMark {
     pub kind: String,
     pub rect: RtsRuntimeRect,
@@ -2817,6 +2823,57 @@ pub fn rts_local_obstruction_recovery_stage(
     })
 }
 
+fn rts_unit_model_depth_mark(
+    kind: &str,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+) -> RtsUnitModelDepthMark {
+    RtsUnitModelDepthMark {
+        kind: kind.to_string(),
+        rect: RtsRuntimeRect {
+            x,
+            y,
+            width,
+            height,
+        },
+    }
+}
+
+pub fn rts_unit_model_depth_marks(frame_id: &str) -> Vec<RtsUnitModelDepthMark> {
+    if !(frame_id.starts_with("actor_guard")
+        || frame_id.starts_with("actor_worker")
+        || frame_id.starts_with("actor_creep"))
+    {
+        return Vec::new();
+    }
+
+    let mut marks = vec![
+        rts_unit_model_depth_mark("ground_contact", -14, -3, 28, 2),
+        rts_unit_model_depth_mark("rim", -9, -30, 2, 21),
+        rts_unit_model_depth_mark("rim", 7, -30, 2, 21),
+        rts_unit_model_depth_mark("layer_shadow", -5, -23, 10, 3),
+        rts_unit_model_depth_mark("face_shade", -3, -32, 6, 2),
+    ];
+
+    if frame_id.starts_with("actor_guard") {
+        marks.push(rts_unit_model_depth_mark("armor", -11, -27, 5, 4));
+        marks.push(rts_unit_model_depth_mark("armor", 6, -27, 5, 4));
+        marks.push(rts_unit_model_depth_mark("role_prop", -4, -38, 8, 3));
+    } else if frame_id.starts_with("actor_worker") {
+        marks.push(rts_unit_model_depth_mark("role_prop", -15, -26, 5, 13));
+        marks.push(rts_unit_model_depth_mark("armor", 9, -25, 5, 12));
+        marks.push(rts_unit_model_depth_mark("layer_shadow", -13, -14, 22, 3));
+    } else {
+        marks.push(rts_unit_model_depth_mark("role_prop", -10, -40, 6, 5));
+        marks.push(rts_unit_model_depth_mark("role_prop", 4, -40, 6, 5));
+        marks.push(rts_unit_model_depth_mark("armor", -11, -21, 22, 3));
+    }
+
+    marks
+}
+
 fn rts_action_cadence_mark(
     kind: &str,
     x: i32,
@@ -4635,5 +4692,54 @@ mod tests {
         assert_eq!(idle.iter().filter(|mark| mark.kind == "idle").count(), 5);
 
         assert!(rts_action_sequence_marks("actor_player_idle_south", "idle").is_empty());
+    }
+
+    #[test]
+    fn unit_model_depth_adapter_preserves_role_marks() {
+        let guard = rts_unit_model_depth_marks("actor_guard_attack");
+        assert_eq!(guard.len(), 8);
+        assert_eq!(guard.iter().filter(|mark| mark.kind == "rim").count(), 2);
+        assert_eq!(guard.iter().filter(|mark| mark.kind == "armor").count(), 2);
+        assert_eq!(
+            guard
+                .iter()
+                .find(|mark| mark.kind == "face_shade")
+                .map(|mark| mark.rect.y),
+            Some(-32)
+        );
+
+        let worker = rts_unit_model_depth_marks("actor_worker_carry");
+        assert_eq!(worker.len(), 8);
+        assert_eq!(
+            worker
+                .iter()
+                .filter(|mark| mark.kind == "layer_shadow")
+                .count(),
+            2
+        );
+        assert_eq!(
+            worker
+                .iter()
+                .find(|mark| mark.kind == "role_prop")
+                .map(|mark| mark.rect.x),
+            Some(-15)
+        );
+
+        let creep = rts_unit_model_depth_marks("actor_creep_attack");
+        assert_eq!(creep.len(), 8);
+        assert_eq!(
+            creep.iter().filter(|mark| mark.kind == "role_prop").count(),
+            2
+        );
+        assert_eq!(
+            creep
+                .iter()
+                .filter(|mark| mark.kind == "armor")
+                .map(|mark| mark.rect.width)
+                .next(),
+            Some(22)
+        );
+
+        assert!(rts_unit_model_depth_marks("actor_player_idle_south").is_empty());
     }
 }

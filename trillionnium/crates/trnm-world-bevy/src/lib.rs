@@ -10195,156 +10195,25 @@ fn classic_draw_rts_unit_model_depth_marks(
     center_x: i32,
     base_y: i32,
 ) {
-    if !(frame_id.starts_with("actor_guard")
-        || frame_id.starts_with("actor_worker")
-        || frame_id.starts_with("actor_creep"))
-    {
-        return;
-    }
-
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        center_x - 14,
-        base_y - 3,
-        28,
-        2,
-        CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        center_x - 9,
-        base_y - 30,
-        2,
-        21,
-        CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        center_x + 7,
-        base_y - 30,
-        2,
-        21,
-        CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        center_x - 5,
-        base_y - 23,
-        10,
-        3,
-        CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        center_x - 3,
-        base_y - 32,
-        6,
-        2,
-        CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR,
-    );
-
-    if frame_id.starts_with("actor_guard") {
+    for mark in rts_bevy_runtime::rts_unit_model_depth_marks(frame_id) {
+        let color = match mark.kind.as_str() {
+            "ground_contact" => CLASSIC_RTS_UNIT_MODEL_DEPTH_GROUND_CONTACT_COLOR,
+            "rim" => CLASSIC_RTS_UNIT_MODEL_DEPTH_RIM_COLOR,
+            "layer_shadow" => CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR,
+            "face_shade" => CLASSIC_RTS_UNIT_MODEL_DEPTH_FACE_SHADE_COLOR,
+            "armor" => CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
+            "role_prop" => CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
+            _ => continue,
+        };
         classic_draw_rect(
             buffer,
             width,
             height,
-            center_x - 11,
-            base_y - 27,
-            5,
-            4,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x + 6,
-            base_y - 27,
-            5,
-            4,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - 4,
-            base_y - 38,
-            8,
-            3,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
-        );
-    } else if frame_id.starts_with("actor_worker") {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - 15,
-            base_y - 26,
-            5,
-            13,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x + 9,
-            base_y - 25,
-            5,
-            12,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - 13,
-            base_y - 14,
-            22,
-            3,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_LAYER_SHADOW_COLOR,
-        );
-    } else {
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - 10,
-            base_y - 40,
-            6,
-            5,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x + 4,
-            base_y - 40,
-            6,
-            5,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ROLE_PROP_COLOR,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - 11,
-            base_y - 21,
-            22,
-            3,
-            CLASSIC_RTS_UNIT_MODEL_DEPTH_ARMOR_COLOR,
+            center_x + mark.rect.x,
+            base_y + mark.rect.y,
+            mark.rect.width,
+            mark.rect.height,
+            color,
         );
     }
 }

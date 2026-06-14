@@ -208,6 +208,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.action_sequence_strike_mark_count_sample == 12
   and .rts_evidence_bevy_runtime_adapter.action_sequence_carry_down_mark_count_sample == 5
   and .rts_evidence_bevy_runtime_adapter.action_sequence_idle_mark_count_sample == 6
+  and .rts_evidence_bevy_runtime_adapter.unit_model_depth_guard_mark_count_sample == 8
+  and .rts_evidence_bevy_runtime_adapter.unit_model_depth_worker_mark_count_sample == 8
+  and .rts_evidence_bevy_runtime_adapter.unit_model_depth_creep_mark_count_sample == 8
+  and .rts_evidence_bevy_runtime_adapter.unit_model_depth_creep_role_prop_count_sample == 2
+  and .rts_evidence_bevy_runtime_adapter.unit_model_depth_face_shade_offset_sample == -32
   and .rts_evidence_bevy_runtime_adapter.command_surface_stage_sample == "target_queue"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
   and (.rts_evidence_bevy_runtime_adapter.tile_line_sample | length) == 9

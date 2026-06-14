@@ -55,8 +55,8 @@ use trnm_rts_bevy_runtime::{
     rts_split_squad_tiles_for_id, rts_structure_tile_for_id, rts_supply_convoy_for_id,
     rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
     rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, rts_tier_two_parts,
-    rts_unit_status_energy_percent, rts_unit_status_health_percent, rts_unit_status_portrait_stage,
-    rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
+    rts_unit_model_depth_marks, rts_unit_status_energy_percent, rts_unit_status_health_percent,
+    rts_unit_status_portrait_stage, rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
     rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id, RtsCommandStamp,
     RtsControlGroupSlotSummary, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
     TRNM_RTS_BEVY_RUNTIME_CONTRACT,
@@ -96,6 +96,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub action_sequence_strike_mark_count_sample: usize,
     pub action_sequence_carry_down_mark_count_sample: usize,
     pub action_sequence_idle_mark_count_sample: usize,
+    pub unit_model_depth_guard_mark_count_sample: usize,
+    pub unit_model_depth_worker_mark_count_sample: usize,
+    pub unit_model_depth_creep_mark_count_sample: usize,
+    pub unit_model_depth_creep_role_prop_count_sample: usize,
+    pub unit_model_depth_face_shade_offset_sample: i32,
     pub command_surface_stage_sample: Option<String>,
     pub command_grid_hit_sample: Option<usize>,
     pub tile_line_sample: Vec<RtsRuntimeTileLineStep>,
@@ -288,6 +293,18 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let action_sequence_carry_down_marks =
         rts_action_sequence_marks("actor_worker_carry", "carry_down");
     let action_sequence_idle_marks = rts_action_sequence_marks("actor_guard_idle", "idle");
+    let unit_model_depth_guard_marks = rts_unit_model_depth_marks("actor_guard_attack");
+    let unit_model_depth_worker_marks = rts_unit_model_depth_marks("actor_worker_carry");
+    let unit_model_depth_creep_marks = rts_unit_model_depth_marks("actor_creep_attack");
+    let unit_model_depth_creep_role_prop_count = unit_model_depth_creep_marks
+        .iter()
+        .filter(|mark| mark.kind == "role_prop")
+        .count();
+    let unit_model_depth_face_shade_offset = unit_model_depth_guard_marks
+        .iter()
+        .find(|mark| mark.kind == "face_shade")
+        .map(|mark| mark.rect.y)
+        .unwrap_or_default();
     let command_surface_stage = rts_command_surface_stage(
         7,
         &["surface:target_queue".to_string()],
@@ -604,6 +621,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && action_sequence_strike_marks.len() == 12
         && action_sequence_carry_down_marks.len() == 5
         && action_sequence_idle_marks.len() == 6
+        && unit_model_depth_guard_marks.len() == 8
+        && unit_model_depth_worker_marks.len() == 8
+        && unit_model_depth_creep_marks.len() == 8
+        && unit_model_depth_creep_role_prop_count == 2
+        && unit_model_depth_face_shade_offset == -32
         && command_surface_stage.as_deref() == Some("target_queue")
         && command_grid_hit == Some(0)
         && tile_line.len() == 9
@@ -852,6 +874,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         action_sequence_strike_mark_count_sample: action_sequence_strike_marks.len(),
         action_sequence_carry_down_mark_count_sample: action_sequence_carry_down_marks.len(),
         action_sequence_idle_mark_count_sample: action_sequence_idle_marks.len(),
+        unit_model_depth_guard_mark_count_sample: unit_model_depth_guard_marks.len(),
+        unit_model_depth_worker_mark_count_sample: unit_model_depth_worker_marks.len(),
+        unit_model_depth_creep_mark_count_sample: unit_model_depth_creep_marks.len(),
+        unit_model_depth_creep_role_prop_count_sample: unit_model_depth_creep_role_prop_count,
+        unit_model_depth_face_shade_offset_sample: unit_model_depth_face_shade_offset,
         command_surface_stage_sample: command_surface_stage,
         command_grid_hit_sample: command_grid_hit,
         tile_line_sample: tile_line,
@@ -1028,7 +1055,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, action cadence marks, action sequence phase/marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1095,6 +1122,11 @@ mod tests {
         assert_eq!(evidence.action_sequence_strike_mark_count_sample, 12);
         assert_eq!(evidence.action_sequence_carry_down_mark_count_sample, 5);
         assert_eq!(evidence.action_sequence_idle_mark_count_sample, 6);
+        assert_eq!(evidence.unit_model_depth_guard_mark_count_sample, 8);
+        assert_eq!(evidence.unit_model_depth_worker_mark_count_sample, 8);
+        assert_eq!(evidence.unit_model_depth_creep_mark_count_sample, 8);
+        assert_eq!(evidence.unit_model_depth_creep_role_prop_count_sample, 2);
+        assert_eq!(evidence.unit_model_depth_face_shade_offset_sample, -32);
         assert_eq!(
             evidence.command_surface_stage_sample.as_deref(),
             Some("target_queue")
