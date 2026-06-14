@@ -130,6 +130,12 @@ pub struct RtsCommandStamp {
     pub player_label: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOrderQueueReplayAction {
+    pub kind: String,
+    pub payload: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeMapLayoutInput {
     pub viewport_width: i32,
@@ -2292,6 +2298,60 @@ pub fn rts_command_stamp_for_ability(
             "{source} ABILITY SENT {}",
             rts_catalog_text_label(ability_id, 22)
         ),
+    }
+}
+
+pub fn rts_order_queue_replay_action(
+    order: &str,
+    fallback_ability_id: &str,
+) -> RtsOrderQueueReplayAction {
+    let order = order.strip_prefix("queue:").unwrap_or(order).trim();
+    let fallback_ability_id = fallback_ability_id.trim();
+    let fallback_ability_id = if fallback_ability_id.is_empty() {
+        "focus_fire"
+    } else {
+        fallback_ability_id
+    };
+    if let Some(target_id) = order.strip_prefix("attack:") {
+        RtsOrderQueueReplayAction {
+            kind: "attack".to_string(),
+            payload: target_id.to_string(),
+        }
+    } else if let Some(tile_id) = order.strip_prefix("move:") {
+        RtsOrderQueueReplayAction {
+            kind: "move".to_string(),
+            payload: format!("{tile_id}:line"),
+        }
+    } else if order.starts_with("minimap:") {
+        RtsOrderQueueReplayAction {
+            kind: "move".to_string(),
+            payload: order.to_string(),
+        }
+    } else if let Some(ability_id) = order.strip_prefix("ability:") {
+        RtsOrderQueueReplayAction {
+            kind: "ability".to_string(),
+            payload: ability_id.to_string(),
+        }
+    } else if order.starts_with("build:")
+        || order.starts_with("train:")
+        || order.starts_with("upgrade:")
+        || order.starts_with("harvest:")
+        || order.starts_with("complete:")
+    {
+        RtsOrderQueueReplayAction {
+            kind: "queue".to_string(),
+            payload: order.to_string(),
+        }
+    } else if let Some(group_id) = order.strip_prefix("select_group_") {
+        RtsOrderQueueReplayAction {
+            kind: "select-control-group".to_string(),
+            payload: group_id.to_string(),
+        }
+    } else {
+        RtsOrderQueueReplayAction {
+            kind: "ability".to_string(),
+            payload: fallback_ability_id.to_string(),
+        }
     }
 }
 
@@ -5191,6 +5251,52 @@ mod tests {
         assert_eq!(
             ability_stamp.player_label,
             "COMMAND BAR ABILITY SENT FOCUS FIRE"
+        );
+    }
+
+    #[test]
+    fn order_queue_replay_adapter_preserves_command_surface_actions() {
+        assert_eq!(
+            rts_order_queue_replay_action("queue:attack:arena_creep_attack", "fallback"),
+            RtsOrderQueueReplayAction {
+                kind: "attack".to_string(),
+                payload: "arena_creep_attack".to_string(),
+            }
+        );
+        assert_eq!(
+            rts_order_queue_replay_action("queue:move:9,2", "fallback"),
+            RtsOrderQueueReplayAction {
+                kind: "move".to_string(),
+                payload: "9,2:line".to_string(),
+            }
+        );
+        assert_eq!(
+            rts_order_queue_replay_action("minimap:rally:5,2", "fallback"),
+            RtsOrderQueueReplayAction {
+                kind: "move".to_string(),
+                payload: "minimap:rally:5,2".to_string(),
+            }
+        );
+        assert_eq!(
+            rts_order_queue_replay_action("queue:train:worker", "fallback"),
+            RtsOrderQueueReplayAction {
+                kind: "queue".to_string(),
+                payload: "train:worker".to_string(),
+            }
+        );
+        assert_eq!(
+            rts_order_queue_replay_action("queue:select_group_3", "fallback"),
+            RtsOrderQueueReplayAction {
+                kind: "select-control-group".to_string(),
+                payload: "3".to_string(),
+            }
+        );
+        assert_eq!(
+            rts_order_queue_replay_action("feedback:build_placed:watch_tower@7,4", "focus_fire"),
+            RtsOrderQueueReplayAction {
+                kind: "ability".to_string(),
+                payload: "focus_fire".to_string(),
+            }
         );
     }
 

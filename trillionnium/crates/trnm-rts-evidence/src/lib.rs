@@ -46,8 +46,9 @@ use trnm_rts_bevy_runtime::{
     rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts,
     rts_npc_behavior_stage, rts_npc_transition_stage, rts_objective_parts,
     rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
-    rts_palette_cancel_queue_id, rts_palette_state_label, rts_player_army_unit_tile_for_id,
-    rts_player_hold_tiles_for_id, rts_player_siege_line_tiles_for_id, rts_production_slot_queue_id,
+    rts_order_queue_replay_action, rts_palette_cancel_queue_id, rts_palette_state_label,
+    rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
+    rts_player_siege_line_tiles_for_id, rts_production_slot_queue_id,
     rts_production_spawn_animation_stage, rts_projectile_id_for_ability,
     rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
     rts_queue_is_affordable, rts_queue_uses_production_lane, rts_rebuild_structures_for_id,
@@ -66,7 +67,8 @@ use trnm_rts_bevy_runtime::{
     rts_unit_status_portrait_stage, rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
     rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
     rts_worker_harvest_animation_stage, RtsCommandStamp, RtsControlGroupSlotSummary,
-    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    RtsOrderQueueReplayAction, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
+    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -233,6 +235,7 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub selection_command_stamp_sample: RtsCommandStamp,
     pub move_command_stamp_sample: RtsCommandStamp,
     pub ability_command_stamp_sample: RtsCommandStamp,
+    pub order_queue_replay_action_samples: Vec<RtsOrderQueueReplayAction>,
     pub command_feedback_strip_stage_sample: Option<String>,
     pub command_feedback_lifecycle_stage_sample: Option<String>,
     pub command_history_visible_sample: bool,
@@ -582,6 +585,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         "focus_fire",
         Some("arena_creep_attack"),
     );
+    let order_queue_replay_action_samples = vec![
+        rts_order_queue_replay_action("queue:attack:arena_creep_attack", "focus_fire"),
+        rts_order_queue_replay_action("queue:move:9,2", "focus_fire"),
+        rts_order_queue_replay_action("minimap:rally:5,2", "focus_fire"),
+        rts_order_queue_replay_action("queue:train:worker", "focus_fire"),
+        rts_order_queue_replay_action("queue:select_group_3", "focus_fire"),
+        rts_order_queue_replay_action("feedback:build_placed:watch_tower@7,4", "focus_fire"),
+    ];
     let command_feedback_queue = vec![
         "queued_group_order:Multi0:26:move:2actors".to_string(),
         "control_group_command_feedback_strip:group_27_override".to_string(),
@@ -1067,6 +1078,18 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && ability_command_stamp.tile_id.as_deref() == Some("6,5")
         && ability_command_stamp.target_id.as_deref() == Some("arena_creep_attack")
         && ability_command_stamp.player_label == "COMMAND BAR ABILITY SENT FOCUS FIRE"
+        && order_queue_replay_action_samples
+            .iter()
+            .map(|action| vec![action.kind.as_str(), action.payload.as_str()])
+            .collect::<Vec<_>>()
+            == vec![
+                vec!["attack", "arena_creep_attack"],
+                vec!["move", "9,2:line"],
+                vec!["move", "minimap:rally:5,2"],
+                vec!["queue", "train:worker"],
+                vec!["select-control-group", "3"],
+                vec!["ability", "focus_fire"],
+            ]
         && command_feedback_strip_stage.as_deref() == Some("group_27_override")
         && command_feedback_lifecycle_stage.as_deref() == Some("dimmed")
         && command_history_visible
@@ -1306,6 +1329,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_command_stamp_sample: selection_command_stamp,
         move_command_stamp_sample: move_command_stamp,
         ability_command_stamp_sample: ability_command_stamp,
+        order_queue_replay_action_samples,
         command_feedback_strip_stage_sample: command_feedback_strip_stage,
         command_feedback_lifecycle_stage_sample: command_feedback_lifecycle_stage,
         command_history_visible_sample: command_history_visible,
@@ -1336,7 +1360,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution target labels and tiles, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, order-queue replay actions, command feedback lifecycle/history/execution target labels and tiles, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 

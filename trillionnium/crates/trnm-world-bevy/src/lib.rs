@@ -82379,43 +82379,25 @@ fn classic_rts_action_from_order_entry(
     runtime: &NativeFirstPlayableRuntime,
     order: &str,
 ) -> Option<NativeControlAction> {
-    let order = order.strip_prefix("queue:").unwrap_or(order);
-    if let Some(target_id) = order.strip_prefix("attack:") {
-        Some(NativeControlAction::RtsAttackCommand {
-            target_id: target_id.to_string(),
-        })
-    } else if let Some(tile_id) = order.strip_prefix("move:") {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: format!("{tile_id}:line"),
-        })
-    } else if order.starts_with("minimap:") {
-        Some(NativeControlAction::RtsMoveCommand {
-            command_id: order.to_string(),
-        })
-    } else if let Some(ability_id) = order.strip_prefix("ability:") {
-        Some(NativeControlAction::RtsAbilityCommand {
-            ability_id: ability_id.to_string(),
-        })
-    } else if order.starts_with("build:")
-        || order.starts_with("train:")
-        || order.starts_with("upgrade:")
-        || order.starts_with("harvest:")
-        || order.starts_with("complete:")
-    {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: order.to_string(),
-        })
-    } else if order.starts_with("select_group_") {
-        Some(NativeControlAction::RtsSelectControlGroup {
-            group_id: order
-                .strip_prefix("select_group_")
-                .unwrap_or("1")
-                .to_string(),
-        })
-    } else {
-        Some(NativeControlAction::RtsAbilityCommand {
-            ability_id: classic_next_runtime_rts_ability(runtime),
-        })
+    let fallback_ability_id = classic_next_runtime_rts_ability(runtime);
+    let replay_action =
+        rts_bevy_runtime::rts_order_queue_replay_action(order, &fallback_ability_id);
+    match replay_action.kind.as_str() {
+        "attack" => Some(NativeControlAction::RtsAttackCommand {
+            target_id: replay_action.payload,
+        }),
+        "move" => Some(NativeControlAction::RtsMoveCommand {
+            command_id: replay_action.payload,
+        }),
+        "queue" => Some(NativeControlAction::RtsQueueProduction {
+            queue_id: replay_action.payload,
+        }),
+        "select-control-group" => Some(NativeControlAction::RtsSelectControlGroup {
+            group_id: replay_action.payload,
+        }),
+        _ => Some(NativeControlAction::RtsAbilityCommand {
+            ability_id: replay_action.payload,
+        }),
     }
 }
 
@@ -149089,6 +149071,36 @@ mod tests {
             ),
             Some(NativeControlAction::RtsQueueProduction {
                 queue_id: "train:worker".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_action_from_order_entry(&runtime, "queue:attack:arena_creep_attack"),
+            Some(NativeControlAction::RtsAttackCommand {
+                target_id: "arena_creep_attack".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_action_from_order_entry(&runtime, "queue:move:9,2"),
+            Some(NativeControlAction::RtsMoveCommand {
+                command_id: "9,2:line".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_action_from_order_entry(&runtime, "minimap:rally:5,2"),
+            Some(NativeControlAction::RtsMoveCommand {
+                command_id: "minimap:rally:5,2".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_action_from_order_entry(&runtime, "queue:select_group_3"),
+            Some(NativeControlAction::RtsSelectControlGroup {
+                group_id: "3".to_string(),
+            })
+        );
+        assert_eq!(
+            classic_rts_action_from_order_entry(&runtime, "feedback:build_placed:watch_tower@7,4"),
+            Some(NativeControlAction::RtsAbilityCommand {
+                ability_id: classic_next_runtime_rts_ability(&runtime),
             })
         );
         assert_eq!(

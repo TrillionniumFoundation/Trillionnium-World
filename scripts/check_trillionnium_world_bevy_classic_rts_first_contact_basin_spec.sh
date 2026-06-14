@@ -375,6 +375,7 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.ability_command_stamp_sample.tile_id == "6,5"
   and .rts_evidence_bevy_runtime_adapter.ability_command_stamp_sample.target_id == "arena_creep_attack"
   and .rts_evidence_bevy_runtime_adapter.ability_command_stamp_sample.player_label == "COMMAND BAR ABILITY SENT FOCUS FIRE"
+  and .rts_evidence_bevy_runtime_adapter.order_queue_replay_action_samples == [{"kind":"attack","payload":"arena_creep_attack"},{"kind":"move","payload":"9,2:line"},{"kind":"move","payload":"minimap:rally:5,2"},{"kind":"queue","payload":"train:worker"},{"kind":"select-control-group","payload":"3"},{"kind":"ability","payload":"focus_fire"}]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_strip_stage_sample == "group_27_override"
   and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_stage_sample == "dimmed"
   and .rts_evidence_bevy_runtime_adapter.command_history_visible_sample == true
