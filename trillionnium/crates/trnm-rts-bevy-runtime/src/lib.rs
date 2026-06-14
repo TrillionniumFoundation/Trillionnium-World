@@ -1799,6 +1799,190 @@ pub fn rts_queue_requires_affordability_check(queue_id: &str) -> bool {
         || queue_id.starts_with("repair:")
 }
 
+pub fn rts_command_slot_id_for_index(
+    runtime_ability_ids: &[String],
+    chrome_slot_ids: Option<&[String]>,
+    fallback_id: &str,
+    index: usize,
+) -> String {
+    chrome_slot_ids
+        .and_then(|slot_ids| slot_ids.get(index % slot_ids.len().max(1)))
+        .cloned()
+        .or_else(|| {
+            runtime_ability_ids
+                .get(index % runtime_ability_ids.len().max(1))
+                .cloned()
+        })
+        .unwrap_or_else(|| fallback_id.to_string())
+}
+
+pub fn rts_build_palette_queue_id(index: usize) -> String {
+    [
+        "build:power_node@5,3",
+        "build:training_hall@4,3",
+        "build:refinery@6,4",
+        "build:watch_tower@7,4",
+        "build:command_post@5,2",
+        "build:radar_spire@6,2",
+        "build:wall@8,4",
+        "upgrade:signal_blade",
+    ]
+    .get(index)
+    .copied()
+    .unwrap_or("build:watch_tower@7,4")
+    .to_string()
+}
+
+pub fn rts_build_palette_queue_id_for_slot(chrome_queue_id: Option<&str>, index: usize) -> String {
+    chrome_queue_id
+        .filter(|queue_id| !queue_id.trim().is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| rts_build_palette_queue_id(index))
+}
+
+pub fn rts_production_slot_queue_id(
+    production_queue: &[String],
+    build_queue: &[String],
+    train_fallback_queue_id: &str,
+    build_fallback_queue_id: &str,
+    index: usize,
+) -> String {
+    production_queue
+        .get(index)
+        .or_else(|| build_queue.get(index.saturating_sub(2)))
+        .cloned()
+        .unwrap_or_else(|| {
+            if index % 2 == 0 {
+                train_fallback_queue_id.to_string()
+            } else {
+                build_fallback_queue_id.to_string()
+            }
+        })
+}
+
+pub fn rts_sidebar_cancel_queue_id(
+    production_queue: &[String],
+    build_queue: &[String],
+    index: usize,
+) -> Option<String> {
+    if production_queue.get(index).is_some() {
+        Some(format!("cancel:production:{index}"))
+    } else if index >= 2 && build_queue.get(index - 2).is_some() {
+        Some(format!("cancel:build:{}", index - 2))
+    } else {
+        None
+    }
+}
+
+pub fn rts_palette_cancel_queue_id(
+    build_queue: &[String],
+    production_queue: &[String],
+    active_blueprint_id: Option<&str>,
+    queue_id: &str,
+) -> Option<String> {
+    if let Some(index) = build_queue.iter().position(|entry| entry == queue_id) {
+        Some(format!("cancel:build:{index}"))
+    } else if let Some(index) = production_queue.iter().position(|entry| entry == queue_id) {
+        Some(format!("cancel:production:{index}"))
+    } else if queue_id.starts_with("build:")
+        && active_blueprint_id.is_some_and(|id| queue_id.contains(id))
+    {
+        Some("cancel:active_build".to_string())
+    } else {
+        None
+    }
+}
+
+pub fn rts_sidebar_slot_status_label(
+    production_queue: &[String],
+    build_queue: &[String],
+    queue_affordable: bool,
+    index: usize,
+    progress: u8,
+) -> String {
+    if production_queue.get(index).is_some() {
+        format!("Q{} {} R", index + 1, progress.min(100))
+    } else if index >= 2 && build_queue.get(index - 2).is_some() {
+        format!("B{} {} R", index - 1, progress.min(100))
+    } else if queue_affordable {
+        "LMB ADD".to_string()
+    } else {
+        "LOCK".to_string()
+    }
+}
+
+pub fn rts_palette_state_label(
+    active_blueprint_id: Option<&str>,
+    build_queue: &[String],
+    production_queue: &[String],
+    queue_affordable: bool,
+    queue_id: &str,
+) -> String {
+    if active_blueprint_id.is_some_and(|id| queue_id.contains(id)) {
+        "ACT".to_string()
+    } else if let Some(index) = build_queue.iter().position(|entry| entry == queue_id) {
+        format!("B Q{}", index + 1)
+    } else if let Some(index) = production_queue.iter().position(|entry| entry == queue_id) {
+        format!("P Q{}", index + 1)
+    } else if queue_affordable {
+        "RDY".to_string()
+    } else {
+        "LOCK".to_string()
+    }
+}
+
+pub fn rts_spawned_unit_id_from_queue(queue_id: &str, existing_count: usize) -> String {
+    let item_id = queue_id
+        .split_once('@')
+        .map(|(item_id, _)| item_id)
+        .unwrap_or(queue_id);
+    let unit_kind = item_id
+        .strip_prefix("train:")
+        .or_else(|| item_id.strip_prefix("upgrade:"))
+        .unwrap_or("unit");
+    format!("{}_{}", unit_kind.replace(':', "_"), existing_count + 1)
+}
+
+pub fn rts_structure_id_from_queue(queue_id: &str) -> String {
+    queue_id
+        .strip_prefix("build:")
+        .or_else(|| queue_id.strip_prefix("complete:"))
+        .unwrap_or(queue_id)
+        .split_once('@')
+        .map(|(structure_id, _)| structure_id)
+        .unwrap_or("watch_tower")
+        .to_string()
+}
+
+pub fn rts_sidebar_queue_summary(
+    production_queue: &[String],
+    build_queue: &[String],
+    training_progress_percent: u8,
+    build_progress_percent: u8,
+) -> String {
+    let production = production_queue
+        .first()
+        .map(|queue| {
+            format!(
+                "{}@{}%",
+                queue.replace("train:", "").replace("upgrade:", "up:"),
+                training_progress_percent.min(100)
+            )
+        })
+        .unwrap_or_else(|| "ready".to_string());
+    let build = build_queue
+        .first()
+        .map(|queue| {
+            format!(
+                "{}@{}%",
+                rts_structure_id_from_queue(queue),
+                build_progress_percent.min(100)
+            )
+        })
+        .unwrap_or_else(|| "ready".to_string());
+    format!("P:{production} B:{build}")
+}
+
 pub fn rts_build_parts(queue_id: &str) -> (String, String) {
     let payload = queue_id.strip_prefix("build:").unwrap_or(queue_id);
     if let Some((structure_id, tile_id)) = payload.split_once('@') {
@@ -4186,6 +4370,59 @@ mod tests {
         assert!(!rts_queue_requires_affordability_check(
             "objective:claim_relay"
         ));
+        let command_slot_ids = vec!["move".to_string(), "stop".to_string(), "attack".to_string()];
+        let production_queue = vec![
+            "train:worker".to_string(),
+            "upgrade:signal_blade".to_string(),
+        ];
+        let build_queue = vec!["build:watch_tower@7,4".to_string()];
+        assert_eq!(
+            rts_command_slot_id_for_index(&[], Some(&command_slot_ids), "hold", 2),
+            "attack"
+        );
+        assert_eq!(
+            rts_build_palette_queue_id_for_slot(None, 3),
+            "build:watch_tower@7,4"
+        );
+        assert_eq!(
+            rts_production_slot_queue_id(
+                &production_queue,
+                &build_queue,
+                "train:guard",
+                "build:training_hall@4,3",
+                2,
+            ),
+            "build:watch_tower@7,4"
+        );
+        assert_eq!(
+            rts_sidebar_cancel_queue_id(&production_queue, &build_queue, 2).as_deref(),
+            Some("cancel:build:0")
+        );
+        assert_eq!(
+            rts_palette_cancel_queue_id(&[], &[], Some("refinery"), "build:refinery@6,4")
+                .as_deref(),
+            Some("cancel:active_build")
+        );
+        assert_eq!(
+            rts_sidebar_slot_status_label(&production_queue, &build_queue, true, 2, 66),
+            "B1 66 R"
+        );
+        assert_eq!(
+            rts_palette_state_label(Some("refinery"), &[], &[], true, "build:refinery@6,4"),
+            "ACT"
+        );
+        assert_eq!(
+            rts_sidebar_queue_summary(&production_queue, &build_queue, 42, 66),
+            "P:worker@42% B:watch_tower@66%"
+        );
+        assert_eq!(
+            rts_spawned_unit_id_from_queue("train:worker", 2),
+            "worker_3"
+        );
+        assert_eq!(
+            rts_structure_id_from_queue("build:watch_tower@7,4"),
+            "watch_tower"
+        );
         assert_eq!(
             rts_build_parts("build:watch_tower@7,4"),
             ("watch_tower".to_string(), "7,4".to_string())

@@ -12,15 +12,16 @@ use trnm_rts_bevy_runtime::{
     rts_army_units_for_batch, rts_available_gold, rts_base_assault_parts,
     rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
     rts_blocked_feedback_chip_visible, rts_blocked_feedback_player_label,
-    rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
-    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id, rts_combat_impact_stage,
-    rts_command_execution_feedback_kind, rts_command_execution_player_label,
-    rts_command_execution_target_label, rts_command_execution_target_tile,
-    rts_command_feedback_lifecycle_stage, rts_command_feedback_strip_stage,
-    rts_command_history_prune_visible, rts_command_history_visible,
-    rts_command_queue_path_preview_stage, rts_command_stamp_for_ability,
-    rts_command_stamp_for_move, rts_command_stamp_for_selection, rts_command_surface_stage,
-    rts_commander_aura_tiles_for_id, rts_commander_parts, rts_contact_flash_tiles_for_target,
+    rts_boss_guard_units_for_id, rts_build_palette_queue_id_for_slot, rts_build_parts,
+    rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
+    rts_combat_impact_stage, rts_command_execution_feedback_kind,
+    rts_command_execution_player_label, rts_command_execution_target_label,
+    rts_command_execution_target_tile, rts_command_feedback_lifecycle_stage,
+    rts_command_feedback_strip_stage, rts_command_history_prune_visible,
+    rts_command_history_visible, rts_command_queue_path_preview_stage,
+    rts_command_slot_id_for_index, rts_command_stamp_for_ability, rts_command_stamp_for_move,
+    rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
+    rts_commander_parts, rts_contact_flash_tiles_for_target,
     rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
     rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
@@ -45,23 +46,24 @@ use trnm_rts_bevy_runtime::{
     rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts,
     rts_npc_behavior_stage, rts_npc_transition_stage, rts_objective_parts,
     rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
-    rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
-    rts_player_siege_line_tiles_for_id, rts_production_spawn_animation_stage,
-    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
-    rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
-    rts_rebuild_structures_for_id, rts_recon_parts, rts_restored_zones_for_id,
-    rts_runtime_hit_test_grid, rts_runtime_tile_line, rts_same_class_units,
-    rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
+    rts_palette_cancel_queue_id, rts_palette_state_label, rts_player_army_unit_tile_for_id,
+    rts_player_hold_tiles_for_id, rts_player_siege_line_tiles_for_id, rts_production_slot_queue_id,
+    rts_production_spawn_animation_stage, rts_projectile_id_for_ability,
+    rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
+    rts_queue_is_affordable, rts_queue_uses_production_lane, rts_rebuild_structures_for_id,
+    rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
+    rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
     rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
     rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_command_feedback_stage,
-    rts_selection_tiles_for_units, rts_siege_breach_tiles_for_target,
+    rts_selection_tiles_for_units, rts_sidebar_cancel_queue_id, rts_sidebar_queue_summary,
+    rts_sidebar_slot_status_label, rts_siege_breach_tiles_for_target,
     rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
-    rts_split_squad_tiles_for_id, rts_structure_modeling_stage, rts_structure_tile_for_id,
-    rts_supply_convoy_for_id, rts_target_priority_ids_for_target, rts_target_tile_for_id,
-    rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
-    rts_threat_levels_for_target, rts_tier_two_parts, rts_unit_model_depth_marks,
-    rts_unit_status_energy_percent, rts_unit_status_health_percent, rts_unit_status_portrait_stage,
-    rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
+    rts_spawned_unit_id_from_queue, rts_split_squad_tiles_for_id, rts_structure_id_from_queue,
+    rts_structure_modeling_stage, rts_structure_tile_for_id, rts_supply_convoy_for_id,
+    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
+    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, rts_tier_two_parts,
+    rts_unit_model_depth_marks, rts_unit_status_energy_percent, rts_unit_status_health_percent,
+    rts_unit_status_portrait_stage, rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
     rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
     rts_worker_harvest_animation_stage, RtsCommandStamp, RtsControlGroupSlotSummary,
     RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
@@ -193,6 +195,16 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub queue_feedback_chip_sample: String,
     pub blocked_feedback_chip_visible_sample: bool,
     pub queue_blocked_feedback_label_sample: String,
+    pub command_panel_slot_id_sample: String,
+    pub command_panel_build_palette_queue_id_sample: String,
+    pub command_panel_production_slot_queue_id_sample: String,
+    pub command_panel_sidebar_cancel_queue_id_sample: Option<String>,
+    pub command_panel_palette_cancel_queue_id_sample: Option<String>,
+    pub command_panel_sidebar_slot_status_label_sample: String,
+    pub command_panel_palette_state_label_sample: String,
+    pub command_panel_sidebar_queue_summary_sample: String,
+    pub command_panel_spawned_unit_id_sample: String,
+    pub command_panel_structure_id_sample: String,
     pub scripted_demo_pauses_queue_tick_sample: bool,
     pub scripted_demo_stage_from_frame_sample: Option<usize>,
     pub scripted_demo_stage_id_sample: String,
@@ -454,6 +466,46 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let queue_blocked_feedback_label = rts_blocked_feedback_player_label(
         "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4",
     );
+    let command_panel_slot_ids = vec!["move".to_string(), "stop".to_string(), "attack".to_string()];
+    let command_panel_production_queue = vec![
+        "train:worker".to_string(),
+        "upgrade:signal_blade".to_string(),
+    ];
+    let command_panel_build_queue = vec!["build:watch_tower@7,4".to_string()];
+    let command_panel_slot_id =
+        rts_command_slot_id_for_index(&[], Some(&command_panel_slot_ids), "hold", 2);
+    let command_panel_build_palette_queue_id = rts_build_palette_queue_id_for_slot(None, 3);
+    let command_panel_production_slot_queue_id = rts_production_slot_queue_id(
+        &command_panel_production_queue,
+        &command_panel_build_queue,
+        "train:guard",
+        "build:training_hall@4,3",
+        2,
+    );
+    let command_panel_sidebar_cancel_queue_id = rts_sidebar_cancel_queue_id(
+        &command_panel_production_queue,
+        &command_panel_build_queue,
+        2,
+    );
+    let command_panel_palette_cancel_queue_id =
+        rts_palette_cancel_queue_id(&[], &[], Some("refinery"), "build:refinery@6,4");
+    let command_panel_sidebar_slot_status_label = rts_sidebar_slot_status_label(
+        &command_panel_production_queue,
+        &command_panel_build_queue,
+        true,
+        2,
+        66,
+    );
+    let command_panel_palette_state_label =
+        rts_palette_state_label(Some("refinery"), &[], &[], true, "build:refinery@6,4");
+    let command_panel_sidebar_queue_summary = rts_sidebar_queue_summary(
+        &command_panel_production_queue,
+        &command_panel_build_queue,
+        42,
+        66,
+    );
+    let command_panel_spawned_unit_id = rts_spawned_unit_id_from_queue("train:worker", 2);
+    let command_panel_structure_id = rts_structure_id_from_queue("build:watch_tower@7,4");
     let scripted_demo_pauses_queue_tick =
         rts_scripted_demo_pauses_queue_tick("queue_cancel_refund_sequence");
     let scripted_demo_stage_from_frame =
@@ -927,6 +979,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && queue_feedback_chip == "feedback:build_placed:watch_tower@7,4"
         && blocked_feedback_chip_visible
         && queue_blocked_feedback_label == "QUEUE LOCK NEED 210G"
+        && command_panel_slot_id == "attack"
+        && command_panel_build_palette_queue_id == "build:watch_tower@7,4"
+        && command_panel_production_slot_queue_id == "build:watch_tower@7,4"
+        && command_panel_sidebar_cancel_queue_id.as_deref() == Some("cancel:build:0")
+        && command_panel_palette_cancel_queue_id.as_deref() == Some("cancel:active_build")
+        && command_panel_sidebar_slot_status_label == "B1 66 R"
+        && command_panel_palette_state_label == "ACT"
+        && command_panel_sidebar_queue_summary == "P:worker@42% B:watch_tower@66%"
+        && command_panel_spawned_unit_id == "worker_3"
+        && command_panel_structure_id == "watch_tower"
         && scripted_demo_pauses_queue_tick
         && scripted_demo_stage_from_frame == Some(4)
         && scripted_demo_stage_id == "cancel_refund"
@@ -1203,6 +1265,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         queue_feedback_chip_sample: queue_feedback_chip,
         blocked_feedback_chip_visible_sample: blocked_feedback_chip_visible,
         queue_blocked_feedback_label_sample: queue_blocked_feedback_label,
+        command_panel_slot_id_sample: command_panel_slot_id,
+        command_panel_build_palette_queue_id_sample: command_panel_build_palette_queue_id,
+        command_panel_production_slot_queue_id_sample: command_panel_production_slot_queue_id,
+        command_panel_sidebar_cancel_queue_id_sample: command_panel_sidebar_cancel_queue_id,
+        command_panel_palette_cancel_queue_id_sample: command_panel_palette_cancel_queue_id,
+        command_panel_sidebar_slot_status_label_sample: command_panel_sidebar_slot_status_label,
+        command_panel_palette_state_label_sample: command_panel_palette_state_label,
+        command_panel_sidebar_queue_summary_sample: command_panel_sidebar_queue_summary,
+        command_panel_spawned_unit_id_sample: command_panel_spawned_unit_id,
+        command_panel_structure_id_sample: command_panel_structure_id,
         scripted_demo_pauses_queue_tick_sample: scripted_demo_pauses_queue_tick,
         scripted_demo_stage_from_frame_sample: scripted_demo_stage_from_frame,
         scripted_demo_stage_id_sample: scripted_demo_stage_id.to_string(),
@@ -1672,6 +1744,38 @@ mod tests {
             evidence.queue_blocked_feedback_label_sample,
             "QUEUE LOCK NEED 210G"
         );
+        assert_eq!(evidence.command_panel_slot_id_sample, "attack");
+        assert_eq!(
+            evidence.command_panel_build_palette_queue_id_sample,
+            "build:watch_tower@7,4"
+        );
+        assert_eq!(
+            evidence.command_panel_production_slot_queue_id_sample,
+            "build:watch_tower@7,4"
+        );
+        assert_eq!(
+            evidence
+                .command_panel_sidebar_cancel_queue_id_sample
+                .as_deref(),
+            Some("cancel:build:0")
+        );
+        assert_eq!(
+            evidence
+                .command_panel_palette_cancel_queue_id_sample
+                .as_deref(),
+            Some("cancel:active_build")
+        );
+        assert_eq!(
+            evidence.command_panel_sidebar_slot_status_label_sample,
+            "B1 66 R"
+        );
+        assert_eq!(evidence.command_panel_palette_state_label_sample, "ACT");
+        assert_eq!(
+            evidence.command_panel_sidebar_queue_summary_sample,
+            "P:worker@42% B:watch_tower@66%"
+        );
+        assert_eq!(evidence.command_panel_spawned_unit_id_sample, "worker_3");
+        assert_eq!(evidence.command_panel_structure_id_sample, "watch_tower");
         assert!(evidence.scripted_demo_pauses_queue_tick_sample);
         assert_eq!(evidence.scripted_demo_stage_from_frame_sample, Some(4));
         assert_eq!(evidence.scripted_demo_stage_id_sample, "cancel_refund");

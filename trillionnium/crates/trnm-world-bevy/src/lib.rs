@@ -82267,20 +82267,14 @@ fn classic_rts_command_slot_id_for_index(
     let fallback_id = first_contact_chrome
         .map(|chrome| chrome.command_slot_fallback_id.as_str())
         .unwrap_or("hold");
-    first_contact_chrome
-        .and_then(|chrome| {
-            chrome
-                .command_grid_slot_ids
-                .get(index % chrome.command_grid_slot_ids.len().max(1))
-        })
-        .cloned()
-        .or_else(|| {
-            runtime
-                .rts_ability_command_ids
-                .get(index % runtime.rts_ability_command_ids.len().max(1))
-                .cloned()
-        })
-        .unwrap_or_else(|| fallback_id.to_string())
+    let chrome_slot_ids =
+        first_contact_chrome.map(|chrome| chrome.command_grid_slot_ids.as_slice());
+    rts_bevy_runtime::rts_command_slot_id_for_index(
+        &runtime.rts_ability_command_ids,
+        chrome_slot_ids,
+        fallback_id,
+        index,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -82288,12 +82282,11 @@ fn classic_rts_build_palette_queue_id_for_index(
     first_contact_chrome: Option<&RtsFirstContactPlayerScreenChromeProfile>,
     index: usize,
 ) -> String {
-    first_contact_chrome
-        .and_then(|chrome| {
-            classic_first_contact_build_palette_slot(&chrome.build_palette_slots, index)
-                .map(|slot| slot.queue_id.clone())
-        })
-        .unwrap_or_else(|| classic_rts_build_palette_queue_id(index))
+    let chrome_queue_id = first_contact_chrome.and_then(|chrome| {
+        classic_first_contact_build_palette_slot(&chrome.build_palette_slots, index)
+            .map(|slot| slot.queue_id.as_str())
+    });
+    rts_bevy_runtime::rts_build_palette_queue_id_for_slot(chrome_queue_id, index)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -82301,36 +82294,20 @@ fn classic_rts_production_slot_queue_id(
     runtime: &NativeFirstPlayableRuntime,
     index: usize,
 ) -> String {
-    runtime
-        .rts_production_queue
-        .get(index)
-        .or_else(|| runtime.rts_build_queue.get(index.saturating_sub(2)))
-        .cloned()
-        .unwrap_or_else(|| {
-            if index % 2 == 0 {
-                classic_next_runtime_rts_train_queue(runtime)
-            } else {
-                classic_next_runtime_rts_build_queue(runtime)
-            }
-        })
+    let train_fallback_queue_id = classic_next_runtime_rts_train_queue(runtime);
+    let build_fallback_queue_id = classic_next_runtime_rts_build_queue(runtime);
+    rts_bevy_runtime::rts_production_slot_queue_id(
+        &runtime.rts_production_queue,
+        &runtime.rts_build_queue,
+        &train_fallback_queue_id,
+        &build_fallback_queue_id,
+        index,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_build_palette_queue_id(index: usize) -> String {
-    [
-        "build:power_node@5,3",
-        "build:training_hall@4,3",
-        "build:refinery@6,4",
-        "build:watch_tower@7,4",
-        "build:command_post@5,2",
-        "build:radar_spire@6,2",
-        "build:wall@8,4",
-        "upgrade:signal_blade",
-    ]
-    .get(index)
-    .copied()
-    .unwrap_or("build:watch_tower@7,4")
-    .to_string()
+    rts_bevy_runtime::rts_build_palette_queue_id(index)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -82338,17 +82315,12 @@ fn classic_rts_sidebar_cancel_action(
     runtime: &NativeFirstPlayableRuntime,
     index: usize,
 ) -> Option<NativeControlAction> {
-    if runtime.rts_production_queue.get(index).is_some() {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: format!("cancel:production:{index}"),
-        })
-    } else if index >= 2 && runtime.rts_build_queue.get(index - 2).is_some() {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: format!("cancel:build:{}", index - 2),
-        })
-    } else {
-        None
-    }
+    rts_bevy_runtime::rts_sidebar_cancel_queue_id(
+        &runtime.rts_production_queue,
+        &runtime.rts_build_queue,
+        index,
+    )
+    .map(|queue_id| NativeControlAction::RtsQueueProduction { queue_id })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -82356,34 +82328,13 @@ fn classic_rts_palette_cancel_action(
     runtime: &NativeFirstPlayableRuntime,
     queue_id: &str,
 ) -> Option<NativeControlAction> {
-    if let Some(index) = runtime
-        .rts_build_queue
-        .iter()
-        .position(|entry| entry == queue_id)
-    {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: format!("cancel:build:{index}"),
-        })
-    } else if let Some(index) = runtime
-        .rts_production_queue
-        .iter()
-        .position(|entry| entry == queue_id)
-    {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: format!("cancel:production:{index}"),
-        })
-    } else if queue_id.starts_with("build:")
-        && runtime
-            .rts_building_blueprint_id
-            .as_deref()
-            .is_some_and(|id| queue_id.contains(id))
-    {
-        Some(NativeControlAction::RtsQueueProduction {
-            queue_id: "cancel:active_build".to_string(),
-        })
-    } else {
-        None
-    }
+    rts_bevy_runtime::rts_palette_cancel_queue_id(
+        &runtime.rts_build_queue,
+        &runtime.rts_production_queue,
+        runtime.rts_building_blueprint_id.as_deref(),
+        queue_id,
+    )
+    .map(|queue_id| NativeControlAction::RtsQueueProduction { queue_id })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -82393,69 +82344,34 @@ fn classic_rts_sidebar_slot_status_label(
     progress: u8,
     queue_id: &str,
 ) -> String {
-    if runtime.rts_production_queue.get(index).is_some() {
-        format!("Q{} {} R", index + 1, progress.min(100))
-    } else if index >= 2 && runtime.rts_build_queue.get(index - 2).is_some() {
-        format!("B{} {} R", index - 1, progress.min(100))
-    } else if classic_rts_queue_is_affordable(runtime, queue_id) {
-        "LMB ADD".to_string()
-    } else {
-        "LOCK".to_string()
-    }
+    rts_bevy_runtime::rts_sidebar_slot_status_label(
+        &runtime.rts_production_queue,
+        &runtime.rts_build_queue,
+        classic_rts_queue_is_affordable(runtime, queue_id),
+        index,
+        progress,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_palette_state_label(runtime: &NativeFirstPlayableRuntime, queue_id: &str) -> String {
-    if runtime
-        .rts_building_blueprint_id
-        .as_deref()
-        .is_some_and(|id| queue_id.contains(id))
-    {
-        "ACT".to_string()
-    } else if let Some(index) = runtime
-        .rts_build_queue
-        .iter()
-        .position(|entry| entry == queue_id)
-    {
-        format!("B Q{}", index + 1)
-    } else if let Some(index) = runtime
-        .rts_production_queue
-        .iter()
-        .position(|entry| entry == queue_id)
-    {
-        format!("P Q{}", index + 1)
-    } else if classic_rts_queue_is_affordable(runtime, queue_id) {
-        "RDY".to_string()
-    } else {
-        "LOCK".to_string()
-    }
+    rts_bevy_runtime::rts_palette_state_label(
+        runtime.rts_building_blueprint_id.as_deref(),
+        &runtime.rts_build_queue,
+        &runtime.rts_production_queue,
+        classic_rts_queue_is_affordable(runtime, queue_id),
+        queue_id,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_sidebar_queue_summary(runtime: &NativeFirstPlayableRuntime) -> String {
-    let production = runtime
-        .rts_production_queue
-        .first()
-        .map(|queue| {
-            format!(
-                "{}@{}%",
-                queue.replace("train:", "").replace("upgrade:", "up:"),
-                runtime.rts_training_progress_percent.min(100)
-            )
-        })
-        .unwrap_or_else(|| "ready".to_string());
-    let build = runtime
-        .rts_build_queue
-        .first()
-        .map(|queue| {
-            format!(
-                "{}@{}%",
-                classic_rts_structure_id_from_queue(queue),
-                runtime.rts_build_progress_percent.min(100)
-            )
-        })
-        .unwrap_or_else(|| "ready".to_string());
-    format!("P:{production} B:{build}")
+    rts_bevy_runtime::rts_sidebar_queue_summary(
+        &runtime.rts_production_queue,
+        &runtime.rts_build_queue,
+        runtime.rts_training_progress_percent,
+        runtime.rts_build_progress_percent,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -82659,25 +82575,12 @@ fn classic_tick_openra_style_rts_runtime(
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_spawned_unit_id_from_queue(queue_id: &str, existing_count: usize) -> String {
-    let unit_kind = queue_id
-        .strip_prefix("train:")
-        .unwrap_or(queue_id)
-        .split_once('@')
-        .map(|(unit_kind, _)| unit_kind)
-        .unwrap_or_else(|| queue_id.strip_prefix("upgrade:").unwrap_or("unit"));
-    format!("{}_{}", unit_kind.replace(':', "_"), existing_count + 1)
+    rts_bevy_runtime::rts_spawned_unit_id_from_queue(queue_id, existing_count)
 }
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_structure_id_from_queue(queue_id: &str) -> String {
-    queue_id
-        .strip_prefix("build:")
-        .or_else(|| queue_id.strip_prefix("complete:"))
-        .unwrap_or(queue_id)
-        .split_once('@')
-        .map(|(structure_id, _)| structure_id)
-        .unwrap_or("watch_tower")
-        .to_string()
+    rts_bevy_runtime::rts_structure_id_from_queue(queue_id)
 }
 
 #[cfg(not(target_os = "android"))]

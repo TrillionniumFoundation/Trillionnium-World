@@ -325,6 +325,16 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.queue_feedback_chip_sample == "feedback:build_placed:watch_tower@7,4"
   and .rts_evidence_bevy_runtime_adapter.blocked_feedback_chip_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.queue_blocked_feedback_label_sample == "QUEUE LOCK NEED 210G"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_slot_id_sample == "attack"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_build_palette_queue_id_sample == "build:watch_tower@7,4"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_production_slot_queue_id_sample == "build:watch_tower@7,4"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_sidebar_cancel_queue_id_sample == "cancel:build:0"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_palette_cancel_queue_id_sample == "cancel:active_build"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_sidebar_slot_status_label_sample == "B1 66 R"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_palette_state_label_sample == "ACT"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_sidebar_queue_summary_sample == "P:worker@42% B:watch_tower@66%"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_spawned_unit_id_sample == "worker_3"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_structure_id_sample == "watch_tower"
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_pauses_queue_tick_sample == true
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_from_frame_sample == 4
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_id_sample == "cancel_refund"
