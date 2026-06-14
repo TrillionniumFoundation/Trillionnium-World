@@ -203,6 +203,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.action_cadence_carry_mark_count_sample == 8
   and .rts_evidence_bevy_runtime_adapter.action_cadence_idle_mark_count_sample == 4
   and .rts_evidence_bevy_runtime_adapter.action_cadence_creep_windup_offset_sample == -24
+  and .rts_evidence_bevy_runtime_adapter.action_sequence_phase_sample == "recovery"
+  and .rts_evidence_bevy_runtime_adapter.action_sequence_windup_mark_count_sample == 9
+  and .rts_evidence_bevy_runtime_adapter.action_sequence_strike_mark_count_sample == 12
+  and .rts_evidence_bevy_runtime_adapter.action_sequence_carry_down_mark_count_sample == 5
+  and .rts_evidence_bevy_runtime_adapter.action_sequence_idle_mark_count_sample == 6
   and .rts_evidence_bevy_runtime_adapter.command_surface_stage_sample == "target_queue"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
   and (.rts_evidence_bevy_runtime_adapter.tile_line_sample | length) == 9

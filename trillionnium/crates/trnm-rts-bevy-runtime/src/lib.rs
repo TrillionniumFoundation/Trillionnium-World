@@ -97,6 +97,12 @@ pub struct RtsActionCadenceMark {
     pub rect: RtsRuntimeRect,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsActionSequenceMark {
+    pub kind: String,
+    pub rect: RtsRuntimeRect,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeGridSpec {
     pub origin_x: i32,
@@ -2906,6 +2912,160 @@ pub fn rts_action_cadence_marks(frame_id: &str) -> Vec<RtsActionCadenceMark> {
     marks
 }
 
+pub fn rts_action_sequence_phase(
+    frame_id: &str,
+    combat_events: &[String],
+    command_queue: &[String],
+    walk_cycle_frame: u8,
+    combat_turn: u8,
+    runtime_available: bool,
+) -> Option<&'static str> {
+    if runtime_available {
+        for event in combat_events.iter().rev() {
+            if event.contains("sequence:carry_down") {
+                return Some("carry_down");
+            }
+            if event.contains("sequence:carry_up") {
+                return Some("carry_up");
+            }
+            if event.contains("sequence:recovery") {
+                return Some("recovery");
+            }
+            if event.contains("sequence:strike") {
+                return Some("strike");
+            }
+            if event.contains("sequence:windup") {
+                return Some("windup");
+            }
+            if event.contains("sequence:idle") {
+                return Some("idle");
+            }
+        }
+        if !command_queue
+            .iter()
+            .any(|command| command.contains("sequence:"))
+        {
+            return None;
+        }
+        if frame_id.contains("carry") {
+            return Some(if walk_cycle_frame % 2 == 0 {
+                "carry_up"
+            } else {
+                "carry_down"
+            });
+        }
+        if frame_id.contains("attack") {
+            return Some(match combat_turn % 4 {
+                1 => "windup",
+                2 => "strike",
+                3 => "recovery",
+                _ => "idle",
+            });
+        }
+    } else if frame_id.contains("carry") {
+        return Some("carry_up");
+    } else if frame_id.contains("attack") {
+        return Some("strike");
+    }
+    None
+}
+
+fn rts_action_sequence_mark(
+    kind: &str,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+) -> RtsActionSequenceMark {
+    RtsActionSequenceMark {
+        kind: kind.to_string(),
+        rect: RtsRuntimeRect {
+            x,
+            y,
+            width,
+            height,
+        },
+    }
+}
+
+pub fn rts_action_sequence_marks(frame_id: &str, phase: &str) -> Vec<RtsActionSequenceMark> {
+    if !(frame_id.starts_with("actor_guard")
+        || frame_id.starts_with("actor_worker")
+        || frame_id.starts_with("actor_creep"))
+    {
+        return Vec::new();
+    }
+
+    let mut marks = vec![rts_action_sequence_mark("frame_ghost", -16, -7, 32, 2)];
+
+    match phase {
+        "windup" => {
+            for step in 0..7 {
+                marks.push(rts_action_sequence_mark(
+                    "windup",
+                    -28 + step * 3,
+                    -39 + step,
+                    7,
+                    3,
+                ));
+            }
+            marks.push(rts_action_sequence_mark("windup", -13, -29, 9, 12));
+        }
+        "strike" => {
+            for step in 0..10 {
+                marks.push(rts_action_sequence_mark(
+                    "strike",
+                    8 + step * 3,
+                    -38 + step,
+                    8,
+                    3,
+                ));
+            }
+            marks.push(rts_action_sequence_mark("strike", 24, -28, 12, 10));
+        }
+        "recovery" => {
+            for step in 0..7 {
+                marks.push(rts_action_sequence_mark(
+                    "recovery",
+                    -4 + step * 4,
+                    -20 + step,
+                    7,
+                    3,
+                ));
+            }
+            marks.push(rts_action_sequence_mark("recovery", 6, -32, 8, 16));
+        }
+        "carry_up" => {
+            if frame_id.contains("carry") || frame_id.starts_with("actor_worker") {
+                marks.push(rts_action_sequence_mark("carry_up", 11, -39, 16, 6));
+                marks.push(rts_action_sequence_mark("carry_up", 15, -31, 10, 6));
+            }
+        }
+        "carry_down" => {
+            marks.push(rts_action_sequence_mark("carry_down", -14, -11, 28, 3));
+            marks.push(rts_action_sequence_mark("carry_down", -5, -25, 10, 6));
+            if frame_id.contains("carry") || frame_id.starts_with("actor_worker") {
+                marks.push(rts_action_sequence_mark("carry_down", 10, -28, 18, 7));
+                marks.push(rts_action_sequence_mark("carry_down", 7, -18, 20, 4));
+            }
+        }
+        _ => {
+            for step in 0..4 {
+                marks.push(rts_action_sequence_mark(
+                    "idle",
+                    -11 + step * 7,
+                    -32 + (step % 2),
+                    5,
+                    2,
+                ));
+            }
+            marks.push(rts_action_sequence_mark("idle", -8, -18, 16, 3));
+        }
+    }
+
+    marks
+}
+
 pub fn rts_npc_behavior_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -4374,5 +4534,106 @@ mod tests {
         assert_eq!(guard_idle.len(), 4);
         assert!(guard_idle.iter().all(|mark| mark.kind == "idle_breath"));
         assert!(rts_action_cadence_marks("actor_player_idle_south").is_empty());
+    }
+
+    #[test]
+    fn action_sequence_adapter_preserves_phase_and_marks() {
+        assert_eq!(
+            rts_action_sequence_phase(
+                "actor_guard_attack",
+                &["sequence:recovery".to_string()],
+                &["sequence:windup".to_string()],
+                2,
+                2,
+                true,
+            ),
+            Some("recovery")
+        );
+        assert_eq!(
+            rts_action_sequence_phase(
+                "actor_guard_attack",
+                &[],
+                &["sequence:cycle".to_string()],
+                1,
+                1,
+                true,
+            ),
+            Some("windup")
+        );
+        assert_eq!(
+            rts_action_sequence_phase(
+                "actor_guard_attack",
+                &[],
+                &["sequence:cycle".to_string()],
+                1,
+                2,
+                true,
+            ),
+            Some("strike")
+        );
+        assert_eq!(
+            rts_action_sequence_phase(
+                "actor_worker_carry",
+                &[],
+                &["sequence:cycle".to_string()],
+                2,
+                0,
+                true,
+            ),
+            Some("carry_up")
+        );
+        assert_eq!(
+            rts_action_sequence_phase(
+                "actor_worker_carry",
+                &[],
+                &["sequence:cycle".to_string()],
+                1,
+                0,
+                true,
+            ),
+            Some("carry_down")
+        );
+        assert_eq!(
+            rts_action_sequence_phase("actor_guard_attack", &[], &[], 1, 2, true),
+            None
+        );
+        assert_eq!(
+            rts_action_sequence_phase("actor_guard_attack", &[], &[], 1, 2, false),
+            Some("strike")
+        );
+
+        let windup = rts_action_sequence_marks("actor_guard_attack", "windup");
+        assert_eq!(windup.len(), 9);
+        assert_eq!(
+            windup.first().map(|mark| mark.kind.as_str()),
+            Some("frame_ghost")
+        );
+        assert_eq!(
+            windup.iter().filter(|mark| mark.kind == "windup").count(),
+            8
+        );
+
+        let strike = rts_action_sequence_marks("actor_guard_attack", "strike");
+        assert_eq!(strike.len(), 12);
+        assert_eq!(
+            strike.iter().filter(|mark| mark.kind == "strike").count(),
+            11
+        );
+
+        let carry_down = rts_action_sequence_marks("actor_worker_carry", "carry_down");
+        assert_eq!(carry_down.len(), 5);
+        assert_eq!(
+            carry_down
+                .iter()
+                .filter(|mark| mark.kind == "carry_down")
+                .count(),
+            4
+        );
+
+        let idle = rts_action_sequence_marks("actor_guard_idle", "idle");
+        assert_eq!(idle.len(), 6);
+        assert_eq!(idle.iter().filter(|mark| mark.kind == "idle").count(), 5);
+
+        assert!(rts_action_sequence_marks("actor_player_idle_south", "idle").is_empty());
     }
 }

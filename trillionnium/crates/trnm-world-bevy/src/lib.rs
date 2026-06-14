@@ -10387,56 +10387,16 @@ fn classic_rts_action_sequence_phase(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
     if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("sequence:carry_down") {
-                return Some("carry_down");
-            }
-            if event.contains("sequence:carry_up") {
-                return Some("carry_up");
-            }
-            if event.contains("sequence:recovery") {
-                return Some("recovery");
-            }
-            if event.contains("sequence:strike") {
-                return Some("strike");
-            }
-            if event.contains("sequence:windup") {
-                return Some("windup");
-            }
-            if event.contains("sequence:idle") {
-                return Some("idle");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("sequence:"))
-        {
-            return None;
-        }
-        if frame_id.contains("carry") {
-            return Some(if runtime.walk_cycle_frame % 2 == 0 {
-                "carry_up"
-            } else {
-                "carry_down"
-            });
-        }
-        if frame_id.contains("attack") {
-            return Some(match runtime.combat_turn % 4 {
-                1 => "windup",
-                2 => "strike",
-                3 => "recovery",
-                _ => "idle",
-            });
-        }
+        return rts_bevy_runtime::rts_action_sequence_phase(
+            frame_id,
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.walk_cycle_frame,
+            runtime.combat_turn,
+            true,
+        );
     }
-    if frame_id.contains("carry") {
-        Some("carry_up")
-    } else if frame_id.contains("attack") {
-        Some("strike")
-    } else {
-        None
-    }
+    rts_bevy_runtime::rts_action_sequence_phase(frame_id, &[], &[], 0, 0, false)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -10449,189 +10409,27 @@ fn classic_draw_rts_action_sequence_marks(
     base_y: i32,
     phase: &str,
 ) {
-    if !(frame_id.starts_with("actor_guard")
-        || frame_id.starts_with("actor_worker")
-        || frame_id.starts_with("actor_creep"))
-    {
-        return;
-    }
-
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        center_x - 16,
-        base_y - 7,
-        32,
-        2,
-        CLASSIC_RTS_ACTION_SEQUENCE_FRAME_GHOST_COLOR,
-    );
-
-    match phase {
-        "windup" => {
-            for step in 0..7 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x - 28 + step * 3,
-                    base_y - 39 + step,
-                    7,
-                    3,
-                    CLASSIC_RTS_ACTION_SEQUENCE_WINDUP_COLOR,
-                );
-            }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x - 13,
-                base_y - 29,
-                9,
-                12,
-                CLASSIC_RTS_ACTION_SEQUENCE_WINDUP_COLOR,
-            );
-        }
-        "strike" => {
-            for step in 0..10 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x + 8 + step * 3,
-                    base_y - 38 + step,
-                    8,
-                    3,
-                    CLASSIC_RTS_ACTION_SEQUENCE_STRIKE_COLOR,
-                );
-            }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x + 24,
-                base_y - 28,
-                12,
-                10,
-                CLASSIC_RTS_ACTION_SEQUENCE_STRIKE_COLOR,
-            );
-        }
-        "recovery" => {
-            for step in 0..7 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x - 4 + step * 4,
-                    base_y - 20 + step,
-                    7,
-                    3,
-                    CLASSIC_RTS_ACTION_SEQUENCE_RECOVERY_COLOR,
-                );
-            }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x + 6,
-                base_y - 32,
-                8,
-                16,
-                CLASSIC_RTS_ACTION_SEQUENCE_RECOVERY_COLOR,
-            );
-        }
-        "carry_up" => {
-            if frame_id.contains("carry") || frame_id.starts_with("actor_worker") {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x + 11,
-                    base_y - 39,
-                    16,
-                    6,
-                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_UP_COLOR,
-                );
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x + 15,
-                    base_y - 31,
-                    10,
-                    6,
-                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_UP_COLOR,
-                );
-            }
-        }
-        "carry_down" => {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x - 14,
-                base_y - 11,
-                28,
-                3,
-                CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x - 5,
-                base_y - 25,
-                10,
-                6,
-                CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
-            );
-            if frame_id.contains("carry") || frame_id.starts_with("actor_worker") {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x + 10,
-                    base_y - 28,
-                    18,
-                    7,
-                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
-                );
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x + 7,
-                    base_y - 18,
-                    20,
-                    4,
-                    CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
-                );
-            }
-        }
-        _ => {
-            for step in 0..4 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    center_x - 11 + step * 7,
-                    base_y - 32 + (step % 2),
-                    5,
-                    2,
-                    CLASSIC_RTS_ACTION_SEQUENCE_IDLE_COLOR,
-                );
-            }
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x - 8,
-                base_y - 18,
-                16,
-                3,
-                CLASSIC_RTS_ACTION_SEQUENCE_IDLE_COLOR,
-            );
-        }
+    for mark in rts_bevy_runtime::rts_action_sequence_marks(frame_id, phase) {
+        let color = match mark.kind.as_str() {
+            "frame_ghost" => CLASSIC_RTS_ACTION_SEQUENCE_FRAME_GHOST_COLOR,
+            "windup" => CLASSIC_RTS_ACTION_SEQUENCE_WINDUP_COLOR,
+            "strike" => CLASSIC_RTS_ACTION_SEQUENCE_STRIKE_COLOR,
+            "recovery" => CLASSIC_RTS_ACTION_SEQUENCE_RECOVERY_COLOR,
+            "carry_up" => CLASSIC_RTS_ACTION_SEQUENCE_CARRY_UP_COLOR,
+            "carry_down" => CLASSIC_RTS_ACTION_SEQUENCE_CARRY_DOWN_COLOR,
+            "idle" => CLASSIC_RTS_ACTION_SEQUENCE_IDLE_COLOR,
+            _ => continue,
+        };
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + mark.rect.x,
+            base_y + mark.rect.y,
+            mark.rect.width,
+            mark.rect.height,
+            color,
+        );
     }
 }
 
