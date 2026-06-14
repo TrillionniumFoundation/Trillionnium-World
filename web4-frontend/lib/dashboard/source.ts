@@ -167,6 +167,7 @@ const toDisplayTime = (isoLike?: string): string => {
   if (Number.isNaN(date.getTime())) return normalized;
 
   const fmt = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
