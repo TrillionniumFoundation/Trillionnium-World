@@ -2137,6 +2137,45 @@ pub fn rts_executable_command_queue_snapshot(queue: &[String]) -> Vec<String> {
         .collect()
 }
 
+pub fn rts_blocked_feedback_chip_visible(command_queue: &[String]) -> bool {
+    command_queue
+        .iter()
+        .any(|entry| entry.starts_with("feedback:blocked:"))
+}
+
+pub fn rts_command_surface_stage(
+    combat_turn: u8,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev() {
+        if event.contains("surface:target_queue") {
+            return Some("target_queue");
+        }
+        if event.contains("surface:cooldown_disabled") {
+            return Some("cooldown_disabled");
+        }
+        if event.contains("surface:command_grid") {
+            return Some("command_grid");
+        }
+        if event.contains("surface:selection_state") {
+            return Some("selection_state");
+        }
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("surface:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 4 {
+        0 => "selection_state",
+        1 => "command_grid",
+        2 => "cooldown_disabled",
+        _ => "target_queue",
+    })
+}
+
 pub fn rts_command_feedback_strip_stage(
     combat_turn: u8,
     combat_events: &[String],
@@ -3357,6 +3396,13 @@ mod tests {
             ]),
             vec!["queue:train:worker"]
         );
+        assert!(rts_blocked_feedback_chip_visible(&[
+            "queue:train:worker".to_string(),
+            "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4".to_string(),
+        ]));
+        assert!(!rts_blocked_feedback_chip_visible(&[
+            "queue:train:worker".to_string()
+        ]));
         assert_eq!(
             rts_blocked_feedback_player_label(
                 "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4"
@@ -3377,6 +3423,22 @@ mod tests {
             rts_command_feedback_strip_stage(0, &strip_events, &strip_queue),
             Some("group_28_filtered")
         );
+        assert_eq!(
+            rts_command_surface_stage(
+                0,
+                &[
+                    "surface:selection_state".to_string(),
+                    "surface:target_queue".to_string(),
+                ],
+                &["surface:command_grid".to_string()]
+            ),
+            Some("target_queue")
+        );
+        assert_eq!(
+            rts_command_surface_stage(2, &[], &["surface:command_grid".to_string()]),
+            Some("cooldown_disabled")
+        );
+        assert_eq!(rts_command_surface_stage(1, &[], &[]), None);
         assert_eq!(
             rts_command_feedback_strip_stage(
                 2,

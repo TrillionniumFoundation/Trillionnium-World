@@ -10,15 +10,16 @@ use trnm_rts_bevy_runtime::{
     rts_ai_wave_unit_ids_for_pressure, rts_army_command_parts, rts_army_rally_tiles_for_id,
     rts_army_units_for_batch, rts_available_gold, rts_base_assault_parts,
     rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
-    rts_blocked_feedback_player_label, rts_boss_guard_units_for_id, rts_build_parts,
-    rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
+    rts_blocked_feedback_chip_visible, rts_blocked_feedback_player_label,
+    rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
+    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
     rts_command_execution_feedback_kind, rts_command_feedback_lifecycle_stage,
     rts_command_feedback_strip_stage, rts_command_history_prune_visible,
     rts_command_history_visible, rts_command_queue_path_preview_stage,
     rts_command_stamp_for_ability, rts_command_stamp_for_move, rts_command_stamp_for_selection,
-    rts_commander_aura_tiles_for_id, rts_commander_parts, rts_contact_flash_tiles_for_target,
-    rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
-    rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_command_surface_stage, rts_commander_aura_tiles_for_id, rts_commander_parts,
+    rts_contact_flash_tiles_for_target, rts_control_group_hotkey_feedback_stage,
+    rts_control_group_hotkey_slot, rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
@@ -79,6 +80,7 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub formation_move_preview_stage_sample: Option<String>,
     pub formation_move_execution_stage_sample: Option<String>,
     pub local_obstruction_recovery_stage_sample: Option<String>,
+    pub command_surface_stage_sample: Option<String>,
     pub command_grid_hit_sample: Option<usize>,
     pub tile_line_sample: Vec<RtsRuntimeTileLineStep>,
     pub combat_engagement_tiles_sample: Vec<String>,
@@ -159,6 +161,7 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub queue_build_parts_sample: Vec<String>,
     pub queue_production_lane_sample: bool,
     pub queue_feedback_chip_sample: String,
+    pub blocked_feedback_chip_visible_sample: bool,
     pub queue_blocked_feedback_label_sample: String,
     pub scripted_demo_pauses_queue_tick_sample: bool,
     pub scripted_demo_stage_from_frame_sample: Option<usize>,
@@ -226,6 +229,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         &["local_obstruction_recovery:flow_resume".to_string()],
         &["local_obstruction_recovery:detect_block".to_string()],
         0,
+    )
+    .map(str::to_string);
+    let command_surface_stage = rts_command_surface_stage(
+        7,
+        &["surface:target_queue".to_string()],
+        &["surface:command_grid".to_string()],
     )
     .map(str::to_string);
     let command_grid_hit = rts_runtime_hit_test_grid(
@@ -324,6 +333,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let queue_build_parts = rts_build_parts("build:watch_tower@7,4");
     let queue_production_lane = rts_queue_uses_production_lane("train:worker");
     let queue_feedback_chip = rts_queue_feedback_chip("build:watch_tower@7,4");
+    let blocked_feedback_chip_visible = rts_blocked_feedback_chip_visible(&[
+        "queue:train:worker".to_string(),
+        "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4".to_string(),
+    ]);
     let queue_blocked_feedback_label = rts_blocked_feedback_player_label(
         "feedback:blocked:queue:rts_queue_unaffordable:build:watch_tower@7,4",
     );
@@ -520,6 +533,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && formation_preview_stage.as_deref() == Some("commit_spacing")
         && formation_execution_stage.as_deref() == Some("arrival_lock")
         && local_obstruction_stage.as_deref() == Some("flow_resume")
+        && command_surface_stage.as_deref() == Some("target_queue")
         && command_grid_hit == Some(0)
         && tile_line.len() == 9
         && tile_line.first().is_some_and(|step| {
@@ -646,6 +660,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && queue_build_parts == ("watch_tower".to_string(), "7,4".to_string())
         && queue_production_lane
         && queue_feedback_chip == "feedback:build_placed:watch_tower@7,4"
+        && blocked_feedback_chip_visible
         && queue_blocked_feedback_label == "QUEUE LOCK NEED 210G"
         && scripted_demo_pauses_queue_tick
         && scripted_demo_stage_from_frame == Some(4)
@@ -752,6 +767,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         formation_move_preview_stage_sample: formation_preview_stage,
         formation_move_execution_stage_sample: formation_execution_stage,
         local_obstruction_recovery_stage_sample: local_obstruction_stage,
+        command_surface_stage_sample: command_surface_stage,
         command_grid_hit_sample: command_grid_hit,
         tile_line_sample: tile_line,
         combat_engagement_tiles_sample: combat_engagement_tiles,
@@ -880,6 +896,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         queue_build_parts_sample: vec![queue_build_parts.0, queue_build_parts.1],
         queue_production_lane_sample: queue_production_lane,
         queue_feedback_chip_sample: queue_feedback_chip,
+        blocked_feedback_chip_visible_sample: blocked_feedback_chip_visible,
         queue_blocked_feedback_label_sample: queue_blocked_feedback_label,
         scripted_demo_pauses_queue_tick_sample: scripted_demo_pauses_queue_tick,
         scripted_demo_stage_from_frame_sample: scripted_demo_stage_from_frame,
@@ -926,7 +943,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -960,6 +977,10 @@ mod tests {
         assert_eq!(
             evidence.local_obstruction_recovery_stage_sample.as_deref(),
             Some("flow_resume")
+        );
+        assert_eq!(
+            evidence.command_surface_stage_sample.as_deref(),
+            Some("target_queue")
         );
         assert_eq!(evidence.command_grid_hit_sample, Some(0));
         assert_eq!(evidence.tile_line_sample.len(), 9);
@@ -1272,6 +1293,7 @@ mod tests {
             evidence.queue_feedback_chip_sample,
             "feedback:build_placed:watch_tower@7,4"
         );
+        assert!(evidence.blocked_feedback_chip_visible_sample);
         assert_eq!(
             evidence.queue_blocked_feedback_label_sample,
             "QUEUE LOCK NEED 210G"

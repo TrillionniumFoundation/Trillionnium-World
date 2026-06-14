@@ -194,6 +194,7 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_stage_sample == "commit_spacing"
   and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"
   and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_sample == "flow_resume"
+  and .rts_evidence_bevy_runtime_adapter.command_surface_stage_sample == "target_queue"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
   and (.rts_evidence_bevy_runtime_adapter.tile_line_sample | length) == 9
   and .rts_evidence_bevy_runtime_adapter.tile_line_sample[0].step_index == 0
@@ -299,6 +300,7 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.queue_build_parts_sample == ["watch_tower","7,4"]
   and .rts_evidence_bevy_runtime_adapter.queue_production_lane_sample == true
   and .rts_evidence_bevy_runtime_adapter.queue_feedback_chip_sample == "feedback:build_placed:watch_tower@7,4"
+  and .rts_evidence_bevy_runtime_adapter.blocked_feedback_chip_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.queue_blocked_feedback_label_sample == "QUEUE LOCK NEED 210G"
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_pauses_queue_tick_sample == true
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_stage_from_frame_sample == 4

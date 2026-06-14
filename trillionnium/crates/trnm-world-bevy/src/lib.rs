@@ -16486,10 +16486,7 @@ fn classic_draw_rts_control_group_command_history_overlay(
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_blocked_feedback_chip_visible(runtime: &NativeFirstPlayableRuntime) -> bool {
-    runtime
-        .rts_command_queue
-        .iter()
-        .any(|entry| entry.starts_with("feedback:blocked:"))
+    rts_bevy_runtime::rts_blocked_feedback_chip_visible(&runtime.rts_command_queue)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -104425,36 +104422,13 @@ fn classic_draw_rts_command_affordance_panel(
 fn classic_rts_command_surface_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("surface:target_queue") {
-                return Some("target_queue");
-            }
-            if event.contains("surface:cooldown_disabled") {
-                return Some("cooldown_disabled");
-            }
-            if event.contains("surface:command_grid") {
-                return Some("command_grid");
-            }
-            if event.contains("surface:selection_state") {
-                return Some("selection_state");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("surface:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 4 {
-            0 => "selection_state",
-            1 => "command_grid",
-            2 => "cooldown_disabled",
-            _ => "target_queue",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_command_surface_stage(
+            runtime.combat_turn,
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
