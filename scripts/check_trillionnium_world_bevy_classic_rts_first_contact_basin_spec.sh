@@ -199,6 +199,10 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.locomotion_blend_stage_sample == "formation_slide"
   and .rts_evidence_bevy_runtime_adapter.npc_transition_stage_sample == "hit_recover"
   and .rts_evidence_bevy_runtime_adapter.depth_readability_stage_sample == "target_priority"
+  and .rts_evidence_bevy_runtime_adapter.action_cadence_attack_mark_count_sample == 22
+  and .rts_evidence_bevy_runtime_adapter.action_cadence_carry_mark_count_sample == 8
+  and .rts_evidence_bevy_runtime_adapter.action_cadence_idle_mark_count_sample == 4
+  and .rts_evidence_bevy_runtime_adapter.action_cadence_creep_windup_offset_sample == -24
   and .rts_evidence_bevy_runtime_adapter.command_surface_stage_sample == "target_queue"
   and .rts_bevy_runtime_command_grid_hit_sample == 0
   and (.rts_evidence_bevy_runtime_adapter.tile_line_sample | length) == 9

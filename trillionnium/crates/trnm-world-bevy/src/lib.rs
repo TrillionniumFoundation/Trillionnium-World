@@ -10358,112 +10358,26 @@ fn classic_draw_rts_action_cadence_marks(
     center_x: i32,
     base_y: i32,
 ) {
-    let attack_frame = frame_id.ends_with("_attack");
-    let carry_frame = frame_id.ends_with("_carry");
-    let idle_frame = frame_id.ends_with("_idle");
-
-    if attack_frame {
-        let windup_left = if frame_id.starts_with("actor_creep") {
-            -24
-        } else {
-            -22
+    for mark in rts_bevy_runtime::rts_action_cadence_marks(frame_id) {
+        let color = match mark.kind.as_str() {
+            "windup" => CLASSIC_RTS_ACTION_CADENCE_WINDUP_COLOR,
+            "strike" => CLASSIC_RTS_ACTION_CADENCE_STRIKE_COLOR,
+            "recovery" => CLASSIC_RTS_ACTION_CADENCE_RECOVERY_COLOR,
+            "carry_bob" => CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
+            "idle_breath" => CLASSIC_RTS_ACTION_CADENCE_IDLE_BREATH_COLOR,
+            "shadow_smear" => CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
+            _ => continue,
         };
-        for step in 0..5 {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x + windup_left + step * 3,
-                base_y - 36 + step,
-                7,
-                3,
-                CLASSIC_RTS_ACTION_CADENCE_WINDUP_COLOR,
-            );
-        }
-        for step in 0..9 {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x + 12 + step * 3,
-                base_y - 34 + step,
-                7,
-                3,
-                CLASSIC_RTS_ACTION_CADENCE_STRIKE_COLOR,
-            );
-        }
-        for step in 0..6 {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x + 4 + step * 4,
-                base_y - 18 + step,
-                6,
-                3,
-                CLASSIC_RTS_ACTION_CADENCE_RECOVERY_COLOR,
-            );
-        }
         classic_draw_rect(
             buffer,
             width,
             height,
-            center_x - 15,
-            base_y - 7,
-            32,
-            3,
-            CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
+            center_x + mark.rect.x,
+            base_y + mark.rect.y,
+            mark.rect.width,
+            mark.rect.height,
+            color,
         );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            center_x - 10,
-            base_y - 4,
-            24,
-            2,
-            CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
-        );
-    } else if carry_frame {
-        for step in 0..4 {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x + 14 + step * 2,
-                base_y - 34 - (step % 2),
-                4,
-                6,
-                CLASSIC_RTS_ACTION_CADENCE_CARRY_BOB_COLOR,
-            );
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x + 12 + step * 3,
-                base_y - 17 + step,
-                4,
-                3,
-                CLASSIC_RTS_ACTION_CADENCE_SHADOW_SMEAR_COLOR,
-            );
-        }
-    } else if idle_frame
-        && (frame_id.starts_with("actor_guard")
-            || frame_id.starts_with("actor_worker")
-            || frame_id.starts_with("actor_creep"))
-    {
-        for step in 0..4 {
-            classic_draw_rect(
-                buffer,
-                width,
-                height,
-                center_x - 10 + step * 6,
-                base_y - 31 + (step % 2),
-                4,
-                2,
-                CLASSIC_RTS_ACTION_CADENCE_IDLE_BREATH_COLOR,
-            );
-        }
     }
 }
 

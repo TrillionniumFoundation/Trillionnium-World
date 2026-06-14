@@ -5,21 +5,22 @@
 use serde::{Deserialize, Serialize};
 use trnm_rts_bevy_runtime::{
     rts_ability_effect_tiles_for_target, rts_ability_tooltip_telegraph_stage,
-    rts_aftermath_debris_tiles_for_id, rts_aftermath_parts, rts_aftermath_smoke_tiles_for_id,
-    rts_ai_counter_tiles_for_pressure, rts_ai_pressure_tiles_for_pressure,
-    rts_ai_wave_unit_ids_for_pressure, rts_army_command_parts, rts_army_rally_tiles_for_id,
-    rts_army_units_for_batch, rts_available_gold, rts_base_assault_parts,
-    rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
-    rts_blocked_feedback_chip_visible, rts_blocked_feedback_player_label,
-    rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
-    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id, rts_combat_impact_stage,
-    rts_command_execution_feedback_kind, rts_command_feedback_lifecycle_stage,
-    rts_command_feedback_strip_stage, rts_command_history_prune_visible,
-    rts_command_history_visible, rts_command_queue_path_preview_stage,
-    rts_command_stamp_for_ability, rts_command_stamp_for_move, rts_command_stamp_for_selection,
-    rts_command_surface_stage, rts_commander_aura_tiles_for_id, rts_commander_parts,
-    rts_contact_flash_tiles_for_target, rts_control_group_hotkey_feedback_stage,
-    rts_control_group_hotkey_slot, rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_action_cadence_marks, rts_aftermath_debris_tiles_for_id, rts_aftermath_parts,
+    rts_aftermath_smoke_tiles_for_id, rts_ai_counter_tiles_for_pressure,
+    rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure, rts_army_command_parts,
+    rts_army_rally_tiles_for_id, rts_army_units_for_batch, rts_available_gold,
+    rts_base_assault_parts, rts_base_assault_path_tiles_for_target,
+    rts_base_assault_targets_for_id, rts_blocked_feedback_chip_visible,
+    rts_blocked_feedback_player_label, rts_boss_guard_units_for_id, rts_build_parts,
+    rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
+    rts_combat_impact_stage, rts_command_execution_feedback_kind,
+    rts_command_feedback_lifecycle_stage, rts_command_feedback_strip_stage,
+    rts_command_history_prune_visible, rts_command_history_visible,
+    rts_command_queue_path_preview_stage, rts_command_stamp_for_ability,
+    rts_command_stamp_for_move, rts_command_stamp_for_selection, rts_command_surface_stage,
+    rts_commander_aura_tiles_for_id, rts_commander_parts, rts_contact_flash_tiles_for_target,
+    rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
+    rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
@@ -86,6 +87,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub locomotion_blend_stage_sample: Option<String>,
     pub npc_transition_stage_sample: Option<String>,
     pub depth_readability_stage_sample: Option<String>,
+    pub action_cadence_attack_mark_count_sample: usize,
+    pub action_cadence_carry_mark_count_sample: usize,
+    pub action_cadence_idle_mark_count_sample: usize,
+    pub action_cadence_creep_windup_offset_sample: i32,
     pub command_surface_stage_sample: Option<String>,
     pub command_grid_hit_sample: Option<usize>,
     pub tile_line_sample: Vec<RtsRuntimeTileLineStep>,
@@ -257,6 +262,13 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let depth_readability_stage =
         rts_depth_readability_stage(&["depth:target_priority".to_string()], &[], 0)
             .map(str::to_string);
+    let action_cadence_attack_marks = rts_action_cadence_marks("actor_guard_attack");
+    let action_cadence_carry_marks = rts_action_cadence_marks("actor_worker_carry");
+    let action_cadence_idle_marks = rts_action_cadence_marks("actor_guard_idle");
+    let action_cadence_creep_windup_offset = rts_action_cadence_marks("actor_creep_attack")
+        .first()
+        .map(|mark| mark.rect.x)
+        .unwrap_or_default();
     let command_surface_stage = rts_command_surface_stage(
         7,
         &["surface:target_queue".to_string()],
@@ -564,6 +576,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && locomotion_blend_stage.as_deref() == Some("formation_slide")
         && npc_transition_stage.as_deref() == Some("hit_recover")
         && depth_readability_stage.as_deref() == Some("target_priority")
+        && action_cadence_attack_marks.len() == 22
+        && action_cadence_carry_marks.len() == 8
+        && action_cadence_idle_marks.len() == 4
+        && action_cadence_creep_windup_offset == -24
         && command_surface_stage.as_deref() == Some("target_queue")
         && command_grid_hit == Some(0)
         && tile_line.len() == 9
@@ -803,6 +819,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         locomotion_blend_stage_sample: locomotion_blend_stage,
         npc_transition_stage_sample: npc_transition_stage,
         depth_readability_stage_sample: depth_readability_stage,
+        action_cadence_attack_mark_count_sample: action_cadence_attack_marks.len(),
+        action_cadence_carry_mark_count_sample: action_cadence_carry_marks.len(),
+        action_cadence_idle_mark_count_sample: action_cadence_idle_marks.len(),
+        action_cadence_creep_windup_offset_sample: action_cadence_creep_windup_offset,
         command_surface_stage_sample: command_surface_stage,
         command_grid_hit_sample: command_grid_hit,
         tile_line_sample: tile_line,
@@ -979,7 +999,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, action cadence marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1034,6 +1054,10 @@ mod tests {
             evidence.depth_readability_stage_sample.as_deref(),
             Some("target_priority")
         );
+        assert_eq!(evidence.action_cadence_attack_mark_count_sample, 22);
+        assert_eq!(evidence.action_cadence_carry_mark_count_sample, 8);
+        assert_eq!(evidence.action_cadence_idle_mark_count_sample, 4);
+        assert_eq!(evidence.action_cadence_creep_windup_offset_sample, -24);
         assert_eq!(
             evidence.command_surface_stage_sample.as_deref(),
             Some("target_queue")

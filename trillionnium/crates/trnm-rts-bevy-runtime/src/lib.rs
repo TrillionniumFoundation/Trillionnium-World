@@ -91,6 +91,12 @@ pub struct RtsRuntimeRect {
     pub height: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsActionCadenceMark {
+    pub kind: String,
+    pub rect: RtsRuntimeRect,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeGridSpec {
     pub origin_x: i32,
@@ -2805,6 +2811,101 @@ pub fn rts_local_obstruction_recovery_stage(
     })
 }
 
+fn rts_action_cadence_mark(
+    kind: &str,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+) -> RtsActionCadenceMark {
+    RtsActionCadenceMark {
+        kind: kind.to_string(),
+        rect: RtsRuntimeRect {
+            x,
+            y,
+            width,
+            height,
+        },
+    }
+}
+
+pub fn rts_action_cadence_marks(frame_id: &str) -> Vec<RtsActionCadenceMark> {
+    let attack_frame = frame_id.ends_with("_attack");
+    let carry_frame = frame_id.ends_with("_carry");
+    let idle_frame = frame_id.ends_with("_idle");
+    let mut marks = Vec::new();
+
+    if attack_frame {
+        let windup_left = if frame_id.starts_with("actor_creep") {
+            -24
+        } else {
+            -22
+        };
+        for step in 0..5 {
+            marks.push(rts_action_cadence_mark(
+                "windup",
+                windup_left + step * 3,
+                -36 + step,
+                7,
+                3,
+            ));
+        }
+        for step in 0..9 {
+            marks.push(rts_action_cadence_mark(
+                "strike",
+                12 + step * 3,
+                -34 + step,
+                7,
+                3,
+            ));
+        }
+        for step in 0..6 {
+            marks.push(rts_action_cadence_mark(
+                "recovery",
+                4 + step * 4,
+                -18 + step,
+                6,
+                3,
+            ));
+        }
+        marks.push(rts_action_cadence_mark("shadow_smear", -15, -7, 32, 3));
+        marks.push(rts_action_cadence_mark("shadow_smear", -10, -4, 24, 2));
+    } else if carry_frame {
+        for step in 0..4 {
+            marks.push(rts_action_cadence_mark(
+                "carry_bob",
+                14 + step * 2,
+                -34 - (step % 2),
+                4,
+                6,
+            ));
+            marks.push(rts_action_cadence_mark(
+                "shadow_smear",
+                12 + step * 3,
+                -17 + step,
+                4,
+                3,
+            ));
+        }
+    } else if idle_frame
+        && (frame_id.starts_with("actor_guard")
+            || frame_id.starts_with("actor_worker")
+            || frame_id.starts_with("actor_creep"))
+    {
+        for step in 0..4 {
+            marks.push(rts_action_cadence_mark(
+                "idle_breath",
+                -10 + step * 6,
+                -31 + (step % 2),
+                4,
+                2,
+            ));
+        }
+    }
+
+    marks
+}
+
 pub fn rts_npc_behavior_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -4220,5 +4321,58 @@ mod tests {
             Some("path_occlusion")
         );
         assert_eq!(rts_npc_behavior_stage(&[], &[], 0), None);
+    }
+
+    #[test]
+    fn action_cadence_adapter_preserves_first_contact_marks() {
+        let guard_attack = rts_action_cadence_marks("actor_guard_attack");
+        assert_eq!(guard_attack.len(), 22);
+        assert_eq!(
+            guard_attack
+                .iter()
+                .filter(|mark| mark.kind == "windup")
+                .count(),
+            5
+        );
+        assert_eq!(
+            guard_attack
+                .iter()
+                .filter(|mark| mark.kind == "strike")
+                .count(),
+            9
+        );
+        assert_eq!(
+            guard_attack
+                .iter()
+                .filter(|mark| mark.kind == "recovery")
+                .count(),
+            6
+        );
+        assert_eq!(
+            guard_attack
+                .iter()
+                .filter(|mark| mark.kind == "shadow_smear")
+                .count(),
+            2
+        );
+
+        let creep_attack = rts_action_cadence_marks("actor_creep_attack");
+        assert_eq!(creep_attack.first().map(|mark| mark.rect.x), Some(-24));
+        assert_eq!(guard_attack.first().map(|mark| mark.rect.x), Some(-22));
+
+        let worker_carry = rts_action_cadence_marks("actor_worker_carry");
+        assert_eq!(worker_carry.len(), 8);
+        assert_eq!(
+            worker_carry
+                .iter()
+                .filter(|mark| mark.kind == "carry_bob")
+                .count(),
+            4
+        );
+
+        let guard_idle = rts_action_cadence_marks("actor_guard_idle");
+        assert_eq!(guard_idle.len(), 4);
+        assert!(guard_idle.iter().all(|mark| mark.kind == "idle_breath"));
+        assert!(rts_action_cadence_marks("actor_player_idle_south").is_empty());
     }
 }
