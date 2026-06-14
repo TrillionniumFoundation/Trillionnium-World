@@ -4,20 +4,21 @@
 
 use serde::{Deserialize, Serialize};
 use trnm_rts_bevy_runtime::{
-    rts_ability_effect_tiles_for_target, rts_aftermath_debris_tiles_for_id, rts_aftermath_parts,
-    rts_aftermath_smoke_tiles_for_id, rts_ai_counter_tiles_for_pressure,
-    rts_ai_pressure_tiles_for_pressure, rts_ai_wave_unit_ids_for_pressure, rts_army_command_parts,
-    rts_army_rally_tiles_for_id, rts_army_units_for_batch, rts_available_gold,
-    rts_base_assault_parts, rts_base_assault_path_tiles_for_target,
-    rts_base_assault_targets_for_id, rts_blocked_feedback_player_label,
-    rts_boss_guard_units_for_id, rts_build_parts, rts_build_site_tiles,
-    rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
+    rts_ability_effect_tiles_for_target, rts_ability_tooltip_telegraph_stage,
+    rts_aftermath_debris_tiles_for_id, rts_aftermath_parts, rts_aftermath_smoke_tiles_for_id,
+    rts_ai_counter_tiles_for_pressure, rts_ai_pressure_tiles_for_pressure,
+    rts_ai_wave_unit_ids_for_pressure, rts_army_command_parts, rts_army_rally_tiles_for_id,
+    rts_army_units_for_batch, rts_available_gold, rts_base_assault_parts,
+    rts_base_assault_path_tiles_for_target, rts_base_assault_targets_for_id,
+    rts_blocked_feedback_player_label, rts_boss_guard_units_for_id, rts_build_parts,
+    rts_build_site_tiles, rts_central_keep_route_tiles_for_id, rts_central_keep_tile_for_id,
     rts_command_execution_feedback_kind, rts_command_feedback_lifecycle_stage,
     rts_command_feedback_strip_stage, rts_command_history_prune_visible,
     rts_command_history_visible, rts_command_queue_path_preview_stage,
     rts_command_stamp_for_ability, rts_command_stamp_for_move, rts_command_stamp_for_selection,
     rts_commander_aura_tiles_for_id, rts_commander_parts, rts_contact_flash_tiles_for_target,
-    rts_control_group_hotkey_slot, rts_control_group_slot_summaries, rts_counter_command_parts,
+    rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
+    rts_control_group_slot_summaries, rts_counter_command_parts,
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
@@ -43,14 +44,17 @@ use trnm_rts_bevy_runtime::{
     rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
     rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
     rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
-    rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_tiles_for_units,
-    rts_siege_breach_tiles_for_target, rts_siege_push_route_tiles_for_target,
-    rts_siege_unit_tile_for_id, rts_siege_units_for_id, rts_split_squad_tiles_for_id,
-    rts_structure_tile_for_id, rts_supply_convoy_for_id, rts_target_priority_ids_for_target,
-    rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp, rts_terrain_route_tiles_for_camp,
-    rts_threat_levels_for_target, rts_tier_two_parts, rts_units_from_control_group_assignment,
-    rts_unlock_unit_tile_for_id, RtsCommandStamp, RtsControlGroupSlotSummary, RtsRuntimeGridSpec,
-    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_command_feedback_stage,
+    rts_selection_tiles_for_units, rts_siege_breach_tiles_for_target,
+    rts_siege_push_route_tiles_for_target, rts_siege_unit_tile_for_id, rts_siege_units_for_id,
+    rts_split_squad_tiles_for_id, rts_structure_tile_for_id, rts_supply_convoy_for_id,
+    rts_target_priority_ids_for_target, rts_target_tile_for_id, rts_terrain_choke_tiles_for_camp,
+    rts_terrain_route_tiles_for_camp, rts_threat_levels_for_target, rts_tier_two_parts,
+    rts_unit_status_energy_percent, rts_unit_status_health_percent, rts_unit_status_portrait_stage,
+    rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
+    rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id, RtsCommandStamp,
+    RtsControlGroupSlotSummary, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
+    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -185,6 +189,14 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub hover_cursor_label_sample: String,
     pub blocked_cursor_kind_sample: String,
     pub blocked_cursor_label_sample: String,
+    pub unit_status_stage_sample: Option<String>,
+    pub unit_status_unit_id_sample: String,
+    pub unit_status_health_sample: u8,
+    pub unit_status_energy_sample: u8,
+    pub unit_status_role_badges_sample: Vec<String>,
+    pub selection_feedback_stage_sample: Option<String>,
+    pub ability_tooltip_stage_sample: Option<String>,
+    pub control_group_hotkey_feedback_stage_sample: Option<String>,
     pub source_of_truth: String,
 }
 
@@ -443,6 +455,42 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         false,
         blocked_cursor_kind,
     );
+    let unit_status_events = vec!["unit_status_portrait:commander".to_string()];
+    let unit_status_queue = vec!["unit_status_portrait:".to_string()];
+    let unit_status_stage =
+        rts_unit_status_portrait_stage(2, &unit_status_events, &unit_status_queue)
+            .map(str::to_string);
+    let unit_status_unit_id = rts_unit_status_portrait_unit_id(
+        unit_status_stage.as_deref().unwrap_or("commander"),
+        &["square_worker_carry".to_string()],
+        Some("mirror_captain"),
+        Some("arena_creep_attack"),
+        &["training_hall".to_string()],
+    );
+    let unit_status_health = rts_unit_status_health_percent("structure", &[], &[76], 41);
+    let unit_status_energy = rts_unit_status_energy_percent(&[32]);
+    let unit_status_role_badges = rts_unit_status_role_badges("commander")
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let selection_feedback_stage = rts_selection_command_feedback_stage(
+        0,
+        &[],
+        &["selection_command_feedback:attack_lock".to_string()],
+    )
+    .map(str::to_string);
+    let ability_tooltip_stage = rts_ability_tooltip_telegraph_stage(
+        0,
+        &["ability_tooltip_telegraph:range_preview".to_string()],
+        &[],
+    )
+    .map(str::to_string);
+    let control_group_hotkey_feedback_stage = rts_control_group_hotkey_feedback_stage(
+        0,
+        &[],
+        &["control_group_hotkey_feedback:double_tap_camera".to_string()],
+    )
+    .map(str::to_string);
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && path_preview.as_deref() == Some("queue_stack")
@@ -656,7 +704,15 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && hover_cursor_kind == "ability"
         && hover_cursor_label == "COMMAND BAR CURSOR ABILITY READY"
         && blocked_cursor_kind == "blocked"
-        && blocked_cursor_label == "MAP CURSOR BLOCKED LOCK";
+        && blocked_cursor_label == "MAP CURSOR BLOCKED LOCK"
+        && unit_status_stage.as_deref() == Some("commander")
+        && unit_status_unit_id == "mirror_captain"
+        && unit_status_health == 76
+        && unit_status_energy == 68
+        && unit_status_role_badges == vec!["AUR", "LVL", "CMD"]
+        && selection_feedback_stage.as_deref() == Some("attack_lock")
+        && ability_tooltip_stage.as_deref() == Some("range_preview")
+        && control_group_hotkey_feedback_stage.as_deref() == Some("double_tap_camera");
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -833,7 +889,15 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         hover_cursor_label_sample: hover_cursor_label,
         blocked_cursor_kind_sample: blocked_cursor_kind.to_string(),
         blocked_cursor_label_sample: blocked_cursor_label,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        unit_status_stage_sample: unit_status_stage,
+        unit_status_unit_id_sample: unit_status_unit_id,
+        unit_status_health_sample: unit_status_health,
+        unit_status_energy_sample: unit_status_energy,
+        unit_status_role_badges_sample: unit_status_role_badges,
+        selection_feedback_stage_sample: selection_feedback_stage,
+        ability_tooltip_stage_sample: ability_tooltip_stage,
+        control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1340,6 +1404,31 @@ mod tests {
         assert_eq!(
             evidence.blocked_cursor_label_sample,
             "MAP CURSOR BLOCKED LOCK"
+        );
+        assert_eq!(
+            evidence.unit_status_stage_sample.as_deref(),
+            Some("commander")
+        );
+        assert_eq!(evidence.unit_status_unit_id_sample, "mirror_captain");
+        assert_eq!(evidence.unit_status_health_sample, 76);
+        assert_eq!(evidence.unit_status_energy_sample, 68);
+        assert_eq!(
+            evidence.unit_status_role_badges_sample,
+            vec!["AUR", "LVL", "CMD"]
+        );
+        assert_eq!(
+            evidence.selection_feedback_stage_sample.as_deref(),
+            Some("attack_lock")
+        );
+        assert_eq!(
+            evidence.ability_tooltip_stage_sample.as_deref(),
+            Some("range_preview")
+        );
+        assert_eq!(
+            evidence
+                .control_group_hotkey_feedback_stage_sample
+                .as_deref(),
+            Some("double_tap_camera")
         );
     }
 }

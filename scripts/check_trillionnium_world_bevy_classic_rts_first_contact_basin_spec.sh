@@ -343,6 +343,14 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.hover_cursor_label_sample == "COMMAND BAR CURSOR ABILITY READY"
   and .rts_evidence_bevy_runtime_adapter.blocked_cursor_kind_sample == "blocked"
   and .rts_evidence_bevy_runtime_adapter.blocked_cursor_label_sample == "MAP CURSOR BLOCKED LOCK"
+  and .rts_evidence_bevy_runtime_adapter.unit_status_stage_sample == "commander"
+  and .rts_evidence_bevy_runtime_adapter.unit_status_unit_id_sample == "mirror_captain"
+  and .rts_evidence_bevy_runtime_adapter.unit_status_health_sample == 76
+  and .rts_evidence_bevy_runtime_adapter.unit_status_energy_sample == 68
+  and .rts_evidence_bevy_runtime_adapter.unit_status_role_badges_sample == ["AUR","LVL","CMD"]
+  and .rts_evidence_bevy_runtime_adapter.selection_feedback_stage_sample == "attack_lock"
+  and .rts_evidence_bevy_runtime_adapter.ability_tooltip_stage_sample == "range_preview"
+  and .rts_evidence_bevy_runtime_adapter.control_group_hotkey_feedback_stage_sample == "double_tap_camera"
   and .rts_bevy_runtime_map_projection.map_x == 16
   and .rts_bevy_runtime_map_projection.map_y == 54
   and .rts_bevy_runtime_map_projection.cell_w == 28

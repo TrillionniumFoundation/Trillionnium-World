@@ -2292,6 +2292,254 @@ pub fn rts_command_execution_feedback_kind(
     }
 }
 
+fn rts_recent_stage_from_events(
+    markers: &[(&str, &'static str)],
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev().chain(command_queue.iter().rev()) {
+        if let Some((_, stage)) = markers.iter().find(|(marker, _)| event.contains(marker)) {
+            return Some(*stage);
+        }
+    }
+    None
+}
+
+pub fn rts_unit_status_portrait_stage(
+    combat_turn: u8,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    for event in combat_events.iter().rev() {
+        if event.contains("unit_status_portrait:multi_select") {
+            return Some("multi_select");
+        }
+        if event.contains("unit_status_portrait:structure") {
+            return Some("structure");
+        }
+        if event.contains("unit_status_portrait:creep_target") {
+            return Some("creep_target");
+        }
+        if event.contains("unit_status_portrait:commander") {
+            return Some("commander");
+        }
+        if event.contains("unit_status_portrait:guard") {
+            return Some("guard");
+        }
+        if event.contains("unit_status_portrait:worker") {
+            return Some("worker");
+        }
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("unit_status_portrait:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "worker",
+        1 => "guard",
+        2 => "commander",
+        3 => "creep_target",
+        4 => "structure",
+        _ => "multi_select",
+    })
+}
+
+pub fn rts_unit_status_portrait_unit_id(
+    stage: &str,
+    selected_unit_ids: &[String],
+    commander_unit_id: Option<&str>,
+    attack_target_id: Option<&str>,
+    completed_structure_ids: &[String],
+) -> String {
+    match stage {
+        "worker" => selected_unit_ids
+            .iter()
+            .find(|id| id.contains("worker"))
+            .cloned()
+            .unwrap_or_else(|| "square_worker_carry".to_string()),
+        "guard" => selected_unit_ids
+            .iter()
+            .find(|id| id.contains("guard"))
+            .cloned()
+            .unwrap_or_else(|| "arena_guard_left".to_string()),
+        "commander" => commander_unit_id
+            .map(str::to_string)
+            .unwrap_or_else(|| "mirror_captain".to_string()),
+        "creep_target" => attack_target_id
+            .map(str::to_string)
+            .unwrap_or_else(|| "arena_creep_attack".to_string()),
+        "structure" => completed_structure_ids
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "training_hall".to_string()),
+        _ => selected_unit_ids
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "player".to_string()),
+    }
+}
+
+pub fn rts_unit_status_health_percent(
+    stage: &str,
+    unit_health_percents: &[u8],
+    structure_health_percents: &[u8],
+    target_health_percent: u8,
+) -> u8 {
+    unit_health_percents.first().copied().unwrap_or_else(|| {
+        if stage == "structure" {
+            structure_health_percents.first().copied().unwrap_or(86)
+        } else if stage == "creep_target" {
+            target_health_percent.max(1)
+        } else {
+            88
+        }
+    })
+}
+
+pub fn rts_unit_status_energy_percent(ability_cooldown_percents: &[u8]) -> u8 {
+    ability_cooldown_percents
+        .first()
+        .copied()
+        .map(|cooldown| 100_u8.saturating_sub(cooldown))
+        .unwrap_or(68)
+}
+
+pub fn rts_unit_status_role_badges(stage: &str) -> [&'static str; 3] {
+    match stage {
+        "worker" => ["HAR", "REP", "RET"],
+        "guard" => ["ATK", "HLD", "DEF"],
+        "commander" => ["AUR", "LVL", "CMD"],
+        "creep_target" => ["THR", "ARM", "FOC"],
+        "structure" => ["Q", "BLD", "UP"],
+        _ => ["G1", "SEL", "ORD"],
+    }
+}
+
+pub fn rts_selection_command_feedback_stage(
+    combat_turn: u8,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("selection_command_feedback:invalid_order", "invalid_order"),
+            ("selection_command_feedback:attack_lock", "attack_lock"),
+            ("selection_command_feedback:move_line", "move_line"),
+            ("selection_command_feedback:rally_preview", "rally_preview"),
+            (
+                "selection_command_feedback:selection_confirm",
+                "selection_confirm",
+            ),
+            ("selection_command_feedback:marquee_start", "marquee_start"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("selection_command_feedback:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "marquee_start",
+        1 => "selection_confirm",
+        2 => "rally_preview",
+        3 => "move_line",
+        4 => "attack_lock",
+        _ => "invalid_order",
+    })
+}
+
+pub fn rts_ability_tooltip_telegraph_stage(
+    combat_turn: u8,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            (
+                "ability_tooltip_telegraph:resource_warning",
+                "resource_warning",
+            ),
+            ("ability_tooltip_telegraph:queue_explain", "queue_explain"),
+            ("ability_tooltip_telegraph:cooldown_sweep", "cooldown_sweep"),
+            ("ability_tooltip_telegraph:cast_windup", "cast_windup"),
+            ("ability_tooltip_telegraph:range_preview", "range_preview"),
+            ("ability_tooltip_telegraph:hover_tooltip", "hover_tooltip"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("ability_tooltip_telegraph:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "hover_tooltip",
+        1 => "range_preview",
+        2 => "cast_windup",
+        3 => "cooldown_sweep",
+        4 => "queue_explain",
+        _ => "resource_warning",
+    })
+}
+
+pub fn rts_control_group_hotkey_feedback_stage(
+    combat_turn: u8,
+    combat_events: &[String],
+    command_queue: &[String],
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            (
+                "control_group_hotkey_feedback:ability_hotkey_ack",
+                "ability_hotkey_ack",
+            ),
+            (
+                "control_group_hotkey_feedback:production_hotkey",
+                "production_hotkey",
+            ),
+            (
+                "control_group_hotkey_feedback:idle_worker_ping",
+                "idle_worker_ping",
+            ),
+            (
+                "control_group_hotkey_feedback:double_tap_camera",
+                "double_tap_camera",
+            ),
+            ("control_group_hotkey_feedback:recall_group", "recall_group"),
+            ("control_group_hotkey_feedback:assign_group", "assign_group"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("control_group_hotkey_feedback:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "assign_group",
+        1 => "recall_group",
+        2 => "double_tap_camera",
+        3 => "idle_worker_ping",
+        4 => "production_hotkey",
+        _ => "ability_hotkey_ack",
+    })
+}
+
 pub fn rts_blocked_feedback_player_label(chip: &str) -> String {
     let blocked = chip.strip_prefix("feedback:blocked:").unwrap_or(chip);
     if let Some(queue_id) = blocked.strip_prefix("queue:rts_queue_unaffordable:") {
@@ -3099,6 +3347,111 @@ mod tests {
             ),
             Some("harvest")
         );
+    }
+
+    #[test]
+    fn overlay_stage_adapter_preserves_first_contact_feedback_states() {
+        let unit_events = vec!["unit_status_portrait:commander".to_string()];
+        assert_eq!(
+            rts_unit_status_portrait_stage(4, &unit_events, &["unit_status_portrait:".to_string()],),
+            Some("commander")
+        );
+        assert_eq!(
+            rts_unit_status_portrait_stage(5, &[], &["unit_status_portrait:".to_string()]),
+            Some("multi_select")
+        );
+        assert_eq!(rts_unit_status_portrait_stage(0, &[], &[]), None);
+        assert_eq!(
+            rts_unit_status_portrait_unit_id(
+                "worker",
+                &[
+                    "player".to_string(),
+                    "square_worker_carry".to_string(),
+                    "square_guard_patrol".to_string(),
+                ],
+                Some("mirror_captain"),
+                Some("arena_creep_attack"),
+                &["training_hall".to_string()],
+            ),
+            "square_worker_carry"
+        );
+        assert_eq!(
+            rts_unit_status_portrait_unit_id(
+                "structure",
+                &[],
+                None,
+                None,
+                &["relay_outpost".to_string()],
+            ),
+            "relay_outpost"
+        );
+        assert_eq!(
+            rts_unit_status_health_percent("structure", &[], &[76], 41),
+            76
+        );
+        assert_eq!(
+            rts_unit_status_health_percent("creep_target", &[], &[], 0),
+            1
+        );
+        assert_eq!(rts_unit_status_energy_percent(&[32]), 68);
+        assert_eq!(
+            rts_unit_status_role_badges("commander"),
+            ["AUR", "LVL", "CMD"]
+        );
+
+        assert_eq!(
+            rts_selection_command_feedback_stage(
+                0,
+                &[],
+                &["selection_command_feedback:attack_lock".to_string()],
+            ),
+            Some("attack_lock")
+        );
+        assert_eq!(
+            rts_selection_command_feedback_stage(
+                3,
+                &[],
+                &["selection_command_feedback:".to_string()],
+            ),
+            Some("move_line")
+        );
+        assert_eq!(rts_selection_command_feedback_stage(0, &[], &[]), None);
+
+        assert_eq!(
+            rts_ability_tooltip_telegraph_stage(
+                0,
+                &["ability_tooltip_telegraph:range_preview".to_string()],
+                &[],
+            ),
+            Some("range_preview")
+        );
+        assert_eq!(
+            rts_ability_tooltip_telegraph_stage(
+                4,
+                &[],
+                &["ability_tooltip_telegraph:".to_string()],
+            ),
+            Some("queue_explain")
+        );
+        assert_eq!(rts_ability_tooltip_telegraph_stage(0, &[], &[]), None);
+
+        assert_eq!(
+            rts_control_group_hotkey_feedback_stage(
+                0,
+                &[],
+                &["control_group_hotkey_feedback:double_tap_camera".to_string()],
+            ),
+            Some("double_tap_camera")
+        );
+        assert_eq!(
+            rts_control_group_hotkey_feedback_stage(
+                5,
+                &[],
+                &["control_group_hotkey_feedback:".to_string()],
+            ),
+            Some("ability_hotkey_ack")
+        );
+        assert_eq!(rts_control_group_hotkey_feedback_stage(0, &[], &[]), None);
     }
 
     #[test]

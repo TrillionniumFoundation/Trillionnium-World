@@ -13067,44 +13067,13 @@ fn classic_draw_rts_production_spawn_animation_scene_overlay(
 fn classic_rts_unit_status_portrait_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("unit_status_portrait:multi_select") {
-                return Some("multi_select");
-            }
-            if event.contains("unit_status_portrait:structure") {
-                return Some("structure");
-            }
-            if event.contains("unit_status_portrait:creep_target") {
-                return Some("creep_target");
-            }
-            if event.contains("unit_status_portrait:commander") {
-                return Some("commander");
-            }
-            if event.contains("unit_status_portrait:guard") {
-                return Some("guard");
-            }
-            if event.contains("unit_status_portrait:worker") {
-                return Some("worker");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("unit_status_portrait:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "worker",
-            1 => "guard",
-            2 => "commander",
-            3 => "creep_target",
-            4 => "structure",
-            _ => "multi_select",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_unit_status_portrait_stage(
+            runtime.combat_turn,
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -13112,38 +13081,13 @@ fn classic_unit_status_portrait_unit_id(
     runtime: &NativeFirstPlayableRuntime,
     stage: &str,
 ) -> String {
-    match stage {
-        "worker" => runtime
-            .rts_selected_unit_ids
-            .iter()
-            .find(|id| id.contains("worker"))
-            .cloned()
-            .unwrap_or_else(|| "square_worker_carry".to_string()),
-        "guard" => runtime
-            .rts_selected_unit_ids
-            .iter()
-            .find(|id| id.contains("guard"))
-            .cloned()
-            .unwrap_or_else(|| "arena_guard_left".to_string()),
-        "commander" => runtime
-            .rts_commander_unit_id
-            .clone()
-            .unwrap_or_else(|| "mirror_captain".to_string()),
-        "creep_target" => runtime
-            .rts_attack_target_id
-            .clone()
-            .unwrap_or_else(|| "arena_creep_attack".to_string()),
-        "structure" => runtime
-            .rts_completed_structure_ids
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "training_hall".to_string()),
-        _ => runtime
-            .rts_selected_unit_ids
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "player".to_string()),
-    }
+    rts_bevy_runtime::rts_unit_status_portrait_unit_id(
+        stage,
+        &runtime.rts_selected_unit_ids,
+        runtime.rts_commander_unit_id.as_deref(),
+        runtime.rts_attack_target_id.as_deref(),
+        &runtime.rts_completed_structure_ids,
+    )
 }
 
 #[cfg(not(target_os = "android"))]
@@ -13160,29 +13104,14 @@ fn classic_draw_rts_unit_status_portrait_overlay(
     let x = (width as i32 - panel_w - 18).max(12);
     let y = (height as i32 - panel_h - 18).max(120);
     let unit_id = classic_unit_status_portrait_unit_id(runtime, stage);
-    let health = runtime
-        .rts_unit_health_percents
-        .first()
-        .copied()
-        .unwrap_or_else(|| {
-            if stage == "structure" {
-                runtime
-                    .rts_structure_health_percents
-                    .first()
-                    .copied()
-                    .unwrap_or(86)
-            } else if stage == "creep_target" {
-                runtime.rts_target_health_percent.max(1)
-            } else {
-                88
-            }
-        });
-    let mana = runtime
-        .rts_ability_cooldown_percents
-        .first()
-        .copied()
-        .map(|cooldown| 100_u8.saturating_sub(cooldown))
-        .unwrap_or(68);
+    let health = rts_bevy_runtime::rts_unit_status_health_percent(
+        stage,
+        &runtime.rts_unit_health_percents,
+        &runtime.rts_structure_health_percents,
+        runtime.rts_target_health_percent,
+    );
+    let mana =
+        rts_bevy_runtime::rts_unit_status_energy_percent(&runtime.rts_ability_cooldown_percents);
     let xp = (runtime.xp % 100) as u8;
 
     classic_draw_rect(
@@ -13265,14 +13194,7 @@ fn classic_draw_rts_unit_status_portrait_overlay(
         );
     }
 
-    let role_badges = match stage {
-        "worker" => ["HAR", "REP", "RET"],
-        "guard" => ["ATK", "HLD", "DEF"],
-        "commander" => ["AUR", "LVL", "CMD"],
-        "creep_target" => ["THR", "ARM", "FOC"],
-        "structure" => ["Q", "BLD", "UP"],
-        _ => ["G1", "SEL", "ORD"],
-    };
+    let role_badges = rts_bevy_runtime::rts_unit_status_role_badges(stage);
     for (index, badge) in role_badges.iter().enumerate() {
         classic_draw_rect(
             buffer,
@@ -13384,49 +13306,13 @@ fn classic_draw_rts_unit_status_portrait_overlay(
 fn classic_rts_selection_command_feedback_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("selection_command_feedback:invalid_order") {
-                return Some("invalid_order");
-            }
-            if event.contains("selection_command_feedback:attack_lock") {
-                return Some("attack_lock");
-            }
-            if event.contains("selection_command_feedback:move_line") {
-                return Some("move_line");
-            }
-            if event.contains("selection_command_feedback:rally_preview") {
-                return Some("rally_preview");
-            }
-            if event.contains("selection_command_feedback:selection_confirm") {
-                return Some("selection_confirm");
-            }
-            if event.contains("selection_command_feedback:marquee_start") {
-                return Some("marquee_start");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("selection_command_feedback:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "marquee_start",
-            1 => "selection_confirm",
-            2 => "rally_preview",
-            3 => "move_line",
-            4 => "attack_lock",
-            _ => "invalid_order",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_selection_command_feedback_stage(
+            runtime.combat_turn,
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -13787,49 +13673,13 @@ fn classic_draw_rts_selection_command_feedback_overlay(
 fn classic_rts_ability_tooltip_telegraph_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("ability_tooltip_telegraph:resource_warning") {
-                return Some("resource_warning");
-            }
-            if event.contains("ability_tooltip_telegraph:queue_explain") {
-                return Some("queue_explain");
-            }
-            if event.contains("ability_tooltip_telegraph:cooldown_sweep") {
-                return Some("cooldown_sweep");
-            }
-            if event.contains("ability_tooltip_telegraph:cast_windup") {
-                return Some("cast_windup");
-            }
-            if event.contains("ability_tooltip_telegraph:range_preview") {
-                return Some("range_preview");
-            }
-            if event.contains("ability_tooltip_telegraph:hover_tooltip") {
-                return Some("hover_tooltip");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("ability_tooltip_telegraph:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "hover_tooltip",
-            1 => "range_preview",
-            2 => "cast_windup",
-            3 => "cooldown_sweep",
-            4 => "queue_explain",
-            _ => "resource_warning",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_ability_tooltip_telegraph_stage(
+            runtime.combat_turn,
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -14179,49 +14029,13 @@ fn classic_draw_rts_ability_tooltip_telegraph_overlay(
 fn classic_rts_control_group_hotkey_feedback_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime
-            .rts_combat_event_log
-            .iter()
-            .rev()
-            .chain(runtime.rts_command_queue.iter().rev())
-        {
-            if event.contains("control_group_hotkey_feedback:ability_hotkey_ack") {
-                return Some("ability_hotkey_ack");
-            }
-            if event.contains("control_group_hotkey_feedback:production_hotkey") {
-                return Some("production_hotkey");
-            }
-            if event.contains("control_group_hotkey_feedback:idle_worker_ping") {
-                return Some("idle_worker_ping");
-            }
-            if event.contains("control_group_hotkey_feedback:double_tap_camera") {
-                return Some("double_tap_camera");
-            }
-            if event.contains("control_group_hotkey_feedback:recall_group") {
-                return Some("recall_group");
-            }
-            if event.contains("control_group_hotkey_feedback:assign_group") {
-                return Some("assign_group");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("control_group_hotkey_feedback:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "assign_group",
-            1 => "recall_group",
-            2 => "double_tap_camera",
-            3 => "idle_worker_ping",
-            4 => "production_hotkey",
-            _ => "ability_hotkey_ack",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_control_group_hotkey_feedback_stage(
+            runtime.combat_turn,
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
