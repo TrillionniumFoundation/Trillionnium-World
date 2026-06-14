@@ -367,6 +367,9 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.hover_cursor_label_sample == "COMMAND BAR CURSOR ABILITY READY"
   and .rts_evidence_bevy_runtime_adapter.blocked_cursor_kind_sample == "blocked"
   and .rts_evidence_bevy_runtime_adapter.blocked_cursor_label_sample == "MAP CURSOR BLOCKED LOCK"
+  and .rts_evidence_bevy_runtime_adapter.hover_player_label_sample == "MAP ATTACK READY SQUARE CREEP WANDER"
+  and .rts_evidence_bevy_runtime_adapter.hover_queue_player_label_sample == "SIDEBAR QUEUE READY WATCH TOWER 7,4 210G"
+  and .rts_evidence_bevy_runtime_adapter.blocked_hover_player_label_sample == "MAP MOVE LOCK SELECT UNITS"
   and .rts_evidence_bevy_runtime_adapter.unit_status_stage_sample == "commander"
   and .rts_evidence_bevy_runtime_adapter.unit_status_unit_id_sample == "mirror_captain"
   and .rts_evidence_bevy_runtime_adapter.unit_status_health_sample == 76

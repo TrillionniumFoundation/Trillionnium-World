@@ -35,13 +35,13 @@ use trnm_rts_bevy_runtime::{
     rts_expansion_workers_for_line, rts_focus_fire_units_for_target,
     rts_fog_reveal_tiles_for_recon, rts_formation_move_execution_stage,
     rts_formation_move_preview_stage, rts_garrison_units_for_id, rts_guardian_counter_units_for_id,
-    rts_harvest_tile_for_node, rts_hover_target_preview_kind, rts_inner_core_tile_for_id,
-    rts_inner_defenders_for_id, rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id,
-    rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id, rts_line_path_tiles,
-    rts_local_obstruction_recovery_stage, rts_locomotion_blend_stage, rts_loot_items_for_id,
-    rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts, rts_npc_behavior_stage,
-    rts_npc_transition_stage, rts_objective_parts, rts_objective_tiles_for_id,
-    rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
+    rts_harvest_tile_for_node, rts_hover_player_label, rts_hover_target_preview_kind,
+    rts_inner_core_tile_for_id, rts_inner_defenders_for_id, rts_inner_gate_tile_for_id,
+    rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id,
+    rts_line_path_tiles, rts_local_obstruction_recovery_stage, rts_locomotion_blend_stage,
+    rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts,
+    rts_npc_behavior_stage, rts_npc_transition_stage, rts_objective_parts,
+    rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
     rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
     rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
     rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
@@ -218,6 +218,9 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub hover_cursor_label_sample: String,
     pub blocked_cursor_kind_sample: String,
     pub blocked_cursor_label_sample: String,
+    pub hover_player_label_sample: String,
+    pub hover_queue_player_label_sample: String,
+    pub blocked_hover_player_label_sample: String,
     pub unit_status_stage_sample: Option<String>,
     pub unit_status_unit_id_sample: String,
     pub unit_status_health_sample: u8,
@@ -565,6 +568,33 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         false,
         blocked_cursor_kind,
     );
+    let hover_player_label = rts_hover_player_label(
+        "classic_rts_mouse_viewport",
+        "RTS:ATTACK:square_creep_wander",
+        Some("5,4"),
+        None,
+        "viewport_attack_target",
+        true,
+        "ok",
+    );
+    let hover_queue_player_label = rts_hover_player_label(
+        "classic_rts_mouse_sidebar",
+        "RTS:QUEUE:build:watch_tower@7,4",
+        None,
+        Some("build:watch_tower@7,4"),
+        "sidebar_build_queue",
+        true,
+        "ok",
+    );
+    let blocked_hover_player_label = rts_hover_player_label(
+        "classic_rts_mouse_viewport",
+        "RTS:MOVE:4,3:line",
+        Some("4,3"),
+        None,
+        "viewport_move",
+        false,
+        "rts_group_selection_required",
+    );
     let unit_status_events = vec!["unit_status_portrait:commander".to_string()];
     let unit_status_queue = vec!["unit_status_portrait:".to_string()];
     let unit_status_stage =
@@ -839,6 +869,9 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && hover_cursor_label == "COMMAND BAR CURSOR ABILITY READY"
         && blocked_cursor_kind == "blocked"
         && blocked_cursor_label == "MAP CURSOR BLOCKED LOCK"
+        && hover_player_label == "MAP ATTACK READY SQUARE CREEP WANDER"
+        && hover_queue_player_label == "SIDEBAR QUEUE READY WATCH TOWER 7,4 210G"
+        && blocked_hover_player_label == "MAP MOVE LOCK SELECT UNITS"
         && unit_status_stage.as_deref() == Some("commander")
         && unit_status_unit_id == "mirror_captain"
         && unit_status_health == 76
@@ -1047,6 +1080,9 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         hover_cursor_label_sample: hover_cursor_label,
         blocked_cursor_kind_sample: blocked_cursor_kind.to_string(),
         blocked_cursor_label_sample: blocked_cursor_label,
+        hover_player_label_sample: hover_player_label,
+        hover_queue_player_label_sample: hover_queue_player_label,
+        blocked_hover_player_label_sample: blocked_hover_player_label,
         unit_status_stage_sample: unit_status_stage,
         unit_status_unit_id_sample: unit_status_unit_id,
         unit_status_health_sample: unit_status_health,
@@ -1616,6 +1652,18 @@ mod tests {
         assert_eq!(
             evidence.blocked_cursor_label_sample,
             "MAP CURSOR BLOCKED LOCK"
+        );
+        assert_eq!(
+            evidence.hover_player_label_sample,
+            "MAP ATTACK READY SQUARE CREEP WANDER"
+        );
+        assert_eq!(
+            evidence.hover_queue_player_label_sample,
+            "SIDEBAR QUEUE READY WATCH TOWER 7,4 210G"
+        );
+        assert_eq!(
+            evidence.blocked_hover_player_label_sample,
+            "MAP MOVE LOCK SELECT UNITS"
         );
         assert_eq!(
             evidence.unit_status_stage_sample.as_deref(),

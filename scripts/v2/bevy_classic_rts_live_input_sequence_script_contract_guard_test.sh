@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_live_input_sequence.sh"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
 MAIN="$ROOT/trillionnium/crates/trnm-world-bevy/src/main.rs"
+RUNTIME="$ROOT/trillionnium/crates/trnm-rts-bevy-runtime/src/lib.rs"
 READINESS="$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
 
 required_script_lines=(
@@ -304,7 +305,7 @@ required_source_lines=(
   'drag_select_commit_sample'
   'drag_select_filter_gate'
   'drag_select_filter_sample'
-  'classic_rts_selectable_unit_entries'
+  'rts_selectable_unit_entries'
   'classic_rts_unit_is_player_owned'
   'classic_rts_unit_selection_priority'
   'classic_rts_drag_rejected_unit_ids'
@@ -420,7 +421,7 @@ required_source_lines=(
 )
 
 for line in "${required_source_lines[@]}"; do
-  if ! grep -Fq "$line" "$SOURCE" "$MAIN"; then
+  if ! grep -Fq "$line" "$SOURCE" "$MAIN" "$RUNTIME"; then
     echo "[FAIL] missing classic RTS live input source line: $line" >&2
     exit 1
   fi

@@ -2134,6 +2134,82 @@ pub fn rts_cursor_label_for_hover_preview(
     )
 }
 
+pub fn rts_hover_player_label(
+    input_source: &str,
+    action_label: &str,
+    tile_id: Option<&str>,
+    queue_id: Option<&str>,
+    affordance: &str,
+    accepted: bool,
+    reason: &str,
+) -> String {
+    let source = rts_input_source_player_label(input_source, action_label);
+    if !accepted && action_label.starts_with("RTS:") {
+        let chip = rts_rejection_feedback_chip(action_label, reason);
+        return format!("{source} {}", rts_blocked_feedback_player_label(&chip));
+    }
+    if let Some(queue_id) = queue_id {
+        let queue_label = rts_catalog_text_label(
+            &queue_id
+                .replace("build:", "")
+                .replace("train:", "")
+                .replace("upgrade:", "")
+                .replace("research:", "")
+                .replace("harvest:", "")
+                .replace('@', " "),
+            18,
+        );
+        let gold = rts_queue_gold_cost(queue_id);
+        return if gold > 0 {
+            format!("{source} QUEUE READY {queue_label} {gold}G")
+        } else if affordance == "viewport_harvest" && queue_id.starts_with("harvest:") {
+            format!("{source} HARVEST READY {queue_label}")
+        } else {
+            format!("{source} QUEUE READY {queue_label}")
+        };
+    }
+    if action_label.starts_with("RTS:MOVE:") {
+        let tile = tile_id.unwrap_or("-");
+        if let Some(target_id) = action_label
+            .strip_prefix("RTS:MOVE:")
+            .map(rts_move_command_parts)
+            .and_then(|(_, formation)| rts_move_follow_target(formation))
+        {
+            return format!(
+                "{source} FOLLOW READY {}",
+                rts_catalog_text_label(&target_id.replace('_', " "), 18)
+            );
+        }
+        return if affordance == "minimap_rally" {
+            format!("{source} RALLY READY {tile}")
+        } else {
+            format!("{source} MOVE READY {tile}")
+        };
+    }
+    if let Some(target_id) = action_label.strip_prefix("RTS:ATTACK:") {
+        return format!(
+            "{source} ATTACK READY {}",
+            rts_catalog_text_label(&target_id.replace('_', " "), 22)
+        );
+    }
+    if let Some(ability_id) = action_label.strip_prefix("RTS:ABILITY:") {
+        return format!(
+            "{source} ABILITY READY {}",
+            rts_catalog_text_label(&ability_id.replace('_', " "), 18)
+        );
+    }
+    if let Some(group_id) = action_label.strip_prefix("RTS:SELECT:") {
+        return format!(
+            "{source} SELECT READY {}",
+            rts_catalog_text_label(group_id, 18)
+        );
+    }
+    format!(
+        "{source} READY {}",
+        rts_catalog_text_label(&action_label.replace("RTS:", "").replace(':', " "), 24)
+    )
+}
+
 pub fn rts_blocked_feedback_toast(input_source: &str, action_label: &str, reason: &str) -> String {
     let chip = rts_rejection_feedback_chip(action_label, reason);
     format!(
@@ -2614,7 +2690,7 @@ pub fn rts_blocked_feedback_player_label(chip: &str) -> String {
     if blocked == "ability:rts_attack_required_before_ability" {
         return "ABILITY LOCK NEED TARGET".to_string();
     }
-    if blocked == "move:rts_group_selection_required" {
+    if blocked == "move:rts_group_selection_required" || blocked == "move:select_units" {
         return "MOVE LOCK SELECT UNITS".to_string();
     }
     if blocked.starts_with("move:rts_invalid_tile:") {
@@ -4440,6 +4516,54 @@ mod tests {
                 "blocked"
             ),
             "MAP CURSOR BLOCKED LOCK"
+        );
+        assert_eq!(
+            rts_hover_player_label(
+                "classic_rts_mouse_sidebar",
+                "RTS:QUEUE:build:watch_tower@7,4",
+                None,
+                Some("build:watch_tower@7,4"),
+                "sidebar_build_queue",
+                true,
+                "ok",
+            ),
+            "SIDEBAR QUEUE READY WATCH TOWER 7,4 210G"
+        );
+        assert_eq!(
+            rts_hover_player_label(
+                "classic_rts_mouse_viewport",
+                "RTS:MOVE:4,3:line",
+                Some("4,3"),
+                None,
+                "viewport_move",
+                true,
+                "ok",
+            ),
+            "MAP MOVE READY 4,3"
+        );
+        assert_eq!(
+            rts_hover_player_label(
+                "classic_rts_mouse_viewport",
+                "RTS:MOVE:6,5:follow:square_guard_patrol",
+                Some("6,5"),
+                None,
+                "viewport_follow",
+                true,
+                "ok",
+            ),
+            "MAP FOLLOW READY SQUARE GUARD PATRO"
+        );
+        assert_eq!(
+            rts_hover_player_label(
+                "classic_rts_mouse_viewport",
+                "RTS:MOVE:4,3:line",
+                Some("4,3"),
+                None,
+                "viewport_move",
+                false,
+                "rts_group_selection_required",
+            ),
+            "MAP MOVE LOCK SELECT UNITS"
         );
     }
 

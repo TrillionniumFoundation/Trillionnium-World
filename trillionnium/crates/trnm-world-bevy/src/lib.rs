@@ -143014,73 +143014,14 @@ fn classic_rts_hover_player_label(
     accepted: bool,
     reason: &str,
 ) -> String {
-    let source = classic_rts_input_source_player_label(input_source, action_label);
-    if !accepted && action_label.starts_with("RTS:") {
-        let chip = classic_rts_rejection_feedback_chip(action_label, reason);
-        return format!(
-            "{source} {}",
-            classic_rts_blocked_feedback_player_label(&chip)
-        );
-    }
-    if let Some(queue_id) = queue_id {
-        let queue_label = classic_catalog_text_label(
-            &queue_id
-                .replace("build:", "")
-                .replace("train:", "")
-                .replace("upgrade:", "")
-                .replace("research:", "")
-                .replace("harvest:", "")
-                .replace('@', " "),
-            18,
-        );
-        let gold = classic_rts_queue_gold_cost(queue_id);
-        return if gold > 0 {
-            format!("{source} QUEUE READY {queue_label} {gold}G")
-        } else if affordance == "viewport_harvest" && queue_id.starts_with("harvest:") {
-            format!("{source} HARVEST READY {queue_label}")
-        } else {
-            format!("{source} QUEUE READY {queue_label}")
-        };
-    }
-    if action_label.starts_with("RTS:MOVE:") {
-        let tile = tile_id.unwrap_or("-");
-        if let Some(target_id) = action_label
-            .strip_prefix("RTS:MOVE:")
-            .map(classic_rts_move_command_parts)
-            .and_then(|(_, formation)| classic_rts_move_follow_target(formation))
-        {
-            return format!(
-                "{source} FOLLOW READY {}",
-                classic_catalog_text_label(&target_id.replace('_', " "), 18)
-            );
-        }
-        return if affordance == "minimap_rally" {
-            format!("{source} RALLY READY {tile}")
-        } else {
-            format!("{source} MOVE READY {tile}")
-        };
-    }
-    if let Some(target_id) = action_label.strip_prefix("RTS:ATTACK:") {
-        return format!(
-            "{source} ATTACK READY {}",
-            classic_catalog_text_label(&target_id.replace('_', " "), 22)
-        );
-    }
-    if let Some(ability_id) = action_label.strip_prefix("RTS:ABILITY:") {
-        return format!(
-            "{source} ABILITY READY {}",
-            classic_catalog_text_label(&ability_id.replace('_', " "), 18)
-        );
-    }
-    if let Some(group_id) = action_label.strip_prefix("RTS:SELECT:") {
-        return format!(
-            "{source} SELECT READY {}",
-            classic_catalog_text_label(group_id, 18)
-        );
-    }
-    format!(
-        "{source} READY {}",
-        classic_catalog_text_label(&action_label.replace("RTS:", "").replace(':', " "), 24)
+    rts_bevy_runtime::rts_hover_player_label(
+        input_source,
+        action_label,
+        tile_id,
+        queue_id,
+        affordance,
+        accepted,
+        reason,
     )
 }
 
