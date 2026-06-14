@@ -201,6 +201,8 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.depth_readability_stage_sample == "target_priority"
   and .rts_evidence_bevy_runtime_adapter.structure_modeling_stage_sample == "repair_beam"
   and .rts_evidence_bevy_runtime_adapter.environment_life_stage_sample == "resource_glint"
+  and .rts_evidence_bevy_runtime_adapter.worker_harvest_animation_stage_sample == "return_path"
+  and .rts_evidence_bevy_runtime_adapter.production_spawn_animation_stage_sample == "supply_flash"
   and .rts_evidence_bevy_runtime_adapter.action_cadence_attack_mark_count_sample == 22
   and .rts_evidence_bevy_runtime_adapter.action_cadence_carry_mark_count_sample == 8
   and .rts_evidence_bevy_runtime_adapter.action_cadence_idle_mark_count_sample == 4

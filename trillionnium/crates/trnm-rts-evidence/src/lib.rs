@@ -43,11 +43,12 @@ use trnm_rts_bevy_runtime::{
     rts_npc_behavior_stage, rts_npc_transition_stage, rts_objective_parts,
     rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
     rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
-    rts_player_siege_line_tiles_for_id, rts_projectile_id_for_ability,
-    rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
-    rts_queue_is_affordable, rts_queue_uses_production_lane, rts_rebuild_structures_for_id,
-    rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
-    rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
+    rts_player_siege_line_tiles_for_id, rts_production_spawn_animation_stage,
+    rts_projectile_id_for_ability, rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip,
+    rts_queue_gold_cost, rts_queue_is_affordable, rts_queue_uses_production_lane,
+    rts_rebuild_structures_for_id, rts_recon_parts, rts_restored_zones_for_id,
+    rts_runtime_hit_test_grid, rts_runtime_tile_line, rts_same_class_units,
+    rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
     rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
     rts_selectable_unit_tile, rts_selection_clear_parts, rts_selection_command_feedback_stage,
     rts_selection_tiles_for_units, rts_siege_breach_tiles_for_target,
@@ -58,9 +59,9 @@ use trnm_rts_bevy_runtime::{
     rts_threat_levels_for_target, rts_tier_two_parts, rts_unit_model_depth_marks,
     rts_unit_status_energy_percent, rts_unit_status_health_percent, rts_unit_status_portrait_stage,
     rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
-    rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id, RtsCommandStamp,
-    RtsControlGroupSlotSummary, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
-    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
+    rts_worker_harvest_animation_stage, RtsCommandStamp, RtsControlGroupSlotSummary,
+    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -90,6 +91,8 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub depth_readability_stage_sample: Option<String>,
     pub structure_modeling_stage_sample: Option<String>,
     pub environment_life_stage_sample: Option<String>,
+    pub worker_harvest_animation_stage_sample: Option<String>,
+    pub production_spawn_animation_stage_sample: Option<String>,
     pub action_cadence_attack_mark_count_sample: usize,
     pub action_cadence_carry_mark_count_sample: usize,
     pub action_cadence_idle_mark_count_sample: usize,
@@ -287,6 +290,18 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let environment_life_stage =
         rts_environment_life_stage(&[], &["environment:resource_glint".to_string()], 0)
             .map(str::to_string);
+    let worker_harvest_animation_stage = rts_worker_harvest_animation_stage(
+        &["harvest_anim:return_path".to_string()],
+        &["harvest_anim:approach".to_string()],
+        0,
+    )
+    .map(str::to_string);
+    let production_spawn_animation_stage = rts_production_spawn_animation_stage(
+        &["production_spawn_anim:supply_flash".to_string()],
+        &["production_spawn_anim:queue_pulse".to_string()],
+        0,
+    )
+    .map(str::to_string);
     let action_cadence_attack_marks = rts_action_cadence_marks("actor_guard_attack");
     let action_cadence_carry_marks = rts_action_cadence_marks("actor_worker_carry");
     let action_cadence_idle_marks = rts_action_cadence_marks("actor_guard_idle");
@@ -656,6 +671,8 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && depth_readability_stage.as_deref() == Some("target_priority")
         && structure_modeling_stage.as_deref() == Some("repair_beam")
         && environment_life_stage.as_deref() == Some("resource_glint")
+        && worker_harvest_animation_stage.as_deref() == Some("return_path")
+        && production_spawn_animation_stage.as_deref() == Some("supply_flash")
         && action_cadence_attack_marks.len() == 22
         && action_cadence_carry_marks.len() == 8
         && action_cadence_idle_marks.len() == 4
@@ -914,6 +931,8 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         depth_readability_stage_sample: depth_readability_stage,
         structure_modeling_stage_sample: structure_modeling_stage,
         environment_life_stage_sample: environment_life_stage,
+        worker_harvest_animation_stage_sample: worker_harvest_animation_stage,
+        production_spawn_animation_stage_sample: production_spawn_animation_stage,
         action_cadence_attack_mark_count_sample: action_cadence_attack_marks.len(),
         action_cadence_carry_mark_count_sample: action_cadence_carry_marks.len(),
         action_cadence_idle_mark_count_sample: action_cadence_idle_marks.len(),
@@ -1107,7 +1126,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, command feedback lifecycle/history/execution, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -1169,6 +1188,14 @@ mod tests {
         assert_eq!(
             evidence.environment_life_stage_sample.as_deref(),
             Some("resource_glint")
+        );
+        assert_eq!(
+            evidence.worker_harvest_animation_stage_sample.as_deref(),
+            Some("return_path")
+        );
+        assert_eq!(
+            evidence.production_spawn_animation_stage_sample.as_deref(),
+            Some("supply_flash")
         );
         assert_eq!(evidence.action_cadence_attack_mark_count_sample, 22);
         assert_eq!(evidence.action_cadence_carry_mark_count_sample, 8);

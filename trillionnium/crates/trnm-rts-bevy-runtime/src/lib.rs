@@ -3444,6 +3444,76 @@ pub fn rts_environment_life_stage(
     })
 }
 
+pub fn rts_worker_harvest_animation_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("harvest_anim:return_path", "return_path"),
+            ("harvest_anim:dropoff_burst", "dropoff_burst"),
+            ("harvest_anim:carry_load", "carry_load"),
+            ("harvest_anim:resource_pop", "resource_pop"),
+            ("harvest_anim:tool_swing", "tool_swing"),
+            ("harvest_anim:approach", "approach"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("harvest_anim:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "approach",
+        1 => "tool_swing",
+        2 => "resource_pop",
+        3 => "carry_load",
+        4 => "dropoff_burst",
+        _ => "return_path",
+    })
+}
+
+pub fn rts_production_spawn_animation_stage(
+    combat_events: &[String],
+    command_queue: &[String],
+    combat_turn: u8,
+) -> Option<&'static str> {
+    if let Some(stage) = rts_recent_stage_from_events(
+        &[
+            ("production_spawn_anim:supply_flash", "supply_flash"),
+            ("production_spawn_anim:formation_join", "formation_join"),
+            ("production_spawn_anim:rally_flag", "rally_flag"),
+            ("production_spawn_anim:spawn_door", "spawn_door"),
+            ("production_spawn_anim:training_tick", "training_tick"),
+            ("production_spawn_anim:queue_pulse", "queue_pulse"),
+        ],
+        combat_events,
+        command_queue,
+    ) {
+        return Some(stage);
+    }
+    if !command_queue
+        .iter()
+        .any(|command| command.contains("production_spawn_anim:"))
+    {
+        return None;
+    }
+    Some(match combat_turn % 6 {
+        0 => "queue_pulse",
+        1 => "training_tick",
+        2 => "spawn_door",
+        3 => "rally_flag",
+        4 => "formation_join",
+        _ => "supply_flash",
+    })
+}
+
 pub fn rts_runtime_point_in_rect(mouse_x: i32, mouse_y: i32, rect: RtsRuntimeRect) -> bool {
     mouse_x >= rect.x
         && mouse_x < rect.x + rect.width
@@ -4743,9 +4813,27 @@ mod tests {
             rts_environment_life_stage(&[], &["environment:cycle".to_string()], 4),
             Some("resource_glint")
         );
+        assert_eq!(
+            rts_worker_harvest_animation_stage(
+                &["harvest_anim:return_path".to_string()],
+                &["harvest_anim:approach".to_string()],
+                0,
+            ),
+            Some("return_path")
+        );
+        assert_eq!(
+            rts_production_spawn_animation_stage(
+                &["production_spawn_anim:supply_flash".to_string()],
+                &["production_spawn_anim:queue_pulse".to_string()],
+                0,
+            ),
+            Some("supply_flash")
+        );
         assert_eq!(rts_npc_behavior_stage(&[], &[], 0), None);
         assert_eq!(rts_structure_modeling_stage(&[], &[], 0), None);
         assert_eq!(rts_environment_life_stage(&[], &[], 0), None);
+        assert_eq!(rts_worker_harvest_animation_stage(&[], &[], 0), None);
+        assert_eq!(rts_production_spawn_animation_stage(&[], &[], 0), None);
     }
 
     #[test]

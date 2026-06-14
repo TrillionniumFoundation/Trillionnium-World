@@ -11841,44 +11841,13 @@ fn classic_draw_rts_environment_life_scene_overlay(
 fn classic_rts_worker_harvest_animation_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("harvest_anim:return_path") {
-                return Some("return_path");
-            }
-            if event.contains("harvest_anim:dropoff_burst") {
-                return Some("dropoff_burst");
-            }
-            if event.contains("harvest_anim:carry_load") {
-                return Some("carry_load");
-            }
-            if event.contains("harvest_anim:resource_pop") {
-                return Some("resource_pop");
-            }
-            if event.contains("harvest_anim:tool_swing") {
-                return Some("tool_swing");
-            }
-            if event.contains("harvest_anim:approach") {
-                return Some("approach");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("harvest_anim:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "approach",
-            1 => "tool_swing",
-            2 => "resource_pop",
-            3 => "carry_load",
-            4 => "dropoff_burst",
-            _ => "return_path",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_worker_harvest_animation_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -12105,44 +12074,13 @@ fn classic_draw_rts_worker_harvest_animation_scene_overlay(
 fn classic_rts_production_spawn_animation_stage(
     runtime: Option<&NativeFirstPlayableRuntime>,
 ) -> Option<&'static str> {
-    if let Some(runtime) = runtime {
-        for event in runtime.rts_combat_event_log.iter().rev() {
-            if event.contains("production_spawn_anim:supply_flash") {
-                return Some("supply_flash");
-            }
-            if event.contains("production_spawn_anim:formation_join") {
-                return Some("formation_join");
-            }
-            if event.contains("production_spawn_anim:rally_flag") {
-                return Some("rally_flag");
-            }
-            if event.contains("production_spawn_anim:spawn_door") {
-                return Some("spawn_door");
-            }
-            if event.contains("production_spawn_anim:training_tick") {
-                return Some("training_tick");
-            }
-            if event.contains("production_spawn_anim:queue_pulse") {
-                return Some("queue_pulse");
-            }
-        }
-        if !runtime
-            .rts_command_queue
-            .iter()
-            .any(|command| command.contains("production_spawn_anim:"))
-        {
-            return None;
-        }
-        return Some(match runtime.combat_turn % 6 {
-            0 => "queue_pulse",
-            1 => "training_tick",
-            2 => "spawn_door",
-            3 => "rally_flag",
-            4 => "formation_join",
-            _ => "supply_flash",
-        });
-    }
-    None
+    runtime.and_then(|runtime| {
+        rts_bevy_runtime::rts_production_spawn_animation_stage(
+            &runtime.rts_combat_event_log,
+            &runtime.rts_command_queue,
+            runtime.combat_turn,
+        )
+    })
 }
 
 #[cfg(not(target_os = "android"))]
