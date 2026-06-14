@@ -80547,7 +80547,7 @@ fn classic_poll_mouse_action(
         mouse_latch.left_anchor = None;
         mouse_latch.left_current = None;
         match (anchor, release) {
-            (Some(start), Some(end)) if classic_rts_drag_distance_sq(start, end) >= 36 => {
+            (Some(start), Some(end)) if rts_bevy_runtime::rts_drag_select_ready(start, end) => {
                 classic_rts_drag_action_with_source_from_points(runtime, width, height, start, end)
             }
             (_, Some((x, y))) => {
@@ -81209,13 +81209,6 @@ fn classic_draw_rts_command_execution_feedback_overlay(
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_rts_drag_distance_sq(start: (i32, i32), end: (i32, i32)) -> i32 {
-    let dx = end.0 - start.0;
-    let dy = end.1 - start.1;
-    dx * dx + dy * dy
-}
-
-#[cfg(not(target_os = "android"))]
 fn classic_draw_live_mouse_drag_marquee(
     buffer: &mut [u32],
     width: usize,
@@ -81225,7 +81218,7 @@ fn classic_draw_live_mouse_drag_marquee(
     let (Some(start), Some(current)) = (mouse_latch.left_anchor, mouse_latch.left_current) else {
         return;
     };
-    if !mouse_latch.left_down || classic_rts_drag_distance_sq(start, current) < 36 {
+    if !mouse_latch.left_down || !rts_bevy_runtime::rts_drag_select_ready(start, current) {
         return;
     }
     let x = start.0.min(current.0);
@@ -81290,13 +81283,7 @@ fn classic_rts_drag_select_player_label(
     current_tile_id: &str,
     unit_count: usize,
 ) -> String {
-    format!(
-        "DRAG SELECT {} {} {}->{}",
-        unit_count,
-        if unit_count == 1 { "UNIT" } else { "UNITS" },
-        start_tile_id,
-        current_tile_id
-    )
+    rts_bevy_runtime::rts_drag_select_player_label(start_tile_id, current_tile_id, unit_count)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -81307,7 +81294,7 @@ fn classic_rts_drag_select_preview_from_points(
     start: (i32, i32),
     current: (i32, i32),
 ) -> Option<ClassicRtsDragSelectPreview> {
-    if classic_rts_drag_distance_sq(start, current) < 36 {
+    if !rts_bevy_runtime::rts_drag_select_ready(start, current) {
         return None;
     }
     let layout = classic_rts_shell_layout(width, height)?;
@@ -81491,11 +81478,7 @@ fn classic_rts_drag_action_with_source_from_points(
 
 #[cfg(not(target_os = "android"))]
 fn classic_rts_drag_group_id(start_tile: (i32, i32), end_tile: (i32, i32)) -> String {
-    format!(
-        "drag:{}->{}",
-        classic_rts_tile_id(start_tile),
-        classic_rts_tile_id(end_tile)
-    )
+    rts_bevy_runtime::rts_drag_group_id(start_tile, end_tile)
 }
 
 #[cfg(not(target_os = "android"))]

@@ -26,8 +26,9 @@ use trnm_rts_bevy_runtime::{
     rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
     rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
-    rts_default_units_for_control_group_slot, rts_depth_readability_stage,
-    rts_drag_rejected_unit_ids, rts_drag_selected_units, rts_dropoff_tile_for_structure,
+    rts_default_units_for_control_group_slot, rts_depth_readability_stage, rts_drag_distance_sq,
+    rts_drag_group_id, rts_drag_rejected_unit_ids, rts_drag_select_player_label,
+    rts_drag_select_ready, rts_drag_selected_units, rts_dropoff_tile_for_structure,
     rts_enemy_command_parts, rts_enemy_flank_tile_for_index, rts_enemy_flank_units_for_id,
     rts_enemy_fortification_tile_for_id, rts_enemy_pressure_lane_tiles_for_wave,
     rts_enemy_pressure_wave_units_for_id, rts_enemy_repair_units_for_target,
@@ -201,6 +202,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub selection_guard_tile_sample: Option<RtsEvidencePoint>,
     pub selection_drag_units_sample: Vec<String>,
     pub selection_drag_rejected_units_sample: Vec<String>,
+    pub selection_drag_distance_sq_sample: i32,
+    pub selection_drag_ready_sample: bool,
+    pub selection_drag_group_id_sample: String,
+    pub selection_drag_player_label_sample: String,
     pub selection_tiles_for_units_sample: Vec<String>,
     pub control_group_hotkey_slot_sample: Option<String>,
     pub control_group_default_slot_three_units_sample: Vec<String>,
@@ -460,6 +465,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let selection_guard_tile = rts_selectable_unit_tile("square_guard_patrol");
     let selection_drag_units = rts_drag_selected_units((4, 4), (8, 5));
     let selection_drag_rejected_units = rts_drag_rejected_unit_ids((5, 4), (9, 5));
+    let selection_drag_distance_sq = rts_drag_distance_sq((240, 180), (520, 350));
+    let selection_drag_ready = rts_drag_select_ready((240, 180), (520, 350));
+    let selection_drag_group_id = rts_drag_group_id((4, 4), (8, 5));
+    let selection_drag_player_label =
+        rts_drag_select_player_label("4,4", "8,5", selection_drag_units.len());
     let selection_tiles_for_units = rts_selection_tiles_for_units(&[
         "player".to_string(),
         "square_guard_front".to_string(),
@@ -940,6 +950,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 "square_worker_harvest",
             ]
         && selection_drag_rejected_units == vec!["square_creep_wander"]
+        && selection_drag_distance_sq == 107_300
+        && selection_drag_ready
+        && selection_drag_group_id == "drag:4,4->8,5"
+        && selection_drag_player_label == "DRAG SELECT 5 UNITS 4,4->8,5"
         && selection_tiles_for_units == vec!["5,4", "4,5"]
         && control_group_hotkey_slot.as_deref() == Some("10")
         && control_group_default_slot_three_units
@@ -1201,6 +1215,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         }),
         selection_drag_units_sample: selection_drag_units,
         selection_drag_rejected_units_sample: selection_drag_rejected_units,
+        selection_drag_distance_sq_sample: selection_drag_distance_sq,
+        selection_drag_ready_sample: selection_drag_ready,
+        selection_drag_group_id_sample: selection_drag_group_id,
+        selection_drag_player_label_sample: selection_drag_player_label,
         selection_tiles_for_units_sample: selection_tiles_for_units,
         control_group_hotkey_slot_sample: control_group_hotkey_slot,
         control_group_default_slot_three_units_sample: control_group_default_slot_three_units,
@@ -1688,6 +1706,13 @@ mod tests {
         assert_eq!(
             evidence.selection_drag_rejected_units_sample,
             vec!["square_creep_wander"]
+        );
+        assert_eq!(evidence.selection_drag_distance_sq_sample, 107_300);
+        assert!(evidence.selection_drag_ready_sample);
+        assert_eq!(evidence.selection_drag_group_id_sample, "drag:4,4->8,5");
+        assert_eq!(
+            evidence.selection_drag_player_label_sample,
+            "DRAG SELECT 5 UNITS 4,4->8,5"
         );
         assert_eq!(
             evidence.selection_tiles_for_units_sample,

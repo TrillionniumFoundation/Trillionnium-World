@@ -686,6 +686,38 @@ pub fn rts_drag_selection_parts(group_id: &str) -> Option<((i32, i32), (i32, i32
     Some((rts_parse_tile_id(start)?, rts_parse_tile_id(end)?))
 }
 
+pub fn rts_drag_distance_sq(start: (i32, i32), end: (i32, i32)) -> i32 {
+    let dx = end.0 - start.0;
+    let dy = end.1 - start.1;
+    dx * dx + dy * dy
+}
+
+pub fn rts_drag_select_ready(start: (i32, i32), end: (i32, i32)) -> bool {
+    rts_drag_distance_sq(start, end) >= 36
+}
+
+pub fn rts_drag_group_id(start_tile: (i32, i32), end_tile: (i32, i32)) -> String {
+    format!(
+        "drag:{}->{}",
+        rts_runtime_tile_id(start_tile),
+        rts_runtime_tile_id(end_tile)
+    )
+}
+
+pub fn rts_drag_select_player_label(
+    start_tile_id: &str,
+    current_tile_id: &str,
+    unit_count: usize,
+) -> String {
+    format!(
+        "DRAG SELECT {} {} {}->{}",
+        unit_count,
+        if unit_count == 1 { "UNIT" } else { "UNITS" },
+        start_tile_id,
+        current_tile_id
+    )
+}
+
 pub fn rts_selection_box_tiles_between(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
     let start = rts_large_map_clamp_tile(start);
     let end = rts_large_map_clamp_tile(end);
@@ -4604,6 +4636,17 @@ mod tests {
         assert_eq!(
             rts_drag_selection_parts("drag:5,4->9,5"),
             Some(((5, 4), (9, 5)))
+        );
+        assert_eq!(rts_drag_distance_sq((4, 4), (8, 5)), 17);
+        assert!(rts_drag_select_ready((240, 180), (520, 350)));
+        assert_eq!(rts_drag_group_id((4, 4), (8, 5)), "drag:4,4->8,5");
+        assert_eq!(
+            rts_drag_select_player_label("4,4", "8,5", 5),
+            "DRAG SELECT 5 UNITS 4,4->8,5"
+        );
+        assert_eq!(
+            rts_drag_select_player_label("4,4", "4,4", 1),
+            "DRAG SELECT 1 UNIT 4,4->4,4"
         );
         assert_eq!(
             rts_selection_box_tiles_between((5, 4), (6, 5)),

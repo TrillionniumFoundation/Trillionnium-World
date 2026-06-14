@@ -335,6 +335,10 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.selection_guard_tile_sample.y == 5
   and .rts_evidence_bevy_runtime_adapter.selection_drag_units_sample == ["player", "square_guard_front", "square_guard_patrol", "square_worker_carry", "square_worker_harvest"]
   and .rts_evidence_bevy_runtime_adapter.selection_drag_rejected_units_sample == ["square_creep_wander"]
+  and .rts_evidence_bevy_runtime_adapter.selection_drag_distance_sq_sample == 107300
+  and .rts_evidence_bevy_runtime_adapter.selection_drag_ready_sample == true
+  and .rts_evidence_bevy_runtime_adapter.selection_drag_group_id_sample == "drag:4,4->8,5"
+  and .rts_evidence_bevy_runtime_adapter.selection_drag_player_label_sample == "DRAG SELECT 5 UNITS 4,4->8,5"
   and .rts_evidence_bevy_runtime_adapter.selection_tiles_for_units_sample == ["5,4", "4,5"]
   and .rts_evidence_bevy_runtime_adapter.control_group_hotkey_slot_sample == "10"
   and .rts_evidence_bevy_runtime_adapter.control_group_default_slot_three_units_sample == ["square_worker_carry", "square_worker_harvest"]
