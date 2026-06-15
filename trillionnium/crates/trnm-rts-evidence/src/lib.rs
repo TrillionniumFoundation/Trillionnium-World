@@ -26,7 +26,8 @@ use trnm_rts_bevy_runtime::{
     rts_control_group_command_feedback_lifecycle_fixtures,
     rts_control_group_command_feedback_rejection_replay_fixtures,
     rts_control_group_command_feedback_replay_fixtures,
-    rts_control_group_command_feedback_strip_fixtures, rts_control_group_hotkey_feedback_stage,
+    rts_control_group_command_feedback_strip_fixtures, rts_control_group_command_history_fixtures,
+    rts_control_group_command_history_prune_fixtures, rts_control_group_hotkey_feedback_stage,
     rts_control_group_hotkey_slot, rts_control_group_recall_formation_preview_stage_fixtures,
     rts_control_group_recall_override_preview_stage_fixtures, rts_control_group_slot_summaries,
     rts_counter_command_parts, rts_counterattack_route_tiles_for_wave,
@@ -296,6 +297,12 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub command_feedback_rejection_replay_pruned_group_ids_sample: Vec<String>,
     pub command_history_visible_sample: bool,
     pub command_history_prune_visible_sample: bool,
+    pub command_history_fixture_stage_names_sample: Vec<String>,
+    pub command_history_fixture_lifecycle_stages_sample: Vec<String>,
+    pub command_history_fixture_group_ids_sample: Vec<String>,
+    pub command_history_prune_fixture_stage_names_sample: Vec<String>,
+    pub command_history_prune_fixture_pruned_group_ids_sample: Vec<String>,
+    pub command_history_prune_fixture_prune_reasons_sample: Vec<String>,
     pub command_execution_feedback_kind_samples: Vec<String>,
     pub command_execution_target_label_samples: Vec<String>,
     pub command_execution_player_label_samples: Vec<String>,
@@ -819,6 +826,28 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         rts_command_history_visible("", &command_feedback_events, &command_feedback_queue);
     let command_history_prune_visible =
         rts_command_history_prune_visible("", &command_feedback_events, &command_feedback_queue);
+    let command_history_fixtures = rts_control_group_command_history_fixtures();
+    let command_history_fixture_stage_names = command_history_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.stage.clone())
+        .collect::<Vec<_>>();
+    let command_history_fixture_lifecycle_stages = command_history_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.lifecycle_stage.clone())
+        .collect::<Vec<_>>();
+    let command_history_prune_fixtures = rts_control_group_command_history_prune_fixtures();
+    let command_history_prune_fixture_stage_names = command_history_prune_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.stage.clone())
+        .collect::<Vec<_>>();
+    let command_history_prune_fixture_prune_reasons = command_history_prune_fixtures
+        .pruned_history_entries
+        .iter()
+        .filter_map(|entry| entry.prune_reason.clone())
+        .collect::<Vec<_>>();
     let command_feedback_replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
     let command_feedback_replay_step_names = command_feedback_replay_fixtures
         .command_steps
@@ -1521,6 +1550,23 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && command_feedback_rejection_replay_fixtures.pruned_history_group_ids == vec!["25", "24"]
         && command_history_visible
         && command_history_prune_visible
+        && command_history_fixture_stage_names
+            == vec![
+                "fresh_history_appended",
+                "dimmed_history_retained",
+                "cleared_history_retained",
+            ]
+        && command_history_fixture_lifecycle_stages == vec!["fresh", "dimmed", "cleared"]
+        && command_history_fixtures.retained_history_group_ids == vec!["26", "27", "28"]
+        && command_history_prune_fixture_stage_names
+            == vec![
+                "overflow_input_pruned",
+                "recent_three_retained",
+                "cleared_history_bounded",
+            ]
+        && command_history_prune_fixtures.pruned_history_group_ids == vec!["25", "24"]
+        && command_history_prune_fixture_prune_reasons
+            == vec!["recent_three_capacity", "recent_three_capacity"]
         && command_execution_feedback_kind_samples == vec!["move", "follow", "attack", "harvest"]
         && command_execution_target_label_samples
             == vec!["8,4", "player", "arena_creep_attack", "gold_vein"]
@@ -1834,6 +1880,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             command_feedback_rejection_replay_fixtures.pruned_history_group_ids,
         command_history_visible_sample: command_history_visible,
         command_history_prune_visible_sample: command_history_prune_visible,
+        command_history_fixture_stage_names_sample: command_history_fixture_stage_names,
+        command_history_fixture_lifecycle_stages_sample: command_history_fixture_lifecycle_stages,
+        command_history_fixture_group_ids_sample: command_history_fixtures.retained_history_group_ids,
+        command_history_prune_fixture_stage_names_sample: command_history_prune_fixture_stage_names,
+        command_history_prune_fixture_pruned_group_ids_sample:
+            command_history_prune_fixtures.pruned_history_group_ids,
+        command_history_prune_fixture_prune_reasons_sample:
+            command_history_prune_fixture_prune_reasons,
         command_execution_feedback_kind_samples,
         command_execution_target_label_samples,
         command_execution_player_label_samples,
@@ -2729,6 +2783,38 @@ mod tests {
         );
         assert!(evidence.command_history_visible_sample);
         assert!(evidence.command_history_prune_visible_sample);
+        assert_eq!(
+            evidence.command_history_fixture_stage_names_sample,
+            vec![
+                "fresh_history_appended",
+                "dimmed_history_retained",
+                "cleared_history_retained"
+            ]
+        );
+        assert_eq!(
+            evidence.command_history_fixture_lifecycle_stages_sample,
+            vec!["fresh", "dimmed", "cleared"]
+        );
+        assert_eq!(
+            evidence.command_history_fixture_group_ids_sample,
+            vec!["26", "27", "28"]
+        );
+        assert_eq!(
+            evidence.command_history_prune_fixture_stage_names_sample,
+            vec![
+                "overflow_input_pruned",
+                "recent_three_retained",
+                "cleared_history_bounded"
+            ]
+        );
+        assert_eq!(
+            evidence.command_history_prune_fixture_pruned_group_ids_sample,
+            vec!["25", "24"]
+        );
+        assert_eq!(
+            evidence.command_history_prune_fixture_prune_reasons_sample,
+            vec!["recent_three_capacity", "recent_three_capacity"]
+        );
         assert_eq!(
             evidence.command_execution_feedback_kind_samples,
             vec!["move", "follow", "attack", "harvest"]

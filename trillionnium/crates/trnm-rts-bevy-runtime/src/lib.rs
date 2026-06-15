@@ -335,6 +335,50 @@ pub struct RtsControlGroupCommandFeedbackHistoryEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandHistoryStageFixture {
+    pub stage: String,
+    pub lifecycle_stage: String,
+    pub age_ticks: u8,
+    pub action: RtsOrderQueueReplayAction,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub control_group_id: String,
+    pub active_control_group_ids: Vec<String>,
+    pub selected_unit_ids: Vec<String>,
+    pub control_group_assignments: Vec<String>,
+    pub minimap_command_tile_id: String,
+    pub command_destination_tile: String,
+    pub path_tile_ids: Vec<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub group_command_state: String,
+    pub command_queue_entries: Vec<String>,
+    pub combat_event_entries: Vec<String>,
+    pub active_strip_cleared: bool,
+    pub history_retained: bool,
+    pub history_overflow_row_count: u32,
+    pub stale_pruned_group_visible: bool,
+    pub player_tile_x: i32,
+    pub player_tile_y: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandHistoryFixtures {
+    pub retained_history_group_ids: Vec<String>,
+    pub pruned_history_group_ids: Vec<String>,
+    pub control_group_assignments: Vec<String>,
+    pub ability_command_ids: Vec<String>,
+    pub group_26_member_ids: Vec<String>,
+    pub group_27_member_ids: Vec<String>,
+    pub group_28_member_ids: Vec<String>,
+    pub all_member_ids: Vec<String>,
+    pub history_entries: Vec<RtsControlGroupCommandFeedbackHistoryEntry>,
+    pub pruned_history_entries: Vec<RtsControlGroupCommandFeedbackHistoryEntry>,
+    pub stages: Vec<RtsControlGroupCommandHistoryStageFixture>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsControlGroupCommandFeedbackStepFixture {
     pub step_index: u32,
     pub step_name: String,
@@ -4415,6 +4459,173 @@ pub fn rts_control_group_command_feedback_replay_fixtures(
     }
 }
 
+pub fn rts_control_group_command_history_fixtures() -> RtsControlGroupCommandHistoryFixtures {
+    let replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
+    let retained_history_group_ids = replay_fixtures.retained_history_group_ids.clone();
+    let control_group_assignments = rts_string_vec([
+        "26:multi0.recall.order.runner|multi0.recall.order.wing",
+        "27:multi0.recall.override.runner|multi0.recall.override.wing",
+        "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+    ]);
+    let ability_command_ids = rts_string_vec(["move", "stop", "hold", "patrol"]);
+    let path_tile_ids = rts_string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]);
+    let group_route_tile_ids = rts_string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
+    let formation_slot_tile_ids = rts_string_vec(["1,31", "2,31"]);
+    let command_queue_entries = rts_string_vec([
+        "history_row:26:queue:18,31:age0",
+        "history_row:27:cancel_final:21,25:20,30|22,30:age4",
+        "history_row:28:formation_filter_clear:1,31:1,31|2,31:age8",
+    ]);
+    let stage_fixture = |stage: &str,
+                         lifecycle_stage: &str,
+                         age_ticks: u8,
+                         kind: &str,
+                         payload: &str|
+     -> RtsControlGroupCommandHistoryStageFixture {
+        let lifecycle_event = format!("control_group_command_feedback_lifecycle:{lifecycle_stage}");
+        let history_event = format!("control_group_command_history:{stage}");
+        RtsControlGroupCommandHistoryStageFixture {
+            stage: stage.to_string(),
+            lifecycle_stage: lifecycle_stage.to_string(),
+            age_ticks,
+            action: RtsOrderQueueReplayAction {
+                kind: kind.to_string(),
+                payload: payload.to_string(),
+            },
+            input_source: "classic_rts_control_group_command_history_input".to_string(),
+            renderer_path: "classic_draw_scene".to_string(),
+            preview_surface: "classic_draw_scene_command_history".to_string(),
+            control_group_id: "28".to_string(),
+            active_control_group_ids: retained_history_group_ids.clone(),
+            selected_unit_ids: replay_fixtures.all_member_ids.clone(),
+            control_group_assignments: control_group_assignments.clone(),
+            minimap_command_tile_id: "1,30".to_string(),
+            command_destination_tile: "1,31".to_string(),
+            path_tile_ids: path_tile_ids.clone(),
+            group_route_tile_ids: group_route_tile_ids.clone(),
+            formation_slot_tile_ids: formation_slot_tile_ids.clone(),
+            group_command_state: format!("command_feedback_lifecycle:{lifecycle_stage}"),
+            command_queue_entries: command_queue_entries.clone(),
+            combat_event_entries: vec![lifecycle_event, history_event],
+            active_strip_cleared: lifecycle_stage == "cleared",
+            history_retained: true,
+            history_overflow_row_count: 0,
+            stale_pruned_group_visible: false,
+            player_tile_x: 18,
+            player_tile_y: 30,
+        }
+    };
+    let stages = vec![
+        stage_fixture("fresh_history_appended", "fresh", 0, "move", "18,31:line"),
+        stage_fixture("dimmed_history_retained", "dimmed", 4, "move", "1,31:line"),
+        stage_fixture(
+            "cleared_history_retained",
+            "cleared",
+            8,
+            "select-control-group",
+            "28",
+        ),
+    ];
+
+    RtsControlGroupCommandHistoryFixtures {
+        retained_history_group_ids,
+        pruned_history_group_ids: Vec::new(),
+        control_group_assignments,
+        ability_command_ids,
+        group_26_member_ids: replay_fixtures.group_26_member_ids,
+        group_27_member_ids: replay_fixtures.group_27_member_ids,
+        group_28_member_ids: replay_fixtures.group_28_member_ids,
+        all_member_ids: replay_fixtures.all_member_ids,
+        history_entries: replay_fixtures.history_entries,
+        pruned_history_entries: Vec::new(),
+        stages,
+    }
+}
+
+pub fn rts_control_group_command_history_prune_fixtures() -> RtsControlGroupCommandHistoryFixtures {
+    let replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
+    let retained_history_group_ids = replay_fixtures.retained_history_group_ids.clone();
+    let pruned_history_group_ids = replay_fixtures.pruned_history_group_ids.clone();
+    let control_group_assignments = rts_string_vec([
+        "26:multi0.recall.order.runner|multi0.recall.order.wing",
+        "27:multi0.recall.override.runner|multi0.recall.override.wing",
+        "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+    ]);
+    let ability_command_ids = rts_string_vec(["move", "stop", "hold", "patrol"]);
+    let path_tile_ids = rts_string_vec([
+        "17,30", "16,29", "18,30", "18,31", "21,25", "20,30", "22,30", "1,31",
+    ]);
+    let group_route_tile_ids = rts_string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
+    let formation_slot_tile_ids = rts_string_vec(["1,31", "2,31"]);
+    let command_queue_entries = rts_string_vec([
+        "history_row_pruned:25:old_queue:17,30:age16",
+        "history_row_pruned:24:old_cancel:16,29:age20",
+        "history_row:26:queue:18,31:age0",
+        "history_row:27:cancel_final:21,25:20,30|22,30:age4",
+        "history_row:28:formation_filter_clear:1,31:1,31|2,31:age8",
+    ]);
+    let stage_fixture = |stage: &str,
+                         age_ticks: u8,
+                         kind: &str,
+                         payload: &str|
+     -> RtsControlGroupCommandHistoryStageFixture {
+        let lifecycle_event = "control_group_command_feedback_lifecycle:cleared".to_string();
+        let history_event = format!("control_group_command_history:{stage}");
+        let prune_event = format!("control_group_command_history_prune:{stage}");
+        RtsControlGroupCommandHistoryStageFixture {
+            stage: stage.to_string(),
+            lifecycle_stage: "cleared".to_string(),
+            age_ticks,
+            action: RtsOrderQueueReplayAction {
+                kind: kind.to_string(),
+                payload: payload.to_string(),
+            },
+            input_source: "classic_rts_control_group_command_history_prune_input".to_string(),
+            renderer_path: "classic_draw_scene".to_string(),
+            preview_surface: "classic_draw_scene_command_history_prune".to_string(),
+            control_group_id: "28".to_string(),
+            active_control_group_ids: retained_history_group_ids.clone(),
+            selected_unit_ids: replay_fixtures.all_member_ids.clone(),
+            control_group_assignments: control_group_assignments.clone(),
+            minimap_command_tile_id: "1,30".to_string(),
+            command_destination_tile: "1,31".to_string(),
+            path_tile_ids: path_tile_ids.clone(),
+            group_route_tile_ids: group_route_tile_ids.clone(),
+            formation_slot_tile_ids: formation_slot_tile_ids.clone(),
+            group_command_state:
+                "command_feedback_lifecycle:cleared|control_group_command_history_prune:bounded"
+                    .to_string(),
+            command_queue_entries: command_queue_entries.clone(),
+            combat_event_entries: vec![lifecycle_event, history_event, prune_event],
+            active_strip_cleared: true,
+            history_retained: true,
+            history_overflow_row_count: 0,
+            stale_pruned_group_visible: false,
+            player_tile_x: 18,
+            player_tile_y: 30,
+        }
+    };
+    let stages = vec![
+        stage_fixture("overflow_input_pruned", 12, "move", "18,31:line"),
+        stage_fixture("recent_three_retained", 13, "select-control-group", "28"),
+        stage_fixture("cleared_history_bounded", 14, "select-control-group", "26"),
+    ];
+
+    RtsControlGroupCommandHistoryFixtures {
+        retained_history_group_ids,
+        pruned_history_group_ids,
+        control_group_assignments,
+        ability_command_ids,
+        group_26_member_ids: replay_fixtures.group_26_member_ids,
+        group_27_member_ids: replay_fixtures.group_27_member_ids,
+        group_28_member_ids: replay_fixtures.group_28_member_ids,
+        all_member_ids: replay_fixtures.all_member_ids,
+        history_entries: replay_fixtures.history_entries,
+        pruned_history_entries: replay_fixtures.pruned_history_entries,
+        stages,
+    }
+}
+
 pub fn rts_control_group_command_feedback_rejection_replay_fixtures(
 ) -> RtsControlGroupCommandFeedbackRejectionReplayFixtures {
     let command_feedback_fixtures = rts_control_group_command_feedback_replay_fixtures();
@@ -6119,6 +6330,65 @@ mod tests {
                 .as_deref(),
             Some("recent_three_capacity")
         );
+        let history_fixtures = rts_control_group_command_history_fixtures();
+        assert_eq!(
+            history_fixtures
+                .stages
+                .iter()
+                .map(|stage| stage.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "fresh_history_appended",
+                "dimmed_history_retained",
+                "cleared_history_retained"
+            ]
+        );
+        assert_eq!(
+            history_fixtures
+                .stages
+                .iter()
+                .map(|stage| stage.lifecycle_stage.as_str())
+                .collect::<Vec<_>>(),
+            vec!["fresh", "dimmed", "cleared"]
+        );
+        assert_eq!(
+            history_fixtures.retained_history_group_ids,
+            vec!["26", "27", "28"]
+        );
+        assert!(history_fixtures
+            .stages
+            .iter()
+            .all(
+                |stage| stage.input_source == "classic_rts_control_group_command_history_input"
+                    && stage.renderer_path == "classic_draw_scene"
+            ));
+        let history_prune_fixtures = rts_control_group_command_history_prune_fixtures();
+        assert_eq!(
+            history_prune_fixtures
+                .stages
+                .iter()
+                .map(|stage| stage.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "overflow_input_pruned",
+                "recent_three_retained",
+                "cleared_history_bounded"
+            ]
+        );
+        assert_eq!(
+            history_prune_fixtures.pruned_history_group_ids,
+            vec!["25", "24"]
+        );
+        assert_eq!(history_prune_fixtures.pruned_history_entries.len(), 2);
+        assert!(history_prune_fixtures
+            .stages
+            .iter()
+            .all(|stage| stage.active_strip_cleared
+                && stage.input_source == "classic_rts_control_group_command_history_prune_input"
+                && stage
+                    .command_queue_entries
+                    .iter()
+                    .any(|entry| entry == "history_row_pruned:25:old_queue:17,30:age16")));
         let rejection_fixtures = rts_control_group_command_feedback_rejection_replay_fixtures();
         assert_eq!(rejection_fixtures.rejection_steps.len(), 8);
         assert_eq!(

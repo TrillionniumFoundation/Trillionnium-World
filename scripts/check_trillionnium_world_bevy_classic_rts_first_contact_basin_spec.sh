@@ -428,6 +428,12 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_pruned_group_ids_sample == ["25","24"]
   and .rts_evidence_bevy_runtime_adapter.command_history_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.command_history_prune_visible_sample == true
+  and .rts_evidence_bevy_runtime_adapter.command_history_fixture_stage_names_sample == ["fresh_history_appended","dimmed_history_retained","cleared_history_retained"]
+  and .rts_evidence_bevy_runtime_adapter.command_history_fixture_lifecycle_stages_sample == ["fresh","dimmed","cleared"]
+  and .rts_evidence_bevy_runtime_adapter.command_history_fixture_group_ids_sample == ["26","27","28"]
+  and .rts_evidence_bevy_runtime_adapter.command_history_prune_fixture_stage_names_sample == ["overflow_input_pruned","recent_three_retained","cleared_history_bounded"]
+  and .rts_evidence_bevy_runtime_adapter.command_history_prune_fixture_pruned_group_ids_sample == ["25","24"]
+  and .rts_evidence_bevy_runtime_adapter.command_history_prune_fixture_prune_reasons_sample == ["recent_three_capacity","recent_three_capacity"]
   and .rts_evidence_bevy_runtime_adapter.command_execution_feedback_kind_samples == ["move","follow","attack","harvest"]
   and .rts_evidence_bevy_runtime_adapter.command_execution_target_label_samples == ["8,4","player","arena_creep_attack","gold_vein"]
   and .rts_evidence_bevy_runtime_adapter.command_execution_player_label_samples == ["MOVE EXECUTING 8,4","FOLLOWING PLAYER","ATTACK FOCUS ARENA CREEP ATTACK","HARVEST GOLD VEIN TO TOWN HALL"]
