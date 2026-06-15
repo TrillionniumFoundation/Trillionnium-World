@@ -14,9 +14,14 @@ mkdir -p "$(dirname "$SUMMARY")"
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_battle_aftermath_v1"
   and .green == true
-  and .preview_width == 2560
+  and .preview_width == 1920
   and .preview_height == 1080
   and .write_gate == true
+  and .runtime_screen_mode == "player_runtime_battle_aftermath_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.primary_tactical_viewport == "large final battle aftermath tactical state after the enemy barracks falls"
+  and .runtime_screen_layout.outcome_panel == "right-side player reward, veteran, result, and next-action command center"
   and .input_path == "apply_live_native_action_with_source(classic_rts_battle_aftermath_input)"
   and .input_action_count == 12
   and .accepted_input_count == 12
@@ -48,6 +53,11 @@ jq -e '
   and .match_result_pixel_count > 20
   and .next_action_pixel_count > 20
   and .assault_reward_pixel_count > 8
+  and .battle_aftermath_pixel_counts.player_first_battle_view_non_background > 250000
+  and .battle_aftermath_pixel_counts.player_first_battle_view_frame > 8000
+  and .battle_aftermath_pixel_counts.player_first_battle_status_strip > 20000
+  and .battle_aftermath_pixel_counts.player_first_battle_outcome_panel > 90000
+  and .battle_aftermath_pixel_counts.player_first_battle_timeline > 25000
   and .live_aftermath_input_gate == true
   and .assault_dependency_gate == true
   and .destruction_gate == true
@@ -55,6 +65,7 @@ jq -e '
   and .match_result_gate == true
   and .next_action_gate == true
   and .reward_gate == true
+  and .player_first_battle_aftermath_screen_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

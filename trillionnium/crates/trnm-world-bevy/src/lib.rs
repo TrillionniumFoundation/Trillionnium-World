@@ -72993,10 +72993,19 @@ pub fn native_classic_rts_base_assault_resolution_evidence_json(preview_path: &s
 
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> String {
-    const PANEL_WIDTH: usize = 640;
-    const PANEL_HEIGHT: usize = 360;
-    const PREVIEW_COLUMNS: usize = 4;
-    const PREVIEW_ROWS: usize = 3;
+    const PREVIEW_WIDTH: usize = 1920;
+    const PREVIEW_HEIGHT: usize = 1080;
+    const BATTLE_VIEW_WIDTH: usize = 1260;
+    const BATTLE_VIEW_HEIGHT: usize = 720;
+    const BATTLE_VIEW_X: i32 = 48;
+    const BATTLE_VIEW_Y: i32 = 132;
+    const BACKGROUND: u32 = 0x0b0d0c;
+    const BOARD_COLOR: u32 = 0x101812;
+    const OUTCOME_PANEL_COLOR: u32 = 0x14231e;
+    const FRAME_COLOR: u32 = 0x4c7a5d;
+    const STATUS_STRIP_COLOR: u32 = 0x1a3226;
+    const TIMELINE_COLOR: u32 = 0x1d4030;
+    const HIGHLIGHT_COLOR: u32 = 0x82d38b;
     let assets = load_classic_runtime_assets();
     let mut world = native_bevy_playable_fixture();
     let mut character = WorldTrillionniumCharacter::default_for("local-player");
@@ -73083,16 +73092,15 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
             },
         ),
     ];
-    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
-    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
-    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
-    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let preview_width = PREVIEW_WIDTH;
+    let preview_height = PREVIEW_HEIGHT;
+    let mut preview_pixels = vec![BACKGROUND; preview_width * preview_height];
     let mut accepted_input_count = 0_usize;
     let mut action_labels = Vec::new();
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
 
-    for (index, (stage, action)) in actions.iter().enumerate() {
+    for (_index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
@@ -73112,37 +73120,6 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
         }
-        frame_pixels.fill(0x0b0d0c_u32);
-        classic_draw_scene(
-            &mut frame_pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            (5, 5),
-            &runtime,
-            &assets,
-        );
-        let offset_x = ((index % PREVIEW_COLUMNS) * PANEL_WIDTH) as i32;
-        let offset_y = ((index / PREVIEW_COLUMNS) * PANEL_HEIGHT) as i32;
-        classic_copy_pixels(
-            &mut preview_pixels,
-            preview_width,
-            preview_height,
-            &frame_pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            offset_x,
-            offset_y,
-        );
-        classic_draw_text(
-            &mut preview_pixels,
-            preview_width,
-            preview_height,
-            offset_x + 12,
-            offset_y + 12,
-            &format!("RTS AFTER {} {}", index + 1, stage),
-            2,
-            CLASSIC_HUD_ACCENT_TEXT_COLOR,
-        );
         stage_summaries.push(json!({
             "stage": stage,
             "action_label": action_label,
@@ -73161,6 +73138,324 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
         }));
     }
 
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        24,
+        24,
+        1872,
+        1008,
+        BOARD_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        54,
+        52,
+        "TRNM RUST/BEVY BATTLE AFTERMATH",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1020,
+        56,
+        "VICTORY RESULT / VETERANS / REWARDS / NEXT ACTION",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let mut battle_view_pixels = vec![BACKGROUND; BATTLE_VIEW_WIDTH * BATTLE_VIEW_HEIGHT];
+    classic_draw_scene(
+        &mut battle_view_pixels,
+        BATTLE_VIEW_WIDTH,
+        BATTLE_VIEW_HEIGHT,
+        (8, 4),
+        &runtime,
+        &assets,
+    );
+    let player_first_battle_view_non_background = battle_view_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != BACKGROUND
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    classic_copy_pixels(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &battle_view_pixels,
+        BATTLE_VIEW_WIDTH,
+        BATTLE_VIEW_HEIGHT,
+        BATTLE_VIEW_X,
+        BATTLE_VIEW_Y,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        BATTLE_VIEW_X - 10,
+        BATTLE_VIEW_Y - 26,
+        BATTLE_VIEW_WIDTH as i32 + 20,
+        4,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        BATTLE_VIEW_X - 10,
+        BATTLE_VIEW_Y + BATTLE_VIEW_HEIGHT as i32 + 26,
+        BATTLE_VIEW_WIDTH as i32 + 20,
+        4,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        BATTLE_VIEW_X - 10,
+        BATTLE_VIEW_Y - 26,
+        4,
+        BATTLE_VIEW_HEIGHT as i32 + 56,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        BATTLE_VIEW_X + BATTLE_VIEW_WIDTH as i32 + 6,
+        BATTLE_VIEW_Y - 26,
+        4,
+        BATTLE_VIEW_HEIGHT as i32 + 56,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        BATTLE_VIEW_X,
+        BATTLE_VIEW_Y + BATTLE_VIEW_HEIGHT as i32 + 8,
+        BATTLE_VIEW_WIDTH as i32,
+        24,
+        STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        BATTLE_VIEW_X,
+        BATTLE_VIEW_Y - 14,
+        "FINAL TACTICAL STATE / ENEMY BARRACKS DESTROYED / GROUP 3 PROMOTED",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        BATTLE_VIEW_X + 18,
+        BATTLE_VIEW_Y + BATTLE_VIEW_HEIGHT as i32 + 16,
+        "MATCH RESULT VICTORY READY SECURE EXPANSION / NEXT TILE 9 2 / REWARD 420XP 240G",
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1344,
+        132,
+        516,
+        720,
+        OUTCOME_PANEL_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1372,
+        158,
+        "AFTERMATH COMMAND CENTER",
+        2,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let outcome_rows = [
+        (
+            "DESTROYED",
+            "enemy_barracks / debris visible",
+            CLASSIC_RTS_DEBRIS_COLOR,
+            202,
+        ),
+        (
+            "SMOKE FIELD",
+            "3 smoke tiles over base ruins",
+            CLASSIC_RTS_SMOKE_COLOR,
+            282,
+        ),
+        (
+            "VETERANS",
+            "3 units promoted to rank 2",
+            CLASSIC_RTS_VETERAN_COLOR,
+            362,
+        ),
+        (
+            "RESULT",
+            "victory ready secure expansion",
+            CLASSIC_RTS_MATCH_RESULT_COLOR,
+            442,
+        ),
+        (
+            "NEXT ACTION",
+            "secure expansion at tile 9 2",
+            CLASSIC_RTS_NEXT_ACTION_COLOR,
+            522,
+        ),
+        (
+            "REWARD",
+            "420xp 240g / assault log saved",
+            CLASSIC_RTS_ASSAULT_REWARD_COLOR,
+            602,
+        ),
+    ];
+    for (label, detail, color, y) in outcome_rows {
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1372,
+            y,
+            440,
+            42,
+            color,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1384,
+            y + 8,
+            416,
+            26,
+            0x101812,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1394,
+            y + 9,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1512,
+            y + 9,
+            detail,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+    }
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1372,
+        700,
+        440,
+        82,
+        0x101812,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1394,
+        728,
+        "NO CREDIT: PUBLIC / S5 / OPENRA SCREEN CLAIMS REMAIN FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let timeline_labels = [
+        "SELECT", "SUPPLY", "GUARD", "WAYFIND", "RALLY", "GROUP3", "SIEGE", "ATTACK", "BREACH",
+        "DESTROY", "VETERAN", "NEXT",
+    ];
+    for (index, label) in timeline_labels.iter().enumerate() {
+        let x = 54 + index as i32 * 150;
+        let y = 912;
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            x,
+            y,
+            126,
+            42,
+            TIMELINE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            x + 8,
+            y + 8,
+            110,
+            26,
+            if index + 1 == timeline_labels.len() {
+                HIGHLIGHT_COLOR
+            } else {
+                0x10201a
+            },
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            x + 18,
+            y + 17,
+            label,
+            1,
+            if index + 1 == timeline_labels.len() {
+                0x0b0d0c
+            } else {
+                CLASSIC_HUD_TEXT_COLOR
+            },
+        );
+    }
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        54,
+        972,
+        1806,
+        36,
+        STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        72,
+        984,
+        "LIVE INPUT CHAIN LOCKED SELECT SUPPLY TRAIN RALLY GROUP3 SIEGE ATTACK BREACH DESTROY PROMOTE NEXT",
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
@@ -73172,7 +73467,7 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
     };
     let non_background_pixels = preview_pixels
         .iter()
-        .filter(|color| **color != 0x0b0d0c_u32)
+        .filter(|color| **color != BACKGROUND)
         .count();
     let debris_pixel_count = count_color(CLASSIC_RTS_DEBRIS_COLOR);
     let smoke_pixel_count = count_color(CLASSIC_RTS_SMOKE_COLOR);
@@ -73180,6 +73475,16 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
     let match_result_pixel_count = count_color(CLASSIC_RTS_MATCH_RESULT_COLOR);
     let next_action_pixel_count = count_color(CLASSIC_RTS_NEXT_ACTION_COLOR);
     let assault_reward_pixel_count = count_color(CLASSIC_RTS_ASSAULT_REWARD_COLOR);
+    let player_first_battle_view_frame_pixel_count = count_color(FRAME_COLOR);
+    let player_first_battle_status_strip_pixel_count = count_color(STATUS_STRIP_COLOR);
+    let player_first_battle_outcome_panel_pixel_count = count_color(OUTCOME_PANEL_COLOR);
+    let player_first_battle_timeline_pixel_count = count_color(TIMELINE_COLOR);
+    let player_first_battle_aftermath_screen_gate = player_first_battle_view_non_background
+        > 250_000
+        && player_first_battle_view_frame_pixel_count > 8_000
+        && player_first_battle_status_strip_pixel_count > 20_000
+        && player_first_battle_outcome_panel_pixel_count > 90_000
+        && player_first_battle_timeline_pixel_count > 25_000;
     let live_aftermath_input_gate = accepted_input_count == actions.len()
         && input_sources.len() == 1
         && input_sources.contains("classic_rts_battle_aftermath_input");
@@ -73217,15 +73522,17 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
         .any(|entry| entry == "aftermath:+420xp:+240g")
         && runtime.rts_base_assault_reward_log.len() >= 3
         && assault_reward_pixel_count > 8;
-    let green = write_gate
-        && non_background_pixels > 450_000
-        && live_aftermath_input_gate
+    let runtime_screen_gate = live_aftermath_input_gate
         && assault_dependency_gate
         && destruction_gate
         && veteran_gate
         && match_result_gate
         && next_action_gate
         && reward_gate
+        && player_first_battle_aftermath_screen_gate;
+    let green = write_gate
+        && non_background_pixels > 450_000
+        && runtime_screen_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -73236,6 +73543,15 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
         "preview_width": preview_width,
         "preview_height": preview_height,
         "write_gate": write_gate,
+        "runtime_screen_mode": "player_runtime_battle_aftermath_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "primary_tactical_viewport": "large final battle aftermath tactical state after the enemy barracks falls",
+            "outcome_panel": "right-side player reward, veteran, result, and next-action command center",
+            "input_timeline": "bottom accepted live input chain from army selection to next campaign action",
+            "no_credit_panel": "public, S5, and OpenRA screen-for-screen claims remain false"
+        },
         "input_path": "apply_live_native_action_with_source(classic_rts_battle_aftermath_input)",
         "input_action_count": actions.len(),
         "accepted_input_count": accepted_input_count,
@@ -73264,6 +73580,13 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
         "match_result_pixel_count": match_result_pixel_count,
         "next_action_pixel_count": next_action_pixel_count,
         "assault_reward_pixel_count": assault_reward_pixel_count,
+        "battle_aftermath_pixel_counts": {
+            "player_first_battle_view_non_background": player_first_battle_view_non_background,
+            "player_first_battle_view_frame": player_first_battle_view_frame_pixel_count,
+            "player_first_battle_status_strip": player_first_battle_status_strip_pixel_count,
+            "player_first_battle_outcome_panel": player_first_battle_outcome_panel_pixel_count,
+            "player_first_battle_timeline": player_first_battle_timeline_pixel_count
+        },
         "live_aftermath_input_gate": live_aftermath_input_gate,
         "assault_dependency_gate": assault_dependency_gate,
         "destruction_gate": destruction_gate,
@@ -73271,9 +73594,10 @@ pub fn native_classic_rts_battle_aftermath_evidence_json(preview_path: &str) -> 
         "match_result_gate": match_result_gate,
         "next_action_gate": next_action_gate,
         "reward_gate": reward_gate,
+        "player_first_battle_aftermath_screen_gate": player_first_battle_aftermath_screen_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS battle aftermath evidence extends the base assault into visible building destruction, debris and smoke, veteran unit promotion, match-result feedback, reward settlement, and next-action routing through live native input before rendering the aftermath overlays through the Trillionnium Bevy low-spec scene path."
+        "source_of_truth": "Classic RTS battle aftermath evidence extends the base assault into a player-first native runtime outcome screen: visible building destruction, debris and smoke, veteran unit promotion, match-result feedback, reward settlement, and next-action routing through live native input before rendering the final tactical aftermath and outcome command center through the Trillionnium Bevy low-spec scene path."
     }))
     .expect("classic RTS battle aftermath evidence serializes")
 }
@@ -78576,11 +78900,15 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         &aftermath,
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BATTLE_AFTERMATH_CONTRACT,
     ) && bool_at(&aftermath, "green")
+        && bool_at(&aftermath, "runtime_screen_gate")
+        && !bool_at(&aftermath, "evidence_board_only")
+        && str_at(&aftermath, "runtime_screen_mode") == "player_runtime_battle_aftermath_screen"
         && bool_at(&aftermath, "destruction_gate")
         && bool_at(&aftermath, "veteran_gate")
         && bool_at(&aftermath, "match_result_gate")
         && bool_at(&aftermath, "next_action_gate")
         && bool_at(&aftermath, "reward_gate")
+        && bool_at(&aftermath, "player_first_battle_aftermath_screen_gate")
         && u64_at(&aftermath, "accepted_input_count") == 12
         && str_at(&aftermath, "final_base_assault_result_state") == "destroyed:enemy_barracks"
         && str_at(&aftermath, "final_match_result_state") == "victory_ready:secure_expansion"

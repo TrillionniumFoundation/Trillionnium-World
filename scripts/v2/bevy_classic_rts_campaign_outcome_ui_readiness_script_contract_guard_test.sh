@@ -95,7 +95,7 @@ required_release_lines=(
   'bevy_classic_rts_campaign_outcome_ui_readiness_gate'
   'native_bevy_classic_rts_campaign_outcome_ui_readiness'
   'campaign_outcome_ui_readiness_semantics'
-  'fake_packet_artifact_count == 117'
+  'fake_packet_artifact_count == 120'
 )
 
 for line in "${required_release_lines[@]}"; do

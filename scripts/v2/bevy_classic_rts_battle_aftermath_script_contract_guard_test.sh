@@ -12,6 +12,10 @@ required_script_lines=(
   'bevy-classic-rts-battle-aftermath.json'
   'bevy-classic-rts-battle-aftermath.ppm'
   'classic-rts-battle-aftermath'
+  'runtime_screen_mode == "player_runtime_battle_aftermath_screen"'
+  'runtime_screen_gate == true'
+  'evidence_board_only == false'
+  'player_first_battle_aftermath_screen_gate == true'
   'input_path == "apply_live_native_action_with_source(classic_rts_battle_aftermath_input)"'
   'RTS:QUEUE:aftermath:destroy:enemy_barracks@10,3'
   'RTS:QUEUE:aftermath:promote:control_group_3@10,3'
@@ -46,6 +50,9 @@ required_source_lines=(
   'CLASSIC_RTS_VETERAN_COLOR'
   'CLASSIC_RTS_MATCH_RESULT_COLOR'
   'CLASSIC_RTS_NEXT_ACTION_COLOR'
+  'player_runtime_battle_aftermath_screen'
+  'battle_aftermath_pixel_counts'
+  'player_first_battle_aftermath_screen_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
