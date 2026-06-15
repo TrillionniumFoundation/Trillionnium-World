@@ -410,6 +410,10 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.command_feedback_strip_fixture_focus_tiles_sample == ["18,30","21,30","1,30","1,30"]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_strip_fixture_filtered_members_sample == ["missing:multi0.recall.formation.missing","foreign:map.actor1"]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_stage_sample == "dimmed"
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_fixture_stage_names_sample == ["fresh","dimmed","cleared"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_fixture_action_payloads_sample == ["18,31:line","1,31:line","28"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_fixture_age_ticks_sample == [0,4,8]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_fixture_events_sample == ["control_group_command_feedback_lifecycle:fresh","control_group_command_feedback_lifecycle:dimmed","control_group_command_feedback_lifecycle:cleared"]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_step_names_sample == ["select_group_26","queue_group_26","select_group_27","override_group_27","select_group_28","formation_group_28","bounded_history_after_clear"]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_preview_stages_sample == ["group_26_queued","group_27_override","group_28_formation","cleared_history_bounded"]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_retained_group_ids_sample == ["26","27","28"]

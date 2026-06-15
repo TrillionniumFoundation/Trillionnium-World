@@ -23,6 +23,7 @@ use trnm_rts_bevy_runtime::{
     rts_command_slot_id_for_index, rts_command_stamp_for_ability, rts_command_stamp_for_move,
     rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
     rts_commander_parts, rts_contact_flash_tiles_for_target,
+    rts_control_group_command_feedback_lifecycle_fixtures,
     rts_control_group_command_feedback_rejection_replay_fixtures,
     rts_control_group_command_feedback_replay_fixtures,
     rts_control_group_command_feedback_strip_fixtures, rts_control_group_hotkey_feedback_stage,
@@ -277,6 +278,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub command_feedback_strip_fixture_focus_tiles_sample: Vec<String>,
     pub command_feedback_strip_fixture_filtered_members_sample: Vec<String>,
     pub command_feedback_lifecycle_stage_sample: Option<String>,
+    pub command_feedback_lifecycle_fixture_stage_names_sample: Vec<String>,
+    pub command_feedback_lifecycle_fixture_action_payloads_sample: Vec<String>,
+    pub command_feedback_lifecycle_fixture_age_ticks_sample: Vec<u8>,
+    pub command_feedback_lifecycle_fixture_events_sample: Vec<String>,
     pub command_feedback_replay_step_names_sample: Vec<String>,
     pub command_feedback_replay_preview_stages_sample: Vec<String>,
     pub command_feedback_replay_retained_group_ids_sample: Vec<String>,
@@ -788,6 +793,28 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let command_feedback_lifecycle_stage =
         rts_command_feedback_lifecycle_stage("", &command_feedback_events, &command_feedback_queue)
             .map(str::to_string);
+    let command_feedback_lifecycle_fixtures =
+        rts_control_group_command_feedback_lifecycle_fixtures();
+    let command_feedback_lifecycle_fixture_stage_names = command_feedback_lifecycle_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.stage.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_lifecycle_fixture_action_payloads = command_feedback_lifecycle_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_lifecycle_fixture_age_ticks = command_feedback_lifecycle_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.age_ticks)
+        .collect::<Vec<_>>();
+    let command_feedback_lifecycle_fixture_events = command_feedback_lifecycle_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.lifecycle_event.clone())
+        .collect::<Vec<_>>();
     let command_history_visible =
         rts_command_history_visible("", &command_feedback_events, &command_feedback_queue);
     let command_history_prune_visible =
@@ -1421,6 +1448,16 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 "foreign:map.actor1",
             ]
         && command_feedback_lifecycle_stage.as_deref() == Some("dimmed")
+        && command_feedback_lifecycle_fixture_stage_names == vec!["fresh", "dimmed", "cleared"]
+        && command_feedback_lifecycle_fixture_action_payloads
+            == vec!["18,31:line", "1,31:line", "28"]
+        && command_feedback_lifecycle_fixture_age_ticks == vec![0, 4, 8]
+        && command_feedback_lifecycle_fixture_events
+            == vec![
+                "control_group_command_feedback_lifecycle:fresh",
+                "control_group_command_feedback_lifecycle:dimmed",
+                "control_group_command_feedback_lifecycle:cleared",
+            ]
         && command_feedback_replay_step_names
             == vec![
                 "select_group_26",
@@ -1766,6 +1803,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         command_feedback_strip_fixture_filtered_members_sample:
             command_feedback_strip_fixture_filtered_members,
         command_feedback_lifecycle_stage_sample: command_feedback_lifecycle_stage,
+        command_feedback_lifecycle_fixture_stage_names_sample:
+            command_feedback_lifecycle_fixture_stage_names,
+        command_feedback_lifecycle_fixture_action_payloads_sample:
+            command_feedback_lifecycle_fixture_action_payloads,
+        command_feedback_lifecycle_fixture_age_ticks_sample:
+            command_feedback_lifecycle_fixture_age_ticks,
+        command_feedback_lifecycle_fixture_events_sample:
+            command_feedback_lifecycle_fixture_events,
         command_feedback_replay_step_names_sample: command_feedback_replay_step_names,
         command_feedback_replay_preview_stages_sample: command_feedback_replay_preview_stages,
         command_feedback_replay_retained_group_ids_sample: command_feedback_replay_fixtures

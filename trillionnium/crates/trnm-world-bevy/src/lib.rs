@@ -36244,71 +36244,32 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
     let mut world = native_bevy_playable_fixture();
     let mut character = WorldTrillionniumCharacter::default_for("local-player");
     let mut gameplay_log = NativeGameplayLog::default();
-    let group_26_member_ids =
-        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
-    let group_27_member_ids = string_vec([
-        "multi0.recall.override.runner",
-        "multi0.recall.override.wing",
-    ]);
-    let group_28_member_ids = string_vec([
-        "multi0.recall.formation.runner",
-        "multi0.recall.formation.wing",
-    ]);
-    let all_member_ids = string_vec([
-        "multi0.recall.order.runner",
-        "multi0.recall.order.wing",
-        "multi0.recall.override.runner",
-        "multi0.recall.override.wing",
-        "multi0.recall.formation.runner",
-        "multi0.recall.formation.wing",
-    ]);
+    let lifecycle_fixtures =
+        rts_bevy_runtime::rts_control_group_command_feedback_lifecycle_fixtures();
+    let stage_fixtures = lifecycle_fixtures.stages.clone();
+    let first_stage = stage_fixtures
+        .first()
+        .expect("command feedback lifecycle has an initial stage");
     let mut runtime = NativeFirstPlayableRuntime {
         map_scene: "mirror_city_square".to_string(),
         coins: 980,
         xp: 128,
         facing_direction: "east".to_string(),
         walk_cycle_frame: 3,
-        rts_control_group_id: Some("26".to_string()),
-        rts_active_control_group_ids: string_vec(["26", "27", "28"]),
-        rts_selected_unit_ids: all_member_ids.clone(),
-        rts_control_group_assignments: string_vec([
-            "26:multi0.recall.order.runner|multi0.recall.order.wing",
-            "27:multi0.recall.override.runner|multi0.recall.override.wing",
-            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
-        ]),
-        rts_command_destination_tile: Some("18,31".to_string()),
-        rts_minimap_command_tile_id: Some("18,30".to_string()),
-        rts_path_tile_ids: string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]),
-        rts_group_route_tile_ids: string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]),
-        rts_formation_slot_tile_ids: string_vec(["1,31", "2,31"]),
-        rts_group_command_state: "command_feedback_lifecycle:fresh".to_string(),
-        rts_ability_command_ids: string_vec(["move", "stop", "hold", "patrol"]),
+        rts_control_group_id: Some(first_stage.control_group_id.clone()),
+        rts_active_control_group_ids: lifecycle_fixtures.active_control_group_ids.clone(),
+        rts_selected_unit_ids: lifecycle_fixtures.all_member_ids.clone(),
+        rts_control_group_assignments: lifecycle_fixtures.control_group_assignments.clone(),
+        rts_command_destination_tile: Some(first_stage.command_destination_tile.clone()),
+        rts_minimap_command_tile_id: Some(first_stage.minimap_command_tile_id.clone()),
+        rts_path_tile_ids: first_stage.path_tile_ids.clone(),
+        rts_group_route_tile_ids: first_stage.group_route_tile_ids.clone(),
+        rts_formation_slot_tile_ids: first_stage.formation_slot_tile_ids.clone(),
+        rts_group_command_state: first_stage.group_command_state.clone(),
+        rts_ability_command_ids: lifecycle_fixtures.ability_command_ids.clone(),
         rts_active_ability_id: Some("move".to_string()),
         ..Default::default()
     };
-    let lifecycle_stages = [
-        (
-            "fresh",
-            0_u8,
-            NativeControlAction::RtsMoveCommand {
-                command_id: "18,31:line".to_string(),
-            },
-        ),
-        (
-            "dimmed",
-            4_u8,
-            NativeControlAction::RtsMoveCommand {
-                command_id: "1,31:line".to_string(),
-            },
-        ),
-        (
-            "cleared",
-            8_u8,
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "28".to_string(),
-            },
-        ),
-    ];
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
@@ -36323,8 +36284,9 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
     let mut dimmed_stale_signal_pixel_count = 0_usize;
     let mut cleared_stale_signal_pixel_count = 0_usize;
 
-    for (index, (stage, age_ticks, action)) in lifecycle_stages.iter().enumerate() {
-        let action_label = native_control_action_label(action);
+    for (index, fixture) in stage_fixtures.iter().enumerate() {
+        let action = classic_rts_action_from_runtime_action(fixture.action.clone());
+        let action_label = native_control_action_label(&action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
             &mut world,
@@ -36332,8 +36294,8 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
             &mut gameplay_log,
             &mut runtime,
             "local-player",
-            "classic_rts_control_group_command_feedback_lifecycle_input",
-            action.clone(),
+            fixture.input_source.as_str(),
+            action,
         );
         let latest_feedback = runtime.input_feedback_history.last();
         let accepted = latest_feedback.is_some_and(|event| event.accepted);
@@ -36344,42 +36306,24 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
             input_sources.insert(event.input_source.clone());
         }
 
-        runtime.combat_turn = *age_ticks;
-        runtime.rts_control_group_id = Some(
-            match *stage {
-                "fresh" => "26",
-                "dimmed" => "28",
-                _ => "28",
-            }
-            .to_string(),
-        );
-        runtime.rts_active_control_group_ids = string_vec(["26", "27", "28"]);
-        runtime.rts_selected_unit_ids = all_member_ids.clone();
-        runtime.rts_control_group_assignments = string_vec([
-            "26:multi0.recall.order.runner|multi0.recall.order.wing",
-            "27:multi0.recall.override.runner|multi0.recall.override.wing",
-            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
-        ]);
-        runtime.rts_minimap_command_tile_id = Some("18,30".to_string());
-        runtime.rts_command_destination_tile = Some("18,31".to_string());
-        runtime.rts_path_tile_ids =
-            string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]);
-        runtime.rts_group_route_tile_ids = string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
-        runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
-        runtime.rts_group_command_state = format!("command_feedback_lifecycle:{stage}");
+        runtime.combat_turn = fixture.age_ticks;
+        runtime.rts_control_group_id = Some(fixture.control_group_id.clone());
+        runtime.rts_active_control_group_ids = fixture.active_control_group_ids.clone();
+        runtime.rts_selected_unit_ids = fixture.selected_unit_ids.clone();
+        runtime.rts_control_group_assignments =
+            lifecycle_fixtures.control_group_assignments.clone();
+        runtime.rts_minimap_command_tile_id = Some(fixture.minimap_command_tile_id.clone());
+        runtime.rts_command_destination_tile = Some(fixture.command_destination_tile.clone());
+        runtime.rts_path_tile_ids = fixture.path_tile_ids.clone();
+        runtime.rts_group_route_tile_ids = fixture.group_route_tile_ids.clone();
+        runtime.rts_formation_slot_tile_ids = fixture.formation_slot_tile_ids.clone();
+        runtime.rts_group_command_state = fixture.group_command_state.clone();
         runtime.rts_command_queue.clear();
         runtime.rts_combat_event_log.clear();
-        for event in [
-            "queued_group_order:Multi0:26:move:2actors",
-            "queued_order_cancelled:27:multi0.recall.override.runner:21,25",
-            "queued_order_override_final:27:20,30|22,30",
-            "formation_group_order:Multi0:28:1,31:2slots:0reassigned",
-            "control_group_member_filtered:Multi0:28:missing:multi0.recall.formation.missing,foreign:map.actor1",
-            "control_group_old_members_cleared:Multi0:28:multi0.recall.formation.old.seed|multi0.recall.formation.old.wing",
-        ] {
+        for event in &fixture.command_queue_entries {
             push_history(&mut runtime.rts_command_queue, event);
         }
-        let lifecycle_event = format!("control_group_command_feedback_lifecycle:{stage}");
+        let lifecycle_event = fixture.lifecycle_event.clone();
         push_history(&mut runtime.rts_combat_event_log, &lifecycle_event);
         push_history(&mut runtime.rts_command_queue, &lifecycle_event);
 
@@ -36388,7 +36332,7 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
             &mut frame_pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            (18, 30),
+            (fixture.player_tile_x, fixture.player_tile_y),
             &runtime,
             &assets,
         );
@@ -36409,9 +36353,9 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
         let dim_hud_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_DIM_HUD_COLOR);
         let dim_chip_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_DIM_CHIP_COLOR);
         let ready_pixel_count = count_frame_color(CLASSIC_RTS_COMMAND_STRIP_READY_COLOR);
-        if *stage == "fresh" {
+        if fixture.stage == "fresh" {
             fresh_signal_pixel_count = stale_signal_pixel_count;
-        } else if *stage == "dimmed" {
+        } else if fixture.stage == "dimmed" {
             dimmed_signal_pixel_count = dim_hud_pixel_count + dim_chip_pixel_count;
             dimmed_stale_signal_pixel_count = stale_signal_pixel_count;
         } else {
@@ -36440,33 +36384,33 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
             &format!(
                 "COMMAND FEEDBACK LIFECYCLE {} {} AGE {}",
                 index + 1,
-                stage,
-                age_ticks
+                fixture.stage,
+                fixture.age_ticks
             ),
             1,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
 
         stage_summaries.push(json!({
-            "stage": stage,
+            "stage": fixture.stage.clone(),
             "lifecycle_event": lifecycle_event,
-            "visibility_state": stage,
-            "age_ticks": age_ticks,
+            "visibility_state": fixture.stage.clone(),
+            "age_ticks": fixture.age_ticks,
             "action_label": action_label,
             "accepted": accepted,
             "control_group_id": runtime.rts_control_group_id.clone(),
-            "covered_group_ids": ["26", "27", "28"],
+            "covered_group_ids": fixture.covered_group_ids.clone(),
             "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
             "member_count": runtime.rts_selected_unit_ids.len(),
-            "stance": "guard",
-            "group_26_queued_target_tile": "18,31",
-            "group_27_canceled_target_tile": "21,25",
-            "group_27_override_final_tile_ids": ["20,30", "22,30"],
-            "group_28_formation_anchor_tile": "1,31",
-            "group_28_formation_slot_tile_ids": ["1,31", "2,31"],
-            "group_26_member_ids": group_26_member_ids.clone(),
-            "group_27_member_ids": group_27_member_ids.clone(),
-            "group_28_member_ids": group_28_member_ids.clone(),
+            "stance": fixture.stance.clone(),
+            "group_26_queued_target_tile": lifecycle_fixtures.group_26_queued_target_tile.clone(),
+            "group_27_canceled_target_tile": lifecycle_fixtures.group_27_canceled_target_tile.clone(),
+            "group_27_override_final_tile_ids": lifecycle_fixtures.group_27_override_final_tile_ids.clone(),
+            "group_28_formation_anchor_tile": lifecycle_fixtures.group_28_formation_anchor_tile.clone(),
+            "group_28_formation_slot_tile_ids": lifecycle_fixtures.group_28_formation_slot_tile_ids.clone(),
+            "group_26_member_ids": lifecycle_fixtures.group_26_member_ids.clone(),
+            "group_27_member_ids": lifecycle_fixtures.group_27_member_ids.clone(),
+            "group_28_member_ids": lifecycle_fixtures.group_28_member_ids.clone(),
             "group_command_state": runtime.rts_group_command_state.clone(),
             "queue_pixel_count": queue_pixel_count,
             "cancel_pixel_count": cancel_pixel_count,
@@ -36478,16 +36422,20 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
             "dim_hud_pixel_count": dim_hud_pixel_count,
             "dim_chip_pixel_count": dim_chip_pixel_count,
             "ready_pixel_count": ready_pixel_count,
-            "renderer_path": "classic_draw_scene",
-            "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_feedback_lifecycle_input)",
-            "preview_surface": "classic_draw_scene_command_feedback_lifecycle",
+            "renderer_path": fixture.renderer_path.clone(),
+            "input_path": format!("apply_live_native_action_with_source({})", fixture.input_source),
+            "preview_surface": fixture.preview_surface.clone(),
         }));
     }
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
-    let stage_gate = ["fresh", "dimmed", "cleared"].iter().all(|expected| {
+    let expected_stage_ids = stage_fixtures
+        .iter()
+        .map(|fixture| fixture.stage.as_str())
+        .collect::<Vec<_>>();
+    let stage_gate = expected_stage_ids.iter().all(|expected| {
         stage_summaries
             .iter()
             .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
@@ -36570,14 +36518,14 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
                     && groups.iter().any(|group| group.as_str() == Some("28"))
             })
     });
-    let live_input_gate = accepted_input_count == lifecycle_stages.len()
-        && input_sources.contains("classic_rts_control_group_command_feedback_lifecycle_input");
-    let scene_renderer_gate = stage_summaries.len() == lifecycle_stages.len()
+    let live_input_gate = accepted_input_count == stage_fixtures.len()
+        && input_sources.contains(first_stage.input_source.as_str());
+    let scene_renderer_gate = stage_summaries.len() == stage_fixtures.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
                 .and_then(|value| value.as_str())
-                == Some("classic_draw_scene")
+                == Some(first_stage.renderer_path.as_str())
         });
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -36602,23 +36550,23 @@ pub fn native_classic_rts_control_group_command_feedback_lifecycle_evidence_json
         "preview_width": preview_width,
         "preview_height": preview_height,
         "write_gate": write_gate,
-        "renderer_path": "classic_draw_scene",
-        "input_path": "apply_live_native_action_with_source(classic_rts_control_group_command_feedback_lifecycle_input)",
-        "input_action_count": lifecycle_stages.len(),
+        "renderer_path": first_stage.renderer_path.clone(),
+        "input_path": format!("apply_live_native_action_with_source({})", first_stage.input_source),
+        "input_action_count": stage_fixtures.len(),
         "accepted_input_count": accepted_input_count,
         "input_sources": input_sources,
         "action_labels": action_labels,
         "stage_summaries": stage_summaries,
-        "lifecycle_stage_names": ["fresh", "dimmed", "cleared"],
-        "covered_group_ids": ["26", "27", "28"],
-        "group_26_queued_target_tile": "18,31",
-        "group_26_member_ids": group_26_member_ids,
-        "group_27_canceled_target_tile": "21,25",
-        "group_27_override_final_tile_ids": ["20,30", "22,30"],
-        "group_27_member_ids": group_27_member_ids,
-        "group_28_formation_anchor_tile": "1,31",
-        "group_28_formation_slot_tile_ids": ["1,31", "2,31"],
-        "group_28_member_ids": group_28_member_ids,
+        "lifecycle_stage_names": expected_stage_ids,
+        "covered_group_ids": lifecycle_fixtures.covered_group_ids,
+        "group_26_queued_target_tile": lifecycle_fixtures.group_26_queued_target_tile,
+        "group_26_member_ids": lifecycle_fixtures.group_26_member_ids,
+        "group_27_canceled_target_tile": lifecycle_fixtures.group_27_canceled_target_tile,
+        "group_27_override_final_tile_ids": lifecycle_fixtures.group_27_override_final_tile_ids,
+        "group_27_member_ids": lifecycle_fixtures.group_27_member_ids,
+        "group_28_formation_anchor_tile": lifecycle_fixtures.group_28_formation_anchor_tile,
+        "group_28_formation_slot_tile_ids": lifecycle_fixtures.group_28_formation_slot_tile_ids,
+        "group_28_member_ids": lifecycle_fixtures.group_28_member_ids,
         "fresh_signal_pixel_count": fresh_signal_pixel_count,
         "dimmed_signal_pixel_count": dimmed_signal_pixel_count,
         "cleared_ready_pixel_count": cleared_ready_pixel_count,

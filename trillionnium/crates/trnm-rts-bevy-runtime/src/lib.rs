@@ -277,6 +277,49 @@ pub struct RtsControlGroupCommandFeedbackStripFixtures {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackLifecycleStageFixture {
+    pub stage: String,
+    pub age_ticks: u8,
+    pub action: RtsOrderQueueReplayAction,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub control_group_id: String,
+    pub active_control_group_ids: Vec<String>,
+    pub covered_group_ids: Vec<String>,
+    pub selected_unit_ids: Vec<String>,
+    pub stance: String,
+    pub minimap_command_tile_id: String,
+    pub command_destination_tile: String,
+    pub path_tile_ids: Vec<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub command_queue_entries: Vec<String>,
+    pub lifecycle_event: String,
+    pub group_command_state: String,
+    pub player_tile_x: i32,
+    pub player_tile_y: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackLifecycleFixtures {
+    pub active_control_group_ids: Vec<String>,
+    pub covered_group_ids: Vec<String>,
+    pub control_group_assignments: Vec<String>,
+    pub ability_command_ids: Vec<String>,
+    pub group_26_member_ids: Vec<String>,
+    pub group_27_member_ids: Vec<String>,
+    pub group_28_member_ids: Vec<String>,
+    pub all_member_ids: Vec<String>,
+    pub group_26_queued_target_tile: String,
+    pub group_27_canceled_target_tile: String,
+    pub group_27_override_final_tile_ids: Vec<String>,
+    pub group_28_formation_anchor_tile: String,
+    pub group_28_formation_slot_tile_ids: Vec<String>,
+    pub stages: Vec<RtsControlGroupCommandFeedbackLifecycleStageFixture>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsControlGroupCommandFeedbackHistoryEntry {
     pub group_id: String,
     pub badge: String,
@@ -4132,6 +4175,102 @@ pub fn rts_control_group_command_feedback_strip_fixtures(
     }
 }
 
+pub fn rts_control_group_command_feedback_lifecycle_fixtures(
+) -> RtsControlGroupCommandFeedbackLifecycleFixtures {
+    let active_control_group_ids = rts_string_vec(["26", "27", "28"]);
+    let covered_group_ids = active_control_group_ids.clone();
+    let control_group_assignments = rts_string_vec([
+        "26:multi0.recall.order.runner|multi0.recall.order.wing",
+        "27:multi0.recall.override.runner|multi0.recall.override.wing",
+        "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+    ]);
+    let group_26_member_ids =
+        rts_string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let group_27_member_ids = rts_string_vec([
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+    ]);
+    let group_28_member_ids = rts_string_vec([
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let all_member_ids = rts_string_vec([
+        "multi0.recall.order.runner",
+        "multi0.recall.order.wing",
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let path_tile_ids = rts_string_vec(["18,30", "18,31", "21,25", "20,30", "22,30", "1,31"]);
+    let group_route_tile_ids = rts_string_vec(["18,31", "20,30", "22,30", "1,31", "2,31"]);
+    let formation_slot_tile_ids = rts_string_vec(["1,31", "2,31"]);
+    let command_queue_entries = rts_string_vec([
+        "queued_group_order:Multi0:26:move:2actors",
+        "queued_order_cancelled:27:multi0.recall.override.runner:21,25",
+        "queued_order_override_final:27:20,30|22,30",
+        "formation_group_order:Multi0:28:1,31:2slots:0reassigned",
+        "control_group_member_filtered:Multi0:28:missing:multi0.recall.formation.missing,foreign:map.actor1",
+        "control_group_old_members_cleared:Multi0:28:multi0.recall.formation.old.seed|multi0.recall.formation.old.wing",
+    ]);
+
+    let stage_fixture = |stage: &str,
+                         age_ticks: u8,
+                         kind: &str,
+                         payload: &str,
+                         control_group_id: &str|
+     -> RtsControlGroupCommandFeedbackLifecycleStageFixture {
+        RtsControlGroupCommandFeedbackLifecycleStageFixture {
+            stage: stage.to_string(),
+            age_ticks,
+            action: RtsOrderQueueReplayAction {
+                kind: kind.to_string(),
+                payload: payload.to_string(),
+            },
+            input_source: "classic_rts_control_group_command_feedback_lifecycle_input".to_string(),
+            renderer_path: "classic_draw_scene".to_string(),
+            preview_surface: "classic_draw_scene_command_feedback_lifecycle".to_string(),
+            control_group_id: control_group_id.to_string(),
+            active_control_group_ids: active_control_group_ids.clone(),
+            covered_group_ids: covered_group_ids.clone(),
+            selected_unit_ids: all_member_ids.clone(),
+            stance: "guard".to_string(),
+            minimap_command_tile_id: "18,30".to_string(),
+            command_destination_tile: "18,31".to_string(),
+            path_tile_ids: path_tile_ids.clone(),
+            group_route_tile_ids: group_route_tile_ids.clone(),
+            formation_slot_tile_ids: formation_slot_tile_ids.clone(),
+            command_queue_entries: command_queue_entries.clone(),
+            lifecycle_event: format!("control_group_command_feedback_lifecycle:{stage}"),
+            group_command_state: format!("command_feedback_lifecycle:{stage}"),
+            player_tile_x: 18,
+            player_tile_y: 30,
+        }
+    };
+    let stages = vec![
+        stage_fixture("fresh", 0, "move", "18,31:line", "26"),
+        stage_fixture("dimmed", 4, "move", "1,31:line", "28"),
+        stage_fixture("cleared", 8, "select-control-group", "28", "28"),
+    ];
+
+    RtsControlGroupCommandFeedbackLifecycleFixtures {
+        active_control_group_ids,
+        covered_group_ids,
+        control_group_assignments,
+        ability_command_ids: rts_string_vec(["move", "stop", "hold", "patrol"]),
+        group_26_member_ids,
+        group_27_member_ids,
+        group_28_member_ids,
+        all_member_ids,
+        group_26_queued_target_tile: "18,31".to_string(),
+        group_27_canceled_target_tile: "21,25".to_string(),
+        group_27_override_final_tile_ids: rts_string_vec(["20,30", "22,30"]),
+        group_28_formation_anchor_tile: "1,31".to_string(),
+        group_28_formation_slot_tile_ids: formation_slot_tile_ids,
+        stages,
+    }
+}
+
 pub fn rts_control_group_command_feedback_replay_fixtures(
 ) -> RtsControlGroupCommandFeedbackReplayFixtures {
     let group_26_member_ids =
@@ -5914,6 +6053,51 @@ mod tests {
             .command_queue_entries
             .iter()
             .any(|entry| entry == "filtered_member:old:multi0.recall.formation.old.wing"));
+        let lifecycle_fixtures = rts_control_group_command_feedback_lifecycle_fixtures();
+        assert_eq!(
+            lifecycle_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec!["fresh", "dimmed", "cleared"]
+        );
+        assert_eq!(
+            lifecycle_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.action.payload.as_str())
+                .collect::<Vec<_>>(),
+            vec!["18,31:line", "1,31:line", "28"]
+        );
+        assert_eq!(
+            lifecycle_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.age_ticks)
+                .collect::<Vec<_>>(),
+            vec![0, 4, 8]
+        );
+        assert_eq!(
+            lifecycle_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.lifecycle_event.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "control_group_command_feedback_lifecycle:fresh",
+                "control_group_command_feedback_lifecycle:dimmed",
+                "control_group_command_feedback_lifecycle:cleared"
+            ]
+        );
+        assert_eq!(
+            lifecycle_fixtures.group_28_formation_slot_tile_ids,
+            vec!["1,31", "2,31"]
+        );
+        assert!(lifecycle_fixtures
+            .all_member_ids
+            .iter()
+            .any(|member| member == "multi0.recall.override.wing"));
         let replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
         assert_eq!(
             replay_fixtures.retained_history_group_ids,
