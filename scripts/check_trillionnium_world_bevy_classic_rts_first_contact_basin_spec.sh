@@ -221,7 +221,14 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.control_group_recall_override_preview_final_tiles_sample == ["20,30","22,30"]
   and .rts_evidence_bevy_runtime_adapter.control_group_recall_override_preview_canceled_members_sample == ["multi0.recall.override.runner","multi0.recall.override.wing"]
   and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"
+  and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_names_sample == ["slot_claim","path_reservation","stagger_step","crowd_avoidance","blocked_reroute","arrival_lock"]
+  and .rts_evidence_bevy_runtime_adapter.formation_move_execution_action_payloads_sample == ["box:frontline","8,4:wedge","8,4:line","6,5:split","8,4:wedge","9,2:rally"]
+  and .rts_evidence_bevy_runtime_adapter.formation_move_execution_arrival_route_sample == ["6,5","7,5","8,5","9,4","9,2"]
   and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_sample == "flow_resume"
+  and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_names_sample == ["detect_block","hold_queue","side_step","gap_claim","flow_resume"]
+  and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_action_payloads_sample == ["8,4:wedge","8,4:line","6,5:split","box:frontline","9,2:rally"]
+  and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_blocked_tiles_sample == ["7,4","7,5"]
+  and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_resume_route_sample == ["6,5","7,5","8,5","9,4","9,2"]
   and .rts_evidence_bevy_runtime_adapter.npc_behavior_stage_sample == "creep_retreat"
   and .rts_evidence_bevy_runtime_adapter.combat_impact_stage_sample == "damage_tick"
   and .rts_evidence_bevy_runtime_adapter.locomotion_blend_stage_sample == "formation_slide"

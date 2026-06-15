@@ -239,6 +239,66 @@ pub struct RtsControlGroupRecallOverridePreviewStageFixture {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFormationMoveExecutionStageFixture {
+    pub stage: String,
+    pub action: RtsOrderQueueReplayAction,
+    pub history_entry: String,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub selected_unit_ids: Vec<String>,
+    pub command_destination_tile: Option<String>,
+    pub path_tile_ids: Vec<String>,
+    pub blocked_tile_ids: Vec<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub disperse_tile_ids: Vec<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub pathing_status: String,
+    pub unit_response_state: String,
+    pub group_command_state: String,
+    pub slot_claims: Vec<String>,
+    pub path_reservations: Vec<String>,
+    pub movement_offsets: Vec<String>,
+    pub arrival_locked_unit_ids: Vec<String>,
+    pub lagging_unit_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFormationMoveExecutionFixtures {
+    pub selected_unit_ids: Vec<String>,
+    pub stages: Vec<RtsFormationMoveExecutionStageFixture>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsLocalObstructionRecoveryStageFixture {
+    pub stage: String,
+    pub action: RtsOrderQueueReplayAction,
+    pub history_entry: String,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub selected_unit_ids: Vec<String>,
+    pub command_destination_tile: Option<String>,
+    pub path_tile_ids: Vec<String>,
+    pub blocked_tile_ids: Vec<String>,
+    pub disperse_tile_ids: Vec<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub queued_unit_ids: Vec<String>,
+    pub side_step_unit_ids: Vec<String>,
+    pub gap_claims: Vec<String>,
+    pub pathing_status: String,
+    pub unit_response_state: String,
+    pub group_command_state: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsLocalObstructionRecoveryFixtures {
+    pub selected_unit_ids: Vec<String>,
+    pub stages: Vec<RtsLocalObstructionRecoveryStageFixture>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsControlGroupCommandFeedbackStripStageFixture {
     pub stage: String,
     pub action: RtsOrderQueueReplayAction,
@@ -4037,6 +4097,379 @@ pub fn rts_control_group_recall_override_preview_stage_ids() -> Vec<String> {
         .collect()
 }
 
+fn rts_default_formation_execution_units() -> Vec<String> {
+    rts_string_vec([
+        "player",
+        "square_guard_patrol",
+        "square_worker_carry",
+        "square_creep_wander",
+    ])
+}
+
+fn rts_formation_slot_claims(selected_unit_ids: &[String], slots: &[String]) -> Vec<String> {
+    selected_unit_ids
+        .iter()
+        .enumerate()
+        .map(|(slot_index, unit_id)| {
+            let slot = slots
+                .get(slot_index % slots.len().max(1))
+                .cloned()
+                .unwrap_or_else(|| "8,4".to_string());
+            format!("{unit_id}@{slot}")
+        })
+        .collect()
+}
+
+fn rts_formation_path_reservations(path_tile_ids: &[String]) -> Vec<String> {
+    path_tile_ids
+        .iter()
+        .enumerate()
+        .map(|(step_index, tile_id)| format!("step{}:{tile_id}", step_index + 1))
+        .collect()
+}
+
+fn rts_formation_movement_offsets(selected_unit_ids: &[String], slots: &[String]) -> Vec<String> {
+    selected_unit_ids
+        .iter()
+        .enumerate()
+        .map(|(unit_index, unit_id)| {
+            let slot = slots
+                .get(unit_index % slots.len().max(1))
+                .cloned()
+                .unwrap_or_else(|| "8,4".to_string());
+            format!("{unit_id}:offset:{}@{slot}", unit_index * 2)
+        })
+        .collect()
+}
+
+pub fn rts_formation_move_execution_fixtures() -> RtsFormationMoveExecutionFixtures {
+    let selected_unit_ids = rts_default_formation_execution_units();
+    let slot_tiles = rts_string_vec(["8,4", "7,4", "8,5", "9,4"]);
+    let disperse_tiles = rts_string_vec(["6,5", "7,5", "8,4", "8,5"]);
+    let slot_path = rts_string_vec(["6,5", "7,5", "8,4"]);
+    let reroute_path = rts_string_vec(["6,5", "7,5", "8,5", "8,4"]);
+    let arrival_path = rts_string_vec(["6,5", "7,5", "8,5", "9,4", "9,2"]);
+    let slot_claims = rts_formation_slot_claims(&selected_unit_ids, &slot_tiles);
+    let path_reservations = rts_formation_path_reservations(&slot_path);
+    let movement_offsets = rts_formation_movement_offsets(&selected_unit_ids, &slot_tiles);
+    let renderer_path = "classic_draw_scene+classic_draw_rts_formation_move_execution_overlay";
+    let input_source = "classic_rts_formation_move_execution_input";
+    let preview_surface =
+        "slot_claim+path_reservation+stagger_step+crowd_avoidance+blocked_reroute+arrival_lock";
+
+    let stage_fixture = |stage: &str,
+                         kind: &str,
+                         payload: &str,
+                         command_destination_tile: Option<&str>,
+                         path_tile_ids: Vec<String>,
+                         blocked_tile_ids: Vec<String>,
+                         formation_slot_tile_ids: Vec<String>,
+                         disperse_tile_ids: Vec<String>,
+                         group_route_tile_ids: Vec<String>,
+                         pathing_status: &str,
+                         unit_response_state: &str,
+                         group_command_state: &str,
+                         slot_claims: Vec<String>,
+                         path_reservations: Vec<String>,
+                         movement_offsets: Vec<String>,
+                         arrival_locked_unit_ids: Vec<String>,
+                         lagging_unit_ids: Vec<String>|
+     -> RtsFormationMoveExecutionStageFixture {
+        RtsFormationMoveExecutionStageFixture {
+            stage: stage.to_string(),
+            action: RtsOrderQueueReplayAction {
+                kind: kind.to_string(),
+                payload: payload.to_string(),
+            },
+            history_entry: format!("formation_move_execution:{stage}"),
+            input_source: input_source.to_string(),
+            renderer_path: renderer_path.to_string(),
+            preview_surface: preview_surface.to_string(),
+            selected_unit_ids: selected_unit_ids.clone(),
+            command_destination_tile: command_destination_tile.map(str::to_string),
+            path_tile_ids,
+            blocked_tile_ids,
+            formation_slot_tile_ids,
+            disperse_tile_ids,
+            group_route_tile_ids,
+            pathing_status: pathing_status.to_string(),
+            unit_response_state: unit_response_state.to_string(),
+            group_command_state: group_command_state.to_string(),
+            slot_claims,
+            path_reservations,
+            movement_offsets,
+            arrival_locked_unit_ids,
+            lagging_unit_ids,
+        }
+    };
+
+    RtsFormationMoveExecutionFixtures {
+        selected_unit_ids: selected_unit_ids.clone(),
+        stages: vec![
+            stage_fixture(
+                "slot_claim",
+                "select-control-group",
+                "box:frontline",
+                Some("8,4"),
+                slot_path.clone(),
+                rts_string_vec(["7,4"]),
+                slot_tiles.clone(),
+                disperse_tiles.clone(),
+                Vec::new(),
+                "slot_claim_preview:8,4",
+                "slot_claimed:frontline",
+                "",
+                slot_claims.clone(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            stage_fixture(
+                "path_reservation",
+                "move",
+                "8,4:wedge",
+                Some("8,4"),
+                slot_path.clone(),
+                rts_string_vec(["7,4"]),
+                slot_tiles.clone(),
+                disperse_tiles.clone(),
+                slot_path.clone(),
+                "slot_claim_preview:8,4",
+                "path_reserved:frontline",
+                "",
+                slot_claims.clone(),
+                path_reservations.clone(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            stage_fixture(
+                "stagger_step",
+                "move",
+                "8,4:line",
+                Some("8,4"),
+                slot_path.clone(),
+                rts_string_vec(["7,4"]),
+                slot_tiles.clone(),
+                disperse_tiles.clone(),
+                slot_path.clone(),
+                "slot_claim_preview:8,4",
+                "stagger_step:line_reflow",
+                "",
+                slot_claims.clone(),
+                path_reservations.clone(),
+                movement_offsets.clone(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            stage_fixture(
+                "crowd_avoidance",
+                "move",
+                "6,5:split",
+                Some("8,4"),
+                slot_path.clone(),
+                rts_string_vec(["7,4"]),
+                slot_tiles.clone(),
+                rts_string_vec(["5,5", "6,4", "6,5", "7,5", "6,6"]),
+                slot_path.clone(),
+                "slot_claim_preview:8,4",
+                "crowd_avoidance:split_lane",
+                "split_route:group_2",
+                slot_claims.clone(),
+                path_reservations.clone(),
+                movement_offsets.clone(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            stage_fixture(
+                "blocked_reroute",
+                "move",
+                "8,4:wedge",
+                Some("8,4"),
+                reroute_path.clone(),
+                rts_string_vec(["7,4"]),
+                slot_tiles.clone(),
+                disperse_tiles.clone(),
+                reroute_path.clone(),
+                "reroute:7,4",
+                "blocked_reroute:active",
+                "split_route:group_2",
+                slot_claims.clone(),
+                rts_formation_path_reservations(&reroute_path),
+                movement_offsets.clone(),
+                Vec::new(),
+                selected_unit_ids.iter().take(2).cloned().collect(),
+            ),
+            stage_fixture(
+                "arrival_lock",
+                "move",
+                "9,2:rally",
+                Some("9,2"),
+                arrival_path.clone(),
+                rts_string_vec(["7,4"]),
+                slot_tiles,
+                disperse_tiles,
+                arrival_path.clone(),
+                "arrival_brake:slot_lock",
+                "arrival_locked:9,2",
+                "split_route:group_2",
+                slot_claims,
+                rts_formation_path_reservations(&arrival_path),
+                movement_offsets,
+                selected_unit_ids.clone(),
+                Vec::new(),
+            ),
+        ],
+    }
+}
+
+pub fn rts_local_obstruction_recovery_fixtures() -> RtsLocalObstructionRecoveryFixtures {
+    let selected_unit_ids = rts_default_formation_execution_units();
+    let slot_tiles = rts_string_vec(["8,4", "8,5", "9,4", "9,5"]);
+    let renderer_path = "classic_draw_scene+classic_draw_rts_local_obstruction_recovery_overlay";
+    let input_source = "classic_rts_local_obstruction_recovery_input";
+    let preview_surface = "detect_block+hold_queue+side_step+gap_claim+flow_resume";
+    let gap_claims = slot_tiles
+        .iter()
+        .enumerate()
+        .map(|(slot_index, tile)| format!("unit_{}@{tile}", slot_index + 1))
+        .collect::<Vec<_>>();
+
+    let stage_fixture = |stage: &str,
+                         kind: &str,
+                         payload: &str,
+                         command_destination_tile: Option<&str>,
+                         path_tile_ids: Vec<String>,
+                         blocked_tile_ids: Vec<String>,
+                         disperse_tile_ids: Vec<String>,
+                         formation_slot_tile_ids: Vec<String>,
+                         group_route_tile_ids: Vec<String>,
+                         queued_unit_ids: Vec<String>,
+                         side_step_unit_ids: Vec<String>,
+                         gap_claims: Vec<String>,
+                         pathing_status: &str,
+                         unit_response_state: &str,
+                         group_command_state: &str|
+     -> RtsLocalObstructionRecoveryStageFixture {
+        RtsLocalObstructionRecoveryStageFixture {
+            stage: stage.to_string(),
+            action: RtsOrderQueueReplayAction {
+                kind: kind.to_string(),
+                payload: payload.to_string(),
+            },
+            history_entry: format!("local_obstruction_recovery:{stage}"),
+            input_source: input_source.to_string(),
+            renderer_path: renderer_path.to_string(),
+            preview_surface: preview_surface.to_string(),
+            selected_unit_ids: selected_unit_ids.clone(),
+            command_destination_tile: command_destination_tile.map(str::to_string),
+            path_tile_ids,
+            blocked_tile_ids,
+            disperse_tile_ids,
+            formation_slot_tile_ids,
+            group_route_tile_ids,
+            queued_unit_ids,
+            side_step_unit_ids,
+            gap_claims,
+            pathing_status: pathing_status.to_string(),
+            unit_response_state: unit_response_state.to_string(),
+            group_command_state: group_command_state.to_string(),
+        }
+    };
+
+    RtsLocalObstructionRecoveryFixtures {
+        selected_unit_ids: selected_unit_ids.clone(),
+        stages: vec![
+            stage_fixture(
+                "detect_block",
+                "move",
+                "8,4:wedge",
+                Some("8,4"),
+                rts_string_vec(["5,5", "6,5", "7,4", "8,4"]),
+                rts_string_vec(["7,4", "7,5"]),
+                rts_string_vec(["6,4", "6,6"]),
+                slot_tiles.clone(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                "blocked:7,4",
+                "blocked:leader_hold",
+                "formation_hold:frontline",
+            ),
+            stage_fixture(
+                "hold_queue",
+                "move",
+                "8,4:line",
+                Some("8,4"),
+                rts_string_vec(["5,5", "6,5", "6,6", "7,6"]),
+                rts_string_vec(["7,4", "7,5"]),
+                rts_string_vec(["6,4", "6,6"]),
+                slot_tiles.clone(),
+                Vec::new(),
+                selected_unit_ids.iter().skip(1).cloned().collect(),
+                Vec::new(),
+                Vec::new(),
+                "blocked:7,4",
+                "queue_wait:followers",
+                "queued:outside_block",
+            ),
+            stage_fixture(
+                "side_step",
+                "move",
+                "6,5:split",
+                Some("8,4"),
+                rts_string_vec(["5,5", "6,5", "6,6", "7,6"]),
+                rts_string_vec(["7,4", "7,5"]),
+                rts_string_vec(["6,4", "6,6", "7,6", "8,5"]),
+                slot_tiles.clone(),
+                Vec::new(),
+                Vec::new(),
+                selected_unit_ids.iter().take(2).cloned().collect(),
+                Vec::new(),
+                "blocked:7,4",
+                "side_step:gap_opening",
+                "split_lane:local",
+            ),
+            stage_fixture(
+                "gap_claim",
+                "select-control-group",
+                "box:frontline",
+                Some("8,4"),
+                rts_string_vec(["5,5", "6,5", "6,6", "7,6"]),
+                rts_string_vec(["7,4"]),
+                rts_string_vec(["6,4", "6,6", "7,6", "8,5"]),
+                slot_tiles.clone(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                gap_claims,
+                "blocked:7,4",
+                "gap_claimed:unit_2",
+                "slot_reassign:unit_2",
+            ),
+            stage_fixture(
+                "flow_resume",
+                "move",
+                "9,2:rally",
+                Some("9,2"),
+                rts_string_vec(["6,5", "7,5", "8,5", "9,4", "9,2"]),
+                rts_string_vec(["7,4"]),
+                rts_string_vec(["6,4", "6,6", "7,6", "8,5"]),
+                slot_tiles,
+                rts_string_vec(["6,5", "7,5", "8,5", "9,4", "9,2"]),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                "resume:detour_committed",
+                "flow_resumed:order_intact",
+                "resume_route:group",
+            ),
+        ],
+    }
+}
+
 pub fn rts_control_group_command_feedback_strip_fixtures(
 ) -> RtsControlGroupCommandFeedbackStripFixtures {
     let active_control_group_ids = rts_string_vec(["26", "27", "28"]);
@@ -6816,6 +7249,45 @@ mod tests {
             Some("blocked_reroute")
         );
         assert_eq!(rts_formation_move_execution_stage(&[], &[], 0), None);
+        let formation_execution_fixtures = rts_formation_move_execution_fixtures();
+        assert_eq!(
+            formation_execution_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "slot_claim",
+                "path_reservation",
+                "stagger_step",
+                "crowd_avoidance",
+                "blocked_reroute",
+                "arrival_lock"
+            ]
+        );
+        assert_eq!(
+            formation_execution_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.action.payload.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "box:frontline",
+                "8,4:wedge",
+                "8,4:line",
+                "6,5:split",
+                "8,4:wedge",
+                "9,2:rally"
+            ]
+        );
+        assert_eq!(
+            formation_execution_fixtures.stages[5].group_route_tile_ids,
+            vec!["6,5", "7,5", "8,5", "9,4", "9,2"]
+        );
+        assert_eq!(
+            formation_execution_fixtures.stages[4].lagging_unit_ids,
+            vec!["player", "square_guard_patrol"]
+        );
 
         assert_eq!(
             rts_local_obstruction_recovery_stage(
@@ -6834,6 +7306,43 @@ mod tests {
             Some("side_step")
         );
         assert_eq!(rts_local_obstruction_recovery_stage(&[], &[], 0), None);
+        let obstruction_fixtures = rts_local_obstruction_recovery_fixtures();
+        assert_eq!(
+            obstruction_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "detect_block",
+                "hold_queue",
+                "side_step",
+                "gap_claim",
+                "flow_resume"
+            ]
+        );
+        assert_eq!(
+            obstruction_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.action.payload.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "8,4:wedge",
+                "8,4:line",
+                "6,5:split",
+                "box:frontline",
+                "9,2:rally"
+            ]
+        );
+        assert_eq!(
+            obstruction_fixtures.stages[0].blocked_tile_ids,
+            vec!["7,4", "7,5"]
+        );
+        assert_eq!(
+            obstruction_fixtures.stages[4].group_route_tile_ids,
+            vec!["6,5", "7,5", "8,5", "9,4", "9,2"]
+        );
     }
 
     #[test]

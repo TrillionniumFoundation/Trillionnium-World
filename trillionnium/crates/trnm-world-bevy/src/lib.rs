@@ -38644,44 +38644,7 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
         walk_cycle_frame: 0,
         ..Default::default()
     };
-    let stages = [
-        (
-            "slot_claim",
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "box:frontline".to_string(),
-            },
-        ),
-        (
-            "path_reservation",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:wedge".to_string(),
-            },
-        ),
-        (
-            "stagger_step",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:line".to_string(),
-            },
-        ),
-        (
-            "crowd_avoidance",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "6,5:split".to_string(),
-            },
-        ),
-        (
-            "blocked_reroute",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:wedge".to_string(),
-            },
-        ),
-        (
-            "arrival_lock",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "9,2:rally".to_string(),
-            },
-        ),
-    ];
+    let fixtures = rts_bevy_runtime::rts_formation_move_execution_fixtures();
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
@@ -38691,8 +38654,9 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
 
-    for (index, (stage, action)) in stages.iter().enumerate() {
-        let action_label = native_control_action_label(action);
+    for (index, fixture) in fixtures.stages.iter().enumerate() {
+        let action = classic_rts_action_from_runtime_action(fixture.action.clone());
+        let action_label = native_control_action_label(&action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
             &mut world,
@@ -38700,7 +38664,7 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
             &mut gameplay_log,
             &mut runtime,
             "local-player",
-            "classic_rts_formation_move_execution_input",
+            &fixture.input_source,
             action.clone(),
         );
         let latest_feedback = runtime.input_feedback_history.last();
@@ -38712,105 +38676,23 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
             input_sources.insert(event.input_source.clone());
         }
 
-        match *stage {
-            "slot_claim" => {
-                runtime.rts_command_destination_tile = Some("8,4".to_string());
-                runtime.rts_path_tile_ids = string_vec(["6,5", "7,5", "8,4"]);
-                runtime.rts_blocked_tile_ids = string_vec(["7,4"]);
-                runtime.rts_formation_slot_tile_ids = string_vec(["8,4", "7,4", "8,5", "9,4"]);
-                runtime.rts_disperse_tile_ids = string_vec(["6,5", "7,5", "8,4", "8,5"]);
-                runtime.rts_unit_response_state = "slot_claimed:frontline".to_string();
-                runtime.rts_pathing_status = "slot_claim_preview:8,4".to_string();
-            }
-            "path_reservation" => {
-                runtime.rts_group_route_tile_ids = runtime.rts_path_tile_ids.clone();
-                runtime.rts_unit_response_state = "path_reserved:frontline".to_string();
-            }
-            "stagger_step" => {
-                runtime.walk_cycle_frame = 2;
-                runtime.rts_unit_response_state = "stagger_step:line_reflow".to_string();
-            }
-            "crowd_avoidance" => {
-                if runtime.rts_group_route_tile_ids.is_empty() {
-                    runtime.rts_group_route_tile_ids =
-                        string_vec(["5,5", "6,4", "6,5", "7,5", "6,6"]);
-                }
-                runtime.rts_group_command_state = "split_route:group_2".to_string();
-                runtime.rts_unit_response_state = "crowd_avoidance:split_lane".to_string();
-            }
-            "blocked_reroute" => {
-                runtime.rts_group_route_tile_ids = string_vec(["6,5", "7,5", "8,5", "8,4"]);
-                runtime.rts_pathing_status =
-                    format!("reroute:{}", runtime.rts_blocked_tile_ids.join("|"));
-                runtime.rts_unit_response_state = "blocked_reroute:active".to_string();
-            }
-            "arrival_lock" => {
-                runtime.rts_unit_response_state = "arrival_locked:9,2".to_string();
-                runtime.rts_pathing_status = "arrival_brake:slot_lock".to_string();
-            }
-            _ => {}
+        runtime.rts_selected_unit_ids = fixture.selected_unit_ids.clone();
+        runtime.rts_command_destination_tile = fixture.command_destination_tile.clone();
+        runtime.rts_path_tile_ids = fixture.path_tile_ids.clone();
+        runtime.rts_blocked_tile_ids = fixture.blocked_tile_ids.clone();
+        runtime.rts_formation_slot_tile_ids = fixture.formation_slot_tile_ids.clone();
+        runtime.rts_disperse_tile_ids = fixture.disperse_tile_ids.clone();
+        runtime.rts_group_route_tile_ids = fixture.group_route_tile_ids.clone();
+        runtime.rts_pathing_status = fixture.pathing_status.clone();
+        runtime.rts_unit_response_state = fixture.unit_response_state.clone();
+        runtime.rts_group_command_state = fixture.group_command_state.clone();
+        if fixture.stage == "stagger_step" {
+            runtime.walk_cycle_frame = 2;
         }
 
         runtime.combat_turn = index as u8;
-        push_history(
-            &mut runtime.rts_combat_event_log,
-            &format!("formation_move_execution:{stage}"),
-        );
-        push_history(
-            &mut runtime.rts_command_queue,
-            &format!("formation_move_execution:{stage}"),
-        );
-
-        let selected_units = if runtime.rts_selected_unit_ids.is_empty() {
-            string_vec([
-                "player",
-                "square_guard_patrol",
-                "square_worker_carry",
-                "square_creep_wander",
-            ])
-        } else {
-            runtime.rts_selected_unit_ids.clone()
-        };
-        let slot_claims: Vec<String> = selected_units
-            .iter()
-            .enumerate()
-            .map(|(slot_index, unit_id)| {
-                let slot = runtime
-                    .rts_formation_slot_tile_ids
-                    .get(slot_index % runtime.rts_formation_slot_tile_ids.len().max(1))
-                    .cloned()
-                    .unwrap_or_else(|| "8,4".to_string());
-                format!("{unit_id}@{slot}")
-            })
-            .collect();
-        let path_reservations: Vec<String> = runtime
-            .rts_path_tile_ids
-            .iter()
-            .enumerate()
-            .map(|(step_index, tile_id)| format!("step{}:{tile_id}", step_index + 1))
-            .collect();
-        let movement_offsets: Vec<String> = selected_units
-            .iter()
-            .enumerate()
-            .map(|(unit_index, unit_id)| {
-                let slot = runtime
-                    .rts_formation_slot_tile_ids
-                    .get(unit_index % runtime.rts_formation_slot_tile_ids.len().max(1))
-                    .cloned()
-                    .unwrap_or_else(|| "8,4".to_string());
-                format!("{unit_id}:offset:{}@{slot}", unit_index * 2)
-            })
-            .collect();
-        let arrival_locked_unit_ids: Vec<String> = if *stage == "arrival_lock" {
-            selected_units.clone()
-        } else {
-            Vec::new()
-        };
-        let lagging_unit_ids: Vec<String> = if *stage == "blocked_reroute" {
-            selected_units.iter().take(2).cloned().collect()
-        } else {
-            Vec::new()
-        };
+        push_history(&mut runtime.rts_combat_event_log, &fixture.history_entry);
+        push_history(&mut runtime.rts_command_queue, &fixture.history_entry);
 
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -38839,21 +38721,21 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
             preview_height,
             offset_x + 12,
             offset_y + PANEL_HEIGHT as i32 - 138,
-            &format!("FORMATION EXECUTION {} {}", index + 1, stage),
+            &format!("FORMATION EXECUTION {} {}", index + 1, fixture.stage),
             1,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
         stage_summaries.push(json!({
-            "stage": stage,
+            "stage": fixture.stage,
             "action_label": action_label,
             "accepted": accepted,
             "last_action": gameplay_log.last_action,
-            "selected_unit_ids": selected_units,
-            "slot_claims": slot_claims,
-            "path_reservations": path_reservations,
-            "movement_offsets": movement_offsets,
-            "arrival_locked_unit_ids": arrival_locked_unit_ids,
-            "lagging_unit_ids": lagging_unit_ids,
+            "selected_unit_ids": fixture.selected_unit_ids,
+            "slot_claims": fixture.slot_claims,
+            "path_reservations": fixture.path_reservations,
+            "movement_offsets": fixture.movement_offsets,
+            "arrival_locked_unit_ids": fixture.arrival_locked_unit_ids,
+            "lagging_unit_ids": fixture.lagging_unit_ids,
             "command_destination_tile": runtime.rts_command_destination_tile.clone(),
             "path_tile_ids": runtime.rts_path_tile_ids.clone(),
             "blocked_tile_ids": runtime.rts_blocked_tile_ids.clone(),
@@ -38865,9 +38747,9 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
             "group_command_state": runtime.rts_group_command_state.clone(),
             "command_queue": runtime.rts_command_queue.clone(),
             "combat_event_log": runtime.rts_combat_event_log.clone(),
-            "renderer_path": "classic_draw_scene+classic_draw_rts_formation_move_execution_overlay",
-            "input_path": "apply_live_native_action_with_source(classic_rts_formation_move_execution_input)",
-            "preview_surface": "slot_claim+path_reservation+stagger_step+crowd_avoidance+blocked_reroute+arrival_lock",
+            "renderer_path": fixture.renderer_path,
+            "input_path": format!("apply_live_native_action_with_source({})", fixture.input_source),
+            "preview_surface": fixture.preview_surface,
         }));
     }
 
@@ -38975,9 +38857,9 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
                 .and_then(|value| value.as_str())
                 == Some("arrival_locked:9,2")
     });
-    let live_input_gate = accepted_input_count == stages.len()
+    let live_input_gate = accepted_input_count == fixtures.stages.len()
         && input_sources.contains("classic_rts_formation_move_execution_input");
-    let scene_renderer_gate = stage_summaries.len() == stages.len()
+    let scene_renderer_gate = stage_summaries.len() == fixtures.stages.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
@@ -39014,7 +38896,7 @@ pub fn native_classic_rts_formation_move_execution_evidence_json(preview_path: &
         "write_gate": write_gate,
         "renderer_path": "classic_draw_scene+classic_draw_rts_formation_move_execution_overlay",
         "input_path": "apply_live_native_action_with_source(classic_rts_formation_move_execution_input)",
-        "input_action_count": stages.len(),
+        "input_action_count": fixtures.stages.len(),
         "accepted_input_count": accepted_input_count,
         "input_sources": input_sources,
         "action_labels": action_labels,
@@ -39075,46 +38957,10 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
         xp: 118,
         facing_direction: "east".to_string(),
         walk_cycle_frame: 1,
-        rts_selected_unit_ids: string_vec([
-            "player",
-            "square_guard_patrol",
-            "square_worker_carry",
-            "square_creep_wander",
-        ]),
         ..Default::default()
     };
-    let stages = [
-        (
-            "detect_block",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:wedge".to_string(),
-            },
-        ),
-        (
-            "hold_queue",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:line".to_string(),
-            },
-        ),
-        (
-            "side_step",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "6,5:split".to_string(),
-            },
-        ),
-        (
-            "gap_claim",
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "box:frontline".to_string(),
-            },
-        ),
-        (
-            "flow_resume",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "9,2:rally".to_string(),
-            },
-        ),
-    ];
+    let fixtures = rts_bevy_runtime::rts_local_obstruction_recovery_fixtures();
+    runtime.rts_selected_unit_ids = fixtures.selected_unit_ids.clone();
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
@@ -39124,8 +38970,9 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
 
-    for (index, (stage, action)) in stages.iter().enumerate() {
-        let action_label = native_control_action_label(action);
+    for (index, fixture) in fixtures.stages.iter().enumerate() {
+        let action = classic_rts_action_from_runtime_action(fixture.action.clone());
+        let action_label = native_control_action_label(&action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
             &mut world,
@@ -39133,7 +38980,7 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
             &mut gameplay_log,
             &mut runtime,
             "local-player",
-            "classic_rts_local_obstruction_recovery_input",
+            &fixture.input_source,
             action.clone(),
         );
         let latest_feedback = runtime.input_feedback_history.last();
@@ -39145,84 +38992,20 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
             input_sources.insert(event.input_source.clone());
         }
 
-        match *stage {
-            "detect_block" => {
-                runtime.rts_command_destination_tile = Some("8,4".to_string());
-                runtime.rts_path_tile_ids = string_vec(["5,5", "6,5", "7,4", "8,4"]);
-                runtime.rts_blocked_tile_ids = string_vec(["7,4", "7,5"]);
-                runtime.rts_disperse_tile_ids = string_vec(["6,4", "6,6"]);
-                runtime.rts_formation_slot_tile_ids = string_vec(["8,4", "8,5", "9,4", "9,5"]);
-                runtime.rts_unit_response_state = "blocked:leader_hold".to_string();
-                runtime.rts_pathing_status = "blocked:7,4".to_string();
-                runtime.rts_group_command_state = "formation_hold:frontline".to_string();
-            }
-            "hold_queue" => {
-                runtime.rts_path_tile_ids = string_vec(["5,5", "6,5", "6,6", "7,6"]);
-                runtime.rts_unit_response_state = "queue_wait:followers".to_string();
-                runtime.rts_group_command_state = "queued:outside_block".to_string();
-            }
-            "side_step" => {
-                runtime.rts_disperse_tile_ids = string_vec(["6,4", "6,6", "7,6", "8,5"]);
-                runtime.rts_unit_response_state = "side_step:gap_opening".to_string();
-                runtime.rts_group_command_state = "split_lane:local".to_string();
-            }
-            "gap_claim" => {
-                runtime.rts_formation_slot_tile_ids = string_vec(["8,4", "8,5", "9,4", "9,5"]);
-                runtime.rts_blocked_tile_ids = string_vec(["7,4"]);
-                runtime.rts_unit_response_state = "gap_claimed:unit_2".to_string();
-                runtime.rts_group_command_state = "slot_reassign:unit_2".to_string();
-            }
-            "flow_resume" => {
-                runtime.rts_group_route_tile_ids = string_vec(["6,5", "7,5", "8,5", "9,4", "9,2"]);
-                runtime.rts_path_tile_ids = runtime.rts_group_route_tile_ids.clone();
-                runtime.rts_blocked_tile_ids = string_vec(["7,4"]);
-                runtime.rts_unit_response_state = "flow_resumed:order_intact".to_string();
-                runtime.rts_pathing_status = "resume:detour_committed".to_string();
-                runtime.rts_group_command_state = "resume_route:group".to_string();
-            }
-            _ => {}
-        }
+        runtime.rts_selected_unit_ids = fixture.selected_unit_ids.clone();
+        runtime.rts_command_destination_tile = fixture.command_destination_tile.clone();
+        runtime.rts_path_tile_ids = fixture.path_tile_ids.clone();
+        runtime.rts_blocked_tile_ids = fixture.blocked_tile_ids.clone();
+        runtime.rts_disperse_tile_ids = fixture.disperse_tile_ids.clone();
+        runtime.rts_formation_slot_tile_ids = fixture.formation_slot_tile_ids.clone();
+        runtime.rts_group_route_tile_ids = fixture.group_route_tile_ids.clone();
+        runtime.rts_pathing_status = fixture.pathing_status.clone();
+        runtime.rts_unit_response_state = fixture.unit_response_state.clone();
+        runtime.rts_group_command_state = fixture.group_command_state.clone();
 
         runtime.combat_turn = index as u8;
-        push_history(
-            &mut runtime.rts_combat_event_log,
-            &format!("local_obstruction_recovery:{stage}"),
-        );
-        push_history(
-            &mut runtime.rts_command_queue,
-            &format!("local_obstruction_recovery:{stage}"),
-        );
-
-        let queued_unit_ids: Vec<String> = if *stage == "hold_queue" {
-            runtime
-                .rts_selected_unit_ids
-                .iter()
-                .skip(1)
-                .cloned()
-                .collect()
-        } else {
-            Vec::new()
-        };
-        let side_step_unit_ids: Vec<String> = if *stage == "side_step" {
-            runtime
-                .rts_selected_unit_ids
-                .iter()
-                .take(2)
-                .cloned()
-                .collect()
-        } else {
-            Vec::new()
-        };
-        let gap_claims: Vec<String> = if *stage == "gap_claim" {
-            runtime
-                .rts_formation_slot_tile_ids
-                .iter()
-                .enumerate()
-                .map(|(slot_index, tile)| format!("unit_{}@{tile}", slot_index + 1))
-                .collect()
-        } else {
-            Vec::new()
-        };
+        push_history(&mut runtime.rts_combat_event_log, &fixture.history_entry);
+        push_history(&mut runtime.rts_command_queue, &fixture.history_entry);
 
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -39250,12 +39033,12 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
             preview_height,
             offset_x + 12,
             PANEL_HEIGHT as i32 - 138,
-            &format!("LOCAL OBSTRUCTION {} {}", index + 1, stage),
+            &format!("LOCAL OBSTRUCTION {} {}", index + 1, fixture.stage),
             1,
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
         stage_summaries.push(json!({
-            "stage": stage,
+            "stage": fixture.stage,
             "action_label": action_label,
             "accepted": accepted,
             "last_action": gameplay_log.last_action,
@@ -39264,16 +39047,17 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
             "disperse_tile_ids": runtime.rts_disperse_tile_ids.clone(),
             "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids.clone(),
             "group_route_tile_ids": runtime.rts_group_route_tile_ids.clone(),
-            "queued_unit_ids": queued_unit_ids,
-            "side_step_unit_ids": side_step_unit_ids,
-            "gap_claims": gap_claims,
+            "queued_unit_ids": fixture.queued_unit_ids,
+            "side_step_unit_ids": fixture.side_step_unit_ids,
+            "gap_claims": fixture.gap_claims,
             "pathing_status": runtime.rts_pathing_status.clone(),
             "unit_response_state": runtime.rts_unit_response_state.clone(),
             "group_command_state": runtime.rts_group_command_state.clone(),
             "command_queue": runtime.rts_command_queue.clone(),
             "combat_event_log": runtime.rts_combat_event_log.clone(),
-            "renderer_path": "classic_draw_scene+classic_draw_rts_local_obstruction_recovery_overlay",
-            "input_path": "apply_live_native_action_with_source(classic_rts_local_obstruction_recovery_input)",
+            "renderer_path": fixture.renderer_path,
+            "input_path": format!("apply_live_native_action_with_source({})", fixture.input_source),
+            "preview_surface": fixture.preview_surface,
         }));
     }
 
@@ -39346,9 +39130,9 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
                 .and_then(|value| value.as_str())
                 == Some("flow_resumed:order_intact")
     });
-    let live_input_gate = accepted_input_count == stages.len()
+    let live_input_gate = accepted_input_count == fixtures.stages.len()
         && input_sources.contains("classic_rts_local_obstruction_recovery_input");
-    let scene_renderer_gate = stage_summaries.len() == stages.len()
+    let scene_renderer_gate = stage_summaries.len() == fixtures.stages.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
@@ -39382,7 +39166,7 @@ pub fn native_classic_rts_local_obstruction_recovery_evidence_json(preview_path:
         "write_gate": write_gate,
         "renderer_path": "classic_draw_scene+classic_draw_rts_local_obstruction_recovery_overlay",
         "input_path": "apply_live_native_action_with_source(classic_rts_local_obstruction_recovery_input)",
-        "input_action_count": stages.len(),
+        "input_action_count": fixtures.stages.len(),
         "accepted_input_count": accepted_input_count,
         "input_sources": input_sources,
         "action_labels": action_labels,

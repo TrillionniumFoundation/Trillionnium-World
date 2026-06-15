@@ -44,12 +44,13 @@ use trnm_rts_bevy_runtime::{
     rts_enemy_units_for_recon, rts_engagement_tiles_for_target, rts_environment_life_stage,
     rts_expansion_parts, rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp,
     rts_expansion_tiles_for_id, rts_expansion_workers_for_line, rts_focus_fire_units_for_target,
-    rts_fog_reveal_tiles_for_recon, rts_formation_move_execution_stage,
-    rts_formation_move_preview_stage, rts_formation_move_preview_stage_fixtures,
-    rts_garrison_units_for_id, rts_guardian_counter_units_for_id, rts_harvest_tile_for_node,
-    rts_hover_player_label, rts_hover_target_preview_kind, rts_inner_core_tile_for_id,
-    rts_inner_defenders_for_id, rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id,
-    rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id, rts_line_path_tiles,
+    rts_fog_reveal_tiles_for_recon, rts_formation_move_execution_fixtures,
+    rts_formation_move_execution_stage, rts_formation_move_preview_stage,
+    rts_formation_move_preview_stage_fixtures, rts_garrison_units_for_id,
+    rts_guardian_counter_units_for_id, rts_harvest_tile_for_node, rts_hover_player_label,
+    rts_hover_target_preview_kind, rts_inner_core_tile_for_id, rts_inner_defenders_for_id,
+    rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id,
+    rts_keep_claim_tiles_for_id, rts_line_path_tiles, rts_local_obstruction_recovery_fixtures,
     rts_local_obstruction_recovery_stage, rts_locomotion_blend_stage, rts_loot_items_for_id,
     rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts, rts_npc_behavior_stage,
     rts_npc_transition_stage, rts_objective_parts, rts_objective_tiles_for_id,
@@ -127,7 +128,14 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub control_group_recall_override_preview_final_tiles_sample: Vec<String>,
     pub control_group_recall_override_preview_canceled_members_sample: Vec<String>,
     pub formation_move_execution_stage_sample: Option<String>,
+    pub formation_move_execution_stage_names_sample: Vec<String>,
+    pub formation_move_execution_action_payloads_sample: Vec<String>,
+    pub formation_move_execution_arrival_route_sample: Vec<String>,
     pub local_obstruction_recovery_stage_sample: Option<String>,
+    pub local_obstruction_recovery_stage_names_sample: Vec<String>,
+    pub local_obstruction_recovery_action_payloads_sample: Vec<String>,
+    pub local_obstruction_recovery_blocked_tiles_sample: Vec<String>,
+    pub local_obstruction_recovery_resume_route_sample: Vec<String>,
     pub npc_behavior_stage_sample: Option<String>,
     pub combat_impact_stage_sample: Option<String>,
     pub locomotion_blend_stage_sample: Option<String>,
@@ -452,12 +460,52 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         0,
     )
     .map(str::to_string);
+    let formation_execution_fixtures = rts_formation_move_execution_fixtures();
+    let formation_execution_stage_names = formation_execution_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.stage.clone())
+        .collect::<Vec<_>>();
+    let formation_execution_action_payloads = formation_execution_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let formation_execution_arrival_route = formation_execution_fixtures
+        .stages
+        .iter()
+        .find(|fixture| fixture.stage == "arrival_lock")
+        .map(|fixture| fixture.group_route_tile_ids.clone())
+        .unwrap_or_default();
     let local_obstruction_stage = rts_local_obstruction_recovery_stage(
         &["local_obstruction_recovery:flow_resume".to_string()],
         &["local_obstruction_recovery:detect_block".to_string()],
         0,
     )
     .map(str::to_string);
+    let local_obstruction_fixtures = rts_local_obstruction_recovery_fixtures();
+    let local_obstruction_stage_names = local_obstruction_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.stage.clone())
+        .collect::<Vec<_>>();
+    let local_obstruction_action_payloads = local_obstruction_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let local_obstruction_blocked_tiles = local_obstruction_fixtures
+        .stages
+        .iter()
+        .find(|fixture| fixture.stage == "detect_block")
+        .map(|fixture| fixture.blocked_tile_ids.clone())
+        .unwrap_or_default();
+    let local_obstruction_resume_route = local_obstruction_fixtures
+        .stages
+        .iter()
+        .find(|fixture| fixture.stage == "flow_resume")
+        .map(|fixture| fixture.group_route_tile_ids.clone())
+        .unwrap_or_default();
     let npc_behavior_stage = rts_npc_behavior_stage(
         &["behavior:creep_retreat".to_string()],
         &["behavior:guard_patrol".to_string()],
@@ -1207,7 +1255,46 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 "multi0.recall.override.wing",
             ]
         && formation_execution_stage.as_deref() == Some("arrival_lock")
+        && formation_execution_fixtures.stages.len() == 6
+        && formation_execution_stage_names
+            == [
+                "slot_claim",
+                "path_reservation",
+                "stagger_step",
+                "crowd_avoidance",
+                "blocked_reroute",
+                "arrival_lock",
+            ]
+        && formation_execution_action_payloads
+            == [
+                "box:frontline",
+                "8,4:wedge",
+                "8,4:line",
+                "6,5:split",
+                "8,4:wedge",
+                "9,2:rally",
+            ]
+        && formation_execution_arrival_route == ["6,5", "7,5", "8,5", "9,4", "9,2"]
         && local_obstruction_stage.as_deref() == Some("flow_resume")
+        && local_obstruction_fixtures.stages.len() == 5
+        && local_obstruction_stage_names
+            == [
+                "detect_block",
+                "hold_queue",
+                "side_step",
+                "gap_claim",
+                "flow_resume",
+            ]
+        && local_obstruction_action_payloads
+            == [
+                "8,4:wedge",
+                "8,4:line",
+                "6,5:split",
+                "box:frontline",
+                "9,2:rally",
+            ]
+        && local_obstruction_blocked_tiles == ["7,4", "7,5"]
+        && local_obstruction_resume_route == ["6,5", "7,5", "8,5", "9,4", "9,2"]
         && npc_behavior_stage.as_deref() == Some("creep_retreat")
         && combat_impact_stage.as_deref() == Some("damage_tick")
         && locomotion_blend_stage.as_deref() == Some("formation_slide")
@@ -1644,7 +1731,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         control_group_recall_override_preview_canceled_members_sample:
             recall_override_canceled_members,
         formation_move_execution_stage_sample: formation_execution_stage,
+        formation_move_execution_stage_names_sample: formation_execution_stage_names,
+        formation_move_execution_action_payloads_sample: formation_execution_action_payloads,
+        formation_move_execution_arrival_route_sample: formation_execution_arrival_route,
         local_obstruction_recovery_stage_sample: local_obstruction_stage,
+        local_obstruction_recovery_stage_names_sample: local_obstruction_stage_names,
+        local_obstruction_recovery_action_payloads_sample: local_obstruction_action_payloads,
+        local_obstruction_recovery_blocked_tiles_sample: local_obstruction_blocked_tiles,
+        local_obstruction_recovery_resume_route_sample: local_obstruction_resume_route,
         npc_behavior_stage_sample: npc_behavior_stage,
         combat_impact_stage_sample: combat_impact_stage,
         locomotion_blend_stage_sample: locomotion_blend_stage,
