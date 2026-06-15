@@ -64,6 +64,10 @@ required_readiness_lines=(
   'bevy-classic-rts-full-game-visual-ui-replication.json'
   'bevy-classic-rts-full-game-visual-ui-replication.ppm'
   'classic_rts_full_game_visual_ui_replication_green'
+  'rts_full_game_visual_ui_replication_player_first_tactical_composition_gate == true'
+  'rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background > 350000'
+  'rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count > 8000'
+  'rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count > 10000'
   'rts_full_game_visual_ui_replication_gate'
   'rts_full_game_visual_ui_replication_surface_count'
 )

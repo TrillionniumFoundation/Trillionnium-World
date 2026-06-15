@@ -1575,6 +1575,7 @@ jq -n '{
     rts_full_game_visual_ui_replication_player_flow_gate: true,
     rts_full_game_visual_ui_replication_coverage_surface_gate: true,
     rts_full_game_visual_ui_replication_preview_gate: true,
+    rts_full_game_visual_ui_replication_player_first_tactical_composition_gate: true,
     rts_full_game_visual_ui_replication_no_copy_boundary_gate: true,
     rts_full_game_visual_ui_replication_gate: true
   },
@@ -1605,6 +1606,9 @@ jq -n '{
     rts_full_game_visual_ui_replication_command_pixel_count: 42590,
     rts_full_game_visual_ui_replication_session_pixel_count: 39312,
     rts_full_game_visual_ui_replication_outcome_pixel_count: 26546,
+    rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background: 570458,
+    rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count: 16704,
+    rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count: 21375,
     rts_full_game_visual_ui_replication_live_session_stage_count: 6,
     rts_full_game_visual_ui_replication_live_session_accepted_input_count: 91,
     rts_full_game_visual_ui_replication_final_objective_status: "open_world_after_action_ready",
