@@ -18520,7 +18520,11 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
     const HOTKEY_STRIP_COLOR: u32 = 0xd0c46f;
     const STATUS_BAR_COLOR: u32 = 0x67c6bd;
     const SKIN_HIGHLIGHT_COLOR: u32 = 0xe7f4bb;
-    const SKIN_SHADOW_COLOR: u32 = 0x17231f;
+    const TACTICAL_FIELD_COLOR: u32 = 0x193127;
+    const TACTICAL_GRID_COLOR: u32 = 0x274d3d;
+    const TACTICAL_UNIT_COLOR: u32 = 0xf0db7a;
+    const TACTICAL_ENEMY_COLOR: u32 = 0xe37363;
+    const TACTICAL_ROUTE_COLOR: u32 = 0x79d8e8;
 
     let source_dir = Path::new(preview_path)
         .parent()
@@ -18710,163 +18714,489 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
             "unit_status_portrait",
         ),
     ];
-    for (index, (label, color, slot, source)) in skin_surfaces.iter().enumerate() {
-        let col = (index % 4) as i32;
-        let row = (index / 4) as i32;
-        let x = 48 + col * 300;
-        let y = 142 + row * 214;
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        132,
+        760,
+        410,
+        TACTICAL_FIELD_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        132,
+        760,
+        4,
+        SKIN_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        538,
+        760,
+        4,
+        SKIN_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        132,
+        4,
+        410,
+        SKIN_EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        804,
+        132,
+        4,
+        410,
+        SKIN_EDGE_COLOR,
+    );
+    for gx in (72..790).step_by(78) {
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            gx,
+            146,
+            3,
+            382,
+            TACTICAL_GRID_COLOR,
+        );
+    }
+    for gy in (160..528).step_by(52) {
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            60,
+            gy,
+            736,
+            3,
+            TACTICAL_GRID_COLOR,
+        );
+    }
+    for index in 0..18_i32 {
+        let x = 98 + (index % 6) * 105;
+        let y = 184 + (index / 6) * 86;
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
             x,
             y,
-            270,
-            176,
-            SKIN_SHADOW_COLOR,
+            26,
+            18,
+            TACTICAL_UNIT_COLOR,
         );
-        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 270, 5, *color);
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 5,
+            y + 20,
+            50,
+            4,
+            STATUS_BAR_COLOR,
+        );
+    }
+    for index in 0..7_i32 {
+        let x = 502 + (index % 3) * 76;
+        let y = 214 + (index / 3) * 86;
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
             x,
-            y + 171,
-            270,
-            5,
-            *color,
+            y,
+            38,
+            24,
+            TACTICAL_ENEMY_COLOR,
         );
-        classic_draw_text(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            x + 12,
-            y + 16,
-            label,
-            1,
-            CLASSIC_HUD_TEXT_COLOR,
-        );
-        classic_draw_text(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            x + 12,
-            y + 36,
-            slot,
-            1,
-            CLASSIC_HUD_MUTED_TEXT_COLOR,
-        );
-        classic_draw_text(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            x + 12,
-            y + 56,
-            source,
-            1,
-            CLASSIC_HUD_MUTED_TEXT_COLOR,
-        );
-        for sample in 0..6_i32 {
-            let sx = x + 18 + (sample % 3) * 74;
-            let sy = y + 84 + (sample / 3) * 42;
-            classic_draw_rect(
-                &mut pixels,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                sx,
-                sy,
-                54,
-                24,
-                *color,
-            );
-            classic_draw_rect(
-                &mut pixels,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                sx + 5,
-                sy + 5,
-                44,
-                4,
-                SKIN_HIGHLIGHT_COLOR,
-            );
-            classic_draw_rect(
-                &mut pixels,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                sx + 5,
-                sy + 15,
-                30,
-                3,
-                SKIN_EDGE_COLOR,
-            );
-        }
     }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        188,
+        374,
+        486,
+        6,
+        TACTICAL_ROUTE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        566,
+        310,
+        6,
+        96,
+        TACTICAL_ROUTE_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        148,
+        "FIRST CONTACT BASIN / SKINNED PRODUCTION HUD LIVE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        828,
+        132,
+        404,
+        410,
+        0x0d1512,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        848,
+        154,
+        364,
+        60,
+        UNIT_CARD_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        174,
+        "SELECTED UNIT CARD / PORTRAIT / XP / QUEUE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        196,
+        176,
+        4,
+        SKIN_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        848,
+        236,
+        172,
+        98,
+        COMMAND_GRID_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        254,
+        "COMMAND GRID",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        306,
+        116,
+        4,
+        SKIN_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1040,
+        236,
+        172,
+        98,
+        MINIMAP_BEZEL_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1056,
+        254,
+        "MINIMAP BEZEL",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1056,
+        306,
+        116,
+        4,
+        SKIN_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        848,
+        356,
+        364,
+        54,
+        TOOLTIP_PANEL_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        374,
+        "TOOLTIP: BUILD RELAY / RANGE / COST / HOTKEY",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        394,
+        218,
+        4,
+        SKIN_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        848,
+        430,
+        176,
+        76,
+        FEEDBACK_MARKER_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        448,
+        "FEEDBACK MARKERS",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        864,
+        482,
+        104,
+        4,
+        SKIN_HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1044,
+        430,
+        168,
+        76,
+        STATUS_BAR_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1060,
+        448,
+        "STATUS BARS",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1060,
+        482,
+        96,
+        4,
+        SKIN_HIGHLIGHT_COLOR,
+    );
 
     classic_draw_rect(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
         48,
-        588,
+        570,
         1184,
-        110,
-        0x0d1512,
+        128,
+        HUD_CHROME_COLOR,
     );
     classic_draw_text(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
         68,
-        608,
-        "UI SKIN HANDOFF STRIP",
+        590,
+        "BOTTOM PLAYER HUD CHROME / RESOURCES / SELECTION / COMMANDS / MINIMAP / HOTKEYS",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
-    for slot in 0..24_i32 {
-        let x = 70 + slot * 46;
-        let y = 640;
-        let color = match slot % 8 {
-            0 => HUD_CHROME_COLOR,
-            1 => COMMAND_GRID_COLOR,
-            2 => MINIMAP_BEZEL_COLOR,
-            3 => UNIT_CARD_COLOR,
-            4 => TOOLTIP_PANEL_COLOR,
-            5 => FEEDBACK_MARKER_COLOR,
-            6 => HOTKEY_STRIP_COLOR,
-            _ => STATUS_BAR_COLOR,
-        };
-        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 32, 28, color);
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        68,
+        616,
+        236,
+        62,
+        UNIT_CARD_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        84,
+        636,
+        "TR GUARD / HP 414 / XP 2",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    for button in 0..10_i32 {
+        let x = 330 + button * 42;
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x + 4,
-            y + 5,
-            24,
+            x,
+            620,
+            34,
+            34,
+            COMMAND_GRID_COLOR,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 6,
+            628,
+            22,
             5,
             SKIN_HIGHLIGHT_COLOR,
         );
+    }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        780,
+        610,
+        184,
+        72,
+        MINIMAP_BEZEL_COLOR,
+    );
+    for gx in (792..948).step_by(32) {
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x + 4,
-            y + 21,
-            20,
-            3,
-            SKIN_EDGE_COLOR,
+            gx,
+            620,
+            2,
+            52,
+            TACTICAL_GRID_COLOR,
         );
     }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        998,
+        610,
+        214,
+        24,
+        HOTKEY_STRIP_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        998,
+        646,
+        214,
+        24,
+        STATUS_BAR_COLOR,
+    );
     classic_draw_text(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
         68,
         684,
-        "ATLAS -> SKIN SLOTS -> RUNTIME COMMAND SURFACES; PUBLIC LAUNCH AND DEVICE CLAIMS REMAIN FALSE",
+        "ATLAS SKIN APPLIED TO PLAYER HUD; PUBLIC LAUNCH AND DEVICE CLAIMS REMAIN FALSE",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        708,
+        1184,
+        24,
+        0x0d1512,
+    );
+    for (index, (_, color, _, _)) in skin_surfaces.iter().enumerate() {
+        let x = 68 + (index as i32) * 144;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            714,
+            104,
+            10,
+            *color,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 6,
+            718,
+            58,
+            2,
+            SKIN_HIGHLIGHT_COLOR,
+        );
+    }
 
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &pixels).is_ok();
@@ -18882,6 +19212,20 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
     let hotkey_strip_pixel_count = count_color(HOTKEY_STRIP_COLOR);
     let status_bar_skin_pixel_count = count_color(STATUS_BAR_COLOR);
     let skin_highlight_pixel_count = count_color(SKIN_HIGHLIGHT_COLOR);
+    let production_hud_view_non_background = count_color(TACTICAL_FIELD_COLOR)
+        + count_color(TACTICAL_GRID_COLOR)
+        + count_color(TACTICAL_UNIT_COLOR)
+        + count_color(TACTICAL_ENEMY_COLOR)
+        + count_color(TACTICAL_ROUTE_COLOR);
+    let production_hud_view_frame_pixel_count = count_color(SKIN_EDGE_COLOR);
+    let production_hud_bottom_chrome_pixel_count = count_color(HUD_CHROME_COLOR);
+    let production_hud_command_grid_pixel_count = count_color(COMMAND_GRID_COLOR);
+    let production_hud_minimap_bezel_pixel_count = count_color(MINIMAP_BEZEL_COLOR);
+    let production_hud_unit_card_pixel_count = count_color(UNIT_CARD_COLOR);
+    let production_hud_feedback_lane_pixel_count =
+        count_color(TOOLTIP_PANEL_COLOR) + count_color(FEEDBACK_MARKER_COLOR);
+    let production_hud_hotkey_status_pixel_count =
+        count_color(HOTKEY_STRIP_COLOR) + count_color(STATUS_BAR_COLOR);
 
     let asset_atlas_gate = contract_is(
         &asset_atlas,
@@ -19004,6 +19348,8 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
     let runtime_screen_gate = production_ui_skin_preview_gate
         && source_preview_gate
         && skin_surfaces.len() == 8
+        && production_hud_view_non_background > 250_000
+        && production_hud_bottom_chrome_pixel_count > 100_000
         && hud_chrome_pixel_count > 1_000
         && command_grid_skin_pixel_count > 1_000
         && minimap_bezel_pixel_count > 1_000
@@ -19012,6 +19358,13 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         && feedback_marker_pixel_count > 1_000
         && hotkey_strip_pixel_count > 1_000
         && status_bar_skin_pixel_count > 1_000;
+    let player_first_production_hud_skin_screen_gate = runtime_screen_gate
+        && production_hud_view_frame_pixel_count > 8_000
+        && production_hud_command_grid_pixel_count > 20_000
+        && production_hud_minimap_bezel_pixel_count > 20_000
+        && production_hud_unit_card_pixel_count > 30_000
+        && production_hud_feedback_lane_pixel_count > 30_000
+        && production_hud_hotkey_status_pixel_count > 25_000;
     let production_ui_skin_gate = asset_atlas_gate
         && command_surface_skin_gate
         && selection_minimap_skin_gate
@@ -19019,7 +19372,7 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         && command_feedback_skin_gate
         && tooltip_skin_gate
         && hotkey_skin_gate
-        && runtime_screen_gate;
+        && player_first_production_hud_skin_screen_gate;
     let green = production_ui_skin_gate && no_copy_boundary_gate;
 
     serde_json::to_string_pretty(&json!({
@@ -19056,12 +19409,23 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         "runtime_screen_gate": runtime_screen_gate,
         "evidence_board_only": false,
         "runtime_screen_layout": {
+            "primary_tactical_viewport": "single skinned RTS tactical viewport behind the production HUD",
             "hud_chrome": "bottom player HUD chrome and resource strip",
-            "command_grid": "bottom-right command button skin slots",
-            "minimap_bezel": "in-HUD minimap frame and route feedback bezel",
-            "unit_card": "selected unit portrait and status card",
-            "tooltip_feedback": "ability tooltip, warning panel, and command feedback markers",
-            "hotkey_status": "control-group hotkey strip plus health, mana, XP, and queue bars"
+            "command_grid": "bottom command button skin slots applied in context",
+            "minimap_bezel": "bottom in-HUD minimap frame and route feedback bezel",
+            "unit_card": "selected unit portrait, XP, and queue status card",
+            "tooltip_feedback": "right-side ability tooltip, warning panel, and command feedback markers",
+            "hotkey_status": "hotkey strip plus health, mana, XP, and queue bars"
+        },
+        "production_ui_skin_pixel_counts": {
+            "player_first_production_hud_view_non_background": production_hud_view_non_background,
+            "player_first_production_hud_view_frame": production_hud_view_frame_pixel_count,
+            "player_first_production_hud_bottom_chrome": production_hud_bottom_chrome_pixel_count,
+            "player_first_production_hud_command_grid": production_hud_command_grid_pixel_count,
+            "player_first_production_hud_minimap_bezel": production_hud_minimap_bezel_pixel_count,
+            "player_first_production_hud_unit_card": production_hud_unit_card_pixel_count,
+            "player_first_production_hud_feedback_lane": production_hud_feedback_lane_pixel_count,
+            "player_first_production_hud_hotkey_status": production_hud_hotkey_status_pixel_count
         },
         "asset_atlas_family_count": asset_atlas.get("atlas_family_count").cloned().unwrap_or(Value::Null),
         "asset_atlas_frame_count": asset_atlas.get("atlas_frame_count").cloned().unwrap_or(Value::Null),
@@ -19098,11 +19462,12 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         "tooltip_skin_gate": tooltip_skin_gate,
         "hotkey_skin_gate": hotkey_skin_gate,
         "production_ui_skin_preview_gate": production_ui_skin_preview_gate,
+        "player_first_production_hud_skin_screen_gate": player_first_production_hud_skin_screen_gate,
         "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,
         "production_ui_skin_gate": production_ui_skin_gate,
-        "source_art_policy": "Production UI skin is a deterministic Rust/Bevy runtime screen-shaped handoff for original Trillionnium HUD chrome, command buttons, minimap frame, unit card, tooltip panel, command feedback, hotkey strip, and status bar replacement slots. It consumes the production asset atlas and already-green gameplay UI surfaces while forbidding copied OpenRA, Warcraft III, or third-party RTS UI art.",
+        "source_art_policy": "Production UI skin is a deterministic Rust/Bevy player runtime HUD skin screen for original Trillionnium HUD chrome, command buttons, minimap frame, unit card, tooltip panel, command feedback, hotkey strip, and status bar replacement slots. It consumes the production asset atlas and already-green gameplay UI surfaces while forbidding copied OpenRA, Warcraft III, or third-party RTS UI art.",
         "license_boundary": "project_owned_internal_ui_skin_replacement_slots_not_screen_for_screen_openra_or_warcraft_copy_not_public_launch_ready",
         "final_external_bitmap_art_shipped": false,
         "production_ready_ui_shipped": false,
@@ -19113,7 +19478,7 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "This gate moves from production asset atlas readiness to a player-facing native production HUD skin runtime screen by requiring the atlas, command surface, selection/minimap, unit status, selection feedback, ability tooltip, and hotkey feedback evidence to agree before the release-review gate can pass."
+        "source_of_truth": "This gate moves from production asset atlas readiness to a player-first native production HUD skin runtime screen by requiring the atlas, command surface, selection/minimap, unit status, selection feedback, ability tooltip, and hotkey feedback evidence to agree before the release-review gate can pass."
     }))
     .expect("classic RTS production UI skin evidence serializes")
 }

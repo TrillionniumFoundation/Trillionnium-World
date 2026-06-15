@@ -2098,6 +2098,15 @@ jq -n \
       rts_production_ui_skin_feedback_marker_pixel_count: $rts_production_ui_skin[0].feedback_marker_pixel_count,
       rts_production_ui_skin_hotkey_strip_pixel_count: $rts_production_ui_skin[0].hotkey_strip_pixel_count,
       rts_production_ui_skin_status_bar_pixel_count: $rts_production_ui_skin[0].status_bar_skin_pixel_count,
+      rts_production_ui_skin_runtime_screen_mode: $rts_production_ui_skin[0].runtime_screen_mode,
+      rts_production_ui_skin_player_first_hud_view_non_background: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_view_non_background,
+      rts_production_ui_skin_player_first_hud_view_frame_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_view_frame,
+      rts_production_ui_skin_player_first_hud_bottom_chrome_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_bottom_chrome,
+      rts_production_ui_skin_player_first_hud_command_grid_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_command_grid,
+      rts_production_ui_skin_player_first_hud_minimap_bezel_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_minimap_bezel,
+      rts_production_ui_skin_player_first_hud_unit_card_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_unit_card,
+      rts_production_ui_skin_player_first_hud_feedback_lane_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_feedback_lane,
+      rts_production_ui_skin_player_first_hud_hotkey_status_pixel_count: $rts_production_ui_skin[0].production_ui_skin_pixel_counts.player_first_production_hud_hotkey_status,
       rts_production_interaction_polish_surface_count: $rts_production_interaction_polish[0].interaction_surface_count,
       rts_production_interaction_polish_board_pixel_count: $rts_production_interaction_polish[0].interaction_board_pixel_count,
       rts_production_interaction_polish_drag_select_pixel_count: $rts_production_interaction_polish[0].drag_select_skin_pixel_count,
@@ -2904,6 +2913,7 @@ jq -n \
       rts_production_ui_skin_tooltip_skin_gate: $rts_production_ui_skin[0].tooltip_skin_gate,
       rts_production_ui_skin_hotkey_skin_gate: $rts_production_ui_skin[0].hotkey_skin_gate,
       rts_production_ui_skin_preview_gate: $rts_production_ui_skin[0].production_ui_skin_preview_gate,
+      rts_production_ui_skin_player_first_screen_gate: $rts_production_ui_skin[0].player_first_production_hud_skin_screen_gate,
       rts_production_ui_skin_source_preview_gate: $rts_production_ui_skin[0].source_preview_gate,
       rts_production_ui_skin_no_copy_boundary_gate: $rts_production_ui_skin[0].no_copy_boundary_gate,
       rts_production_ui_skin_gate: $rts_production_ui_skin[0].production_ui_skin_gate,
@@ -3632,6 +3642,15 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_production_ui_skin_feedback_marker_pixel_count > 1000
   and .headline.rts_production_ui_skin_hotkey_strip_pixel_count > 1000
   and .headline.rts_production_ui_skin_status_bar_pixel_count > 1000
+  and .headline.rts_production_ui_skin_runtime_screen_mode == "player_runtime_production_hud_skin_screen"
+  and .headline.rts_production_ui_skin_player_first_hud_view_non_background > 250000
+  and .headline.rts_production_ui_skin_player_first_hud_view_frame_pixel_count > 8000
+  and .headline.rts_production_ui_skin_player_first_hud_bottom_chrome_pixel_count > 100000
+  and .headline.rts_production_ui_skin_player_first_hud_command_grid_pixel_count > 20000
+  and .headline.rts_production_ui_skin_player_first_hud_minimap_bezel_pixel_count > 20000
+  and .headline.rts_production_ui_skin_player_first_hud_unit_card_pixel_count > 30000
+  and .headline.rts_production_ui_skin_player_first_hud_feedback_lane_pixel_count > 30000
+  and .headline.rts_production_ui_skin_player_first_hud_hotkey_status_pixel_count > 25000
   and .headline.rts_production_interaction_polish_surface_count == 6
   and .headline.rts_production_interaction_polish_board_pixel_count > 80000
   and .headline.rts_production_interaction_polish_drag_select_pixel_count > 1000
@@ -5422,6 +5441,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_production_ui_skin_tooltip_skin_gate == true
   and .gates.rts_production_ui_skin_hotkey_skin_gate == true
   and .gates.rts_production_ui_skin_preview_gate == true
+  and .gates.rts_production_ui_skin_player_first_screen_gate == true
   and .gates.rts_production_ui_skin_source_preview_gate == true
   and .gates.rts_production_ui_skin_no_copy_boundary_gate == true
   and .gates.rts_production_ui_skin_gate == true

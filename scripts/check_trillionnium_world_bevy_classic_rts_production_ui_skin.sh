@@ -43,12 +43,13 @@ jq -e '
   and .runtime_screen_mode == "player_runtime_production_hud_skin_screen"
   and .runtime_screen_gate == true
   and .evidence_board_only == false
+  and .runtime_screen_layout.primary_tactical_viewport == "single skinned RTS tactical viewport behind the production HUD"
   and .runtime_screen_layout.hud_chrome == "bottom player HUD chrome and resource strip"
-  and .runtime_screen_layout.command_grid == "bottom-right command button skin slots"
-  and .runtime_screen_layout.minimap_bezel == "in-HUD minimap frame and route feedback bezel"
-  and .runtime_screen_layout.unit_card == "selected unit portrait and status card"
-  and .runtime_screen_layout.tooltip_feedback == "ability tooltip, warning panel, and command feedback markers"
-  and .runtime_screen_layout.hotkey_status == "control-group hotkey strip plus health, mana, XP, and queue bars"
+  and .runtime_screen_layout.command_grid == "bottom command button skin slots applied in context"
+  and .runtime_screen_layout.minimap_bezel == "bottom in-HUD minimap frame and route feedback bezel"
+  and .runtime_screen_layout.unit_card == "selected unit portrait, XP, and queue status card"
+  and .runtime_screen_layout.tooltip_feedback == "right-side ability tooltip, warning panel, and command feedback markers"
+  and .runtime_screen_layout.hotkey_status == "hotkey strip plus health, mana, XP, and queue bars"
   and .asset_atlas_family_count == 10
   and .asset_atlas_frame_count >= 32
   and .asset_atlas_sprite_binding_count >= 32
@@ -75,6 +76,14 @@ jq -e '
   and .feedback_marker_pixel_count > 1000
   and .hotkey_strip_pixel_count > 1000
   and .status_bar_skin_pixel_count > 1000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_view_non_background > 250000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_view_frame > 8000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_bottom_chrome > 100000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_command_grid > 20000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_minimap_bezel > 20000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_unit_card > 30000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_feedback_lane > 30000
+  and .production_ui_skin_pixel_counts.player_first_production_hud_hotkey_status > 25000
   and .skin_highlight_pixel_count > 3000
   and .asset_atlas_gate == true
   and .command_surface_skin_gate == true
@@ -84,6 +93,7 @@ jq -e '
   and .tooltip_skin_gate == true
   and .hotkey_skin_gate == true
   and .production_ui_skin_preview_gate == true
+  and .player_first_production_hud_skin_screen_gate == true
   and .runtime_screen_gate == true
   and .source_preview_gate == true
   and .no_copy_boundary_gate == true
