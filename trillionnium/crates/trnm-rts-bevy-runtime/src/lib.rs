@@ -191,6 +191,53 @@ pub struct RtsFormationMovePreviewStageFixture {
     pub group_command_state: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupRecallFormationPreviewStageFixture {
+    pub stage: String,
+    pub action: RtsOrderQueueReplayAction,
+    pub history_entry: String,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub control_group_id: String,
+    pub active_control_group_ids: Vec<String>,
+    pub selected_unit_ids: Vec<String>,
+    pub stance: String,
+    pub recall_focus_tile: String,
+    pub formation_anchor_tile: String,
+    pub path_tile_ids: Vec<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub queued_member_ids: Vec<String>,
+    pub filtered_member_ids: Vec<String>,
+    pub cleared_old_member_ids: Vec<String>,
+    pub group_command_state: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupRecallOverridePreviewStageFixture {
+    pub stage: String,
+    pub action: RtsOrderQueueReplayAction,
+    pub history_entry: String,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub control_group_id: String,
+    pub active_control_group_ids: Vec<String>,
+    pub selected_unit_ids: Vec<String>,
+    pub stance: String,
+    pub recall_focus_tile: String,
+    pub queued_target_tile: String,
+    pub canceled_target_tile: Option<String>,
+    pub path_tile_ids: Vec<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub override_final_tile_ids: Vec<String>,
+    pub queued_member_ids: Vec<String>,
+    pub canceled_member_ids: Vec<String>,
+    pub filtered_member_ids: Vec<String>,
+    pub cleared_old_member_ids: Vec<String>,
+    pub group_command_state: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeMapLayoutInput {
     pub viewport_width: i32,
@@ -3588,6 +3635,209 @@ pub fn rts_formation_move_preview_stage_ids() -> Vec<String> {
         .collect()
 }
 
+pub fn rts_control_group_recall_formation_preview_input_source() -> &'static str {
+    "classic_rts_control_group_recall_formation_preview_input"
+}
+
+pub fn rts_control_group_recall_formation_preview_renderer_path() -> &'static str {
+    "classic_draw_scene+classic_draw_rts_control_group_recall_formation_preview_overlay"
+}
+
+pub fn rts_control_group_recall_formation_preview_surface() -> &'static str {
+    "control_group_28_recall_focus+formation_anchor+slot_markers+member_filter_states"
+}
+
+fn rts_control_group_recall_formation_preview_fixture(
+    stage: &str,
+    kind: &str,
+    payload: &str,
+) -> RtsControlGroupRecallFormationPreviewStageFixture {
+    let filtered_member_ids = if stage == "filtered_invalid" {
+        rts_string_vec([
+            "missing:multi0.recall.formation.missing",
+            "foreign:map.actor1",
+        ])
+    } else {
+        Vec::new()
+    };
+    let cleared_old_member_ids = if stage == "filtered_invalid" {
+        rts_string_vec([
+            "old:multi0.recall.formation.old.seed",
+            "old:multi0.recall.formation.old.wing",
+        ])
+    } else {
+        Vec::new()
+    };
+
+    RtsControlGroupRecallFormationPreviewStageFixture {
+        stage: stage.to_string(),
+        action: RtsOrderQueueReplayAction {
+            kind: kind.to_string(),
+            payload: payload.to_string(),
+        },
+        history_entry: format!("control_group_recall_formation_preview:{stage}"),
+        input_source: rts_control_group_recall_formation_preview_input_source().to_string(),
+        renderer_path: rts_control_group_recall_formation_preview_renderer_path().to_string(),
+        preview_surface: rts_control_group_recall_formation_preview_surface().to_string(),
+        control_group_id: "28".to_string(),
+        active_control_group_ids: rts_string_vec(["26", "27", "28"]),
+        selected_unit_ids: rts_string_vec([
+            "multi0.recall.formation.runner",
+            "multi0.recall.formation.wing",
+        ]),
+        stance: "guard".to_string(),
+        recall_focus_tile: "1,30".to_string(),
+        formation_anchor_tile: "1,31".to_string(),
+        path_tile_ids: rts_string_vec(["1,30", "1,31", "2,31"]),
+        formation_slot_tile_ids: rts_string_vec(["1,31", "2,31"]),
+        queued_member_ids: rts_string_vec([
+            "multi0.recall.formation.runner",
+            "multi0.recall.formation.wing",
+        ]),
+        filtered_member_ids,
+        cleared_old_member_ids,
+        group_command_state: format!("recall_formation_preview:{stage}:group_28"),
+    }
+}
+
+pub fn rts_control_group_recall_formation_preview_stage_fixtures(
+) -> Vec<RtsControlGroupRecallFormationPreviewStageFixture> {
+    [
+        ("recall_focus_hud", "select-control-group", "28"),
+        ("formation_anchor_slots", "move", "1,31:line"),
+        ("queued_valid_members", "move", "1,31:line"),
+        ("filtered_invalid", "move", "1,31:line"),
+    ]
+    .into_iter()
+    .map(|(stage, kind, payload)| {
+        rts_control_group_recall_formation_preview_fixture(stage, kind, payload)
+    })
+    .collect()
+}
+
+pub fn rts_control_group_recall_formation_preview_stage_ids() -> Vec<String> {
+    rts_control_group_recall_formation_preview_stage_fixtures()
+        .into_iter()
+        .map(|fixture| fixture.stage)
+        .collect()
+}
+
+pub fn rts_control_group_recall_override_preview_input_source() -> &'static str {
+    "classic_rts_control_group_recall_override_preview_input"
+}
+
+pub fn rts_control_group_recall_override_preview_renderer_path() -> &'static str {
+    "classic_draw_scene+classic_draw_rts_control_group_recall_override_preview_overlay"
+}
+
+pub fn rts_control_group_recall_override_preview_surface() -> &'static str {
+    "group_26_recall_order_queue+group_27_recall_override_cancel_final_filtered"
+}
+
+fn rts_control_group_recall_override_preview_fixture(
+    stage: &str,
+    kind: &str,
+    payload: &str,
+) -> RtsControlGroupRecallOverridePreviewStageFixture {
+    let is_group_26 = stage.starts_with("group_26");
+    let selected_unit_ids = if is_group_26 {
+        rts_string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"])
+    } else {
+        rts_string_vec([
+            "multi0.recall.override.runner",
+            "multi0.recall.override.wing",
+        ])
+    };
+    let filtered_member_ids = if stage == "group_27_final_filtered" {
+        rts_string_vec([
+            "missing:multi0.recall.override.missing",
+            "foreign:map.actor1",
+        ])
+    } else {
+        Vec::new()
+    };
+    let cleared_old_member_ids = if stage == "group_27_final_filtered" {
+        rts_string_vec([
+            "old:multi0.recall.override.old.seed",
+            "old:multi0.recall.override.old.wing",
+        ])
+    } else {
+        Vec::new()
+    };
+
+    RtsControlGroupRecallOverridePreviewStageFixture {
+        stage: stage.to_string(),
+        action: RtsOrderQueueReplayAction {
+            kind: kind.to_string(),
+            payload: payload.to_string(),
+        },
+        history_entry: format!("control_group_recall_override_preview:{stage}"),
+        input_source: rts_control_group_recall_override_preview_input_source().to_string(),
+        renderer_path: rts_control_group_recall_override_preview_renderer_path().to_string(),
+        preview_surface: rts_control_group_recall_override_preview_surface().to_string(),
+        control_group_id: if is_group_26 { "26" } else { "27" }.to_string(),
+        active_control_group_ids: rts_string_vec(["26", "27", "28"]),
+        selected_unit_ids: selected_unit_ids.clone(),
+        stance: "guard".to_string(),
+        recall_focus_tile: if is_group_26 { "18,30" } else { "21,30" }.to_string(),
+        queued_target_tile: if is_group_26 { "18,31" } else { "21,25" }.to_string(),
+        canceled_target_tile: if is_group_26 {
+            None
+        } else {
+            Some("21,25".to_string())
+        },
+        path_tile_ids: if is_group_26 {
+            rts_string_vec(["18,30", "18,31"])
+        } else {
+            rts_string_vec(["21,30", "21,29", "21,27", "21,25"])
+        },
+        group_route_tile_ids: if is_group_26 {
+            rts_string_vec(["18,30", "18,31"])
+        } else {
+            rts_string_vec(["21,25", "20,30", "22,30"])
+        },
+        override_final_tile_ids: if is_group_26 {
+            Vec::new()
+        } else {
+            rts_string_vec(["20,30", "22,30"])
+        },
+        queued_member_ids: selected_unit_ids,
+        canceled_member_ids: if is_group_26 {
+            Vec::new()
+        } else {
+            rts_string_vec([
+                "multi0.recall.override.runner",
+                "multi0.recall.override.wing",
+            ])
+        },
+        filtered_member_ids,
+        cleared_old_member_ids,
+        group_command_state: format!("recall_override_preview:{stage}"),
+    }
+}
+
+pub fn rts_control_group_recall_override_preview_stage_fixtures(
+) -> Vec<RtsControlGroupRecallOverridePreviewStageFixture> {
+    [
+        ("group_26_recall_focus", "select-control-group", "26"),
+        ("group_26_queued_order", "move", "18,31:line"),
+        ("group_27_override_cancel", "select-control-group", "27"),
+        ("group_27_final_filtered", "move", "20,30:line"),
+    ]
+    .into_iter()
+    .map(|(stage, kind, payload)| {
+        rts_control_group_recall_override_preview_fixture(stage, kind, payload)
+    })
+    .collect()
+}
+
+pub fn rts_control_group_recall_override_preview_stage_ids() -> Vec<String> {
+    rts_control_group_recall_override_preview_stage_fixtures()
+        .into_iter()
+        .map(|fixture| fixture.stage)
+        .collect()
+}
+
 pub fn rts_formation_move_execution_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -5341,6 +5591,70 @@ mod tests {
         assert_eq!(
             formation_preview_fixtures[4].group_command_state.as_deref(),
             Some("split_route:group_2")
+        );
+
+        let recall_formation_fixtures = rts_control_group_recall_formation_preview_stage_fixtures();
+        assert_eq!(
+            recall_formation_fixtures
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "recall_focus_hud",
+                "formation_anchor_slots",
+                "queued_valid_members",
+                "filtered_invalid"
+            ]
+        );
+        assert_eq!(
+            recall_formation_fixtures
+                .iter()
+                .map(|fixture| fixture.action.payload.as_str())
+                .collect::<Vec<_>>(),
+            vec!["28", "1,31:line", "1,31:line", "1,31:line"]
+        );
+        assert_eq!(
+            recall_formation_fixtures[1].formation_slot_tile_ids,
+            vec!["1,31", "2,31"]
+        );
+        assert_eq!(
+            recall_formation_fixtures[3].filtered_member_ids,
+            vec![
+                "missing:multi0.recall.formation.missing",
+                "foreign:map.actor1"
+            ]
+        );
+
+        let recall_override_fixtures = rts_control_group_recall_override_preview_stage_fixtures();
+        assert_eq!(
+            recall_override_fixtures
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "group_26_recall_focus",
+                "group_26_queued_order",
+                "group_27_override_cancel",
+                "group_27_final_filtered"
+            ]
+        );
+        assert_eq!(
+            recall_override_fixtures
+                .iter()
+                .map(|fixture| fixture.action.payload.as_str())
+                .collect::<Vec<_>>(),
+            vec!["26", "18,31:line", "27", "20,30:line"]
+        );
+        assert_eq!(
+            recall_override_fixtures[2].canceled_member_ids,
+            vec![
+                "multi0.recall.override.runner",
+                "multi0.recall.override.wing"
+            ]
+        );
+        assert_eq!(
+            recall_override_fixtures[2].override_final_tile_ids,
+            vec!["20,30", "22,30"]
         );
 
         assert_eq!(

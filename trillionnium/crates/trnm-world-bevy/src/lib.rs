@@ -34929,40 +34929,8 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
         rts_active_ability_id: Some("move".to_string()),
         ..Default::default()
     };
-    let stages = [
-        (
-            "recall_focus_hud",
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "28".to_string(),
-            },
-        ),
-        (
-            "formation_anchor_slots",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "1,31:line".to_string(),
-            },
-        ),
-        (
-            "queued_valid_members",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "1,31:line".to_string(),
-            },
-        ),
-        (
-            "filtered_invalid",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "1,31:line".to_string(),
-            },
-        ),
-    ];
-    let filtered_member_ids = string_vec([
-        "missing:multi0.recall.formation.missing",
-        "foreign:map.actor1",
-    ]);
-    let cleared_old_member_ids = string_vec([
-        "old:multi0.recall.formation.old.seed",
-        "old:multi0.recall.formation.old.wing",
-    ]);
+    let stage_fixtures =
+        rts_bevy_runtime::rts_control_group_recall_formation_preview_stage_fixtures();
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
@@ -34972,8 +34940,10 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
 
-    for (index, (stage, action)) in stages.iter().enumerate() {
-        let action_label = native_control_action_label(action);
+    for (index, fixture) in stage_fixtures.iter().enumerate() {
+        let stage = fixture.stage.as_str();
+        let action = classic_rts_action_from_runtime_action(fixture.action.clone());
+        let action_label = native_control_action_label(&action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
             &mut world,
@@ -34981,7 +34951,7 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
             &mut gameplay_log,
             &mut runtime,
             "local-player",
-            "classic_rts_control_group_recall_formation_preview_input",
+            fixture.input_source.as_str(),
             action.clone(),
         );
         let latest_feedback = runtime.input_feedback_history.last();
@@ -34993,26 +34963,24 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
             input_sources.insert(event.input_source.clone());
         }
         runtime.combat_turn = index as u8;
-        runtime.rts_control_group_id = Some("28".to_string());
-        runtime.rts_active_control_group_ids = string_vec(["26", "27", "28"]);
-        runtime.rts_selected_unit_ids = string_vec([
-            "multi0.recall.formation.runner",
-            "multi0.recall.formation.wing",
-        ]);
+        runtime.rts_control_group_id = Some(fixture.control_group_id.clone());
+        runtime.rts_active_control_group_ids = fixture.active_control_group_ids.clone();
+        runtime.rts_selected_unit_ids = fixture.selected_unit_ids.clone();
         runtime.rts_control_group_assignments =
             string_vec(["28:multi0.recall.formation.runner|multi0.recall.formation.wing"]);
-        runtime.rts_minimap_command_tile_id = Some("1,30".to_string());
-        runtime.rts_command_destination_tile = Some("1,31".to_string());
-        runtime.rts_path_tile_ids = string_vec(["1,30", "1,31", "2,31"]);
-        runtime.rts_formation_slot_tile_ids = string_vec(["1,31", "2,31"]);
-        runtime.rts_group_command_state = format!("recall_formation_preview:{stage}:group_28");
-        let event = format!("control_group_recall_formation_preview:{stage}");
+        runtime.rts_minimap_command_tile_id = Some(fixture.recall_focus_tile.clone());
+        runtime.rts_command_destination_tile = Some(fixture.formation_anchor_tile.clone());
+        runtime.rts_path_tile_ids = fixture.path_tile_ids.clone();
+        runtime.rts_formation_slot_tile_ids = fixture.formation_slot_tile_ids.clone();
+        runtime.rts_group_command_state = fixture.group_command_state.clone();
+        let event = fixture.history_entry.clone();
         push_history(&mut runtime.rts_combat_event_log, &event);
         push_history(&mut runtime.rts_command_queue, &event);
-        if *stage == "filtered_invalid" {
-            for member_id in filtered_member_ids
+        if !fixture.filtered_member_ids.is_empty() || !fixture.cleared_old_member_ids.is_empty() {
+            for member_id in fixture
+                .filtered_member_ids
                 .iter()
-                .chain(cleared_old_member_ids.iter())
+                .chain(fixture.cleared_old_member_ids.iter())
             {
                 push_history(
                     &mut runtime.rts_command_queue,
@@ -35068,18 +35036,18 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
             "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
             "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
             "member_count": runtime.rts_selected_unit_ids.len(),
-            "stance": "guard",
+            "stance": fixture.stance.clone(),
             "recall_focus_tile": runtime.rts_minimap_command_tile_id.clone(),
             "formation_anchor_tile": runtime.rts_command_destination_tile.clone(),
             "formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids.clone(),
-            "queued_member_ids": runtime.rts_selected_unit_ids.clone(),
-            "filtered_member_ids": if *stage == "filtered_invalid" { filtered_member_ids.clone() } else { Vec::new() },
-            "cleared_old_member_ids": if *stage == "filtered_invalid" { cleared_old_member_ids.clone() } else { Vec::new() },
+            "queued_member_ids": fixture.queued_member_ids.clone(),
+            "filtered_member_ids": fixture.filtered_member_ids.clone(),
+            "cleared_old_member_ids": fixture.cleared_old_member_ids.clone(),
             "group_command_state": runtime.rts_group_command_state.clone(),
             "command_queue": runtime.rts_command_queue.clone(),
-            "renderer_path": "classic_draw_scene+classic_draw_rts_control_group_recall_formation_preview_overlay",
-            "input_path": "apply_live_native_action_with_source(classic_rts_control_group_recall_formation_preview_input)",
-            "preview_surface": "control_group_28_recall_focus+formation_anchor+slot_markers+member_filter_states",
+            "renderer_path": fixture.renderer_path.clone(),
+            "input_path": format!("apply_live_native_action_with_source({})", fixture.input_source),
+            "preview_surface": fixture.preview_surface.clone(),
         }));
     }
 
@@ -35186,9 +35154,9 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
                     })
                 })
     });
-    let live_input_gate = accepted_input_count == stages.len()
+    let live_input_gate = accepted_input_count == stage_fixtures.len()
         && input_sources.contains("classic_rts_control_group_recall_formation_preview_input");
-    let scene_renderer_gate = stage_summaries.len() == stages.len()
+    let scene_renderer_gate = stage_summaries.len() == stage_fixtures.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
@@ -35226,7 +35194,7 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
         "write_gate": write_gate,
         "renderer_path": "classic_draw_scene+classic_draw_rts_control_group_recall_formation_preview_overlay",
         "input_path": "apply_live_native_action_with_source(classic_rts_control_group_recall_formation_preview_input)",
-        "input_action_count": stages.len(),
+        "input_action_count": stage_fixtures.len(),
         "accepted_input_count": accepted_input_count,
         "input_sources": input_sources,
         "action_labels": action_labels,
@@ -35237,8 +35205,8 @@ pub fn native_classic_rts_control_group_recall_formation_preview_evidence_json(
         "final_recall_focus_tile": runtime.rts_minimap_command_tile_id,
         "final_formation_anchor_tile": runtime.rts_command_destination_tile,
         "final_formation_slot_tile_ids": runtime.rts_formation_slot_tile_ids,
-        "final_filtered_member_ids": filtered_member_ids,
-        "final_cleared_old_member_ids": cleared_old_member_ids,
+        "final_filtered_member_ids": stage_fixtures.last().map(|fixture| fixture.filtered_member_ids.clone()).unwrap_or_default(),
+        "final_cleared_old_member_ids": stage_fixtures.last().map(|fixture| fixture.cleared_old_member_ids.clone()).unwrap_or_default(),
         "hud_pixel_count": hud_pixel_count,
         "focus_pixel_count": focus_pixel_count,
         "anchor_pixel_count": anchor_pixel_count,
@@ -35307,48 +35275,53 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
         rts_active_ability_id: Some("move".to_string()),
         ..Default::default()
     };
-    let stages = [
-        (
-            "group_26_recall_focus",
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "26".to_string(),
-            },
-        ),
-        (
-            "group_26_queued_order",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "18,31:line".to_string(),
-            },
-        ),
-        (
-            "group_27_override_cancel",
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "27".to_string(),
-            },
-        ),
-        (
-            "group_27_final_filtered",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "20,30:line".to_string(),
-            },
-        ),
-    ];
-    let group_26_member_ids =
-        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
-    let group_27_member_ids = string_vec([
-        "multi0.recall.override.runner",
-        "multi0.recall.override.wing",
-    ]);
-    let group_27_canceled_member_ids = group_27_member_ids.clone();
-    let group_27_override_final_tile_ids = string_vec(["20,30", "22,30"]);
-    let filtered_member_ids = string_vec([
-        "missing:multi0.recall.override.missing",
-        "foreign:map.actor1",
-    ]);
-    let cleared_old_member_ids = string_vec([
-        "old:multi0.recall.override.old.seed",
-        "old:multi0.recall.override.old.wing",
-    ]);
+    let stage_fixtures =
+        rts_bevy_runtime::rts_control_group_recall_override_preview_stage_fixtures();
+    let group_26_member_ids = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_26_recall_focus")
+        .map(|fixture| fixture.selected_unit_ids.clone())
+        .unwrap_or_default();
+    let group_26_recall_focus_tile = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_26_recall_focus")
+        .map(|fixture| fixture.recall_focus_tile.clone())
+        .unwrap_or_default();
+    let group_26_queued_target_tile = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_26_queued_order")
+        .map(|fixture| fixture.queued_target_tile.clone())
+        .unwrap_or_default();
+    let group_27_recall_focus_tile = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_override_cancel")
+        .map(|fixture| fixture.recall_focus_tile.clone())
+        .unwrap_or_default();
+    let group_27_canceled_target_tile = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_override_cancel")
+        .and_then(|fixture| fixture.canceled_target_tile.clone())
+        .unwrap_or_default();
+    let group_27_canceled_member_ids = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_override_cancel")
+        .map(|fixture| fixture.canceled_member_ids.clone())
+        .unwrap_or_default();
+    let group_27_override_final_tile_ids = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_override_cancel")
+        .map(|fixture| fixture.override_final_tile_ids.clone())
+        .unwrap_or_default();
+    let filtered_member_ids = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_final_filtered")
+        .map(|fixture| fixture.filtered_member_ids.clone())
+        .unwrap_or_default();
+    let cleared_old_member_ids = stage_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_final_filtered")
+        .map(|fixture| fixture.cleared_old_member_ids.clone())
+        .unwrap_or_default();
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
@@ -35358,8 +35331,10 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
 
-    for (index, (stage, action)) in stages.iter().enumerate() {
-        let action_label = native_control_action_label(action);
+    for (index, fixture) in stage_fixtures.iter().enumerate() {
+        let stage = fixture.stage.as_str();
+        let action = classic_rts_action_from_runtime_action(fixture.action.clone());
+        let action_label = native_control_action_label(&action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
             &mut world,
@@ -35367,7 +35342,7 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
             &mut gameplay_log,
             &mut runtime,
             "local-player",
-            "classic_rts_control_group_recall_override_preview_input",
+            fixture.input_source.as_str(),
             action.clone(),
         );
         let latest_feedback = runtime.input_feedback_history.last();
@@ -35379,33 +35354,24 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
             input_sources.insert(event.input_source.clone());
         }
         runtime.combat_turn = index as u8;
-        runtime.rts_active_control_group_ids = string_vec(["26", "27", "28"]);
+        runtime.rts_active_control_group_ids = fixture.active_control_group_ids.clone();
         runtime.rts_control_group_assignments = string_vec([
             "26:multi0.recall.order.runner|multi0.recall.order.wing",
             "27:multi0.recall.override.runner|multi0.recall.override.wing",
         ]);
 
-        let is_group_26 = stage.starts_with("group_26");
-        if is_group_26 {
-            runtime.rts_control_group_id = Some("26".to_string());
-            runtime.rts_selected_unit_ids = group_26_member_ids.clone();
-            runtime.rts_minimap_command_tile_id = Some("18,30".to_string());
-            runtime.rts_command_destination_tile = Some("18,31".to_string());
-            runtime.rts_path_tile_ids = string_vec(["18,30", "18,31"]);
-            runtime.rts_group_route_tile_ids = string_vec(["18,30", "18,31"]);
-        } else {
-            runtime.rts_control_group_id = Some("27".to_string());
-            runtime.rts_selected_unit_ids = group_27_member_ids.clone();
-            runtime.rts_minimap_command_tile_id = Some("21,30".to_string());
-            runtime.rts_command_destination_tile = Some("21,25".to_string());
-            runtime.rts_path_tile_ids = string_vec(["21,30", "21,29", "21,27", "21,25"]);
-            runtime.rts_group_route_tile_ids = string_vec(["21,25", "20,30", "22,30"]);
-        }
-        runtime.rts_group_command_state = format!("recall_override_preview:{stage}");
-        let event = format!("control_group_recall_override_preview:{stage}");
+        let is_group_26 = fixture.control_group_id == "26";
+        runtime.rts_control_group_id = Some(fixture.control_group_id.clone());
+        runtime.rts_selected_unit_ids = fixture.selected_unit_ids.clone();
+        runtime.rts_minimap_command_tile_id = Some(fixture.recall_focus_tile.clone());
+        runtime.rts_command_destination_tile = Some(fixture.queued_target_tile.clone());
+        runtime.rts_path_tile_ids = fixture.path_tile_ids.clone();
+        runtime.rts_group_route_tile_ids = fixture.group_route_tile_ids.clone();
+        runtime.rts_group_command_state = fixture.group_command_state.clone();
+        let event = fixture.history_entry.clone();
         push_history(&mut runtime.rts_combat_event_log, &event);
         push_history(&mut runtime.rts_command_queue, &event);
-        if *stage == "group_26_queued_order" {
+        if stage == "group_26_queued_order" {
             push_history(
                 &mut runtime.rts_command_queue,
                 "queued_group_order:Multi0:26:move:2actors",
@@ -35419,7 +35385,7 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
                 "queued_order_reached:26:multi0.recall.order.wing:chain0:18,31",
             );
         }
-        if *stage == "group_27_override_cancel" || *stage == "group_27_final_filtered" {
+        if stage == "group_27_override_cancel" || stage == "group_27_final_filtered" {
             push_history(
                 &mut runtime.rts_command_queue,
                 "queued_order_execute:27:multi0.recall.override.runner:move:chain0",
@@ -35437,10 +35403,11 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
                 "queued_order_override:Multi0:multi0.recall.override.wing:move:cleared1",
             );
         }
-        if *stage == "group_27_final_filtered" {
-            for member_id in filtered_member_ids
+        if !fixture.filtered_member_ids.is_empty() || !fixture.cleared_old_member_ids.is_empty() {
+            for member_id in fixture
+                .filtered_member_ids
                 .iter()
-                .chain(cleared_old_member_ids.iter())
+                .chain(fixture.cleared_old_member_ids.iter())
             {
                 push_history(
                     &mut runtime.rts_command_queue,
@@ -35488,11 +35455,6 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
 
-        let queued_member_ids = if is_group_26 {
-            group_26_member_ids.clone()
-        } else {
-            group_27_member_ids.clone()
-        };
         stage_summaries.push(json!({
             "stage": stage,
             "event": event,
@@ -35502,20 +35464,20 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
             "active_control_group_ids": runtime.rts_active_control_group_ids.clone(),
             "selected_unit_ids": runtime.rts_selected_unit_ids.clone(),
             "member_count": runtime.rts_selected_unit_ids.len(),
-            "stance": "guard",
+            "stance": fixture.stance.clone(),
             "recall_focus_tile": runtime.rts_minimap_command_tile_id.clone(),
-            "queued_target_tile": if is_group_26 { Some("18,31".to_string()) } else { Some("21,25".to_string()) },
-            "canceled_target_tile": if is_group_26 { None::<String> } else { Some("21,25".to_string()) },
-            "override_final_tile_ids": if is_group_26 { Vec::new() } else { group_27_override_final_tile_ids.clone() },
-            "queued_member_ids": queued_member_ids,
-            "canceled_member_ids": if is_group_26 { Vec::new() } else { group_27_canceled_member_ids.clone() },
-            "filtered_member_ids": if *stage == "group_27_final_filtered" { filtered_member_ids.clone() } else { Vec::new() },
-            "cleared_old_member_ids": if *stage == "group_27_final_filtered" { cleared_old_member_ids.clone() } else { Vec::new() },
+            "queued_target_tile": fixture.queued_target_tile.clone(),
+            "canceled_target_tile": fixture.canceled_target_tile.clone(),
+            "override_final_tile_ids": fixture.override_final_tile_ids.clone(),
+            "queued_member_ids": fixture.queued_member_ids.clone(),
+            "canceled_member_ids": fixture.canceled_member_ids.clone(),
+            "filtered_member_ids": fixture.filtered_member_ids.clone(),
+            "cleared_old_member_ids": fixture.cleared_old_member_ids.clone(),
             "group_command_state": runtime.rts_group_command_state.clone(),
             "command_queue": runtime.rts_command_queue.clone(),
-            "renderer_path": "classic_draw_scene+classic_draw_rts_control_group_recall_override_preview_overlay",
-            "input_path": "apply_live_native_action_with_source(classic_rts_control_group_recall_override_preview_input)",
-            "preview_surface": "group_26_recall_order_queue+group_27_recall_override_cancel_final_filtered",
+            "renderer_path": fixture.renderer_path.clone(),
+            "input_path": format!("apply_live_native_action_with_source({})", fixture.input_source),
+            "preview_surface": fixture.preview_surface.clone(),
         }));
     }
 
@@ -35648,9 +35610,9 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
                         })
                     })
         });
-    let live_input_gate = accepted_input_count == stages.len()
+    let live_input_gate = accepted_input_count == stage_fixtures.len()
         && input_sources.contains("classic_rts_control_group_recall_override_preview_input");
-    let scene_renderer_gate = stage_summaries.len() == stages.len()
+    let scene_renderer_gate = stage_summaries.len() == stage_fixtures.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
@@ -35687,16 +35649,16 @@ pub fn native_classic_rts_control_group_recall_override_preview_evidence_json(
         "write_gate": write_gate,
         "renderer_path": "classic_draw_scene+classic_draw_rts_control_group_recall_override_preview_overlay",
         "input_path": "apply_live_native_action_with_source(classic_rts_control_group_recall_override_preview_input)",
-        "input_action_count": stages.len(),
+        "input_action_count": stage_fixtures.len(),
         "accepted_input_count": accepted_input_count,
         "input_sources": input_sources,
         "action_labels": action_labels,
         "stage_summaries": stage_summaries,
-        "group_26_recall_focus_tile": "18,30",
-        "group_26_queued_target_tile": "18,31",
+        "group_26_recall_focus_tile": group_26_recall_focus_tile,
+        "group_26_queued_target_tile": group_26_queued_target_tile,
         "group_26_member_ids": group_26_member_ids,
-        "group_27_recall_focus_tile": "21,30",
-        "group_27_canceled_target_tile": "21,25",
+        "group_27_recall_focus_tile": group_27_recall_focus_tile,
+        "group_27_canceled_target_tile": group_27_canceled_target_tile,
         "group_27_canceled_member_ids": group_27_canceled_member_ids,
         "group_27_override_final_tile_ids": group_27_override_final_tile_ids,
         "group_27_filtered_member_ids": filtered_member_ids,

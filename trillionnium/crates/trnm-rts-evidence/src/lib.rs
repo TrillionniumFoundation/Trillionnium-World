@@ -24,9 +24,11 @@ use trnm_rts_bevy_runtime::{
     rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
     rts_commander_parts, rts_contact_flash_tiles_for_target,
     rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
-    rts_control_group_slot_summaries, rts_counter_command_parts,
-    rts_counterattack_route_tiles_for_wave, rts_counterattack_units_for_wave, rts_creep_camp_parts,
-    rts_creep_camp_tiles_for_id, rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
+    rts_control_group_recall_formation_preview_stage_fixtures,
+    rts_control_group_recall_override_preview_stage_fixtures, rts_control_group_slot_summaries,
+    rts_counter_command_parts, rts_counterattack_route_tiles_for_wave,
+    rts_counterattack_units_for_wave, rts_creep_camp_parts, rts_creep_camp_tiles_for_id,
+    rts_creep_camp_units_for_id, rts_cursor_kind_for_hover_preview,
     rts_cursor_label_for_hover_preview, rts_damage_ticks_for_ability, rts_default_group_units,
     rts_default_units_for_control_group_slot, rts_depth_readability_stage, rts_drag_distance_sq,
     rts_drag_group_id, rts_drag_rejected_unit_ids, rts_drag_select_player_label,
@@ -110,6 +112,16 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub formation_move_preview_history_entries_sample: Vec<String>,
     pub formation_move_preview_destination_slots_sample: Vec<String>,
     pub formation_move_preview_split_route_sample: Vec<String>,
+    pub control_group_recall_formation_preview_stage_count_sample: usize,
+    pub control_group_recall_formation_preview_action_payloads_sample: Vec<String>,
+    pub control_group_recall_formation_preview_history_entries_sample: Vec<String>,
+    pub control_group_recall_formation_preview_slot_tiles_sample: Vec<String>,
+    pub control_group_recall_formation_preview_filtered_members_sample: Vec<String>,
+    pub control_group_recall_override_preview_stage_count_sample: usize,
+    pub control_group_recall_override_preview_action_payloads_sample: Vec<String>,
+    pub control_group_recall_override_preview_history_entries_sample: Vec<String>,
+    pub control_group_recall_override_preview_final_tiles_sample: Vec<String>,
+    pub control_group_recall_override_preview_canceled_members_sample: Vec<String>,
     pub formation_move_execution_stage_sample: Option<String>,
     pub local_obstruction_recovery_stage_sample: Option<String>,
     pub npc_behavior_stage_sample: Option<String>,
@@ -365,6 +377,44 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         .iter()
         .find(|fixture| fixture.stage == "split_avoidance")
         .map(|fixture| fixture.group_route_tile_ids_if_empty.clone())
+        .unwrap_or_default();
+    let recall_formation_fixtures = rts_control_group_recall_formation_preview_stage_fixtures();
+    let recall_formation_action_payloads = recall_formation_fixtures
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let recall_formation_history_entries = recall_formation_fixtures
+        .iter()
+        .map(|fixture| fixture.history_entry.clone())
+        .collect::<Vec<_>>();
+    let recall_formation_slot_tiles = recall_formation_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "formation_anchor_slots")
+        .map(|fixture| fixture.formation_slot_tile_ids.clone())
+        .unwrap_or_default();
+    let recall_formation_filtered_members = recall_formation_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "filtered_invalid")
+        .map(|fixture| fixture.filtered_member_ids.clone())
+        .unwrap_or_default();
+    let recall_override_fixtures = rts_control_group_recall_override_preview_stage_fixtures();
+    let recall_override_action_payloads = recall_override_fixtures
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let recall_override_history_entries = recall_override_fixtures
+        .iter()
+        .map(|fixture| fixture.history_entry.clone())
+        .collect::<Vec<_>>();
+    let recall_override_final_tiles = recall_override_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_override_cancel")
+        .map(|fixture| fixture.override_final_tile_ids.clone())
+        .unwrap_or_default();
+    let recall_override_canceled_members = recall_override_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "group_27_override_cancel")
+        .map(|fixture| fixture.canceled_member_ids.clone())
         .unwrap_or_default();
     let formation_execution_stage = rts_formation_move_execution_stage(
         &["formation_move_execution:arrival_lock".to_string()],
@@ -989,6 +1039,36 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             ]
         && formation_preview_destination_slots == ["8,4", "7,4", "8,5", "9,4"]
         && formation_preview_split_route == ["5,5", "6,4", "6,5", "7,5", "6,6"]
+        && recall_formation_fixtures.len() == 4
+        && recall_formation_action_payloads == ["28", "1,31:line", "1,31:line", "1,31:line"]
+        && recall_formation_history_entries
+            == [
+                "control_group_recall_formation_preview:recall_focus_hud",
+                "control_group_recall_formation_preview:formation_anchor_slots",
+                "control_group_recall_formation_preview:queued_valid_members",
+                "control_group_recall_formation_preview:filtered_invalid",
+            ]
+        && recall_formation_slot_tiles == ["1,31", "2,31"]
+        && recall_formation_filtered_members
+            == [
+                "missing:multi0.recall.formation.missing",
+                "foreign:map.actor1",
+            ]
+        && recall_override_fixtures.len() == 4
+        && recall_override_action_payloads == ["26", "18,31:line", "27", "20,30:line"]
+        && recall_override_history_entries
+            == [
+                "control_group_recall_override_preview:group_26_recall_focus",
+                "control_group_recall_override_preview:group_26_queued_order",
+                "control_group_recall_override_preview:group_27_override_cancel",
+                "control_group_recall_override_preview:group_27_final_filtered",
+            ]
+        && recall_override_final_tiles == ["20,30", "22,30"]
+        && recall_override_canceled_members
+            == [
+                "multi0.recall.override.runner",
+                "multi0.recall.override.wing",
+            ]
         && formation_execution_stage.as_deref() == Some("arrival_lock")
         && local_obstruction_stage.as_deref() == Some("flow_resume")
         && npc_behavior_stage.as_deref() == Some("creep_retreat")
@@ -1307,6 +1387,22 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         formation_move_preview_history_entries_sample: formation_preview_history_entries,
         formation_move_preview_destination_slots_sample: formation_preview_destination_slots,
         formation_move_preview_split_route_sample: formation_preview_split_route,
+        control_group_recall_formation_preview_stage_count_sample: recall_formation_fixtures.len(),
+        control_group_recall_formation_preview_action_payloads_sample:
+            recall_formation_action_payloads,
+        control_group_recall_formation_preview_history_entries_sample:
+            recall_formation_history_entries,
+        control_group_recall_formation_preview_slot_tiles_sample: recall_formation_slot_tiles,
+        control_group_recall_formation_preview_filtered_members_sample:
+            recall_formation_filtered_members,
+        control_group_recall_override_preview_stage_count_sample: recall_override_fixtures.len(),
+        control_group_recall_override_preview_action_payloads_sample:
+            recall_override_action_payloads,
+        control_group_recall_override_preview_history_entries_sample:
+            recall_override_history_entries,
+        control_group_recall_override_preview_final_tiles_sample: recall_override_final_tiles,
+        control_group_recall_override_preview_canceled_members_sample:
+            recall_override_canceled_members,
         formation_move_execution_stage_sample: formation_execution_stage,
         local_obstruction_recovery_stage_sample: local_obstruction_stage,
         npc_behavior_stage_sample: npc_behavior_stage,
@@ -1654,6 +1750,62 @@ mod tests {
         assert_eq!(
             evidence.formation_move_preview_split_route_sample,
             vec!["5,5", "6,4", "6,5", "7,5", "6,6"]
+        );
+        assert_eq!(
+            evidence.control_group_recall_formation_preview_stage_count_sample,
+            4
+        );
+        assert_eq!(
+            evidence.control_group_recall_formation_preview_action_payloads_sample,
+            vec!["28", "1,31:line", "1,31:line", "1,31:line"]
+        );
+        assert_eq!(
+            evidence.control_group_recall_formation_preview_history_entries_sample,
+            vec![
+                "control_group_recall_formation_preview:recall_focus_hud",
+                "control_group_recall_formation_preview:formation_anchor_slots",
+                "control_group_recall_formation_preview:queued_valid_members",
+                "control_group_recall_formation_preview:filtered_invalid"
+            ]
+        );
+        assert_eq!(
+            evidence.control_group_recall_formation_preview_slot_tiles_sample,
+            vec!["1,31", "2,31"]
+        );
+        assert_eq!(
+            evidence.control_group_recall_formation_preview_filtered_members_sample,
+            vec![
+                "missing:multi0.recall.formation.missing",
+                "foreign:map.actor1"
+            ]
+        );
+        assert_eq!(
+            evidence.control_group_recall_override_preview_stage_count_sample,
+            4
+        );
+        assert_eq!(
+            evidence.control_group_recall_override_preview_action_payloads_sample,
+            vec!["26", "18,31:line", "27", "20,30:line"]
+        );
+        assert_eq!(
+            evidence.control_group_recall_override_preview_history_entries_sample,
+            vec![
+                "control_group_recall_override_preview:group_26_recall_focus",
+                "control_group_recall_override_preview:group_26_queued_order",
+                "control_group_recall_override_preview:group_27_override_cancel",
+                "control_group_recall_override_preview:group_27_final_filtered"
+            ]
+        );
+        assert_eq!(
+            evidence.control_group_recall_override_preview_final_tiles_sample,
+            vec!["20,30", "22,30"]
+        );
+        assert_eq!(
+            evidence.control_group_recall_override_preview_canceled_members_sample,
+            vec![
+                "multi0.recall.override.runner",
+                "multi0.recall.override.wing"
+            ]
         );
         assert_eq!(
             evidence.formation_move_execution_stage_sample.as_deref(),

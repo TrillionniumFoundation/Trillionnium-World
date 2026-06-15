@@ -210,6 +210,16 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_history_entries_sample == ["formation_move_preview:destination_ghost","formation_move_preview:wedge_spacing","formation_move_preview:line_reflow","formation_move_preview:collision_avoidance","formation_move_preview:split_avoidance","formation_move_preview:commit_spacing"]
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_destination_slots_sample == ["8,4","7,4","8,5","9,4"]
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_split_route_sample == ["5,5","6,4","6,5","7,5","6,6"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_formation_preview_stage_count_sample == 4
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_formation_preview_action_payloads_sample == ["28","1,31:line","1,31:line","1,31:line"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_formation_preview_history_entries_sample == ["control_group_recall_formation_preview:recall_focus_hud","control_group_recall_formation_preview:formation_anchor_slots","control_group_recall_formation_preview:queued_valid_members","control_group_recall_formation_preview:filtered_invalid"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_formation_preview_slot_tiles_sample == ["1,31","2,31"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_formation_preview_filtered_members_sample == ["missing:multi0.recall.formation.missing","foreign:map.actor1"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_override_preview_stage_count_sample == 4
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_override_preview_action_payloads_sample == ["26","18,31:line","27","20,30:line"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_override_preview_history_entries_sample == ["control_group_recall_override_preview:group_26_recall_focus","control_group_recall_override_preview:group_26_queued_order","control_group_recall_override_preview:group_27_override_cancel","control_group_recall_override_preview:group_27_final_filtered"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_override_preview_final_tiles_sample == ["20,30","22,30"]
+  and .rts_evidence_bevy_runtime_adapter.control_group_recall_override_preview_canceled_members_sample == ["multi0.recall.override.runner","multi0.recall.override.wing"]
   and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"
   and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_sample == "flow_resume"
   and .rts_evidence_bevy_runtime_adapter.npc_behavior_stage_sample == "creep_retreat"
