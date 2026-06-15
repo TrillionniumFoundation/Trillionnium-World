@@ -12,6 +12,10 @@ required_script_lines=(
   'bevy-classic-rts-open-world-after-action.json'
   'bevy-classic-rts-open-world-after-action.ppm'
   'classic-rts-open-world-after-action'
+  'runtime_screen_mode == "player_runtime_open_world_after_action_screen"'
+  'runtime_screen_gate == true'
+  'evidence_board_only == false'
+  'player_first_open_world_after_action_screen_gate == true'
   'input_path == "apply_live_native_action_with_source(classic_rts_open_world_after_action_input)"'
   'RTS:QUEUE:tier2:open_world:after_action@13,3'
   'RTS:QUEUE:tier2:open_world_route:league-coliseum@12,3'
@@ -42,6 +46,9 @@ required_source_lines=(
   'CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR'
   'CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR'
   'CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR'
+  'player_runtime_open_world_after_action_screen'
+  'open_world_after_action_pixel_counts'
+  'player_first_open_world_after_action_screen_gate'
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -61,6 +68,8 @@ required_readiness_lines=(
   'rts_open_world_after_action_panel_gate'
   'rts_open_world_after_action_resume_gate'
   'rts_open_world_after_action_command_gate'
+  'rts_open_world_after_action_runtime_screen_gate'
+  'rts_open_world_after_action_player_first_screen_gate'
 )
 
 for line in "${required_readiness_lines[@]}"; do

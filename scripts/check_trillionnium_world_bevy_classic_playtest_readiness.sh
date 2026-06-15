@@ -2049,6 +2049,12 @@ jq -n \
       rts_open_world_after_action_route_pixel_count: $rts_open_world[0].open_world_route_pixel_count,
       rts_open_world_after_action_panel_pixel_count: $rts_open_world[0].open_world_panel_pixel_count,
       rts_open_world_after_action_resume_pixel_count: $rts_open_world[0].open_world_resume_pixel_count,
+      rts_open_world_after_action_runtime_screen_mode: $rts_open_world[0].runtime_screen_mode,
+      rts_open_world_after_action_player_first_view_non_background: $rts_open_world[0].open_world_after_action_pixel_counts.player_first_open_world_view_non_background,
+      rts_open_world_after_action_player_first_view_frame_pixel_count: $rts_open_world[0].open_world_after_action_pixel_counts.player_first_open_world_view_frame,
+      rts_open_world_after_action_player_first_status_strip_pixel_count: $rts_open_world[0].open_world_after_action_pixel_counts.player_first_open_world_status_strip,
+      rts_open_world_after_action_player_first_route_panel_pixel_count: $rts_open_world[0].open_world_after_action_pixel_counts.player_first_open_world_route_panel,
+      rts_open_world_after_action_player_first_timeline_pixel_count: $rts_open_world[0].open_world_after_action_pixel_counts.player_first_open_world_timeline,
       rts_campaign_handoff_accepted_input_count: $rts_campaign[0].accepted_input_count,
       rts_campaign_handoff_capture_frame_count: $rts_campaign[0].capture_frame_count,
       rts_campaign_handoff_room_id: $rts_campaign[0].final_current_room_id,
@@ -2863,6 +2869,8 @@ jq -n \
       rts_open_world_after_action_panel_gate: $rts_open_world[0].open_world_panel_gate,
       rts_open_world_after_action_resume_gate: $rts_open_world[0].open_world_resume_gate,
       rts_open_world_after_action_command_gate: $rts_open_world[0].command_gate,
+      rts_open_world_after_action_runtime_screen_gate: $rts_open_world[0].runtime_screen_gate,
+      rts_open_world_after_action_player_first_screen_gate: $rts_open_world[0].player_first_open_world_after_action_screen_gate,
       rts_campaign_handoff_live_input_gate: $rts_campaign[0].live_campaign_input_gate,
       rts_campaign_handoff_early_campaign_gate: $rts_campaign[0].early_campaign_gate,
       rts_campaign_handoff_mid_campaign_gate: $rts_campaign[0].mid_campaign_gate,
@@ -5288,6 +5296,14 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_open_world_after_action_panel_gate == true
   and .gates.rts_open_world_after_action_resume_gate == true
   and .gates.rts_open_world_after_action_command_gate == true
+  and .gates.rts_open_world_after_action_runtime_screen_gate == true
+  and .gates.rts_open_world_after_action_player_first_screen_gate == true
+  and .headline.rts_open_world_after_action_runtime_screen_mode == "player_runtime_open_world_after_action_screen"
+  and .headline.rts_open_world_after_action_player_first_view_non_background > 250000
+  and .headline.rts_open_world_after_action_player_first_view_frame_pixel_count > 8000
+  and .headline.rts_open_world_after_action_player_first_status_strip_pixel_count > 20000
+  and .headline.rts_open_world_after_action_player_first_route_panel_pixel_count > 90000
+  and .headline.rts_open_world_after_action_player_first_timeline_pixel_count > 10000
   and .gates.rts_campaign_handoff_live_input_gate == true
   and .gates.rts_campaign_handoff_early_campaign_gate == true
   and .gates.rts_campaign_handoff_mid_campaign_gate == true

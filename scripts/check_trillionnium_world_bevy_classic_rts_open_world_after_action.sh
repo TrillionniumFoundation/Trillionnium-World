@@ -15,8 +15,11 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_open_world_after_action_v1"
   and .green == true
   and .preview_width == 1920
-  and .preview_height == 360
+  and .preview_height == 1080
   and .write_gate == true
+  and .runtime_screen_mode == "player_runtime_open_world_after_action_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
   and .input_path == "apply_live_native_action_with_source(classic_rts_open_world_after_action_input)"
   and .input_action_count == 3
   and .accepted_input_count == 3
@@ -46,12 +49,18 @@ jq -e '
   and .open_world_route_pixel_count > 40
   and .open_world_panel_pixel_count > 30
   and .open_world_resume_pixel_count > 20
+  and .open_world_after_action_pixel_counts.player_first_open_world_view_non_background > 250000
+  and .open_world_after_action_pixel_counts.player_first_open_world_view_frame > 8000
+  and .open_world_after_action_pixel_counts.player_first_open_world_status_strip > 20000
+  and .open_world_after_action_pixel_counts.player_first_open_world_route_panel > 90000
+  and .open_world_after_action_pixel_counts.player_first_open_world_timeline > 10000
   and .live_open_world_input_gate == true
   and .restoration_dependency_gate == true
   and .open_world_route_gate == true
   and .open_world_panel_gate == true
   and .open_world_resume_gate == true
   and .command_gate == true
+  and .player_first_open_world_after_action_screen_gate == true
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null

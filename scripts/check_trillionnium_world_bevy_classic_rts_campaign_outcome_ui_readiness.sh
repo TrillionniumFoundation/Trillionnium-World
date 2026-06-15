@@ -57,6 +57,12 @@ jq -e '
   and .open_world_summary.final_current_room_id == "league-coliseum"
   and .open_world_summary.final_map_scene == "arena_outdoor"
   and .open_world_summary.final_open_world_handoff_state == "resumed:league-coliseum"
+  and .open_world_summary.runtime_screen_mode == "player_runtime_open_world_after_action_screen"
+  and .open_world_summary.runtime_screen_gate == true
+  and .open_world_summary.evidence_board_only == false
+  and .open_world_summary.player_first_open_world_after_action_screen_gate == true
+  and .open_world_summary.open_world_after_action_pixel_counts.player_first_open_world_view_non_background > 250000
+  and .open_world_summary.open_world_after_action_pixel_counts.player_first_open_world_route_panel > 90000
   and .internal_campaign_outcome_ui_readiness_claimed == true
   and .external_evidence_ignored_for_current_outcome_pass == true
   and .android_s5_real_device_claimed == false

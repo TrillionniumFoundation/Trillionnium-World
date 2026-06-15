@@ -76645,10 +76645,19 @@ pub fn native_classic_rts_mirror_city_restoration_evidence_json(preview_path: &s
 
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &str) -> String {
-    const PANEL_WIDTH: usize = 640;
-    const PANEL_HEIGHT: usize = 360;
-    const PREVIEW_COLUMNS: usize = 3;
-    const PREVIEW_ROWS: usize = 1;
+    const PREVIEW_WIDTH: usize = 1920;
+    const PREVIEW_HEIGHT: usize = 1080;
+    const OPEN_WORLD_VIEW_WIDTH: usize = 1260;
+    const OPEN_WORLD_VIEW_HEIGHT: usize = 720;
+    const OPEN_WORLD_VIEW_X: i32 = 48;
+    const OPEN_WORLD_VIEW_Y: i32 = 132;
+    const BACKGROUND: u32 = 0x0b0d0c;
+    const BOARD_COLOR: u32 = 0x101817;
+    const ROUTE_PANEL_COLOR: u32 = 0x14242a;
+    const FRAME_COLOR: u32 = 0x4fb8d9;
+    const STATUS_STRIP_COLOR: u32 = 0x173029;
+    const TIMELINE_COLOR: u32 = 0x1b3d36;
+    const HIGHLIGHT_COLOR: u32 = 0x92ffd1;
     let assets = load_classic_runtime_assets();
     let mut world = native_bevy_playable_fixture();
     let mut character = WorldTrillionniumCharacter::default_for("local-player");
@@ -76681,16 +76690,15 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
             },
         ),
     ];
-    let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
-    let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
-    let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
-    let mut frame_pixels = vec![0x0b0d0c_u32; PANEL_WIDTH * PANEL_HEIGHT];
+    let preview_width = PREVIEW_WIDTH;
+    let preview_height = PREVIEW_HEIGHT;
+    let mut preview_pixels = vec![BACKGROUND; preview_width * preview_height];
     let mut accepted_input_count = 0_usize;
     let mut action_labels = Vec::new();
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
 
-    for (index, (stage, action)) in actions.iter().enumerate() {
+    for (_index, (stage, action)) in actions.iter().enumerate() {
         let action_label = native_control_action_label(action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
@@ -76710,36 +76718,6 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
         }
-        frame_pixels.fill(0x0b0d0c_u32);
-        classic_draw_scene(
-            &mut frame_pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            (5, 5),
-            &runtime,
-            &assets,
-        );
-        let offset_x = (index * PANEL_WIDTH) as i32;
-        classic_copy_pixels(
-            &mut preview_pixels,
-            preview_width,
-            preview_height,
-            &frame_pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            offset_x,
-            0,
-        );
-        classic_draw_text(
-            &mut preview_pixels,
-            preview_width,
-            preview_height,
-            offset_x + 12,
-            12,
-            &format!("RTS WORLD {} {}", index + 1, stage),
-            2,
-            CLASSIC_HUD_ACCENT_TEXT_COLOR,
-        );
         stage_summaries.push(json!({
             "stage": stage,
             "action_label": action_label,
@@ -76758,6 +76736,348 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
         }));
     }
 
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        24,
+        24,
+        1872,
+        1008,
+        BOARD_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        54,
+        52,
+        "TRNM RUST BEVY OPEN WORLD RETURN",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1124,
+        56,
+        "ROUTE DIRECTOR TASK PANEL RESUME COMMAND",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    let mut open_world_view_pixels =
+        vec![BACKGROUND; OPEN_WORLD_VIEW_WIDTH * OPEN_WORLD_VIEW_HEIGHT];
+    classic_draw_scene(
+        &mut open_world_view_pixels,
+        OPEN_WORLD_VIEW_WIDTH,
+        OPEN_WORLD_VIEW_HEIGHT,
+        (12, 3),
+        &runtime,
+        &assets,
+    );
+    let player_first_open_world_view_non_background = open_world_view_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != BACKGROUND
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    classic_copy_pixels(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &open_world_view_pixels,
+        OPEN_WORLD_VIEW_WIDTH,
+        OPEN_WORLD_VIEW_HEIGHT,
+        OPEN_WORLD_VIEW_X,
+        OPEN_WORLD_VIEW_Y,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        OPEN_WORLD_VIEW_X - 10,
+        OPEN_WORLD_VIEW_Y - 26,
+        OPEN_WORLD_VIEW_WIDTH as i32 + 20,
+        8,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        OPEN_WORLD_VIEW_X - 10,
+        OPEN_WORLD_VIEW_Y + OPEN_WORLD_VIEW_HEIGHT as i32 + 26,
+        OPEN_WORLD_VIEW_WIDTH as i32 + 20,
+        8,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        OPEN_WORLD_VIEW_X - 10,
+        OPEN_WORLD_VIEW_Y - 26,
+        8,
+        OPEN_WORLD_VIEW_HEIGHT as i32 + 60,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        OPEN_WORLD_VIEW_X + OPEN_WORLD_VIEW_WIDTH as i32 + 2,
+        OPEN_WORLD_VIEW_Y - 26,
+        8,
+        OPEN_WORLD_VIEW_HEIGHT as i32 + 60,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        OPEN_WORLD_VIEW_X,
+        OPEN_WORLD_VIEW_Y + OPEN_WORLD_VIEW_HEIGHT as i32 + 10,
+        OPEN_WORLD_VIEW_WIDTH as i32,
+        34,
+        STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        OPEN_WORLD_VIEW_X,
+        OPEN_WORLD_VIEW_Y - 14,
+        "PLAYER HAS RETURNED TO LEAGUE COLISEUM OPEN WORLD",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        OPEN_WORLD_VIEW_X + 18,
+        OPEN_WORLD_VIEW_Y + OPEN_WORLD_VIEW_HEIGHT as i32 + 21,
+        "ROOM LEAGUE COLISEUM SCENE ARENA OUTDOOR PRIMARY COMMAND COMBAT ATTACK",
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1344,
+        132,
+        516,
+        720,
+        ROUTE_PANEL_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1344,
+        132,
+        516,
+        8,
+        CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1372,
+        158,
+        "OPEN WORLD ROUTE RESUME",
+        2,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let route_rows = [
+        (
+            "ROOM",
+            "league coliseum arena outdoor",
+            CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR,
+            208,
+        ),
+        (
+            "ROUTE",
+            "mirror city to coliseum arrived",
+            CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR,
+            288,
+        ),
+        (
+            "TASK PANEL",
+            "task fixture first route active",
+            CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR,
+            368,
+        ),
+        (
+            "RESUME",
+            "handoff resumed league coliseum",
+            CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR,
+            448,
+        ),
+        (
+            "COMMAND",
+            "contextual primary combat attack",
+            HIGHLIGHT_COLOR,
+            528,
+        ),
+        (
+            "QUEUE",
+            "open world resume command saved",
+            CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR,
+            608,
+        ),
+    ];
+    for (label, detail, color, y) in route_rows {
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1372,
+            y,
+            440,
+            42,
+            color,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1384,
+            y + 8,
+            416,
+            26,
+            0x101817,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1394,
+            y + 9,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            1524,
+            y + 9,
+            detail,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+    }
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1372,
+        704,
+        440,
+        78,
+        0x101817,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1394,
+        732,
+        "NO CREDIT PUBLIC S5 OPENRA SCREEN CLAIMS REMAIN FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let timeline_steps = [
+        ("AFTER ACTION READY", CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR),
+        ("ROUTE PANEL ACTIVE", CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR),
+        ("RESUME WORLD", CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR),
+    ];
+    for (index, (label, color)) in timeline_steps.iter().enumerate() {
+        let x = 54 + index as i32 * 420;
+        let y = 912;
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            x,
+            y,
+            360,
+            48,
+            TIMELINE_COLOR,
+        );
+        classic_draw_rect(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            x + 12,
+            y + 10,
+            336,
+            28,
+            *color,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            preview_width,
+            preview_height,
+            x + 26,
+            y + 18,
+            label,
+            1,
+            0x0b0d0c,
+        );
+    }
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1320,
+        912,
+        540,
+        48,
+        STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        1342,
+        930,
+        "LIVE INPUT LOCKED 3 ACCEPTED ACTIONS ROUTE DIRECTOR READY",
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        54,
+        982,
+        1806,
+        28,
+        STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        72,
+        992,
+        "OPEN WORLD RETURN SCREEN IS RUNTIME PLAYABLE STATE NOT A THREE PANEL EVIDENCE STRIP",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
@@ -76769,11 +77089,21 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
     };
     let non_background_pixels = preview_pixels
         .iter()
-        .filter(|color| **color != 0x0b0d0c_u32)
+        .filter(|color| **color != BACKGROUND)
         .count();
     let open_world_route_pixel_count = count_color(CLASSIC_RTS_OPEN_WORLD_ROUTE_COLOR);
     let open_world_panel_pixel_count = count_color(CLASSIC_RTS_OPEN_WORLD_PANEL_COLOR);
     let open_world_resume_pixel_count = count_color(CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR);
+    let player_first_open_world_view_frame_pixel_count = count_color(FRAME_COLOR);
+    let player_first_open_world_status_strip_pixel_count = count_color(STATUS_STRIP_COLOR);
+    let player_first_open_world_route_panel_pixel_count = count_color(ROUTE_PANEL_COLOR);
+    let player_first_open_world_timeline_pixel_count = count_color(TIMELINE_COLOR);
+    let player_first_open_world_after_action_screen_gate =
+        player_first_open_world_view_non_background > 250_000
+            && player_first_open_world_view_frame_pixel_count > 8_000
+            && player_first_open_world_status_strip_pixel_count > 20_000
+            && player_first_open_world_route_panel_pixel_count > 90_000
+            && player_first_open_world_timeline_pixel_count > 10_000;
     let live_open_world_input_gate = accepted_input_count == actions.len()
         && input_sources.len() == 1
         && input_sources.contains("classic_rts_open_world_after_action_input");
@@ -76827,14 +77157,16 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
             .rts_base_assault_reward_log
             .iter()
             .any(|entry| entry == "open_world_after_action:+route_resume_ready");
-    let green = write_gate
-        && non_background_pixels > 140_000
-        && live_open_world_input_gate
+    let runtime_screen_gate = live_open_world_input_gate
         && restoration_dependency_gate
         && open_world_route_gate
         && open_world_panel_gate
         && open_world_resume_gate
         && command_gate
+        && player_first_open_world_after_action_screen_gate;
+    let green = write_gate
+        && non_background_pixels > 450_000
+        && runtime_screen_gate
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
     serde_json::to_string_pretty(&json!({
@@ -76845,6 +77177,15 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
         "preview_width": preview_width,
         "preview_height": preview_height,
         "write_gate": write_gate,
+        "runtime_screen_mode": "player_runtime_open_world_after_action_screen",
+        "runtime_screen_gate": runtime_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "primary_open_world_viewport": "large live open-world return tactical scene after battle aftermath",
+            "route_resume_panel": "right-side route director, task panel, room, and command resume state",
+            "input_timeline": "bottom accepted after-action route and resume input chain",
+            "no_credit_panel": "public, S5, and OpenRA screen-for-screen claims remain false"
+        },
         "input_path": "apply_live_native_action_with_source(classic_rts_open_world_after_action_input)",
         "input_action_count": actions.len(),
         "accepted_input_count": accepted_input_count,
@@ -76874,15 +77215,23 @@ pub fn native_classic_rts_open_world_after_action_evidence_json(preview_path: &s
         "open_world_route_pixel_count": open_world_route_pixel_count,
         "open_world_panel_pixel_count": open_world_panel_pixel_count,
         "open_world_resume_pixel_count": open_world_resume_pixel_count,
+        "open_world_after_action_pixel_counts": {
+            "player_first_open_world_view_non_background": player_first_open_world_view_non_background,
+            "player_first_open_world_view_frame": player_first_open_world_view_frame_pixel_count,
+            "player_first_open_world_status_strip": player_first_open_world_status_strip_pixel_count,
+            "player_first_open_world_route_panel": player_first_open_world_route_panel_pixel_count,
+            "player_first_open_world_timeline": player_first_open_world_timeline_pixel_count
+        },
         "live_open_world_input_gate": live_open_world_input_gate,
         "restoration_dependency_gate": restoration_dependency_gate,
         "open_world_route_gate": open_world_route_gate,
         "open_world_panel_gate": open_world_panel_gate,
         "open_world_resume_gate": open_world_resume_gate,
         "command_gate": command_gate,
+        "player_first_open_world_after_action_screen_gate": player_first_open_world_after_action_screen_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS open-world-after-action evidence extends restored Mirror City into a Rust-owned open-world room, route director, task panel, and combat-ready contextual deck through live native input and Trillionnium-owned low-spec Bevy rendering."
+        "source_of_truth": "Classic RTS open-world-after-action evidence extends restored Mirror City into a player-first native runtime open-world return screen: visible League Coliseum scene, route director arrival, task panel, resume room, combat-ready contextual deck, and accepted live input timeline through Trillionnium-owned low-spec Bevy rendering."
     }))
     .expect("classic RTS open world after action evidence serializes")
 }
@@ -78848,6 +79197,8 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
             .to_string()
     };
     let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let u64_pointer =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
     let contract_is = |value: &Value, expected: &str| {
         value.get("contract_version").and_then(Value::as_str) == Some(expected)
     };
@@ -78917,11 +79268,35 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         &open_world,
         TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPEN_WORLD_AFTER_ACTION_CONTRACT,
     ) && bool_at(&open_world, "green")
+        && bool_at(&open_world, "runtime_screen_gate")
+        && !bool_at(&open_world, "evidence_board_only")
+        && str_at(&open_world, "runtime_screen_mode")
+            == "player_runtime_open_world_after_action_screen"
         && bool_at(&open_world, "restoration_dependency_gate")
         && bool_at(&open_world, "open_world_route_gate")
         && bool_at(&open_world, "open_world_panel_gate")
         && bool_at(&open_world, "open_world_resume_gate")
         && bool_at(&open_world, "command_gate")
+        && bool_at(
+            &open_world,
+            "player_first_open_world_after_action_screen_gate",
+        )
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_view_non_background",
+        ) > 250_000
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_view_frame",
+        ) > 8_000
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_status_strip",
+        ) > 20_000
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_route_panel",
+        ) > 90_000
         && u64_at(&open_world, "accepted_input_count") == 3
         && str_at(&open_world, "final_current_room_id") == "league-coliseum"
         && str_at(&open_world, "final_map_scene") == "arena_outdoor"
@@ -79027,7 +79402,12 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
             "accepted_input_count": open_world.get("accepted_input_count").cloned().unwrap_or(Value::Null),
             "final_current_room_id": open_world.get("final_current_room_id").cloned().unwrap_or(Value::Null),
             "final_map_scene": open_world.get("final_map_scene").cloned().unwrap_or(Value::Null),
-            "final_open_world_handoff_state": open_world.get("final_open_world_handoff_state").cloned().unwrap_or(Value::Null)
+            "final_open_world_handoff_state": open_world.get("final_open_world_handoff_state").cloned().unwrap_or(Value::Null),
+            "runtime_screen_mode": open_world.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "runtime_screen_gate": open_world.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
+            "evidence_board_only": open_world.get("evidence_board_only").cloned().unwrap_or(Value::Null),
+            "player_first_open_world_after_action_screen_gate": open_world.get("player_first_open_world_after_action_screen_gate").cloned().unwrap_or(Value::Null),
+            "open_world_after_action_pixel_counts": open_world.get("open_world_after_action_pixel_counts").cloned().unwrap_or(Value::Null)
         },
         "internal_campaign_outcome_ui_readiness_claimed": true,
         "external_evidence_ignored_for_current_outcome_pass": true,

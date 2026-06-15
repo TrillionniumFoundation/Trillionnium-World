@@ -622,6 +622,8 @@ required_lines=(
   'base_assault_gate == true'
   'battle_aftermath_gate == true'
   'open_world_return_gate == true'
+  'open_world_summary.runtime_screen_mode == "player_runtime_open_world_after_action_screen"'
+  'open_world_summary.player_first_open_world_after_action_screen_gate == true'
   'internal_campaign_outcome_ui_readiness_claimed == true'
   'external_evidence_ignored_for_current_outcome_pass == true'
   'in_match_hud_state_replication_semantics'
