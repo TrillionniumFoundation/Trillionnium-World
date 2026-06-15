@@ -119736,140 +119736,55 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             .and_then(|value| value.as_str())
             == Some("combat_resolved");
 
-    let retained_history_group_ids = string_vec(["26", "27", "28"]);
-    let pruned_history_group_ids = string_vec(["25", "24"]);
-    let group_26_member_ids =
-        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
-    let all_member_ids = string_vec([
-        "multi0.recall.order.runner",
-        "multi0.recall.order.wing",
-        "multi0.recall.override.runner",
-        "multi0.recall.override.wing",
-        "multi0.recall.formation.runner",
-        "multi0.recall.formation.wing",
-    ]);
-    let preserved_command_history_events = string_vec([
-        "history_row_pruned:25:old_queue:17,30:age16",
-        "history_row_pruned:24:old_cancel:16,29:age20",
-        "history_row:26:queue:18,31:age0",
-        "history_row:27:cancel_final:21,25:20,30|22,30:age4",
-        "history_row:28:formation_filter_clear:1,31:1,31|2,31:age8",
-        "control_group_command_feedback_lifecycle:cleared",
-        "control_group_command_history:rejection_replay_preserved",
-        "control_group_command_history_prune:bounded",
-    ]);
-    let history_entries = vec![
-        json!({
-            "group_id": "26",
-            "badge": "QUEUE",
-            "target_tile": "18,31",
-            "age_ticks": 0,
-        }),
-        json!({
-            "group_id": "27",
-            "badge": "CANCEL_FINAL",
-            "canceled_target_tile": "21,25",
-            "override_final_tile_ids": ["20,30", "22,30"],
-            "age_ticks": 4,
-        }),
-        json!({
-            "group_id": "28",
-            "badge": "FORMATION_FILTER_CLEAR",
-            "formation_anchor_tile": "1,31",
-            "formation_slot_tile_ids": ["1,31", "2,31"],
-            "age_ticks": 8,
-        }),
-    ];
-    let pruned_history_entries = vec![
-        json!({
-            "group_id": "25",
-            "badge": "OLD_QUEUE",
-            "target_tile": "17,30",
-            "age_ticks": 16,
-            "prune_reason": "recent_three_capacity",
-        }),
-        json!({
-            "group_id": "24",
-            "badge": "OLD_CANCEL",
-            "target_tile": "16,29",
-            "age_ticks": 20,
-            "prune_reason": "recent_three_capacity",
-        }),
-    ];
-    let rejection_steps = vec![
-        json!({
-            "step_index": 0,
-            "step_name": "move_without_group_selection",
-            "input_source": "classic_rts_mouse_viewport",
-            "action_label": "RTS:MOVE:18,31:line",
-            "expected_accepted": false,
-            "expected_reason": "rts_group_selection_required",
-            "preview_stage": "group_selection_required",
-        }),
-        json!({
-            "step_index": 1,
-            "step_name": "select_group_26_setup",
-            "input_source": "classic_rts_hotkey",
-            "action_label": "RTS:SELECT:26",
-            "expected_accepted": true,
-            "expected_reason": "enabled_rts_select_group:26",
-            "preview_stage": null,
-        }),
-        json!({
-            "step_index": 2,
-            "step_name": "move_invalid_tile_after_selection",
-            "input_source": "classic_rts_mouse_viewport",
-            "action_label": "RTS:MOVE:bad-tile:line",
-            "expected_accepted": false,
-            "expected_reason": "rts_invalid_tile:bad-tile",
-            "preview_stage": "invalid_tile",
-        }),
-        json!({
-            "step_index": 3,
-            "step_name": "attack_without_target",
-            "input_source": "classic_rts_mouse_viewport",
-            "action_label": "RTS:ATTACK:",
-            "expected_accepted": false,
-            "expected_reason": "rts_attack_target_required",
-            "preview_stage": "attack_target_required",
-        }),
-        json!({
-            "step_index": 4,
-            "step_name": "ability_before_attack_target",
-            "input_source": "classic_rts_hotkey",
-            "action_label": "RTS:ABILITY:guard_break",
-            "expected_accepted": false,
-            "expected_reason": "rts_attack_required_before_ability",
-            "preview_stage": null,
-        }),
-        json!({
-            "step_index": 5,
-            "step_name": "queue_without_queue_id",
-            "input_source": "classic_rts_mouse_sidebar",
-            "action_label": "RTS:QUEUE:",
-            "expected_accepted": false,
-            "expected_reason": "rts_queue_id_required",
-            "preview_stage": null,
-        }),
-        json!({
-            "step_index": 6,
-            "step_name": "queue_unaffordable_build_after_selection",
-            "input_source": "classic_rts_mouse_sidebar",
-            "action_label": "RTS:QUEUE:build:watch_tower@7,4",
-            "expected_accepted": false,
-            "expected_reason": "rts_queue_unaffordable:build:watch_tower@7,4",
-            "preview_stage": null,
-        }),
-        json!({
-            "step_index": 7,
-            "step_name": "select_without_group_id",
-            "input_source": "classic_rts_hotkey",
-            "action_label": "RTS:SELECT:",
-            "expected_accepted": false,
-            "expected_reason": "rts_group_id_required",
-            "preview_stage": "history_preserved_after_rejections",
-        }),
-    ];
+    let command_feedback_rejection_fixture =
+        rts_bevy_runtime::rts_control_group_command_feedback_rejection_replay_fixtures();
+    let retained_history_group_ids = command_feedback_rejection_fixture
+        .retained_history_group_ids
+        .clone();
+    let pruned_history_group_ids = command_feedback_rejection_fixture
+        .pruned_history_group_ids
+        .clone();
+    let group_26_member_ids = command_feedback_rejection_fixture
+        .group_26_member_ids
+        .clone();
+    let all_member_ids = command_feedback_rejection_fixture.all_member_ids.clone();
+    let control_group_assignments = command_feedback_rejection_fixture
+        .control_group_assignments
+        .clone();
+    let ability_command_ids = command_feedback_rejection_fixture
+        .ability_command_ids
+        .clone();
+    let preserved_command_history_events = command_feedback_rejection_fixture
+        .preserved_command_history_events
+        .clone();
+    let expected_input_sources = command_feedback_rejection_fixture
+        .expected_input_sources
+        .clone();
+    let expected_blocked_reasons = command_feedback_rejection_fixture
+        .expected_blocked_reasons
+        .clone();
+    let visual_stages = command_feedback_rejection_fixture.visual_stages.clone();
+    let history_entries = command_feedback_rejection_fixture
+        .history_entries
+        .iter()
+        .map(|entry| {
+            serde_json::to_value(entry)
+                .expect("command feedback rejection history entry serializes")
+        })
+        .collect::<Vec<_>>();
+    let pruned_history_entries = command_feedback_rejection_fixture
+        .pruned_history_entries
+        .iter()
+        .map(|entry| {
+            serde_json::to_value(entry)
+                .expect("command feedback rejection pruned history entry serializes")
+        })
+        .collect::<Vec<_>>();
+    let rejection_steps = command_feedback_rejection_fixture
+        .rejection_steps
+        .iter()
+        .map(|step| serde_json::to_value(step).expect("command feedback rejection step serializes"))
+        .collect::<Vec<_>>();
     let rejection_recording = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_REJECTION_RECORDING_CONTRACT,
         "source_input_replay_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT,
@@ -119930,22 +119845,19 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
     runtime.facing_direction = "east".to_string();
     runtime.walk_cycle_frame = 5;
     runtime.rts_active_control_group_ids = retained_history_group_ids.clone();
-    runtime.rts_control_group_assignments = string_vec([
-        "26:multi0.recall.order.runner|multi0.recall.order.wing",
-        "27:multi0.recall.override.runner|multi0.recall.override.wing",
-        "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
-    ]);
-    runtime.rts_ability_command_ids = string_vec(["move", "stop", "hold", "patrol"]);
+    runtime.rts_control_group_assignments = control_group_assignments.clone();
+    runtime.rts_ability_command_ids = ability_command_ids.clone();
     runtime.rts_active_ability_id = Some("move".to_string());
     runtime.rts_control_group_id = None;
     runtime.rts_selected_unit_ids.clear();
     runtime.rts_attack_target_id = None;
-    runtime.rts_resource_spend_log =
-        string_vec(["commit:1570g:first_minute_command_rejection_resource_pressure"]);
+    runtime.rts_resource_spend_log = command_feedback_rejection_fixture
+        .resource_spend_log
+        .clone();
     runtime.rts_command_queue = preserved_command_history_events.clone();
-    runtime.rts_group_command_state =
-        "control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded"
-            .to_string();
+    runtime.rts_group_command_state = command_feedback_rejection_fixture
+        .preserved_group_command_state
+        .clone();
 
     let mut world = native_bevy_playable_fixture();
     let mut character = WorldTrillionniumCharacter::default_for(actor_id);
@@ -120057,25 +119969,6 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         command_queue_after_setup_input = command_queue_before_inputs.clone();
     }
     let input_telemetry_summary = native_input_telemetry_summary(&runtime);
-    let expected_blocked_reasons = string_vec([
-        "rts_group_selection_required",
-        "rts_invalid_tile:bad-tile",
-        "rts_attack_target_required",
-        "rts_attack_required_before_ability",
-        "rts_queue_id_required",
-        "rts_queue_unaffordable:build:watch_tower@7,4",
-        "rts_group_id_required",
-    ]);
-    let expected_input_sources = string_vec([
-        "classic_rts_mouse_viewport",
-        "classic_rts_hotkey",
-        "classic_rts_mouse_viewport",
-        "classic_rts_mouse_viewport",
-        "classic_rts_hotkey",
-        "classic_rts_mouse_sidebar",
-        "classic_rts_mouse_sidebar",
-        "classic_rts_hotkey",
-    ]);
     let parsed_rejection_input_sources = parsed_rejection_steps
         .iter()
         .map(|step| {
@@ -120119,34 +120012,15 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
     let mut cleared_ready_pixel_count = 0_usize;
     let mut cleared_active_stale_pixel_count = 0_usize;
     let mut blocked_feedback_chip_pixel_count = 0_usize;
-    let visual_stages = [
-        (
-            "group_selection_required",
-            "18,31",
-            "rts_group_selection_required",
-        ),
-        ("invalid_tile", "3,1", "rts_invalid_tile:bad-tile"),
-        (
-            "attack_target_required",
-            "21,25",
-            "rts_attack_target_required",
-        ),
-        (
-            "history_preserved_after_rejections",
-            "1,31",
-            "recent_three_history_preserved",
-        ),
-    ];
-    for (stage_index, (stage, tile_id, reason)) in visual_stages.iter().enumerate() {
+    for (stage_index, visual_stage) in visual_stages.iter().enumerate() {
+        let stage = visual_stage.stage.as_str();
+        let tile_id = visual_stage.tile_id.as_str();
+        let reason = visual_stage.reason.as_str();
         let mut render_runtime = runtime.clone();
         render_runtime.map_scene = "mirror_city_square".to_string();
         render_runtime.rts_active_control_group_ids = retained_history_group_ids.clone();
-        render_runtime.rts_control_group_assignments = string_vec([
-            "26:multi0.recall.order.runner|multi0.recall.order.wing",
-            "27:multi0.recall.override.runner|multi0.recall.override.wing",
-            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
-        ]);
-        render_runtime.rts_ability_command_ids = string_vec(["move", "stop", "hold", "patrol"]);
+        render_runtime.rts_control_group_assignments = control_group_assignments.clone();
+        render_runtime.rts_ability_command_ids = ability_command_ids.clone();
         render_runtime.rts_command_queue = preserved_command_history_events.clone();
         for chip in &command_queue_blocked_feedback_chips {
             push_history(&mut render_runtime.rts_command_queue, chip);
@@ -120157,14 +120031,14 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             "control_group_command_history:rejection_replay_preserved",
             "control_group_command_history_prune:bounded",
         ]);
-        if *stage == "group_selection_required" {
+        if stage == "group_selection_required" {
             render_runtime.rts_control_group_id = None;
             render_runtime.rts_selected_unit_ids.clear();
         } else {
             render_runtime.rts_control_group_id = Some("26".to_string());
             render_runtime.rts_selected_unit_ids = group_26_member_ids.clone();
         }
-        if *stage == "history_preserved_after_rejections" {
+        if stage == "history_preserved_after_rejections" {
             render_runtime.rts_control_group_id = Some("28".to_string());
             render_runtime.rts_selected_unit_ids = all_member_ids.clone();
             render_runtime.rts_blocked_tile_ids.clear();
@@ -120178,16 +120052,9 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
                 "command_feedback_lifecycle:cleared|control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded"
                     .to_string();
         } else {
-            render_runtime.rts_blocked_tile_ids = vec![(*tile_id).to_string()];
+            render_runtime.rts_blocked_tile_ids = vec![tile_id.to_string()];
         }
-        render_runtime.last_feedback = match *stage {
-            "group_selection_required" => "Input blocked: MAP MOVE LOCK SELECT UNITS",
-            "invalid_tile" => "Input blocked: MAP MOVE LOCK INVALID TILE",
-            "attack_target_required" => "Input blocked: MAP ATTACK LOCK PICK TARGET",
-            "history_preserved_after_rejections" => "Input blocked: HOTKEY SELECT LOCK GROUP ID",
-            _ => "Input blocked: COMMAND LOCK",
-        }
-        .to_string();
+        render_runtime.last_feedback = visual_stage.last_feedback.clone();
 
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -120228,7 +120095,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
         history_pruned_pixel_count += frame_history_pruned_count;
         history_limit_pixel_count += frame_history_limit_count;
         blocked_feedback_chip_pixel_count += frame_blocked_feedback_chip_count;
-        if *stage == "history_preserved_after_rejections" {
+        if stage == "history_preserved_after_rejections" {
             cleared_ready_pixel_count = frame_ready_count;
             cleared_active_stale_pixel_count = frame_active_stale_count;
         }
@@ -120271,7 +120138,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             "pruned_entry_count": 2,
             "history_overflow_row_count": 0,
             "stale_group_25_visible": false,
-            "active_strip_cleared": *stage == "history_preserved_after_rejections",
+            "active_strip_cleared": stage == "history_preserved_after_rejections",
             "history_retained": true,
             "frame_blocked_tile_pixel_count": frame_blocked_tile_count,
             "frame_history_frame_pixel_count": frame_history_frame_count,
@@ -120283,7 +120150,7 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             "frame_history_limit_pixel_count": frame_history_limit_count,
             "frame_blocked_feedback_chip_pixel_count": frame_blocked_feedback_chip_count,
             "frame_ready_pixel_count": frame_ready_count,
-            "active_stale_signal_pixel_count": if *stage == "history_preserved_after_rejections" { frame_active_stale_count } else { 0 },
+            "active_stale_signal_pixel_count": if stage == "history_preserved_after_rejections" { frame_active_stale_count } else { 0 },
         }));
     }
     let write_gate =
@@ -120414,10 +120281,11 @@ pub fn native_first_minute_command_feedback_rejection_replay_evidence_json(
             entry.get("prune_reason").and_then(|value| value.as_str())
                 == Some("recent_three_capacity")
         });
-    let stage_gate = visual_stages.iter().all(|(expected, _, _)| {
-        stage_summaries
-            .iter()
-            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    let stage_gate = visual_stages.iter().all(|visual_stage| {
+        stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str())
+                == Some(visual_stage.stage.as_str())
+        })
     });
     let history_visual_gate = history_frame_pixel_count > 800
         && history_row_pixel_count > 8_000

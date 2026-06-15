@@ -274,6 +274,44 @@ pub struct RtsControlGroupCommandFeedbackReplayFixtures {
     pub command_steps: Vec<RtsControlGroupCommandFeedbackStepFixture>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackRejectionStepFixture {
+    pub step_index: u32,
+    pub step_name: String,
+    pub input_source: String,
+    pub action_label: String,
+    pub expected_accepted: bool,
+    pub expected_reason: String,
+    pub preview_stage: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackRejectionVisualStageFixture {
+    pub stage: String,
+    pub tile_id: String,
+    pub reason: String,
+    pub last_feedback: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackRejectionReplayFixtures {
+    pub retained_history_group_ids: Vec<String>,
+    pub pruned_history_group_ids: Vec<String>,
+    pub group_26_member_ids: Vec<String>,
+    pub all_member_ids: Vec<String>,
+    pub control_group_assignments: Vec<String>,
+    pub ability_command_ids: Vec<String>,
+    pub resource_spend_log: Vec<String>,
+    pub preserved_command_history_events: Vec<String>,
+    pub preserved_group_command_state: String,
+    pub history_entries: Vec<RtsControlGroupCommandFeedbackHistoryEntry>,
+    pub pruned_history_entries: Vec<RtsControlGroupCommandFeedbackHistoryEntry>,
+    pub rejection_steps: Vec<RtsControlGroupCommandFeedbackRejectionStepFixture>,
+    pub expected_input_sources: Vec<String>,
+    pub expected_blocked_reasons: Vec<String>,
+    pub visual_stages: Vec<RtsControlGroupCommandFeedbackRejectionVisualStageFixture>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeMapLayoutInput {
     pub viewport_width: i32,
@@ -4018,6 +4056,161 @@ pub fn rts_control_group_command_feedback_replay_fixtures(
     }
 }
 
+pub fn rts_control_group_command_feedback_rejection_replay_fixtures(
+) -> RtsControlGroupCommandFeedbackRejectionReplayFixtures {
+    let command_feedback_fixtures = rts_control_group_command_feedback_replay_fixtures();
+
+    RtsControlGroupCommandFeedbackRejectionReplayFixtures {
+        retained_history_group_ids: command_feedback_fixtures.retained_history_group_ids.clone(),
+        pruned_history_group_ids: command_feedback_fixtures.pruned_history_group_ids.clone(),
+        group_26_member_ids: command_feedback_fixtures.group_26_member_ids.clone(),
+        all_member_ids: command_feedback_fixtures.all_member_ids.clone(),
+        control_group_assignments: rts_string_vec([
+            "26:multi0.recall.order.runner|multi0.recall.order.wing",
+            "27:multi0.recall.override.runner|multi0.recall.override.wing",
+            "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+        ]),
+        ability_command_ids: rts_string_vec(["move", "stop", "hold", "patrol"]),
+        resource_spend_log: rts_string_vec([
+            "commit:1570g:first_minute_command_rejection_resource_pressure",
+        ]),
+        preserved_command_history_events: rts_string_vec([
+            "history_row_pruned:25:old_queue:17,30:age16",
+            "history_row_pruned:24:old_cancel:16,29:age20",
+            "history_row:26:queue:18,31:age0",
+            "history_row:27:cancel_final:21,25:20,30|22,30:age4",
+            "history_row:28:formation_filter_clear:1,31:1,31|2,31:age8",
+            "control_group_command_feedback_lifecycle:cleared",
+            "control_group_command_history:rejection_replay_preserved",
+            "control_group_command_history_prune:bounded",
+        ]),
+        preserved_group_command_state:
+            "control_group_command_history:rejection_replay_preserved|control_group_command_history_prune:bounded"
+                .to_string(),
+        history_entries: command_feedback_fixtures.history_entries,
+        pruned_history_entries: command_feedback_fixtures.pruned_history_entries,
+        rejection_steps: vec![
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 0,
+                step_name: "move_without_group_selection".to_string(),
+                input_source: "classic_rts_mouse_viewport".to_string(),
+                action_label: "RTS:MOVE:18,31:line".to_string(),
+                expected_accepted: false,
+                expected_reason: "rts_group_selection_required".to_string(),
+                preview_stage: Some("group_selection_required".to_string()),
+            },
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 1,
+                step_name: "select_group_26_setup".to_string(),
+                input_source: "classic_rts_hotkey".to_string(),
+                action_label: "RTS:SELECT:26".to_string(),
+                expected_accepted: true,
+                expected_reason: "enabled_rts_select_group:26".to_string(),
+                preview_stage: None,
+            },
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 2,
+                step_name: "move_invalid_tile_after_selection".to_string(),
+                input_source: "classic_rts_mouse_viewport".to_string(),
+                action_label: "RTS:MOVE:bad-tile:line".to_string(),
+                expected_accepted: false,
+                expected_reason: "rts_invalid_tile:bad-tile".to_string(),
+                preview_stage: Some("invalid_tile".to_string()),
+            },
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 3,
+                step_name: "attack_without_target".to_string(),
+                input_source: "classic_rts_mouse_viewport".to_string(),
+                action_label: "RTS:ATTACK:".to_string(),
+                expected_accepted: false,
+                expected_reason: "rts_attack_target_required".to_string(),
+                preview_stage: Some("attack_target_required".to_string()),
+            },
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 4,
+                step_name: "ability_before_attack_target".to_string(),
+                input_source: "classic_rts_hotkey".to_string(),
+                action_label: "RTS:ABILITY:guard_break".to_string(),
+                expected_accepted: false,
+                expected_reason: "rts_attack_required_before_ability".to_string(),
+                preview_stage: None,
+            },
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 5,
+                step_name: "queue_without_queue_id".to_string(),
+                input_source: "classic_rts_mouse_sidebar".to_string(),
+                action_label: "RTS:QUEUE:".to_string(),
+                expected_accepted: false,
+                expected_reason: "rts_queue_id_required".to_string(),
+                preview_stage: None,
+            },
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 6,
+                step_name: "queue_unaffordable_build_after_selection".to_string(),
+                input_source: "classic_rts_mouse_sidebar".to_string(),
+                action_label: "RTS:QUEUE:build:watch_tower@7,4".to_string(),
+                expected_accepted: false,
+                expected_reason: "rts_queue_unaffordable:build:watch_tower@7,4".to_string(),
+                preview_stage: None,
+            },
+            RtsControlGroupCommandFeedbackRejectionStepFixture {
+                step_index: 7,
+                step_name: "select_without_group_id".to_string(),
+                input_source: "classic_rts_hotkey".to_string(),
+                action_label: "RTS:SELECT:".to_string(),
+                expected_accepted: false,
+                expected_reason: "rts_group_id_required".to_string(),
+                preview_stage: Some("history_preserved_after_rejections".to_string()),
+            },
+        ],
+        expected_input_sources: rts_string_vec([
+            "classic_rts_mouse_viewport",
+            "classic_rts_hotkey",
+            "classic_rts_mouse_viewport",
+            "classic_rts_mouse_viewport",
+            "classic_rts_hotkey",
+            "classic_rts_mouse_sidebar",
+            "classic_rts_mouse_sidebar",
+            "classic_rts_hotkey",
+        ]),
+        expected_blocked_reasons: rts_string_vec([
+            "rts_group_selection_required",
+            "rts_invalid_tile:bad-tile",
+            "rts_attack_target_required",
+            "rts_attack_required_before_ability",
+            "rts_queue_id_required",
+            "rts_queue_unaffordable:build:watch_tower@7,4",
+            "rts_group_id_required",
+        ]),
+        visual_stages: vec![
+            RtsControlGroupCommandFeedbackRejectionVisualStageFixture {
+                stage: "group_selection_required".to_string(),
+                tile_id: "18,31".to_string(),
+                reason: "rts_group_selection_required".to_string(),
+                last_feedback: "Input blocked: MAP MOVE LOCK SELECT UNITS".to_string(),
+            },
+            RtsControlGroupCommandFeedbackRejectionVisualStageFixture {
+                stage: "invalid_tile".to_string(),
+                tile_id: "3,1".to_string(),
+                reason: "rts_invalid_tile:bad-tile".to_string(),
+                last_feedback: "Input blocked: MAP MOVE LOCK INVALID TILE".to_string(),
+            },
+            RtsControlGroupCommandFeedbackRejectionVisualStageFixture {
+                stage: "attack_target_required".to_string(),
+                tile_id: "21,25".to_string(),
+                reason: "rts_attack_target_required".to_string(),
+                last_feedback: "Input blocked: MAP ATTACK LOCK PICK TARGET".to_string(),
+            },
+            RtsControlGroupCommandFeedbackRejectionVisualStageFixture {
+                stage: "history_preserved_after_rejections".to_string(),
+                tile_id: "1,31".to_string(),
+                reason: "recent_three_history_preserved".to_string(),
+                last_feedback: "Input blocked: HOTKEY SELECT LOCK GROUP ID".to_string(),
+            },
+        ],
+    }
+}
+
 pub fn rts_formation_move_execution_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -5491,6 +5684,54 @@ mod tests {
                 .prune_reason
                 .as_deref(),
             Some("recent_three_capacity")
+        );
+        let rejection_fixtures = rts_control_group_command_feedback_rejection_replay_fixtures();
+        assert_eq!(rejection_fixtures.rejection_steps.len(), 8);
+        assert_eq!(
+            rejection_fixtures
+                .rejection_steps
+                .iter()
+                .map(|step| step.step_name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "move_without_group_selection",
+                "select_group_26_setup",
+                "move_invalid_tile_after_selection",
+                "attack_without_target",
+                "ability_before_attack_target",
+                "queue_without_queue_id",
+                "queue_unaffordable_build_after_selection",
+                "select_without_group_id"
+            ]
+        );
+        assert_eq!(
+            rejection_fixtures.expected_blocked_reasons,
+            vec![
+                "rts_group_selection_required",
+                "rts_invalid_tile:bad-tile",
+                "rts_attack_target_required",
+                "rts_attack_required_before_ability",
+                "rts_queue_id_required",
+                "rts_queue_unaffordable:build:watch_tower@7,4",
+                "rts_group_id_required"
+            ]
+        );
+        assert_eq!(
+            rejection_fixtures
+                .visual_stages
+                .iter()
+                .map(|stage| stage.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "group_selection_required",
+                "invalid_tile",
+                "attack_target_required",
+                "history_preserved_after_rejections"
+            ]
+        );
+        assert_eq!(
+            rejection_fixtures.preserved_command_history_events.last(),
+            Some(&"control_group_command_history_prune:bounded".to_string())
         );
         assert_eq!(
             rts_command_execution_feedback_kind(

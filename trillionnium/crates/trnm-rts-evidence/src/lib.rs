@@ -23,6 +23,7 @@ use trnm_rts_bevy_runtime::{
     rts_command_slot_id_for_index, rts_command_stamp_for_ability, rts_command_stamp_for_move,
     rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
     rts_commander_parts, rts_contact_flash_tiles_for_target,
+    rts_control_group_command_feedback_rejection_replay_fixtures,
     rts_control_group_command_feedback_replay_fixtures, rts_control_group_hotkey_feedback_stage,
     rts_control_group_hotkey_slot, rts_control_group_recall_formation_preview_stage_fixtures,
     rts_control_group_recall_override_preview_stage_fixtures, rts_control_group_slot_summaries,
@@ -276,6 +277,13 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub command_feedback_replay_retained_group_ids_sample: Vec<String>,
     pub command_feedback_replay_pruned_group_ids_sample: Vec<String>,
     pub command_feedback_replay_history_badges_sample: Vec<String>,
+    pub command_feedback_rejection_replay_step_names_sample: Vec<String>,
+    pub command_feedback_rejection_replay_preview_stages_sample: Vec<String>,
+    pub command_feedback_rejection_replay_input_sources_sample: Vec<String>,
+    pub command_feedback_rejection_replay_blocked_reasons_sample: Vec<String>,
+    pub command_feedback_rejection_replay_visual_stages_sample: Vec<String>,
+    pub command_feedback_rejection_replay_retained_group_ids_sample: Vec<String>,
+    pub command_feedback_rejection_replay_pruned_group_ids_sample: Vec<String>,
     pub command_history_visible_sample: bool,
     pub command_history_prune_visible_sample: bool,
     pub command_execution_feedback_kind_samples: Vec<String>,
@@ -773,6 +781,31 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         .iter()
         .map(|entry| entry.badge.clone())
         .collect::<Vec<_>>();
+    let command_feedback_rejection_replay_fixtures =
+        rts_control_group_command_feedback_rejection_replay_fixtures();
+    let command_feedback_rejection_replay_step_names = command_feedback_rejection_replay_fixtures
+        .rejection_steps
+        .iter()
+        .map(|step| step.step_name.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_rejection_replay_preview_stages =
+        command_feedback_rejection_replay_fixtures
+            .rejection_steps
+            .iter()
+            .filter_map(|step| step.preview_stage.clone())
+            .collect::<Vec<_>>();
+    let command_feedback_rejection_replay_input_sources =
+        command_feedback_rejection_replay_fixtures
+            .rejection_steps
+            .iter()
+            .map(|step| step.input_source.clone())
+            .collect::<Vec<_>>();
+    let command_feedback_rejection_replay_visual_stages =
+        command_feedback_rejection_replay_fixtures
+            .visual_stages
+            .iter()
+            .map(|stage| stage.stage.clone())
+            .collect::<Vec<_>>();
     let command_execution_feedback_kind_samples = vec![
         rts_command_execution_feedback_kind(
             "idle",
@@ -1367,6 +1400,46 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && command_feedback_replay_fixtures.pruned_history_group_ids == vec!["25", "24"]
         && command_feedback_replay_history_badges
             == vec!["QUEUE", "CANCEL_FINAL", "FORMATION_FILTER_CLEAR"]
+        && command_feedback_rejection_replay_step_names
+            == vec![
+                "move_without_group_selection",
+                "select_group_26_setup",
+                "move_invalid_tile_after_selection",
+                "attack_without_target",
+                "ability_before_attack_target",
+                "queue_without_queue_id",
+                "queue_unaffordable_build_after_selection",
+                "select_without_group_id",
+            ]
+        && command_feedback_rejection_replay_preview_stages
+            == vec![
+                "group_selection_required",
+                "invalid_tile",
+                "attack_target_required",
+                "history_preserved_after_rejections",
+            ]
+        && command_feedback_rejection_replay_fixtures.expected_blocked_reasons
+            == vec![
+                "rts_group_selection_required",
+                "rts_invalid_tile:bad-tile",
+                "rts_attack_target_required",
+                "rts_attack_required_before_ability",
+                "rts_queue_id_required",
+                "rts_queue_unaffordable:build:watch_tower@7,4",
+                "rts_group_id_required",
+            ]
+        && command_feedback_rejection_replay_fixtures.expected_input_sources
+            == command_feedback_rejection_replay_input_sources
+        && command_feedback_rejection_replay_visual_stages
+            == vec![
+                "group_selection_required",
+                "invalid_tile",
+                "attack_target_required",
+                "history_preserved_after_rejections",
+            ]
+        && command_feedback_rejection_replay_fixtures.retained_history_group_ids
+            == vec!["26", "27", "28"]
+        && command_feedback_rejection_replay_fixtures.pruned_history_group_ids == vec!["25", "24"]
         && command_history_visible
         && command_history_prune_visible
         && command_execution_feedback_kind_samples == vec!["move", "follow", "attack", "harvest"]
@@ -1652,6 +1725,20 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         command_feedback_replay_pruned_group_ids_sample: command_feedback_replay_fixtures
             .pruned_history_group_ids,
         command_feedback_replay_history_badges_sample: command_feedback_replay_history_badges,
+        command_feedback_rejection_replay_step_names_sample:
+            command_feedback_rejection_replay_step_names,
+        command_feedback_rejection_replay_preview_stages_sample:
+            command_feedback_rejection_replay_preview_stages,
+        command_feedback_rejection_replay_input_sources_sample:
+            command_feedback_rejection_replay_input_sources,
+        command_feedback_rejection_replay_blocked_reasons_sample:
+            command_feedback_rejection_replay_fixtures.expected_blocked_reasons,
+        command_feedback_rejection_replay_visual_stages_sample:
+            command_feedback_rejection_replay_visual_stages,
+        command_feedback_rejection_replay_retained_group_ids_sample:
+            command_feedback_rejection_replay_fixtures.retained_history_group_ids,
+        command_feedback_rejection_replay_pruned_group_ids_sample:
+            command_feedback_rejection_replay_fixtures.pruned_history_group_ids,
         command_history_visible_sample: command_history_visible,
         command_history_prune_visible_sample: command_history_prune_visible,
         command_execution_feedback_kind_samples,
@@ -2458,6 +2545,70 @@ mod tests {
         assert_eq!(
             evidence.command_feedback_replay_history_badges_sample,
             vec!["QUEUE", "CANCEL_FINAL", "FORMATION_FILTER_CLEAR"]
+        );
+        assert_eq!(
+            evidence.command_feedback_rejection_replay_step_names_sample,
+            vec![
+                "move_without_group_selection",
+                "select_group_26_setup",
+                "move_invalid_tile_after_selection",
+                "attack_without_target",
+                "ability_before_attack_target",
+                "queue_without_queue_id",
+                "queue_unaffordable_build_after_selection",
+                "select_without_group_id"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_rejection_replay_preview_stages_sample,
+            vec![
+                "group_selection_required",
+                "invalid_tile",
+                "attack_target_required",
+                "history_preserved_after_rejections"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_rejection_replay_input_sources_sample,
+            vec![
+                "classic_rts_mouse_viewport",
+                "classic_rts_hotkey",
+                "classic_rts_mouse_viewport",
+                "classic_rts_mouse_viewport",
+                "classic_rts_hotkey",
+                "classic_rts_mouse_sidebar",
+                "classic_rts_mouse_sidebar",
+                "classic_rts_hotkey"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_rejection_replay_blocked_reasons_sample,
+            vec![
+                "rts_group_selection_required",
+                "rts_invalid_tile:bad-tile",
+                "rts_attack_target_required",
+                "rts_attack_required_before_ability",
+                "rts_queue_id_required",
+                "rts_queue_unaffordable:build:watch_tower@7,4",
+                "rts_group_id_required"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_rejection_replay_visual_stages_sample,
+            vec![
+                "group_selection_required",
+                "invalid_tile",
+                "attack_target_required",
+                "history_preserved_after_rejections"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_rejection_replay_retained_group_ids_sample,
+            vec!["26", "27", "28"]
+        );
+        assert_eq!(
+            evidence.command_feedback_rejection_replay_pruned_group_ids_sample,
+            vec!["25", "24"]
         );
         assert!(evidence.command_history_visible_sample);
         assert!(evidence.command_history_prune_visible_sample);

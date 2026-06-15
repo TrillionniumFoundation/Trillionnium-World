@@ -411,6 +411,13 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_retained_group_ids_sample == ["26","27","28"]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_pruned_group_ids_sample == ["25","24"]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_history_badges_sample == ["QUEUE","CANCEL_FINAL","FORMATION_FILTER_CLEAR"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_step_names_sample == ["move_without_group_selection","select_group_26_setup","move_invalid_tile_after_selection","attack_without_target","ability_before_attack_target","queue_without_queue_id","queue_unaffordable_build_after_selection","select_without_group_id"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_preview_stages_sample == ["group_selection_required","invalid_tile","attack_target_required","history_preserved_after_rejections"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_input_sources_sample == ["classic_rts_mouse_viewport","classic_rts_hotkey","classic_rts_mouse_viewport","classic_rts_mouse_viewport","classic_rts_hotkey","classic_rts_mouse_sidebar","classic_rts_mouse_sidebar","classic_rts_hotkey"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_blocked_reasons_sample == ["rts_group_selection_required","rts_invalid_tile:bad-tile","rts_attack_target_required","rts_attack_required_before_ability","rts_queue_id_required","rts_queue_unaffordable:build:watch_tower@7,4","rts_group_id_required"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_visual_stages_sample == ["group_selection_required","invalid_tile","attack_target_required","history_preserved_after_rejections"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_retained_group_ids_sample == ["26","27","28"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_rejection_replay_pruned_group_ids_sample == ["25","24"]
   and .rts_evidence_bevy_runtime_adapter.command_history_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.command_history_prune_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.command_execution_feedback_kind_samples == ["move","follow","attack","harvest"]
