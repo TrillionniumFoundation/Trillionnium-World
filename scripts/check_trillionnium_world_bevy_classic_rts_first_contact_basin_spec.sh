@@ -205,6 +205,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.command_queue_path_preview_action_payloads_sample == ["box:frontline","8,4:line","9,2:rally","arena_creep_attack","build:watch_tower@7,4","cancel:build:0"]
   and .rts_evidence_bevy_runtime_adapter.command_queue_path_preview_history_entries_sample == ["command_queue_path_preview:queue_stack","command_queue_path_preview:shift_waypoints","command_queue_path_preview:rally_chain","command_queue_path_preview:attack_focus","command_queue_path_preview:build_reservation","command_queue_path_preview:cancel_repath"]
   and .rts_evidence_bevy_runtime_adapter.formation_move_preview_stage_sample == "commit_spacing"
+  and .rts_evidence_bevy_runtime_adapter.formation_move_preview_stage_count_sample == 6
+  and .rts_evidence_bevy_runtime_adapter.formation_move_preview_action_payloads_sample == ["box:frontline","8,4:wedge","8,4:line","8,4:wedge","6,5:split","9,2:rally"]
+  and .rts_evidence_bevy_runtime_adapter.formation_move_preview_history_entries_sample == ["formation_move_preview:destination_ghost","formation_move_preview:wedge_spacing","formation_move_preview:line_reflow","formation_move_preview:collision_avoidance","formation_move_preview:split_avoidance","formation_move_preview:commit_spacing"]
+  and .rts_evidence_bevy_runtime_adapter.formation_move_preview_destination_slots_sample == ["8,4","7,4","8,5","9,4"]
+  and .rts_evidence_bevy_runtime_adapter.formation_move_preview_split_route_sample == ["5,5","6,4","6,5","7,5","6,6"]
   and .rts_evidence_bevy_runtime_adapter.formation_move_execution_stage_sample == "arrival_lock"
   and .rts_evidence_bevy_runtime_adapter.local_obstruction_recovery_stage_sample == "flow_resume"
   and .rts_evidence_bevy_runtime_adapter.npc_behavior_stage_sample == "creep_retreat"

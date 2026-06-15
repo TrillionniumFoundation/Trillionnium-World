@@ -39,14 +39,15 @@ use trnm_rts_bevy_runtime::{
     rts_expansion_parts, rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp,
     rts_expansion_tiles_for_id, rts_expansion_workers_for_line, rts_focus_fire_units_for_target,
     rts_fog_reveal_tiles_for_recon, rts_formation_move_execution_stage,
-    rts_formation_move_preview_stage, rts_garrison_units_for_id, rts_guardian_counter_units_for_id,
-    rts_harvest_tile_for_node, rts_hover_player_label, rts_hover_target_preview_kind,
-    rts_inner_core_tile_for_id, rts_inner_defenders_for_id, rts_inner_gate_tile_for_id,
-    rts_inner_lane_tiles_for_id, rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id,
-    rts_line_path_tiles, rts_local_obstruction_recovery_stage, rts_locomotion_blend_stage,
-    rts_loot_items_for_id, rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts,
-    rts_npc_behavior_stage, rts_npc_transition_stage, rts_objective_parts,
-    rts_objective_tiles_for_id, rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
+    rts_formation_move_preview_stage, rts_formation_move_preview_stage_fixtures,
+    rts_garrison_units_for_id, rts_guardian_counter_units_for_id, rts_harvest_tile_for_node,
+    rts_hover_player_label, rts_hover_target_preview_kind, rts_inner_core_tile_for_id,
+    rts_inner_defenders_for_id, rts_inner_gate_tile_for_id, rts_inner_lane_tiles_for_id,
+    rts_keep_breach_tiles_for_id, rts_keep_claim_tiles_for_id, rts_line_path_tiles,
+    rts_local_obstruction_recovery_stage, rts_locomotion_blend_stage, rts_loot_items_for_id,
+    rts_merged_unit_ids, rts_minimap_cell_origin, rts_move_command_parts, rts_npc_behavior_stage,
+    rts_npc_transition_stage, rts_objective_parts, rts_objective_tiles_for_id,
+    rts_open_world_panels_for_room, rts_open_world_route_tiles_for_id,
     rts_order_queue_replay_action, rts_palette_cancel_queue_id, rts_palette_state_label,
     rts_player_army_unit_tile_for_id, rts_player_hold_tiles_for_id,
     rts_player_siege_line_tiles_for_id, rts_production_slot_queue_id,
@@ -104,6 +105,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub command_queue_path_preview_action_payloads_sample: Vec<String>,
     pub command_queue_path_preview_history_entries_sample: Vec<String>,
     pub formation_move_preview_stage_sample: Option<String>,
+    pub formation_move_preview_stage_count_sample: usize,
+    pub formation_move_preview_action_payloads_sample: Vec<String>,
+    pub formation_move_preview_history_entries_sample: Vec<String>,
+    pub formation_move_preview_destination_slots_sample: Vec<String>,
+    pub formation_move_preview_split_route_sample: Vec<String>,
     pub formation_move_execution_stage_sample: Option<String>,
     pub local_obstruction_recovery_stage_sample: Option<String>,
     pub npc_behavior_stage_sample: Option<String>,
@@ -341,6 +347,25 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         0,
     )
     .map(str::to_string);
+    let formation_preview_fixtures = rts_formation_move_preview_stage_fixtures();
+    let formation_preview_action_payloads = formation_preview_fixtures
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let formation_preview_history_entries = formation_preview_fixtures
+        .iter()
+        .map(|fixture| fixture.history_entry.clone())
+        .collect::<Vec<_>>();
+    let formation_preview_destination_slots = formation_preview_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "destination_ghost")
+        .map(|fixture| fixture.formation_slot_tile_ids.clone())
+        .unwrap_or_default();
+    let formation_preview_split_route = formation_preview_fixtures
+        .iter()
+        .find(|fixture| fixture.stage == "split_avoidance")
+        .map(|fixture| fixture.group_route_tile_ids_if_empty.clone())
+        .unwrap_or_default();
     let formation_execution_stage = rts_formation_move_execution_stage(
         &["formation_move_execution:arrival_lock".to_string()],
         &["formation_move_execution:slot_claim".to_string()],
@@ -943,6 +968,27 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 "command_queue_path_preview:cancel_repath",
             ]
         && formation_preview_stage.as_deref() == Some("commit_spacing")
+        && formation_preview_fixtures.len() == 6
+        && formation_preview_action_payloads
+            == [
+                "box:frontline",
+                "8,4:wedge",
+                "8,4:line",
+                "8,4:wedge",
+                "6,5:split",
+                "9,2:rally",
+            ]
+        && formation_preview_history_entries
+            == [
+                "formation_move_preview:destination_ghost",
+                "formation_move_preview:wedge_spacing",
+                "formation_move_preview:line_reflow",
+                "formation_move_preview:collision_avoidance",
+                "formation_move_preview:split_avoidance",
+                "formation_move_preview:commit_spacing",
+            ]
+        && formation_preview_destination_slots == ["8,4", "7,4", "8,5", "9,4"]
+        && formation_preview_split_route == ["5,5", "6,4", "6,5", "7,5", "6,6"]
         && formation_execution_stage.as_deref() == Some("arrival_lock")
         && local_obstruction_stage.as_deref() == Some("flow_resume")
         && npc_behavior_stage.as_deref() == Some("creep_retreat")
@@ -1256,6 +1302,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         command_queue_path_preview_history_entries_sample:
             command_queue_path_preview_history_entries,
         formation_move_preview_stage_sample: formation_preview_stage,
+        formation_move_preview_stage_count_sample: formation_preview_fixtures.len(),
+        formation_move_preview_action_payloads_sample: formation_preview_action_payloads,
+        formation_move_preview_history_entries_sample: formation_preview_history_entries,
+        formation_move_preview_destination_slots_sample: formation_preview_destination_slots,
+        formation_move_preview_split_route_sample: formation_preview_split_route,
         formation_move_execution_stage_sample: formation_execution_stage,
         local_obstruction_recovery_stage_sample: local_obstruction_stage,
         npc_behavior_stage_sample: npc_behavior_stage,
@@ -1572,6 +1623,37 @@ mod tests {
         assert_eq!(
             evidence.formation_move_preview_stage_sample.as_deref(),
             Some("commit_spacing")
+        );
+        assert_eq!(evidence.formation_move_preview_stage_count_sample, 6);
+        assert_eq!(
+            evidence.formation_move_preview_action_payloads_sample,
+            vec![
+                "box:frontline",
+                "8,4:wedge",
+                "8,4:line",
+                "8,4:wedge",
+                "6,5:split",
+                "9,2:rally"
+            ]
+        );
+        assert_eq!(
+            evidence.formation_move_preview_history_entries_sample,
+            vec![
+                "formation_move_preview:destination_ghost",
+                "formation_move_preview:wedge_spacing",
+                "formation_move_preview:line_reflow",
+                "formation_move_preview:collision_avoidance",
+                "formation_move_preview:split_avoidance",
+                "formation_move_preview:commit_spacing"
+            ]
+        );
+        assert_eq!(
+            evidence.formation_move_preview_destination_slots_sample,
+            vec!["8,4", "7,4", "8,5", "9,4"]
+        );
+        assert_eq!(
+            evidence.formation_move_preview_split_route_sample,
+            vec!["5,5", "6,4", "6,5", "7,5", "6,6"]
         );
         assert_eq!(
             evidence.formation_move_execution_stage_sample.as_deref(),

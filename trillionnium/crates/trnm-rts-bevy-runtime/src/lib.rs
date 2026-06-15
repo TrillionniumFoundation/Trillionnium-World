@@ -172,6 +172,25 @@ pub struct RtsCommandQueuePathPreviewStageFixture {
     pub preview_surface: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFormationMovePreviewStageFixture {
+    pub stage: String,
+    pub action: RtsOrderQueueReplayAction,
+    pub history_entry: String,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub command_destination_tile: Option<String>,
+    pub path_tile_ids: Vec<String>,
+    pub blocked_tile_ids: Vec<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub disperse_tile_ids: Vec<String>,
+    pub pathing_status: Option<String>,
+    pub unit_response_state: Option<String>,
+    pub group_route_tile_ids_if_empty: Vec<String>,
+    pub group_command_state: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeMapLayoutInput {
     pub viewport_width: i32,
@@ -3489,6 +3508,86 @@ pub fn rts_formation_move_preview_stage(
     })
 }
 
+pub fn rts_formation_move_preview_input_source() -> &'static str {
+    "classic_rts_formation_move_preview_input"
+}
+
+pub fn rts_formation_move_preview_renderer_path() -> &'static str {
+    "classic_draw_scene+classic_draw_rts_formation_move_preview_overlay"
+}
+
+pub fn rts_formation_move_preview_preview_surface() -> &'static str {
+    "destination_ghost+wedge_spacing+line_reflow+collision_avoidance+split_avoidance+commit_spacing"
+}
+
+fn rts_formation_move_preview_fixture(
+    stage: &str,
+    kind: &str,
+    payload: &str,
+) -> RtsFormationMovePreviewStageFixture {
+    RtsFormationMovePreviewStageFixture {
+        stage: stage.to_string(),
+        action: RtsOrderQueueReplayAction {
+            kind: kind.to_string(),
+            payload: payload.to_string(),
+        },
+        history_entry: format!("formation_move_preview:{stage}"),
+        input_source: rts_formation_move_preview_input_source().to_string(),
+        renderer_path: rts_formation_move_preview_renderer_path().to_string(),
+        preview_surface: rts_formation_move_preview_preview_surface().to_string(),
+        command_destination_tile: None,
+        path_tile_ids: Vec::new(),
+        blocked_tile_ids: Vec::new(),
+        formation_slot_tile_ids: Vec::new(),
+        disperse_tile_ids: Vec::new(),
+        pathing_status: None,
+        unit_response_state: None,
+        group_route_tile_ids_if_empty: Vec::new(),
+        group_command_state: None,
+    }
+}
+
+pub fn rts_formation_move_preview_stage_fixtures() -> Vec<RtsFormationMovePreviewStageFixture> {
+    let mut fixtures = vec![
+        rts_formation_move_preview_fixture(
+            "destination_ghost",
+            "select-control-group",
+            "box:frontline",
+        ),
+        rts_formation_move_preview_fixture("wedge_spacing", "move", "8,4:wedge"),
+        rts_formation_move_preview_fixture("line_reflow", "move", "8,4:line"),
+        rts_formation_move_preview_fixture("collision_avoidance", "move", "8,4:wedge"),
+        rts_formation_move_preview_fixture("split_avoidance", "move", "6,5:split"),
+        rts_formation_move_preview_fixture("commit_spacing", "move", "9,2:rally"),
+    ];
+
+    if let Some(fixture) = fixtures.get_mut(0) {
+        fixture.command_destination_tile = Some("8,4".to_string());
+        fixture.path_tile_ids = rts_string_vec(["6,5", "7,5", "8,4"]);
+        fixture.blocked_tile_ids = rts_string_vec(["7,4"]);
+        fixture.formation_slot_tile_ids = rts_string_vec(["8,4", "7,4", "8,5", "9,4"]);
+        fixture.disperse_tile_ids = rts_string_vec(["6,5", "7,5", "8,4", "8,5"]);
+        fixture.pathing_status = Some("hover_preview:8,4".to_string());
+        fixture.unit_response_state = Some("ghost_before_commit".to_string());
+    }
+    if let Some(fixture) = fixtures.get_mut(3) {
+        fixture.pathing_status = Some("detour:7,4".to_string());
+    }
+    if let Some(fixture) = fixtures.get_mut(4) {
+        fixture.group_route_tile_ids_if_empty = rts_string_vec(["5,5", "6,4", "6,5", "7,5", "6,6"]);
+        fixture.group_command_state = Some("split_route:group_2".to_string());
+    }
+
+    fixtures
+}
+
+pub fn rts_formation_move_preview_stage_ids() -> Vec<String> {
+    rts_formation_move_preview_stage_fixtures()
+        .into_iter()
+        .map(|fixture| fixture.stage)
+        .collect()
+}
+
 pub fn rts_formation_move_execution_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -5191,6 +5290,58 @@ mod tests {
             Some("collision_avoidance")
         );
         assert_eq!(rts_formation_move_preview_stage(&[], &[], 0), None);
+
+        let formation_preview_fixtures = rts_formation_move_preview_stage_fixtures();
+        assert_eq!(
+            formation_preview_fixtures
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "destination_ghost",
+                "wedge_spacing",
+                "line_reflow",
+                "collision_avoidance",
+                "split_avoidance",
+                "commit_spacing"
+            ]
+        );
+        assert_eq!(
+            formation_preview_fixtures
+                .iter()
+                .map(|fixture| fixture.action.payload.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "box:frontline",
+                "8,4:wedge",
+                "8,4:line",
+                "8,4:wedge",
+                "6,5:split",
+                "9,2:rally"
+            ]
+        );
+        assert_eq!(
+            formation_preview_fixtures
+                .first()
+                .and_then(|fixture| fixture.command_destination_tile.as_deref()),
+            Some("8,4")
+        );
+        assert_eq!(
+            formation_preview_fixtures[0].formation_slot_tile_ids,
+            vec!["8,4", "7,4", "8,5", "9,4"]
+        );
+        assert_eq!(
+            formation_preview_fixtures[3].pathing_status.as_deref(),
+            Some("detour:7,4")
+        );
+        assert_eq!(
+            formation_preview_fixtures[4].group_route_tile_ids_if_empty,
+            vec!["5,5", "6,4", "6,5", "7,5", "6,6"]
+        );
+        assert_eq!(
+            formation_preview_fixtures[4].group_command_state.as_deref(),
+            Some("split_route:group_2")
+        );
 
         assert_eq!(
             rts_formation_move_execution_stage(

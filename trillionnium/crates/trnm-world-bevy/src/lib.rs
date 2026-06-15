@@ -38557,44 +38557,10 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
         walk_cycle_frame: 3,
         ..Default::default()
     };
-    let stages = [
-        (
-            "destination_ghost",
-            NativeControlAction::RtsSelectControlGroup {
-                group_id: "box:frontline".to_string(),
-            },
-        ),
-        (
-            "wedge_spacing",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:wedge".to_string(),
-            },
-        ),
-        (
-            "line_reflow",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:line".to_string(),
-            },
-        ),
-        (
-            "collision_avoidance",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "8,4:wedge".to_string(),
-            },
-        ),
-        (
-            "split_avoidance",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "6,5:split".to_string(),
-            },
-        ),
-        (
-            "commit_spacing",
-            NativeControlAction::RtsMoveCommand {
-                command_id: "9,2:rally".to_string(),
-            },
-        ),
-    ];
+    let stage_fixtures = rts_bevy_runtime::rts_formation_move_preview_stage_fixtures();
+    let expected_stage_ids = rts_bevy_runtime::rts_formation_move_preview_stage_ids();
+    let input_source = rts_bevy_runtime::rts_formation_move_preview_input_source();
+    let renderer_path = rts_bevy_runtime::rts_formation_move_preview_renderer_path();
     let preview_width = PANEL_WIDTH * PREVIEW_COLUMNS;
     let preview_height = PANEL_HEIGHT * PREVIEW_ROWS;
     let mut preview_pixels = vec![0x0b0d0c_u32; preview_width * preview_height];
@@ -38604,8 +38570,10 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
     let mut input_sources = HashSet::new();
     let mut stage_summaries = Vec::new();
 
-    for (index, (stage, action)) in stages.iter().enumerate() {
-        let action_label = native_control_action_label(action);
+    for (index, fixture) in stage_fixtures.iter().enumerate() {
+        let stage = fixture.stage.as_str();
+        let action = classic_rts_action_from_runtime_action(fixture.action.clone());
+        let action_label = native_control_action_label(&action);
         action_labels.push(action_label.clone());
         apply_live_native_action_with_source(
             &mut world,
@@ -38613,8 +38581,8 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
             &mut gameplay_log,
             &mut runtime,
             "local-player",
-            "classic_rts_formation_move_preview_input",
-            action.clone(),
+            &fixture.input_source,
+            action,
         );
         let latest_feedback = runtime.input_feedback_history.last();
         let accepted = latest_feedback.is_some_and(|event| event.accepted);
@@ -38624,28 +38592,37 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
         if let Some(event) = latest_feedback {
             input_sources.insert(event.input_source.clone());
         }
-        if *stage == "destination_ghost" {
-            runtime.rts_command_destination_tile = Some("8,4".to_string());
-            runtime.rts_path_tile_ids = string_vec(["6,5", "7,5", "8,4"]);
-            runtime.rts_blocked_tile_ids = string_vec(["7,4"]);
-            runtime.rts_formation_slot_tile_ids = string_vec(["8,4", "7,4", "8,5", "9,4"]);
-            runtime.rts_disperse_tile_ids = string_vec(["6,5", "7,5", "8,4", "8,5"]);
-            runtime.rts_pathing_status = "hover_preview:8,4".to_string();
-            runtime.rts_unit_response_state = "ghost_before_commit".to_string();
+        if let Some(tile_id) = &fixture.command_destination_tile {
+            runtime.rts_command_destination_tile = Some(tile_id.clone());
         }
-        if *stage == "collision_avoidance" {
-            runtime.rts_pathing_status =
-                format!("detour:{}", runtime.rts_blocked_tile_ids.join("|"));
+        if !fixture.path_tile_ids.is_empty() {
+            runtime.rts_path_tile_ids = fixture.path_tile_ids.clone();
         }
-        if *stage == "split_avoidance" && runtime.rts_group_route_tile_ids.is_empty() {
-            runtime.rts_group_route_tile_ids = string_vec(["5,5", "6,4", "6,5", "7,5", "6,6"]);
-            runtime.rts_group_command_state = "split_route:group_2".to_string();
+        if !fixture.blocked_tile_ids.is_empty() {
+            runtime.rts_blocked_tile_ids = fixture.blocked_tile_ids.clone();
+        }
+        if !fixture.formation_slot_tile_ids.is_empty() {
+            runtime.rts_formation_slot_tile_ids = fixture.formation_slot_tile_ids.clone();
+        }
+        if !fixture.disperse_tile_ids.is_empty() {
+            runtime.rts_disperse_tile_ids = fixture.disperse_tile_ids.clone();
+        }
+        if let Some(pathing_status) = &fixture.pathing_status {
+            runtime.rts_pathing_status = pathing_status.clone();
+        }
+        if let Some(unit_response_state) = &fixture.unit_response_state {
+            runtime.rts_unit_response_state = unit_response_state.clone();
+        }
+        if runtime.rts_group_route_tile_ids.is_empty()
+            && !fixture.group_route_tile_ids_if_empty.is_empty()
+        {
+            runtime.rts_group_route_tile_ids = fixture.group_route_tile_ids_if_empty.clone();
+        }
+        if let Some(group_command_state) = &fixture.group_command_state {
+            runtime.rts_group_command_state = group_command_state.clone();
         }
         runtime.combat_turn = index as u8;
-        push_history(
-            &mut runtime.rts_command_queue,
-            &format!("formation_move_preview:{stage}"),
-        );
+        push_history(&mut runtime.rts_command_queue, &fixture.history_entry);
 
         frame_pixels.fill(0x0b0d0c_u32);
         classic_draw_scene(
@@ -38679,7 +38656,7 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
             CLASSIC_HUD_ACCENT_TEXT_COLOR,
         );
         stage_summaries.push(json!({
-            "stage": stage,
+            "stage": fixture.stage.clone(),
             "action_label": action_label,
             "accepted": accepted,
             "last_action": gameplay_log.last_action,
@@ -38694,9 +38671,9 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
             "group_route_tile_ids": runtime.rts_group_route_tile_ids.clone(),
             "group_command_state": runtime.rts_group_command_state.clone(),
             "command_queue": runtime.rts_command_queue.clone(),
-            "renderer_path": "classic_draw_scene+classic_draw_rts_formation_move_preview_overlay",
-            "input_path": "apply_live_native_action_with_source(classic_rts_formation_move_preview_input)",
-            "preview_surface": "destination_ghost+wedge_spacing+line_reflow+collision_avoidance+split_avoidance+commit_spacing",
+            "renderer_path": fixture.renderer_path.clone(),
+            "input_path": format!("apply_live_native_action_with_source({})", fixture.input_source),
+            "preview_surface": fixture.preview_surface.clone(),
         }));
     }
 
@@ -38721,19 +38698,10 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
     let collision_visual_gate = collision_pixel_count > 250;
     let disperse_visual_gate = disperse_pixel_count > 120;
     let commit_visual_gate = commit_pixel_count > 160;
-    let stage_gate = [
-        "destination_ghost",
-        "wedge_spacing",
-        "line_reflow",
-        "collision_avoidance",
-        "split_avoidance",
-        "commit_spacing",
-    ]
-    .iter()
-    .all(|expected| {
-        stage_summaries
-            .iter()
-            .any(|summary| summary.get("stage").and_then(|value| value.as_str()) == Some(*expected))
+    let stage_gate = expected_stage_ids.iter().all(|expected| {
+        stage_summaries.iter().any(|summary| {
+            summary.get("stage").and_then(|value| value.as_str()) == Some(expected.as_str())
+        })
     });
     let summary_for_stage = |stage_name: &str| -> Option<&serde_json::Value> {
         stage_summaries.iter().find(|summary| {
@@ -38804,14 +38772,14 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
                 .and_then(|value| value.as_str())
                 == Some("minimap_rally:9,2")
     });
-    let live_input_gate = accepted_input_count == stages.len()
-        && input_sources.contains("classic_rts_formation_move_preview_input");
-    let scene_renderer_gate = stage_summaries.len() == stages.len()
+    let live_input_gate =
+        accepted_input_count == stage_fixtures.len() && input_sources.contains(input_source);
+    let scene_renderer_gate = stage_summaries.len() == stage_fixtures.len()
         && stage_summaries.iter().all(|summary| {
             summary
                 .get("renderer_path")
                 .and_then(|value| value.as_str())
-                == Some("classic_draw_scene+classic_draw_rts_formation_move_preview_overlay")
+                == Some(renderer_path)
         });
     let original_art_policy_gate = assets.manifest.asset_boundary.contains("not_cex_runtime")
         && !assets.manifest.cex_runtime_player_client_allowed
@@ -38841,9 +38809,9 @@ pub fn native_classic_rts_formation_move_preview_evidence_json(preview_path: &st
         "preview_width": preview_width,
         "preview_height": preview_height,
         "write_gate": write_gate,
-        "renderer_path": "classic_draw_scene+classic_draw_rts_formation_move_preview_overlay",
-        "input_path": "apply_live_native_action_with_source(classic_rts_formation_move_preview_input)",
-        "input_action_count": stages.len(),
+        "renderer_path": renderer_path,
+        "input_path": format!("apply_live_native_action_with_source({input_source})"),
+        "input_action_count": stage_fixtures.len(),
         "accepted_input_count": accepted_input_count,
         "input_sources": input_sources,
         "action_labels": action_labels,
