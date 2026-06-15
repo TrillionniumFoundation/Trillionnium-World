@@ -76832,6 +76832,313 @@ fn apply_classic_rts_campaign_handoff_sequence(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_render_player_first_campaign_continuity_screen(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    assets: &ClassicRuntimeAssets,
+) -> (usize, usize, usize, usize) {
+    const VIEW_X: i32 = 46;
+    const VIEW_Y: i32 = 104;
+    const VIEW_WIDTH: usize = 1290;
+    const VIEW_HEIGHT: usize = 720;
+    const RAIL_X: i32 = 1360;
+    const RAIL_Y: i32 = 104;
+    const RAIL_WIDTH: i32 = 510;
+    const RAIL_HEIGHT: i32 = 720;
+    const TIMELINE_X: i32 = 46;
+    const TIMELINE_Y: i32 = 850;
+    const TIMELINE_WIDTH: i32 = 1824;
+    const TIMELINE_HEIGHT: i32 = 150;
+    const FRAME_COLOR: u32 = 0x4fb8d9;
+    const STATUS_COLOR: u32 = 0xd7c65e;
+    const RAIL_COLOR: u32 = 0x7fcf6b;
+    const BACKGROUND: u32 = 0x0b0d0c;
+
+    if width < 1600 || height < 900 {
+        return (0, 0, 0, 0);
+    }
+
+    let mut player_view_pixels = vec![BACKGROUND; VIEW_WIDTH * VIEW_HEIGHT];
+    classic_draw_scene(
+        &mut player_view_pixels,
+        VIEW_WIDTH,
+        VIEW_HEIGHT,
+        (12, 3),
+        runtime,
+        assets,
+    );
+
+    buffer.fill(BACKGROUND);
+    classic_draw_rect(buffer, width, height, 0, 0, width as i32, 78, 0x121d1a);
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        42,
+        26,
+        "CAMPAIGN CONTINUITY - RESTORED ROUTE RESUME",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        1190,
+        34,
+        "TRACE 16/16 - SAVE ROUNDTRIP - LOCAL BEVY",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_copy_pixels(
+        buffer,
+        width,
+        height,
+        &player_view_pixels,
+        VIEW_WIDTH,
+        VIEW_HEIGHT,
+        VIEW_X,
+        VIEW_Y,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        VIEW_X - 8,
+        VIEW_Y - 8,
+        VIEW_WIDTH as i32 + 16,
+        8,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        VIEW_X - 8,
+        VIEW_Y + VIEW_HEIGHT as i32,
+        VIEW_WIDTH as i32 + 16,
+        8,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        VIEW_X - 8,
+        VIEW_Y - 8,
+        8,
+        VIEW_HEIGHT as i32 + 16,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        VIEW_X + VIEW_WIDTH as i32,
+        VIEW_Y - 8,
+        8,
+        VIEW_HEIGHT as i32 + 16,
+        FRAME_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        VIEW_X + 24,
+        VIEW_Y + 24,
+        VIEW_WIDTH as i32 - 48,
+        54,
+        0x132629,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        VIEW_X + 24,
+        VIEW_Y + 24,
+        VIEW_WIDTH as i32 - 48,
+        6,
+        STATUS_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        VIEW_X + 42,
+        VIEW_Y + 42,
+        "ROUTE LIVE: MIRROR CITY RESTORED -> LEAGUE COLISEUM RESUME",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        VIEW_X + 42,
+        VIEW_Y + 60,
+        "OBJECTIVE: OPEN WORLD AFTER ACTION READY / PRIMARY COMBAT ATTACK",
+        1,
+        STATUS_COLOR,
+    );
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        RAIL_X,
+        RAIL_Y,
+        RAIL_WIDTH,
+        RAIL_HEIGHT,
+        0x13201e,
+    );
+    classic_draw_rect(
+        buffer, width, height, RAIL_X, RAIL_Y, RAIL_WIDTH, 8, RAIL_COLOR,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        RAIL_X + 22,
+        RAIL_Y + 28,
+        "CAMPAIGN ROUTE RAIL",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let route_steps = [
+        ("01 SELECT", CLASSIC_RTS_OBJECTIVE_COLOR),
+        ("02 VICTORY", CLASSIC_RTS_VICTORY_COLOR),
+        ("03 CREEP", CLASSIC_RTS_CREEP_CAMP_COLOR),
+        ("04 RECON", CLASSIC_RTS_SCOUT_REVEAL_COLOR),
+        ("05 BASE", CLASSIC_RTS_BASE_BREACH_COLOR),
+        ("06 AFTERMATH", CLASSIC_RTS_MATCH_RESULT_COLOR),
+        ("07 COMMANDER", CLASSIC_RTS_COMMANDER_COLOR),
+        ("08 EXPAND", CLASSIC_RTS_EXPANSION_COLOR),
+        ("09 TIER2", CLASSIC_RTS_TIER_TWO_TECH_COLOR),
+        ("10 BREACH", CLASSIC_RTS_SIEGE_BREACH_COLOR),
+        ("11 INNER", CLASSIC_RTS_INNER_ROUTE_COLOR),
+        ("12 KEEP", CLASSIC_RTS_KEEP_PRESSURE_COLOR),
+        ("13 CLAIM", CLASSIC_RTS_KEEP_CLAIM_COLOR),
+        ("14 RESTORE", CLASSIC_RTS_RESTORE_ZONE_COLOR),
+        ("15 HANDOFF", CLASSIC_RTS_HANDOFF_COLOR),
+        ("16 RESUME", CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR),
+    ];
+    for (index, (label, color)) in route_steps.iter().enumerate() {
+        let column = (index % 2) as i32;
+        let row = (index / 2) as i32;
+        let x = RAIL_X + 22 + column * 238;
+        let y = RAIL_Y + 62 + row * 76;
+        classic_draw_rect(buffer, width, height, x, y, 212, 48, 0x0e1715);
+        classic_draw_rect(buffer, width, height, x, y, 12, 48, *color);
+        classic_draw_rect(buffer, width, height, x + 24, y + 28, 150, 8, *color);
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 24,
+            y + 10,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        TIMELINE_X,
+        TIMELINE_Y,
+        TIMELINE_WIDTH,
+        TIMELINE_HEIGHT,
+        0x111a18,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        TIMELINE_X + 22,
+        TIMELINE_Y + 18,
+        "ROUTE TIMELINE: OBJECTIVE -> EXPANSION -> SIEGE -> KEEP -> RESTORE -> OPEN WORLD",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let timeline_colors = [
+        CLASSIC_RTS_VICTORY_COLOR,
+        CLASSIC_RTS_EXPANSION_COLOR,
+        CLASSIC_RTS_BASE_BREACH_COLOR,
+        CLASSIC_RTS_KEEP_PRESSURE_COLOR,
+        CLASSIC_RTS_KEEP_CLAIM_COLOR,
+        CLASSIC_RTS_RESTORE_ZONE_COLOR,
+        CLASSIC_RTS_HANDOFF_COLOR,
+        CLASSIC_RTS_OPEN_WORLD_RESUME_COLOR,
+    ];
+    for (index, color) in timeline_colors.iter().enumerate() {
+        let x = TIMELINE_X + 22 + index as i32 * 222;
+        classic_draw_rect(buffer, width, height, x, TIMELINE_Y + 54, 190, 34, *color);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x + 72,
+            TIMELINE_Y + 102,
+            46,
+            18,
+            *color,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        TIMELINE_X + 1404,
+        TIMELINE_Y + 18,
+        384,
+        24,
+        0x1b2926,
+    );
+    classic_draw_text(
+        buffer,
+        width,
+        height,
+        TIMELINE_X + 1420,
+        TIMELINE_Y + 26,
+        "NO S5 / NO PUBLIC / NO OPENRA COPY CLAIM",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let count_rect_non_background = |x: i32, y: i32, w: i32, h: i32| -> usize {
+        let left = x.max(0) as usize;
+        let top = y.max(0) as usize;
+        let right = (x + w).clamp(0, width as i32) as usize;
+        let bottom = (y + h).clamp(0, height as i32) as usize;
+        let mut count = 0_usize;
+        for py in top..bottom {
+            let row_start = py * width;
+            for px in left..right {
+                if buffer[row_start + px] != BACKGROUND {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
+    let count_color =
+        |color: u32| -> usize { buffer.iter().filter(|pixel| **pixel == color).count() };
+
+    (
+        count_rect_non_background(VIEW_X, VIEW_Y, VIEW_WIDTH as i32, VIEW_HEIGHT as i32),
+        count_color(FRAME_COLOR),
+        count_color(STATUS_COLOR),
+        count_color(RAIL_COLOR)
+            + count_rect_non_background(RAIL_X, RAIL_Y, RAIL_WIDTH, RAIL_HEIGHT),
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> String {
     const PANEL_WIDTH: usize = 480;
     const PANEL_HEIGHT: usize = 270;
@@ -77205,6 +77512,19 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         }
     }
 
+    let (
+        player_first_campaign_view_non_background,
+        player_first_campaign_view_frame,
+        player_first_campaign_status_strip,
+        player_first_campaign_route_rail,
+    ) = classic_render_player_first_campaign_continuity_screen(
+        &mut preview_pixels,
+        preview_width,
+        preview_height,
+        &runtime,
+        &assets,
+    );
+
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, preview_width, preview_height, &preview_pixels)
             .is_ok();
@@ -77294,6 +77614,12 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
             .route_director_history
             .iter()
             .any(|entry| entry == "rts_open_world_after_action:league-coliseum:arrived");
+    let player_first_campaign_handoff_screen_gate = capture_frame_count
+        == PREVIEW_COLUMNS * PREVIEW_ROWS
+        && player_first_campaign_view_non_background > 600_000
+        && player_first_campaign_view_frame > 10_000
+        && player_first_campaign_status_strip > 8_000
+        && player_first_campaign_route_rail > 100_000;
     let render_milestone_gate = capture_frame_count == PREVIEW_COLUMNS * PREVIEW_ROWS
         && non_background_pixels > 500_000
         && victory_pixel_count > 20
@@ -77301,7 +77627,8 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         && breach_pixel_count > 40
         && keep_pixel_count > 40
         && restoration_pixel_count > 20
-        && open_world_pixel_count > 60;
+        && open_world_pixel_count > 60
+        && player_first_campaign_handoff_screen_gate;
     let green = write_gate
         && live_campaign_input_gate
         && early_campaign_gate
@@ -77319,6 +77646,14 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         "preview_format": "ppm_p3_rgb",
         "preview_width": preview_width,
         "preview_height": preview_height,
+        "runtime_screen_mode": "player_runtime_campaign_handoff_screen",
+        "runtime_screen_gate": player_first_campaign_handoff_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "primary_tactical_viewport": "large restored route tactical state with campaign rail",
+            "campaign_route_rail": "sixteen accepted campaign handoff stages remain visible as a right-side player route rail",
+            "resume_timeline": "bottom timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
+        },
         "write_gate": write_gate,
         "input_path": "apply_live_native_action_with_source(classic_rts_campaign_handoff_input)",
         "input_action_count": actions.len(),
@@ -77378,6 +77713,13 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         "keep_pixel_count": keep_pixel_count,
         "restoration_pixel_count": restoration_pixel_count,
         "open_world_pixel_count": open_world_pixel_count,
+        "campaign_handoff_pixel_counts": {
+            "player_first_campaign_view_non_background": player_first_campaign_view_non_background,
+            "player_first_campaign_view_frame": player_first_campaign_view_frame,
+            "player_first_campaign_status_strip": player_first_campaign_status_strip,
+            "player_first_campaign_route_rail": player_first_campaign_route_rail
+        },
+        "player_first_campaign_handoff_screen_gate": player_first_campaign_handoff_screen_gate,
         "live_campaign_input_gate": live_campaign_input_gate,
         "early_campaign_gate": early_campaign_gate,
         "mid_campaign_gate": mid_campaign_gate,
@@ -77387,7 +77729,7 @@ pub fn native_classic_rts_campaign_handoff_evidence_json(preview_path: &str) -> 
         "render_milestone_gate": render_milestone_gate,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS campaign handoff evidence runs one live native Bevy input chain from first RTS selection through objective, creep, recon, enemy tech, army production, assault, aftermath, commander, expansion, tier-two siege, central-keep victory, Mirror City restoration, and open-world resume."
+        "source_of_truth": "Classic RTS campaign handoff evidence runs one live native Bevy input chain from first RTS selection through objective, creep, recon, enemy tech, army production, assault, aftermath, commander, expansion, tier-two siege, central-keep victory, Mirror City restoration, and open-world resume, then renders the result as one player-first route-resume screen instead of a contact sheet."
     }))
     .expect("classic RTS campaign handoff evidence serializes")
 }
@@ -77401,6 +77743,12 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
     let string_at =
         |key: &str, expected: &str| handoff.get(key).and_then(Value::as_str) == Some(expected);
     let u64_at = |key: &str| handoff.get(key).and_then(Value::as_u64).unwrap_or_default();
+    let u64_pointer = |pointer: &str| {
+        handoff
+            .pointer(pointer)
+            .and_then(Value::as_u64)
+            .unwrap_or_default()
+    };
     let array_contains = |pointer: &str, expected: &str| {
         handoff
             .pointer(pointer)
@@ -77470,6 +77818,20 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         .and_then(Value::as_bool)
         == Some(false)
         && handoff.get("wgpu_required").and_then(Value::as_bool) == Some(false);
+    let player_first_campaign_continuity_screen_gate =
+        bool_at("player_first_campaign_handoff_screen_gate")
+            && handoff.get("runtime_screen_mode").and_then(Value::as_str)
+                == Some("player_runtime_campaign_handoff_screen")
+            && handoff.get("evidence_board_only").and_then(Value::as_bool) == Some(false)
+            && u64_pointer(
+                "/campaign_handoff_pixel_counts/player_first_campaign_view_non_background",
+            ) > 600_000
+            && u64_pointer("/campaign_handoff_pixel_counts/player_first_campaign_view_frame")
+                > 10_000
+            && u64_pointer("/campaign_handoff_pixel_counts/player_first_campaign_status_strip")
+                > 8_000
+            && u64_pointer("/campaign_handoff_pixel_counts/player_first_campaign_route_rail")
+                > 100_000;
     let green = handoff_green_gate
         && preview_resolution_gate
         && live_input_gate
@@ -77478,7 +77840,8 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         && restored_ui_state_gate
         && persistence_gate
         && render_readability_gate
-        && native_client_boundary_gate;
+        && native_client_boundary_gate
+        && player_first_campaign_continuity_screen_gate;
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT,
@@ -77487,6 +77850,14 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         "preview_format": handoff.get("preview_format").cloned().unwrap_or(Value::Null),
         "preview_width": handoff.get("preview_width").cloned().unwrap_or(Value::Null),
         "preview_height": handoff.get("preview_height").cloned().unwrap_or(Value::Null),
+        "runtime_screen_mode": "player_runtime_campaign_ui_continuity_screen",
+        "runtime_screen_gate": player_first_campaign_continuity_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "primary_tactical_viewport": "large restored route tactical state with open-world resume status",
+            "campaign_route_rail": "sixteen accepted campaign handoff stages shown as a player-side route rail",
+            "resume_timeline": "bottom player timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
+        },
         "campaign_handoff_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
         "campaign_handoff_green": handoff.get("green").cloned().unwrap_or(Value::Bool(false)),
         "capture_frame_count": handoff.get("capture_frame_count").cloned().unwrap_or(Value::Null),
@@ -77514,6 +77885,7 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         "keep_pixel_count": handoff.get("keep_pixel_count").cloned().unwrap_or(Value::Null),
         "restoration_pixel_count": handoff.get("restoration_pixel_count").cloned().unwrap_or(Value::Null),
         "open_world_pixel_count": handoff.get("open_world_pixel_count").cloned().unwrap_or(Value::Null),
+        "campaign_continuity_pixel_counts": handoff.get("campaign_handoff_pixel_counts").cloned().unwrap_or(Value::Null),
         "handoff_green_gate": handoff_green_gate,
         "preview_resolution_gate": preview_resolution_gate,
         "live_input_gate": live_input_gate,
@@ -77523,7 +77895,8 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         "persistence_gate": persistence_gate,
         "render_readability_gate": render_readability_gate,
         "native_client_boundary_gate": native_client_boundary_gate,
-        "source_of_truth": "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently."
+        "player_first_campaign_continuity_screen_gate": player_first_campaign_continuity_screen_gate,
+        "source_of_truth": "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently. The preview is a player-first route-resume screen, not a contact sheet."
     }))
     .expect("classic RTS campaign UI continuity evidence serializes")
 }

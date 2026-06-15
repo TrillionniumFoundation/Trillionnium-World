@@ -875,6 +875,14 @@ add_campaign_ui_continuity_packet_fixtures() {
     preview_width: 1920,
     preview_height: 1080,
     preview_format: "ppm_p3_rgb",
+    runtime_screen_mode: "player_runtime_campaign_ui_continuity_screen",
+    runtime_screen_gate: true,
+    evidence_board_only: false,
+    runtime_screen_layout: {
+      primary_tactical_viewport: "large restored route tactical state with open-world resume status",
+      campaign_route_rail: "sixteen accepted campaign handoff stages shown as a player-side route rail",
+      resume_timeline: "bottom player timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
+    },
     capture_frame_count: 16,
     final_current_room_id: "league-coliseum",
     final_map_scene: "arena_outdoor",
@@ -917,6 +925,12 @@ add_campaign_ui_continuity_packet_fixtures() {
     keep_pixel_count: 729,
     restoration_pixel_count: 1593,
     open_world_pixel_count: 1088,
+    campaign_continuity_pixel_counts: {
+      player_first_campaign_view_non_background: 820000,
+      player_first_campaign_view_frame: 14000,
+      player_first_campaign_status_strip: 28000,
+      player_first_campaign_route_rail: 160000
+    },
     handoff_green_gate: true,
     preview_resolution_gate: true,
     live_input_gate: true,
@@ -926,11 +940,12 @@ add_campaign_ui_continuity_packet_fixtures() {
     persistence_gate: true,
     render_readability_gate: true,
     native_client_boundary_gate: true,
+    player_first_campaign_continuity_screen_gate: true,
     android_s5_real_device_claimed: false,
     public_launch_ready: false,
     screen_for_screen_openra_ui_claimed: false,
     openra_engine_port_claimed: false,
-    source_of_truth: "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently."
+    source_of_truth: "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently. The preview is a player-first route-resume screen, not a contact sheet."
   }' >"$campaign_ui_continuity_json"
   add_artifact_from_path native_bevy_classic_rts_campaign_ui_continuity "Native/Bevy classic RTS campaign UI continuity" "$campaign_ui_continuity_json" release_review_input
 

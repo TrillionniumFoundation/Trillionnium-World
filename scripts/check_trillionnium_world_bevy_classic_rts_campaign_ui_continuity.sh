@@ -18,6 +18,12 @@ jq -e '
   and .campaign_handoff_green == true
   and .preview_width == 1920
   and .preview_height == 1080
+  and .runtime_screen_mode == "player_runtime_campaign_ui_continuity_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.primary_tactical_viewport == "large restored route tactical state with open-world resume status"
+  and .runtime_screen_layout.campaign_route_rail == "sixteen accepted campaign handoff stages shown as a player-side route rail"
+  and .runtime_screen_layout.resume_timeline == "bottom player timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
   and .capture_frame_count == 16
   and .final_current_room_id == "league-coliseum"
   and .final_map_scene == "arena_outdoor"
@@ -43,6 +49,10 @@ jq -e '
   and .keep_pixel_count > 40
   and .restoration_pixel_count > 20
   and .open_world_pixel_count > 60
+  and .campaign_continuity_pixel_counts.player_first_campaign_view_non_background > 600000
+  and .campaign_continuity_pixel_counts.player_first_campaign_view_frame > 10000
+  and .campaign_continuity_pixel_counts.player_first_campaign_status_strip > 8000
+  and .campaign_continuity_pixel_counts.player_first_campaign_route_rail > 100000
   and .handoff_green_gate == true
   and .preview_resolution_gate == true
   and .live_input_gate == true
@@ -52,6 +62,7 @@ jq -e '
   and .persistence_gate == true
   and .render_readability_gate == true
   and .native_client_boundary_gate == true
+  and .player_first_campaign_continuity_screen_gate == true
 ' "$SUMMARY" >/dev/null
 
 test -s "$PREVIEW"
