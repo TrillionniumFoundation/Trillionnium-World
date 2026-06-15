@@ -239,6 +239,44 @@ pub struct RtsControlGroupRecallOverridePreviewStageFixture {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackStripStageFixture {
+    pub stage: String,
+    pub action: RtsOrderQueueReplayAction,
+    pub input_source: String,
+    pub renderer_path: String,
+    pub preview_surface: String,
+    pub control_group_id: String,
+    pub active_control_group_ids: Vec<String>,
+    pub selected_unit_ids: Vec<String>,
+    pub stance: String,
+    pub recall_focus_tile: String,
+    pub queued_target_tile: Option<String>,
+    pub canceled_target_tile: Option<String>,
+    pub override_final_tile_ids: Vec<String>,
+    pub formation_anchor_tile: Option<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub queued_member_ids: Vec<String>,
+    pub canceled_member_ids: Vec<String>,
+    pub filtered_member_ids: Vec<String>,
+    pub cleared_old_member_ids: Vec<String>,
+    pub path_tile_ids: Vec<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub command_queue_entries: Vec<String>,
+    pub combat_event: String,
+    pub group_command_state: String,
+    pub player_tile_x: i32,
+    pub player_tile_y: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackStripFixtures {
+    pub active_control_group_ids: Vec<String>,
+    pub control_group_assignments: Vec<String>,
+    pub ability_command_ids: Vec<String>,
+    pub stages: Vec<RtsControlGroupCommandFeedbackStripStageFixture>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsControlGroupCommandFeedbackHistoryEntry {
     pub group_id: String,
     pub badge: String,
@@ -3912,6 +3950,188 @@ pub fn rts_control_group_recall_override_preview_stage_ids() -> Vec<String> {
         .collect()
 }
 
+pub fn rts_control_group_command_feedback_strip_fixtures(
+) -> RtsControlGroupCommandFeedbackStripFixtures {
+    let active_control_group_ids = rts_string_vec(["26", "27", "28"]);
+    let control_group_assignments = rts_string_vec([
+        "26:multi0.recall.order.runner|multi0.recall.order.wing",
+        "27:multi0.recall.override.runner|multi0.recall.override.wing",
+        "28:multi0.recall.formation.runner|multi0.recall.formation.wing",
+    ]);
+    let group_26_member_ids =
+        rts_string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let group_27_member_ids = rts_string_vec([
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+    ]);
+    let group_28_member_ids = rts_string_vec([
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let group_28_formation_slot_tile_ids = rts_string_vec(["1,31", "2,31"]);
+    let filtered_member_ids = rts_string_vec([
+        "missing:multi0.recall.formation.missing",
+        "foreign:map.actor1",
+    ]);
+    let cleared_old_member_ids = rts_string_vec([
+        "old:multi0.recall.formation.old.seed",
+        "old:multi0.recall.formation.old.wing",
+    ]);
+
+    RtsControlGroupCommandFeedbackStripFixtures {
+        active_control_group_ids: active_control_group_ids.clone(),
+        control_group_assignments,
+        ability_command_ids: rts_string_vec(["move", "stop", "hold", "patrol"]),
+        stages: vec![
+            RtsControlGroupCommandFeedbackStripStageFixture {
+                stage: "group_26_queued".to_string(),
+                action: RtsOrderQueueReplayAction {
+                    kind: "move".to_string(),
+                    payload: "18,31:line".to_string(),
+                },
+                input_source: "classic_rts_control_group_command_feedback_strip_input".to_string(),
+                renderer_path: "classic_draw_scene".to_string(),
+                preview_surface: "classic_draw_scene_command_feedback_strip".to_string(),
+                control_group_id: "26".to_string(),
+                active_control_group_ids: active_control_group_ids.clone(),
+                selected_unit_ids: group_26_member_ids.clone(),
+                stance: "guard".to_string(),
+                recall_focus_tile: "18,30".to_string(),
+                queued_target_tile: Some("18,31".to_string()),
+                canceled_target_tile: None,
+                override_final_tile_ids: Vec::new(),
+                formation_anchor_tile: None,
+                formation_slot_tile_ids: Vec::new(),
+                queued_member_ids: group_26_member_ids,
+                canceled_member_ids: Vec::new(),
+                filtered_member_ids: Vec::new(),
+                cleared_old_member_ids: Vec::new(),
+                path_tile_ids: rts_string_vec(["18,30", "18,31"]),
+                group_route_tile_ids: rts_string_vec(["18,30", "18,31"]),
+                command_queue_entries: rts_string_vec([
+                    "queued_group_order:Multi0:26:move:2actors",
+                    "queued_order_reached:26:multi0.recall.order.runner:chain0:18,31",
+                    "queued_order_reached:26:multi0.recall.order.wing:chain0:18,31",
+                ]),
+                combat_event: "control_group_command_feedback_strip:group_26_queued".to_string(),
+                group_command_state: "command_feedback_strip:group_26_queued".to_string(),
+                player_tile_x: 18,
+                player_tile_y: 30,
+            },
+            RtsControlGroupCommandFeedbackStripStageFixture {
+                stage: "group_27_override".to_string(),
+                action: RtsOrderQueueReplayAction {
+                    kind: "select-control-group".to_string(),
+                    payload: "27".to_string(),
+                },
+                input_source: "classic_rts_control_group_command_feedback_strip_input".to_string(),
+                renderer_path: "classic_draw_scene".to_string(),
+                preview_surface: "classic_draw_scene_command_feedback_strip".to_string(),
+                control_group_id: "27".to_string(),
+                active_control_group_ids: active_control_group_ids.clone(),
+                selected_unit_ids: group_27_member_ids.clone(),
+                stance: "guard".to_string(),
+                recall_focus_tile: "21,30".to_string(),
+                queued_target_tile: None,
+                canceled_target_tile: Some("21,25".to_string()),
+                override_final_tile_ids: rts_string_vec(["20,30", "22,30"]),
+                formation_anchor_tile: Some("21,25".to_string()),
+                formation_slot_tile_ids: Vec::new(),
+                queued_member_ids: Vec::new(),
+                canceled_member_ids: group_27_member_ids,
+                filtered_member_ids: Vec::new(),
+                cleared_old_member_ids: Vec::new(),
+                path_tile_ids: rts_string_vec(["21,30", "21,29", "21,27", "21,25"]),
+                group_route_tile_ids: rts_string_vec(["21,25", "20,30", "22,30"]),
+                command_queue_entries: rts_string_vec([
+                    "queued_order_execute:27:multi0.recall.override.runner:move:chain0",
+                    "queued_order_execute:27:multi0.recall.override.wing:move:chain0",
+                    "queued_order_override:Multi0:multi0.recall.override.runner:move:cleared1",
+                    "queued_order_override:Multi0:multi0.recall.override.wing:move:cleared1",
+                ]),
+                combat_event: "control_group_command_feedback_strip:group_27_override".to_string(),
+                group_command_state: "command_feedback_strip:group_27_override".to_string(),
+                player_tile_x: 21,
+                player_tile_y: 30,
+            },
+            RtsControlGroupCommandFeedbackStripStageFixture {
+                stage: "group_28_formation".to_string(),
+                action: RtsOrderQueueReplayAction {
+                    kind: "move".to_string(),
+                    payload: "1,31:line".to_string(),
+                },
+                input_source: "classic_rts_control_group_command_feedback_strip_input".to_string(),
+                renderer_path: "classic_draw_scene".to_string(),
+                preview_surface: "classic_draw_scene_command_feedback_strip".to_string(),
+                control_group_id: "28".to_string(),
+                active_control_group_ids: active_control_group_ids.clone(),
+                selected_unit_ids: group_28_member_ids.clone(),
+                stance: "guard".to_string(),
+                recall_focus_tile: "1,30".to_string(),
+                queued_target_tile: Some("1,31".to_string()),
+                canceled_target_tile: None,
+                override_final_tile_ids: Vec::new(),
+                formation_anchor_tile: Some("1,31".to_string()),
+                formation_slot_tile_ids: group_28_formation_slot_tile_ids.clone(),
+                queued_member_ids: group_28_member_ids.clone(),
+                canceled_member_ids: Vec::new(),
+                filtered_member_ids: Vec::new(),
+                cleared_old_member_ids: Vec::new(),
+                path_tile_ids: rts_string_vec(["1,30", "1,31", "2,31"]),
+                group_route_tile_ids: rts_string_vec(["1,30", "1,31", "2,31"]),
+                command_queue_entries: rts_string_vec([
+                    "formation_group_order:Multi0:28:1,31:2slots:0reassigned",
+                    "formation_move_slot:Multi0:28:multi0.recall.formation.runner:slot0:1,30->1,31",
+                    "formation_move_slot:Multi0:28:multi0.recall.formation.wing:slot1:1,30->2,31",
+                ]),
+                combat_event: "control_group_command_feedback_strip:group_28_formation".to_string(),
+                group_command_state: "command_feedback_strip:group_28_formation".to_string(),
+                player_tile_x: 1,
+                player_tile_y: 30,
+            },
+            RtsControlGroupCommandFeedbackStripStageFixture {
+                stage: "group_28_filtered".to_string(),
+                action: RtsOrderQueueReplayAction {
+                    kind: "move".to_string(),
+                    payload: "1,31:line".to_string(),
+                },
+                input_source: "classic_rts_control_group_command_feedback_strip_input".to_string(),
+                renderer_path: "classic_draw_scene".to_string(),
+                preview_surface: "classic_draw_scene_command_feedback_strip".to_string(),
+                control_group_id: "28".to_string(),
+                active_control_group_ids,
+                selected_unit_ids: group_28_member_ids.clone(),
+                stance: "guard".to_string(),
+                recall_focus_tile: "1,30".to_string(),
+                queued_target_tile: Some("1,31".to_string()),
+                canceled_target_tile: None,
+                override_final_tile_ids: Vec::new(),
+                formation_anchor_tile: Some("1,31".to_string()),
+                formation_slot_tile_ids: group_28_formation_slot_tile_ids,
+                queued_member_ids: group_28_member_ids,
+                canceled_member_ids: Vec::new(),
+                filtered_member_ids: filtered_member_ids.clone(),
+                cleared_old_member_ids: cleared_old_member_ids.clone(),
+                path_tile_ids: rts_string_vec(["1,30", "1,31", "2,31"]),
+                group_route_tile_ids: rts_string_vec(["1,30", "1,31", "2,31"]),
+                command_queue_entries: rts_string_vec([
+                    "formation_group_order:Multi0:28:1,31:2slots:0reassigned",
+                    "formation_move_slot:Multi0:28:multi0.recall.formation.runner:slot0:1,30->1,31",
+                    "formation_move_slot:Multi0:28:multi0.recall.formation.wing:slot1:1,30->2,31",
+                    "filtered_member:missing:multi0.recall.formation.missing",
+                    "filtered_member:foreign:map.actor1",
+                    "filtered_member:old:multi0.recall.formation.old.seed",
+                    "filtered_member:old:multi0.recall.formation.old.wing",
+                ]),
+                combat_event: "control_group_command_feedback_strip:group_28_filtered".to_string(),
+                group_command_state: "command_feedback_strip:group_28_filtered".to_string(),
+                player_tile_x: 1,
+                player_tile_y: 30,
+            },
+        ],
+    }
+}
+
 pub fn rts_control_group_command_feedback_replay_fixtures(
 ) -> RtsControlGroupCommandFeedbackReplayFixtures {
     let group_26_member_ids =
@@ -5664,6 +5884,36 @@ mod tests {
             &lifecycle_events,
             &lifecycle_queue,
         ));
+        let strip_fixtures = rts_control_group_command_feedback_strip_fixtures();
+        assert_eq!(strip_fixtures.stages.len(), 4);
+        assert_eq!(
+            strip_fixtures
+                .stages
+                .iter()
+                .map(|fixture| fixture.stage.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "group_26_queued",
+                "group_27_override",
+                "group_28_formation",
+                "group_28_filtered"
+            ]
+        );
+        assert_eq!(
+            strip_fixtures.stages[1].override_final_tile_ids,
+            vec!["20,30", "22,30"]
+        );
+        assert_eq!(
+            strip_fixtures.stages[3].filtered_member_ids,
+            vec![
+                "missing:multi0.recall.formation.missing",
+                "foreign:map.actor1"
+            ]
+        );
+        assert!(strip_fixtures.stages[3]
+            .command_queue_entries
+            .iter()
+            .any(|entry| entry == "filtered_member:old:multi0.recall.formation.old.wing"));
         let replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
         assert_eq!(
             replay_fixtures.retained_history_group_ids,

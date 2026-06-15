@@ -24,7 +24,8 @@ use trnm_rts_bevy_runtime::{
     rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
     rts_commander_parts, rts_contact_flash_tiles_for_target,
     rts_control_group_command_feedback_rejection_replay_fixtures,
-    rts_control_group_command_feedback_replay_fixtures, rts_control_group_hotkey_feedback_stage,
+    rts_control_group_command_feedback_replay_fixtures,
+    rts_control_group_command_feedback_strip_fixtures, rts_control_group_hotkey_feedback_stage,
     rts_control_group_hotkey_slot, rts_control_group_recall_formation_preview_stage_fixtures,
     rts_control_group_recall_override_preview_stage_fixtures, rts_control_group_slot_summaries,
     rts_counter_command_parts, rts_counterattack_route_tiles_for_wave,
@@ -271,6 +272,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub ability_command_stamp_sample: RtsCommandStamp,
     pub order_queue_replay_action_samples: Vec<RtsOrderQueueReplayAction>,
     pub command_feedback_strip_stage_sample: Option<String>,
+    pub command_feedback_strip_fixture_stage_names_sample: Vec<String>,
+    pub command_feedback_strip_fixture_action_payloads_sample: Vec<String>,
+    pub command_feedback_strip_fixture_focus_tiles_sample: Vec<String>,
+    pub command_feedback_strip_fixture_filtered_members_sample: Vec<String>,
     pub command_feedback_lifecycle_stage_sample: Option<String>,
     pub command_feedback_replay_step_names_sample: Vec<String>,
     pub command_feedback_replay_preview_stages_sample: Vec<String>,
@@ -758,6 +763,28 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         vec!["control_group_command_feedback_lifecycle:dimmed".to_string()];
     let command_feedback_strip_stage =
         rts_command_feedback_strip_stage(1, &[], &command_feedback_queue).map(str::to_string);
+    let command_feedback_strip_fixtures = rts_control_group_command_feedback_strip_fixtures();
+    let command_feedback_strip_fixture_stage_names = command_feedback_strip_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.stage.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_strip_fixture_action_payloads = command_feedback_strip_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.action.payload.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_strip_fixture_focus_tiles = command_feedback_strip_fixtures
+        .stages
+        .iter()
+        .map(|fixture| fixture.recall_focus_tile.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_strip_fixture_filtered_members = command_feedback_strip_fixtures
+        .stages
+        .iter()
+        .find(|fixture| fixture.stage == "group_28_filtered")
+        .map(|fixture| fixture.filtered_member_ids.clone())
+        .unwrap_or_default();
     let command_feedback_lifecycle_stage =
         rts_command_feedback_lifecycle_stage("", &command_feedback_events, &command_feedback_queue)
             .map(str::to_string);
@@ -1378,6 +1405,21 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                 vec!["ability", "focus_fire"],
             ]
         && command_feedback_strip_stage.as_deref() == Some("group_27_override")
+        && command_feedback_strip_fixture_stage_names
+            == vec![
+                "group_26_queued",
+                "group_27_override",
+                "group_28_formation",
+                "group_28_filtered",
+            ]
+        && command_feedback_strip_fixture_action_payloads
+            == vec!["18,31:line", "27", "1,31:line", "1,31:line"]
+        && command_feedback_strip_fixture_focus_tiles == vec!["18,30", "21,30", "1,30", "1,30"]
+        && command_feedback_strip_fixture_filtered_members
+            == vec![
+                "missing:multi0.recall.formation.missing",
+                "foreign:map.actor1",
+            ]
         && command_feedback_lifecycle_stage.as_deref() == Some("dimmed")
         && command_feedback_replay_step_names
             == vec![
@@ -1717,6 +1759,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         ability_command_stamp_sample: ability_command_stamp,
         order_queue_replay_action_samples,
         command_feedback_strip_stage_sample: command_feedback_strip_stage,
+        command_feedback_strip_fixture_stage_names_sample: command_feedback_strip_fixture_stage_names,
+        command_feedback_strip_fixture_action_payloads_sample:
+            command_feedback_strip_fixture_action_payloads,
+        command_feedback_strip_fixture_focus_tiles_sample: command_feedback_strip_fixture_focus_tiles,
+        command_feedback_strip_fixture_filtered_members_sample:
+            command_feedback_strip_fixture_filtered_members,
         command_feedback_lifecycle_stage_sample: command_feedback_lifecycle_stage,
         command_feedback_replay_step_names_sample: command_feedback_replay_step_names,
         command_feedback_replay_preview_stages_sample: command_feedback_replay_preview_stages,
@@ -2508,6 +2556,30 @@ mod tests {
         assert_eq!(
             evidence.command_feedback_strip_stage_sample.as_deref(),
             Some("group_27_override")
+        );
+        assert_eq!(
+            evidence.command_feedback_strip_fixture_stage_names_sample,
+            vec![
+                "group_26_queued",
+                "group_27_override",
+                "group_28_formation",
+                "group_28_filtered"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_strip_fixture_action_payloads_sample,
+            vec!["18,31:line", "27", "1,31:line", "1,31:line"]
+        );
+        assert_eq!(
+            evidence.command_feedback_strip_fixture_focus_tiles_sample,
+            vec!["18,30", "21,30", "1,30", "1,30"]
+        );
+        assert_eq!(
+            evidence.command_feedback_strip_fixture_filtered_members_sample,
+            vec![
+                "missing:multi0.recall.formation.missing",
+                "foreign:map.actor1"
+            ]
         );
         assert_eq!(
             evidence.command_feedback_lifecycle_stage_sample.as_deref(),
