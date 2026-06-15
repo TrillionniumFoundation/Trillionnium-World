@@ -15,8 +15,8 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_session_state_continuity_v1"
   and .status == "classic_rts_session_state_continuity_green"
   and .green == true
-  and .preview_width == 1280
-  and .preview_height == 768
+  and .preview_width == 1600
+  and .preview_height == 900
   and .preview_format == "ppm_p3_rgb"
   and .source_contracts.shell_meta_ui_replication == "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1"
   and .source_contracts.session_slot_confirm == "trillionnium_world_bevy_session_slot_confirm_v1"
@@ -30,6 +30,7 @@ jq -e '
   and .runtime_screen_gate == true
   and .evidence_board_only == false
   and .runtime_screen_layout.resume_chain_lane == "single visible save/load/continue chain from match setup into restored play"
+  and .runtime_screen_layout.primary_tactical_viewport == "large restored tactical state with save-resume rail"
   and .runtime_screen_layout.slot_resume_controls == "selected Slot A write, load lock, and continue unlock controls"
   and .runtime_screen_layout.hud_restore_panel == "restored in-match resources, selection, command, minimap, and objective state"
   and .runtime_screen_layout.outcome_resume_panel == "campaign outcome rewards and open-world league-coliseum route resume"
@@ -49,17 +50,21 @@ jq -e '
   and (.resume_chain | index("in_match_hud_restored") != null)
   and (.resume_chain | index("campaign_outcome_saved") != null)
   and (.resume_chain | index("open_world_resumed") != null)
-  and .state_continuity_pixel_counts.non_background > 100000
-  and .state_continuity_pixel_counts.board > 80000
-  and .state_continuity_pixel_counts.match_setup_snapshot > 100
-  and .state_continuity_pixel_counts.session_slot_write > 100
-  and .state_continuity_pixel_counts.load_resume_lock > 100
-  and .state_continuity_pixel_counts.continue_unlock > 100
-  and .state_continuity_pixel_counts.in_match_hud_restore > 100
-  and .state_continuity_pixel_counts.outcome_reward_state > 100
-  and .state_continuity_pixel_counts.open_world_resume > 100
-  and .state_continuity_pixel_counts.recovery_ui_guard > 100
-  and .state_continuity_pixel_counts.highlight > 200
+  and .state_continuity_pixel_counts.non_background > 300000
+  and .state_continuity_pixel_counts.board > 100000
+  and .state_continuity_pixel_counts.match_setup_snapshot > 2000
+  and .state_continuity_pixel_counts.session_slot_write > 2000
+  and .state_continuity_pixel_counts.load_resume_lock > 2000
+  and .state_continuity_pixel_counts.continue_unlock > 2000
+  and .state_continuity_pixel_counts.in_match_hud_restore > 2000
+  and .state_continuity_pixel_counts.outcome_reward_state > 2000
+  and .state_continuity_pixel_counts.open_world_resume > 2000
+  and .state_continuity_pixel_counts.recovery_ui_guard > 2000
+  and .state_continuity_pixel_counts.highlight > 1000
+  and .state_continuity_pixel_counts.player_first_resume_view_non_background > 250000
+  and .state_continuity_pixel_counts.player_first_resume_view_frame > 8000
+  and .state_continuity_pixel_counts.player_first_resume_status_strip > 10000
+  and .state_continuity_pixel_counts.player_first_resume_stage_rail > 70000
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.shell_meta_runtime_screen_mode == "player_runtime_shell_meta_screen"
   and .source_headline.match_setup_runtime_screen_mode == "player_runtime_match_setup_screen"
@@ -83,6 +88,7 @@ jq -e '
   and .state_continuity_chain_gate == true
   and .native_client_boundary_gate == true
   and .preview_gate == true
+  and .player_first_session_resume_screen_gate == true
   and .source_preview_gate == true
   and .runtime_screen_gate == true
   and .session_state_continuity_gate == true

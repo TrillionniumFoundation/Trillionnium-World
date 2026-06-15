@@ -72,6 +72,7 @@ jq -e '
   and .source_headline.interaction_runtime_screen_mode == "player_runtime_command_interaction_screen"
   and .source_headline.interaction_surface_count == 6
   and .source_headline.session_runtime_screen_mode == "player_runtime_session_resume_screen"
+  and .source_headline.session_player_first_screen_gate == true
   and .source_headline.session_final_objective_status == "first_playable_loop_complete"
   and .source_headline.session_open_world_state == "resumed:league-coliseum"
   and .source_headline.campaign_outcome_runtime_screen_mode == "player_runtime_campaign_outcome_screen"

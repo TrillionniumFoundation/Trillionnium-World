@@ -33,6 +33,7 @@ required_script_lines=(
   'title_account_gate == true'
   'command_feedback_gate == true'
   'save_resume_gate == true'
+  'session_player_first_screen_gate == true'
   'outcome_open_world_gate == true'
   'continuous_player_flow_gate == true'
   'production_ready_ui_claimed == false'

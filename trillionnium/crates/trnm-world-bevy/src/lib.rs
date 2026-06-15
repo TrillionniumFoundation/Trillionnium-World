@@ -22859,11 +22859,17 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
 
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &str) -> String {
-    const WIDTH: usize = 1280;
-    const HEIGHT: usize = 768;
+    const WIDTH: usize = 1600;
+    const HEIGHT: usize = 900;
+    const RESUME_VIEW_WIDTH: usize = 960;
+    const RESUME_VIEW_HEIGHT: usize = 560;
+    const RESUME_VIEW_X: i32 = 64;
+    const RESUME_VIEW_Y: i32 = 124;
     const BACKGROUND_COLOR: u32 = 0x090d0c;
     const BOARD_COLOR: u32 = 0x111915;
     const EDGE_COLOR: u32 = 0x6ab694;
+    const RESUME_VIEW_FRAME_COLOR: u32 = 0x8fd3bb;
+    const RESUME_STATUS_STRIP_COLOR: u32 = 0xc8ee78;
     const MATCH_SETUP_COLOR: u32 = 0xd8b75f;
     const SLOT_WRITE_COLOR: u32 = 0x8dd07e;
     const LOAD_LOCK_COLOR: u32 = 0x76b4d9;
@@ -22968,42 +22974,6 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
     let runtime = classic_product_alignment_runtime();
     let assets = load_classic_runtime_assets();
     let mut pixels = vec![BACKGROUND_COLOR; WIDTH * HEIGHT];
-    classic_draw_scene(&mut pixels, WIDTH, HEIGHT, (6, 5), &runtime, &assets);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 28, 28, 1224, 712, BOARD_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 28, 28, 1224, 4, EDGE_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 28, 736, 1224, 4, EDGE_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 28, 28, 4, 712, EDGE_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 1248, 28, 4, 712, EDGE_COLOR);
-    classic_draw_text(
-        &mut pixels,
-        WIDTH,
-        HEIGHT,
-        52,
-        50,
-        "TRNM RUST/BEVY SESSION STATE CONTINUITY",
-        2,
-        CLASSIC_HUD_ACCENT_TEXT_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        WIDTH,
-        HEIGHT,
-        54,
-        86,
-        "match setup -> slot save -> load lock -> continue -> HUD restore -> outcome -> open-world resume",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        WIDTH,
-        HEIGHT,
-        54,
-        108,
-        "INTERNAL RUST/BEVY SAVE-LOAD RESUME CHAIN; ANDROID S5, PUBLIC LAUNCH, AND OPENRA COPY CLAIMS STAY FALSE",
-        1,
-        CLASSIC_HUD_MUTED_TEXT_COLOR,
-    );
 
     let state_surfaces = [
         (
@@ -23056,19 +23026,151 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         ),
     ];
 
+    let mut restored_view_pixels = vec![BACKGROUND_COLOR; RESUME_VIEW_WIDTH * RESUME_VIEW_HEIGHT];
+    classic_draw_scene(
+        &mut restored_view_pixels,
+        RESUME_VIEW_WIDTH,
+        RESUME_VIEW_HEIGHT,
+        (6, 5),
+        &runtime,
+        &assets,
+    );
+    let player_first_resume_view_non_background = restored_view_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != BACKGROUND_COLOR
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 28, 1540, 844, BOARD_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 28, 1540, 5, EDGE_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 867, 1540, 5, EDGE_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 28, 5, 844, EDGE_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 1565, 28, 5, 844, EDGE_COLOR);
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        58,
+        52,
+        "TRNM RUST/BEVY SESSION RESUME PLAYER SCREEN",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        1006,
+        54,
+        "SAVE LOAD CONTINUE / RESTORED HUD / OPEN WORLD",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_copy_pixels(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        &restored_view_pixels,
+        RESUME_VIEW_WIDTH,
+        RESUME_VIEW_HEIGHT,
+        RESUME_VIEW_X,
+        RESUME_VIEW_Y,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        RESUME_VIEW_X - 10,
+        RESUME_VIEW_Y - 28,
+        RESUME_VIEW_WIDTH as i32 + 20,
+        4,
+        RESUME_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        RESUME_VIEW_X - 10,
+        RESUME_VIEW_Y + RESUME_VIEW_HEIGHT as i32 + 26,
+        RESUME_VIEW_WIDTH as i32 + 20,
+        4,
+        RESUME_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        RESUME_VIEW_X - 10,
+        RESUME_VIEW_Y - 28,
+        4,
+        RESUME_VIEW_HEIGHT as i32 + 58,
+        RESUME_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        RESUME_VIEW_X + RESUME_VIEW_WIDTH as i32 + 6,
+        RESUME_VIEW_Y - 28,
+        4,
+        RESUME_VIEW_HEIGHT as i32 + 58,
+        RESUME_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        RESUME_VIEW_X,
+        RESUME_VIEW_Y + RESUME_VIEW_HEIGHT as i32 + 8,
+        RESUME_VIEW_WIDTH as i32,
+        22,
+        RESUME_STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        RESUME_VIEW_X,
+        RESUME_VIEW_Y - 16,
+        "RESTORED TACTICAL STATE / GROUP 1 SELECTED / SAVE SLOT A CONTINUED",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        RESUME_VIEW_X + 18,
+        RESUME_VIEW_Y + RESUME_VIEW_HEIGHT as i32 + 16,
+        "MATCH SETUP -> SLOT A WRITE -> LOAD LOCK -> CONTINUE -> HUD RESTORE -> LEAGUE COLISEUM",
+        1,
+        0x101711,
+    );
+
     for (index, (label, color, slot, source)) in state_surfaces.iter().enumerate() {
-        let col = (index % 4) as i32;
-        let row = (index / 4) as i32;
-        let x = 52 + col * 296;
-        let y = 154 + row * 178;
-        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 262, 132, PANEL_COLOR);
-        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 262, 5, *color);
-        classic_draw_text(
+        let x = 1068;
+        let y = 116 + index as i32 * 76;
+        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 464, 54, *color);
+        classic_draw_rect(
             &mut pixels,
             WIDTH,
             HEIGHT,
             x + 12,
-            y + 18,
+            y + 10,
+            440,
+            34,
+            PANEL_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x + 18,
+            y + 10,
             label,
             1,
             CLASSIC_HUD_TEXT_COLOR,
@@ -23077,8 +23179,8 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
             &mut pixels,
             WIDTH,
             HEIGHT,
-            x + 12,
-            y + 42,
+            x + 18,
+            y + 30,
             slot,
             1,
             CLASSIC_HUD_MUTED_TEXT_COLOR,
@@ -23087,64 +23189,102 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
             &mut pixels,
             WIDTH,
             HEIGHT,
-            x + 12,
-            y + 64,
+            x + 210,
+            y + 30,
             source,
             1,
             CLASSIC_HUD_MUTED_TEXT_COLOR,
         );
-        for marker in 0..5_i32 {
+        if index < state_surfaces.len() - 1 {
             classic_draw_rect(
                 &mut pixels,
                 WIDTH,
                 HEIGHT,
-                x + 14 + marker * 38,
-                y + 98,
-                26,
-                16,
-                *color,
+                x + 222,
+                y + 54,
+                20,
+                22,
+                RESUME_VIEW_FRAME_COLOR,
             );
             classic_draw_rect(
                 &mut pixels,
                 WIDTH,
                 HEIGHT,
-                x + 18 + marker * 38,
-                y + 103,
-                18,
-                4,
+                x + 228,
+                y + 59,
+                8,
+                12,
                 HIGHLIGHT_COLOR,
             );
         }
     }
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 54, 532, 1172, 74, 0x17211d);
+    for (index, (_, color, slot, _)) in state_surfaces.iter().enumerate() {
+        let x = 66 + index as i32 * 180;
+        let y = 756;
+        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 132, 24, *color);
+        classic_draw_text(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x + 8,
+            y + 8,
+            slot,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        if index < state_surfaces.len() - 1 {
+            classic_draw_rect(
+                &mut pixels,
+                WIDTH,
+                HEIGHT,
+                x + 132,
+                y + 8,
+                34,
+                8,
+                EDGE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                WIDTH,
+                HEIGHT,
+                x + 162,
+                y + 2,
+                14,
+                20,
+                HIGHLIGHT_COLOR,
+            );
+        }
+    }
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 66, 794, 690, 54, 0x17211d);
     classic_draw_text(
         &mut pixels,
         WIDTH,
         HEIGHT,
-        72,
-        552,
-        "RESUME CHAIN: MATCH_SETUP_SAVED > SLOT_A_WRITTEN > LOAD_LOCKED > CONTINUE_UNLOCKED > HUD_RESTORED > OUTCOME_SAVED > WORLD_RESUMED",
+        86,
+        812,
+        "RESUME CHAIN: MATCH_SETUP_SAVED > SLOT_A_WRITTEN > LOAD_LOCKED > CONTINUE_UNLOCKED > HUD_RESTORED > WORLD_RESUMED",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 790, 794, 740, 54, 0x17211d);
     classic_draw_text(
         &mut pixels,
         WIDTH,
         HEIGHT,
-        72,
-        576,
-        "RESTORED STATE: league-coliseum / arena_outdoor / group 1 selected / move-train-build-attack queue / first_playable_loop_complete",
+        810,
+        812,
+        "RESTORED STATE: league-coliseum / arena_outdoor / group 1 selected / first_playable_loop_complete",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 54, 638, 1172, 54, 0x17211d);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 1086, 724, 420, 26, 0x17211d);
     classic_draw_text(
         &mut pixels,
         WIDTH,
         HEIGHT,
-        72,
-        656,
-        "NO EXTERNAL CREDIT: android_s5_real_device=false, public_launch_ready=false, openra_engine_port=false, third_party_asset_copied=false",
+        1102,
+        732,
+        "NO CREDIT: S5 / PUBLIC / OPENRA / THIRD PARTY FALSE",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
@@ -23166,6 +23306,16 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
     let open_world_pixel_count = count_color(OPEN_WORLD_COLOR);
     let recovery_pixel_count = count_color(RECOVERY_COLOR);
     let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+    let player_first_resume_view_frame_pixel_count = count_color(RESUME_VIEW_FRAME_COLOR);
+    let player_first_resume_status_strip_pixel_count = count_color(RESUME_STATUS_STRIP_COLOR);
+    let player_first_resume_stage_rail_pixel_count = match_setup_pixel_count
+        + slot_write_pixel_count
+        + load_lock_pixel_count
+        + continue_pixel_count
+        + hud_restore_pixel_count
+        + outcome_pixel_count
+        + open_world_pixel_count
+        + recovery_pixel_count;
 
     let shell_meta_gate = contract_is(
         &shell_meta,
@@ -23275,19 +23425,24 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         && !bool_at(&hud, "third_party_asset_copied")
         && !assets.manifest.cex_runtime_player_client_allowed
         && !assets.manifest.wgpu_required;
+    let player_first_session_resume_screen_gate = player_first_resume_view_non_background > 250_000
+        && player_first_resume_view_frame_pixel_count > 8_000
+        && player_first_resume_status_strip_pixel_count > 10_000
+        && player_first_resume_stage_rail_pixel_count > 70_000;
     let preview_gate = write_gate
         && file_ready(preview_path)
-        && non_background_pixels > 100_000
-        && board_pixel_count > 80_000
-        && match_setup_pixel_count > 100
-        && slot_write_pixel_count > 100
-        && load_lock_pixel_count > 100
-        && continue_pixel_count > 100
-        && hud_restore_pixel_count > 100
-        && outcome_pixel_count > 100
-        && open_world_pixel_count > 100
-        && recovery_pixel_count > 100
-        && highlight_pixel_count > 200;
+        && non_background_pixels > 300_000
+        && board_pixel_count > 100_000
+        && match_setup_pixel_count > 2_000
+        && slot_write_pixel_count > 2_000
+        && load_lock_pixel_count > 2_000
+        && continue_pixel_count > 2_000
+        && hud_restore_pixel_count > 2_000
+        && outcome_pixel_count > 2_000
+        && open_world_pixel_count > 2_000
+        && recovery_pixel_count > 2_000
+        && highlight_pixel_count > 1_000
+        && player_first_session_resume_screen_gate;
     let source_preview_gate = file_ready(&shell_meta_path)
         && file_ready(&match_setup_path)
         && file_ready(&hud_path)
@@ -23330,6 +23485,7 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         "evidence_board_only": false,
         "runtime_screen_layout": {
             "resume_chain_lane": "single visible save/load/continue chain from match setup into restored play",
+            "primary_tactical_viewport": "large restored tactical state with save-resume rail",
             "pre_match_snapshot": "match setup map/faction/rules snapshot",
             "slot_resume_controls": "selected Slot A write, load lock, and continue unlock controls",
             "hud_restore_panel": "restored in-match resources, selection, command, minimap, and objective state",
@@ -23368,7 +23524,11 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
             "outcome_reward_state": outcome_pixel_count,
             "open_world_resume": open_world_pixel_count,
             "recovery_ui_guard": recovery_pixel_count,
-            "highlight": highlight_pixel_count
+            "highlight": highlight_pixel_count,
+            "player_first_resume_view_non_background": player_first_resume_view_non_background,
+            "player_first_resume_view_frame": player_first_resume_view_frame_pixel_count,
+            "player_first_resume_status_strip": player_first_resume_status_strip_pixel_count,
+            "player_first_resume_stage_rail": player_first_resume_stage_rail_pixel_count
         },
         "source_headline": {
             "shell_meta_surface_count": shell_meta.get("shell_meta_surface_count").cloned().unwrap_or(Value::Null),
@@ -23395,6 +23555,7 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         "state_continuity_chain_gate": state_continuity_chain_gate,
         "native_client_boundary_gate": native_client_boundary_gate,
         "preview_gate": preview_gate,
+        "player_first_session_resume_screen_gate": player_first_session_resume_screen_gate,
         "source_preview_gate": source_preview_gate,
         "runtime_screen_gate": runtime_screen_gate,
         "session_state_continuity_gate": session_state_continuity_gate,
@@ -23407,7 +23568,7 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         "warcraft_iii_asset_copied": false,
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
-        "source_of_truth": "Classic RTS session state continuity evidence binds the Rust/Bevy pre-match setup, selected save slot write/confirm, load-resume lock, continue unlock, restored in-match HUD state, campaign outcome rewards, and open-world resume into a single local native runtime resume screen. It keeps Android S5, public launch, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
+        "source_of_truth": "Classic RTS session state continuity evidence binds the Rust/Bevy pre-match setup, selected save slot write/confirm, load-resume lock, continue unlock, restored in-match HUD state, campaign outcome rewards, and open-world resume into one player-first native runtime resume screen with a large restored tactical viewport. It keeps Android S5, public launch, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
     }))
     .expect("classic RTS session state continuity evidence serializes")
 }
@@ -23964,6 +24125,7 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         && bool_at(&session, "session_state_continuity_gate")
         && bool_at(&session, "runtime_screen_gate")
         && !bool_at(&session, "evidence_board_only")
+        && bool_at(&session, "player_first_session_resume_screen_gate")
         && str_at(&session, "runtime_screen_mode") == "player_runtime_session_resume_screen"
         && u64_at(&session, "state_continuity_surface_count") == 8
         && pointer_str(
@@ -24141,6 +24303,7 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
             "interaction_runtime_screen_mode": interaction.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
             "interaction_surface_count": interaction.get("interaction_surface_count").cloned().unwrap_or(Value::Null),
             "session_runtime_screen_mode": session.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "session_player_first_screen_gate": session.get("player_first_session_resume_screen_gate").cloned().unwrap_or(Value::Null),
             "session_final_objective_status": session.pointer("/source_headline/load_resume_final_objective_status").cloned().unwrap_or(Value::Null),
             "session_open_world_state": session.pointer("/source_headline/campaign_outcome_open_world_state").cloned().unwrap_or(Value::Null),
             "campaign_outcome_runtime_screen_mode": campaign_outcome.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),

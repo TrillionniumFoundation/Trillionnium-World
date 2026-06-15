@@ -2133,6 +2133,10 @@ jq -n \
       rts_in_match_hud_state_replication_army_supply_cap: $rts_in_match_hud_state_replication[0].army_supply_cap,
       rts_session_state_continuity_surface_count: $rts_session_state_continuity[0].state_continuity_surface_count,
       rts_session_state_continuity_non_background_pixels: $rts_session_state_continuity[0].state_continuity_pixel_counts.non_background,
+      rts_session_state_continuity_player_first_resume_view_non_background: $rts_session_state_continuity[0].state_continuity_pixel_counts.player_first_resume_view_non_background,
+      rts_session_state_continuity_player_first_resume_view_frame: $rts_session_state_continuity[0].state_continuity_pixel_counts.player_first_resume_view_frame,
+      rts_session_state_continuity_player_first_resume_status_strip: $rts_session_state_continuity[0].state_continuity_pixel_counts.player_first_resume_status_strip,
+      rts_session_state_continuity_player_first_resume_stage_rail: $rts_session_state_continuity[0].state_continuity_pixel_counts.player_first_resume_stage_rail,
       rts_session_state_continuity_slot_a_bytes: $rts_session_state_continuity[0].source_headline.load_resume_slot_a_bytes,
       rts_session_state_continuity_final_objective_status: $rts_session_state_continuity[0].source_headline.load_resume_final_objective_status,
       rts_session_state_continuity_open_world_state: $rts_session_state_continuity[0].source_headline.campaign_outcome_open_world_state,
@@ -2964,6 +2968,7 @@ jq -n \
       rts_session_state_continuity_campaign_continuity_gate: $rts_session_state_continuity[0].campaign_continuity_gate,
       rts_session_state_continuity_chain_gate: $rts_session_state_continuity[0].state_continuity_chain_gate,
       rts_session_state_continuity_native_client_boundary_gate: $rts_session_state_continuity[0].native_client_boundary_gate,
+      rts_session_state_continuity_player_first_session_resume_screen_gate: $rts_session_state_continuity[0].player_first_session_resume_screen_gate,
       rts_session_state_continuity_gate: $rts_session_state_continuity[0].session_state_continuity_gate,
       rts_continuous_player_flow_title_account_gate: $rts_continuous_player_flow[0].title_account_gate,
       rts_continuous_player_flow_match_setup_gate: $rts_continuous_player_flow[0].match_setup_gate,
@@ -3660,7 +3665,11 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_in_match_hud_state_replication_army_supply_used == 9
   and .headline.rts_in_match_hud_state_replication_army_supply_cap == 18
   and .headline.rts_session_state_continuity_surface_count == 8
-  and .headline.rts_session_state_continuity_non_background_pixels > 100000
+  and .headline.rts_session_state_continuity_non_background_pixels > 300000
+  and .headline.rts_session_state_continuity_player_first_resume_view_non_background > 250000
+  and .headline.rts_session_state_continuity_player_first_resume_view_frame > 8000
+  and .headline.rts_session_state_continuity_player_first_resume_status_strip > 10000
+  and .headline.rts_session_state_continuity_player_first_resume_stage_rail > 70000
   and .headline.rts_session_state_continuity_slot_a_bytes > 512
   and .headline.rts_session_state_continuity_final_objective_status == "first_playable_loop_complete"
   and .headline.rts_session_state_continuity_open_world_state == "resumed:league-coliseum"
@@ -5327,6 +5336,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_session_state_continuity_campaign_continuity_gate == true
   and .gates.rts_session_state_continuity_chain_gate == true
   and .gates.rts_session_state_continuity_native_client_boundary_gate == true
+  and .gates.rts_session_state_continuity_player_first_session_resume_screen_gate == true
   and .gates.rts_session_state_continuity_gate == true
   and .gates.rts_continuous_player_flow_title_account_gate == true
   and .gates.rts_continuous_player_flow_match_setup_gate == true

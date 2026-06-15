@@ -27,8 +27,10 @@ required_script_lines=(
   'runtime_screen_gate == true'
   'evidence_board_only == false'
   'runtime_screen_layout.resume_chain_lane'
+  'runtime_screen_layout.primary_tactical_viewport'
   'runtime_screen_layout.hud_restore_panel'
   'state_continuity_surface_count == 8'
+  'player_first_session_resume_screen_gate == true'
   'session_state_continuity_gate == true'
   'external_evidence_ignored_for_current_replication_pass == true'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SESSION_STATE_CONTINUITY_GREEN'
@@ -44,7 +46,7 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SESSION_STATE_CONTINUITY_CONTRACT'
   'native_classic_rts_session_state_continuity_evidence_json'
-  'TRNM RUST/BEVY SESSION STATE CONTINUITY'
+  'TRNM RUST/BEVY SESSION RESUME PLAYER SCREEN'
   'MATCH SETUP SNAPSHOT'
   'SESSION SLOT WRITE'
   'LOAD RESUME LOCK'
@@ -66,6 +68,9 @@ required_source_lines=(
   'runtime_screen_layout'
   'evidence_board_only'
   'resume_chain_lane'
+  'primary_tactical_viewport'
+  'player_first_session_resume_screen_gate'
+  'player_first_resume_view_non_background'
   'hud_restore_panel'
   'runtime_screen_gate'
   'session_state_continuity_gate'
@@ -83,6 +88,8 @@ required_readiness_lines=(
   'check_trillionnium_world_bevy_classic_rts_session_state_continuity.sh'
   'rts_session_state_continuity'
   'classic_rts_session_state_continuity_green'
+  'rts_session_state_continuity_player_first_session_resume_screen_gate'
+  'rts_session_state_continuity_player_first_resume_view_non_background'
   'bevy-classic-rts-session-state-continuity.json'
 )
 
