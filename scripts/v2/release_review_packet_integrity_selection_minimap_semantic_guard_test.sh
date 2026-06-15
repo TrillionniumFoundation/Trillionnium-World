@@ -1570,6 +1570,7 @@ jq -n '{
     rts_full_game_visual_ui_replication_coverage_surface_gate: true,
     rts_full_game_visual_ui_replication_preview_gate: true,
     rts_full_game_visual_ui_replication_player_first_tactical_composition_gate: true,
+    rts_live_session_playthrough_player_first_live_session_screen_gate: true,
     rts_full_game_visual_ui_replication_no_copy_boundary_gate: true,
     rts_full_game_visual_ui_replication_gate: true
   },
@@ -1605,6 +1606,10 @@ jq -n '{
     rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count: 21375,
     rts_full_game_visual_ui_replication_live_session_stage_count: 6,
     rts_full_game_visual_ui_replication_live_session_accepted_input_count: 91,
+    rts_live_session_playthrough_player_first_live_view_non_background: 360000,
+    rts_live_session_playthrough_player_first_live_view_frame_pixel_count: 15408,
+    rts_live_session_playthrough_player_first_live_status_strip_pixel_count: 20880,
+    rts_live_session_playthrough_player_first_live_stage_rail_pixel_count: 103032,
     rts_full_game_visual_ui_replication_final_objective_status: "open_world_after_action_ready",
     rts_full_game_visual_ui_replication_open_world_state: "resumed:league-coliseum",
     rts_central_keep_pressure_accepted_input_count: 40,

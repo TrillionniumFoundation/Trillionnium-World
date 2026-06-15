@@ -2155,6 +2155,10 @@ jq -n \
       rts_live_session_playthrough_live_command_input_count: $rts_live_session_playthrough[0].live_command_input_count,
       rts_live_session_playthrough_slot_a_bytes: $rts_live_session_playthrough[0].slot_a_bytes,
       rts_live_session_playthrough_non_background_pixels: $rts_live_session_playthrough[0].pixel_counts.non_background,
+      rts_live_session_playthrough_player_first_live_view_non_background: $rts_live_session_playthrough[0].pixel_counts.player_first_live_view_non_background,
+      rts_live_session_playthrough_player_first_live_view_frame_pixel_count: $rts_live_session_playthrough[0].pixel_counts.player_first_live_view_frame,
+      rts_live_session_playthrough_player_first_live_status_strip_pixel_count: $rts_live_session_playthrough[0].pixel_counts.player_first_live_status_strip,
+      rts_live_session_playthrough_player_first_live_stage_rail_pixel_count: $rts_live_session_playthrough[0].pixel_counts.player_first_live_stage_rail,
       rts_live_session_playthrough_final_objective_status: $rts_live_session_playthrough[0].final_state.objective_status,
       rts_live_session_playthrough_open_world_state: $rts_live_session_playthrough[0].final_state.open_world_handoff_state,
       rts_live_session_playthrough_resume_room_id: $rts_live_session_playthrough[0].final_state.open_world_resume_room_id,
@@ -2973,6 +2977,7 @@ jq -n \
       rts_live_session_playthrough_save_resume_gate: $rts_live_session_playthrough[0].save_resume_gate,
       rts_live_session_playthrough_outcome_open_world_gate: $rts_live_session_playthrough[0].outcome_open_world_gate,
       rts_live_session_playthrough_same_process_trace_gate: $rts_live_session_playthrough[0].same_process_trace_gate,
+      rts_live_session_playthrough_player_first_live_session_screen_gate: $rts_live_session_playthrough[0].player_first_live_session_screen_gate,
       rts_live_session_playthrough_native_client_boundary_gate: $rts_live_session_playthrough[0].native_client_boundary_gate,
       rts_live_session_playthrough_gate: $rts_live_session_playthrough[0].live_session_playthrough_gate,
       rts_full_game_visual_ui_replication_source_contract_gate: $rts_full_game_visual_ui_replication[0].source_contract_gate,
@@ -3673,6 +3678,10 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_live_session_playthrough_live_command_input_count == 5
   and .headline.rts_live_session_playthrough_slot_a_bytes > 10000
   and .headline.rts_live_session_playthrough_non_background_pixels > 300000
+  and .headline.rts_live_session_playthrough_player_first_live_view_non_background > 250000
+  and .headline.rts_live_session_playthrough_player_first_live_view_frame_pixel_count > 8000
+  and .headline.rts_live_session_playthrough_player_first_live_status_strip_pixel_count > 10000
+  and .headline.rts_live_session_playthrough_player_first_live_stage_rail_pixel_count > 25000
   and .headline.rts_live_session_playthrough_final_objective_status == "open_world_after_action_ready"
   and .headline.rts_live_session_playthrough_open_world_state == "resumed:league-coliseum"
   and .headline.rts_live_session_playthrough_resume_room_id == "league-coliseum"
@@ -5326,6 +5335,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_live_session_playthrough_save_resume_gate == true
   and .gates.rts_live_session_playthrough_outcome_open_world_gate == true
   and .gates.rts_live_session_playthrough_same_process_trace_gate == true
+  and .gates.rts_live_session_playthrough_player_first_live_session_screen_gate == true
   and .gates.rts_live_session_playthrough_native_client_boundary_gate == true
   and .gates.rts_live_session_playthrough_gate == true
   and .gates.rts_full_game_visual_ui_replication_source_contract_gate == true

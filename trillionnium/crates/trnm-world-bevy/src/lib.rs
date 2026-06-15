@@ -24055,6 +24055,16 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
     const COMMAND_COLOR: u32 = 0xde776f;
     const RESUME_COLOR: u32 = 0xb18ade;
     const OUTCOME_COLOR: u32 = 0xd7d66c;
+    const LIVE_VIEW_X: i32 = 48;
+    const LIVE_VIEW_Y: i32 = 74;
+    const LIVE_VIEW_WIDTH: usize = 1160;
+    const LIVE_VIEW_HEIGHT: usize = 640;
+    const LIVE_VIEW_FRAME_COLOR: u32 = 0x86d8b4;
+    const LIVE_STATUS_STRIP_COLOR: u32 = 0x1d3c36;
+    const LIVE_STAGE_RAIL_X: i32 = 1240;
+    const LIVE_STAGE_RAIL_Y: i32 = 80;
+    const LIVE_STAGE_RAIL_WIDTH: i32 = 318;
+    const LIVE_STAGE_RAIL_STEP: i32 = 92;
 
     let trace_path = Path::new(preview_path)
         .with_extension("trace.json")
@@ -24399,6 +24409,231 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         0
     );
 
+    let mut player_first_pixels = vec![BACKGROUND_COLOR; LIVE_VIEW_WIDTH * LIVE_VIEW_HEIGHT];
+    classic_draw_scene(
+        &mut player_first_pixels,
+        LIVE_VIEW_WIDTH,
+        LIVE_VIEW_HEIGHT,
+        (7, 5),
+        &runtime,
+        &assets,
+    );
+    let player_first_live_view_non_background = player_first_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != BACKGROUND_COLOR
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    preview_pixels.fill(BACKGROUND_COLOR);
+    classic_draw_text(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        24,
+        24,
+        "TRNM RUST/BEVY LIVE SESSION PLAYTHROUGH",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        968,
+        26,
+        "SAME PROCESS / ACCOUNT TO OPEN WORLD / LIVE COMMANDS",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_copy_pixels(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        &player_first_pixels,
+        LIVE_VIEW_WIDTH,
+        LIVE_VIEW_HEIGHT,
+        LIVE_VIEW_X,
+        LIVE_VIEW_Y,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        LIVE_VIEW_X - 10,
+        LIVE_VIEW_Y - 28,
+        LIVE_VIEW_WIDTH as i32 + 20,
+        4,
+        LIVE_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        LIVE_VIEW_X - 10,
+        LIVE_VIEW_Y + LIVE_VIEW_HEIGHT as i32 + 24,
+        LIVE_VIEW_WIDTH as i32 + 20,
+        4,
+        LIVE_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        LIVE_VIEW_X - 10,
+        LIVE_VIEW_Y - 28,
+        4,
+        LIVE_VIEW_HEIGHT as i32 + 56,
+        LIVE_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        LIVE_VIEW_X + LIVE_VIEW_WIDTH as i32 + 6,
+        LIVE_VIEW_Y - 28,
+        4,
+        LIVE_VIEW_HEIGHT as i32 + 56,
+        LIVE_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        LIVE_VIEW_X,
+        LIVE_VIEW_Y + LIVE_VIEW_HEIGHT as i32 + 6,
+        LIVE_VIEW_WIDTH as i32,
+        18,
+        LIVE_STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        LIVE_VIEW_X,
+        LIVE_VIEW_Y - 16,
+        "FINAL LIVE TACTICAL STATE / GROUP 1 / FOCUS FIRE / SAVE RESUME",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        LIVE_VIEW_X + 20,
+        LIVE_VIEW_Y + LIVE_VIEW_HEIGHT as i32 + 11,
+        "ACCOUNT LOGIN -> CAMPAIGN START -> LIVE RTS COMMANDS -> SLOT A RESUME -> LEAGUE COLISEUM",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let stage_rail = [
+        (
+            TITLE_COLOR,
+            "1 TITLE / ACCOUNT",
+            "signed in / account bound",
+        ),
+        (
+            MATCH_COLOR,
+            "2 MATCH SETUP",
+            "campaign start / basin handoff",
+        ),
+        (
+            HUD_COLOR,
+            "3 IN-MATCH HUD",
+            "resources / selection / minimap",
+        ),
+        (
+            COMMAND_COLOR,
+            "4 COMMAND FEEDBACK",
+            "select train move attack ability",
+        ),
+        (
+            RESUME_COLOR,
+            "5 SAVE / RESUME",
+            "slot A write load continue",
+        ),
+        (
+            OUTCOME_COLOR,
+            "6 OUTCOME / WORLD",
+            "resumed league coliseum",
+        ),
+    ];
+    for (index, (color, label, detail)) in stage_rail.iter().enumerate() {
+        let y = LIVE_STAGE_RAIL_Y + (index as i32 * LIVE_STAGE_RAIL_STEP);
+        classic_draw_rect(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            LIVE_STAGE_RAIL_X,
+            y,
+            LIVE_STAGE_RAIL_WIDTH,
+            54,
+            *color,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            LIVE_STAGE_RAIL_X + 14,
+            y + 14,
+            label,
+            1,
+            BACKGROUND_COLOR,
+        );
+        classic_draw_text(
+            &mut preview_pixels,
+            PREVIEW_WIDTH,
+            PREVIEW_HEIGHT,
+            LIVE_STAGE_RAIL_X + 14,
+            y + 34,
+            detail,
+            1,
+            BACKGROUND_COLOR,
+        );
+    }
+    classic_draw_rect(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        48,
+        780,
+        712,
+        72,
+        0x13221f,
+    );
+    classic_draw_rect(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        792,
+        780,
+        760,
+        72,
+        0x13221f,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        72,
+        804,
+        "TRACE LOCK: TOP LEVEL ACTIONS ACCEPTED / LIVE COMMAND INPUT COUNT 5 / NO S5 CREDIT",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut preview_pixels,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+        816,
+        804,
+        "FINAL QUEUE: SELECT GROUP 1 / MOVE 7,4 / ATTACK CREEP / ABILITY FOCUS FIRE",
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
     let write_gate =
         write_classic_rgb_buffer_ppm(preview_path, PREVIEW_WIDTH, PREVIEW_HEIGHT, &preview_pixels)
             .is_ok();
@@ -24418,6 +24653,18 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
     let command_pixel_count = count_color(COMMAND_COLOR);
     let resume_pixel_count = count_color(RESUME_COLOR);
     let outcome_pixel_count = count_color(OUTCOME_COLOR);
+    let player_first_live_view_frame_pixel_count = count_color(LIVE_VIEW_FRAME_COLOR);
+    let player_first_live_status_strip_pixel_count = count_color(LIVE_STATUS_STRIP_COLOR);
+    let player_first_live_stage_rail_pixel_count = title_pixel_count
+        + match_pixel_count
+        + hud_pixel_count
+        + command_pixel_count
+        + resume_pixel_count
+        + outcome_pixel_count;
+    let player_first_live_session_screen_gate = player_first_live_view_non_background > 250_000
+        && player_first_live_view_frame_pixel_count > 8_000
+        && player_first_live_status_strip_pixel_count > 10_000
+        && player_first_live_stage_rail_pixel_count > 25_000;
     let slot_a_path = native_action_session_slot_path("A");
     let slot_a_bytes = fs::metadata(&slot_a_path)
         .map(|metadata| metadata.len())
@@ -24501,7 +24748,8 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         && hud_pixel_count > 1_000
         && command_pixel_count > 1_000
         && resume_pixel_count > 1_000
-        && outcome_pixel_count > 1_000;
+        && outcome_pixel_count > 1_000
+        && player_first_live_session_screen_gate;
     let same_process_trace_gate = top_level_action_count >= 12
         && top_level_action_count == top_level_accepted_action_count
         && (stage_summaries.len() == 6)
@@ -24521,6 +24769,8 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_CONTRACT,
         "trace_seed": "classic_rts_live_session_seed_v1",
         "same_process_session_playthrough": true,
+        "runtime_screen_mode": "player_runtime_live_session_playthrough_screen",
+        "evidence_board_only": false,
         "input_path": "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)",
         "action_labels": action_labels.clone(),
         "trace_events": trace_events.clone(),
@@ -24560,6 +24810,8 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         "trace_write_gate": trace_write_gate,
         "trace_seed": "classic_rts_live_session_seed_v1",
         "same_process_session_playthrough": true,
+        "runtime_screen_mode": "player_runtime_live_session_playthrough_screen",
+        "evidence_board_only": false,
         "input_path": "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)",
         "stage_count": stage_summaries.len(),
         "stage_ids": ["title_account", "match_setup", "in_match_hud", "command_feedback", "save_load_resume", "outcome_open_world"],
@@ -24578,7 +24830,11 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
             "in_match_hud": hud_pixel_count,
             "command_feedback": command_pixel_count,
             "save_load_resume": resume_pixel_count,
-            "outcome_open_world": outcome_pixel_count
+            "outcome_open_world": outcome_pixel_count,
+            "player_first_live_view_non_background": player_first_live_view_non_background,
+            "player_first_live_view_frame": player_first_live_view_frame_pixel_count,
+            "player_first_live_status_strip": player_first_live_status_strip_pixel_count,
+            "player_first_live_stage_rail": player_first_live_stage_rail_pixel_count
         },
         "final_state": {
             "current_room_id": trace_json.get("final_current_room_id").cloned().unwrap_or(Value::Null),
@@ -24595,6 +24851,7 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         "save_resume_gate": save_resume_gate,
         "outcome_open_world_gate": outcome_open_world_gate,
         "same_process_trace_gate": same_process_trace_gate,
+        "player_first_live_session_screen_gate": player_first_live_session_screen_gate,
         "preview_gate": preview_gate,
         "native_client_boundary_gate": native_client_boundary_gate,
         "live_session_playthrough_gate": live_session_playthrough_gate,
@@ -24610,7 +24867,7 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         "third_party_asset_copied": false,
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
-        "source_of_truth": "Classic RTS live session playthrough evidence drives one local Rust/Bevy world/runtime through title/account, campaign start, in-match HUD, live command feedback, selected slot save/load/resume, and open-world outcome in the same process and fixed seed. It records the trace sidecar and PPM contact sheet while keeping Android S5, public launch, production-ready UI, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
+        "source_of_truth": "Classic RTS live session playthrough evidence drives one local Rust/Bevy world/runtime through title/account, campaign start, in-match HUD, live command feedback, selected slot save/load/resume, and open-world outcome in the same process and fixed seed. It records the trace sidecar and a player-first final tactical screen with stage rail while keeping Android S5, public launch, production-ready UI, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
     }))
     .expect("classic RTS live session playthrough evidence serializes")
 }

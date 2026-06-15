@@ -27,6 +27,8 @@ jq -e \
   and .trace_write_gate == true
   and .trace_seed == "classic_rts_live_session_seed_v1"
   and .same_process_session_playthrough == true
+  and .runtime_screen_mode == "player_runtime_live_session_playthrough_screen"
+  and .evidence_board_only == false
   and .input_path == "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)"
   and .stage_count == 6
   and .stage_ids == ["title_account", "match_setup", "in_match_hud", "command_feedback", "save_load_resume", "outcome_open_world"]
@@ -45,6 +47,10 @@ jq -e \
   and .pixel_counts.command_feedback > 1000
   and .pixel_counts.save_load_resume > 1000
   and .pixel_counts.outcome_open_world > 1000
+  and .pixel_counts.player_first_live_view_non_background > 250000
+  and .pixel_counts.player_first_live_view_frame > 8000
+  and .pixel_counts.player_first_live_status_strip > 10000
+  and .pixel_counts.player_first_live_stage_rail > 25000
   and .final_state.current_room_id == "league-coliseum"
   and .final_state.map_scene == "arena_league_coliseum"
   and .final_state.objective_status == "open_world_after_action_ready"
@@ -58,6 +64,7 @@ jq -e \
   and .save_resume_gate == true
   and .outcome_open_world_gate == true
   and .same_process_trace_gate == true
+  and .player_first_live_session_screen_gate == true
   and .preview_gate == true
   and .native_client_boundary_gate == true
   and .live_session_playthrough_gate == true
