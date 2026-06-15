@@ -42,6 +42,7 @@ jq -e '
   and .player_flow_gate == true
   and .coverage_surface_gate == true
   and .preview_gate == true
+  and .player_first_tactical_composition_gate == true
   and .no_copy_boundary_gate == true
   and .full_game_visual_ui_replication_gate == true
   and .internal_rust_full_game_visual_ui_replication_claimed == true
@@ -50,6 +51,9 @@ jq -e '
   and .pixel_counts.command > 20000
   and .pixel_counts.session > 10000
   and .pixel_counts.outcome > 10000
+  and .pixel_counts.player_first_tactical_preview_non_background > 350000
+  and .pixel_counts.player_first_tactical_viewport_frame > 8000
+  and .pixel_counts.player_first_tactical_status_strip > 10000
   and .source_headline.full_screen_surface_count == 10
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.match_setup_surface_count == 10

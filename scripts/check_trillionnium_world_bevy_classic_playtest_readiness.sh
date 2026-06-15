@@ -6,10 +6,49 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-rea
 mkdir -p "$(dirname "$SUMMARY")"
 SUMMARY_FILTER="$(mktemp)"
 VALIDATION_FILTER="$(mktemp)"
+VALIDATION_CHUNK_DIR="$(mktemp -d)"
 REFRESH="${TRNM_BEVY_PLAYTEST_READINESS_REFRESH:-1}"
-trap 'rm -f "$SUMMARY_FILTER" "$VALIDATION_FILTER"' EXIT
+trap 'rm -f "$SUMMARY_FILTER" "$VALIDATION_FILTER"; rm -rf "$VALIDATION_CHUNK_DIR"' EXIT
 sed -n '/^# BEGIN_PLAYTEST_READINESS_SUMMARY_FILTER$/,/^# END_PLAYTEST_READINESS_SUMMARY_FILTER$/p' "$0" | sed '1d;$d' >"$SUMMARY_FILTER"
 sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READINESS_VALIDATION_FILTER$/p' "$0" | sed '1d;$d' >"$VALIDATION_FILTER"
+
+run_validation_filter_in_chunks() {
+  local filter="$1"
+  local json="$2"
+  local chunk_dir="$3"
+  awk -v dir="$chunk_dir" -v max_lines=160 '
+    function open_chunk() {
+      chunk += 1
+      file = sprintf("%s/validation-%03d.jq", dir, chunk)
+      line_count = 0
+      first = 1
+    }
+    /^[[:space:]]*$/ { next }
+    {
+      line = $0
+      if (chunk == 0 || line_count >= max_lines) {
+        open_chunk()
+      }
+      if (first) {
+        sub(/^[[:space:]]*and[[:space:]]+/, "  ", line)
+        print line > file
+        first = 0
+      } else {
+        if (line !~ /^[[:space:]]*and[[:space:]]+/) {
+          print "  and " line > file
+        } else {
+          print line > file
+        }
+      }
+      line_count += 1
+    }
+  ' "$filter"
+
+  local chunk
+  for chunk in "$chunk_dir"/validation-*.jq; do
+    jq -e -f "$chunk" "$json" >/dev/null
+  done
+}
 
 if [[ "$REFRESH" != "0" ]]; then
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_manifest_lint.sh" >/dev/null
@@ -2125,6 +2164,9 @@ jq -n \
       rts_full_game_visual_ui_replication_command_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.command,
       rts_full_game_visual_ui_replication_session_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.session,
       rts_full_game_visual_ui_replication_outcome_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.outcome,
+      rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_preview_non_background,
+      rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_viewport_frame,
+      rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_status_strip,
       rts_full_game_visual_ui_replication_live_session_stage_count: $rts_full_game_visual_ui_replication[0].source_headline.live_session_stage_count,
       rts_full_game_visual_ui_replication_live_session_accepted_input_count: $rts_full_game_visual_ui_replication[0].source_headline.live_session_accepted_input_count,
       rts_full_game_visual_ui_replication_final_objective_status: $rts_full_game_visual_ui_replication[0].source_headline.live_session_final_objective_status,
@@ -2939,6 +2981,7 @@ jq -n \
       rts_full_game_visual_ui_replication_player_flow_gate: $rts_full_game_visual_ui_replication[0].player_flow_gate,
       rts_full_game_visual_ui_replication_coverage_surface_gate: $rts_full_game_visual_ui_replication[0].coverage_surface_gate,
       rts_full_game_visual_ui_replication_preview_gate: $rts_full_game_visual_ui_replication[0].preview_gate,
+      rts_full_game_visual_ui_replication_player_first_tactical_composition_gate: $rts_full_game_visual_ui_replication[0].player_first_tactical_composition_gate,
       rts_full_game_visual_ui_replication_no_copy_boundary_gate: $rts_full_game_visual_ui_replication[0].no_copy_boundary_gate,
       rts_full_game_visual_ui_replication_gate: $rts_full_game_visual_ui_replication[0].full_game_visual_ui_replication_gate,
       rts_openra_screen_for_screen_ui_replication_source_contract_gate: $rts_openra_screen_for_screen_ui_replication[0].source_contract_gate,
@@ -3431,7 +3474,7 @@ jq -n \
 # END_PLAYTEST_READINESS_SUMMARY_FILTER
 PLAYTEST_READINESS_SUMMARY_FILTER_BLOCK
 
-jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
+run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHUNK_DIR"
 
 : <<'PLAYTEST_READINESS_VALIDATION_FILTER_BLOCK'
 # BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER
@@ -3639,6 +3682,9 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .headline.rts_full_game_visual_ui_replication_command_pixel_count > 20000
   and .headline.rts_full_game_visual_ui_replication_session_pixel_count > 10000
   and .headline.rts_full_game_visual_ui_replication_outcome_pixel_count > 10000
+  and .headline.rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background > 350000
+  and .headline.rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count > 8000
+  and .headline.rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count > 10000
   and .headline.rts_full_game_visual_ui_replication_live_session_stage_count == 6
   and .headline.rts_full_game_visual_ui_replication_live_session_accepted_input_count >= 78
   and .headline.rts_full_game_visual_ui_replication_final_objective_status == "open_world_after_action_ready"
@@ -5288,6 +5334,7 @@ jq -e -f "$VALIDATION_FILTER" "$SUMMARY" >/dev/null
   and .gates.rts_full_game_visual_ui_replication_player_flow_gate == true
   and .gates.rts_full_game_visual_ui_replication_coverage_surface_gate == true
   and .gates.rts_full_game_visual_ui_replication_preview_gate == true
+  and .gates.rts_full_game_visual_ui_replication_player_first_tactical_composition_gate == true
   and .gates.rts_full_game_visual_ui_replication_no_copy_boundary_gate == true
   and .gates.rts_full_game_visual_ui_replication_gate == true
   and .gates.rts_openra_screen_for_screen_ui_replication_source_contract_gate == true
