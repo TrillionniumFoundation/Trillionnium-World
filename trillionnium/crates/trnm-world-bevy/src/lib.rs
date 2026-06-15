@@ -19740,6 +19740,9 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         .unwrap_or_else(|| Path::new("."))
         .join("bevy-classic-rts-full-screen-ui-replication-sources");
     let _ = fs::create_dir_all(&source_dir);
+    let latest_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
     let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
     let visual_path = source_path("visual-fidelity.ppm");
     let map_ui_dir = source_path("map-ui-modeling-readiness");
@@ -19754,39 +19757,62 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         &native_classic_rts_campaign_entry_evidence_json("local-player"),
     )
     .expect("campaign entry evidence parses for full screen UI replication");
-    let visual: Value = serde_json::from_str(&native_classic_rts_visual_fidelity_evidence_json(
+    let visual = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-visual-fidelity.json",
         &visual_path,
-    ))
-    .expect("visual fidelity evidence parses for full screen UI replication");
-    let map_ui: Value = serde_json::from_str(
-        &native_classic_rts_map_ui_modeling_readiness_evidence_json(&map_ui_dir),
-    )
-    .expect("map UI/modeling readiness evidence parses for full screen UI replication");
-    let production_ui: Value = serde_json::from_str(
-        &native_classic_rts_production_ui_skin_evidence_json(&production_ui_path),
-    )
-    .expect("production UI skin evidence parses for full screen UI replication");
-    let interaction: Value = serde_json::from_str(
-        &native_classic_rts_production_interaction_polish_evidence_json(&interaction_path),
-    )
-    .expect("production interaction polish evidence parses for full screen UI replication");
-    let build_lifecycle: Value = serde_json::from_str(
-        &native_classic_rts_build_lifecycle_evidence_json(&build_lifecycle_path),
-    )
-    .expect("build lifecycle evidence parses for full screen UI replication");
-    let tech_tree: Value =
-        serde_json::from_str(&native_classic_rts_tech_tree_evidence_json(&tech_tree_path))
-            .expect("tech tree evidence parses for full screen UI replication");
-    let campaign_outcome: Value = serde_json::from_str(
-        &native_classic_rts_campaign_outcome_ui_readiness_evidence_json(&campaign_outcome_dir),
-    )
-    .expect("campaign outcome UI readiness evidence parses for full screen UI replication");
-    let combat_readability: Value = serde_json::from_str(
-        &native_classic_rts_combat_readability_pressure_readiness_evidence_json(
-            &combat_readability_dir,
-        ),
-    )
-    .expect("combat readability pressure evidence parses for full screen UI replication");
+        Some("bevy-classic-rts-visual-fidelity.ppm"),
+        native_classic_rts_visual_fidelity_evidence_json,
+    );
+    let map_ui = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-map-ui-modeling-readiness.json",
+        &map_ui_dir,
+        None,
+        native_classic_rts_map_ui_modeling_readiness_evidence_json,
+    );
+    let production_ui = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-production-ui-skin.json",
+        &production_ui_path,
+        Some("bevy-classic-rts-production-ui-skin.ppm"),
+        native_classic_rts_production_ui_skin_evidence_json,
+    );
+    let interaction = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-production-interaction-polish.json",
+        &interaction_path,
+        Some("bevy-classic-rts-production-interaction-polish.ppm"),
+        native_classic_rts_production_interaction_polish_evidence_json,
+    );
+    let build_lifecycle = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-build-lifecycle.json",
+        &build_lifecycle_path,
+        Some("bevy-classic-rts-build-lifecycle.ppm"),
+        native_classic_rts_build_lifecycle_evidence_json,
+    );
+    let tech_tree = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-tech-tree.json",
+        &tech_tree_path,
+        Some("bevy-classic-rts-tech-tree.ppm"),
+        native_classic_rts_tech_tree_evidence_json,
+    );
+    let campaign_outcome = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-campaign-outcome-ui-readiness.json",
+        &campaign_outcome_dir,
+        None,
+        native_classic_rts_campaign_outcome_ui_readiness_evidence_json,
+    );
+    let combat_readability = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-combat-readability-pressure-readiness.json",
+        &combat_readability_dir,
+        None,
+        native_classic_rts_combat_readability_pressure_readiness_evidence_json,
+    );
 
     let bool_at =
         |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
@@ -20708,16 +20734,22 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         .unwrap_or_else(|| Path::new("."))
         .join("bevy-classic-rts-shell-meta-ui-replication-sources");
     let _ = fs::create_dir_all(&source_dir);
+    let latest_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
     let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
     let full_screen_path = source_path("full-screen-ui-replication.ppm");
     let save_slot_path = source_path("shell-meta-save-slot.json");
     let slot_dir = native_action_session_slot_dir();
     let _ = fs::create_dir_all(&slot_dir);
 
-    let full_screen: Value = serde_json::from_str(
-        &native_classic_rts_full_screen_ui_replication_evidence_json(&full_screen_path),
-    )
-    .expect("full screen UI replication evidence parses for shell/meta UI replication");
+    let full_screen = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-full-screen-ui-replication.json",
+        &full_screen_path,
+        Some("bevy-classic-rts-full-screen-ui-replication.ppm"),
+        native_classic_rts_full_screen_ui_replication_evidence_json,
+    );
     let account_title: Value =
         serde_json::from_str(&native_account_title_flow_evidence_json("local-player"))
             .expect("account title flow evidence parses for shell/meta UI replication");
@@ -21728,15 +21760,21 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         .unwrap_or_else(|| Path::new("."))
         .join("bevy-classic-rts-match-setup-ui-replication-sources");
     let _ = fs::create_dir_all(&source_dir);
+    let latest_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
     let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
     let shell_meta_path = source_path("shell-meta-ui-replication.ppm");
     let map_ui_dir = source_path("map-ui-modeling-readiness");
     let tech_tree_path = source_path("tech-tree.ppm");
 
-    let shell_meta: Value = serde_json::from_str(
-        &native_classic_rts_shell_meta_ui_replication_evidence_json(&shell_meta_path),
-    )
-    .expect("shell/meta UI replication evidence parses for match setup UI replication");
+    let shell_meta = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-shell-meta-ui-replication.json",
+        &shell_meta_path,
+        Some("bevy-classic-rts-shell-meta-ui-replication.ppm"),
+        native_classic_rts_shell_meta_ui_replication_evidence_json,
+    );
     let campaign_entry: Value = serde_json::from_str(
         &native_classic_rts_campaign_entry_evidence_json("local-player"),
     )
@@ -21744,13 +21782,20 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
     let basin_spec: Value =
         serde_json::from_str(&native_classic_rts_first_contact_basin_spec_evidence_json())
             .expect("first contact basin spec parses for match setup UI replication");
-    let map_ui: Value = serde_json::from_str(
-        &native_classic_rts_map_ui_modeling_readiness_evidence_json(&map_ui_dir),
-    )
-    .expect("map UI/modeling readiness evidence parses for match setup UI replication");
-    let tech_tree: Value =
-        serde_json::from_str(&native_classic_rts_tech_tree_evidence_json(&tech_tree_path))
-            .expect("tech tree evidence parses for match setup UI replication");
+    let map_ui = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-map-ui-modeling-readiness.json",
+        &map_ui_dir,
+        None,
+        native_classic_rts_map_ui_modeling_readiness_evidence_json,
+    );
+    let tech_tree = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-tech-tree.json",
+        &tech_tree_path,
+        Some("bevy-classic-rts-tech-tree.ppm"),
+        native_classic_rts_tech_tree_evidence_json,
+    );
 
     let bool_at =
         |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
@@ -22835,6 +22880,9 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         .unwrap_or_else(|| Path::new("."))
         .join("bevy-classic-rts-session-state-continuity-sources");
     let _ = fs::create_dir_all(&source_dir);
+    let latest_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
     let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
     let shell_meta_path = source_path("shell-meta-ui-replication.ppm");
     let match_setup_path = source_path("match-setup-ui-replication.ppm");
@@ -22844,10 +22892,13 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
     let slot_dir = native_action_session_slot_dir();
     let _ = fs::create_dir_all(&slot_dir);
 
-    let shell_meta: Value = serde_json::from_str(
-        &native_classic_rts_shell_meta_ui_replication_evidence_json(&shell_meta_path),
-    )
-    .expect("shell/meta UI replication evidence parses for session state continuity");
+    let shell_meta = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-shell-meta-ui-replication.json",
+        &shell_meta_path,
+        Some("bevy-classic-rts-shell-meta-ui-replication.ppm"),
+        native_classic_rts_shell_meta_ui_replication_evidence_json,
+    );
     let session_slot_confirm: Value = serde_json::from_str(
         &native_session_slot_confirm_evidence_json("local-player", &slot_dir),
     )
@@ -22859,22 +22910,34 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
     let session_recovery: Value =
         serde_json::from_str(&native_session_recovery_ui_evidence_json("local-player"))
             .expect("session recovery UI evidence parses for session state continuity");
-    let match_setup: Value = serde_json::from_str(
-        &native_classic_rts_match_setup_ui_replication_evidence_json(&match_setup_path),
-    )
-    .expect("match setup UI replication evidence parses for session state continuity");
-    let hud: Value = serde_json::from_str(
-        &native_classic_rts_in_match_hud_state_replication_evidence_json(&hud_path),
-    )
-    .expect("in-match HUD/state evidence parses for session state continuity");
-    let campaign_outcome: Value = serde_json::from_str(
-        &native_classic_rts_campaign_outcome_ui_readiness_evidence_json(&campaign_outcome_dir),
-    )
-    .expect("campaign outcome UI readiness evidence parses for session state continuity");
-    let campaign_continuity: Value = serde_json::from_str(
-        &native_classic_rts_campaign_ui_continuity_evidence_json(&campaign_continuity_path),
-    )
-    .expect("campaign UI continuity evidence parses for session state continuity");
+    let match_setup = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-match-setup-ui-replication.json",
+        &match_setup_path,
+        Some("bevy-classic-rts-match-setup-ui-replication.ppm"),
+        native_classic_rts_match_setup_ui_replication_evidence_json,
+    );
+    let hud = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-in-match-hud-state-replication.json",
+        &hud_path,
+        Some("bevy-classic-rts-in-match-hud-state-replication.ppm"),
+        native_classic_rts_in_match_hud_state_replication_evidence_json,
+    );
+    let campaign_outcome = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-campaign-outcome-ui-readiness.json",
+        &campaign_outcome_dir,
+        None,
+        native_classic_rts_campaign_outcome_ui_readiness_evidence_json,
+    );
+    let campaign_continuity = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-campaign-ui-continuity.json",
+        &campaign_continuity_path,
+        Some("bevy-classic-rts-campaign-ui-continuity.ppm"),
+        native_classic_rts_campaign_ui_continuity_evidence_json,
+    );
 
     let bool_at =
         |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
@@ -23350,6 +23413,41 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_cached_source_json<F>(
+    latest_dir: &Path,
+    json_name: &str,
+    source_preview_path: &str,
+    latest_preview_name: Option<&str>,
+    generate: F,
+) -> Value
+where
+    F: FnOnce(&str) -> String,
+{
+    let latest_json_path = latest_dir.join(json_name);
+    let latest_json_ready = fs::metadata(&latest_json_path)
+        .map(|metadata| metadata.len() > 0)
+        .unwrap_or(false);
+    if latest_json_ready {
+        if let Some(preview_name) = latest_preview_name {
+            let latest_preview_path = latest_dir.join(preview_name);
+            let latest_preview_ready = fs::metadata(&latest_preview_path)
+                .map(|metadata| metadata.len() > 0)
+                .unwrap_or(false);
+            if latest_preview_ready {
+                let _ = fs::copy(&latest_preview_path, source_preview_path);
+            }
+        }
+        let body = fs::read_to_string(&latest_json_path)
+            .unwrap_or_else(|error| panic!("cached source JSON {json_name} is readable: {error}"));
+        return serde_json::from_str(&body)
+            .unwrap_or_else(|error| panic!("cached source JSON {json_name} parses: {error}"));
+    }
+
+    serde_json::from_str(&generate(source_preview_path))
+        .unwrap_or_else(|error| panic!("generated source JSON {json_name} parses: {error}"))
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &str) -> String {
     const WIDTH: usize = 1600;
     const HEIGHT: usize = 900;
@@ -23371,6 +23469,9 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         .unwrap_or_else(|| Path::new("."))
         .join("bevy-classic-rts-continuous-player-flow-sources");
     let _ = fs::create_dir_all(&source_dir);
+    let latest_dir = Path::new(preview_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
     let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
     let shell_meta_path = source_path("shell-meta-ui-replication.ppm");
     let match_setup_path = source_path("match-setup-ui-replication.ppm");
@@ -23380,34 +23481,55 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
     let campaign_outcome_dir = source_path("campaign-outcome-ui-readiness");
     let campaign_continuity_path = source_path("campaign-ui-continuity.ppm");
 
-    let shell_meta: Value = serde_json::from_str(
-        &native_classic_rts_shell_meta_ui_replication_evidence_json(&shell_meta_path),
-    )
-    .expect("shell/meta UI replication evidence parses for continuous player flow");
-    let match_setup: Value = serde_json::from_str(
-        &native_classic_rts_match_setup_ui_replication_evidence_json(&match_setup_path),
-    )
-    .expect("match setup UI replication evidence parses for continuous player flow");
-    let hud: Value = serde_json::from_str(
-        &native_classic_rts_in_match_hud_state_replication_evidence_json(&hud_path),
-    )
-    .expect("in-match HUD/state evidence parses for continuous player flow");
-    let interaction: Value = serde_json::from_str(
-        &native_classic_rts_production_interaction_polish_evidence_json(&interaction_path),
-    )
-    .expect("production interaction polish evidence parses for continuous player flow");
-    let session: Value = serde_json::from_str(
-        &native_classic_rts_session_state_continuity_evidence_json(&session_path),
-    )
-    .expect("session state continuity evidence parses for continuous player flow");
-    let campaign_outcome: Value = serde_json::from_str(
-        &native_classic_rts_campaign_outcome_ui_readiness_evidence_json(&campaign_outcome_dir),
-    )
-    .expect("campaign outcome UI readiness evidence parses for continuous player flow");
-    let campaign_continuity: Value = serde_json::from_str(
-        &native_classic_rts_campaign_ui_continuity_evidence_json(&campaign_continuity_path),
-    )
-    .expect("campaign UI continuity evidence parses for continuous player flow");
+    let shell_meta = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-shell-meta-ui-replication.json",
+        &shell_meta_path,
+        Some("bevy-classic-rts-shell-meta-ui-replication.ppm"),
+        native_classic_rts_shell_meta_ui_replication_evidence_json,
+    );
+    let match_setup = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-match-setup-ui-replication.json",
+        &match_setup_path,
+        Some("bevy-classic-rts-match-setup-ui-replication.ppm"),
+        native_classic_rts_match_setup_ui_replication_evidence_json,
+    );
+    let hud = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-in-match-hud-state-replication.json",
+        &hud_path,
+        Some("bevy-classic-rts-in-match-hud-state-replication.ppm"),
+        native_classic_rts_in_match_hud_state_replication_evidence_json,
+    );
+    let interaction = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-production-interaction-polish.json",
+        &interaction_path,
+        Some("bevy-classic-rts-production-interaction-polish.ppm"),
+        native_classic_rts_production_interaction_polish_evidence_json,
+    );
+    let session = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-session-state-continuity.json",
+        &session_path,
+        Some("bevy-classic-rts-session-state-continuity.ppm"),
+        native_classic_rts_session_state_continuity_evidence_json,
+    );
+    let campaign_outcome = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-campaign-outcome-ui-readiness.json",
+        &campaign_outcome_dir,
+        None,
+        native_classic_rts_campaign_outcome_ui_readiness_evidence_json,
+    );
+    let campaign_continuity = classic_rts_cached_source_json(
+        latest_dir,
+        "bevy-classic-rts-campaign-ui-continuity.json",
+        &campaign_continuity_path,
+        Some("bevy-classic-rts-campaign-ui-continuity.ppm"),
+        native_classic_rts_campaign_ui_continuity_evidence_json,
+    );
 
     let bool_at =
         |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
