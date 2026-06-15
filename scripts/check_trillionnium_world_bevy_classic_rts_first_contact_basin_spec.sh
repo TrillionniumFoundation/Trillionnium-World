@@ -406,6 +406,11 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.order_queue_replay_action_samples == [{"kind":"attack","payload":"arena_creep_attack"},{"kind":"move","payload":"9,2:line"},{"kind":"move","payload":"minimap:rally:5,2"},{"kind":"queue","payload":"train:worker"},{"kind":"select-control-group","payload":"3"},{"kind":"ability","payload":"focus_fire"}]
   and .rts_evidence_bevy_runtime_adapter.command_feedback_strip_stage_sample == "group_27_override"
   and .rts_evidence_bevy_runtime_adapter.command_feedback_lifecycle_stage_sample == "dimmed"
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_step_names_sample == ["select_group_26","queue_group_26","select_group_27","override_group_27","select_group_28","formation_group_28","bounded_history_after_clear"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_preview_stages_sample == ["group_26_queued","group_27_override","group_28_formation","cleared_history_bounded"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_retained_group_ids_sample == ["26","27","28"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_pruned_group_ids_sample == ["25","24"]
+  and .rts_evidence_bevy_runtime_adapter.command_feedback_replay_history_badges_sample == ["QUEUE","CANCEL_FINAL","FORMATION_FILTER_CLEAR"]
   and .rts_evidence_bevy_runtime_adapter.command_history_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.command_history_prune_visible_sample == true
   and .rts_evidence_bevy_runtime_adapter.command_execution_feedback_kind_samples == ["move","follow","attack","harvest"]

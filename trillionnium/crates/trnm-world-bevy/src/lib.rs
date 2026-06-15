@@ -119043,114 +119043,33 @@ pub fn native_first_minute_command_feedback_replay_evidence_json(
             .and_then(|value| value.as_str())
             == Some("combat_resolved");
 
-    let retained_history_group_ids = string_vec(["26", "27", "28"]);
-    let pruned_history_group_ids = string_vec(["25", "24"]);
-    let group_26_member_ids =
-        string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
-    let group_27_member_ids = string_vec([
-        "multi0.recall.override.runner",
-        "multi0.recall.override.wing",
-    ]);
-    let group_28_member_ids = string_vec([
-        "multi0.recall.formation.runner",
-        "multi0.recall.formation.wing",
-    ]);
-    let all_member_ids = string_vec([
-        "multi0.recall.order.runner",
-        "multi0.recall.order.wing",
-        "multi0.recall.override.runner",
-        "multi0.recall.override.wing",
-        "multi0.recall.formation.runner",
-        "multi0.recall.formation.wing",
-    ]);
-    let history_entries = vec![
-        json!({
-            "group_id": "26",
-            "badge": "QUEUE",
-            "target_tile": "18,31",
-            "age_ticks": 0,
-            "bounded_history_index": 0,
-            "member_ids": group_26_member_ids.clone(),
-        }),
-        json!({
-            "group_id": "27",
-            "badge": "CANCEL_FINAL",
-            "canceled_target_tile": "21,25",
-            "override_final_tile_ids": ["20,30", "22,30"],
-            "age_ticks": 4,
-            "bounded_history_index": 1,
-            "member_ids": group_27_member_ids.clone(),
-        }),
-        json!({
-            "group_id": "28",
-            "badge": "FORMATION_FILTER_CLEAR",
-            "formation_anchor_tile": "1,31",
-            "formation_slot_tile_ids": ["1,31", "2,31"],
-            "age_ticks": 8,
-            "bounded_history_index": 2,
-            "member_ids": group_28_member_ids.clone(),
-        }),
-    ];
-    let pruned_history_entries = vec![
-        json!({
-            "group_id": "25",
-            "badge": "OLD_QUEUE",
-            "target_tile": "17,30",
-            "age_ticks": 16,
-            "prune_reason": "recent_three_capacity",
-        }),
-        json!({
-            "group_id": "24",
-            "badge": "OLD_CANCEL",
-            "target_tile": "16,29",
-            "age_ticks": 20,
-            "prune_reason": "recent_three_capacity",
-        }),
-    ];
-    let command_steps = vec![
-        json!({
-            "step_index": 0,
-            "step_name": "select_group_26",
-            "action_label": "RTS:SELECT:26",
-            "preview_stage": null,
-        }),
-        json!({
-            "step_index": 1,
-            "step_name": "queue_group_26",
-            "action_label": "RTS:MOVE:18,31:line",
-            "preview_stage": "group_26_queued",
-        }),
-        json!({
-            "step_index": 2,
-            "step_name": "select_group_27",
-            "action_label": "RTS:SELECT:27",
-            "preview_stage": null,
-        }),
-        json!({
-            "step_index": 3,
-            "step_name": "override_group_27",
-            "action_label": "RTS:MOVE:21,25:line",
-            "preview_stage": "group_27_override",
-        }),
-        json!({
-            "step_index": 4,
-            "step_name": "select_group_28",
-            "action_label": "RTS:SELECT:28",
-            "preview_stage": null,
-        }),
-        json!({
-            "step_index": 5,
-            "step_name": "formation_group_28",
-            "action_label": "RTS:MOVE:1,31:line",
-            "preview_stage": "group_28_formation",
-        }),
-        json!({
-            "step_index": 6,
-            "step_name": "bounded_history_after_clear",
-            "action_label": "RTS:SELECT:26",
-            "preview_stage": "cleared_history_bounded",
-        }),
-    ];
+    let command_feedback_fixture =
+        rts_bevy_runtime::rts_control_group_command_feedback_replay_fixtures();
+    let retained_history_group_ids = command_feedback_fixture.retained_history_group_ids.clone();
+    let pruned_history_group_ids = command_feedback_fixture.pruned_history_group_ids.clone();
+    let group_26_member_ids = command_feedback_fixture.group_26_member_ids.clone();
+    let group_27_member_ids = command_feedback_fixture.group_27_member_ids.clone();
+    let group_28_member_ids = command_feedback_fixture.group_28_member_ids.clone();
+    let all_member_ids = command_feedback_fixture.all_member_ids.clone();
+    let history_entries = command_feedback_fixture
+        .history_entries
+        .iter()
+        .map(|entry| {
+            serde_json::to_value(entry).expect("command feedback history entry serializes")
+        })
+        .collect::<Vec<_>>();
+    let pruned_history_entries = command_feedback_fixture
+        .pruned_history_entries
+        .iter()
+        .map(|entry| {
+            serde_json::to_value(entry).expect("command feedback pruned history entry serializes")
+        })
+        .collect::<Vec<_>>();
+    let command_steps = command_feedback_fixture
+        .command_steps
+        .iter()
+        .map(|step| serde_json::to_value(step).expect("command feedback step serializes"))
+        .collect::<Vec<_>>();
     let command_recording = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_COMMAND_FEEDBACK_RECORDING_CONTRACT,
         "source_input_replay_contract": TRILLIONNIUM_WORLD_BEVY_FIRST_MINUTE_INPUT_REPLAY_CONTRACT,

@@ -238,6 +238,42 @@ pub struct RtsControlGroupRecallOverridePreviewStageFixture {
     pub group_command_state: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackHistoryEntry {
+    pub group_id: String,
+    pub badge: String,
+    pub target_tile: Option<String>,
+    pub canceled_target_tile: Option<String>,
+    pub override_final_tile_ids: Vec<String>,
+    pub formation_anchor_tile: Option<String>,
+    pub formation_slot_tile_ids: Vec<String>,
+    pub age_ticks: u32,
+    pub bounded_history_index: Option<u32>,
+    pub member_ids: Vec<String>,
+    pub prune_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackStepFixture {
+    pub step_index: u32,
+    pub step_name: String,
+    pub action_label: String,
+    pub preview_stage: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsControlGroupCommandFeedbackReplayFixtures {
+    pub retained_history_group_ids: Vec<String>,
+    pub pruned_history_group_ids: Vec<String>,
+    pub group_26_member_ids: Vec<String>,
+    pub group_27_member_ids: Vec<String>,
+    pub group_28_member_ids: Vec<String>,
+    pub all_member_ids: Vec<String>,
+    pub history_entries: Vec<RtsControlGroupCommandFeedbackHistoryEntry>,
+    pub pruned_history_entries: Vec<RtsControlGroupCommandFeedbackHistoryEntry>,
+    pub command_steps: Vec<RtsControlGroupCommandFeedbackStepFixture>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsRuntimeMapLayoutInput {
     pub viewport_width: i32,
@@ -3838,6 +3874,150 @@ pub fn rts_control_group_recall_override_preview_stage_ids() -> Vec<String> {
         .collect()
 }
 
+pub fn rts_control_group_command_feedback_replay_fixtures(
+) -> RtsControlGroupCommandFeedbackReplayFixtures {
+    let group_26_member_ids =
+        rts_string_vec(["multi0.recall.order.runner", "multi0.recall.order.wing"]);
+    let group_27_member_ids = rts_string_vec([
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+    ]);
+    let group_28_member_ids = rts_string_vec([
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+    let all_member_ids = rts_string_vec([
+        "multi0.recall.order.runner",
+        "multi0.recall.order.wing",
+        "multi0.recall.override.runner",
+        "multi0.recall.override.wing",
+        "multi0.recall.formation.runner",
+        "multi0.recall.formation.wing",
+    ]);
+
+    RtsControlGroupCommandFeedbackReplayFixtures {
+        retained_history_group_ids: rts_string_vec(["26", "27", "28"]),
+        pruned_history_group_ids: rts_string_vec(["25", "24"]),
+        group_26_member_ids: group_26_member_ids.clone(),
+        group_27_member_ids: group_27_member_ids.clone(),
+        group_28_member_ids: group_28_member_ids.clone(),
+        all_member_ids,
+        history_entries: vec![
+            RtsControlGroupCommandFeedbackHistoryEntry {
+                group_id: "26".to_string(),
+                badge: "QUEUE".to_string(),
+                target_tile: Some("18,31".to_string()),
+                canceled_target_tile: None,
+                override_final_tile_ids: Vec::new(),
+                formation_anchor_tile: None,
+                formation_slot_tile_ids: Vec::new(),
+                age_ticks: 0,
+                bounded_history_index: Some(0),
+                member_ids: group_26_member_ids,
+                prune_reason: None,
+            },
+            RtsControlGroupCommandFeedbackHistoryEntry {
+                group_id: "27".to_string(),
+                badge: "CANCEL_FINAL".to_string(),
+                target_tile: None,
+                canceled_target_tile: Some("21,25".to_string()),
+                override_final_tile_ids: rts_string_vec(["20,30", "22,30"]),
+                formation_anchor_tile: None,
+                formation_slot_tile_ids: Vec::new(),
+                age_ticks: 4,
+                bounded_history_index: Some(1),
+                member_ids: group_27_member_ids,
+                prune_reason: None,
+            },
+            RtsControlGroupCommandFeedbackHistoryEntry {
+                group_id: "28".to_string(),
+                badge: "FORMATION_FILTER_CLEAR".to_string(),
+                target_tile: None,
+                canceled_target_tile: None,
+                override_final_tile_ids: Vec::new(),
+                formation_anchor_tile: Some("1,31".to_string()),
+                formation_slot_tile_ids: rts_string_vec(["1,31", "2,31"]),
+                age_ticks: 8,
+                bounded_history_index: Some(2),
+                member_ids: group_28_member_ids,
+                prune_reason: None,
+            },
+        ],
+        pruned_history_entries: vec![
+            RtsControlGroupCommandFeedbackHistoryEntry {
+                group_id: "25".to_string(),
+                badge: "OLD_QUEUE".to_string(),
+                target_tile: Some("17,30".to_string()),
+                canceled_target_tile: None,
+                override_final_tile_ids: Vec::new(),
+                formation_anchor_tile: None,
+                formation_slot_tile_ids: Vec::new(),
+                age_ticks: 16,
+                bounded_history_index: None,
+                member_ids: Vec::new(),
+                prune_reason: Some("recent_three_capacity".to_string()),
+            },
+            RtsControlGroupCommandFeedbackHistoryEntry {
+                group_id: "24".to_string(),
+                badge: "OLD_CANCEL".to_string(),
+                target_tile: Some("16,29".to_string()),
+                canceled_target_tile: None,
+                override_final_tile_ids: Vec::new(),
+                formation_anchor_tile: None,
+                formation_slot_tile_ids: Vec::new(),
+                age_ticks: 20,
+                bounded_history_index: None,
+                member_ids: Vec::new(),
+                prune_reason: Some("recent_three_capacity".to_string()),
+            },
+        ],
+        command_steps: vec![
+            RtsControlGroupCommandFeedbackStepFixture {
+                step_index: 0,
+                step_name: "select_group_26".to_string(),
+                action_label: "RTS:SELECT:26".to_string(),
+                preview_stage: None,
+            },
+            RtsControlGroupCommandFeedbackStepFixture {
+                step_index: 1,
+                step_name: "queue_group_26".to_string(),
+                action_label: "RTS:MOVE:18,31:line".to_string(),
+                preview_stage: Some("group_26_queued".to_string()),
+            },
+            RtsControlGroupCommandFeedbackStepFixture {
+                step_index: 2,
+                step_name: "select_group_27".to_string(),
+                action_label: "RTS:SELECT:27".to_string(),
+                preview_stage: None,
+            },
+            RtsControlGroupCommandFeedbackStepFixture {
+                step_index: 3,
+                step_name: "override_group_27".to_string(),
+                action_label: "RTS:MOVE:21,25:line".to_string(),
+                preview_stage: Some("group_27_override".to_string()),
+            },
+            RtsControlGroupCommandFeedbackStepFixture {
+                step_index: 4,
+                step_name: "select_group_28".to_string(),
+                action_label: "RTS:SELECT:28".to_string(),
+                preview_stage: None,
+            },
+            RtsControlGroupCommandFeedbackStepFixture {
+                step_index: 5,
+                step_name: "formation_group_28".to_string(),
+                action_label: "RTS:MOVE:1,31:line".to_string(),
+                preview_stage: Some("group_28_formation".to_string()),
+            },
+            RtsControlGroupCommandFeedbackStepFixture {
+                step_index: 6,
+                step_name: "bounded_history_after_clear".to_string(),
+                action_label: "RTS:SELECT:26".to_string(),
+                preview_stage: Some("cleared_history_bounded".to_string()),
+            },
+        ],
+    }
+}
+
 pub fn rts_formation_move_execution_stage(
     combat_events: &[String],
     command_queue: &[String],
@@ -5291,6 +5471,27 @@ mod tests {
             &lifecycle_events,
             &lifecycle_queue,
         ));
+        let replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
+        assert_eq!(
+            replay_fixtures.retained_history_group_ids,
+            vec!["26", "27", "28"]
+        );
+        assert_eq!(replay_fixtures.pruned_history_group_ids, vec!["25", "24"]);
+        assert_eq!(replay_fixtures.command_steps.len(), 7);
+        assert_eq!(
+            replay_fixtures.command_steps[1].preview_stage.as_deref(),
+            Some("group_26_queued")
+        );
+        assert_eq!(
+            replay_fixtures.history_entries[2].formation_slot_tile_ids,
+            vec!["1,31", "2,31"]
+        );
+        assert_eq!(
+            replay_fixtures.pruned_history_entries[0]
+                .prune_reason
+                .as_deref(),
+            Some("recent_three_capacity")
+        );
         assert_eq!(
             rts_command_execution_feedback_kind(
                 "idle",

@@ -23,8 +23,8 @@ use trnm_rts_bevy_runtime::{
     rts_command_slot_id_for_index, rts_command_stamp_for_ability, rts_command_stamp_for_move,
     rts_command_stamp_for_selection, rts_command_surface_stage, rts_commander_aura_tiles_for_id,
     rts_commander_parts, rts_contact_flash_tiles_for_target,
-    rts_control_group_hotkey_feedback_stage, rts_control_group_hotkey_slot,
-    rts_control_group_recall_formation_preview_stage_fixtures,
+    rts_control_group_command_feedback_replay_fixtures, rts_control_group_hotkey_feedback_stage,
+    rts_control_group_hotkey_slot, rts_control_group_recall_formation_preview_stage_fixtures,
     rts_control_group_recall_override_preview_stage_fixtures, rts_control_group_slot_summaries,
     rts_counter_command_parts, rts_counterattack_route_tiles_for_wave,
     rts_counterattack_units_for_wave, rts_creep_camp_parts, rts_creep_camp_tiles_for_id,
@@ -271,6 +271,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub order_queue_replay_action_samples: Vec<RtsOrderQueueReplayAction>,
     pub command_feedback_strip_stage_sample: Option<String>,
     pub command_feedback_lifecycle_stage_sample: Option<String>,
+    pub command_feedback_replay_step_names_sample: Vec<String>,
+    pub command_feedback_replay_preview_stages_sample: Vec<String>,
+    pub command_feedback_replay_retained_group_ids_sample: Vec<String>,
+    pub command_feedback_replay_pruned_group_ids_sample: Vec<String>,
+    pub command_feedback_replay_history_badges_sample: Vec<String>,
     pub command_history_visible_sample: bool,
     pub command_history_prune_visible_sample: bool,
     pub command_execution_feedback_kind_samples: Vec<String>,
@@ -752,6 +757,22 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         rts_command_history_visible("", &command_feedback_events, &command_feedback_queue);
     let command_history_prune_visible =
         rts_command_history_prune_visible("", &command_feedback_events, &command_feedback_queue);
+    let command_feedback_replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
+    let command_feedback_replay_step_names = command_feedback_replay_fixtures
+        .command_steps
+        .iter()
+        .map(|step| step.step_name.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_replay_preview_stages = command_feedback_replay_fixtures
+        .command_steps
+        .iter()
+        .filter_map(|step| step.preview_stage.clone())
+        .collect::<Vec<_>>();
+    let command_feedback_replay_history_badges = command_feedback_replay_fixtures
+        .history_entries
+        .iter()
+        .map(|entry| entry.badge.clone())
+        .collect::<Vec<_>>();
     let command_execution_feedback_kind_samples = vec![
         rts_command_execution_feedback_kind(
             "idle",
@@ -1325,6 +1346,27 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             ]
         && command_feedback_strip_stage.as_deref() == Some("group_27_override")
         && command_feedback_lifecycle_stage.as_deref() == Some("dimmed")
+        && command_feedback_replay_step_names
+            == vec![
+                "select_group_26",
+                "queue_group_26",
+                "select_group_27",
+                "override_group_27",
+                "select_group_28",
+                "formation_group_28",
+                "bounded_history_after_clear",
+            ]
+        && command_feedback_replay_preview_stages
+            == vec![
+                "group_26_queued",
+                "group_27_override",
+                "group_28_formation",
+                "cleared_history_bounded",
+            ]
+        && command_feedback_replay_fixtures.retained_history_group_ids == vec!["26", "27", "28"]
+        && command_feedback_replay_fixtures.pruned_history_group_ids == vec!["25", "24"]
+        && command_feedback_replay_history_badges
+            == vec!["QUEUE", "CANCEL_FINAL", "FORMATION_FILTER_CLEAR"]
         && command_history_visible
         && command_history_prune_visible
         && command_execution_feedback_kind_samples == vec!["move", "follow", "attack", "harvest"]
@@ -1603,6 +1645,13 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         order_queue_replay_action_samples,
         command_feedback_strip_stage_sample: command_feedback_strip_stage,
         command_feedback_lifecycle_stage_sample: command_feedback_lifecycle_stage,
+        command_feedback_replay_step_names_sample: command_feedback_replay_step_names,
+        command_feedback_replay_preview_stages_sample: command_feedback_replay_preview_stages,
+        command_feedback_replay_retained_group_ids_sample: command_feedback_replay_fixtures
+            .retained_history_group_ids,
+        command_feedback_replay_pruned_group_ids_sample: command_feedback_replay_fixtures
+            .pruned_history_group_ids,
+        command_feedback_replay_history_badges_sample: command_feedback_replay_history_badges,
         command_history_visible_sample: command_history_visible,
         command_history_prune_visible_sample: command_history_prune_visible,
         command_execution_feedback_kind_samples,
@@ -2376,6 +2425,39 @@ mod tests {
         assert_eq!(
             evidence.command_feedback_lifecycle_stage_sample.as_deref(),
             Some("dimmed")
+        );
+        assert_eq!(
+            evidence.command_feedback_replay_step_names_sample,
+            vec![
+                "select_group_26",
+                "queue_group_26",
+                "select_group_27",
+                "override_group_27",
+                "select_group_28",
+                "formation_group_28",
+                "bounded_history_after_clear"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_replay_preview_stages_sample,
+            vec![
+                "group_26_queued",
+                "group_27_override",
+                "group_28_formation",
+                "cleared_history_bounded"
+            ]
+        );
+        assert_eq!(
+            evidence.command_feedback_replay_retained_group_ids_sample,
+            vec!["26", "27", "28"]
+        );
+        assert_eq!(
+            evidence.command_feedback_replay_pruned_group_ids_sample,
+            vec!["25", "24"]
+        );
+        assert_eq!(
+            evidence.command_feedback_replay_history_badges_sample,
+            vec!["QUEUE", "CANCEL_FINAL", "FORMATION_FILTER_CLEAR"]
         );
         assert!(evidence.command_history_visible_sample);
         assert!(evidence.command_history_prune_visible_sample);
