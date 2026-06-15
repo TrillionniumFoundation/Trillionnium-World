@@ -23463,6 +23463,16 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
     const PANEL_COLOR: u32 = 0x16211f;
     const LANE_COLOR: u32 = 0x223530;
     const HIGHLIGHT_COLOR: u32 = 0xf1edbb;
+    const FLOW_VIEW_X: i32 = 48;
+    const FLOW_VIEW_Y: i32 = 92;
+    const FLOW_VIEW_WIDTH: usize = 1060;
+    const FLOW_VIEW_HEIGHT: usize = 600;
+    const FLOW_VIEW_FRAME_COLOR: u32 = 0x86d8b4;
+    const FLOW_STATUS_STRIP_COLOR: u32 = 0x1d3c36;
+    const FLOW_STAGE_RAIL_X: i32 = 1140;
+    const FLOW_STAGE_RAIL_Y: i32 = 108;
+    const FLOW_STAGE_RAIL_WIDTH: i32 = 382;
+    const FLOW_STAGE_RAIL_STEP: i32 = 78;
 
     let source_dir = Path::new(preview_path)
         .parent()
@@ -23561,42 +23571,6 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
     let runtime = classic_product_alignment_runtime();
     let assets = load_classic_runtime_assets();
     let mut pixels = vec![BACKGROUND_COLOR; WIDTH * HEIGHT];
-    classic_draw_scene(&mut pixels, WIDTH, HEIGHT, (7, 5), &runtime, &assets);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 34, 32, 1532, 814, BOARD_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 34, 32, 1532, 5, EDGE_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 34, 841, 1532, 5, EDGE_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 34, 32, 5, 814, EDGE_COLOR);
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 1561, 32, 5, 814, EDGE_COLOR);
-    classic_draw_text(
-        &mut pixels,
-        WIDTH,
-        HEIGHT,
-        64,
-        56,
-        "TRNM RUST/BEVY CONTINUOUS PLAYER FLOW",
-        2,
-        CLASSIC_HUD_ACCENT_TEXT_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        WIDTH,
-        HEIGHT,
-        66,
-        94,
-        "title/account -> match setup -> in-match HUD -> command feedback -> save/load resume -> outcome/open-world",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        WIDTH,
-        HEIGHT,
-        66,
-        116,
-        "INTERNAL PROJECT-OWNED RUST/BEVY PLAYER FLOW; S5 DEVICE, PUBLIC LAUNCH, AND OPENRA COPY CLAIMS STAY FALSE",
-        1,
-        CLASSIC_HUD_MUTED_TEXT_COLOR,
-    );
 
     let flow_steps = [
         (
@@ -23643,20 +23617,159 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         ),
     ];
 
-    for (index, (label, color, step_id, mode, source)) in flow_steps.iter().enumerate() {
-        let col = (index % 3) as i32;
-        let row = (index / 3) as i32;
-        let x = 66 + col * 506;
-        let y = 158 + row * 252;
-        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 452, 190, PANEL_COLOR);
-        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 452, 6, *color);
-        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y + 184, 452, 6, *color);
+    let mut player_flow_pixels = vec![BACKGROUND_COLOR; FLOW_VIEW_WIDTH * FLOW_VIEW_HEIGHT];
+    classic_draw_scene(
+        &mut player_flow_pixels,
+        FLOW_VIEW_WIDTH,
+        FLOW_VIEW_HEIGHT,
+        (7, 5),
+        &runtime,
+        &assets,
+    );
+    let player_first_flow_view_non_background = player_flow_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != BACKGROUND_COLOR
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 28, 1540, 816, BOARD_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 28, 1540, 5, EDGE_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 839, 1540, 5, EDGE_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 30, 28, 5, 816, EDGE_COLOR);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 1565, 28, 5, 816, EDGE_COLOR);
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        58,
+        52,
+        "TRNM RUST/BEVY CONTINUOUS PLAYER FLOW",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        1036,
+        54,
+        "TITLE TO OPEN WORLD / ONE LOCAL RUST BEVY LOOP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_copy_pixels(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        &player_flow_pixels,
+        FLOW_VIEW_WIDTH,
+        FLOW_VIEW_HEIGHT,
+        FLOW_VIEW_X,
+        FLOW_VIEW_Y,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        FLOW_VIEW_X - 10,
+        FLOW_VIEW_Y - 26,
+        FLOW_VIEW_WIDTH as i32 + 20,
+        4,
+        FLOW_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        FLOW_VIEW_X - 10,
+        FLOW_VIEW_Y + FLOW_VIEW_HEIGHT as i32 + 26,
+        FLOW_VIEW_WIDTH as i32 + 20,
+        4,
+        FLOW_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        FLOW_VIEW_X - 10,
+        FLOW_VIEW_Y - 26,
+        4,
+        FLOW_VIEW_HEIGHT as i32 + 56,
+        FLOW_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        FLOW_VIEW_X + FLOW_VIEW_WIDTH as i32 + 6,
+        FLOW_VIEW_Y - 26,
+        4,
+        FLOW_VIEW_HEIGHT as i32 + 56,
+        FLOW_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        FLOW_VIEW_X,
+        FLOW_VIEW_Y + FLOW_VIEW_HEIGHT as i32 + 8,
+        FLOW_VIEW_WIDTH as i32,
+        22,
+        FLOW_STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        FLOW_VIEW_X,
+        FLOW_VIEW_Y - 14,
+        "CURRENT PLAYABLE STATE / GROUP 1 SELECTED / FIRST PLAYABLE LOOP COMPLETE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        FLOW_VIEW_X + 16,
+        FLOW_VIEW_Y + FLOW_VIEW_HEIGHT as i32 + 16,
+        "TITLE ACCOUNT -> MATCH SETUP -> HUD -> COMMAND FEEDBACK -> SAVE RESUME -> LEAGUE COLISEUM",
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+
+    for (index, (label, color, step_id, _mode, source)) in flow_steps.iter().enumerate() {
+        let x = FLOW_STAGE_RAIL_X;
+        let y = FLOW_STAGE_RAIL_Y + index as i32 * FLOW_STAGE_RAIL_STEP;
+        classic_draw_rect(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x,
+            y,
+            FLOW_STAGE_RAIL_WIDTH,
+            62,
+            *color,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x + 12,
+            y + 12,
+            FLOW_STAGE_RAIL_WIDTH - 24,
+            38,
+            PANEL_COLOR,
+        );
         classic_draw_text(
             &mut pixels,
             WIDTH,
             HEIGHT,
             x + 16,
-            y + 20,
+            y + 12,
             label,
             1,
             CLASSIC_HUD_TEXT_COLOR,
@@ -23666,7 +23779,7 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
             WIDTH,
             HEIGHT,
             x + 16,
-            y + 44,
+            y + 34,
             step_id,
             1,
             CLASSIC_HUD_MUTED_TEXT_COLOR,
@@ -23676,99 +23789,102 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
             WIDTH,
             HEIGHT,
             x + 16,
-            y + 66,
-            mode,
-            1,
-            CLASSIC_HUD_MUTED_TEXT_COLOR,
-        );
-        classic_draw_text(
-            &mut pixels,
-            WIDTH,
-            HEIGHT,
-            x + 16,
-            y + 88,
+            y + 50,
             source,
             1,
             CLASSIC_HUD_MUTED_TEXT_COLOR,
         );
-        for marker in 0..8_i32 {
-            let mx = x + 18 + (marker % 4) * 100;
-            let my = y + 124 + (marker / 4) * 28;
-            classic_draw_rect(&mut pixels, WIDTH, HEIGHT, mx, my, 68, 18, *color);
+        if index < flow_steps.len() - 1 {
             classic_draw_rect(
                 &mut pixels,
                 WIDTH,
                 HEIGHT,
-                mx + 6,
-                my + 5,
-                52,
-                4,
+                x + FLOW_STAGE_RAIL_WIDTH / 2 - 10,
+                y + 62,
+                20,
+                FLOW_STAGE_RAIL_STEP - 62,
+                LANE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                WIDTH,
+                HEIGHT,
+                x + FLOW_STAGE_RAIL_WIDTH / 2 - 4,
+                y + 68,
+                8,
+                FLOW_STAGE_RAIL_STEP - 74,
                 HIGHLIGHT_COLOR,
             );
         }
     }
 
-    let connector_y = 382;
-    for connector in 0..5_i32 {
-        let x = 255 + connector * 252;
-        let y = if connector < 2 {
-            connector_y
-        } else if connector == 2 {
-            418
-        } else {
-            634
-        };
-        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, y, 120, 16, LANE_COLOR);
-        classic_draw_rect(
-            &mut pixels,
-            WIDTH,
-            HEIGHT,
-            x + 84,
-            y - 8,
-            34,
-            32,
-            HIGHLIGHT_COLOR,
-        );
+    let timeline_y = 748;
+    for (index, (_, color, step_id, _, _)) in flow_steps.iter().enumerate() {
+        let x = 66 + index as i32 * 238;
+        classic_draw_rect(&mut pixels, WIDTH, HEIGHT, x, timeline_y, 170, 24, *color);
         classic_draw_text(
             &mut pixels,
             WIDTH,
             HEIGHT,
             x + 10,
-            y + 4,
-            "NEXT",
+            timeline_y + 8,
+            step_id,
             1,
-            CLASSIC_HUD_MUTED_TEXT_COLOR,
+            CLASSIC_HUD_TEXT_COLOR,
         );
+        if index < flow_steps.len() - 1 {
+            classic_draw_rect(
+                &mut pixels,
+                WIDTH,
+                HEIGHT,
+                x + 170,
+                timeline_y + 8,
+                54,
+                8,
+                LANE_COLOR,
+            );
+            classic_draw_rect(
+                &mut pixels,
+                WIDTH,
+                HEIGHT,
+                x + 214,
+                timeline_y + 2,
+                18,
+                20,
+                HIGHLIGHT_COLOR,
+            );
+        }
     }
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 66, 690, 1464, 78, 0x16231f);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 66, 784, 690, 48, 0x16231f);
     classic_draw_text(
         &mut pixels,
         WIDTH,
         HEIGHT,
         86,
-        714,
+        804,
         "FLOW LOCK: TITLE_ACCOUNT > MATCH_SETUP > HUD_READY > COMMAND_FEEDBACK > SAVE_LOAD_RESUME > OUTCOME_OPEN_WORLD",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 790, 784, 740, 48, 0x16231f);
     classic_draw_text(
         &mut pixels,
         WIDTH,
         HEIGHT,
-        86,
-        740,
+        810,
+        804,
         "RESTORED STATE: first_contact_basin / mirror_guard / group 1 selected / first_playable_loop_complete / resumed:league-coliseum",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
-    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 66, 790, 1464, 34, 0x16231f);
+    classic_draw_rect(&mut pixels, WIDTH, HEIGHT, 1140, 592, 382, 82, 0x16231f);
     classic_draw_text(
         &mut pixels,
         WIDTH,
         HEIGHT,
-        86,
-        800,
-        "NO CREDIT LINE: android_s5_real_device=false, public_launch_ready=false, screen_for_screen_openra_ui=false, third_party_asset_copied=false",
+        1160,
+        616,
+        "NO CREDIT: S5 / PUBLIC / OPENRA / THIRD PARTY FALSE",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
@@ -23789,6 +23905,14 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
     let outcome_pixel_count = count_color(OUTCOME_COLOR);
     let lane_pixel_count = count_color(LANE_COLOR);
     let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+    let player_first_flow_view_frame_pixel_count = count_color(FLOW_VIEW_FRAME_COLOR);
+    let player_first_flow_status_strip_pixel_count = count_color(FLOW_STATUS_STRIP_COLOR);
+    let player_first_flow_stage_rail_pixel_count = title_pixel_count
+        + match_pixel_count
+        + hud_pixel_count
+        + command_pixel_count
+        + resume_pixel_count
+        + outcome_pixel_count;
 
     let title_account_gate = contract_is(
         &shell_meta,
@@ -23878,6 +24002,10 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         && file_ready(&session_path)
         && file_ready(&campaign_continuity_path)
         && bool_at(&campaign_outcome, "preview_gate");
+    let player_first_continuous_flow_screen_gate = player_first_flow_view_non_background > 300_000
+        && player_first_flow_view_frame_pixel_count > 8_000
+        && player_first_flow_status_strip_pixel_count > 10_000
+        && player_first_flow_stage_rail_pixel_count > 50_000;
     let preview_gate = write_gate
         && file_ready(preview_path)
         && non_background_pixels > 250_000
@@ -23889,7 +24017,8 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         && resume_pixel_count > 2_000
         && outcome_pixel_count > 2_000
         && lane_pixel_count > 500
-        && highlight_pixel_count > 1_000;
+        && highlight_pixel_count > 1_000
+        && player_first_continuous_flow_screen_gate;
     let native_client_boundary_gate = !bool_at(&shell_meta, "android_s5_real_device_claimed")
         && !bool_at(&match_setup, "android_s5_real_device_claimed")
         && !bool_at(&hud, "android_s5_real_device_claimed")
@@ -23961,6 +24090,7 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         "evidence_board_only": false,
         "runtime_screen_layout": {
             "flow_lane": "single continuous local Rust/Bevy player flow from title/account through open-world return",
+            "primary_tactical_viewport": "large current playable tactical state with continuous flow rail",
             "title_account": "title actions, account panels, save slots, recovery surfaces",
             "match_setup": "map, faction, spawn, resource, victory, minimap, start-ready setup",
             "in_match_hud": "resources, selected units, control groups, commands, minimap, production, abilities, combat alerts",
@@ -23993,7 +24123,11 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
             "save_load_resume": resume_pixel_count,
             "outcome_open_world": outcome_pixel_count,
             "lane": lane_pixel_count,
-            "highlight": highlight_pixel_count
+            "highlight": highlight_pixel_count,
+            "player_first_flow_view_non_background": player_first_flow_view_non_background,
+            "player_first_flow_view_frame": player_first_flow_view_frame_pixel_count,
+            "player_first_flow_status_strip": player_first_flow_status_strip_pixel_count,
+            "player_first_flow_stage_rail": player_first_flow_stage_rail_pixel_count
         },
         "source_headline": {
             "shell_meta_surface_count": shell_meta.get("shell_meta_surface_count").cloned().unwrap_or(Value::Null),
@@ -24022,6 +24156,7 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         "continuous_player_flow_chain_gate": continuous_player_flow_chain_gate,
         "source_preview_gate": source_preview_gate,
         "preview_gate": preview_gate,
+        "player_first_continuous_flow_screen_gate": player_first_continuous_flow_screen_gate,
         "native_client_boundary_gate": native_client_boundary_gate,
         "runtime_screen_gate": runtime_screen_gate,
         "continuous_player_flow_gate": continuous_player_flow_gate,

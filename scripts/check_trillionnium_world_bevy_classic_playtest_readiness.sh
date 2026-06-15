@@ -2145,6 +2145,10 @@ jq -n \
       rts_continuous_player_flow_command_feedback_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.command_feedback,
       rts_continuous_player_flow_save_load_resume_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.save_load_resume,
       rts_continuous_player_flow_outcome_open_world_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.outcome_open_world,
+      rts_continuous_player_flow_player_first_flow_view_non_background: $rts_continuous_player_flow[0].flow_pixel_counts.player_first_flow_view_non_background,
+      rts_continuous_player_flow_player_first_flow_view_frame_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.player_first_flow_view_frame,
+      rts_continuous_player_flow_player_first_flow_status_strip_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.player_first_flow_status_strip,
+      rts_continuous_player_flow_player_first_flow_stage_rail_pixel_count: $rts_continuous_player_flow[0].flow_pixel_counts.player_first_flow_stage_rail,
       rts_continuous_player_flow_final_objective_status: $rts_continuous_player_flow[0].source_headline.session_final_objective_status,
       rts_continuous_player_flow_open_world_state: $rts_continuous_player_flow[0].source_headline.session_open_world_state,
       rts_continuous_player_flow_restored_room_id: $rts_continuous_player_flow[0].source_headline.campaign_continuity_restored_room_id,
@@ -2968,6 +2972,7 @@ jq -n \
       rts_continuous_player_flow_save_resume_gate: $rts_continuous_player_flow[0].save_resume_gate,
       rts_continuous_player_flow_outcome_open_world_gate: $rts_continuous_player_flow[0].outcome_open_world_gate,
       rts_continuous_player_flow_chain_gate: $rts_continuous_player_flow[0].continuous_player_flow_chain_gate,
+      rts_continuous_player_flow_player_first_continuous_flow_screen_gate: $rts_continuous_player_flow[0].player_first_continuous_flow_screen_gate,
       rts_continuous_player_flow_native_client_boundary_gate: $rts_continuous_player_flow[0].native_client_boundary_gate,
       rts_continuous_player_flow_gate: $rts_continuous_player_flow[0].continuous_player_flow_gate,
       rts_live_session_playthrough_title_account_gate: $rts_live_session_playthrough[0].title_account_gate,
@@ -3668,6 +3673,10 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_continuous_player_flow_command_feedback_pixel_count > 2000
   and .headline.rts_continuous_player_flow_save_load_resume_pixel_count > 2000
   and .headline.rts_continuous_player_flow_outcome_open_world_pixel_count > 2000
+  and .headline.rts_continuous_player_flow_player_first_flow_view_non_background > 300000
+  and .headline.rts_continuous_player_flow_player_first_flow_view_frame_pixel_count > 8000
+  and .headline.rts_continuous_player_flow_player_first_flow_status_strip_pixel_count > 10000
+  and .headline.rts_continuous_player_flow_player_first_flow_stage_rail_pixel_count > 50000
   and .headline.rts_continuous_player_flow_final_objective_status == "first_playable_loop_complete"
   and .headline.rts_continuous_player_flow_open_world_state == "resumed:league-coliseum"
   and .headline.rts_continuous_player_flow_restored_room_id == "league-coliseum"
@@ -5326,6 +5335,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_continuous_player_flow_save_resume_gate == true
   and .gates.rts_continuous_player_flow_outcome_open_world_gate == true
   and .gates.rts_continuous_player_flow_chain_gate == true
+  and .gates.rts_continuous_player_flow_player_first_continuous_flow_screen_gate == true
   and .gates.rts_continuous_player_flow_native_client_boundary_gate == true
   and .gates.rts_continuous_player_flow_gate == true
   and .gates.rts_live_session_playthrough_title_account_gate == true

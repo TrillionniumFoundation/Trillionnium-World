@@ -29,6 +29,7 @@ jq -e '
   and .runtime_screen_gate == true
   and .evidence_board_only == false
   and .runtime_screen_layout.flow_lane == "single continuous local Rust/Bevy player flow from title/account through open-world return"
+  and .runtime_screen_layout.primary_tactical_viewport == "large current playable tactical state with continuous flow rail"
   and .runtime_screen_layout.title_account == "title actions, account panels, save slots, recovery surfaces"
   and .runtime_screen_layout.command_feedback == "drag select, right-click move, attack lock, build ghost, queued path, scroll/minimap feedback"
   and .runtime_screen_layout.save_load_resume == "selected save slot write, load lock, continue unlock, restored HUD and objective state"
@@ -56,6 +57,10 @@ jq -e '
   and .flow_pixel_counts.outcome_open_world > 2000
   and .flow_pixel_counts.lane > 500
   and .flow_pixel_counts.highlight > 1000
+  and .flow_pixel_counts.player_first_flow_view_non_background > 300000
+  and .flow_pixel_counts.player_first_flow_view_frame > 8000
+  and .flow_pixel_counts.player_first_flow_status_strip > 10000
+  and .flow_pixel_counts.player_first_flow_stage_rail > 50000
   and .source_headline.shell_meta_surface_count == 12
   and .source_headline.shell_meta_runtime_screen_mode == "player_runtime_shell_meta_screen"
   and .source_headline.match_setup_runtime_screen_mode == "player_runtime_match_setup_screen"
@@ -81,6 +86,7 @@ jq -e '
   and .continuous_player_flow_chain_gate == true
   and .source_preview_gate == true
   and .preview_gate == true
+  and .player_first_continuous_flow_screen_gate == true
   and .native_client_boundary_gate == true
   and .runtime_screen_gate == true
   and .continuous_player_flow_gate == true
