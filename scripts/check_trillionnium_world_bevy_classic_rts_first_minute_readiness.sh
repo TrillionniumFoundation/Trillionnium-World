@@ -19,6 +19,12 @@ jq -e '
   and .campaign_handoff_contract == "trillionnium_world_bevy_classic_rts_campaign_handoff_v1"
   and .preview_width == 1920
   and .preview_height == 1080
+  and .runtime_screen_mode == "player_runtime_first_minute_readiness_screen"
+  and .runtime_screen_gate == true
+  and .evidence_board_only == false
+  and .runtime_screen_layout.campaign_start_resume == "title campaign start/continue/replay into local save-slot restore"
+  and .runtime_screen_layout.primary_tactical_viewport == "large restored route tactical state from the first-minute handoff"
+  and .runtime_screen_layout.route_progression == "right-side route rail and bottom timeline replace the old 4x4 contact sheet"
   and (.title_actions | index("CAMPAIGN:START") != null)
   and (.title_actions | index("CAMPAIGN:CONTINUE") != null)
   and (.title_actions | index("CAMPAIGN:REPLAY") != null)
@@ -44,6 +50,11 @@ jq -e '
   and .breadcrumb_route_gate == true
   and .preview_gate == true
   and .native_boundary_gate == true
+  and .first_minute_pixel_counts.player_first_campaign_view_non_background > 600000
+  and .first_minute_pixel_counts.player_first_campaign_view_frame > 10000
+  and .first_minute_pixel_counts.player_first_campaign_status_strip > 8000
+  and .first_minute_pixel_counts.player_first_campaign_route_rail > 100000
+  and .player_first_first_minute_screen_gate == true
 ' "$SUMMARY" >/dev/null
 
 test -s "$PREVIEW"

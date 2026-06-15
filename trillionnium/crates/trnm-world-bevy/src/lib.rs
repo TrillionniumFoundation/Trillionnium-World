@@ -78019,6 +78019,10 @@ pub fn native_classic_rts_objective_minimap_breadcrumbs_evidence_json(
         "preview_format": handoff.get("preview_format").cloned().unwrap_or(Value::Null),
         "preview_width": handoff.get("preview_width").cloned().unwrap_or(Value::Null),
         "preview_height": handoff.get("preview_height").cloned().unwrap_or(Value::Null),
+        "runtime_screen_mode": handoff.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+        "runtime_screen_gate": handoff.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
+        "evidence_board_only": handoff.get("evidence_board_only").cloned().unwrap_or(Value::Null),
+        "runtime_screen_layout": handoff.get("runtime_screen_layout").cloned().unwrap_or(Value::Null),
         "campaign_handoff_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
         "campaign_handoff_green": handoff.get("green").cloned().unwrap_or(Value::Bool(false)),
         "required_action_breadcrumbs": [
@@ -78052,6 +78056,8 @@ pub fn native_classic_rts_objective_minimap_breadcrumbs_evidence_json(
         "keep_pixel_count": handoff.get("keep_pixel_count").cloned().unwrap_or(Value::Null),
         "restoration_pixel_count": handoff.get("restoration_pixel_count").cloned().unwrap_or(Value::Null),
         "open_world_pixel_count": handoff.get("open_world_pixel_count").cloned().unwrap_or(Value::Null),
+        "campaign_handoff_pixel_counts": handoff.get("campaign_handoff_pixel_counts").cloned().unwrap_or(Value::Null),
+        "player_first_campaign_handoff_screen_gate": handoff.get("player_first_campaign_handoff_screen_gate").cloned().unwrap_or(Value::Null),
         "action_label_gate": action_label_gate,
         "command_queue_gate": command_queue_gate,
         "next_action_gate": next_action_gate,
@@ -78087,6 +78093,8 @@ pub fn native_classic_rts_first_minute_readiness_evidence_json(preview_path: &st
             .to_string()
     };
     let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
+    let u64_pointer =
+        |value: &Value, pointer: &str| value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0);
     let array_contains = |value: &Value, key: &str, expected: &str| {
         value
             .get(key)
@@ -78160,12 +78168,37 @@ pub fn native_classic_rts_first_minute_readiness_evidence_json(preview_path: &st
             .get("android_s5_real_device_claimed")
             .and_then(Value::as_bool)
             == Some(false);
+    let player_first_first_minute_screen_gate =
+        bool_at(&breadcrumbs, "player_first_campaign_handoff_screen_gate")
+            && str_at(&breadcrumbs, "runtime_screen_mode")
+                == "player_runtime_campaign_handoff_screen"
+            && breadcrumbs
+                .get("evidence_board_only")
+                .and_then(Value::as_bool)
+                == Some(false)
+            && u64_pointer(
+                &breadcrumbs,
+                "/campaign_handoff_pixel_counts/player_first_campaign_view_non_background",
+            ) > 600_000
+            && u64_pointer(
+                &breadcrumbs,
+                "/campaign_handoff_pixel_counts/player_first_campaign_view_frame",
+            ) > 10_000
+            && u64_pointer(
+                &breadcrumbs,
+                "/campaign_handoff_pixel_counts/player_first_campaign_status_strip",
+            ) > 8_000
+            && u64_pointer(
+                &breadcrumbs,
+                "/campaign_handoff_pixel_counts/player_first_campaign_route_rail",
+            ) > 100_000;
     let green = campaign_entry_gate
         && campaign_arrival_gate
         && breadcrumb_gate
         && breadcrumb_route_gate
         && preview_gate
-        && native_boundary_gate;
+        && native_boundary_gate
+        && player_first_first_minute_screen_gate;
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_MINUTE_READINESS_CONTRACT,
@@ -78176,6 +78209,14 @@ pub fn native_classic_rts_first_minute_readiness_evidence_json(preview_path: &st
         "preview_path": preview_path,
         "preview_width": breadcrumbs.get("preview_width").cloned().unwrap_or(Value::Null),
         "preview_height": breadcrumbs.get("preview_height").cloned().unwrap_or(Value::Null),
+        "runtime_screen_mode": "player_runtime_first_minute_readiness_screen",
+        "runtime_screen_gate": player_first_first_minute_screen_gate,
+        "evidence_board_only": false,
+        "runtime_screen_layout": {
+            "campaign_start_resume": "title campaign start/continue/replay into local save-slot restore",
+            "primary_tactical_viewport": "large restored route tactical state from the first-minute handoff",
+            "route_progression": "right-side route rail and bottom timeline replace the old 4x4 contact sheet"
+        },
         "title_actions": entry.get("title_actions").cloned().unwrap_or(Value::Null),
         "input_action_count": entry.get("input_action_count").cloned().unwrap_or(Value::Null),
         "start_input_count": entry.get("start_input_count").cloned().unwrap_or(Value::Null),
@@ -78189,13 +78230,15 @@ pub fn native_classic_rts_first_minute_readiness_evidence_json(preview_path: &st
         "final_next_action_ids": breadcrumbs.get("final_next_action_ids").cloned().unwrap_or(Value::Null),
         "final_route_director_path": breadcrumbs.get("final_route_director_path").cloned().unwrap_or(Value::Null),
         "final_route_director_history": breadcrumbs.get("final_route_director_history").cloned().unwrap_or(Value::Null),
+        "first_minute_pixel_counts": breadcrumbs.get("campaign_handoff_pixel_counts").cloned().unwrap_or(Value::Null),
         "campaign_entry_gate": campaign_entry_gate,
         "campaign_arrival_gate": campaign_arrival_gate,
         "breadcrumb_gate": breadcrumb_gate,
         "breadcrumb_route_gate": breadcrumb_route_gate,
         "preview_gate": preview_gate,
         "native_boundary_gate": native_boundary_gate,
-        "source_of_truth": "The first-minute readiness gate ties TITLE campaign start/continue/replay, persisted campaign slot restore, the full classic RTS handoff arrival, objective/minimap breadcrumbs, route director history, and the rendered 1920x1080 native preview into one repeatable Bevy-owned evidence artifact for trnm_world playtest readiness."
+        "player_first_first_minute_screen_gate": player_first_first_minute_screen_gate,
+        "source_of_truth": "The first-minute readiness gate ties TITLE campaign start/continue/replay, persisted campaign slot restore, the full classic RTS handoff arrival, objective/minimap breadcrumbs, route director history, and the rendered 1920x1080 native preview into one repeatable Bevy-owned player-first screen for trnm_world playtest readiness."
     }))
     .expect("classic RTS first-minute readiness evidence serializes")
 }
