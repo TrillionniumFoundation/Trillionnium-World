@@ -123934,10 +123934,10 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "TRAIN",
             "training_room",
             "right_action_buttons",
-            "core",
-            "native_control_button",
+            "core_route_actions_reflowed",
+            "state_specific_visible_button",
             "T TRAIN",
-            392,
+            280,
             460,
             104,
             26,
@@ -123962,10 +123962,10 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             "FIGHT",
             "fight_result",
             "right_action_buttons",
-            "core",
-            "native_control_button",
+            "core_route_actions_reflowed",
+            "state_specific_visible_button",
             "F FIGHT",
-            504,
+            280,
             460,
             104,
             26,
@@ -124091,6 +124091,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
         "title",
         "character_create",
         "core",
+        "core_route_actions_reflowed",
         "movement",
         "selected_slot",
     ]
@@ -124101,7 +124102,10 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
             .any(|source| source == "native_control_button")
         && source_ids
             .iter()
-            .any(|source| source == "text_adventure_key_button");
+            .any(|source| source == "text_adventure_key_button")
+        && source_ids
+            .iter()
+            .any(|source| source == "state_specific_visible_button");
     let visible_row_gate = targets.iter().all(|target| {
         target
             .pointer("/client_center/y")
@@ -124118,7 +124122,7 @@ pub fn native_visible_button_hit_test_map_evidence_json() -> String {
         "contract_version": TRILLIONNIUM_WORLD_BEVY_VISIBLE_BUTTON_HIT_TEST_MAP_CONTRACT,
         "live_mouse_sequence_contract": TRILLIONNIUM_WORLD_BEVY_LIVE_WINDOW_MOUSE_HIT_TEST_SEQUENCE_CONTRACT,
         "green": green,
-        "source_of_truth": "native_tile_rpg_shell fixed-pixel Bevy UI layout exposes client-window hit centers for the first-minute mouse/touch path",
+        "source_of_truth": "native_tile_rpg_shell fixed-pixel Bevy UI layout exposes client-window hit centers for the first-minute mouse/touch path, including state-specific row reflow after TALK and after MOVE:north",
         "window_size": window_size,
         "coordinate_space": "client_window_pixels_from_top_left",
         "button_event_source": "Bevy UI Button Interaction::Pressed",
@@ -156500,6 +156504,36 @@ mod tests {
                 .expect("target has client y");
             assert!((0..=960).contains(&x));
             assert!((0..=540).contains(&y));
+        }
+        for label in ["TRAIN", "FIGHT"] {
+            let target = targets
+                .iter()
+                .find(|target| {
+                    target.get("action_label").and_then(|value| value.as_str()) == Some(label)
+                })
+                .unwrap_or_else(|| panic!("{label} target is present"));
+            assert_eq!(
+                target.get("row_id").and_then(|value| value.as_str()),
+                Some("core_route_actions_reflowed")
+            );
+            assert_eq!(
+                target.get("source").and_then(|value| value.as_str()),
+                Some("state_specific_visible_button")
+            );
+            assert_eq!(
+                target
+                    .pointer("/client_rect/x")
+                    .and_then(|value| value.as_i64()),
+                Some(280)
+            );
+            assert_eq!(
+                target.get("client_x").and_then(|value| value.as_i64()),
+                Some(332)
+            );
+            assert_eq!(
+                target.get("client_y").and_then(|value| value.as_i64()),
+                Some(473)
+            );
         }
         for gate in [
             "window_size_gate",
