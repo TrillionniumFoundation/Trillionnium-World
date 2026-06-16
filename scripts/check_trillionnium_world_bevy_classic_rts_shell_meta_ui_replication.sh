@@ -74,11 +74,18 @@ jq -e '
   and .shell_meta_pixel_counts.highlight > 2000
   and .runtime_screen_mode == "player_runtime_shell_meta_screen"
   and .runtime_screen_gate == true
+  and .player_first_shell_meta_screen_gate == true
   and .evidence_board_only == false
   and .runtime_screen_layout.account_title_bar == "top account/login/continue CTA strip"
   and .runtime_screen_layout.session_slot_panel == "visible save slots with selected slot A"
   and .runtime_screen_layout.right_meta_rail == "pause, settings, input HUD, and hit-test cards"
   and .runtime_screen_layout.first_minute_handoff == "bottom create-to-continue gameplay route"
+  and .shell_meta_player_first_pixel_counts.player_first_shell_meta_surface_non_background > 450000
+  and .shell_meta_player_first_pixel_counts.player_first_shell_meta_frame > 12000
+  and .shell_meta_player_first_pixel_counts.player_first_shell_meta_account_bar > 30000
+  and .shell_meta_player_first_pixel_counts.player_first_shell_meta_session_panel > 35000
+  and .shell_meta_player_first_pixel_counts.player_first_shell_meta_right_rail > 30000
+  and .shell_meta_player_first_pixel_counts.player_first_shell_meta_handoff_strip > 90000
   and .source_headline.full_screen_surface_count == 10
   and .source_headline.account_session_bound == true
   and .source_headline.title_slot_a_bytes > 512
@@ -105,6 +112,7 @@ jq -e '
   and .no_external_boundary_gate == true
   and .shell_meta_preview_gate == true
   and .runtime_screen_gate == true
+  and .player_first_shell_meta_screen_gate == true
   and .source_preview_gate == true
   and .shell_meta_ui_replication_gate == true
   and .internal_shell_meta_ui_replication_claimed == true

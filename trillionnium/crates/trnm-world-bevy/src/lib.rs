@@ -21486,7 +21486,8 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
             "interaction_runtime_screen_gate": interaction.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
             "tech_state": tech_tree.get("final_tech_state").cloned().unwrap_or(Value::Null),
             "campaign_outcome_preview_count": campaign_outcome.get("preview_count").cloned().unwrap_or(Value::Null),
-            "combat_readability_preview_count": combat_readability.get("preview_count").cloned().unwrap_or(Value::Null)
+            "combat_readability_preview_count": combat_readability.get("preview_count").cloned().unwrap_or(Value::Null),
+            "combat_readability_source_preview_count": combat_readability.get("source_preview_count").cloned().unwrap_or(Value::Null)
         },
         "title_campaign_gate": title_campaign_gate,
         "tactical_viewport_gate": tactical_viewport_gate,
@@ -21537,6 +21538,30 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
     const ONBOARDING_COLOR: u32 = 0x9ed47b;
     const HIGHLIGHT_COLOR: u32 = 0xf4eac2;
     const PANEL_COLOR: u32 = 0x1a252b;
+    const SHELL_META_PLAYER_SURFACE_COLOR: u32 = 0x0b1118;
+    const SHELL_META_CONFIRM_PANEL_COLOR: u32 = 0x131d24;
+    const SHELL_META_RIGHT_RAIL_COLOR: u32 = 0x121b20;
+    const SHELL_META_SOURCE_CHAIN_COLOR: u32 = 0x0d1418;
+    const SHELL_META_SCREEN_X: i32 = 48;
+    const SHELL_META_SCREEN_Y: i32 = 136;
+    const SHELL_META_SCREEN_WIDTH: usize = 1184;
+    const SHELL_META_SCREEN_HEIGHT: usize = 456;
+    const SHELL_META_ACCOUNT_BAR_X: i32 = 64;
+    const SHELL_META_ACCOUNT_BAR_Y: i32 = 150;
+    const SHELL_META_ACCOUNT_BAR_WIDTH: usize = 520;
+    const SHELL_META_ACCOUNT_BAR_HEIGHT: usize = 64;
+    const SHELL_META_SESSION_PANEL_X: i32 = 64;
+    const SHELL_META_SESSION_PANEL_Y: i32 = 236;
+    const SHELL_META_SESSION_PANEL_WIDTH: usize = 342;
+    const SHELL_META_SESSION_PANEL_HEIGHT: usize = 184;
+    const SHELL_META_RIGHT_RAIL_X: i32 = 804;
+    const SHELL_META_RIGHT_RAIL_Y: i32 = 236;
+    const SHELL_META_RIGHT_RAIL_WIDTH: usize = 394;
+    const SHELL_META_RIGHT_RAIL_HEIGHT: usize = 184;
+    const SHELL_META_HANDOFF_STRIP_X: i32 = 64;
+    const SHELL_META_HANDOFF_STRIP_Y: i32 = 448;
+    const SHELL_META_HANDOFF_STRIP_WIDTH: usize = 1134;
+    const SHELL_META_HANDOFF_STRIP_HEIGHT: usize = 116;
 
     let source_dir = Path::new(preview_path)
         .parent()
@@ -21882,20 +21907,60 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        48,
-        136,
-        1184,
-        456,
-        0x0b1118,
+        SHELL_META_SCREEN_X,
+        SHELL_META_SCREEN_Y,
+        SHELL_META_SCREEN_WIDTH as i32,
+        SHELL_META_SCREEN_HEIGHT as i32,
+        SHELL_META_PLAYER_SURFACE_COLOR,
     );
     classic_draw_rect(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        64,
-        150,
-        520,
-        64,
+        SHELL_META_SCREEN_X,
+        SHELL_META_SCREEN_Y,
+        SHELL_META_SCREEN_WIDTH as i32,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        SHELL_META_SCREEN_X,
+        SHELL_META_SCREEN_Y + SHELL_META_SCREEN_HEIGHT as i32 - 4,
+        SHELL_META_SCREEN_WIDTH as i32,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        SHELL_META_SCREEN_X,
+        SHELL_META_SCREEN_Y,
+        4,
+        SHELL_META_SCREEN_HEIGHT as i32,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        SHELL_META_SCREEN_X + SHELL_META_SCREEN_WIDTH as i32 - 4,
+        SHELL_META_SCREEN_Y,
+        4,
+        SHELL_META_SCREEN_HEIGHT as i32,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        SHELL_META_ACCOUNT_BAR_X,
+        SHELL_META_ACCOUNT_BAR_Y,
+        SHELL_META_ACCOUNT_BAR_WIDTH as i32,
+        SHELL_META_ACCOUNT_BAR_HEIGHT as i32,
         ACCOUNT_COLOR,
     );
     classic_draw_text(
@@ -21953,10 +22018,10 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        64,
-        236,
-        342,
-        184,
+        SHELL_META_SESSION_PANEL_X,
+        SHELL_META_SESSION_PANEL_Y,
+        SHELL_META_SESSION_PANEL_WIDTH as i32,
+        SHELL_META_SESSION_PANEL_HEIGHT as i32,
         SLOT_MENU_COLOR,
     );
     classic_draw_text(
@@ -22006,7 +22071,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         236,
         346,
         184,
-        0x131d24,
+        SHELL_META_CONFIRM_PANEL_COLOR,
     );
     classic_draw_rect(
         &mut pixels,
@@ -22073,11 +22138,11 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        804,
-        236,
-        394,
-        184,
-        0x121b20,
+        SHELL_META_RIGHT_RAIL_X,
+        SHELL_META_RIGHT_RAIL_Y,
+        SHELL_META_RIGHT_RAIL_WIDTH as i32,
+        SHELL_META_RIGHT_RAIL_HEIGHT as i32,
+        SHELL_META_RIGHT_RAIL_COLOR,
     );
     let right_cards = [
         ("PAUSE / RESUME", PAUSE_COLOR),
@@ -22113,10 +22178,10 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        64,
-        448,
-        1134,
-        116,
+        SHELL_META_HANDOFF_STRIP_X,
+        SHELL_META_HANDOFF_STRIP_Y,
+        SHELL_META_HANDOFF_STRIP_WIDTH as i32,
+        SHELL_META_HANDOFF_STRIP_HEIGHT as i32,
         ONBOARDING_COLOR,
     );
     classic_draw_text(
@@ -22160,7 +22225,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         616,
         1184,
         86,
-        0x0d1418,
+        SHELL_META_SOURCE_CHAIN_COLOR,
     );
     classic_draw_text(
         &mut pixels,
@@ -22216,6 +22281,39 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         write_classic_rgb_buffer_ppm(preview_path, PANEL_WIDTH, PANEL_HEIGHT, &pixels).is_ok();
     let count_color =
         |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let count_color_in_region = |x: i32, y: i32, width: usize, height: usize, color: u32| {
+        let x0 = x.max(0) as usize;
+        let y0 = y.max(0) as usize;
+        let x1 = (x0 + width).min(PANEL_WIDTH);
+        let y1 = (y0 + height).min(PANEL_HEIGHT);
+        let mut count = 0;
+        for row in y0..y1 {
+            let row_start = row * PANEL_WIDTH;
+            for col in x0..x1 {
+                if pixels[row_start + col] == color {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
+    let count_non_background_in_region = |x: i32, y: i32, width: usize, height: usize| {
+        let x0 = x.max(0) as usize;
+        let y0 = y.max(0) as usize;
+        let x1 = (x0 + width).min(PANEL_WIDTH);
+        let y1 = (y0 + height).min(PANEL_HEIGHT);
+        let mut count = 0;
+        for row in y0..y1 {
+            let row_start = row * PANEL_WIDTH;
+            for col in x0..x1 {
+                let pixel = pixels[row_start + col];
+                if pixel != BACKGROUND_COLOR && pixel != BOARD_COLOR {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
     let shell_board_pixel_count = count_color(BOARD_COLOR) + count_color(EDGE_COLOR);
     let account_pixel_count = count_color(ACCOUNT_COLOR);
     let create_pixel_count = count_color(CREATE_COLOR);
@@ -22230,6 +22328,47 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
     let hit_test_pixel_count = count_color(HIT_TEST_COLOR);
     let onboarding_pixel_count = count_color(ONBOARDING_COLOR);
     let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+    let player_first_shell_meta_surface_non_background = count_non_background_in_region(
+        SHELL_META_SCREEN_X,
+        SHELL_META_SCREEN_Y,
+        SHELL_META_SCREEN_WIDTH,
+        SHELL_META_SCREEN_HEIGHT,
+    );
+    let player_first_shell_meta_frame_pixel_count = count_color_in_region(
+        SHELL_META_SCREEN_X,
+        SHELL_META_SCREEN_Y,
+        SHELL_META_SCREEN_WIDTH,
+        SHELL_META_SCREEN_HEIGHT,
+        EDGE_COLOR,
+    );
+    let player_first_shell_meta_account_bar_pixel_count = count_color_in_region(
+        SHELL_META_ACCOUNT_BAR_X,
+        SHELL_META_ACCOUNT_BAR_Y,
+        SHELL_META_ACCOUNT_BAR_WIDTH,
+        SHELL_META_ACCOUNT_BAR_HEIGHT,
+        ACCOUNT_COLOR,
+    );
+    let player_first_shell_meta_session_panel_pixel_count = count_color_in_region(
+        SHELL_META_SESSION_PANEL_X,
+        SHELL_META_SESSION_PANEL_Y,
+        SHELL_META_SESSION_PANEL_WIDTH,
+        SHELL_META_SESSION_PANEL_HEIGHT,
+        SLOT_MENU_COLOR,
+    );
+    let player_first_shell_meta_right_rail_pixel_count = count_color_in_region(
+        SHELL_META_RIGHT_RAIL_X,
+        SHELL_META_RIGHT_RAIL_Y,
+        SHELL_META_RIGHT_RAIL_WIDTH,
+        SHELL_META_RIGHT_RAIL_HEIGHT,
+        SHELL_META_RIGHT_RAIL_COLOR,
+    );
+    let player_first_shell_meta_handoff_strip_pixel_count = count_color_in_region(
+        SHELL_META_HANDOFF_STRIP_X,
+        SHELL_META_HANDOFF_STRIP_Y,
+        SHELL_META_HANDOFF_STRIP_WIDTH,
+        SHELL_META_HANDOFF_STRIP_HEIGHT,
+        ONBOARDING_COLOR,
+    );
 
     let full_screen_ui_replication_gate = contract_is(
         &full_screen,
@@ -22418,6 +22557,13 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         && pointer_str(&onboarding, "/final_sample/current_node_id") == "league-coliseum"
         && array_len(&hit_test, "targets") == 10
         && pointer_u64(&input_hud, "/input_telemetry_summary/keyboard_events") >= 10;
+    let player_first_shell_meta_screen_gate = runtime_screen_gate
+        && player_first_shell_meta_surface_non_background > 450_000
+        && player_first_shell_meta_frame_pixel_count > 12_000
+        && player_first_shell_meta_account_bar_pixel_count > 30_000
+        && player_first_shell_meta_session_panel_pixel_count > 35_000
+        && player_first_shell_meta_right_rail_pixel_count > 30_000
+        && player_first_shell_meta_handoff_strip_pixel_count > 90_000;
     let source_preview_gate = file_ready(&full_screen_path) && file_ready(&save_slot_path);
     let shell_meta_ui_replication_gate = full_screen_ui_replication_gate
         && account_title_gate
@@ -22436,6 +22582,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         && no_external_boundary_gate
         && shell_meta_preview_gate
         && runtime_screen_gate
+        && player_first_shell_meta_screen_gate
         && source_preview_gate;
     let green = shell_meta_ui_replication_gate;
 
@@ -22475,6 +22622,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         "shell_meta_source_surfaces": shell_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
         "runtime_screen_mode": "player_runtime_shell_meta_screen",
         "runtime_screen_gate": runtime_screen_gate,
+        "player_first_shell_meta_screen_gate": player_first_shell_meta_screen_gate,
         "evidence_board_only": false,
         "runtime_screen_layout": {
             "account_title_bar": "top account/login/continue CTA strip",
@@ -22499,6 +22647,14 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
             "button_hit_test": hit_test_pixel_count,
             "first_minute_handoff": onboarding_pixel_count,
             "highlight": highlight_pixel_count
+        },
+        "shell_meta_player_first_pixel_counts": {
+            "player_first_shell_meta_surface_non_background": player_first_shell_meta_surface_non_background,
+            "player_first_shell_meta_frame": player_first_shell_meta_frame_pixel_count,
+            "player_first_shell_meta_account_bar": player_first_shell_meta_account_bar_pixel_count,
+            "player_first_shell_meta_session_panel": player_first_shell_meta_session_panel_pixel_count,
+            "player_first_shell_meta_right_rail": player_first_shell_meta_right_rail_pixel_count,
+            "player_first_shell_meta_handoff_strip": player_first_shell_meta_handoff_strip_pixel_count
         },
         "source_headline": {
             "full_screen_surface_count": full_screen.get("replication_surface_count").cloned().unwrap_or(Value::Null),
@@ -22528,6 +22684,7 @@ pub fn native_classic_rts_shell_meta_ui_replication_evidence_json(preview_path: 
         "no_external_boundary_gate": no_external_boundary_gate,
         "shell_meta_preview_gate": shell_meta_preview_gate,
         "runtime_screen_gate": runtime_screen_gate,
+        "player_first_shell_meta_screen_gate": player_first_shell_meta_screen_gate,
         "source_preview_gate": source_preview_gate,
         "shell_meta_ui_replication_gate": shell_meta_ui_replication_gate,
         "internal_shell_meta_ui_replication_claimed": shell_meta_ui_replication_gate,

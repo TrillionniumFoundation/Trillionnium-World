@@ -30,6 +30,8 @@ required_script_lines=(
   'evidence_board_only == false'
   'production_ui_runtime_screen_mode == "player_runtime_production_hud_skin_screen"'
   'interaction_runtime_screen_mode == "player_runtime_command_interaction_screen"'
+  'combat_readability_preview_count == 6'
+  'combat_readability_source_preview_count == 5'
   'full_screen_ui_replication_gate == true'
   'external_evidence_ignored_for_current_replication_pass == true'
   'screen_for_screen_openra_ui_claimed == false'
@@ -74,6 +76,7 @@ required_source_lines=(
   'player_runtime_screen'
   'player_runtime_production_hud_skin_screen'
   'player_runtime_command_interaction_screen'
+  'combat_readability_source_preview_count'
   'external_evidence_ignored_for_current_replication_pass'
 )
 

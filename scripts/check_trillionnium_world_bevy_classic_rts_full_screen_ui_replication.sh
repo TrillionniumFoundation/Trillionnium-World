@@ -81,7 +81,8 @@ jq -e '
   and .source_headline.interaction_runtime_screen_gate == true
   and .source_headline.tech_state == "unlocked:relay_guard"
   and .source_headline.campaign_outcome_preview_count == 5
-  and .source_headline.combat_readability_preview_count == 5
+  and .source_headline.combat_readability_preview_count == 6
+  and .source_headline.combat_readability_source_preview_count == 5
   and .title_campaign_gate == true
   and .tactical_viewport_gate == true
   and .map_minimap_gate == true

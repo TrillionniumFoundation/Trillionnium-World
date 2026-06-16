@@ -2136,6 +2136,12 @@ jq -n \
       rts_shell_meta_ui_replication_session_slot_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_pixel_counts.session_slot_menu,
       rts_shell_meta_ui_replication_pause_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_pixel_counts.pause_resume,
       rts_shell_meta_ui_replication_input_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_pixel_counts.input_hud,
+      rts_shell_meta_ui_replication_player_first_surface_non_background: $rts_shell_meta_ui_replication[0].shell_meta_player_first_pixel_counts.player_first_shell_meta_surface_non_background,
+      rts_shell_meta_ui_replication_player_first_frame_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_player_first_pixel_counts.player_first_shell_meta_frame,
+      rts_shell_meta_ui_replication_player_first_account_bar_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_player_first_pixel_counts.player_first_shell_meta_account_bar,
+      rts_shell_meta_ui_replication_player_first_session_panel_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_player_first_pixel_counts.player_first_shell_meta_session_panel,
+      rts_shell_meta_ui_replication_player_first_right_rail_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_player_first_pixel_counts.player_first_shell_meta_right_rail,
+      rts_shell_meta_ui_replication_player_first_handoff_strip_pixel_count: $rts_shell_meta_ui_replication[0].shell_meta_player_first_pixel_counts.player_first_shell_meta_handoff_strip,
       rts_match_setup_ui_replication_surface_count: $rts_match_setup_ui_replication[0].setup_surface_count,
       rts_match_setup_ui_replication_board_pixel_count: $rts_match_setup_ui_replication[0].setup_pixel_counts.board,
       rts_match_setup_ui_replication_map_select_pixel_count: $rts_match_setup_ui_replication[0].setup_pixel_counts.map_select,
@@ -2978,6 +2984,7 @@ jq -n \
       rts_shell_meta_ui_replication_input_hud_gate: $rts_shell_meta_ui_replication[0].input_hud_gate,
       rts_shell_meta_ui_replication_visible_hit_test_gate: $rts_shell_meta_ui_replication[0].visible_hit_test_gate,
       rts_shell_meta_ui_replication_first_minute_gate: $rts_shell_meta_ui_replication[0].first_minute_onboarding_gate,
+      rts_shell_meta_ui_replication_player_first_screen_gate: $rts_shell_meta_ui_replication[0].player_first_shell_meta_screen_gate,
       rts_shell_meta_ui_replication_gate: $rts_shell_meta_ui_replication[0].shell_meta_ui_replication_gate,
       rts_match_setup_ui_replication_shell_meta_gate: $rts_match_setup_ui_replication[0].shell_meta_gate,
       rts_match_setup_ui_replication_campaign_entry_gate: $rts_match_setup_ui_replication[0].campaign_entry_gate,
@@ -3712,6 +3719,12 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_shell_meta_ui_replication_session_slot_pixel_count > 1000
   and .headline.rts_shell_meta_ui_replication_pause_pixel_count > 1000
   and .headline.rts_shell_meta_ui_replication_input_pixel_count > 1000
+  and .headline.rts_shell_meta_ui_replication_player_first_surface_non_background > 450000
+  and .headline.rts_shell_meta_ui_replication_player_first_frame_pixel_count > 12000
+  and .headline.rts_shell_meta_ui_replication_player_first_account_bar_pixel_count > 30000
+  and .headline.rts_shell_meta_ui_replication_player_first_session_panel_pixel_count > 35000
+  and .headline.rts_shell_meta_ui_replication_player_first_right_rail_pixel_count > 30000
+  and .headline.rts_shell_meta_ui_replication_player_first_handoff_strip_pixel_count > 90000
   and .headline.rts_match_setup_ui_replication_surface_count == 10
   and .headline.rts_match_setup_ui_replication_board_pixel_count > 80000
   and .headline.rts_match_setup_ui_replication_map_select_pixel_count > 2000
@@ -5533,6 +5546,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_shell_meta_ui_replication_input_hud_gate == true
   and .gates.rts_shell_meta_ui_replication_visible_hit_test_gate == true
   and .gates.rts_shell_meta_ui_replication_first_minute_gate == true
+  and .gates.rts_shell_meta_ui_replication_player_first_screen_gate == true
   and .gates.rts_shell_meta_ui_replication_gate == true
   and .gates.rts_command_affordance_live_input_gate == true
   and .gates.rts_command_affordance_drag_select_gate == true
