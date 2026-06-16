@@ -834,7 +834,8 @@ run_check ui_map_modeling_full_alignment_gate env TRNM_WORLD_FULL_ALIGNMENT_REFR
 run_check production_map_pack_public_evidence_artifact_guard "$ROOT/scripts/v2/production_map_pack_public_evidence_artifact_guard_test.sh"
 run_check readme_release_review_guard "$ROOT/scripts/v2/root_readme_world_release_review_quickcheck_guard_test.sh"
 run_check bevy_classic_playtest_runner_status_packet_integrity_refresh refresh_bevy_playtest_runner_for_fast_gates
-run_check packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh"
+run_check release_packet_refresh_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh"
+run_check packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" --no-refresh
 run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
 run_check workflow_script_refs env \
   WORKFLOW_SCRIPT_REF_STRICT=1 \
