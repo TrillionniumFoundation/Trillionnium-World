@@ -373,4 +373,27 @@ for line in "${required_lines[@]}"; do
   fi
 done
 
+deterministic_fixture_scripts=(
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_control_loop_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture.sh"
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture.sh"
+)
+
+for fixture_script in "${deterministic_fixture_scripts[@]}"; do
+  if ! grep -Fq -- 'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_FIXTURE_GENERATED_AT:-1970-01-01T00:00:00Z' "$fixture_script"; then
+    echo "[FAIL] release review packet fixture script missing deterministic generated_at: $fixture_script" >&2
+    exit 1
+  fi
+  if grep -Fq -- 'date -u +%Y-%m-%dT%H:%M:%SZ' "$fixture_script"; then
+    echo "[FAIL] release review packet fixture script still has wall-clock generated_at: $fixture_script" >&2
+    exit 1
+  fi
+done
+
 echo "[PASS] release review packet script keeps convergence refresh, checksummed artifacts, packet outputs, and Android S5 boundary"

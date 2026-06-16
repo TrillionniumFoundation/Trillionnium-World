@@ -15,7 +15,7 @@ mkdir -p "$(dirname "$SUMMARY_FILE")"
 jq -n \
   --arg contract_version "trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture_v1" \
   --arg status "release_review_packet_integrity_tech_tree_semantic_fixture_green" \
-  --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg generated_at "${TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_FIXTURE_GENERATED_AT:-1970-01-01T00:00:00Z}" \
   '{
     contract_version: $contract_version,
     status: $status,
