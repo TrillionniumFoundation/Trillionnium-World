@@ -494,6 +494,28 @@ jq -e '
   and (.rts_online_protocol_fixture.authority.scoped_updates | length) == 1
   and (.rts_online_protocol_fixture.authority.scoped_updates[0].update_sha256 | length) == 64
   and (.rts_online_protocol_fixture.authority.scoped_updates[0].scope.visible_actor_ids | index("trnm.enemy.keep.fogged") == null)
+  and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
+  and .rts_online_protocol_fixture.transport.green == true
+  and .rts_online_protocol_fixture.transport.session_id == "first-contact-loopback-session"
+  and .rts_online_protocol_fixture.transport.request_frame.direction == "client_to_server"
+  and .rts_online_protocol_fixture.transport.request_frame.payload_kind == "client_request"
+  and .rts_online_protocol_fixture.transport.request_frame.wire_magic == "TRNMRTS1"
+  and (.rts_online_protocol_fixture.transport.request_frame.encoded_len > 96)
+  and (.rts_online_protocol_fixture.transport.request_frame.payload_sha256 | length) == 64
+  and (.rts_online_protocol_fixture.transport.request_frame.frame_sha256 | length) == 64
+  and .rts_online_protocol_fixture.transport.response_frame.direction == "server_to_client"
+  and .rts_online_protocol_fixture.transport.response_frame.payload_kind == "scoped_update"
+  and .rts_online_protocol_fixture.transport.response_frame.wire_magic == "TRNMRTS1"
+  and (.rts_online_protocol_fixture.transport.response_frame.encoded_len > 96)
+  and (.rts_online_protocol_fixture.transport.response_frame.payload_sha256 | length) == 64
+  and (.rts_online_protocol_fixture.transport.response_frame.frame_sha256 | length) == 64
+  and .rts_online_protocol_fixture.transport.request_ack_matches_envelope == true
+  and .rts_online_protocol_fixture.transport.response_matches_authority == true
+  and .rts_online_protocol_fixture.transport.server_authoritative == true
+  and .rts_online_protocol_fixture.transport.visibility_scoped_response == true
+  and .rts_online_protocol_fixture.transport.socket_opened == false
+  and .rts_online_protocol_fixture.transport.hosted_service_claimed == false
+  and .rts_online_protocol_fixture.transport.public_launch_ready == false
   and .rts_online_protocol_fixture.lifecycle.phase == "playing"
   and .rts_online_protocol_fixture.lifecycle.bot_count == 1
   and .rts_online_protocol_gate == true

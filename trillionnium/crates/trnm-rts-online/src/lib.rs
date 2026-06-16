@@ -12,6 +12,9 @@ pub const TRNM_RTS_ONLINE_CONTRACT: &str = "trnm_rts_online_protocol_v1";
 pub const TRNM_RTS_ONLINE_FIRST_CONTACT_FIXTURE_CONTRACT: &str =
     "trnm_rts_online_first_contact_fixture_v1";
 pub const TRNM_RTS_ONLINE_AUTHORITY_CONTRACT: &str = "trnm_rts_online_authority_v1";
+pub const TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT: &str =
+    "trnm_rts_online_loopback_transport_v1";
+const TRNM_RTS_ONLINE_WIRE_MAGIC: &[u8; 8] = b"TRNMRTS1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RtsOnlineChunkId {
@@ -85,6 +88,52 @@ pub struct RtsOnlineAuthorityResolution {
     pub green: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsOnlineTransportDirection {
+    ClientToServer,
+    ServerToClient,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsOnlineTransportPayloadKind {
+    ClientRequest,
+    ScopedUpdate,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOnlineTransportFrame {
+    pub contract_version: String,
+    pub direction: RtsOnlineTransportDirection,
+    pub payload_kind: RtsOnlineTransportPayloadKind,
+    pub sequence: u32,
+    pub arena_id: String,
+    pub player_id: String,
+    pub wire_magic: String,
+    pub encoded_len: usize,
+    pub payload_sha256: String,
+    pub frame_sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOnlineLoopbackTransportFixture {
+    pub contract_version: String,
+    pub session_id: String,
+    pub arena_id: String,
+    pub map_id: String,
+    pub request_frame: RtsOnlineTransportFrame,
+    pub response_frame: RtsOnlineTransportFrame,
+    pub request_ack_matches_envelope: bool,
+    pub response_matches_authority: bool,
+    pub server_authoritative: bool,
+    pub visibility_scoped_response: bool,
+    pub socket_opened: bool,
+    pub hosted_service_claimed: bool,
+    pub public_launch_ready: bool,
+    pub green: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsOnlineBotPlan {
     pub bot_id: String,
@@ -110,6 +159,7 @@ pub struct RtsOnlineProtocolFixture {
     pub lifecycle: RtsOnlineArenaLifecycle,
     pub envelope: RtsOnlineUpdateEnvelope,
     pub authority: RtsOnlineAuthorityResolution,
+    pub transport: RtsOnlineLoopbackTransportFixture,
     pub bot_plan: RtsOnlineBotPlan,
     pub green: bool,
 }
@@ -312,6 +362,153 @@ pub fn rts_online_authority_resolve(
     resolution
 }
 
+fn sha256_bytes(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+fn transport_payload_bytes<T: Serialize>(payload: &T) -> Vec<u8> {
+    serde_json::to_vec(payload).expect("RTS online transport payload serializes")
+}
+
+pub fn rts_online_transport_frame<T: Serialize>(
+    arena_id: &str,
+    player_id: &str,
+    sequence: u32,
+    direction: RtsOnlineTransportDirection,
+    payload_kind: RtsOnlineTransportPayloadKind,
+    payload: &T,
+) -> RtsOnlineTransportFrame {
+    let payload_bytes = transport_payload_bytes(payload);
+    let payload_sha256 = sha256_bytes(&payload_bytes);
+    let mut wire_bytes = Vec::with_capacity(
+        TRNM_RTS_ONLINE_WIRE_MAGIC.len()
+            + std::mem::size_of::<u32>() * 2
+            + payload_sha256.len()
+            + payload_bytes.len(),
+    );
+    wire_bytes.extend_from_slice(TRNM_RTS_ONLINE_WIRE_MAGIC);
+    wire_bytes.extend_from_slice(&sequence.to_be_bytes());
+    wire_bytes.extend_from_slice(&(payload_bytes.len() as u32).to_be_bytes());
+    wire_bytes.extend_from_slice(payload_sha256.as_bytes());
+    wire_bytes.extend_from_slice(&payload_bytes);
+    let frame_sha256 = sha256_bytes(&wire_bytes);
+
+    RtsOnlineTransportFrame {
+        contract_version: TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT.to_string(),
+        direction,
+        payload_kind,
+        sequence,
+        arena_id: arena_id.to_string(),
+        player_id: player_id.to_string(),
+        wire_magic: String::from_utf8_lossy(TRNM_RTS_ONLINE_WIRE_MAGIC).into_owned(),
+        encoded_len: wire_bytes.len(),
+        payload_sha256,
+        frame_sha256,
+    }
+}
+
+pub fn rts_online_loopback_transport_fixture(
+    session_id: &str,
+    baseline_envelope: &RtsOnlineUpdateEnvelope,
+    authority: &RtsOnlineAuthorityResolution,
+) -> RtsOnlineLoopbackTransportFixture {
+    let request = authority
+        .client_requests
+        .first()
+        .expect("first contact authority fixture includes a client request");
+    let scoped_update = authority
+        .scoped_updates
+        .first()
+        .expect("first contact authority fixture includes a scoped update");
+    let request_frame = rts_online_transport_frame(
+        &authority.arena_id,
+        &request.player_id,
+        1,
+        RtsOnlineTransportDirection::ClientToServer,
+        RtsOnlineTransportPayloadKind::ClientRequest,
+        request,
+    );
+    let response_frame = rts_online_transport_frame(
+        &authority.arena_id,
+        &request.player_id,
+        2,
+        RtsOnlineTransportDirection::ServerToClient,
+        RtsOnlineTransportPayloadKind::ScopedUpdate,
+        scoped_update,
+    );
+    let request_ack_matches_envelope =
+        request.acknowledged_update_sha256 == baseline_envelope.update_sha256;
+    let response_matches_authority = scoped_update.arena_id == authority.arena_id
+        && scoped_update.map_id == authority.map_id
+        && scoped_update.tick == authority.authority_tick
+        && authority
+            .scoped_updates
+            .iter()
+            .any(|update| update.update_sha256 == scoped_update.update_sha256);
+    let server_authoritative = !authority.accepted_orders.is_empty()
+        && authority
+            .accepted_orders
+            .iter()
+            .all(|order| order.source == RtsOrderSource::Server);
+    let visible_actor_set = scoped_update
+        .scope
+        .visible_actor_ids
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let visibility_scoped_response = scoped_update.scope.player_id == request.player_id
+        && scoped_update.orders.iter().all(|order| {
+            order
+                .subject_actor_ids
+                .iter()
+                .all(|actor_id| visible_actor_set.contains(actor_id))
+                && order
+                    .target_actor_id
+                    .as_deref()
+                    .map(|actor_id| visible_actor_set.contains(actor_id))
+                    .unwrap_or(true)
+        });
+    let socket_opened = false;
+    let hosted_service_claimed = false;
+    let public_launch_ready = false;
+    let green = request_frame.contract_version == TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT
+        && response_frame.contract_version == TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT
+        && request_frame.wire_magic == "TRNMRTS1"
+        && response_frame.wire_magic == "TRNMRTS1"
+        && request_frame.payload_sha256.len() == 64
+        && request_frame.frame_sha256.len() == 64
+        && response_frame.payload_sha256.len() == 64
+        && response_frame.frame_sha256.len() == 64
+        && request_frame.encoded_len > 96
+        && response_frame.encoded_len > 96
+        && request_ack_matches_envelope
+        && response_matches_authority
+        && server_authoritative
+        && visibility_scoped_response
+        && !socket_opened
+        && !hosted_service_claimed
+        && !public_launch_ready;
+
+    RtsOnlineLoopbackTransportFixture {
+        contract_version: TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT.to_string(),
+        session_id: session_id.to_string(),
+        arena_id: authority.arena_id.clone(),
+        map_id: authority.map_id.clone(),
+        request_frame,
+        response_frame,
+        request_ack_matches_envelope,
+        response_matches_authority,
+        server_authoritative,
+        visibility_scoped_response,
+        socket_opened,
+        hosted_service_claimed,
+        public_launch_ready,
+        green,
+    }
+}
+
 pub fn first_contact_online_protocol_fixture() -> RtsOnlineProtocolFixture {
     let arena_id = "first-contact-local-arena";
     let map_id = "first_contact_basin";
@@ -404,6 +601,11 @@ pub fn first_contact_online_protocol_fixture() -> RtsOnlineProtocolFixture {
         &[scope.clone()],
         vec![client_request],
     );
+    let transport = rts_online_loopback_transport_fixture(
+        "first-contact-loopback-session",
+        &envelope,
+        &authority,
+    );
     let bot_plan = RtsOnlineBotPlan {
         bot_id: "first-contact-baseline-bot".to_string(),
         player_id: player_id.to_string(),
@@ -439,6 +641,12 @@ pub fn first_contact_online_protocol_fixture() -> RtsOnlineProtocolFixture {
                 .iter()
                 .all(|actor_id| actor_id != "trnm.enemy.keep.fogged")
         })
+        && transport.green
+        && transport.server_authoritative
+        && transport.visibility_scoped_response
+        && !transport.socket_opened
+        && !transport.hosted_service_claimed
+        && !transport.public_launch_ready
         && lifecycle.phase == RtsOnlineArenaPhase::Playing
         && lifecycle.bot_count == 1
         && bot_plan.visible_chunks == envelope.scope.visible_chunks;
@@ -448,6 +656,7 @@ pub fn first_contact_online_protocol_fixture() -> RtsOnlineProtocolFixture {
         lifecycle,
         envelope,
         authority,
+        transport,
         bot_plan,
         green,
     }
@@ -489,7 +698,62 @@ mod tests {
             .visible_actor_ids
             .iter()
             .all(|actor_id| actor_id != "trnm.enemy.keep.fogged"));
+        assert!(fixture.transport.green);
+        assert_eq!(
+            fixture.transport.contract_version,
+            TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT
+        );
+        assert_eq!(
+            fixture.transport.request_frame.direction,
+            RtsOnlineTransportDirection::ClientToServer
+        );
+        assert_eq!(
+            fixture.transport.response_frame.direction,
+            RtsOnlineTransportDirection::ServerToClient
+        );
+        assert_eq!(
+            fixture.transport.request_frame.payload_kind,
+            RtsOnlineTransportPayloadKind::ClientRequest
+        );
+        assert_eq!(
+            fixture.transport.response_frame.payload_kind,
+            RtsOnlineTransportPayloadKind::ScopedUpdate
+        );
+        assert_eq!(fixture.transport.request_frame.frame_sha256.len(), 64);
+        assert_eq!(fixture.transport.response_frame.frame_sha256.len(), 64);
+        assert!(fixture.transport.request_ack_matches_envelope);
+        assert!(fixture.transport.response_matches_authority);
+        assert!(fixture.transport.server_authoritative);
+        assert!(fixture.transport.visibility_scoped_response);
+        assert!(!fixture.transport.socket_opened);
+        assert!(!fixture.transport.hosted_service_claimed);
+        assert!(!fixture.transport.public_launch_ready);
         assert_eq!(fixture.bot_plan.order_labels, vec!["move:rally@8,4"]);
+    }
+
+    #[test]
+    fn transport_frame_hash_changes_by_sequence() {
+        let fixture = first_contact_online_protocol_fixture();
+        let request = &fixture.authority.client_requests[0];
+        let first = rts_online_transport_frame(
+            &fixture.lifecycle.arena_id,
+            &request.player_id,
+            1,
+            RtsOnlineTransportDirection::ClientToServer,
+            RtsOnlineTransportPayloadKind::ClientRequest,
+            request,
+        );
+        let second = rts_online_transport_frame(
+            &fixture.lifecycle.arena_id,
+            &request.player_id,
+            2,
+            RtsOnlineTransportDirection::ClientToServer,
+            RtsOnlineTransportPayloadKind::ClientRequest,
+            request,
+        );
+
+        assert_eq!(first.payload_sha256, second.payload_sha256);
+        assert_ne!(first.frame_sha256, second.frame_sha256);
     }
 
     #[test]
