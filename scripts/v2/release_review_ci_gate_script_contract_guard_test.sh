@@ -46,6 +46,7 @@ required_lines=(
   'packet_integrity_bot_executor_semantic_fixture_gate'
   'packet_integrity_bot_executor_matrix_semantic_guard'
   'packet_integrity_bot_executor_matrix_semantic_fixture_gate'
+  'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SOURCE_CHAIN_REFRESH=0'
   'packet_integrity_bot_gap_semantic_guard'
   'packet_integrity_bot_gap_semantic_fixture_gate'
   'packet_integrity_control_loop_semantic_guard'

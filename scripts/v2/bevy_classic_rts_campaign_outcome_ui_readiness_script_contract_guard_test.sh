@@ -124,7 +124,7 @@ required_release_lines=(
   'player_first_campaign_outcome_screen_gate == true'
   'first_minute_summary.runtime_screen_mode == "player_runtime_first_minute_readiness_screen"'
   'aftermath_summary.runtime_screen_mode == "player_runtime_battle_aftermath_screen"'
-  'fake_packet_artifact_count == 120'
+  'fake_packet_artifact_count == 121'
 )
 
 for line in "${required_release_lines[@]}"; do
