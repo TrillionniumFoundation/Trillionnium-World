@@ -2125,6 +2125,9 @@ jq -n \
       rts_full_screen_ui_replication_board_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.board,
       rts_full_screen_ui_replication_title_campaign_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.title_campaign,
       rts_full_screen_ui_replication_tactical_viewport_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.tactical_viewport,
+      rts_full_screen_ui_replication_player_first_tactical_view_non_background: $rts_full_screen_ui_replication[0].full_screen_ui_pixel_counts.player_first_full_screen_tactical_view_non_background,
+      rts_full_screen_ui_replication_player_first_tactical_view_frame_pixel_count: $rts_full_screen_ui_replication[0].full_screen_ui_pixel_counts.player_first_full_screen_tactical_view_frame,
+      rts_full_screen_ui_replication_player_first_status_strip_pixel_count: $rts_full_screen_ui_replication[0].full_screen_ui_pixel_counts.player_first_full_screen_status_strip,
       rts_full_screen_ui_replication_map_minimap_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.map_minimap,
       rts_full_screen_ui_replication_build_tech_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.build_tech,
       rts_shell_meta_ui_replication_surface_count: $rts_shell_meta_ui_replication[0].shell_meta_surface_count,
@@ -2941,6 +2944,7 @@ jq -n \
       rts_full_screen_ui_replication_build_tech_gate: $rts_full_screen_ui_replication[0].build_tech_gate,
       rts_full_screen_ui_replication_combat_ui_gate: $rts_full_screen_ui_replication[0].combat_ui_gate,
       rts_full_screen_ui_replication_campaign_outcome_gate: $rts_full_screen_ui_replication[0].campaign_outcome_gate,
+      rts_full_screen_ui_replication_player_first_screen_gate: $rts_full_screen_ui_replication[0].player_first_full_screen_ui_surface_gate,
       rts_full_screen_ui_replication_gate: $rts_full_screen_ui_replication[0].full_screen_ui_replication_gate,
       rts_shell_meta_ui_replication_full_screen_gate: $rts_shell_meta_ui_replication[0].full_screen_ui_replication_gate,
       rts_shell_meta_ui_replication_account_title_gate: $rts_shell_meta_ui_replication[0].account_title_gate,
@@ -3675,6 +3679,9 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_full_screen_ui_replication_board_pixel_count > 80000
   and .headline.rts_full_screen_ui_replication_title_campaign_pixel_count > 2000
   and .headline.rts_full_screen_ui_replication_tactical_viewport_pixel_count > 2000
+  and .headline.rts_full_screen_ui_replication_player_first_tactical_view_non_background > 80000
+  and .headline.rts_full_screen_ui_replication_player_first_tactical_view_frame_pixel_count > 8000
+  and .headline.rts_full_screen_ui_replication_player_first_status_strip_pixel_count > 6000
   and .headline.rts_full_screen_ui_replication_map_minimap_pixel_count > 2000
   and .headline.rts_full_screen_ui_replication_build_tech_pixel_count > 2000
   and .headline.rts_shell_meta_ui_replication_surface_count == 12
@@ -5467,6 +5474,8 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_production_interaction_polish_source_preview_gate == true
   and .gates.rts_production_interaction_polish_no_copy_boundary_gate == true
   and .gates.rts_production_interaction_polish_gate == true
+  and .gates.rts_full_screen_ui_replication_player_first_screen_gate == true
+  and .gates.rts_full_screen_ui_replication_gate == true
   and .gates.rts_shell_meta_ui_replication_full_screen_gate == true
   and .gates.rts_shell_meta_ui_replication_account_title_gate == true
   and .gates.rts_shell_meta_ui_replication_title_menu_gate == true

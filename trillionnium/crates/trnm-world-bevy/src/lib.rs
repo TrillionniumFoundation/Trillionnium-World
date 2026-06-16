@@ -20375,6 +20375,12 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
     const HANDOFF_COLOR: u32 = 0x75a5df;
     const HIGHLIGHT_COLOR: u32 = 0xf1efba;
     const BOUNDARY_COLOR: u32 = 0x1f3031;
+    const TACTICAL_MATTE_COLOR: u32 = 0x07100f;
+    const TACTICAL_STATUS_COLOR: u32 = 0x1d3c36;
+    const TACTICAL_VIEWPORT_X: i32 = 62;
+    const TACTICAL_VIEWPORT_Y: i32 = 150;
+    const TACTICAL_VIEWPORT_WIDTH: usize = 720;
+    const TACTICAL_VIEWPORT_HEIGHT: usize = 316;
 
     let source_dir = Path::new(preview_path)
         .parent()
@@ -20489,6 +20495,21 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
                 .map(|metadata| metadata.len() > 100_000)
                 .unwrap_or(false)
     };
+
+    let assets = load_classic_runtime_assets();
+    let mut runtime = classic_product_alignment_runtime();
+    runtime.current_room_id = "league-coliseum".to_string();
+    runtime.map_scene = "arena_league_coliseum".to_string();
+    runtime.objective_status = "full_screen_ui_replication_ready".to_string();
+    runtime.contextual_primary_action_label = Some("COMBAT:attack".to_string());
+    runtime.rts_active_ability_id = Some("focus_fire".to_string());
+    runtime.rts_command_queue.extend(string_vec([
+        "full_screen_ui:selection",
+        "full_screen_ui:production_hud",
+        "full_screen_ui:command_interaction",
+        "full_screen_ui:build_tech",
+        "full_screen_ui:campaign_handoff",
+    ]));
 
     let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
     classic_draw_rect(
@@ -20737,42 +20758,186 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         456,
         0x0b1110,
     );
+
+    let mut tactical_pixels =
+        vec![TACTICAL_MATTE_COLOR; TACTICAL_VIEWPORT_WIDTH * TACTICAL_VIEWPORT_HEIGHT];
+    classic_draw_scene(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        (7, 5),
+        &runtime,
+        &assets,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        112,
+        76,
+        220,
+        104,
+        HIGHLIGHT_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        120,
+        84,
+        204,
+        88,
+        TACTICAL_MATTE_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        168,
+        276,
+        314,
+        6,
+        INTERACTION_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        476,
+        218,
+        6,
+        64,
+        INTERACTION_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        502,
+        210,
+        54,
+        54,
+        BUILD_TECH_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        512,
+        220,
+        34,
+        34,
+        TACTICAL_MATTE_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        596,
+        138,
+        82,
+        8,
+        COMBAT_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        636,
+        102,
+        8,
+        80,
+        COMBAT_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        338,
+        248,
+        70,
+        28,
+        MAP_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        362,
+        226,
+        20,
+        70,
+        MAP_COLOR,
+    );
+    let player_first_full_screen_tactical_view_non_background = tactical_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != TACTICAL_MATTE_COLOR
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    classic_copy_pixels(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        &tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        TACTICAL_VIEWPORT_X,
+        TACTICAL_VIEWPORT_Y,
+    );
     classic_draw_rect(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        62,
-        150,
-        720,
-        316,
+        TACTICAL_VIEWPORT_X - 8,
+        TACTICAL_VIEWPORT_Y - 8,
+        TACTICAL_VIEWPORT_WIDTH as i32 + 16,
+        6,
         VIEWPORT_COLOR,
     );
-    for line in 0..9_i32 {
-        let x = 82 + line * 78;
-        classic_draw_rect(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            x,
-            154,
-            3,
-            306,
-            0x214b45,
-        );
-    }
-    for line in 0..6_i32 {
-        let y = 174 + line * 48;
-        classic_draw_rect(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            68,
-            y,
-            702,
-            3,
-            0x214b45,
-        );
-    }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X - 8,
+        TACTICAL_VIEWPORT_Y + TACTICAL_VIEWPORT_HEIGHT as i32 + 2,
+        TACTICAL_VIEWPORT_WIDTH as i32 + 16,
+        6,
+        VIEWPORT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X - 8,
+        TACTICAL_VIEWPORT_Y - 8,
+        6,
+        TACTICAL_VIEWPORT_HEIGHT as i32 + 16,
+        VIEWPORT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X + TACTICAL_VIEWPORT_WIDTH as i32 + 2,
+        TACTICAL_VIEWPORT_Y - 8,
+        6,
+        TACTICAL_VIEWPORT_HEIGHT as i32 + 16,
+        VIEWPORT_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X,
+        TACTICAL_VIEWPORT_Y + TACTICAL_VIEWPORT_HEIGHT as i32 + 2,
+        TACTICAL_VIEWPORT_WIDTH as i32,
+        28,
+        TACTICAL_STATUS_COLOR,
+    );
     classic_draw_rect(
         &mut pixels,
         PANEL_WIDTH,
@@ -20789,7 +20954,17 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         PANEL_HEIGHT,
         100,
         178,
-        "TITLE/CAMPAIGN ENTRY: START / CONTINUE / REPLAY",
+        "CAMPAIGN START / CONTINUE / REPLAY - LIVE MATCH VIEW",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X + 18,
+        TACTICAL_VIEWPORT_Y + TACTICAL_VIEWPORT_HEIGHT as i32 + 20,
+        "FULL SCREEN RTS: SELECTED SQUAD / ATTACK LOCK / BUILD GHOST / COMMAND QUEUE / CAMERA JUMP",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -20815,28 +20990,6 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         viewport_rect.height,
         HIGHLIGHT_COLOR,
     );
-    for index in 0..4_i32 {
-        classic_draw_rect(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            192 + index * 72,
-            276 + (index % 2) * 38,
-            38,
-            30,
-            UNIT_STATUS_COLOR,
-        );
-        classic_draw_rect(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            198 + index * 72,
-            282 + (index % 2) * 38,
-            26,
-            6,
-            HIGHLIGHT_COLOR,
-        );
-    }
     classic_draw_rect(
         &mut pixels,
         PANEL_WIDTH,
@@ -21084,6 +21237,14 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
     let campaign_outcome_pixel_count = count_color(CAMPAIGN_COLOR);
     let open_world_handoff_pixel_count = count_color(HANDOFF_COLOR);
     let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+    let player_first_full_screen_tactical_view_frame_pixel_count = count_color(VIEWPORT_COLOR);
+    let player_first_full_screen_status_strip_pixel_count = count_color(TACTICAL_STATUS_COLOR);
+    let player_first_full_screen_ui_surface_gate =
+        player_first_full_screen_tactical_view_non_background > 80_000
+            && player_first_full_screen_tactical_view_frame_pixel_count > 8_000
+            && player_first_full_screen_status_strip_pixel_count > 6_000
+            && command_interaction_pixel_count > 2_000
+            && production_hud_skin_pixel_count > 2_000;
 
     let title_campaign_gate = contract_is(
         &campaign_entry,
@@ -21219,7 +21380,8 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
     let runtime_screen_gate = replication_preview_gate
         && replication_surfaces.len() == 10
         && viewport_rect.width > 20
-        && viewport_rect.height > 14;
+        && viewport_rect.height > 14
+        && player_first_full_screen_ui_surface_gate;
     let source_preview_gate = file_ready(&visual_path)
         && file_ready(&production_ui_path)
         && file_ready(&interaction_path)
@@ -21306,6 +21468,11 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
             "open_world_handoff": open_world_handoff_pixel_count,
             "highlight": highlight_pixel_count
         },
+        "full_screen_ui_pixel_counts": {
+            "player_first_full_screen_tactical_view_non_background": player_first_full_screen_tactical_view_non_background,
+            "player_first_full_screen_tactical_view_frame": player_first_full_screen_tactical_view_frame_pixel_count,
+            "player_first_full_screen_status_strip": player_first_full_screen_status_strip_pixel_count
+        },
         "source_headline": {
             "title_actions": campaign_entry.get("title_actions").cloned().unwrap_or(Value::Null),
             "campaign_input_action_count": campaign_entry.get("input_action_count").cloned().unwrap_or(Value::Null),
@@ -21331,6 +21498,7 @@ pub fn native_classic_rts_full_screen_ui_replication_evidence_json(preview_path:
         "campaign_outcome_gate": campaign_outcome_gate,
         "source_policy_gate": source_policy_gate,
         "replication_preview_gate": replication_preview_gate,
+        "player_first_full_screen_ui_surface_gate": player_first_full_screen_ui_surface_gate,
         "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "full_screen_ui_replication_gate": full_screen_ui_replication_gate,
