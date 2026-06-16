@@ -19501,6 +19501,15 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
     const HUD_BINDING_COLOR: u32 = 0x2b3e38;
     const POLISH_HIGHLIGHT_COLOR: u32 = 0xf0efb3;
     const BLOCKED_STATE_COLOR: u32 = 0x9b4e63;
+    const TACTICAL_MATTE_COLOR: u32 = 0x07100f;
+    const TACTICAL_FRAME_COLOR: u32 = 0x86d8b4;
+    const STATUS_STRIP_COLOR: u32 = 0x1d3c36;
+    const RIGHT_RAIL_COLOR: u32 = 0x172321;
+    const COMMAND_LANE_COLOR: u32 = 0x13201d;
+    const TACTICAL_VIEWPORT_X: i32 = 48;
+    const TACTICAL_VIEWPORT_Y: i32 = 132;
+    const TACTICAL_VIEWPORT_WIDTH: usize = 760;
+    const TACTICAL_VIEWPORT_HEIGHT: usize = 410;
 
     let source_dir = Path::new(preview_path)
         .parent()
@@ -19552,6 +19561,30 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
             .map(|metadata| metadata.is_file() && metadata.len() > 128)
             .unwrap_or(false)
     };
+
+    let assets = load_classic_runtime_assets();
+    let mut runtime = classic_product_alignment_runtime();
+    runtime.current_room_id = "league-coliseum".to_string();
+    runtime.map_scene = "arena_league_coliseum".to_string();
+    runtime.objective_status = "production_interaction_polish_ready".to_string();
+    runtime.contextual_primary_action_label = Some("COMBAT:attack".to_string());
+    runtime.rts_active_ability_id = Some("focus_fire".to_string());
+    runtime.rts_command_queue.extend(string_vec([
+        "drag_select:control_group_1",
+        "right_click_move:16,9",
+        "attack_lock:trnm.flux.beacon",
+        "build_ghost:trnm.flux.relay@7,4",
+        "queued_path:shift_waypoint@9,2",
+        "scroll_minimap:jump@11,6",
+    ]));
+    runtime.rts_combat_event_log.extend(string_vec([
+        "interaction_polish:drag_select",
+        "interaction_polish:right_click_move",
+        "interaction_polish:attack_lock",
+        "interaction_polish:build_ghost",
+        "interaction_polish:queue_path",
+        "interaction_polish:scroll_minimap",
+    ]));
 
     let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
     classic_draw_rect(
@@ -19673,38 +19706,275 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
             "scrollable_map",
         ),
     ];
+
+    let mut tactical_pixels =
+        vec![TACTICAL_MATTE_COLOR; TACTICAL_VIEWPORT_WIDTH * TACTICAL_VIEWPORT_HEIGHT];
+    classic_draw_scene(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        (7, 5),
+        &runtime,
+        &assets,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        116,
+        92,
+        220,
+        96,
+        DRAG_SELECT_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        124,
+        100,
+        204,
+        80,
+        TACTICAL_MATTE_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        170,
+        306,
+        312,
+        6,
+        QUEUE_PATH_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        476,
+        238,
+        6,
+        74,
+        QUEUE_PATH_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        504,
+        214,
+        52,
+        52,
+        BUILD_GHOST_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        514,
+        224,
+        32,
+        32,
+        TACTICAL_MATTE_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        606,
+        150,
+        72,
+        8,
+        ATTACK_LOCK_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        638,
+        118,
+        8,
+        72,
+        ATTACK_LOCK_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        350,
+        342,
+        64,
+        28,
+        RIGHT_CLICK_MOVE_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        372,
+        326,
+        20,
+        60,
+        RIGHT_CLICK_MOVE_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        626,
+        316,
+        84,
+        58,
+        SCROLL_MINIMAP_COLOR,
+    );
+    classic_draw_rect(
+        &mut tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        640,
+        328,
+        56,
+        34,
+        TACTICAL_MATTE_COLOR,
+    );
+    let player_first_interaction_view_non_background = tactical_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != TACTICAL_MATTE_COLOR
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    classic_copy_pixels(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        &tactical_pixels,
+        TACTICAL_VIEWPORT_WIDTH,
+        TACTICAL_VIEWPORT_HEIGHT,
+        TACTICAL_VIEWPORT_X,
+        TACTICAL_VIEWPORT_Y,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X - 10,
+        TACTICAL_VIEWPORT_Y - 26,
+        TACTICAL_VIEWPORT_WIDTH as i32 + 20,
+        6,
+        TACTICAL_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X - 10,
+        TACTICAL_VIEWPORT_Y + TACTICAL_VIEWPORT_HEIGHT as i32 + 26,
+        TACTICAL_VIEWPORT_WIDTH as i32 + 20,
+        6,
+        TACTICAL_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X - 10,
+        TACTICAL_VIEWPORT_Y - 26,
+        6,
+        TACTICAL_VIEWPORT_HEIGHT as i32 + 56,
+        TACTICAL_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X + TACTICAL_VIEWPORT_WIDTH as i32 + 6,
+        TACTICAL_VIEWPORT_Y - 26,
+        6,
+        TACTICAL_VIEWPORT_HEIGHT as i32 + 56,
+        TACTICAL_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X,
+        TACTICAL_VIEWPORT_Y + TACTICAL_VIEWPORT_HEIGHT as i32 + 8,
+        TACTICAL_VIEWPORT_WIDTH as i32,
+        24,
+        STATUS_STRIP_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X,
+        TACTICAL_VIEWPORT_Y - 14,
+        "LIVE COMMAND INTERACTION VIEW / DRAG SELECT / MOVE / ATTACK / BUILD / QUEUE / MINIMAP",
+        1,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        TACTICAL_VIEWPORT_X + 18,
+        TACTICAL_VIEWPORT_Y + TACTICAL_VIEWPORT_HEIGHT as i32 + 16,
+        "GROUP 1 SELECTED / ATTACK LOCK BEACON / BUILD GHOST RELAY / SHIFT QUEUE PATH / MINIMAP JUMP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        828,
+        132,
+        404,
+        410,
+        RIGHT_RAIL_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        848,
+        152,
+        "COMMAND FEEDBACK RAIL",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
     for (index, (label, color, slot, source)) in interaction_surfaces.iter().enumerate() {
-        let col = (index % 3) as i32;
-        let row = (index / 3) as i32;
-        let x = 48 + col * 400;
-        let y = 142 + row * 206;
+        let y = 182 + index as i32 * 56;
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x,
+            848,
             y,
-            356,
-            166,
-            0x0d1512,
+            364,
+            42,
+            *color,
         );
-        classic_draw_rect(&mut pixels, PANEL_WIDTH, PANEL_HEIGHT, x, y, 356, 5, *color);
         classic_draw_rect(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x,
-            y + 161,
-            356,
-            5,
-            *color,
+            860,
+            y + 9,
+            340,
+            24,
+            COMMAND_LANE_COLOR,
         );
         classic_draw_text(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x + 12,
-            y + 16,
+            872,
+            y + 11,
             label,
             1,
             CLASSIC_HUD_TEXT_COLOR,
@@ -19713,8 +19983,8 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x + 12,
-            y + 36,
+            984,
+            y + 11,
             slot,
             1,
             CLASSIC_HUD_MUTED_TEXT_COLOR,
@@ -19723,47 +19993,33 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
             &mut pixels,
             PANEL_WIDTH,
             PANEL_HEIGHT,
-            x + 12,
-            y + 56,
+            872,
+            y + 29,
             source,
             1,
             CLASSIC_HUD_MUTED_TEXT_COLOR,
         );
-        for step in 0..5_i32 {
-            let sx = x + 24 + step * 60;
-            let sy = y + 88 + (step % 2) * 22;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            1160,
+            y + 13,
+            30,
+            6,
+            POLISH_HIGHLIGHT_COLOR,
+        );
+        if index == 2 || index == 4 {
             classic_draw_rect(
                 &mut pixels,
                 PANEL_WIDTH,
                 PANEL_HEIGHT,
-                sx,
-                sy,
-                50,
-                24,
-                *color,
+                1160,
+                y + 25,
+                44,
+                8,
+                BLOCKED_STATE_COLOR,
             );
-            classic_draw_rect(
-                &mut pixels,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                sx + 5,
-                sy + 5,
-                40,
-                4,
-                POLISH_HIGHLIGHT_COLOR,
-            );
-            if step == 4 {
-                classic_draw_rect(
-                    &mut pixels,
-                    PANEL_WIDTH,
-                    PANEL_HEIGHT,
-                    sx + 7,
-                    sy + 16,
-                    36,
-                    5,
-                    BLOCKED_STATE_COLOR,
-                );
-            }
         }
     }
 
@@ -19775,7 +20031,7 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         578,
         1184,
         120,
-        0x0d1512,
+        HUD_BINDING_COLOR,
     );
     classic_draw_text(
         &mut pixels,
@@ -19783,7 +20039,7 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         PANEL_HEIGHT,
         68,
         600,
-        "PRODUCTION INTERACTION HANDOFF STRIP",
+        "PRODUCTION INTERACTION COMMAND STRIP",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
@@ -19855,6 +20111,11 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
     let hud_binding_pixel_count = count_color(HUD_BINDING_COLOR);
     let polish_highlight_pixel_count = count_color(POLISH_HIGHLIGHT_COLOR);
     let blocked_state_pixel_count = count_color(BLOCKED_STATE_COLOR);
+    let player_first_interaction_view_frame_pixel_count = count_color(TACTICAL_FRAME_COLOR);
+    let player_first_interaction_status_strip_pixel_count = count_color(STATUS_STRIP_COLOR);
+    let player_first_interaction_right_rail_pixel_count = count_color(RIGHT_RAIL_COLOR);
+    let player_first_interaction_command_lane_pixel_count =
+        count_color(HUD_BINDING_COLOR) + count_color(COMMAND_LANE_COLOR);
 
     let ui_skin_gate = contract_is(
         &ui_skin,
@@ -19967,10 +20228,17 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         })
         && !bool_at(&build_lifecycle, "cex_runtime_player_client_allowed")
         && !bool_at(&build_lifecycle, "wgpu_required");
+    let player_first_command_interaction_screen_gate = player_first_interaction_view_non_background
+        > 120_000
+        && player_first_interaction_view_frame_pixel_count > 8_000
+        && player_first_interaction_status_strip_pixel_count > 10_000
+        && player_first_interaction_right_rail_pixel_count > 50_000
+        && player_first_interaction_command_lane_pixel_count > 60_000;
     let runtime_screen_gate = production_interaction_polish_preview_gate
         && source_preview_gate
         && bool_at(&ui_skin, "runtime_screen_gate")
         && !bool_at(&ui_skin, "evidence_board_only")
+        && player_first_command_interaction_screen_gate
         && interaction_surfaces.len() == 6
         && drag_select_skin_pixel_count > 1_000
         && right_click_move_skin_pixel_count > 1_000
@@ -20053,6 +20321,13 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         "hud_binding_pixel_count": hud_binding_pixel_count,
         "polish_highlight_pixel_count": polish_highlight_pixel_count,
         "blocked_state_pixel_count": blocked_state_pixel_count,
+        "interaction_pixel_counts": {
+            "player_first_command_interaction_view_non_background": player_first_interaction_view_non_background,
+            "player_first_command_interaction_view_frame": player_first_interaction_view_frame_pixel_count,
+            "player_first_command_interaction_status_strip": player_first_interaction_status_strip_pixel_count,
+            "player_first_command_interaction_right_rail": player_first_interaction_right_rail_pixel_count,
+            "player_first_command_interaction_command_lane": player_first_interaction_command_lane_pixel_count
+        },
         "ui_skin_gate": ui_skin_gate,
         "command_affordance_gate": command_affordance_gate,
         "selection_feedback_gate": selection_feedback_gate,
@@ -20060,6 +20335,7 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         "scrollable_map_gate": scrollable_map_gate,
         "command_queue_path_gate": command_queue_path_gate,
         "production_interaction_polish_preview_gate": production_interaction_polish_preview_gate,
+        "player_first_command_interaction_screen_gate": player_first_command_interaction_screen_gate,
         "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "no_copy_boundary_gate": no_copy_boundary_gate,

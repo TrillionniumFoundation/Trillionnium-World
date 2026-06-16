@@ -173,6 +173,8 @@ jq -n \
       queue_path_skin_pixel_count: $production.queue_path_skin_pixel_count,
       scroll_minimap_skin_pixel_count: $production.scroll_minimap_skin_pixel_count,
       hud_binding_pixel_count: $production.hud_binding_pixel_count,
+      player_first_command_interaction_screen_gate: $production.player_first_command_interaction_screen_gate,
+      interaction_pixel_counts: $production.interaction_pixel_counts,
       production_preview_path: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-interaction-polish.ppm"
     },
     desktop_review_summary: {
@@ -271,6 +273,10 @@ jq -e '
   and .production_review_summary.build_ghost_skin_pixel_count > 1000
   and .production_review_summary.queue_path_skin_pixel_count > 1000
   and .production_review_summary.scroll_minimap_skin_pixel_count > 1000
+  and .production_review_summary.player_first_command_interaction_screen_gate == true
+  and .production_review_summary.interaction_pixel_counts.player_first_command_interaction_view_non_background > 120000
+  and .production_review_summary.interaction_pixel_counts.player_first_command_interaction_view_frame > 8000
+  and .production_review_summary.interaction_pixel_counts.player_first_command_interaction_status_strip > 10000
   and .desktop_review_summary.screenshot_frame_count >= 11
   and .desktop_review_summary.keyboard_event_count >= 10
   and .desktop_review_summary.mouse_event_count >= 10

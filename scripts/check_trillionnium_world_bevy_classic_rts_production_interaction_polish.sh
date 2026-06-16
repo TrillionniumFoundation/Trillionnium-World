@@ -71,6 +71,11 @@ jq -e '
   and .hud_binding_pixel_count > 8000
   and .polish_highlight_pixel_count > 3000
   and .blocked_state_pixel_count > 600
+  and .interaction_pixel_counts.player_first_command_interaction_view_non_background > 120000
+  and .interaction_pixel_counts.player_first_command_interaction_view_frame > 8000
+  and .interaction_pixel_counts.player_first_command_interaction_status_strip > 10000
+  and .interaction_pixel_counts.player_first_command_interaction_right_rail > 50000
+  and .interaction_pixel_counts.player_first_command_interaction_command_lane > 60000
   and .ui_skin_gate == true
   and .command_affordance_gate == true
   and .selection_feedback_gate == true
@@ -78,6 +83,7 @@ jq -e '
   and .scrollable_map_gate == true
   and .command_queue_path_gate == true
   and .production_interaction_polish_preview_gate == true
+  and .player_first_command_interaction_screen_gate == true
   and .runtime_screen_gate == true
   and .source_preview_gate == true
   and .no_copy_boundary_gate == true

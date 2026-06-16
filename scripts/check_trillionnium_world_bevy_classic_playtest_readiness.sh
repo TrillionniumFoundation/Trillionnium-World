@@ -2116,6 +2116,11 @@ jq -n \
       rts_production_interaction_polish_queue_path_pixel_count: $rts_production_interaction_polish[0].queue_path_skin_pixel_count,
       rts_production_interaction_polish_scroll_minimap_pixel_count: $rts_production_interaction_polish[0].scroll_minimap_skin_pixel_count,
       rts_production_interaction_polish_hud_binding_pixel_count: $rts_production_interaction_polish[0].hud_binding_pixel_count,
+      rts_production_interaction_polish_player_first_view_non_background: $rts_production_interaction_polish[0].interaction_pixel_counts.player_first_command_interaction_view_non_background,
+      rts_production_interaction_polish_player_first_view_frame_pixel_count: $rts_production_interaction_polish[0].interaction_pixel_counts.player_first_command_interaction_view_frame,
+      rts_production_interaction_polish_player_first_status_strip_pixel_count: $rts_production_interaction_polish[0].interaction_pixel_counts.player_first_command_interaction_status_strip,
+      rts_production_interaction_polish_player_first_right_rail_pixel_count: $rts_production_interaction_polish[0].interaction_pixel_counts.player_first_command_interaction_right_rail,
+      rts_production_interaction_polish_player_first_command_lane_pixel_count: $rts_production_interaction_polish[0].interaction_pixel_counts.player_first_command_interaction_command_lane,
       rts_full_screen_ui_replication_surface_count: $rts_full_screen_ui_replication[0].replication_surface_count,
       rts_full_screen_ui_replication_board_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.board,
       rts_full_screen_ui_replication_title_campaign_pixel_count: $rts_full_screen_ui_replication[0].screen_matrix_pixel_counts.title_campaign,
@@ -2924,6 +2929,7 @@ jq -n \
       rts_production_interaction_polish_scrollable_map_gate: $rts_production_interaction_polish[0].scrollable_map_gate,
       rts_production_interaction_polish_command_queue_path_gate: $rts_production_interaction_polish[0].command_queue_path_gate,
       rts_production_interaction_polish_preview_gate: $rts_production_interaction_polish[0].production_interaction_polish_preview_gate,
+      rts_production_interaction_polish_player_first_screen_gate: $rts_production_interaction_polish[0].player_first_command_interaction_screen_gate,
       rts_production_interaction_polish_source_preview_gate: $rts_production_interaction_polish[0].source_preview_gate,
       rts_production_interaction_polish_no_copy_boundary_gate: $rts_production_interaction_polish[0].no_copy_boundary_gate,
       rts_production_interaction_polish_gate: $rts_production_interaction_polish[0].production_interaction_polish_gate,
@@ -3660,6 +3666,11 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_production_interaction_polish_queue_path_pixel_count > 1000
   and .headline.rts_production_interaction_polish_scroll_minimap_pixel_count > 1000
   and .headline.rts_production_interaction_polish_hud_binding_pixel_count > 8000
+  and .headline.rts_production_interaction_polish_player_first_view_non_background > 120000
+  and .headline.rts_production_interaction_polish_player_first_view_frame_pixel_count > 8000
+  and .headline.rts_production_interaction_polish_player_first_status_strip_pixel_count > 10000
+  and .headline.rts_production_interaction_polish_player_first_right_rail_pixel_count > 50000
+  and .headline.rts_production_interaction_polish_player_first_command_lane_pixel_count > 60000
   and .headline.rts_full_screen_ui_replication_surface_count == 10
   and .headline.rts_full_screen_ui_replication_board_pixel_count > 80000
   and .headline.rts_full_screen_ui_replication_title_campaign_pixel_count > 2000
@@ -5452,6 +5463,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_production_interaction_polish_scrollable_map_gate == true
   and .gates.rts_production_interaction_polish_command_queue_path_gate == true
   and .gates.rts_production_interaction_polish_preview_gate == true
+  and .gates.rts_production_interaction_polish_player_first_screen_gate == true
   and .gates.rts_production_interaction_polish_source_preview_gate == true
   and .gates.rts_production_interaction_polish_no_copy_boundary_gate == true
   and .gates.rts_production_interaction_polish_gate == true

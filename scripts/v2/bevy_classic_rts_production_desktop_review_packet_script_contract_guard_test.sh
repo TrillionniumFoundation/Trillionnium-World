@@ -20,6 +20,7 @@ required_script_lines=(
   'production_interaction_polish_gate'
   'player_runtime_command_interaction_screen'
   'player_runtime_production_hud_skin_screen'
+  'player_first_command_interaction_screen_gate'
   'runtime_screen_gate'
   'evidence_board_only'
   'desktop_playtest_review_packet_gate'
