@@ -37,8 +37,6 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_CONTRACT'
   'native_classic_rts_openra_imported_replay_artifact_bundle_evidence_json'
   'classic-rts-openra-imported-replay-artifact-bundle'
-  'TRNM_OPENRA_IMPORTED_REPLAY_REPRO_SUMMARY'
-  'TRNM_OPENRA_IMPORTED_REPLAY_REPRO_DIR'
   'bevy_owned_openra_imported_replay_artifact_bundle_not_openra_runtime_parity'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT'
   'openra_imported_replay_artifact_bundle_v1_json'
@@ -62,8 +60,6 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_imported_replay_artifact_bundle_contract_guard'
   'bevy_classic_rts_openra_imported_replay_artifact_bundle_gate'
-  'TRNM_OPENRA_IMPORTED_REPLAY_REPRO_SUMMARY'
-  'TRNM_OPENRA_IMPORTED_REPLAY_REPRO_DIR'
   'bevy_classic_rts_openra_imported_replay_artifact_bundle_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_imported_replay_artifact_bundle.sh'
 )

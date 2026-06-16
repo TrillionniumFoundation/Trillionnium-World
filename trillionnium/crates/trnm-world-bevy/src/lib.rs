@@ -58709,35 +58709,16 @@ pub fn native_classic_rts_openra_imported_replay_artifact_bundle_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let default_repro_dir = preview_path("openra-imported-replay-repro-manifest");
+    let repro_dir = preview_path("openra-imported-replay-repro-manifest");
     let repro_summary_path = preview_path("openra-imported-replay-repro-manifest.json");
     let bundle_path = preview_path("openra-imported-replay-artifact-bundle.json");
     let negative_corpus_path =
         preview_path("openra-imported-replay-artifact-bundle-negative-corpus.json");
 
-    let repro_evidence: Value =
-        if let Ok(path) = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REPRO_SUMMARY") {
-            fs::read_to_string(&path)
-                .ok()
-                .and_then(|text| serde_json::from_str(&text).ok())
-                .expect("OpenRA imported replay repro manifest override evidence parses")
-        } else {
-            serde_json::from_str(
-                &native_classic_rts_openra_imported_replay_repro_manifest_evidence_json(
-                    &default_repro_dir,
-                ),
-            )
-            .expect("OpenRA imported replay repro manifest evidence parses")
-        };
-    let repro_dir = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REPRO_DIR")
-        .ok()
-        .or_else(|| {
-            repro_evidence
-                .get("preview_dir")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .unwrap_or(default_repro_dir);
+    let repro_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_repro_manifest_evidence_json(&repro_dir),
+    )
+    .expect("OpenRA imported replay repro manifest evidence parses");
     let repro_summary_write_gate = serde_json::to_vec_pretty(&repro_evidence)
         .map(|bytes| fs::write(&repro_summary_path, bytes).is_ok())
         .unwrap_or(false);
@@ -59338,35 +59319,16 @@ pub fn native_classic_rts_openra_imported_replay_review_capsule_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let default_bundle_dir = preview_path("openra-imported-replay-artifact-bundle");
+    let bundle_dir = preview_path("openra-imported-replay-artifact-bundle");
     let bundle_summary_path = preview_path("openra-imported-replay-artifact-bundle-summary.json");
     let review_capsule_path = preview_path("openra-imported-replay-review-capsule.json");
     let negative_corpus_path =
         preview_path("openra-imported-replay-review-capsule-negative-corpus.json");
 
-    let bundle_evidence: Value =
-        if let Ok(path) = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_SUMMARY") {
-            fs::read_to_string(&path)
-                .ok()
-                .and_then(|text| serde_json::from_str(&text).ok())
-                .expect("OpenRA imported replay artifact bundle override evidence parses")
-        } else {
-            serde_json::from_str(
-                &native_classic_rts_openra_imported_replay_artifact_bundle_evidence_json(
-                    &default_bundle_dir,
-                ),
-            )
-            .expect("OpenRA imported replay artifact bundle evidence parses")
-        };
-    let bundle_dir = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_ARTIFACT_BUNDLE_DIR")
-        .ok()
-        .or_else(|| {
-            bundle_evidence
-                .get("preview_dir")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .unwrap_or(default_bundle_dir);
+    let bundle_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_artifact_bundle_evidence_json(&bundle_dir),
+    )
+    .expect("OpenRA imported replay artifact bundle evidence parses");
     let bundle_summary_write_gate = serde_json::to_vec_pretty(&bundle_evidence)
         .map(|bytes| fs::write(&bundle_summary_path, bytes).is_ok())
         .unwrap_or(false);
@@ -59957,35 +59919,16 @@ pub fn native_classic_rts_openra_imported_replay_review_receipt_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let default_capsule_dir = preview_path("openra-imported-replay-review-capsule");
+    let capsule_dir = preview_path("openra-imported-replay-review-capsule");
     let capsule_summary_path = preview_path("openra-imported-replay-review-capsule-summary.json");
     let receipt_path = preview_path("openra-imported-replay-review-receipt.json");
     let negative_corpus_path =
         preview_path("openra-imported-replay-review-receipt-negative-corpus.json");
 
-    let capsule_evidence: Value =
-        if let Ok(path) = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_SUMMARY") {
-            fs::read_to_string(&path)
-                .ok()
-                .and_then(|text| serde_json::from_str(&text).ok())
-                .expect("OpenRA imported replay review capsule override evidence parses")
-        } else {
-            serde_json::from_str(
-                &native_classic_rts_openra_imported_replay_review_capsule_evidence_json(
-                    &default_capsule_dir,
-                ),
-            )
-            .expect("OpenRA imported replay review capsule evidence parses")
-        };
-    let capsule_dir = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_DIR")
-        .ok()
-        .or_else(|| {
-            capsule_evidence
-                .get("preview_dir")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .unwrap_or(default_capsule_dir);
+    let capsule_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_review_capsule_evidence_json(&capsule_dir),
+    )
+    .expect("OpenRA imported replay review capsule evidence parses");
     let capsule_summary_write_gate = serde_json::to_vec_pretty(&capsule_evidence)
         .map(|bytes| fs::write(&capsule_summary_path, bytes).is_ok())
         .unwrap_or(false);
@@ -60625,35 +60568,16 @@ pub fn native_classic_rts_openra_imported_replay_review_digest_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let default_receipt_dir = preview_path("openra-imported-replay-review-receipt");
+    let receipt_dir = preview_path("openra-imported-replay-review-receipt");
     let receipt_summary_path = preview_path("openra-imported-replay-review-receipt-summary.json");
     let digest_path = preview_path("openra-imported-replay-review-digest.json");
     let negative_corpus_path =
         preview_path("openra-imported-replay-review-digest-negative-corpus.json");
 
-    let receipt_evidence: Value =
-        if let Ok(path) = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_SUMMARY") {
-            fs::read_to_string(&path)
-                .ok()
-                .and_then(|text| serde_json::from_str(&text).ok())
-                .expect("OpenRA imported replay review receipt override evidence parses")
-        } else {
-            serde_json::from_str(
-                &native_classic_rts_openra_imported_replay_review_receipt_evidence_json(
-                    &default_receipt_dir,
-                ),
-            )
-            .expect("OpenRA imported replay review receipt evidence parses")
-        };
-    let receipt_dir = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_DIR")
-        .ok()
-        .or_else(|| {
-            receipt_evidence
-                .get("preview_dir")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .unwrap_or(default_receipt_dir);
+    let receipt_evidence: Value = serde_json::from_str(
+        &native_classic_rts_openra_imported_replay_review_receipt_evidence_json(&receipt_dir),
+    )
+    .expect("OpenRA imported replay review receipt evidence parses");
     let receipt_summary_write_gate = serde_json::to_vec_pretty(&receipt_evidence)
         .map(|bytes| fs::write(&receipt_summary_path, bytes).is_ok())
         .unwrap_or(false);

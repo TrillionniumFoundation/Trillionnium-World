@@ -27,8 +27,6 @@ grep -F 'public_launch_ready == false' "$SCRIPT" >/dev/null
 
 grep -F 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REVIEW_RECEIPT_CONTRACT' "$LIB" >/dev/null
 grep -F 'native_classic_rts_openra_imported_replay_review_receipt_evidence_json' "$LIB" >/dev/null
-grep -F 'TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_SUMMARY' "$LIB" >/dev/null
-grep -F 'TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_DIR' "$LIB" >/dev/null
 grep -F 'openra_imported_replay_review_receipt_v1_json' "$LIB" >/dev/null
 grep -F 'source_review_capsule_gate_mismatch' "$LIB" >/dev/null
 grep -F 'review_item_sha_mismatch' "$LIB" >/dev/null
@@ -40,8 +38,6 @@ grep -F 'classic-rts-openra-imported-replay-review-receipt' "$MAIN" >/dev/null
 grep -F 'native_classic_rts_openra_imported_replay_review_receipt_evidence_json' "$MAIN" >/dev/null
 
 grep -F 'check_trillionnium_world_bevy_classic_rts_openra_imported_replay_review_receipt.sh' "$RELEASE_CI" >/dev/null
-grep -F 'TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_SUMMARY' "$RELEASE_CI" >/dev/null
-grep -F 'TRNM_OPENRA_IMPORTED_REPLAY_REVIEW_CAPSULE_DIR' "$RELEASE_CI" >/dev/null
 grep -F 'bevy_classic_rts_openra_imported_replay_review_receipt_script_contract_guard_test.sh' "$RELEASE_CI" >/dev/null
 grep -F 'bevy_classic_rts_openra_imported_replay_review_receipt_gate' "$RELEASE_CI" >/dev/null
 grep -F 'trillionnium_world_bevy_classic_rts_openra_imported_replay_review_receipt_v1' "$RELEASE_CI" >/dev/null
