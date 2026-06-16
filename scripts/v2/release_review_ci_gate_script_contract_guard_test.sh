@@ -116,6 +116,8 @@ required_lines=(
   'check_trillionnium_world_bevy_account_title_flow.sh'
   'bevy_account_title_flow_contract_guard'
   'bevy_account_title_flow_gate'
+  'bevy_classic_foundation_artifact_wrapper_script_contract_guard_test.sh'
+  'bevy_classic_foundation_artifact_wrapper_contract_guard'
   'check_trillionnium_world_bevy_classic_asset_pack.sh'
   'check_trillionnium_world_bevy_classic_manifest_lint.sh'
   'bevy_classic_animation_evidence_script_contract_guard_test.sh'

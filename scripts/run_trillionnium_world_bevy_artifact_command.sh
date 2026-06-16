@@ -5,6 +5,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}"
 
 if [[ -n "$BIN" ]]; then
+  if [[ "$BIN" != /* && -x "$ROOT/$BIN" ]]; then
+    BIN="$ROOT/$BIN"
+  fi
   if [[ ! -x "$BIN" ]]; then
     printf 'TRNM_WORLD_BEVY_ARTIFACT_BIN is not executable: %s\n' "$BIN" >&2
     exit 1

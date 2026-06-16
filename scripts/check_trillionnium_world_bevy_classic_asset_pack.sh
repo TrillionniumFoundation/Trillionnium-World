@@ -9,7 +9,7 @@ mkdir -p "$(dirname "$SUMMARY")" "$(dirname "$MANIFEST")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- classic-asset-pack "$MANIFEST" "$ATLAS" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-asset-pack "$MANIFEST" "$ATLAS" >"$SUMMARY"
 )
 
 test -s "$SUMMARY"

@@ -53,7 +53,7 @@ for attempt in 1 2 3 4 5 6; do
   (
     cd "$ROOT/trillionnium"
     TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST="$MANIFEST" \
-      cargo run -p trnm-world-bevy -- classic-render-budget >"$SUMMARY.attempt"
+      "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-render-budget >"$SUMMARY.attempt"
   )
   if [[ ! -s "$best_summary" ]] || jq -e --argfile current "$SUMMARY.attempt" '
     ($current.p95_micros < .p95_micros)

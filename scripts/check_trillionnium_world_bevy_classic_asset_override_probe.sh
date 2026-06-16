@@ -24,7 +24,7 @@ mkdir -p "$(dirname "$SUMMARY")" "$OVERRIDE_DIR"
 (
   cd "$ROOT/trillionnium"
   TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR="$OVERRIDE_DIR" \
-    CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-asset-override-probe "$PREVIEW" >"$SUMMARY"
+    "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-asset-override-probe "$PREVIEW" >"$SUMMARY"
 )
 
 jq -e '

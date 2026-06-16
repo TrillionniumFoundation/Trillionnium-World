@@ -13,7 +13,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 (
   cd "$ROOT/trillionnium"
   TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST="$MANIFEST" \
-    cargo run -p trnm-world-bevy -- classic-renderer-probe "$FRAME" >"$SUMMARY_RAW"
+    "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-renderer-probe "$FRAME" >"$SUMMARY_RAW"
 )
 
 jq '

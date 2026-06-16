@@ -29,7 +29,7 @@ for attempt in 1 2 3; do
   (
     cd "$ROOT/trillionnium"
     CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" \
-      cargo run -p trnm-world-bevy -- classic-input-frame-budget >"$SUMMARY"
+      "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-input-frame-budget >"$SUMMARY"
   )
   if budget_green; then
     printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_INPUT_FRAME_BUDGET_GREEN %s\n' "$SUMMARY"
