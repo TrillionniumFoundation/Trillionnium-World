@@ -43,6 +43,7 @@ jq -e '
   and .coverage_surface_gate == true
   and .preview_gate == true
   and .player_first_tactical_composition_gate == true
+  and .player_first_full_game_visual_ui_screen_gate == true
   and .no_copy_boundary_gate == true
   and .full_game_visual_ui_replication_gate == true
   and .internal_rust_full_game_visual_ui_replication_claimed == true

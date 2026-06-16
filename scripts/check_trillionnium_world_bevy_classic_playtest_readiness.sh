@@ -2212,6 +2212,8 @@ jq -n \
       rts_live_session_playthrough_final_objective_status: $rts_live_session_playthrough[0].final_state.objective_status,
       rts_live_session_playthrough_open_world_state: $rts_live_session_playthrough[0].final_state.open_world_handoff_state,
       rts_live_session_playthrough_resume_room_id: $rts_live_session_playthrough[0].final_state.open_world_resume_room_id,
+      rts_full_game_visual_ui_replication_runtime_screen_mode: $rts_full_game_visual_ui_replication[0].runtime_screen_mode,
+      rts_full_game_visual_ui_replication_evidence_board_only: $rts_full_game_visual_ui_replication[0].evidence_board_only,
       rts_full_game_visual_ui_replication_surface_count: $rts_full_game_visual_ui_replication[0].coverage_surface_count,
       rts_full_game_visual_ui_replication_non_background_pixels: $rts_full_game_visual_ui_replication[0].pixel_counts.non_background,
       rts_full_game_visual_ui_replication_hud_chrome_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.hud_chrome,
@@ -3050,10 +3052,12 @@ jq -n \
       rts_full_game_visual_ui_replication_source_contract_gate: $rts_full_game_visual_ui_replication[0].source_contract_gate,
       rts_full_game_visual_ui_replication_source_green_gate: $rts_full_game_visual_ui_replication[0].source_green_gate,
       rts_full_game_visual_ui_replication_runtime_screen_chain_gate: $rts_full_game_visual_ui_replication[0].runtime_screen_chain_gate,
+      rts_full_game_visual_ui_replication_runtime_screen_gate: $rts_full_game_visual_ui_replication[0].runtime_screen_gate,
       rts_full_game_visual_ui_replication_player_flow_gate: $rts_full_game_visual_ui_replication[0].player_flow_gate,
       rts_full_game_visual_ui_replication_coverage_surface_gate: $rts_full_game_visual_ui_replication[0].coverage_surface_gate,
       rts_full_game_visual_ui_replication_preview_gate: $rts_full_game_visual_ui_replication[0].preview_gate,
       rts_full_game_visual_ui_replication_player_first_tactical_composition_gate: $rts_full_game_visual_ui_replication[0].player_first_tactical_composition_gate,
+      rts_full_game_visual_ui_replication_player_first_screen_gate: $rts_full_game_visual_ui_replication[0].player_first_full_game_visual_ui_screen_gate,
       rts_full_game_visual_ui_replication_no_copy_boundary_gate: $rts_full_game_visual_ui_replication[0].no_copy_boundary_gate,
       rts_full_game_visual_ui_replication_gate: $rts_full_game_visual_ui_replication[0].full_game_visual_ui_replication_gate,
       rts_openra_screen_for_screen_ui_replication_source_contract_gate: $rts_openra_screen_for_screen_ui_replication[0].source_contract_gate,
@@ -3798,6 +3802,8 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_live_session_playthrough_final_objective_status == "open_world_after_action_ready"
   and .headline.rts_live_session_playthrough_open_world_state == "resumed:league-coliseum"
   and .headline.rts_live_session_playthrough_resume_room_id == "league-coliseum"
+  and .headline.rts_full_game_visual_ui_replication_runtime_screen_mode == "player_runtime_full_game_visual_ui_screen"
+  and .headline.rts_full_game_visual_ui_replication_evidence_board_only == false
   and .headline.rts_full_game_visual_ui_replication_surface_count == 18
   and .headline.rts_full_game_visual_ui_replication_non_background_pixels > 900000
   and .headline.rts_full_game_visual_ui_replication_hud_chrome_pixel_count > 120000
@@ -5474,10 +5480,12 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_full_game_visual_ui_replication_source_contract_gate == true
   and .gates.rts_full_game_visual_ui_replication_source_green_gate == true
   and .gates.rts_full_game_visual_ui_replication_runtime_screen_chain_gate == true
+  and .gates.rts_full_game_visual_ui_replication_runtime_screen_gate == true
   and .gates.rts_full_game_visual_ui_replication_player_flow_gate == true
   and .gates.rts_full_game_visual_ui_replication_coverage_surface_gate == true
   and .gates.rts_full_game_visual_ui_replication_preview_gate == true
   and .gates.rts_full_game_visual_ui_replication_player_first_tactical_composition_gate == true
+  and .gates.rts_full_game_visual_ui_replication_player_first_screen_gate == true
   and .gates.rts_full_game_visual_ui_replication_no_copy_boundary_gate == true
   and .gates.rts_full_game_visual_ui_replication_gate == true
   and .gates.rts_openra_screen_for_screen_ui_replication_source_contract_gate == true

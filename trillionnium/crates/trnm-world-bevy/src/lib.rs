@@ -27328,12 +27328,14 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         && !bool_at(&production_atlas, "openra_asset_copied")
         && !bool_at(&production_ui, "screen_for_screen_openra_ui_claimed")
         && !bool_at(&live_session, "screen_for_screen_openra_ui_claimed");
+    let runtime_screen_gate = preview_gate && runtime_screen_chain_gate;
+    let player_first_full_game_visual_ui_screen_gate = runtime_screen_gate
+        && player_first_tactical_composition_gate
+        && player_flow_gate
+        && coverage_surface_gate;
     let full_game_visual_ui_replication_gate = source_contract_gate
         && source_green_gate
-        && runtime_screen_chain_gate
-        && player_flow_gate
-        && coverage_surface_gate
-        && preview_gate
+        && player_first_full_game_visual_ui_screen_gate
         && no_copy_boundary_gate;
     let green = full_game_visual_ui_replication_gate;
 
@@ -27381,7 +27383,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         "coverage_surface_names": coverage_surfaces,
         "coverage_surface_count": coverage_surfaces.len(),
         "runtime_screen_mode": "player_runtime_full_game_visual_ui_screen",
-        "runtime_screen_gate": preview_gate && runtime_screen_chain_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "evidence_board_only": false,
         "single_screen_runtime_layout": {
             "top_bar": "account, slot, map, live RTS mode, resources",
@@ -27407,6 +27409,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "player_first_tactical_preview_non_background": tactical_preview_non_background_pixels
         },
         "player_first_tactical_composition_gate": player_first_tactical_composition_gate,
+        "player_first_full_game_visual_ui_screen_gate": player_first_full_game_visual_ui_screen_gate,
         "source_headline": {
             "full_screen_surface_count": full_screen.get("replication_surface_count").cloned().unwrap_or(Value::Null),
             "shell_meta_surface_count": shell_meta.get("shell_meta_surface_count").cloned().unwrap_or(Value::Null),
@@ -27427,6 +27430,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         "source_contract_gate": source_contract_gate,
         "source_green_gate": source_green_gate,
         "runtime_screen_chain_gate": runtime_screen_chain_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "player_flow_gate": player_flow_gate,
         "coverage_surface_gate": coverage_surface_gate,
         "preview_gate": preview_gate,
