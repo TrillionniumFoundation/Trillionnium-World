@@ -78,6 +78,14 @@ jq -e '
   and .hud_pixel_counts.combat_alerts > 40
   and .hud_pixel_counts.objective > 40
   and .hud_pixel_counts.highlight > 20
+  and .player_first_in_match_hud_screen_gate == true
+  and .in_match_hud_player_first_pixel_counts.player_first_in_match_hud_view_non_background > 350000
+  and .in_match_hud_player_first_pixel_counts.player_first_in_match_hud_view_frame > 8000
+  and .in_match_hud_player_first_pixel_counts.player_first_in_match_hud_top_status_strip > 45000
+  and .in_match_hud_player_first_pixel_counts.player_first_in_match_hud_surface_cards > 40000
+  and .in_match_hud_player_first_pixel_counts.player_first_in_match_hud_right_rail_non_background > 90000
+  and .in_match_hud_player_first_pixel_counts.player_first_in_match_hud_bottom_command_lane > 60000
+  and .in_match_hud_player_first_pixel_counts.player_first_in_match_hud_control_colors > 8000
   and .selection_gate == true
   and .command_gate == true
   and .resource_gate == true

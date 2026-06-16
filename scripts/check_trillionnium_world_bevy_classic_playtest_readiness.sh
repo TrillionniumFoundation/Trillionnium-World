@@ -2157,6 +2157,13 @@ jq -n \
       rts_in_match_hud_state_replication_non_background_pixels: $rts_in_match_hud_state_replication[0].hud_pixel_counts.non_background,
       rts_in_match_hud_state_replication_command_grid_pixel_count: $rts_in_match_hud_state_replication[0].hud_pixel_counts.command_grid,
       rts_in_match_hud_state_replication_minimap_pixel_count: $rts_in_match_hud_state_replication[0].hud_pixel_counts.minimap,
+      rts_in_match_hud_state_replication_player_first_view_non_background: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_counts.player_first_in_match_hud_view_non_background,
+      rts_in_match_hud_state_replication_player_first_view_frame_pixel_count: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_counts.player_first_in_match_hud_view_frame,
+      rts_in_match_hud_state_replication_player_first_top_status_strip_pixel_count: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_counts.player_first_in_match_hud_top_status_strip,
+      rts_in_match_hud_state_replication_player_first_surface_card_pixel_count: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_counts.player_first_in_match_hud_surface_cards,
+      rts_in_match_hud_state_replication_player_first_right_rail_non_background: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_counts.player_first_in_match_hud_right_rail_non_background,
+      rts_in_match_hud_state_replication_player_first_bottom_command_lane_pixel_count: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_counts.player_first_in_match_hud_bottom_command_lane,
+      rts_in_match_hud_state_replication_player_first_control_color_pixel_count: $rts_in_match_hud_state_replication[0].in_match_hud_player_first_pixel_counts.player_first_in_match_hud_control_colors,
       rts_in_match_hud_state_replication_army_supply_used: $rts_in_match_hud_state_replication[0].army_supply_used,
       rts_in_match_hud_state_replication_army_supply_cap: $rts_in_match_hud_state_replication[0].army_supply_cap,
       rts_session_state_continuity_surface_count: $rts_session_state_continuity[0].state_continuity_surface_count,
@@ -2997,6 +3004,7 @@ jq -n \
       rts_in_match_hud_state_replication_combat_alert_gate: $rts_in_match_hud_state_replication[0].combat_alert_gate,
       rts_in_match_hud_state_replication_minimap_objective_gate: $rts_in_match_hud_state_replication[0].minimap_objective_gate,
       rts_in_match_hud_state_replication_native_client_boundary_gate: $rts_in_match_hud_state_replication[0].native_client_boundary_gate,
+      rts_in_match_hud_state_replication_player_first_screen_gate: $rts_in_match_hud_state_replication[0].player_first_in_match_hud_screen_gate,
       rts_in_match_hud_state_replication_gate: $rts_in_match_hud_state_replication[0].in_match_hud_state_replication_gate,
       rts_session_state_continuity_shell_meta_gate: $rts_session_state_continuity[0].shell_meta_gate,
       rts_session_state_continuity_session_slot_confirm_gate: $rts_session_state_continuity[0].session_slot_confirm_gate,
@@ -3726,6 +3734,13 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_in_match_hud_state_replication_non_background_pixels > 100000
   and .headline.rts_in_match_hud_state_replication_command_grid_pixel_count > 40
   and .headline.rts_in_match_hud_state_replication_minimap_pixel_count > 40
+  and .headline.rts_in_match_hud_state_replication_player_first_view_non_background > 350000
+  and .headline.rts_in_match_hud_state_replication_player_first_view_frame_pixel_count > 8000
+  and .headline.rts_in_match_hud_state_replication_player_first_top_status_strip_pixel_count > 45000
+  and .headline.rts_in_match_hud_state_replication_player_first_surface_card_pixel_count > 40000
+  and .headline.rts_in_match_hud_state_replication_player_first_right_rail_non_background > 90000
+  and .headline.rts_in_match_hud_state_replication_player_first_bottom_command_lane_pixel_count > 60000
+  and .headline.rts_in_match_hud_state_replication_player_first_control_color_pixel_count > 8000
   and .headline.rts_in_match_hud_state_replication_army_supply_used == 9
   and .headline.rts_in_match_hud_state_replication_army_supply_cap == 18
   and .headline.rts_session_state_continuity_surface_count == 8
@@ -5405,6 +5420,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_in_match_hud_state_replication_combat_alert_gate == true
   and .gates.rts_in_match_hud_state_replication_minimap_objective_gate == true
   and .gates.rts_in_match_hud_state_replication_native_client_boundary_gate == true
+  and .gates.rts_in_match_hud_state_replication_player_first_screen_gate == true
   and .gates.rts_in_match_hud_state_replication_gate == true
   and .gates.rts_session_state_continuity_shell_meta_gate == true
   and .gates.rts_session_state_continuity_session_slot_confirm_gate == true

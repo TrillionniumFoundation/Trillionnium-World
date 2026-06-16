@@ -23570,6 +23570,7 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
     const ALERT_COLOR: u32 = 0xdf7166;
     const OBJECTIVE_COLOR: u32 = 0x91ce70;
     const HIGHLIGHT_COLOR: u32 = 0xf0e8bd;
+    const IN_MATCH_VIEW_FRAME_COLOR: u32 = 0x8fd3bb;
 
     let assets = load_classic_runtime_assets();
     let runtime = classic_product_alignment_runtime();
@@ -23654,6 +23655,46 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
             );
         }
     }
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        8,
+        42,
+        992,
+        5,
+        IN_MATCH_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        8,
+        592,
+        992,
+        5,
+        IN_MATCH_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        8,
+        42,
+        5,
+        555,
+        IN_MATCH_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        WIDTH,
+        HEIGHT,
+        995,
+        42,
+        5,
+        555,
+        IN_MATCH_VIEW_FRAME_COLOR,
+    );
 
     classic_draw_rect(
         &mut pixels,
@@ -23689,6 +23730,32 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
     let write_gate = write_classic_rgb_buffer_ppm(preview_path, WIDTH, HEIGHT, &pixels).is_ok();
     let count_color =
         |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
+    let count_region_color = |color: u32, x: usize, y: usize, w: usize, h: usize| -> usize {
+        let max_x = (x + w).min(WIDTH);
+        let max_y = (y + h).min(HEIGHT);
+        let mut count = 0;
+        for py in y.min(HEIGHT)..max_y {
+            for px in x.min(WIDTH)..max_x {
+                if pixels[py * WIDTH + px] == color {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
+    let count_region_non_background = |x: usize, y: usize, w: usize, h: usize| -> usize {
+        let max_x = (x + w).min(WIDTH);
+        let max_y = (y + h).min(HEIGHT);
+        let mut count = 0;
+        for py in y.min(HEIGHT)..max_y {
+            for px in x.min(WIDTH)..max_x {
+                if pixels[py * WIDTH + px] != 0x101411 {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
     let non_background_pixels = pixels.iter().filter(|pixel| **pixel != 0x101411).count();
     let resource_pixel_count = count_color(RESOURCE_COLOR);
     let selection_pixel_count = count_color(SELECTION_COLOR);
@@ -23699,6 +23766,24 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
     let alert_pixel_count = count_color(ALERT_COLOR);
     let objective_pixel_count = count_color(OBJECTIVE_COLOR);
     let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+    let player_first_in_match_hud_view_non_background =
+        count_region_non_background(8, 42, 992, 555);
+    let player_first_in_match_hud_view_frame_pixel_count = count_color(IN_MATCH_VIEW_FRAME_COLOR);
+    let player_first_in_match_hud_top_status_strip_pixel_count =
+        count_region_color(HUD_PANEL_COLOR, 28, 44, 1224, 46);
+    let player_first_in_match_hud_surface_card_pixel_count = count_color(0x111a16);
+    let player_first_in_match_hud_right_rail_non_background =
+        count_region_non_background(1008, 96, 244, 548);
+    let player_first_in_match_hud_bottom_command_lane_pixel_count =
+        count_region_color(HUD_PANEL_COLOR, 36, 672, 1208, 58);
+    let player_first_in_match_hud_control_color_pixel_count = resource_pixel_count
+        + selection_pixel_count
+        + command_pixel_count
+        + minimap_pixel_count
+        + production_pixel_count
+        + ability_pixel_count
+        + alert_pixel_count
+        + objective_pixel_count;
     let file_ready = Path::new(preview_path).exists()
         && fs::metadata(preview_path)
             .map(|metadata| metadata.len() > 100_000)
@@ -23768,7 +23853,16 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
         && ability_gate
         && combat_alert_gate
         && minimap_objective_gate;
+    let player_first_in_match_hud_screen_gate = runtime_screen_gate
+        && player_first_in_match_hud_view_non_background > 350_000
+        && player_first_in_match_hud_view_frame_pixel_count > 8_000
+        && player_first_in_match_hud_top_status_strip_pixel_count > 45_000
+        && player_first_in_match_hud_surface_card_pixel_count > 40_000
+        && player_first_in_match_hud_right_rail_non_background > 90_000
+        && player_first_in_match_hud_bottom_command_lane_pixel_count > 60_000
+        && player_first_in_match_hud_control_color_pixel_count > 8_000;
     let in_match_hud_state_replication_gate = runtime_screen_gate
+        && player_first_in_match_hud_screen_gate
         && native_client_boundary_gate
         && !assets.manifest.cex_runtime_player_client_allowed;
     let green = in_match_hud_state_replication_gate;
@@ -23841,6 +23935,15 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
             "objective": objective_pixel_count,
             "highlight": highlight_pixel_count
         },
+        "in_match_hud_player_first_pixel_counts": {
+            "player_first_in_match_hud_view_non_background": player_first_in_match_hud_view_non_background,
+            "player_first_in_match_hud_view_frame": player_first_in_match_hud_view_frame_pixel_count,
+            "player_first_in_match_hud_top_status_strip": player_first_in_match_hud_top_status_strip_pixel_count,
+            "player_first_in_match_hud_surface_cards": player_first_in_match_hud_surface_card_pixel_count,
+            "player_first_in_match_hud_right_rail_non_background": player_first_in_match_hud_right_rail_non_background,
+            "player_first_in_match_hud_bottom_command_lane": player_first_in_match_hud_bottom_command_lane_pixel_count,
+            "player_first_in_match_hud_control_colors": player_first_in_match_hud_control_color_pixel_count
+        },
         "selection_gate": selection_gate,
         "command_gate": command_gate,
         "resource_gate": resource_gate,
@@ -23851,6 +23954,7 @@ pub fn native_classic_rts_in_match_hud_state_replication_evidence_json(
         "native_client_boundary_gate": native_client_boundary_gate,
         "preview_gate": preview_gate,
         "runtime_screen_gate": runtime_screen_gate,
+        "player_first_in_match_hud_screen_gate": player_first_in_match_hud_screen_gate,
         "in_match_hud_state_replication_gate": in_match_hud_state_replication_gate,
         "internal_in_match_hud_state_replication_claimed": in_match_hud_state_replication_gate,
         "external_evidence_ignored_for_current_replication_pass": true,
