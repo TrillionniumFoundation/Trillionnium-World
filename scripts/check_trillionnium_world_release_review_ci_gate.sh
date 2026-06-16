@@ -9,7 +9,10 @@ if [[ -v TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY && -n "$TRILLIONNIUM_
 fi
 
 CHECK_RESULTS="$(mktemp)"
-trap 'rm -f "$CHECK_RESULTS"' EXIT
+CHECKS_FILE="$(mktemp)"
+FAILURES_FILE="$(mktemp)"
+SLOW_CHECKS_FILE="$(mktemp)"
+trap 'rm -f "$CHECK_RESULTS" "$CHECKS_FILE" "$FAILURES_FILE" "$SLOW_CHECKS_FILE"' EXIT
 
 mkdir -p "$ACCEPTANCE_DIR"
 
@@ -219,6 +222,30 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_slot_map.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack_scene_probe.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_override_probe.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_live_input_sequence.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_pathing_formation.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_collision_engagement.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_target_aggro_focus.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_economy_build.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_autonomous_bot_skirmish.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_organic_terminal_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_terminal_observation_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_replay_metrics_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_endurance_skirmish_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_macro_economy_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_multi_front_pressure_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_expansion_control_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tech_transition_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_army_composition_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_model_gap.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_minute_readiness.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_runner_status.sh" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh" \
@@ -768,7 +795,31 @@ run_check bevy_classic_rts_bot_tactical_micro_gap_contract_guard "$ROOT/scripts/
 run_check bevy_classic_rts_bot_tactical_micro_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh"
 run_check bevy_classic_rts_bot_map_intel_gap_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_bot_map_intel_gap_script_contract_guard_test.sh"
 run_check bevy_classic_rts_bot_map_intel_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh"
-run_check bevy_classic_playtest_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh"
+run_check bevy_classic_asset_slot_map_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_slot_map.sh"
+run_check bevy_classic_art_pack_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh"
+run_check bevy_classic_art_pack_scene_probe_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack_scene_probe.sh"
+run_check bevy_classic_asset_override_probe_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_asset_override_probe.sh"
+run_check bevy_classic_rts_live_input_sequence_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_live_input_sequence.sh"
+run_check bevy_classic_rts_pathing_formation_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_pathing_formation.sh"
+run_check bevy_classic_rts_collision_engagement_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_collision_engagement.sh"
+run_check bevy_classic_rts_target_aggro_focus_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_target_aggro_focus.sh"
+run_check bevy_classic_rts_economy_build_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_economy_build.sh"
+run_check bevy_classic_rts_autonomous_bot_skirmish_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_autonomous_bot_skirmish.sh"
+run_check bevy_classic_rts_organic_terminal_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_organic_terminal_gap.sh"
+run_check bevy_classic_rts_terminal_observation_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_terminal_observation_gap.sh"
+run_check bevy_classic_rts_replay_metrics_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_replay_metrics_gap.sh"
+run_check bevy_classic_rts_endurance_skirmish_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_endurance_skirmish_gap.sh"
+run_check bevy_classic_rts_bot_macro_economy_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_macro_economy_gap.sh"
+run_check bevy_classic_rts_bot_harassment_defense_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_harassment_defense_gap.sh"
+run_check bevy_classic_rts_bot_multi_front_pressure_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_multi_front_pressure_gap.sh"
+run_check bevy_classic_rts_bot_expansion_control_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_expansion_control_gap.sh"
+run_check bevy_classic_rts_bot_tech_transition_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tech_transition_gap.sh"
+run_check bevy_classic_rts_bot_army_composition_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_army_composition_gap.sh"
+run_check bevy_classic_rts_map_model_gap_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_model_gap.sh"
+run_check bevy_classic_rts_first_minute_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_minute_readiness.sh"
+run_check bevy_classic_rts_map_ui_modeling_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh"
+run_check bevy_classic_rts_playtest_observability_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_playtest_observability_readiness.sh"
+run_check bevy_classic_playtest_readiness_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_readiness.sh" --no-refresh
 run_check bevy_classic_playtest_runner_status_contract_guard "$ROOT/scripts/v2/bevy_classic_playtest_runner_status_script_contract_guard_test.sh"
 run_check bevy_classic_playtest_launcher_contract_guard "$ROOT/scripts/v2/bevy_classic_playtest_launcher_script_contract_guard_test.sh"
 run_check bevy_classic_playtest_launcher_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_launcher.sh"
@@ -848,11 +899,11 @@ run_check workflow_script_refs env \
   "$ROOT/scripts/validate_workflow_script_refs.sh"
 
 PACKET_INTEGRITY_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
-CHECKS_JSON="$(jq -s '.' "$CHECK_RESULTS")"
-FAILURES_JSON="$(jq -s '[.[] | select(.status != "ok")]' "$CHECK_RESULTS")"
-FAILURE_COUNT="$(jq 'length' <<<"$FAILURES_JSON")"
-TOTAL_ELAPSED_MILLIS="$(jq 'map(.elapsed_millis // 0) | add // 0' <<<"$CHECKS_JSON")"
-SLOW_CHECKS_JSON="$(jq '[.[] | select((.elapsed_millis // 0) >= 5000)] | sort_by(.elapsed_millis) | reverse | .[:20]' <<<"$CHECKS_JSON")"
+jq -s '.' "$CHECK_RESULTS" >"$CHECKS_FILE"
+jq '[.[] | select(.status != "ok")]' "$CHECKS_FILE" >"$FAILURES_FILE"
+jq '[.[] | select((.elapsed_millis // 0) >= 5000)] | sort_by(.elapsed_millis) | reverse | .[:20]' "$CHECKS_FILE" >"$SLOW_CHECKS_FILE"
+FAILURE_COUNT="$(jq 'length' "$FAILURES_FILE")"
+TOTAL_ELAPSED_MILLIS="$(jq 'map(.elapsed_millis // 0) | add // 0' "$CHECKS_FILE")"
 INTEGRITY_GREEN="$(jq -r '.green // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
 READY_FOR_RELEASE_REVIEW="$(jq -r '.ready_for_release_review // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
 PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
@@ -881,10 +932,10 @@ jq -n \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
   --argjson artifact_count "$ARTIFACT_COUNT" \
   --argjson integrity_failure_count "$INTEGRITY_FAILURE_COUNT" \
-  --argjson checks "$CHECKS_JSON" \
-  --argjson failures "$FAILURES_JSON" \
   --argjson total_elapsed_millis "$TOTAL_ELAPSED_MILLIS" \
-  --argjson slow_checks "$SLOW_CHECKS_JSON" \
+  --slurpfile checks "$CHECKS_FILE" \
+  --slurpfile failures "$FAILURES_FILE" \
+  --slurpfile slow_checks "$SLOW_CHECKS_FILE" \
   '{
     contract_version: $contract_version,
     status: $status,
@@ -903,9 +954,9 @@ jq -n \
     total_elapsed_millis: $total_elapsed_millis,
     total_elapsed_seconds: ($total_elapsed_millis / 1000),
     slow_check_threshold_millis: 5000,
-    slow_checks: $slow_checks,
-    checks: $checks,
-    failures: $failures,
+    slow_checks: $slow_checks[0],
+    checks: $checks[0],
+    failures: $failures[0],
     reviewer_next_action: (if $green and $public_launch_ready then "review_public_launch_ready_evidence" elif $green then "collect_real_external_public_launch_evidence" else "repair_release_review_ci_gate_failures" end)
   }' >"$SUMMARY_FILE"
 
