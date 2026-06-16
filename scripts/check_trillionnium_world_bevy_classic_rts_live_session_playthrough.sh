@@ -28,6 +28,7 @@ jq -e \
   and .trace_seed == "classic_rts_live_session_seed_v1"
   and .same_process_session_playthrough == true
   and .runtime_screen_mode == "player_runtime_live_session_playthrough_screen"
+  and .runtime_screen_gate == true
   and .evidence_board_only == false
   and .input_path == "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)"
   and .stage_count == 6
@@ -86,6 +87,7 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_live_session_playthrough_v1"
   and .trace_seed == "classic_rts_live_session_seed_v1"
   and .same_process_session_playthrough == true
+  and .runtime_screen_gate == true
   and .top_level_action_count >= 12
   and .top_level_accepted_action_count == .top_level_action_count
   and .accepted_input_count >= 78

@@ -2197,6 +2197,7 @@ jq -n \
       rts_continuous_player_flow_final_objective_status: $rts_continuous_player_flow[0].source_headline.session_final_objective_status,
       rts_continuous_player_flow_open_world_state: $rts_continuous_player_flow[0].source_headline.session_open_world_state,
       rts_continuous_player_flow_restored_room_id: $rts_continuous_player_flow[0].source_headline.campaign_continuity_restored_room_id,
+      rts_live_session_playthrough_runtime_screen_mode: $rts_live_session_playthrough[0].runtime_screen_mode,
       rts_live_session_playthrough_stage_count: $rts_live_session_playthrough[0].stage_count,
       rts_live_session_playthrough_top_level_action_count: $rts_live_session_playthrough[0].top_level_action_count,
       rts_live_session_playthrough_accepted_input_count: $rts_live_session_playthrough[0].accepted_input_count,
@@ -3043,6 +3044,7 @@ jq -n \
       rts_live_session_playthrough_outcome_open_world_gate: $rts_live_session_playthrough[0].outcome_open_world_gate,
       rts_live_session_playthrough_same_process_trace_gate: $rts_live_session_playthrough[0].same_process_trace_gate,
       rts_live_session_playthrough_player_first_live_session_screen_gate: $rts_live_session_playthrough[0].player_first_live_session_screen_gate,
+      rts_live_session_playthrough_runtime_screen_gate: $rts_live_session_playthrough[0].runtime_screen_gate,
       rts_live_session_playthrough_native_client_boundary_gate: $rts_live_session_playthrough[0].native_client_boundary_gate,
       rts_live_session_playthrough_gate: $rts_live_session_playthrough[0].live_session_playthrough_gate,
       rts_full_game_visual_ui_replication_source_contract_gate: $rts_full_game_visual_ui_replication[0].source_contract_gate,
@@ -3781,6 +3783,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_continuous_player_flow_final_objective_status == "first_playable_loop_complete"
   and .headline.rts_continuous_player_flow_open_world_state == "resumed:league-coliseum"
   and .headline.rts_continuous_player_flow_restored_room_id == "league-coliseum"
+  and .headline.rts_live_session_playthrough_runtime_screen_mode == "player_runtime_live_session_playthrough_screen"
   and .headline.rts_live_session_playthrough_stage_count == 6
   and .headline.rts_live_session_playthrough_top_level_action_count >= 12
   and .headline.rts_live_session_playthrough_accepted_input_count >= 78
@@ -5465,6 +5468,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_live_session_playthrough_outcome_open_world_gate == true
   and .gates.rts_live_session_playthrough_same_process_trace_gate == true
   and .gates.rts_live_session_playthrough_player_first_live_session_screen_gate == true
+  and .gates.rts_live_session_playthrough_runtime_screen_gate == true
   and .gates.rts_live_session_playthrough_native_client_boundary_gate == true
   and .gates.rts_live_session_playthrough_gate == true
   and .gates.rts_full_game_visual_ui_replication_source_contract_gate == true

@@ -26322,6 +26322,11 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         && top_level_action_count == top_level_accepted_action_count
         && (stage_summaries.len() == 6)
         && accepted_input_count >= 78;
+    let runtime_screen_gate = same_process_trace_gate
+        && preview_gate
+        && player_first_live_session_screen_gate
+        && !runtime.session_resume_overlay_visible
+        && !runtime.session_continue_cta_visible;
     let native_client_boundary_gate =
         !assets.manifest.cex_runtime_player_client_allowed && !assets.manifest.wgpu_required;
     let live_session_playthrough_gate = title_account_gate
@@ -26330,14 +26335,14 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         && command_feedback_gate
         && save_resume_gate
         && outcome_open_world_gate
-        && same_process_trace_gate
-        && preview_gate
+        && runtime_screen_gate
         && native_client_boundary_gate;
     let trace_json = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_CONTRACT,
         "trace_seed": "classic_rts_live_session_seed_v1",
         "same_process_session_playthrough": true,
         "runtime_screen_mode": "player_runtime_live_session_playthrough_screen",
+        "runtime_screen_gate": runtime_screen_gate,
         "evidence_board_only": false,
         "input_path": "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)",
         "action_labels": action_labels.clone(),
@@ -26379,6 +26384,7 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         "trace_seed": "classic_rts_live_session_seed_v1",
         "same_process_session_playthrough": true,
         "runtime_screen_mode": "player_runtime_live_session_playthrough_screen",
+        "runtime_screen_gate": runtime_screen_gate,
         "evidence_board_only": false,
         "input_path": "apply_native_first_playable_action + apply_live_native_action_with_source(classic_rts_live_session_playthrough_input)",
         "stage_count": stage_summaries.len(),
@@ -26420,6 +26426,7 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         "outcome_open_world_gate": outcome_open_world_gate,
         "same_process_trace_gate": same_process_trace_gate,
         "player_first_live_session_screen_gate": player_first_live_session_screen_gate,
+        "runtime_screen_gate": runtime_screen_gate,
         "preview_gate": preview_gate,
         "native_client_boundary_gate": native_client_boundary_gate,
         "live_session_playthrough_gate": live_session_playthrough_gate,
@@ -27271,7 +27278,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         && bool_at(&hud, "runtime_screen_gate")
         && bool_at(&session, "runtime_screen_gate")
         && bool_at(&continuous, "runtime_screen_gate")
-        && bool_at(&live_session, "preview_gate")
+        && bool_at(&live_session, "runtime_screen_gate")
         && !bool_at(&production_ui, "evidence_board_only")
         && !bool_at(&interaction, "evidence_board_only")
         && !bool_at(&full_screen, "evidence_board_only")
@@ -27279,7 +27286,8 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         && !bool_at(&match_setup, "evidence_board_only")
         && !bool_at(&hud, "evidence_board_only")
         && !bool_at(&session, "evidence_board_only")
-        && !bool_at(&continuous, "evidence_board_only");
+        && !bool_at(&continuous, "evidence_board_only")
+        && !bool_at(&live_session, "evidence_board_only");
     let player_flow_gate = u64_at(&continuous, "continuous_player_flow_step_count") == 6
         && u64_at(&live_session, "stage_count") == 6
         && u64_at(&live_session, "top_level_accepted_action_count")
@@ -27409,6 +27417,8 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "live_session_accepted_input_count": live_session.get("accepted_input_count").cloned().unwrap_or(Value::Null),
             "live_session_final_objective_status": live_session.pointer("/final_state/objective_status").cloned().unwrap_or(Value::Null),
             "live_session_open_world_state": live_session.pointer("/final_state/open_world_handoff_state").cloned().unwrap_or(Value::Null),
+            "live_session_runtime_screen_mode": live_session.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "live_session_runtime_screen_gate": live_session.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
             "production_ui_runtime_screen_mode": production_ui.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
             "interaction_runtime_screen_mode": interaction.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
             "command_surface_ready_pixel_count": command_surface.get("ready_pixel_count").cloned().unwrap_or(Value::Null),
