@@ -9,10 +9,7 @@ NEGATIVE_CORPUS="$PREVIEW_DIR/openra-imported-replay-review-receipt-negative-cor
 CAPSULE_SUMMARY="$PREVIEW_DIR/openra-imported-replay-review-capsule-summary.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-openra-imported-replay-review-receipt "$PREVIEW_DIR" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-imported-replay-review-receipt "$PREVIEW_DIR" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_imported_replay_review_receipt_v1"

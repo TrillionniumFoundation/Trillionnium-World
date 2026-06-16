@@ -6,10 +6,7 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-organic-terminal-gap.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-organic-terminal-gap "$PREVIEW" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-organic-terminal-gap "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_organic_terminal_gap_v1"

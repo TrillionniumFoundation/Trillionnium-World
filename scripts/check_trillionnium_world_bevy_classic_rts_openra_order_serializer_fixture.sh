@@ -9,10 +9,7 @@ MANIFEST="$PREVIEW_DIR/openra-order-serializer-fixture.json"
 COMMAND_ADAPTER="$PREVIEW_DIR/openra-command-vocab-adapter/openra-command-vocabulary-adapter.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-openra-order-serializer-fixture "$PREVIEW_DIR" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-order-serializer-fixture "$PREVIEW_DIR" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture_v1"

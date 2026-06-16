@@ -8,12 +8,9 @@ TRACE="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-sessi
 SLOT_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-live-session-playthrough-slots"
 mkdir -p "$(dirname "$SUMMARY")" "$SLOT_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
-    TRNM_WORLD_BEVY_CAMPAIGN_ENTRY_SLOT_PATH="$SLOT_DIR/bevy-classic-rts-campaign-entry.snapshot.json" \
-    CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-live-session-playthrough "$PREVIEW" >"$SUMMARY"
-)
+TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
+  TRNM_WORLD_BEVY_CAMPAIGN_ENTRY_SLOT_PATH="$SLOT_DIR/bevy-classic-rts-campaign-entry.snapshot.json" \
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-live-session-playthrough "$PREVIEW" >"$SUMMARY"
 
 jq -e \
   --arg trace "$TRACE" '

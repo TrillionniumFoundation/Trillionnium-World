@@ -7,10 +7,7 @@ PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-e
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-openra-engine-port-asset-parity "$PREVIEW" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-engine-port-asset-parity "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_engine_port_asset_parity_v1"

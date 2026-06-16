@@ -6,10 +6,7 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-gam
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-full-game-visual-ui-replication.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-full-game-visual-ui-replication "$PREVIEW" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-full-game-visual-ui-replication "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1"

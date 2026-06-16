@@ -6,10 +6,7 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-ba
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-enemy-base-tech-pressure.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-enemy-base-tech-pressure "$PREVIEW" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-enemy-base-tech-pressure "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_enemy_base_tech_pressure_v1"

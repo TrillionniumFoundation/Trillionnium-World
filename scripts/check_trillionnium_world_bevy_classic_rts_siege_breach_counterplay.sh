@@ -6,10 +6,7 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-br
 PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-siege-breach-counterplay.ppm"
 mkdir -p "$(dirname "$SUMMARY")"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-siege-breach-counterplay "$PREVIEW" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-siege-breach-counterplay "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_siege_breach_counterplay_v1"

@@ -16,10 +16,7 @@ BASELINE_REDUCER="$PREVIEW_DIR/openra-order-replay-reducer/openra-order-replay-r
 BASELINE_SNAPSHOTS="$PREVIEW_DIR/openra-order-replay-reducer/openra-order-replay-snapshots.jsonl"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-openra-imported-replay-reducer "$PREVIEW_DIR" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-imported-replay-reducer "$PREVIEW_DIR" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_imported_replay_reducer_v1"

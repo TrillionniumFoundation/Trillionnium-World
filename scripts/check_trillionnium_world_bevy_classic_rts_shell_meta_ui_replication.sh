@@ -7,11 +7,8 @@ PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-me
 SLOT_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-shell-meta-ui-replication-slots"
 mkdir -p "$(dirname "$SUMMARY")" "$SLOT_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
-    CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-shell-meta-ui-replication "$PREVIEW" >"$SUMMARY"
-)
+TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-shell-meta-ui-replication "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1"

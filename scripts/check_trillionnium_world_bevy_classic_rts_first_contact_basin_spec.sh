@@ -5,10 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contact-basin-spec.json"
 mkdir -p "$(dirname "$OUT")"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-first-contact-basin-spec >"$OUT"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-first-contact-basin-spec >"$OUT"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1"

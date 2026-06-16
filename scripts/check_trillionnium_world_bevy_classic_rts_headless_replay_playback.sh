@@ -10,10 +10,7 @@ if [[ ! -s "$REPLAY" ]]; then
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_owned_replay_file.sh" >/dev/null
 fi
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-headless-replay-playback "$REPLAY" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-headless-replay-playback "$REPLAY" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_headless_replay_playback_v1"

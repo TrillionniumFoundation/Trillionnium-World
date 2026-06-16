@@ -5,10 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-like-core.json"
 mkdir -p "$(dirname "$OUT")"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-openra-like-core >"$OUT"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-like-core >"$OUT"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_like_core_v1"

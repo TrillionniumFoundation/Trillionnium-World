@@ -14,10 +14,7 @@ IMPORTER="$PREVIEW_DIR/openra-replay-importer/openra-replay-importer.json"
 METADATA="$PREVIEW_DIR/openra-replay-importer/openra-replay-imported-metadata.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-openra-order-payload-decoder "$PREVIEW_DIR" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-order-payload-decoder "$PREVIEW_DIR" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_order_payload_decoder_v1"

@@ -8,10 +8,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_art_pack.sh" >/dev/null
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-ability-tooltip-telegraph "$PREVIEW" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-ability-tooltip-telegraph "$PREVIEW" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_ability_tooltip_telegraph_v1"

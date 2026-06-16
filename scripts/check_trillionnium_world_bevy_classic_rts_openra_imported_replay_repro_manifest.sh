@@ -15,10 +15,7 @@ PRIMARY_NEGATIVE="$PREVIEW_DIR/openra-imported-replay-audit-ledger-primary/openr
 RERUN_NEGATIVE="$PREVIEW_DIR/openra-imported-replay-audit-ledger-rerun/openra-imported-replay-audit-ledger-negative-corpus.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
-(
-  cd "$ROOT/trillionnium"
-  CARGO_BUILD_JOBS=1 cargo run -p trnm-world-bevy -- classic-rts-openra-imported-replay-repro-manifest "$PREVIEW_DIR" >"$SUMMARY"
-)
+"$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-imported-replay-repro-manifest "$PREVIEW_DIR" >"$SUMMARY"
 
 jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_openra_imported_replay_repro_manifest_v1"
