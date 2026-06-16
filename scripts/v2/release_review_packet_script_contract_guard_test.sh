@@ -69,6 +69,8 @@ required_lines=(
   'bevy-player-ui-rescue.json'
   'native_bevy_live_window_screenshot_sequence'
   'bevy-live-window-screenshot-sequence.json'
+  'native_bevy_visible_button_hit_test_map'
+  'bevy-visible-button-hit-test-map.json'
   'native_bevy_live_window_mouse_hit_test_sequence'
   'bevy-live-window-mouse-hit-test-sequence.json'
   'native_bevy_sprite_texture_sampling'
