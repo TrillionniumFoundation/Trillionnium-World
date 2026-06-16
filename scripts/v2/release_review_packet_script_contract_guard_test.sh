@@ -40,6 +40,7 @@ required_lines=(
   'release-review-packet-bot-map-intel-gap.log'
   'release-review-packet-playtest-handoff-packet.log'
   'check_trillionnium_world_release_review_packet_integrity_semantic_fixture.sh'
+  'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SOURCE_CHAIN_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture.sh"'
   'check_trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture.sh'
   'check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh'
   'check_trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture.sh'
