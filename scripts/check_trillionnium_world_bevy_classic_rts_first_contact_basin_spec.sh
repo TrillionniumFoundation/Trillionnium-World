@@ -482,6 +482,18 @@ jq -e '
   and (.rts_online_protocol_fixture.envelope.scope.visible_chunks | length) == 3
   and (.rts_online_protocol_fixture.envelope.scope.fogged_chunks | length) == 2
   and (.rts_online_protocol_fixture.envelope.scope.visible_actor_ids | index("trnm.flux.beacon.center") != null)
+  and .rts_online_protocol_fixture.authority.contract_version == "trnm_rts_online_authority_v1"
+  and .rts_online_protocol_fixture.authority.green == true
+  and .rts_online_protocol_fixture.authority.authority_tick == 43
+  and (.rts_online_protocol_fixture.authority.authority_sha256 | length) == 64
+  and (.rts_online_protocol_fixture.authority.client_requests | length) == 1
+  and (.rts_online_protocol_fixture.authority.accepted_orders | length) == 1
+  and (.rts_online_protocol_fixture.authority.accepted_orders[0].source == "server")
+  and (.rts_online_protocol_fixture.authority.rejected_orders | length) == 1
+  and .rts_online_protocol_fixture.authority.rejected_orders[0].reason == "target_actor_not_visible"
+  and (.rts_online_protocol_fixture.authority.scoped_updates | length) == 1
+  and (.rts_online_protocol_fixture.authority.scoped_updates[0].update_sha256 | length) == 64
+  and (.rts_online_protocol_fixture.authority.scoped_updates[0].scope.visible_actor_ids | index("trnm.enemy.keep.fogged") == null)
   and .rts_online_protocol_fixture.lifecycle.phase == "playing"
   and .rts_online_protocol_fixture.lifecycle.bot_count == 1
   and .rts_online_protocol_gate == true
