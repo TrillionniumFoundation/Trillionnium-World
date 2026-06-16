@@ -16,7 +16,7 @@ trillionnium_world_account_api_v1
 trillionnium_world_account_client_boundary_v1
 bevy-account-title-flow.json
 TRILLIONNIUM_WORLD_BEVY_ACCOUNT_TITLE_FLOW_SUMMARY
-cargo run -p trnm-world-bevy -- account-title-flow
+run_trillionnium_world_bevy_artifact_command.sh" account-title-flow
 ACCOUNT:REGISTER
 ACCOUNT:LOGIN
 ACCOUNT:CONTINUE

@@ -9,7 +9,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- authored-sprite-sheet "$ATLAS" "$MANIFEST" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" authored-sprite-sheet "$ATLAS" "$MANIFEST" >"$SUMMARY"
 )
 
 test -s "$ATLAS"

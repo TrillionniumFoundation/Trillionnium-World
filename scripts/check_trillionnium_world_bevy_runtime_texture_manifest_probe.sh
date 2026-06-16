@@ -13,7 +13,7 @@ test -s "$RUNTIME_MANIFEST"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- runtime-texture-manifest-probe "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" runtime-texture-manifest-probe "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" >"$SUMMARY"
 )
 
 jq -e '

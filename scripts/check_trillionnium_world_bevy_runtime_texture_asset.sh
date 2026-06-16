@@ -13,7 +13,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- runtime-texture-asset "$ATLAS" "$MANIFEST" "$BINDING" "$CONSUMPTION" "$APPLICATION" "$RUNTIME_ASSET" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" runtime-texture-asset "$ATLAS" "$MANIFEST" "$BINDING" "$CONSUMPTION" "$APPLICATION" "$RUNTIME_ASSET" >"$SUMMARY"
 )
 
 test -s "$ATLAS"

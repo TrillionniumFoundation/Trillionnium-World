@@ -46,7 +46,7 @@ fi
     TRNM_WORLD_BEVY_RUNTIME_PROBE_PATH="$RUNTIME_PROBE" \
     TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST="$RUNTIME_TEXTURE_MANIFEST" \
     TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256="$RUNTIME_TEXTURE_MANIFEST_SHA256" \
-    cargo run -p trnm-world-bevy -- run >"$LOG" 2>&1
+    "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" run >"$LOG" 2>&1
 ) &
 HOST_PID=$!
 

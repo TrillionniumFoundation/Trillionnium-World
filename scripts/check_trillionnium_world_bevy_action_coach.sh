@@ -8,7 +8,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- action-coach >"$SUMMARY_RAW"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" action-coach >"$SUMMARY_RAW"
 )
 
 jq '

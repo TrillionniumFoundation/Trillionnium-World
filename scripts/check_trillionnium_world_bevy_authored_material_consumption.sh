@@ -11,7 +11,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- authored-material-consumption "$ATLAS" "$MANIFEST" "$BINDING" "$CONSUMPTION" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" authored-material-consumption "$ATLAS" "$MANIFEST" "$BINDING" "$CONSUMPTION" >"$SUMMARY"
 )
 
 test -s "$ATLAS"

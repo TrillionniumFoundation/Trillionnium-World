@@ -13,7 +13,7 @@ test -s "$RUNTIME_MANIFEST"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- sprite-asset-binding "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" sprite-asset-binding "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" >"$SUMMARY"
 )
 
 jq -e '

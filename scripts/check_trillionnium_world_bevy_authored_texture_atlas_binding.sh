@@ -10,7 +10,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- authored-texture-atlas-binding "$ATLAS" "$MANIFEST" "$BINDING" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" authored-texture-atlas-binding "$ATLAS" "$MANIFEST" "$BINDING" >"$SUMMARY"
 )
 
 test -s "$ATLAS"

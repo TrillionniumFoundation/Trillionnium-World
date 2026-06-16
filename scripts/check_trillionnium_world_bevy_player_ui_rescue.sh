@@ -8,7 +8,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- player-ui-rescue >"$SUMMARY_RAW"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" player-ui-rescue >"$SUMMARY_RAW"
 )
 
 jq '

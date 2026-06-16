@@ -14,7 +14,7 @@ mkdir -p "$(dirname "$SUMMARY")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- authored-render-frame "$ATLAS" "$MANIFEST" "$BINDING" "$CONSUMPTION" "$APPLICATION" "$FRAME" "$FRAME_MANIFEST" >"$SUMMARY"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" authored-render-frame "$ATLAS" "$MANIFEST" "$BINDING" "$CONSUMPTION" "$APPLICATION" "$FRAME" "$FRAME_MANIFEST" >"$SUMMARY"
 )
 
 test -s "$ATLAS"

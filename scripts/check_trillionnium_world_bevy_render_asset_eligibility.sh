@@ -17,7 +17,7 @@ test -s "$SAMPLED_LIVE_CORRELATION"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- render-asset-eligibility "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" "$SAMPLED_LIVE_CORRELATION" >"$SUMMARY_RAW"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" render-asset-eligibility "$RUNTIME_SUMMARY" "$RUNTIME_MANIFEST" "$SAMPLED_LIVE_CORRELATION" >"$SUMMARY_RAW"
 )
 
 jq '

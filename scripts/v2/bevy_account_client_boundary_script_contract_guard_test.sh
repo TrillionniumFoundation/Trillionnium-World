@@ -15,7 +15,7 @@ trillionnium_world_account_api_v1
 trillionnium_world_account_client_boundary_v1
 bevy-account-client-boundary.json
 TRILLIONNIUM_WORLD_BEVY_ACCOUNT_CLIENT_BOUNDARY_SUMMARY
-cargo run -p trnm-world-bevy -- account-client-boundary
+run_trillionnium_world_bevy_artifact_command.sh" account-client-boundary
 player_client_owner == "trnm-world-bevy"
 account_api_owner == "trillionnium_world_account_api"
 passwords_tokens_or_cookie_values_logged == false

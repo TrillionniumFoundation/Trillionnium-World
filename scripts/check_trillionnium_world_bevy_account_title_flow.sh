@@ -8,7 +8,7 @@ mkdir -p "$(dirname "$SUMMARY_FILE")"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- account-title-flow
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" account-title-flow
 ) >"$SUMMARY_FILE"
 
 jq -e '
