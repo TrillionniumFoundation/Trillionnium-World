@@ -627,7 +627,11 @@ add_playtest_runner_packet_fixtures() {
         active_state: "active",
         sub_state: "running",
         main_pid: 160672,
-        exec_main_status: "0"
+        exec_main_status: "0",
+        cpu_weight: "50",
+        cpu_quota_per_sec_usec: "500ms",
+        expected_cpu_weight: "50",
+        expected_cpu_quota_per_sec_usec: "500ms"
       },
       runtime: {
         expected_binary: ($root + "/target/release/trnm-world-bevy"),
@@ -656,9 +660,10 @@ add_playtest_runner_packet_fixtures() {
         manifest_gate: true,
         override_dir_gate: true,
         workdir_gate: true,
+        cpu_budget_gate: true,
         cex_path_gate: true
       },
-      source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic renderer manifest; CEX paths are explicitly rejected."
+      source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic renderer manifest and bounded CPUQuota/CPUWeight budget; CEX paths are explicitly rejected."
   }' >"$playtest_runner_json"
   add_artifact_from_path native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$playtest_runner_json" release_review_input
 }
@@ -698,7 +703,11 @@ add_classic_playtest_launcher_packet_fixtures() {
           active_state: "active",
           sub_state: "running",
           main_pid: 160672,
-          exec_main_status: "0"
+          exec_main_status: "0",
+          cpu_weight: "50",
+          cpu_quota_per_sec_usec: "500ms",
+          expected_cpu_weight: "50",
+          expected_cpu_quota_per_sec_usec: "500ms"
         },
         runtime: {
           expected_binary: ($root + "/target/release/trnm-world-bevy"),

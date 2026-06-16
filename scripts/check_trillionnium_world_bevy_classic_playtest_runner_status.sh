@@ -38,6 +38,8 @@ ACTIVE_STATE="$(systemctl_value ActiveState)"
 SUB_STATE="$(systemctl_value SubState)"
 MAIN_PID_RAW="$(systemctl_value MainPID)"
 EXEC_MAIN_STATUS="$(systemctl_value ExecMainStatus)"
+CPU_WEIGHT="$(systemctl_value CPUWeight)"
+CPU_QUOTA_PER_SEC_USEC="$(systemctl_value CPUQuotaPerSecUSec)"
 
 MAIN_PID=0
 if [[ "$MAIN_PID_RAW" =~ ^[0-9]+$ ]]; then
@@ -151,6 +153,11 @@ fi
 WORKDIR_GATE=false
 if [[ "$PROCESS_CWD" == "$EXPECTED_CWD" ]]; then
   WORKDIR_GATE=true
+fi
+
+CPU_BUDGET_GATE=false
+if [[ "$CPU_WEIGHT" == "50" && "$CPU_QUOTA_PER_SEC_USEC" == "500ms" ]]; then
+  CPU_BUDGET_GATE=true
 fi
 
 COMBINED_RUNTIME_PATHS="$(printf '%s %s %s %s %s' "$CMDLINE_JOINED" "$PROCESS_CWD" "$CLASSIC_MANIFEST_VALUE" "$CLASSIC_OVERRIDE_DIR_VALUE" "$CMD0")"
@@ -301,7 +308,7 @@ if [[ -s "$PLAYER_SCREEN_PROBE" ]]; then
 fi
 
 GREEN=false
-if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" && "$X11_BACKEND_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CEX_PATH_GATE" == "true" && "$PLAYER_SCREEN_WINDOW_GATE" == "true" && "$PLAYER_SCREEN_TITLE_GATE" == "true" && "$PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE" == "true" && "$PLAYER_SCREEN_SCREENSHOT_GATE" == "true" && "$PLAYER_SCREEN_REGION_GATE" == "true" && "$PLAYER_SCREEN_VISUAL_GATE" == "true" ]]; then
+if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" && "$X11_BACKEND_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CPU_BUDGET_GATE" == "true" && "$CEX_PATH_GATE" == "true" && "$PLAYER_SCREEN_WINDOW_GATE" == "true" && "$PLAYER_SCREEN_TITLE_GATE" == "true" && "$PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE" == "true" && "$PLAYER_SCREEN_SCREENSHOT_GATE" == "true" && "$PLAYER_SCREEN_REGION_GATE" == "true" && "$PLAYER_SCREEN_VISUAL_GATE" == "true" ]]; then
   GREEN=true
 fi
 
@@ -323,6 +330,8 @@ jq -n \
   --arg sub_state "$SUB_STATE" \
   --arg main_pid "$MAIN_PID" \
   --arg exec_main_status "$EXEC_MAIN_STATUS" \
+  --arg cpu_weight "$CPU_WEIGHT" \
+  --arg cpu_quota_per_sec_usec "$CPU_QUOTA_PER_SEC_USEC" \
   --arg expected_binary "$EXPECTED_BINARY" \
   --arg expected_repo_root "$EXPECTED_REPO_ROOT" \
   --arg expected_cwd "$EXPECTED_CWD" \
@@ -348,6 +357,7 @@ jq -n \
   --argjson manifest_gate "$MANIFEST_GATE" \
   --argjson override_dir_gate "$OVERRIDE_DIR_GATE" \
   --argjson workdir_gate "$WORKDIR_GATE" \
+  --argjson cpu_budget_gate "$CPU_BUDGET_GATE" \
   --argjson cex_path_gate "$CEX_PATH_GATE" \
   --argjson player_screen_window_gate "$PLAYER_SCREEN_WINDOW_GATE" \
   --argjson player_screen_title_gate "$PLAYER_SCREEN_TITLE_GATE" \
@@ -364,7 +374,11 @@ jq -n \
       active_state: $active_state,
       sub_state: $sub_state,
       main_pid: ($main_pid | tonumber),
-      exec_main_status: $exec_main_status
+      exec_main_status: $exec_main_status,
+      cpu_weight: $cpu_weight,
+      cpu_quota_per_sec_usec: $cpu_quota_per_sec_usec,
+      expected_cpu_weight: "50",
+      expected_cpu_quota_per_sec_usec: "500ms"
     },
     runtime: {
       expected_binary: $expected_binary,
@@ -396,6 +410,7 @@ jq -n \
       manifest_gate: $manifest_gate,
       override_dir_gate: $override_dir_gate,
       workdir_gate: $workdir_gate,
+      cpu_budget_gate: $cpu_budget_gate,
       cex_path_gate: $cex_path_gate,
       player_screen_window_gate: $player_screen_window_gate,
       player_screen_title_gate: $player_screen_title_gate,
@@ -404,7 +419,7 @@ jq -n \
       player_screen_region_gate: $player_screen_region_gate,
       player_screen_visual_gate: $player_screen_visual_gate
     },
-    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, and a visible First Contact Basin player screen with real map/HUD/command pixels; CEX paths are explicitly rejected, and proof/debug default screens are explicitly rejected."
+    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels; CEX paths are explicitly rejected, and proof/debug default screens are explicitly rejected."
   }' >"$SUMMARY"
 
 jq -e '
@@ -422,6 +437,8 @@ jq -e '
   and .runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN == "1"
   and .runtime.selected_environment.WINIT_UNIX_BACKEND == "x11"
   and .runtime.selected_environment.WAYLAND_DISPLAY == ""
+  and .service.cpu_weight == "50"
+  and .service.cpu_quota_per_sec_usec == "500ms"
   and (.runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST | contains("/assets/trnm-world/classic/manifest.json"))
   and (.runtime.selected_environment.TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR | contains("/assets/trnm-world/classic/art-pack-v1"))
   and .gates.service_process_gate == true
@@ -432,6 +449,7 @@ jq -e '
   and .gates.manifest_gate == true
   and .gates.override_dir_gate == true
   and .gates.workdir_gate == true
+  and .gates.cpu_budget_gate == true
   and .gates.cex_path_gate == true
   and .live_player_screen.contract_version == "trillionnium_world_bevy_classic_player_screen_runner_visual_v1"
   and (.live_player_screen.window_title | contains("Trillionnium RTS"))
