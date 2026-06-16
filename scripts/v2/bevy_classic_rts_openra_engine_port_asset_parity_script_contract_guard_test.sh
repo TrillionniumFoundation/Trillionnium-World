@@ -25,7 +25,8 @@ required_script_lines=(
   'openra_engine_port_foundation_claimed == false'
   'openra_engine_port_claimed == false'
   'openra_full_engine_port_claimed == false'
-  'openra_pixel_perfect_asset_parity_claimed == true'
+  'trillionnium_owned_asset_pack_pixel_parity_claimed == true'
+  'openra_pixel_perfect_asset_parity_claimed == false'
   'openra_westwood_pixel_perfect_asset_parity_claimed == false'
   'openra_asset_copied == false'
   'openra_csharp_engine_code_copied == false'
@@ -52,6 +53,7 @@ required_source_lines=(
   'openra_engine_port_foundation_claimed'
   'openra_engine_port_claimed'
   'openra_full_engine_port_claimed'
+  'trillionnium_owned_asset_pack_pixel_parity_claimed'
   'openra_pixel_perfect_asset_parity_claimed'
   'trillionnium_owned_openra_compatible_asset_pack'
   'openra_style_engine_foundation_claimed'
@@ -76,6 +78,7 @@ required_readiness_lines=(
   'rts_openra_engine_port_asset_parity_gate'
   'rts_openra_engine_port_asset_parity_module_count'
   'rts_openra_engine_port_asset_parity_claimed'
+  'rts_openra_engine_port_asset_parity_owned_asset_parity_claimed'
   'rts_openra_engine_port_asset_parity_pixel_mismatch_count'
 )
 

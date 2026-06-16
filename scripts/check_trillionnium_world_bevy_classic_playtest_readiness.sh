@@ -2266,6 +2266,7 @@ jq -n \
       rts_openra_engine_port_asset_parity_reference_render_mismatch_count: $rts_openra_engine_port_asset_parity[0].pixel_parity.reference_render_pixel_mismatch_count,
       rts_openra_engine_port_asset_parity_claimed: $rts_openra_engine_port_asset_parity[0].openra_engine_port_claimed,
       rts_openra_engine_port_asset_parity_full_engine_claimed: $rts_openra_engine_port_asset_parity[0].openra_full_engine_port_claimed,
+      rts_openra_engine_port_asset_parity_owned_asset_parity_claimed: $rts_openra_engine_port_asset_parity[0].trillionnium_owned_asset_pack_pixel_parity_claimed,
       rts_openra_engine_port_asset_parity_asset_parity_claimed: $rts_openra_engine_port_asset_parity[0].openra_pixel_perfect_asset_parity_claimed,
       rts_openra_engine_port_asset_parity_westwood_claimed: $rts_openra_engine_port_asset_parity[0].openra_westwood_pixel_perfect_asset_parity_claimed,
       rts_command_affordance_drag_marquee_pixel_count: $rts_command_affordance[0].drag_marquee_pixel_count,
@@ -3884,7 +3885,8 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_openra_engine_port_asset_parity_reference_render_mismatch_count == 0
   and .headline.rts_openra_engine_port_asset_parity_claimed == false
   and .headline.rts_openra_engine_port_asset_parity_full_engine_claimed == false
-  and .headline.rts_openra_engine_port_asset_parity_asset_parity_claimed == true
+  and .headline.rts_openra_engine_port_asset_parity_owned_asset_parity_claimed == true
+  and .headline.rts_openra_engine_port_asset_parity_asset_parity_claimed == false
   and .headline.rts_openra_engine_port_asset_parity_westwood_claimed == false
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
   and .gates.rts_combat_readability_pressure_player_first_screen_gate == true

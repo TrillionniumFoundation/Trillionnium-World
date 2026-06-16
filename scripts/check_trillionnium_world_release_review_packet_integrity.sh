@@ -339,8 +339,10 @@ require_artifact_json_expr_when_packet_count_at_least openra_engine_port_asset_p
   and .openra_engine_port_foundation_claimed == false
   and .openra_engine_port_claimed == false
   and .openra_full_engine_port_claimed == false
-  and .openra_pixel_perfect_asset_parity_claimed == true
-  and .openra_pixel_perfect_asset_parity_scope == "trillionnium_owned_openra_compatible_asset_pack"
+  and .trillionnium_owned_asset_pack_pixel_parity_claimed == true
+  and .trillionnium_owned_asset_pack_pixel_parity_scope == "trillionnium_owned_openra_compatible_asset_pack"
+  and .openra_pixel_perfect_asset_parity_claimed == false
+  and .openra_pixel_perfect_asset_parity_scope == "not_claimed_trillionnium_owned_asset_pack_only"
   and .openra_westwood_pixel_perfect_asset_parity_claimed == false
   and .openra_asset_copied == false
   and .westwood_asset_copied == false

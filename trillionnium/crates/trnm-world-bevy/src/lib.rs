@@ -29174,8 +29174,10 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "openra_engine_port_foundation_claimed": false,
         "openra_engine_port_claimed": false,
         "openra_full_engine_port_claimed": false,
-        "openra_pixel_perfect_asset_parity_claimed": pixel_perfect_asset_parity_gate,
-        "openra_pixel_perfect_asset_parity_scope": "trillionnium_owned_openra_compatible_asset_pack",
+        "trillionnium_owned_asset_pack_pixel_parity_claimed": pixel_perfect_asset_parity_gate,
+        "trillionnium_owned_asset_pack_pixel_parity_scope": "trillionnium_owned_openra_compatible_asset_pack",
+        "openra_pixel_perfect_asset_parity_claimed": false,
+        "openra_pixel_perfect_asset_parity_scope": "not_claimed_trillionnium_owned_asset_pack_only",
         "openra_westwood_pixel_perfect_asset_parity_claimed": false,
         "openra_asset_copied": false,
         "westwood_asset_copied": false,
@@ -29186,7 +29188,7 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         "bevy_openra_network_order_stream_claimed": false,
         "android_s5_real_device_claimed": false,
         "public_launch_ready": false,
-        "source_of_truth": "This gate creates scoped OpenRA-style foundation evidence for Trillionnium: Rust implements owned analogues of ModData, rules, actors, world ticks, orders, chrome/widget roots, sprite sequences, palette handling, asset loading, and owned replay reduction, then proves pixel-perfect parity over every frame in the Trillionnium-owned OpenRA-compatible PPM asset manifest with zero pixel and sha mismatches. It is not a completed OpenRA engine port, does not claim OpenRA game-screen parity, binary replay/network parity, or copied OpenRA, Westwood, Warcraft III, or other third-party assets."
+        "source_of_truth": "This gate creates scoped OpenRA-style foundation evidence for Trillionnium: Rust implements owned analogues of ModData, rules, actors, world ticks, orders, chrome/widget roots, sprite sequences, palette handling, asset loading, and owned replay reduction, then proves pixel parity over every frame in the Trillionnium-owned OpenRA-compatible PPM asset manifest with zero pixel and sha mismatches. It is not a completed OpenRA engine port, does not claim OpenRA game-screen parity, OpenRA/Westwood pixel-perfect asset parity, binary replay/network parity, or copied OpenRA, Westwood, Warcraft III, or other third-party assets."
     }))
     .expect("classic RTS OpenRA engine port asset parity evidence serializes")
 }
