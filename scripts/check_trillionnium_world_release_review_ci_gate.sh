@@ -13,27 +13,42 @@ trap 'rm -f "$CHECK_RESULTS"' EXIT
 
 mkdir -p "$ACCEPTANCE_DIR"
 
+now_millis() {
+  date +%s%3N
+}
+
 add_check() {
   local name="$1"
   local status="$2"
   local log_path="$3"
   local detail="$4"
+  local elapsed_millis="$5"
   jq -nc \
     --arg name "$name" \
     --arg status "$status" \
     --arg log_path "$log_path" \
     --arg detail "$detail" \
-    '{name: $name, status: $status, log_path: $log_path, detail: $detail}' >>"$CHECK_RESULTS"
+    --arg elapsed_millis "$elapsed_millis" \
+    '{
+      name: $name,
+      status: $status,
+      log_path: $log_path,
+      detail: $detail,
+      elapsed_millis: ($elapsed_millis | tonumber),
+      elapsed_seconds: (($elapsed_millis | tonumber) / 1000)
+    }' >>"$CHECK_RESULTS"
 }
 
 run_check() {
   local name="$1"
   shift
   local log_path="$ACCEPTANCE_DIR/release-review-ci-gate-${name}.log"
+  local started_millis
+  started_millis="$(now_millis)"
   if "$@" >"$log_path" 2>&1; then
-    add_check "$name" ok "$log_path" "command_passed"
+    add_check "$name" ok "$log_path" "command_passed" "$(( $(now_millis) - started_millis ))"
   else
-    add_check "$name" fail "$log_path" "command_failed"
+    add_check "$name" fail "$log_path" "command_failed" "$(( $(now_millis) - started_millis ))"
   fi
 }
 
@@ -830,6 +845,8 @@ PACKET_INTEGRITY_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 CHECKS_JSON="$(jq -s '.' "$CHECK_RESULTS")"
 FAILURES_JSON="$(jq -s '[.[] | select(.status != "ok")]' "$CHECK_RESULTS")"
 FAILURE_COUNT="$(jq 'length' <<<"$FAILURES_JSON")"
+TOTAL_ELAPSED_MILLIS="$(jq 'map(.elapsed_millis // 0) | add // 0' <<<"$CHECKS_JSON")"
+SLOW_CHECKS_JSON="$(jq '[.[] | select((.elapsed_millis // 0) >= 5000)] | sort_by(.elapsed_millis) | reverse | .[:20]' <<<"$CHECKS_JSON")"
 INTEGRITY_GREEN="$(jq -r '.green // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
 READY_FOR_RELEASE_REVIEW="$(jq -r '.ready_for_release_review // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
 PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
@@ -860,6 +877,8 @@ jq -n \
   --argjson integrity_failure_count "$INTEGRITY_FAILURE_COUNT" \
   --argjson checks "$CHECKS_JSON" \
   --argjson failures "$FAILURES_JSON" \
+  --argjson total_elapsed_millis "$TOTAL_ELAPSED_MILLIS" \
+  --argjson slow_checks "$SLOW_CHECKS_JSON" \
   '{
     contract_version: $contract_version,
     status: $status,
@@ -875,6 +894,10 @@ jq -n \
     workflow_script_refs_summary: $workflow_refs_summary,
     artifact_count: $artifact_count,
     packet_integrity_failure_count: $integrity_failure_count,
+    total_elapsed_millis: $total_elapsed_millis,
+    total_elapsed_seconds: ($total_elapsed_millis / 1000),
+    slow_check_threshold_millis: 5000,
+    slow_checks: $slow_checks,
     checks: $checks,
     failures: $failures,
     reviewer_next_action: (if $green and $public_launch_ready then "review_public_launch_ready_evidence" elif $green then "collect_real_external_public_launch_evidence" else "repair_release_review_ci_gate_failures" end)
