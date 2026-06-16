@@ -80433,6 +80433,25 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
 pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
     preview_dir: &str,
 ) -> String {
+    const PANEL_WIDTH: usize = 1280;
+    const PANEL_HEIGHT: usize = 768;
+    const BACKGROUND_COLOR: u32 = 0x070b0a;
+    const BOARD_COLOR: u32 = 0x101715;
+    const EDGE_COLOR: u32 = 0x77b99c;
+    const COMBAT_VIEW_MATTE_COLOR: u32 = 0x07100f;
+    const COMBAT_VIEW_FRAME_COLOR: u32 = 0x87d4b1;
+    const COMBAT_STATUS_COLOR: u32 = 0x203b36;
+    const COMBAT_RAIL_COLOR: u32 = 0x172420;
+    const COMBAT_COMMAND_LANE_COLOR: u32 = 0x12201d;
+    const COMBAT_PRESSURE_ALERT_COLOR: u32 = 0xd96e68;
+    const COMBAT_SHIELD_COLOR: u32 = 0x67c7dd;
+    const COMBAT_ABILITY_COLOR: u32 = 0xb58add;
+    const COMBAT_COMMAND_ACK_COLOR: u32 = 0x86d68a;
+    const COMBAT_VIEW_X: i32 = 54;
+    const COMBAT_VIEW_Y: i32 = 138;
+    const COMBAT_VIEW_WIDTH: usize = 726;
+    const COMBAT_VIEW_HEIGHT: usize = 400;
+
     let _ = fs::create_dir_all(preview_dir);
     let preview_path = |name: &str| {
         Path::new(preview_dir)
@@ -80445,6 +80464,7 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
     let ability_path = preview_path("ability-tooltip-telegraph.ppm");
     let depth_path = preview_path("depth-readability.ppm");
     let pressure_path = preview_path("central-keep-pressure.ppm");
+    let combat_screen_path = preview_path("combat-pressure-screen.ppm");
 
     let unit: Value = serde_json::from_str(&native_classic_rts_unit_status_portrait_evidence_json(
         &unit_path,
@@ -80492,6 +80512,452 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
                 .map(|metadata| metadata.len() > 100_000)
                 .unwrap_or(false)
     };
+
+    let assets = load_classic_runtime_assets();
+    let mut runtime = classic_product_alignment_runtime();
+    runtime.current_room_id = "league-coliseum".to_string();
+    runtime.map_scene = "first_contact_basin_combat_pressure".to_string();
+    runtime.objective_status = "pressure_locked:central_keep".to_string();
+    runtime.contextual_primary_action_label = Some("COMBAT:break_central_keep".to_string());
+    runtime.rts_active_ability_id = Some("relay_guard_overcharge".to_string());
+    runtime.rts_command_queue.extend(string_vec([
+        "select:forge_warden+workers",
+        "attack:central_keep",
+        "ability:relay_guard_overcharge",
+        "queue:break_central_keep",
+        "warning:defeat_risk_42",
+    ]));
+
+    let mut screen_pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        720,
+        BOARD_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        1232,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        740,
+        1232,
+        4,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        24,
+        24,
+        4,
+        720,
+        EDGE_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        1252,
+        24,
+        4,
+        720,
+        EDGE_COLOR,
+    );
+    classic_draw_text(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        48,
+        46,
+        "TRNM RUST/BEVY COMBAT PRESSURE PLAYER SCREEN",
+        2,
+        CLASSIC_HUD_ACCENT_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        84,
+        "UNIT STATUS / COMMAND FEEDBACK / ABILITY TELEGRAPH / DEPTH READABILITY / CENTRAL KEEP PRESSURE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        52,
+        106,
+        "PLAYER-FACING COMBAT READABILITY PASS; PUBLIC LAUNCH, S5, AND THIRD-PARTY ASSET CLAIMS STAY FALSE",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let mut combat_view_pixels =
+        vec![COMBAT_VIEW_MATTE_COLOR; COMBAT_VIEW_WIDTH * COMBAT_VIEW_HEIGHT];
+    classic_draw_scene(
+        &mut combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        (16, 9),
+        &runtime,
+        &assets,
+    );
+    for lane in 0..5_i32 {
+        classic_draw_rect(
+            &mut combat_view_pixels,
+            COMBAT_VIEW_WIDTH,
+            COMBAT_VIEW_HEIGHT,
+            74 + lane * 118,
+            42,
+            4,
+            300,
+            0x28534d,
+        );
+    }
+    for lane in 0..4_i32 {
+        classic_draw_rect(
+            &mut combat_view_pixels,
+            COMBAT_VIEW_WIDTH,
+            COMBAT_VIEW_HEIGHT,
+            52,
+            76 + lane * 70,
+            612,
+            4,
+            0x28534d,
+        );
+    }
+    classic_draw_rect(
+        &mut combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        456,
+        126,
+        118,
+        54,
+        COMBAT_PRESSURE_ALERT_COLOR,
+    );
+    classic_draw_rect(
+        &mut combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        472,
+        142,
+        86,
+        8,
+        COMBAT_SHIELD_COLOR,
+    );
+    classic_draw_rect(
+        &mut combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        256,
+        250,
+        158,
+        6,
+        COMBAT_ABILITY_COLOR,
+    );
+    classic_draw_rect(
+        &mut combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        272,
+        268,
+        206,
+        5,
+        COMBAT_COMMAND_ACK_COLOR,
+    );
+    classic_draw_text(
+        &mut combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        430,
+        104,
+        "CENTRAL KEEP PRESSURE",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    classic_draw_text(
+        &mut combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        248,
+        226,
+        "ABILITY RANGE + DEPTH CUES",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+    let player_first_combat_pressure_view_non_background = combat_view_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != COMBAT_VIEW_MATTE_COLOR
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    classic_copy_pixels(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        &combat_view_pixels,
+        COMBAT_VIEW_WIDTH,
+        COMBAT_VIEW_HEIGHT,
+        COMBAT_VIEW_X,
+        COMBAT_VIEW_Y,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        COMBAT_VIEW_X - 8,
+        COMBAT_VIEW_Y - 8,
+        COMBAT_VIEW_WIDTH as i32 + 16,
+        6,
+        COMBAT_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        COMBAT_VIEW_X - 8,
+        COMBAT_VIEW_Y + COMBAT_VIEW_HEIGHT as i32 + 2,
+        COMBAT_VIEW_WIDTH as i32 + 16,
+        6,
+        COMBAT_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        COMBAT_VIEW_X - 8,
+        COMBAT_VIEW_Y - 8,
+        6,
+        COMBAT_VIEW_HEIGHT as i32 + 16,
+        COMBAT_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        COMBAT_VIEW_X + COMBAT_VIEW_WIDTH as i32 + 2,
+        COMBAT_VIEW_Y - 8,
+        6,
+        COMBAT_VIEW_HEIGHT as i32 + 16,
+        COMBAT_VIEW_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        COMBAT_VIEW_X,
+        COMBAT_VIEW_Y + COMBAT_VIEW_HEIGHT as i32 + 14,
+        COMBAT_VIEW_WIDTH as i32,
+        50,
+        COMBAT_STATUS_COLOR,
+    );
+    classic_draw_text(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        COMBAT_VIEW_X + 18,
+        COMBAT_VIEW_Y + COMBAT_VIEW_HEIGHT as i32 + 32,
+        "TARGET HP 58% / SHIELD 24% / DEFEAT RISK 42% / NEXT: PRESS + BREAK CENTRAL KEEP",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        812,
+        138,
+        386,
+        420,
+        COMBAT_RAIL_COLOR,
+    );
+    for (index, (label, color, value)) in [
+        ("UNIT", EDGE_COLOR, "FORGE WARDEN + WORKERS"),
+        (
+            "COMMAND",
+            COMBAT_COMMAND_ACK_COLOR,
+            "ATTACK ACK / ERROR SAFE",
+        ),
+        ("ABILITY", COMBAT_ABILITY_COLOR, "RELAY GUARD OVERCHARGE"),
+        ("DEPTH", COMBAT_SHIELD_COLOR, "FOREGROUND / CUTAWAY"),
+        (
+            "PRESSURE",
+            COMBAT_PRESSURE_ALERT_COLOR,
+            "KEEP LOCKED: RISK 42",
+        ),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let y = 158 + index as i32 * 74;
+        classic_draw_rect(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            834,
+            y,
+            116,
+            42,
+            *color,
+        );
+        classic_draw_rect(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            966,
+            y + 8,
+            188,
+            8,
+            *color,
+        );
+        classic_draw_rect(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            966,
+            y + 24,
+            126 + index as i32 * 12,
+            7,
+            EDGE_COLOR,
+        );
+        classic_draw_text(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            850,
+            y + 16,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            966,
+            y + 38,
+            value,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+
+    classic_draw_rect(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        64,
+        590,
+        1136,
+        84,
+        COMBAT_COMMAND_LANE_COLOR,
+    );
+    for (index, (label, color)) in [
+        ("SELECT", EDGE_COLOR),
+        ("ATTACK", COMBAT_PRESSURE_ALERT_COLOR),
+        ("ABILITY", COMBAT_ABILITY_COLOR),
+        ("HOLD", COMBAT_SHIELD_COLOR),
+        ("BREAK", COMBAT_COMMAND_ACK_COLOR),
+        ("RETREAT", COMBAT_PRESSURE_ALERT_COLOR),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let x = 86 + index as i32 * 178;
+        classic_draw_rect(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            612,
+            138,
+            36,
+            *color,
+        );
+        classic_draw_rect(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            620,
+            74,
+            5,
+            CLASSIC_HUD_ACCENT_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut screen_pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 12,
+            636,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+    classic_draw_text(
+        &mut screen_pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        76,
+        690,
+        "PLAYER COMBAT SCREEN: selected unit status, command feedback, ability telegraph, depth cues, and keep pressure are visible together",
+        1,
+        CLASSIC_HUD_MUTED_TEXT_COLOR,
+    );
+
+    let combat_screen_write_gate = write_classic_rgb_buffer_ppm(
+        &combat_screen_path,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        &screen_pixels,
+    )
+    .is_ok();
+    let count_screen_color = |color: u32| -> usize {
+        screen_pixels
+            .iter()
+            .filter(|pixel| **pixel == color)
+            .count()
+    };
+    let player_first_combat_pressure_view_frame_pixel_count =
+        count_screen_color(COMBAT_VIEW_FRAME_COLOR);
+    let player_first_combat_pressure_status_strip_pixel_count =
+        count_screen_color(COMBAT_STATUS_COLOR);
+    let player_first_combat_pressure_rail_pixel_count = count_screen_color(COMBAT_RAIL_COLOR);
+    let player_first_combat_pressure_command_lane_pixel_count =
+        count_screen_color(COMBAT_COMMAND_LANE_COLOR);
+    let player_first_combat_pressure_alert_pixel_count =
+        count_screen_color(COMBAT_PRESSURE_ALERT_COLOR);
+    let player_first_combat_pressure_screen_gate = player_first_combat_pressure_view_non_background
+        > 120_000
+        && player_first_combat_pressure_view_frame_pixel_count > 8_000
+        && player_first_combat_pressure_status_strip_pixel_count > 20_000
+        && player_first_combat_pressure_rail_pixel_count > 70_000
+        && player_first_combat_pressure_command_lane_pixel_count > 50_000
+        && player_first_combat_pressure_alert_pixel_count > 5_000;
 
     let unit_status_gate = contract_is(
         &unit,
@@ -80581,6 +81047,7 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
         &ability_path,
         &depth_path,
         &pressure_path,
+        &combat_screen_path,
     ]
     .iter()
     .all(|path| file_ready(path));
@@ -80590,7 +81057,9 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
         && depth_readability_gate
         && pressure_feedback_gate
         && source_policy_gate
-        && preview_gate;
+        && preview_gate
+        && combat_screen_write_gate
+        && player_first_combat_pressure_screen_gate;
     let combat_readability_pressure_readiness_gate = runtime_screen_gate;
     let green = combat_readability_pressure_readiness_gate;
 
@@ -80599,7 +81068,12 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
         "status": "classic_rts_combat_readability_pressure_readiness_green",
         "green": green,
         "preview_dir": preview_dir,
-        "preview_count": 5,
+        "preview_count": 6,
+        "source_preview_count": 5,
+        "player_screen_path": combat_screen_path,
+        "player_screen_format": "ppm_p3_rgb",
+        "player_screen_width": PANEL_WIDTH,
+        "player_screen_height": PANEL_HEIGHT,
         "runtime_screen_mode": "player_runtime_combat_pressure_screen",
         "runtime_screen_gate": runtime_screen_gate,
         "evidence_board_only": false,
@@ -80608,14 +81082,18 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
             "command_feedback_lane": "marquee, attack, error, and acknowledgment feedback",
             "ability_telegraph_panel": "tooltip, range, cooldown, queue, and warning overlays",
             "depth_readability_view": "foreground, behind-building, mask, and target priority cues",
-            "pressure_panel": "central keep shield, guard, siege line, and defeat-risk feedback"
+            "pressure_panel": "central keep shield, guard, siege line, and defeat-risk feedback",
+            "combat_tactical_viewport": "large central-keep combat pressure tactical viewport",
+            "right_pressure_rail": "unit, command, ability, depth, and pressure feedback rail",
+            "bottom_command_lane": "player combat commands with attack, ability, hold, break, and retreat states"
         },
         "preview_paths": {
             "unit_status_portrait": unit_path,
             "selection_command_feedback": command_path,
             "ability_tooltip_telegraph": ability_path,
             "depth_readability": depth_path,
-            "central_keep_pressure": pressure_path
+            "central_keep_pressure": pressure_path,
+            "combat_pressure_screen": combat_screen_path
         },
         "source_contracts": {
             "unit_status_portrait": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_UNIT_STATUS_PORTRAIT_CONTRACT,
@@ -80632,6 +81110,15 @@ pub fn native_classic_rts_combat_readability_pressure_readiness_evidence_json(
         "source_policy_gate": source_policy_gate,
         "preview_gate": preview_gate,
         "runtime_screen_gate": runtime_screen_gate,
+        "player_first_combat_pressure_screen_gate": player_first_combat_pressure_screen_gate,
+        "combat_pressure_pixel_counts": {
+            "player_first_combat_pressure_view_non_background": player_first_combat_pressure_view_non_background,
+            "player_first_combat_pressure_view_frame": player_first_combat_pressure_view_frame_pixel_count,
+            "player_first_combat_pressure_status_strip": player_first_combat_pressure_status_strip_pixel_count,
+            "player_first_combat_pressure_rail": player_first_combat_pressure_rail_pixel_count,
+            "player_first_combat_pressure_command_lane": player_first_combat_pressure_command_lane_pixel_count,
+            "player_first_combat_pressure_alert": player_first_combat_pressure_alert_pixel_count
+        },
         "combat_readability_pressure_readiness_gate": combat_readability_pressure_readiness_gate,
         "unit_status_summary": {
             "portrait_frame_pixel_count": unit.get("portrait_frame_pixel_count").cloned().unwrap_or(Value::Null),

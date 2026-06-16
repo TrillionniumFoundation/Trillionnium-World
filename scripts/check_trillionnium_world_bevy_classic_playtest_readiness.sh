@@ -2416,6 +2416,12 @@ jq -n \
       rts_depth_readability_target_priority_pixel_count: $rts_depth_readability[0].target_priority_pixel_count,
       rts_depth_readability_path_occlusion_pixel_count: $rts_depth_readability[0].path_occlusion_pixel_count,
       rts_depth_readability_cutaway_pixel_count: $rts_depth_readability[0].cutaway_pixel_count,
+      rts_combat_readability_pressure_player_first_view_non_background: $rts_combat_readability_pressure_readiness[0].combat_pressure_pixel_counts.player_first_combat_pressure_view_non_background,
+      rts_combat_readability_pressure_player_first_view_frame_pixel_count: $rts_combat_readability_pressure_readiness[0].combat_pressure_pixel_counts.player_first_combat_pressure_view_frame,
+      rts_combat_readability_pressure_player_first_status_strip_pixel_count: $rts_combat_readability_pressure_readiness[0].combat_pressure_pixel_counts.player_first_combat_pressure_status_strip,
+      rts_combat_readability_pressure_player_first_rail_pixel_count: $rts_combat_readability_pressure_readiness[0].combat_pressure_pixel_counts.player_first_combat_pressure_rail,
+      rts_combat_readability_pressure_player_first_command_lane_pixel_count: $rts_combat_readability_pressure_readiness[0].combat_pressure_pixel_counts.player_first_combat_pressure_command_lane,
+      rts_combat_readability_pressure_player_first_alert_pixel_count: $rts_combat_readability_pressure_readiness[0].combat_pressure_pixel_counts.player_first_combat_pressure_alert,
       runner_main_pid: $runner[0].service.main_pid,
       runner_process_cwd: $runner[0].runtime.process_cwd,
       launcher_main_pid: $launcher[0].live_runner.service.main_pid,
@@ -3287,6 +3293,7 @@ jq -n \
       rts_depth_readability_depth_stage_gate: $rts_depth_readability[0].depth_stage_gate,
       rts_depth_readability_scene_renderer_gate: $rts_depth_readability[0].scene_renderer_gate,
       rts_depth_readability_original_art_policy_gate: $rts_depth_readability[0].original_art_policy_gate,
+      rts_combat_readability_pressure_player_first_screen_gate: $rts_combat_readability_pressure_readiness[0].player_first_combat_pressure_screen_gate,
       runner_service_process_gate: $runner[0].gates.service_process_gate,
       runner_release_binary_gate: $runner[0].gates.release_binary_gate,
       runner_classic_env_gate: $runner[0].gates.classic_env_gate,
@@ -3503,6 +3510,7 @@ jq -n \
       classic_rts_openra_engine_port_asset_parity_ppm: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-engine-port-asset-parity.ppm",
       classic_rts_combat_readability_pressure_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness.json",
       classic_rts_combat_readability_pressure_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/",
+      classic_rts_combat_readability_pressure_screen: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-combat-readability-pressure-readiness/combat-pressure-screen.ppm",
       classic_rts_playtest_observability_readiness: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness.json",
       classic_rts_playtest_observability_readiness_dir: "acceptance/S5_native_bevy_device/latest/bevy-classic-rts-playtest-observability-readiness/",
       playtest_runner_status: "acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-runner-status.json",
@@ -3796,6 +3804,13 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_openra_engine_port_asset_parity_asset_parity_claimed == true
   and .headline.rts_openra_engine_port_asset_parity_westwood_claimed == false
   and .checks.classic_rts_combat_readability_pressure_readiness_green == true
+  and .gates.rts_combat_readability_pressure_player_first_screen_gate == true
+  and .headline.rts_combat_readability_pressure_player_first_view_non_background > 120000
+  and .headline.rts_combat_readability_pressure_player_first_view_frame_pixel_count > 8000
+  and .headline.rts_combat_readability_pressure_player_first_status_strip_pixel_count > 20000
+  and .headline.rts_combat_readability_pressure_player_first_rail_pixel_count > 70000
+  and .headline.rts_combat_readability_pressure_player_first_command_lane_pixel_count > 50000
+  and .headline.rts_combat_readability_pressure_player_first_alert_pixel_count > 5000
   and .checks.classic_rts_playtest_observability_readiness_green == true
   and .checks.client_boundary_green == true
   and .checks.playtest_runner_status_green == true

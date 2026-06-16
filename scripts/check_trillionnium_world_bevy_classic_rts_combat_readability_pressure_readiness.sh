@@ -14,10 +14,17 @@ jq -e '
   .contract_version == "trillionnium_world_bevy_classic_rts_combat_readability_pressure_readiness_v1"
   and .status == "classic_rts_combat_readability_pressure_readiness_green"
   and .green == true
-  and .preview_count == 5
+  and .preview_count == 6
+  and .source_preview_count == 5
+  and .player_screen_format == "ppm_p3_rgb"
+  and .player_screen_width == 1280
+  and .player_screen_height == 768
   and .runtime_screen_mode == "player_runtime_combat_pressure_screen"
   and .runtime_screen_gate == true
   and .evidence_board_only == false
+  and .runtime_screen_layout.combat_tactical_viewport == "large central-keep combat pressure tactical viewport"
+  and .runtime_screen_layout.right_pressure_rail == "unit, command, ability, depth, and pressure feedback rail"
+  and .runtime_screen_layout.bottom_command_lane == "player combat commands with attack, ability, hold, break, and retreat states"
   and .runtime_screen_layout.unit_status_panel == "selected unit portrait, bars, role, and queue badges"
   and .runtime_screen_layout.command_feedback_lane == "marquee, attack, error, and acknowledgment feedback"
   and .runtime_screen_layout.pressure_panel == "central keep shield, guard, siege line, and defeat-risk feedback"
@@ -33,6 +40,13 @@ jq -e '
   and .pressure_feedback_gate == true
   and .source_policy_gate == true
   and .preview_gate == true
+  and .player_first_combat_pressure_screen_gate == true
+  and .combat_pressure_pixel_counts.player_first_combat_pressure_view_non_background > 120000
+  and .combat_pressure_pixel_counts.player_first_combat_pressure_view_frame > 8000
+  and .combat_pressure_pixel_counts.player_first_combat_pressure_status_strip > 20000
+  and .combat_pressure_pixel_counts.player_first_combat_pressure_rail > 70000
+  and .combat_pressure_pixel_counts.player_first_combat_pressure_command_lane > 50000
+  and .combat_pressure_pixel_counts.player_first_combat_pressure_alert > 5000
   and .combat_readability_pressure_readiness_gate == true
   and .unit_status_summary.portrait_frame_pixel_count > 1200
   and .unit_status_summary.health_bar_pixel_count > 300
@@ -73,5 +87,6 @@ test -s "$PREVIEW_DIR/selection-command-feedback.ppm"
 test -s "$PREVIEW_DIR/ability-tooltip-telegraph.ppm"
 test -s "$PREVIEW_DIR/depth-readability.ppm"
 test -s "$PREVIEW_DIR/central-keep-pressure.ppm"
+test -s "$PREVIEW_DIR/combat-pressure-screen.ppm"
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMBAT_READABILITY_PRESSURE_READINESS_GREEN %s %s\n' "$SUMMARY" "$PREVIEW_DIR"
