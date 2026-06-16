@@ -19761,7 +19761,7 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         &mut tactical_pixels,
         TACTICAL_VIEWPORT_WIDTH,
         TACTICAL_VIEWPORT_HEIGHT,
-        504,
+        524,
         214,
         52,
         52,
@@ -22563,6 +22563,15 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
     const BOUNDARY_COLOR: u32 = 0xde7a70;
     const HIGHLIGHT_COLOR: u32 = 0xf3edbd;
     const PANEL_COLOR: u32 = 0x1a2420;
+    const MATCH_SETUP_MAP_MATTE_COLOR: u32 = 0x07100f;
+    const MATCH_SETUP_MAP_FRAME_COLOR: u32 = 0x73b89a;
+    const MATCH_SETUP_STATUS_COLOR: u32 = 0x1f3f35;
+    const MATCH_SETUP_RULES_RAIL_COLOR: u32 = 0x17251f;
+    const MATCH_SETUP_READY_STRIP_COLOR: u32 = 0x8bdc94;
+    const MATCH_SETUP_MAP_X: i32 = 64;
+    const MATCH_SETUP_MAP_Y: i32 = 154;
+    const MATCH_SETUP_MAP_WIDTH: usize = 704;
+    const MATCH_SETUP_MAP_HEIGHT: usize = 330;
 
     let source_dir = Path::new(preview_path)
         .parent()
@@ -22633,6 +22642,21 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
                 .map(|metadata| metadata.len() > 100_000)
                 .unwrap_or(false)
     };
+
+    let assets = load_classic_runtime_assets();
+    let mut runtime = classic_product_alignment_runtime();
+    runtime.current_room_id = "league-coliseum".to_string();
+    runtime.map_scene = "first_contact_basin_setup".to_string();
+    runtime.objective_status = "match_setup_ready".to_string();
+    runtime.contextual_primary_action_label = Some("READY:start_match".to_string());
+    runtime.rts_active_ability_id = Some("scan_spawn_lanes".to_string());
+    runtime.rts_command_queue.extend(string_vec([
+        "setup:mirror_guard",
+        "setup:first_contact_basin",
+        "setup:four_spawn_lanes",
+        "setup:beacon_extract",
+        "setup:ready",
+    ]));
 
     let mut pixels = vec![BACKGROUND_COLOR; PANEL_WIDTH * PANEL_HEIGHT];
     classic_draw_rect(
@@ -22856,237 +22880,394 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         456,
         0x0b120f,
     );
-    classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        64,
-        150,
-        372,
-        58,
-        CAMPAIGN_COLOR,
+
+    let mut setup_map_pixels =
+        vec![MATCH_SETUP_MAP_MATTE_COLOR; MATCH_SETUP_MAP_WIDTH * MATCH_SETUP_MAP_HEIGHT];
+    classic_draw_scene(
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        (5, 4),
+        &runtime,
+        &assets,
     );
-    classic_draw_text(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        82,
-        170,
-        "CAMPAIGN ACTIONS: START / CONTINUE / REPLAY",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        64,
-        226,
-        360,
-        256,
-        MAP_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        84,
-        246,
-        "MAP SELECT: FIRST CONTACT BASIN",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    for index in 0..4_i32 {
+    for line in 0..8_i32 {
+        let x = 34 + line * 82;
         classic_draw_rect(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            96 + index * 72,
-            334 + (index % 2) * 54,
-            48,
-            34,
+            &mut setup_map_pixels,
+            MATCH_SETUP_MAP_WIDTH,
+            MATCH_SETUP_MAP_HEIGHT,
+            x,
+            18,
+            3,
+            292,
+            0x1d4e49,
+        );
+    }
+    for line in 0..6_i32 {
+        let y = 30 + line * 48;
+        classic_draw_rect(
+            &mut setup_map_pixels,
+            MATCH_SETUP_MAP_WIDTH,
+            MATCH_SETUP_MAP_HEIGHT,
+            28,
+            y,
+            640,
+            3,
+            0x1d4e49,
+        );
+    }
+    for (x, y, label) in [
+        (88, 66, "P1"),
+        (520, 64, "P2"),
+        (128, 236, "P3"),
+        (548, 238, "P4"),
+    ] {
+        classic_draw_rect(
+            &mut setup_map_pixels,
+            MATCH_SETUP_MAP_WIDTH,
+            MATCH_SETUP_MAP_HEIGHT,
+            x,
+            y,
+            58,
+            40,
             SPAWN_COLOR,
         );
+        classic_draw_text(
+            &mut setup_map_pixels,
+            MATCH_SETUP_MAP_WIDTH,
+            MATCH_SETUP_MAP_HEIGHT,
+            x + 16,
+            y + 14,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
     }
+    let camera_preview_x = 218;
+    let camera_preview_y = 98;
+    let camera_preview_width = 270;
+    let camera_preview_height = 84;
     classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        452,
-        150,
-        338,
-        332,
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        camera_preview_x,
+        camera_preview_y,
+        camera_preview_width,
+        4,
         MINIMAP_COLOR,
     );
-    for line in 0..5_i32 {
+    classic_draw_rect(
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        camera_preview_x,
+        camera_preview_y + camera_preview_height - 4,
+        camera_preview_width,
+        4,
+        MINIMAP_COLOR,
+    );
+    classic_draw_rect(
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        camera_preview_x,
+        camera_preview_y,
+        4,
+        camera_preview_height,
+        MINIMAP_COLOR,
+    );
+    classic_draw_rect(
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        camera_preview_x + camera_preview_width - 4,
+        camera_preview_y,
+        4,
+        camera_preview_height,
+        MINIMAP_COLOR,
+    );
+    for scanline in 0..6_i32 {
         classic_draw_rect(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            482 + line * 56,
-            194,
+            &mut setup_map_pixels,
+            MATCH_SETUP_MAP_WIDTH,
+            MATCH_SETUP_MAP_HEIGHT,
+            camera_preview_x + 18 + scanline * 40,
+            camera_preview_y + 14,
             3,
-            226,
-            0x224d4f,
-        );
-        classic_draw_rect(
-            &mut pixels,
-            PANEL_WIDTH,
-            PANEL_HEIGHT,
-            482,
-            194 + line * 44,
-            250,
-            3,
-            0x224d4f,
+            camera_preview_height - 28,
+            0x2a6d68,
         );
     }
+    classic_draw_rect(
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        camera_preview_x + 26,
+        camera_preview_y + 22,
+        82,
+        6,
+        MINIMAP_COLOR,
+    );
+    classic_draw_rect(
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        camera_preview_x + 140,
+        camera_preview_y + 54,
+        96,
+        6,
+        MINIMAP_COLOR,
+    );
     classic_draw_text(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        474,
-        170,
-        "MINIMAP PREVIEW / CAMERA FOG / SPAWN LANES",
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        camera_preview_x + 18,
+        camera_preview_y + 40,
+        "FOG / CAMERA PREVIEW",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
     classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        816,
-        150,
-        180,
-        74,
-        FACTION_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        834,
-        172,
-        "FACTION: MIRROR GUARD",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        1018,
-        150,
-        180,
-        74,
-        RESOURCE_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        1036,
-        172,
-        "RESOURCES: BEACONS",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        816,
-        242,
-        180,
-        74,
-        BOT_COLOR,
-    );
-    classic_draw_text(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        834,
-        264,
-        "BOT: LOCAL FIXTURE",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
-    classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        1018,
-        242,
-        180,
-        74,
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        286,
+        196,
+        122,
+        34,
         VICTORY_COLOR,
     );
-    classic_draw_text(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        1036,
-        264,
-        "VICTORY: BEACON EXTRACT",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
-    );
     classic_draw_rect(
-        &mut pixels,
-        PANEL_WIDTH,
-        PANEL_HEIGHT,
-        816,
-        334,
-        382,
+        &mut setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        312,
+        218,
         72,
-        BOUNDARY_COLOR,
+        52,
+        RESOURCE_COLOR,
     );
-    classic_draw_text(
+    let player_first_match_setup_map_non_background = setup_map_pixels
+        .iter()
+        .filter(|pixel| {
+            **pixel != MATCH_SETUP_MAP_MATTE_COLOR
+                && **pixel != 0x101411
+                && **pixel != 0x171a1d
+                && **pixel != 0x080c0d
+        })
+        .count();
+    classic_copy_pixels(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        834,
-        356,
-        "NO S5 / NO PUBLIC / NO OPENRA COPY CLAIM",
-        1,
-        CLASSIC_HUD_TEXT_COLOR,
+        &setup_map_pixels,
+        MATCH_SETUP_MAP_WIDTH,
+        MATCH_SETUP_MAP_HEIGHT,
+        MATCH_SETUP_MAP_X,
+        MATCH_SETUP_MAP_Y,
     );
     classic_draw_rect(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        816,
-        428,
-        382,
-        54,
+        MATCH_SETUP_MAP_X - 8,
+        MATCH_SETUP_MAP_Y - 8,
+        MATCH_SETUP_MAP_WIDTH as i32 + 16,
+        6,
+        MATCH_SETUP_MAP_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        MATCH_SETUP_MAP_X - 8,
+        MATCH_SETUP_MAP_Y + MATCH_SETUP_MAP_HEIGHT as i32 + 2,
+        MATCH_SETUP_MAP_WIDTH as i32 + 16,
+        6,
+        MATCH_SETUP_MAP_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        MATCH_SETUP_MAP_X - 8,
+        MATCH_SETUP_MAP_Y - 8,
+        6,
+        MATCH_SETUP_MAP_HEIGHT as i32 + 16,
+        MATCH_SETUP_MAP_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        MATCH_SETUP_MAP_X + MATCH_SETUP_MAP_WIDTH as i32 + 2,
+        MATCH_SETUP_MAP_Y - 8,
+        6,
+        MATCH_SETUP_MAP_HEIGHT as i32 + 16,
+        MATCH_SETUP_MAP_FRAME_COLOR,
+    );
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        MATCH_SETUP_MAP_X,
+        MATCH_SETUP_MAP_Y + MATCH_SETUP_MAP_HEIGHT as i32 + 12,
+        MATCH_SETUP_MAP_WIDTH as i32,
+        42,
+        MATCH_SETUP_STATUS_COLOR,
+    );
+    classic_draw_text(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        MATCH_SETUP_MAP_X + 18,
+        MATCH_SETUP_MAP_Y + MATCH_SETUP_MAP_HEIGHT as i32 + 28,
+        "SELECT MAP -> MIRROR GUARD -> FOUR SPAWNS -> LOCAL BOT -> READY START",
+        1,
+        CLASSIC_HUD_TEXT_COLOR,
+    );
+
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        792,
+        150,
+        406,
+        334,
+        MATCH_SETUP_RULES_RAIL_COLOR,
+    );
+    for (index, (label, color, value)) in [
+        ("CAMPAIGN", CAMPAIGN_COLOR, "START / CONTINUE / REPLAY"),
+        ("FACTION", FACTION_COLOR, "MIRROR GUARD READY"),
+        ("SPAWNS", SPAWN_COLOR, "4 PLAYER LANES LOCKED"),
+        ("RESOURCES", RESOURCE_COLOR, "BEACONS + EXPANSIONS"),
+        ("BOT", BOT_COLOR, "LOCAL FIXTURE"),
+        ("VICTORY", VICTORY_COLOR, "BEACON EXTRACT"),
+        ("BOUNDARY", BOUNDARY_COLOR, "NO S5 / PUBLIC CLAIM"),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let y = 164 + index as i32 * 42;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            812,
+            y,
+            96,
+            28,
+            *color,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            824,
+            y + 9,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            926,
+            y + 9,
+            value,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
+    classic_draw_rect(
+        &mut pixels,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        812,
+        448,
+        366,
+        28,
         START_COLOR,
     );
     classic_draw_text(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
-        834,
-        448,
-        "START READY: LOCAL RUST/BEVY MATCH SETUP",
+        828,
+        458,
+        "READY: LOCAL RUST/BEVY MATCH SETUP",
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
+
     classic_draw_rect(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
         64,
-        504,
+        524,
         1134,
         60,
-        HIGHLIGHT_COLOR,
+        MATCH_SETUP_READY_STRIP_COLOR,
     );
+    for (index, (label, color)) in [
+        ("BACK", CAMPAIGN_COLOR),
+        ("MAP", MAP_COLOR),
+        ("FACTION", FACTION_COLOR),
+        ("SPAWN", SPAWN_COLOR),
+        ("RULES", RESOURCE_COLOR),
+        ("BOT", BOT_COLOR),
+        ("VICTORY", VICTORY_COLOR),
+        ("MINIMAP", MINIMAP_COLOR),
+        ("START", START_COLOR),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let x = 88 + index as i32 * 118;
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x,
+            536,
+            92,
+            32,
+            *color,
+        );
+        classic_draw_rect(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 8,
+            542,
+            54,
+            5,
+            HIGHLIGHT_COLOR,
+        );
+        classic_draw_text(
+            &mut pixels,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            x + 10,
+            554,
+            label,
+            1,
+            CLASSIC_HUD_TEXT_COLOR,
+        );
+    }
     classic_draw_text(
         &mut pixels,
         PANEL_WIDTH,
         PANEL_HEIGHT,
         84,
-        526,
-        "PLAYER PRE-MATCH SCREEN: campaign action -> map/faction/spawn/rules -> minimap -> ready",
+        572,
+        "PLAYER PRE-MATCH SCREEN: choose map, inspect lanes, lock faction/rules, then start match",
         1,
         0x111a16,
     );
@@ -23165,6 +23346,16 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
     let start_pixel_count = count_color(START_COLOR);
     let boundary_pixel_count = count_color(BOUNDARY_COLOR);
     let highlight_pixel_count = count_color(HIGHLIGHT_COLOR);
+    let player_first_match_setup_map_frame_pixel_count = count_color(MATCH_SETUP_MAP_FRAME_COLOR);
+    let player_first_match_setup_status_strip_pixel_count = count_color(MATCH_SETUP_STATUS_COLOR);
+    let player_first_match_setup_rules_rail_pixel_count = count_color(MATCH_SETUP_RULES_RAIL_COLOR);
+    let player_first_match_setup_ready_strip_pixel_count =
+        count_color(MATCH_SETUP_READY_STRIP_COLOR);
+    let player_first_match_setup_screen_gate = player_first_match_setup_map_non_background > 80_000
+        && player_first_match_setup_map_frame_pixel_count > 8_000
+        && player_first_match_setup_status_strip_pixel_count > 15_000
+        && player_first_match_setup_rules_rail_pixel_count > 50_000
+        && player_first_match_setup_ready_strip_pixel_count > 40_000;
 
     let shell_meta_gate = contract_is(
         &shell_meta,
@@ -23256,7 +23447,8 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
     let runtime_screen_gate = setup_preview_gate
         && setup_surfaces.len() == 10
         && str_at(&basin_spec, "map_id") == "first_contact_basin"
-        && str_at(&tech_tree, "final_faction_id") == "mirror_guard";
+        && str_at(&tech_tree, "final_faction_id") == "mirror_guard"
+        && player_first_match_setup_screen_gate;
     let source_preview_gate = file_ready(&shell_meta_path)
         && file_ready(&tech_tree_path)
         && bool_at(&map_ui, "preview_gate");
@@ -23300,10 +23492,10 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         "evidence_board_only": false,
         "runtime_screen_layout": {
             "campaign_actions": "top-left start/continue/replay strip",
-            "map_select": "large First Contact Basin setup panel",
-            "minimap_preview": "center camera/fog/spawn preview",
-            "right_rules_rail": "faction, resources, bot, victory, and boundary cards",
-            "start_ready": "bottom-right local Rust/Bevy ready state"
+            "map_select": "large First Contact Basin tactical setup viewport",
+            "minimap_preview": "in-map camera fog and spawn-lane preview",
+            "right_rules_rail": "faction, resources, bot, victory, and boundary confirmation rail",
+            "start_ready": "bottom player launch strip with local Rust/Bevy ready state"
         },
         "setup_pixel_counts": {
             "board": board_pixel_count,
@@ -23318,6 +23510,13 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
             "start_ready": start_pixel_count,
             "boundary": boundary_pixel_count,
             "highlight": highlight_pixel_count
+        },
+        "match_setup_player_first_pixel_counts": {
+            "player_first_match_setup_map_non_background": player_first_match_setup_map_non_background,
+            "player_first_match_setup_map_frame": player_first_match_setup_map_frame_pixel_count,
+            "player_first_match_setup_status_strip": player_first_match_setup_status_strip_pixel_count,
+            "player_first_match_setup_rules_rail": player_first_match_setup_rules_rail_pixel_count,
+            "player_first_match_setup_ready_strip": player_first_match_setup_ready_strip_pixel_count
         },
         "source_headline": {
             "shell_meta_surface_count": shell_meta.get("shell_meta_surface_count").cloned().unwrap_or(Value::Null),
@@ -23337,6 +23536,7 @@ pub fn native_classic_rts_match_setup_ui_replication_evidence_json(preview_path:
         "faction_gate": faction_gate,
         "no_external_boundary_gate": no_external_boundary_gate,
         "setup_preview_gate": setup_preview_gate,
+        "player_first_match_setup_screen_gate": player_first_match_setup_screen_gate,
         "runtime_screen_gate": runtime_screen_gate,
         "source_preview_gate": source_preview_gate,
         "match_setup_ui_replication_gate": match_setup_ui_replication_gate,

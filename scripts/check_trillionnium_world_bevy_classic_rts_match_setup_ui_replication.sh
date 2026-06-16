@@ -56,7 +56,17 @@ jq -e '
   and .setup_pixel_counts.start_ready > 2000
   and .setup_pixel_counts.boundary > 2000
   and .setup_pixel_counts.highlight > 3000
+  and .match_setup_player_first_pixel_counts.player_first_match_setup_map_non_background > 80000
+  and .match_setup_player_first_pixel_counts.player_first_match_setup_map_frame > 8000
+  and .match_setup_player_first_pixel_counts.player_first_match_setup_status_strip > 15000
+  and .match_setup_player_first_pixel_counts.player_first_match_setup_rules_rail > 50000
+  and .match_setup_player_first_pixel_counts.player_first_match_setup_ready_strip > 40000
   and .runtime_screen_mode == "player_runtime_match_setup_screen"
+  and .runtime_screen_layout.map_select == "large First Contact Basin tactical setup viewport"
+  and .runtime_screen_layout.minimap_preview == "in-map camera fog and spawn-lane preview"
+  and .runtime_screen_layout.right_rules_rail == "faction, resources, bot, victory, and boundary confirmation rail"
+  and .runtime_screen_layout.start_ready == "bottom player launch strip with local Rust/Bevy ready state"
+  and .player_first_match_setup_screen_gate == true
   and .runtime_screen_gate == true
   and .evidence_board_only == false
   and .source_headline.shell_meta_surface_count == 12

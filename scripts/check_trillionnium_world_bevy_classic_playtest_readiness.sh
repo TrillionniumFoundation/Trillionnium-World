@@ -2141,6 +2141,11 @@ jq -n \
       rts_match_setup_ui_replication_map_select_pixel_count: $rts_match_setup_ui_replication[0].setup_pixel_counts.map_select,
       rts_match_setup_ui_replication_faction_select_pixel_count: $rts_match_setup_ui_replication[0].setup_pixel_counts.faction_select,
       rts_match_setup_ui_replication_start_ready_pixel_count: $rts_match_setup_ui_replication[0].setup_pixel_counts.start_ready,
+      rts_match_setup_ui_replication_player_first_map_non_background: $rts_match_setup_ui_replication[0].match_setup_player_first_pixel_counts.player_first_match_setup_map_non_background,
+      rts_match_setup_ui_replication_player_first_map_frame_pixel_count: $rts_match_setup_ui_replication[0].match_setup_player_first_pixel_counts.player_first_match_setup_map_frame,
+      rts_match_setup_ui_replication_player_first_status_strip_pixel_count: $rts_match_setup_ui_replication[0].match_setup_player_first_pixel_counts.player_first_match_setup_status_strip,
+      rts_match_setup_ui_replication_player_first_rules_rail_pixel_count: $rts_match_setup_ui_replication[0].match_setup_player_first_pixel_counts.player_first_match_setup_rules_rail,
+      rts_match_setup_ui_replication_player_first_ready_strip_pixel_count: $rts_match_setup_ui_replication[0].match_setup_player_first_pixel_counts.player_first_match_setup_ready_strip,
       rts_match_setup_ui_replication_map_id: $rts_match_setup_ui_replication[0].source_headline.map_id,
       rts_match_setup_ui_replication_faction_id: $rts_match_setup_ui_replication[0].source_headline.faction_id,
       rts_campaign_ui_continuity_capture_frame_count: $rts_campaign_ui_continuity[0].capture_frame_count,
@@ -2967,6 +2972,7 @@ jq -n \
       rts_match_setup_ui_replication_map_ui_gate: $rts_match_setup_ui_replication[0].map_ui_gate,
       rts_match_setup_ui_replication_faction_gate: $rts_match_setup_ui_replication[0].faction_gate,
       rts_match_setup_ui_replication_no_external_boundary_gate: $rts_match_setup_ui_replication[0].no_external_boundary_gate,
+      rts_match_setup_ui_replication_player_first_screen_gate: $rts_match_setup_ui_replication[0].player_first_match_setup_screen_gate,
       rts_match_setup_ui_replication_gate: $rts_match_setup_ui_replication[0].match_setup_ui_replication_gate,
       rts_campaign_ui_continuity_handoff_green_gate: $rts_campaign_ui_continuity[0].handoff_green_gate,
       rts_campaign_ui_continuity_preview_resolution_gate: $rts_campaign_ui_continuity[0].preview_resolution_gate,
@@ -3695,6 +3701,11 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_match_setup_ui_replication_map_select_pixel_count > 2000
   and .headline.rts_match_setup_ui_replication_faction_select_pixel_count > 2000
   and .headline.rts_match_setup_ui_replication_start_ready_pixel_count > 2000
+  and .headline.rts_match_setup_ui_replication_player_first_map_non_background > 80000
+  and .headline.rts_match_setup_ui_replication_player_first_map_frame_pixel_count > 8000
+  and .headline.rts_match_setup_ui_replication_player_first_status_strip_pixel_count > 15000
+  and .headline.rts_match_setup_ui_replication_player_first_rules_rail_pixel_count > 50000
+  and .headline.rts_match_setup_ui_replication_player_first_ready_strip_pixel_count > 40000
   and .headline.rts_match_setup_ui_replication_map_id == "first_contact_basin"
   and .headline.rts_match_setup_ui_replication_faction_id == "mirror_guard"
   and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
@@ -5360,6 +5371,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_match_setup_ui_replication_map_ui_gate == true
   and .gates.rts_match_setup_ui_replication_faction_gate == true
   and .gates.rts_match_setup_ui_replication_no_external_boundary_gate == true
+  and .gates.rts_match_setup_ui_replication_player_first_screen_gate == true
   and .gates.rts_match_setup_ui_replication_gate == true
   and .gates.rts_campaign_ui_continuity_handoff_green_gate == true
   and .gates.rts_campaign_ui_continuity_preview_resolution_gate == true
