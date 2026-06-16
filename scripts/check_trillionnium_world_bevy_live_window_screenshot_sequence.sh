@@ -46,13 +46,14 @@ fi
     TRNM_WORLD_BEVY_RUNTIME_PROBE_PATH="$RUNTIME_PROBE" \
     TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST="$RUNTIME_TEXTURE_MANIFEST" \
     TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256="$RUNTIME_TEXTURE_MANIFEST_SHA256" \
-    "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" run >"$LOG" 2>&1
+    exec "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" run >"$LOG" 2>&1
 ) &
 HOST_PID=$!
 
 cleanup() {
   if kill -0 "$HOST_PID" >/dev/null 2>&1; then
     kill "$HOST_PID" >/dev/null 2>&1 || true
+    wait "$HOST_PID" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT

@@ -13,6 +13,8 @@ required_lines=(
   'TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_MANIFEST'
   'TRNM_WORLD_BEVY_RUNTIME_TEXTURE_ASSET_SHA256'
   'TRNM_WORLD_BEVY_RUNTIME_PROBE_PATH'
+  'exec "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" run'
+  'wait "$HOST_PID"'
   'runtime_texture_sprite_asset_binding_gate'
   'runtime_texture_sprite_bound_surface_count'
   'trillionnium_world_bevy_sprite_asset_binding_v1'
