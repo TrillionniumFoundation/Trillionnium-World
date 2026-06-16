@@ -3,11 +3,27 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-playtest-readiness.json"
+REFRESH="${TRNM_BEVY_PLAYTEST_READINESS_REFRESH:-1}"
+
+for arg in "$@"; do
+  case "$arg" in
+    --refresh)
+      REFRESH=1
+      ;;
+    --no-refresh)
+      REFRESH=0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$arg" >&2
+      exit 2
+      ;;
+  esac
+done
+
 mkdir -p "$(dirname "$SUMMARY")"
 SUMMARY_FILTER="$(mktemp)"
 VALIDATION_FILTER="$(mktemp)"
 VALIDATION_CHUNK_DIR="$(mktemp -d)"
-REFRESH="${TRNM_BEVY_PLAYTEST_READINESS_REFRESH:-1}"
 trap 'rm -f "$SUMMARY_FILTER" "$VALIDATION_FILTER"; rm -rf "$VALIDATION_CHUNK_DIR"' EXIT
 sed -n '/^# BEGIN_PLAYTEST_READINESS_SUMMARY_FILTER$/,/^# END_PLAYTEST_READINESS_SUMMARY_FILTER$/p' "$0" | sed '1d;$d' >"$SUMMARY_FILTER"
 sed -n '/^# BEGIN_PLAYTEST_READINESS_VALIDATION_FILTER$/,/^# END_PLAYTEST_READINESS_VALIDATION_FILTER$/p' "$0" | sed '1d;$d' >"$VALIDATION_FILTER"

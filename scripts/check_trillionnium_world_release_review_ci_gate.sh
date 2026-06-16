@@ -375,6 +375,7 @@ run_check bash_syntax bash -n \
   "$ROOT/scripts/v2/bevy_classic_rts_bot_tactical_micro_gap_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_rts_bot_map_intel_gap_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/bevy_classic_playtest_launcher_script_contract_guard_test.sh" \
+  "$ROOT/scripts/v2/bevy_classic_playtest_readiness_refresh_mode_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/action_coach_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_art_pack_script_contract_guard_test.sh" \
   "$ROOT/scripts/v2/authored_sprite_sheet_script_contract_guard_test.sh" \

@@ -479,6 +479,7 @@ required_lines=(
   'bevy_classic_playtest_launcher_contract_guard'
   'bevy_classic_playtest_launcher_gate'
   'bevy_classic_playtest_launcher_script_contract_guard_test.sh'
+  'bevy_classic_playtest_readiness_refresh_mode_script_contract_guard_test.sh'
   'trillionnium_world_bevy_classic_asset_pack_v1'
   'trillionnium_world_bevy_classic_manifest_lint_v1'
   'trillionnium_world_bevy_classic_animation_preview_v1'
