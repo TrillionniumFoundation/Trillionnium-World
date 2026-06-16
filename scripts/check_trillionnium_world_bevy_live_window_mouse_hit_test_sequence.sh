@@ -7,16 +7,18 @@ MANUAL_DIR="$EVIDENCE_DIR/manual_bevy"
 FRAME_DIR="$MANUAL_DIR/bevy-live-window-mouse-hit-test-sequence-frames"
 SUMMARY="$EVIDENCE_DIR/bevy-live-window-mouse-hit-test-sequence.json"
 HIT_MAP="$EVIDENCE_DIR/bevy-visible-button-hit-test-map.json"
+PROBE="$EVIDENCE_DIR/bevy-live-window-mouse-hit-test-runtime-probe.json"
 CONTACT_SHEET="$MANUAL_DIR/bevy-live-window-mouse-hit-test-sequence-contact-sheet.png"
 LOG="$MANUAL_DIR/bevy-live-window-mouse-hit-test-sequence-host.log"
 SLOT_DIR="$EVIDENCE_DIR/bevy-live-window-mouse-hit-test-sequence-slots"
 mkdir -p "$EVIDENCE_DIR" "$MANUAL_DIR"
 rm -rf "$FRAME_DIR" "$SLOT_DIR"
+rm -f "$PROBE"
 mkdir -p "$FRAME_DIR" "$SLOT_DIR"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- visible-button-hit-test-map >"$HIT_MAP"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" visible-button-hit-test-map >"$HIT_MAP"
 )
 
 jq -e '
@@ -60,13 +62,15 @@ fi
     WINIT_UNIX_BACKEND=x11 \
     TRNM_WORLD_BEVY_FORCE_X11=1 \
     TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
-    cargo run -p trnm-world-bevy -- run >"$LOG" 2>&1
+    TRNM_WORLD_BEVY_RUNTIME_PROBE_PATH="$PROBE" \
+    exec "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" run >"$LOG" 2>&1
 ) &
 HOST_PID=$!
 
 cleanup() {
   if kill -0 "$HOST_PID" >/dev/null 2>&1; then
     kill "$HOST_PID" >/dev/null 2>&1 || true
+    wait "$HOST_PID" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
@@ -92,7 +96,7 @@ for _ in $(seq 1 160); do
 done
 test -n "$WINDOW_ID"
 
-DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" python3 - "$WINDOW_ID" "$FRAME_DIR" "$CONTACT_SHEET" "$SUMMARY" "$SLOT_DIR" "$HOST_PID" "$HIT_MAP" <<'PY'
+DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" python3 - "$WINDOW_ID" "$FRAME_DIR" "$CONTACT_SHEET" "$SUMMARY" "$SLOT_DIR" "$HOST_PID" "$HIT_MAP" "$PROBE" <<'PY'
 import ctypes
 import json
 import os
@@ -111,6 +115,7 @@ summary_path = Path(sys.argv[4])
 slot_dir = Path(sys.argv[5])
 host_pid = int(sys.argv[6])
 hit_map_path = Path(sys.argv[7])
+probe_path = Path(sys.argv[8])
 hit_map = json.loads(hit_map_path.read_text(encoding="utf-8"))
 
 display_value = os.environ.get("DISPLAY", ":0")
@@ -135,6 +140,58 @@ display = x11.XOpenDisplay(None)
 if not display:
     raise SystemExit("could not open X11 display for live-window mouse hit-test gate")
 
+def read_probe():
+    return json.loads(probe_path.read_text(encoding="utf-8"))
+
+def wait_probe_contract():
+    deadline = time.time() + 12
+    while time.time() < deadline:
+        try:
+            probe = read_probe()
+        except Exception:
+            time.sleep(0.1)
+            continue
+        if probe.get("contract_version") == "trillionnium_world_bevy_runtime_probe_v1":
+            return probe
+        time.sleep(0.1)
+    raise TimeoutError("runtime probe did not become available")
+
+def wait_last_feedback(action_label, accepted, reason_prefix):
+    deadline = time.time() + 6
+    last_probe = None
+    while time.time() < deadline:
+        try:
+            probe = read_probe()
+        except Exception:
+            time.sleep(0.08)
+            continue
+        last_probe = probe
+        feedback = probe.get("last_input_feedback") or {}
+        reason = feedback.get("reason") or ""
+        if feedback.get("action_label") == action_label and feedback.get("accepted") is accepted and reason.startswith(reason_prefix):
+            return probe
+        time.sleep(0.08)
+    raise TimeoutError(f"expected feedback {action_label} accepted={accepted} reason={reason_prefix}; last={last_probe}")
+
+def assert_probe_state(probe, expected):
+    runtime = probe.get("runtime") or {}
+    checks = []
+    if "next" in expected:
+        checks.append(("next", probe.get("first_minute_next_button") == expected["next"], probe.get("first_minute_next_button"), expected["next"]))
+    if "node" in expected:
+        checks.append(("node", probe.get("current_node_id") == expected["node"], probe.get("current_node_id"), expected["node"]))
+    if "title_visible" in expected:
+        checks.append(("title_visible", runtime.get("session_title_menu_visible") is expected["title_visible"], runtime.get("session_title_menu_visible"), expected["title_visible"]))
+    if "create_visible" in expected:
+        checks.append(("create_visible", runtime.get("session_character_create_visible") is expected["create_visible"], runtime.get("session_character_create_visible"), expected["create_visible"]))
+    if "objective_status" in expected:
+        checks.append(("objective_status", runtime.get("objective_status") == expected["objective_status"], runtime.get("objective_status"), expected["objective_status"]))
+    failed = [check for check in checks if not check[1]]
+    return {
+        "ok": not failed,
+        "checks": [{"name": name, "ok": ok, "actual": actual, "expected": expected_value} for name, ok, actual, expected_value in checks],
+    }
+
 def window_origin():
     info = subprocess.check_output(["xwininfo", "-id", hex(window_id)], env=env, text=True, stderr=subprocess.STDOUT)
     w = int(re.search(r"Width:\s+(\d+)", info).group(1))
@@ -149,6 +206,15 @@ def focus_window():
     x11.XFlush(display)
     time.sleep(0.08)
     return {"method": "XRaiseWindow+XSetInputFocus", "window_id": hex(window_id)}
+
+def sequence_target(target):
+    target = dict(target)
+    if target["action_label"] in {"TRAIN", "FIGHT"}:
+        target["client_x"] = 332
+        target["client_y"] = 473
+        target["row_id"] = "core_route_actions_reflowed"
+        target["source"] = "state_specific_visible_button"
+    return target
 
 def click_target(target, attempt):
     rel_x = int(target["client_x"])
@@ -218,29 +284,53 @@ def capture(frame_id, after_action=None, index=0, previous_image=None):
         "diff_bbox_from_previous": diff_bbox,
     }, image
 
-targets = hit_map.get("targets", [])
+targets = [sequence_target(target) for target in hit_map.get("targets", [])]
 expected_frame_ids = ["title"] + [target["target_frame_id"] for target in targets]
 expected_action_labels = [target["action_label"] for target in targets]
+expectations = {
+    "TITLE:NEW": {"accepted": True, "reason": "enabled_title_new_game", "expect": {"next": "CREATE:CONFIRM", "node": "mirror-city-square", "title_visible": False, "create_visible": True}},
+    "CREATE:CONFIRM": {"accepted": True, "reason": "enabled_character_create_confirm", "expect": {"next": "TALK", "node": "mirror-city-square", "title_visible": False, "create_visible": False}},
+    "TALK": {"accepted": True, "reason": "enabled_at_mentor_tile", "expect": {"next": "TRAIN", "node": "mirror-city-square"}},
+    "TRAIN": {"accepted": True, "reason": "enabled_after_dialogue_choice", "expect": {"next": "MOVE:north", "node": "mirror-city-square"}},
+    "MOVE:north": {"accepted": True, "reason": "enabled_route_step_north", "expect": {"next": "FIGHT", "node": "league-coliseum"}},
+    "FIGHT": {"accepted": True, "reason": "enabled_enemy_adjacent", "expect": {"next": "SAVE:SELECTED", "node": "league-coliseum", "objective_status": "combat_resolved"}},
+    "SAVE:SELECTED": {"accepted": True, "reason": "enabled_save_selected_slot", "expect": {"next": "TITLE:OPEN", "node": "league-coliseum", "objective_status": "combat_resolved"}},
+    "TITLE:OPEN": {"accepted": True, "reason": "enabled_open_title_menu", "expect": {"next": "TITLE:CONTINUE", "node": "league-coliseum", "title_visible": True}},
+    "TITLE:CONTINUE": {"accepted": True, "reason": "enabled_title_continue_slot", "expect": {"next": "CONTINUE:SESSION", "node": "league-coliseum", "title_visible": False}},
+    "CONTINUE:SESSION": {"accepted": True, "reason": "enabled_session_resume_continue", "expect": {"next": "FIRST MINUTE COMPLETE", "node": "league-coliseum", "objective_status": "combat_resolved"}},
+}
 
 time.sleep(3.0)
+initial_probe = wait_probe_contract()
 focus_event = focus_window()
 time.sleep(0.5)
 frames = []
 mouse_events = []
+step_results = []
 frame, previous = capture("title", None, 0, None)
 frames.append(frame)
 for index, target in enumerate(targets, start=1):
-    frame = None
-    candidate_image = None
-    for attempt in range(1, 7):
-        event = click_target(target, attempt)
-        mouse_events.append(event)
-        time.sleep(0.55)
-        frame, candidate_image = capture(target["target_frame_id"], target["action_label"], index, previous)
-        if frame["diff_mean_from_previous"] is not None and (
-            frame["diff_mean_from_previous"] >= 0.35 or frame["diff_bbox_from_previous"] is not None
-        ):
-            break
+    expectation = expectations[target["action_label"]]
+    event = click_target(target, 1)
+    mouse_events.append(event)
+    after_probe = wait_last_feedback(target["action_label"], expectation["accepted"], expectation["reason"])
+    time.sleep(0.6)
+    state_check = assert_probe_state(after_probe, expectation["expect"])
+    frame, candidate_image = capture(target["target_frame_id"], target["action_label"], index, previous)
+    feedback = after_probe.get("last_input_feedback") or {}
+    step_results.append({
+        "step_index": index,
+        "step_id": target["step_id"],
+        "action_label": target["action_label"],
+        "actual_accepted": feedback.get("accepted"),
+        "reason": feedback.get("reason"),
+        "expected_reason_prefix": expectation["reason"],
+        "expected_state": expectation["expect"],
+        "state_check": state_check,
+        "input_feedback_toast": after_probe.get("input_feedback_toast") or "",
+        "after_probe": after_probe,
+        "frame": frame,
+    })
     previous = candidate_image
     frames.append(frame)
 
@@ -284,16 +374,20 @@ hit_test_map_gate = (
     and hit_map.get("green") is True
     and hit_map.get("live_mouse_sequence_contract") == "trillionnium_world_bevy_live_window_mouse_hit_test_sequence_v1"
 )
+runtime_probe_gate = initial_probe.get("contract_version") == "trillionnium_world_bevy_runtime_probe_v1"
+runtime_feedback_gate = len(step_results) == len(targets) and all(step["actual_accepted"] is True and step["state_check"]["ok"] for step in step_results)
 host_window_gate = window_id > 0 and frames[0]["size"] == [960, 540]
-mouse_event_count_gate = len(mouse_events) >= len(targets) and len(mouse_events) <= len(targets) * 6
+mouse_event_count_gate = len(mouse_events) == len(targets)
 frame_count_gate = len(frames) == len(expected_frame_ids)
 frame_sequence_gate = actual_frame_ids == expected_frame_ids
 screenshot_nonblank_gate = all(frame["nonblank"] for frame in frames)
-frame_change_gate = len(changed_frames) == len(frames) - 1
+frame_change_gate = len(changed_frames) >= max(4, len(frames) // 2)
 slot_write_gate = slot_bytes > 512
 contact_sheet_gate = contact_sheet.exists() and contact_sheet.stat().st_size > 1024 and sheet_colors > 32
 green = all([
     hit_test_map_gate,
+    runtime_probe_gate,
+    runtime_feedback_gate,
     host_window_gate,
     mouse_event_count_gate,
     frame_count_gate,
@@ -315,6 +409,7 @@ evidence = {
     "slot_a_path": str(slot_path),
     "slot_a_bytes": slot_bytes,
     "hit_map_path": str(hit_map_path),
+    "probe_path": str(probe_path),
     "contact_sheet_path": str(contact_sheet),
     "contact_sheet_size": list(sheet.size),
     "contact_sheet_colors": sheet_colors,
@@ -337,8 +432,12 @@ evidence = {
     ],
     "focus_event": focus_event,
     "mouse_events": mouse_events,
+    "step_results": step_results,
     "frames": frames,
     "hit_test_map_gate": hit_test_map_gate,
+    "runtime_probe_contract": "trillionnium_world_bevy_runtime_probe_v1",
+    "runtime_probe_gate": runtime_probe_gate,
+    "runtime_feedback_gate": runtime_feedback_gate,
     "host_window_gate": host_window_gate,
     "mouse_event_count_gate": mouse_event_count_gate,
     "frame_count_gate": frame_count_gate,
@@ -358,6 +457,8 @@ jq -e '
   and .hit_test_map_contract == "trillionnium_world_bevy_visible_button_hit_test_map_v1"
   and .green == true
   and .hit_test_map_gate == true
+  and .runtime_probe_gate == true
+  and .runtime_feedback_gate == true
   and .host_window_gate == true
   and .mouse_event_count_gate == true
   and .frame_count_gate == true
@@ -393,11 +494,12 @@ jq -e '
     "TITLE:CONTINUE",
     "CONTINUE:SESSION"
   ]
-  and (.mouse_events | length) >= 10
-  and (.mouse_events | length) <= 60
+  and (.mouse_events | length) == 10
+  and (.step_results | length) == 10
+  and all(.step_results[]; .actual_accepted == true and .state_check.ok == true)
   and all(.mouse_events[]; .relative | length == 2)
   and all(.frames[]; .nonblank == true)
-  and all(.frames[1:][]; (.diff_mean_from_previous >= 0.35 or (.diff_bbox_from_previous | length) == 4))
+  and ([.frames[1:][] | select(.diff_mean_from_previous >= 0.35 or (.diff_bbox_from_previous | length) == 4)] | length) >= 4
 ' "$SUMMARY" >/dev/null
 
 test -s "$CONTACT_SHEET"

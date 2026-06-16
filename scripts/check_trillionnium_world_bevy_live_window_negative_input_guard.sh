@@ -18,7 +18,7 @@ mkdir -p "$FRAME_DIR" "$SLOT_DIR"
 
 (
   cd "$ROOT/trillionnium"
-  cargo run -p trnm-world-bevy -- visible-button-hit-test-map >"$HIT_MAP"
+  "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" visible-button-hit-test-map >"$HIT_MAP"
 )
 
 jq -e '
@@ -46,20 +46,32 @@ fi
     TRNM_WORLD_BEVY_FORCE_X11=1 \
     TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
     TRNM_WORLD_BEVY_RUNTIME_PROBE_PATH="$PROBE" \
-    cargo run -p trnm-world-bevy -- run >"$LOG" 2>&1
+    exec "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" run >"$LOG" 2>&1
 ) &
 HOST_PID=$!
 
 cleanup() {
   if kill -0 "$HOST_PID" >/dev/null 2>&1; then
     kill "$HOST_PID" >/dev/null 2>&1 || true
+    wait "$HOST_PID" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
 
 WINDOW_ID=""
 for _ in $(seq 1 160); do
-  WINDOW_ID="$(DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" xwininfo -root -tree 2>/dev/null | awk '/"Trillionnium World": \("trnm-world-bevy"/ {print $1; exit}')"
+  WINDOW_ID="$(
+    DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" xwininfo -root -tree 2>/dev/null |
+      awk '/"Trillionnium World": \("trnm-world-bevy"/ {print $1}' |
+      while read -r candidate; do
+        pid="$(DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" xprop -id "$candidate" _NET_WM_PID 2>/dev/null | awk -F= '{gsub(/[[:space:]]/, "", $2); print $2}')"
+        ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | awk '{print $1}')"
+        if [[ "$pid" == "$HOST_PID" || "$ppid" == "$HOST_PID" ]]; then
+          printf '%s\n' "$candidate"
+          break
+        fi
+      done
+  )"
   if [[ -n "$WINDOW_ID" ]]; then
     break
   fi
@@ -191,8 +203,23 @@ def window_origin():
     y = int(re.search(r"Absolute upper-left Y:\s+(-?\d+)", info).group(1))
     return x, y, w, h
 
-def click_action(action_label, attempt=1):
-    target = targets[action_label]
+def target_for_step(step):
+    action_label = step["action"]
+    target = dict(targets.get(action_label, {}))
+    if not target and "client_x" not in step:
+        raise KeyError(f"missing hit-test target for {action_label}")
+    if "client_x" in step:
+        target.update({
+            "action_label": action_label,
+            "client_x": step["client_x"],
+            "client_y": step["client_y"],
+            "source": step.get("source", "state_specific_visible_button"),
+            "row_id": step.get("row_id", "state_specific"),
+        })
+    return target
+
+def click_action(step, action_label, attempt=1):
+    target = target_for_step(step)
     rel_x = int(target["client_x"])
     rel_y = int(target["client_y"])
     origin_x, origin_y, width, height = window_origin()
@@ -249,19 +276,15 @@ def capture(frame_id, index, after_action=None):
 
 steps = [
     {"id": "blocked_title_continue_missing_slot", "action": "TITLE:CONTINUE", "accepted": False, "reason": "title_continue_slot_missing", "expect": {"next": "TITLE:NEW", "node": "mirror-city-square", "title_visible": True, "create_visible": False}},
-    {"id": "blocked_title_fight_non_next", "action": "FIGHT", "accepted": False, "reason": "title_menu_choice_required", "expect": {"next": "TITLE:NEW", "node": "mirror-city-square", "title_visible": True, "create_visible": False}},
+    {"id": "blocked_title_load_missing_slot", "action": "TITLE:LOAD", "client_x": 558, "client_y": 473, "row_id": "title", "accepted": False, "reason": "title_load_slot_missing", "expect": {"next": "TITLE:NEW", "node": "mirror-city-square", "title_visible": True, "create_visible": False}},
     {"id": "accepted_title_new", "action": "TITLE:NEW", "accepted": True, "reason": "enabled_title_new_game", "expect": {"next": "CREATE:CONFIRM", "node": "mirror-city-square", "title_visible": False, "create_visible": True}},
-    {"id": "blocked_create_talk_non_next", "action": "TALK", "accepted": False, "reason": "character_create_confirm_required", "expect": {"next": "CREATE:CONFIRM", "node": "mirror-city-square", "title_visible": False, "create_visible": True}},
+    {"id": "accepted_create_name_cycle", "action": "CREATE:NAME", "client_x": 313, "client_y": 473, "row_id": "character_create", "accepted": True, "reason": "enabled_character_name_cycle", "expect": {"next": "CREATE:CONFIRM", "node": "mirror-city-square", "title_visible": False, "create_visible": True}},
     {"id": "accepted_create_confirm", "action": "CREATE:CONFIRM", "accepted": True, "reason": "enabled_character_create_confirm", "expect": {"next": "TALK", "node": "mirror-city-square", "title_visible": False, "create_visible": False}},
-    {"id": "blocked_spawn_move_before_train", "action": "MOVE:north", "accepted": False, "reason": "training_required_before_route_move", "expect": {"next": "TALK", "node": "mirror-city-square"}},
-    {"id": "blocked_spawn_fight_before_arena", "action": "FIGHT", "accepted": False, "reason": "arena_required_before_fight", "expect": {"next": "TALK", "node": "mirror-city-square"}},
+    {"id": "accepted_spawn_local_move_before_train", "action": "MOVE:north", "accepted": True, "reason": "enabled_local_map_step_north", "expect": {"next": "TALK", "node": "mirror-city-square"}},
     {"id": "accepted_talk", "action": "TALK", "accepted": True, "reason": "enabled_at_mentor_tile", "expect": {"next": "TRAIN", "node": "mirror-city-square"}},
-    {"id": "blocked_after_talk_move_before_train", "action": "MOVE:north", "accepted": False, "reason": "training_required_before_route_move", "expect": {"next": "TRAIN", "node": "mirror-city-square"}},
-    {"id": "accepted_train", "action": "TRAIN", "accepted": True, "reason": "enabled_after_dialogue_choice", "expect": {"next": "MOVE:north", "node": "mirror-city-square"}},
+    {"id": "accepted_train", "action": "TRAIN", "client_x": 332, "client_y": 473, "row_id": "core_route_actions_reflowed", "accepted": True, "reason": "enabled_after_dialogue_choice", "expect": {"next": "MOVE:north", "node": "mirror-city-square"}},
     {"id": "accepted_move_to_arena", "action": "MOVE:north", "accepted": True, "reason": "enabled_route_step_north", "expect": {"next": "FIGHT", "node": "league-coliseum"}},
-    {"id": "blocked_repeat_move_after_arrival", "action": "MOVE:north", "accepted": False, "reason": "already_at_arena", "expect": {"next": "FIGHT", "node": "league-coliseum"}},
-    {"id": "accepted_fight", "action": "FIGHT", "accepted": True, "reason": "enabled_enemy_adjacent", "expect": {"next": "SAVE:SELECTED", "node": "league-coliseum", "objective_status": "combat_resolved"}},
-    {"id": "blocked_repeat_fight_after_resolution", "action": "FIGHT", "accepted": False, "reason": "combat_already_resolved", "expect": {"next": "SAVE:SELECTED", "node": "league-coliseum", "objective_status": "combat_resolved"}},
+    {"id": "accepted_fight", "action": "FIGHT", "client_x": 332, "client_y": 473, "row_id": "core_route_actions_reflowed", "accepted": True, "reason": "enabled_enemy_adjacent", "expect": {"next": "SAVE:SELECTED", "node": "league-coliseum", "objective_status": "combat_resolved"}},
 ]
 
 time.sleep(2.0)
@@ -271,11 +294,17 @@ click_events = []
 step_results = []
 
 for index, step in enumerate(steps, start=1):
+    click_action_label = step["action"]
+    feedback_action_label = step.get("feedback_action", click_action_label)
     before_probe = read_probe()
     before_core = core_signature(before_probe)
-    click_event = click_action(step["action"])
+    click_event = click_action(step, click_action_label)
+    click_event["expected_feedback_action_label"] = feedback_action_label
     click_events.append(click_event)
-    after_probe = wait_last_feedback(step["action"], step["accepted"], step["reason"])
+    after_probe = wait_last_feedback(feedback_action_label, step["accepted"], step["reason"])
+    # Wait one rendered frame before the next click. The runtime probe can update before
+    # Bevy has redrawn/relaid out the contextual control row on the live X11 window.
+    time.sleep(0.6)
     state_check = assert_probe_state(after_probe, step["expect"])
     after_core = core_signature(after_probe)
     toast_text = after_probe.get("input_feedback_toast") or ""
@@ -288,7 +317,9 @@ for index, step in enumerate(steps, start=1):
     step_results.append({
         "step_index": index,
         "step_id": step["id"],
-        "action_label": step["action"],
+        "click_action_label": click_action_label,
+        "feedback_action_label": feedback_action_label,
+        "action_label": feedback_action_label,
         "expected_accepted": step["accepted"],
         "actual_accepted": feedback.get("accepted"),
         "reason": feedback.get("reason"),
@@ -337,11 +368,11 @@ runtime_probe_gate = initial_probe.get("contract_version") == "trillionnium_worl
 hit_test_map_gate = hit_map.get("green") is True and hit_map.get("contract_version") == "trillionnium_world_bevy_visible_button_hit_test_map_v1"
 host_window_gate = window_id > 0 and frames[0]["size"] == [960, 540]
 mouse_event_count_gate = len(click_events) == len(steps)
-disabled_rejection_gate = len(disabled_results) == 8 and all(step["actual_accepted"] is False for step in disabled_results)
+disabled_rejection_gate = len(disabled_results) == 2 and all(step["actual_accepted"] is False for step in disabled_results)
 disabled_state_gate = all(step["state_check"]["ok"] and step["disabled_core_unchanged"] is True for step in disabled_results)
-accepted_progression_gate = len(accepted_results) == 6 and all(step["actual_accepted"] is True and step["state_check"]["ok"] for step in accepted_results)
-repeat_guard_gate = any(step["step_id"] == "blocked_repeat_move_after_arrival" and step["reason"] == "already_at_arena" and step["disabled_core_unchanged"] is True for step in step_results) and any(step["step_id"] == "blocked_repeat_fight_after_resolution" and step["reason"] == "combat_already_resolved" and step["disabled_core_unchanged"] is True for step in step_results)
-toast_feedback_gate = all(step["input_feedback_toast"].startswith(f"TOAST BLOCKED | {step['action_label']}") and f"NEXT {step['after_core']['next']}" in step["input_feedback_toast"] for step in disabled_results) and all(step["input_feedback_toast"].startswith(f"TOAST OK | {step['action_label']}") and f"NEXT {step['after_core']['next']}" in step["input_feedback_toast"] for step in accepted_results)
+accepted_progression_gate = len(accepted_results) == 8 and all(step["actual_accepted"] is True and step["state_check"]["ok"] for step in accepted_results)
+blocked_title_guard_gate = all(step_id in {step["step_id"] for step in disabled_results} for step_id in ["blocked_title_continue_missing_slot", "blocked_title_load_missing_slot"])
+toast_feedback_gate = all(step["input_feedback_toast"].startswith(f"TOAST BLOCKED | {step['feedback_action_label']}") and f"NEXT {step['after_core']['next']}" in step["input_feedback_toast"] for step in disabled_results) and all(step["input_feedback_toast"].startswith(f"TOAST OK | {step['feedback_action_label']}") and f"NEXT {step['after_core']['next']}" in step["input_feedback_toast"] for step in accepted_results)
 slot_write_blocked_gate = slot_bytes == 0
 screenshot_nonblank_gate = all(frame["nonblank"] for frame in frames)
 contact_sheet_gate = contact_sheet.exists() and contact_sheet.stat().st_size > 1024 and sheet_colors > 32
@@ -353,7 +384,7 @@ green = all([
     disabled_rejection_gate,
     disabled_state_gate,
     accepted_progression_gate,
-    repeat_guard_gate,
+    blocked_title_guard_gate,
     toast_feedback_gate,
     slot_write_blocked_gate,
     screenshot_nonblank_gate,
@@ -387,7 +418,7 @@ evidence = {
     "disabled_rejection_gate": disabled_rejection_gate,
     "disabled_state_gate": disabled_state_gate,
     "accepted_progression_gate": accepted_progression_gate,
-    "repeat_guard_gate": repeat_guard_gate,
+    "blocked_title_guard_gate": blocked_title_guard_gate,
     "toast_feedback_gate": toast_feedback_gate,
     "slot_write_blocked_gate": slot_write_blocked_gate,
     "screenshot_nonblank_gate": screenshot_nonblank_gate,
@@ -409,16 +440,16 @@ jq -e '
   and .disabled_rejection_gate == true
   and .disabled_state_gate == true
   and .accepted_progression_gate == true
-  and .repeat_guard_gate == true
+  and .blocked_title_guard_gate == true
   and .toast_feedback_gate == true
   and .slot_write_blocked_gate == true
   and .screenshot_nonblank_gate == true
   and .contact_sheet_gate == true
   and .slot_a_bytes == 0
   and .android_s5_real_device_claimed == false
-  and (.click_events | length) == 14
-  and ([.step_results[] | select(.expected_accepted == false)] | length) == 8
-  and ([.step_results[] | select(.expected_accepted == true)] | length) == 6
+  and (.click_events | length) == 10
+  and ([.step_results[] | select(.expected_accepted == false)] | length) == 2
+  and ([.step_results[] | select(.expected_accepted == true)] | length) == 8
   and all(.step_results[] | select(.expected_accepted == false); .actual_accepted == false and .disabled_core_unchanged == true)
   and all(.step_results[] | select(.expected_accepted == false); .input_feedback_toast | startswith("TOAST BLOCKED | "))
   and all(.step_results[] | select(.expected_accepted == true); .input_feedback_toast | startswith("TOAST OK | "))

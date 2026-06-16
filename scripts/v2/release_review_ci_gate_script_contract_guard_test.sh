@@ -601,6 +601,8 @@ required_lines=(
   'check_trillionnium_world_bevy_authored_render_frame.sh'
   'authored_live_visual_bridge_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_authored_live_visual_bridge.sh'
+  'bevy_live_window_artifact_wrapper_script_contract_guard_test.sh'
+  'bevy_live_window_artifact_wrapper_contract_guard'
   'live_window_layer_pixel_probe_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_live_window_layer_pixel_probe.sh'
   'live_window_texture_correlation_script_contract_guard_test.sh'
