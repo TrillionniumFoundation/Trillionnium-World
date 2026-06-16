@@ -80505,6 +80505,27 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
     ) && bool_at(&first_minute, "green")
         && bool_at(&first_minute, "campaign_entry_gate")
         && bool_at(&first_minute, "breadcrumb_gate")
+        && bool_at(&first_minute, "runtime_screen_gate")
+        && !bool_at(&first_minute, "evidence_board_only")
+        && str_at(&first_minute, "runtime_screen_mode")
+            == "player_runtime_first_minute_readiness_screen"
+        && bool_at(&first_minute, "player_first_first_minute_screen_gate")
+        && u64_pointer(
+            &first_minute,
+            "/first_minute_pixel_counts/player_first_campaign_view_non_background",
+        ) > 600_000
+        && u64_pointer(
+            &first_minute,
+            "/first_minute_pixel_counts/player_first_campaign_view_frame",
+        ) > 10_000
+        && u64_pointer(
+            &first_minute,
+            "/first_minute_pixel_counts/player_first_campaign_status_strip",
+        ) > 8_000
+        && u64_pointer(
+            &first_minute,
+            "/first_minute_pixel_counts/player_first_campaign_route_rail",
+        ) > 100_000
         && str_at(&first_minute, "final_current_room_id") == "league-coliseum"
         && str_at(&first_minute, "final_objective_status") == "open_world_after_action_ready";
     let objective_victory_gate = contract_is(
@@ -80604,6 +80625,49 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
     ]
     .iter()
     .all(|path| file_ready(path));
+    let player_first_campaign_outcome_screen_gate = first_minute_gate
+        && objective_victory_gate
+        && base_assault_gate
+        && battle_aftermath_gate
+        && open_world_return_gate
+        && u64_at(&victory, "non_background_pixels") > 250_000
+        && u64_at(&victory, "victory_pixel_count") > 20
+        && u64_at(&victory, "extraction_pixel_count") > 40
+        && u64_at(&base_assault, "non_background_pixels") > 350_000
+        && u64_at(&base_assault, "breach_pixel_count") > 80
+        && u64_at(&base_assault, "assault_path_pixel_count") > 120
+        && u64_pointer(
+            &aftermath,
+            "/battle_aftermath_pixel_counts/player_first_battle_view_non_background",
+        ) > 250_000
+        && u64_pointer(
+            &aftermath,
+            "/battle_aftermath_pixel_counts/player_first_battle_view_frame",
+        ) > 8_000
+        && u64_pointer(
+            &aftermath,
+            "/battle_aftermath_pixel_counts/player_first_battle_status_strip",
+        ) > 20_000
+        && u64_pointer(
+            &aftermath,
+            "/battle_aftermath_pixel_counts/player_first_battle_outcome_panel",
+        ) > 90_000
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_view_non_background",
+        ) > 250_000
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_view_frame",
+        ) > 8_000
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_status_strip",
+        ) > 20_000
+        && u64_pointer(
+            &open_world,
+            "/open_world_after_action_pixel_counts/player_first_open_world_route_panel",
+        ) > 90_000;
     let runtime_screen_gate = first_minute_gate
         && objective_victory_gate
         && base_assault_gate
@@ -80611,7 +80675,8 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         && open_world_return_gate
         && native_boundary_gate
         && preview_gate;
-    let campaign_outcome_ui_readiness_gate = runtime_screen_gate;
+    let campaign_outcome_ui_readiness_gate =
+        runtime_screen_gate && player_first_campaign_outcome_screen_gate;
     let green = campaign_outcome_ui_readiness_gate;
 
     serde_json::to_string_pretty(&json!({
@@ -80651,6 +80716,7 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         "open_world_return_gate": open_world_return_gate,
         "native_boundary_gate": native_boundary_gate,
         "preview_gate": preview_gate,
+        "player_first_campaign_outcome_screen_gate": player_first_campaign_outcome_screen_gate,
         "runtime_screen_gate": runtime_screen_gate,
         "campaign_outcome_ui_readiness_gate": campaign_outcome_ui_readiness_gate,
         "campaign_flow": [
@@ -80663,24 +80729,40 @@ pub fn native_classic_rts_campaign_outcome_ui_readiness_evidence_json(preview_di
         "first_minute_summary": {
             "input_action_count": first_minute.get("input_action_count").cloned().unwrap_or(Value::Null),
             "final_room": first_minute.get("final_current_room_id").cloned().unwrap_or(Value::Null),
-            "final_objective_status": first_minute.get("final_objective_status").cloned().unwrap_or(Value::Null)
+            "final_objective_status": first_minute.get("final_objective_status").cloned().unwrap_or(Value::Null),
+            "runtime_screen_mode": first_minute.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "runtime_screen_gate": first_minute.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
+            "evidence_board_only": first_minute.get("evidence_board_only").cloned().unwrap_or(Value::Null),
+            "player_first_first_minute_screen_gate": first_minute.get("player_first_first_minute_screen_gate").cloned().unwrap_or(Value::Null),
+            "first_minute_pixel_counts": first_minute.get("first_minute_pixel_counts").cloned().unwrap_or(Value::Null)
         },
         "victory_summary": {
             "accepted_input_count": victory.get("accepted_input_count").cloned().unwrap_or(Value::Null),
             "final_objective_capture_percent": victory.get("final_objective_capture_percent").cloned().unwrap_or(Value::Null),
             "final_objective_result_state": victory.get("final_objective_result_state").cloned().unwrap_or(Value::Null),
-            "final_defeat_risk_percent": victory.get("final_defeat_risk_percent").cloned().unwrap_or(Value::Null)
+            "final_defeat_risk_percent": victory.get("final_defeat_risk_percent").cloned().unwrap_or(Value::Null),
+            "non_background_pixels": victory.get("non_background_pixels").cloned().unwrap_or(Value::Null),
+            "victory_pixel_count": victory.get("victory_pixel_count").cloned().unwrap_or(Value::Null),
+            "extraction_pixel_count": victory.get("extraction_pixel_count").cloned().unwrap_or(Value::Null)
         },
         "base_assault_summary": {
             "accepted_input_count": base_assault.get("accepted_input_count").cloned().unwrap_or(Value::Null),
             "final_base_breach_percent": base_assault.get("final_base_breach_percent").cloned().unwrap_or(Value::Null),
-            "final_base_assault_result_state": base_assault.get("final_base_assault_result_state").cloned().unwrap_or(Value::Null)
+            "final_base_assault_result_state": base_assault.get("final_base_assault_result_state").cloned().unwrap_or(Value::Null),
+            "non_background_pixels": base_assault.get("non_background_pixels").cloned().unwrap_or(Value::Null),
+            "breach_pixel_count": base_assault.get("breach_pixel_count").cloned().unwrap_or(Value::Null),
+            "assault_path_pixel_count": base_assault.get("assault_path_pixel_count").cloned().unwrap_or(Value::Null)
         },
         "aftermath_summary": {
             "accepted_input_count": aftermath.get("accepted_input_count").cloned().unwrap_or(Value::Null),
             "final_match_result_state": aftermath.get("final_match_result_state").cloned().unwrap_or(Value::Null),
             "final_growth_level": aftermath.get("final_growth_level").cloned().unwrap_or(Value::Null),
-            "final_next_action_ids": aftermath.get("final_next_action_ids").cloned().unwrap_or(Value::Null)
+            "final_next_action_ids": aftermath.get("final_next_action_ids").cloned().unwrap_or(Value::Null),
+            "runtime_screen_mode": aftermath.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
+            "runtime_screen_gate": aftermath.get("runtime_screen_gate").cloned().unwrap_or(Value::Null),
+            "evidence_board_only": aftermath.get("evidence_board_only").cloned().unwrap_or(Value::Null),
+            "player_first_battle_aftermath_screen_gate": aftermath.get("player_first_battle_aftermath_screen_gate").cloned().unwrap_or(Value::Null),
+            "battle_aftermath_pixel_counts": aftermath.get("battle_aftermath_pixel_counts").cloned().unwrap_or(Value::Null)
         },
         "open_world_summary": {
             "accepted_input_count": open_world.get("accepted_input_count").cloned().unwrap_or(Value::Null),

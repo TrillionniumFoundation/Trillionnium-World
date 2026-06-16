@@ -97,7 +97,7 @@ jq -n '{
   fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
   fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 120,
-  expected_semantic_failure_count: 15,
+  expected_semantic_failure_count: 17,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
@@ -113,7 +113,9 @@ jq -n '{
     "first_minute_command_feedback_rejection_source_recording_semantics",
     "first_minute_command_feedback_rejection_recording_semantics",
     "first_minute_command_feedback_rejection_replay_ppm_semantics",
-    "classic_playtest_readiness_full_game_visual_ui_replication_semantics"
+    "classic_playtest_readiness_full_game_visual_ui_replication_semantics",
+    "classic_playtest_readiness_semantics",
+    "campaign_outcome_ui_readiness_semantics"
   ],
   checksum_mismatch_failure_count: 0,
   bytes_mismatch_failure_count: 0,
@@ -2336,7 +2338,7 @@ fi
 jq -e '
   .status == "release_review_packet_integrity_blocked"
   and .green == false
-  and (.failures | length) == 15
+  and (.failures | length) == 17
   and ([.failures[].name] | index("release_review_convergence_semantics"))
   and ([.failures[].name] | index("release_review_status_semantics"))
   and ([.failures[].name] | index("release_review_status_markdown_semantics"))
@@ -2352,6 +2354,8 @@ jq -e '
   and ([.failures[].name] | index("first_minute_command_feedback_rejection_recording_semantics"))
   and ([.failures[].name] | index("first_minute_command_feedback_rejection_replay_ppm_semantics"))
   and ([.failures[].name] | index("classic_playtest_readiness_full_game_visual_ui_replication_semantics"))
+  and ([.failures[].name] | index("classic_playtest_readiness_semantics"))
+  and ([.failures[].name] | index("campaign_outcome_ui_readiness_semantics"))
   and (([.failures[].detail] | index("sha256_mismatch")) == null)
   and (([.failures[].detail] | index("bytes_mismatch")) == null)
   and (([.failures[].detail] | index("contract_mismatch")) == null)

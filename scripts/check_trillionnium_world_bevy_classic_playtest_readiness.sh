@@ -2154,6 +2154,18 @@ jq -n \
       rts_match_setup_ui_replication_player_first_ready_strip_pixel_count: $rts_match_setup_ui_replication[0].match_setup_player_first_pixel_counts.player_first_match_setup_ready_strip,
       rts_match_setup_ui_replication_map_id: $rts_match_setup_ui_replication[0].source_headline.map_id,
       rts_match_setup_ui_replication_faction_id: $rts_match_setup_ui_replication[0].source_headline.faction_id,
+      rts_campaign_outcome_ui_readiness_runtime_screen_mode: $rts_campaign_outcome_ui_readiness[0].runtime_screen_mode,
+      rts_campaign_outcome_ui_readiness_evidence_board_only: $rts_campaign_outcome_ui_readiness[0].evidence_board_only,
+      rts_campaign_outcome_ui_readiness_first_minute_player_first_non_background: $rts_campaign_outcome_ui_readiness[0].first_minute_summary.first_minute_pixel_counts.player_first_campaign_view_non_background,
+      rts_campaign_outcome_ui_readiness_first_minute_player_first_route_rail: $rts_campaign_outcome_ui_readiness[0].first_minute_summary.first_minute_pixel_counts.player_first_campaign_route_rail,
+      rts_campaign_outcome_ui_readiness_victory_non_background_pixels: $rts_campaign_outcome_ui_readiness[0].victory_summary.non_background_pixels,
+      rts_campaign_outcome_ui_readiness_victory_extraction_pixel_count: $rts_campaign_outcome_ui_readiness[0].victory_summary.extraction_pixel_count,
+      rts_campaign_outcome_ui_readiness_base_assault_non_background_pixels: $rts_campaign_outcome_ui_readiness[0].base_assault_summary.non_background_pixels,
+      rts_campaign_outcome_ui_readiness_base_assault_breach_pixel_count: $rts_campaign_outcome_ui_readiness[0].base_assault_summary.breach_pixel_count,
+      rts_campaign_outcome_ui_readiness_aftermath_player_first_view_non_background: $rts_campaign_outcome_ui_readiness[0].aftermath_summary.battle_aftermath_pixel_counts.player_first_battle_view_non_background,
+      rts_campaign_outcome_ui_readiness_aftermath_player_first_outcome_panel: $rts_campaign_outcome_ui_readiness[0].aftermath_summary.battle_aftermath_pixel_counts.player_first_battle_outcome_panel,
+      rts_campaign_outcome_ui_readiness_open_world_player_first_view_non_background: $rts_campaign_outcome_ui_readiness[0].open_world_summary.open_world_after_action_pixel_counts.player_first_open_world_view_non_background,
+      rts_campaign_outcome_ui_readiness_open_world_player_first_route_panel: $rts_campaign_outcome_ui_readiness[0].open_world_summary.open_world_after_action_pixel_counts.player_first_open_world_route_panel,
       rts_campaign_ui_continuity_capture_frame_count: $rts_campaign_ui_continuity[0].capture_frame_count,
       rts_campaign_ui_continuity_non_background_pixels: $rts_campaign_ui_continuity[0].non_background_pixels,
       rts_campaign_ui_continuity_final_room_id: $rts_campaign_ui_continuity[0].final_current_room_id,
@@ -2997,6 +3009,14 @@ jq -n \
       rts_match_setup_ui_replication_no_external_boundary_gate: $rts_match_setup_ui_replication[0].no_external_boundary_gate,
       rts_match_setup_ui_replication_player_first_screen_gate: $rts_match_setup_ui_replication[0].player_first_match_setup_screen_gate,
       rts_match_setup_ui_replication_gate: $rts_match_setup_ui_replication[0].match_setup_ui_replication_gate,
+      rts_campaign_outcome_ui_readiness_runtime_screen_gate: $rts_campaign_outcome_ui_readiness[0].runtime_screen_gate,
+      rts_campaign_outcome_ui_readiness_first_minute_gate: $rts_campaign_outcome_ui_readiness[0].first_minute_gate,
+      rts_campaign_outcome_ui_readiness_objective_victory_gate: $rts_campaign_outcome_ui_readiness[0].objective_victory_gate,
+      rts_campaign_outcome_ui_readiness_base_assault_gate: $rts_campaign_outcome_ui_readiness[0].base_assault_gate,
+      rts_campaign_outcome_ui_readiness_battle_aftermath_gate: $rts_campaign_outcome_ui_readiness[0].battle_aftermath_gate,
+      rts_campaign_outcome_ui_readiness_open_world_return_gate: $rts_campaign_outcome_ui_readiness[0].open_world_return_gate,
+      rts_campaign_outcome_ui_readiness_player_first_screen_gate: $rts_campaign_outcome_ui_readiness[0].player_first_campaign_outcome_screen_gate,
+      rts_campaign_outcome_ui_readiness_gate: $rts_campaign_outcome_ui_readiness[0].campaign_outcome_ui_readiness_gate,
       rts_campaign_ui_continuity_handoff_green_gate: $rts_campaign_ui_continuity[0].handoff_green_gate,
       rts_campaign_ui_continuity_preview_resolution_gate: $rts_campaign_ui_continuity[0].preview_resolution_gate,
       rts_campaign_ui_continuity_live_input_gate: $rts_campaign_ui_continuity[0].live_input_gate,
@@ -3744,6 +3764,18 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_match_setup_ui_replication_map_id == "first_contact_basin"
   and .headline.rts_match_setup_ui_replication_faction_id == "mirror_guard"
   and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
+  and .headline.rts_campaign_outcome_ui_readiness_runtime_screen_mode == "player_runtime_campaign_outcome_screen"
+  and .headline.rts_campaign_outcome_ui_readiness_evidence_board_only == false
+  and .headline.rts_campaign_outcome_ui_readiness_first_minute_player_first_non_background > 600000
+  and .headline.rts_campaign_outcome_ui_readiness_first_minute_player_first_route_rail > 100000
+  and .headline.rts_campaign_outcome_ui_readiness_victory_non_background_pixels > 250000
+  and .headline.rts_campaign_outcome_ui_readiness_victory_extraction_pixel_count > 40
+  and .headline.rts_campaign_outcome_ui_readiness_base_assault_non_background_pixels > 350000
+  and .headline.rts_campaign_outcome_ui_readiness_base_assault_breach_pixel_count > 80
+  and .headline.rts_campaign_outcome_ui_readiness_aftermath_player_first_view_non_background > 250000
+  and .headline.rts_campaign_outcome_ui_readiness_aftermath_player_first_outcome_panel > 90000
+  and .headline.rts_campaign_outcome_ui_readiness_open_world_player_first_view_non_background > 250000
+  and .headline.rts_campaign_outcome_ui_readiness_open_world_player_first_route_panel > 90000
   and .headline.rts_campaign_ui_continuity_capture_frame_count == 16
   and .headline.rts_campaign_ui_continuity_non_background_pixels > 500000
   and .headline.rts_campaign_ui_continuity_final_room_id == "league-coliseum"
@@ -5425,6 +5457,14 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_match_setup_ui_replication_no_external_boundary_gate == true
   and .gates.rts_match_setup_ui_replication_player_first_screen_gate == true
   and .gates.rts_match_setup_ui_replication_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_runtime_screen_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_first_minute_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_objective_victory_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_base_assault_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_battle_aftermath_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_open_world_return_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_player_first_screen_gate == true
+  and .gates.rts_campaign_outcome_ui_readiness_gate == true
   and .gates.rts_campaign_ui_continuity_handoff_green_gate == true
   and .gates.rts_campaign_ui_continuity_preview_resolution_gate == true
   and .gates.rts_campaign_ui_continuity_live_input_gate == true

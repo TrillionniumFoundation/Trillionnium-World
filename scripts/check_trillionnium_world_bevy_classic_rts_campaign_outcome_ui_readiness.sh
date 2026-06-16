@@ -32,6 +32,7 @@ jq -e '
   and .base_assault_gate == true
   and .battle_aftermath_gate == true
   and .open_world_return_gate == true
+  and .player_first_campaign_outcome_screen_gate == true
   and .native_boundary_gate == true
   and .preview_gate == true
   and .campaign_outcome_ui_readiness_gate == true
@@ -42,17 +43,35 @@ jq -e '
   and .first_minute_summary.input_action_count == 73
   and .first_minute_summary.final_room == "league-coliseum"
   and .first_minute_summary.final_objective_status == "open_world_after_action_ready"
+  and .first_minute_summary.runtime_screen_mode == "player_runtime_first_minute_readiness_screen"
+  and .first_minute_summary.runtime_screen_gate == true
+  and .first_minute_summary.evidence_board_only == false
+  and .first_minute_summary.player_first_first_minute_screen_gate == true
+  and .first_minute_summary.first_minute_pixel_counts.player_first_campaign_view_non_background > 600000
+  and .first_minute_summary.first_minute_pixel_counts.player_first_campaign_route_rail > 100000
   and .victory_summary.accepted_input_count == 6
   and .victory_summary.final_objective_capture_percent == 100
   and .victory_summary.final_objective_result_state == "victory:relay_beacon_extracted"
   and .victory_summary.final_defeat_risk_percent <= 8
+  and .victory_summary.non_background_pixels > 250000
+  and .victory_summary.victory_pixel_count > 20
+  and .victory_summary.extraction_pixel_count > 40
   and .base_assault_summary.accepted_input_count == 9
   and .base_assault_summary.final_base_breach_percent == 100
   and .base_assault_summary.final_base_assault_result_state == "breached:enemy_barracks"
+  and .base_assault_summary.non_background_pixels > 350000
+  and .base_assault_summary.breach_pixel_count > 80
+  and .base_assault_summary.assault_path_pixel_count > 120
   and .aftermath_summary.accepted_input_count == 12
   and .aftermath_summary.final_match_result_state == "victory_ready:secure_expansion"
   and .aftermath_summary.final_growth_level >= 2
   and (.aftermath_summary.final_next_action_ids | index("secure_expansion") != null)
+  and .aftermath_summary.runtime_screen_mode == "player_runtime_battle_aftermath_screen"
+  and .aftermath_summary.runtime_screen_gate == true
+  and .aftermath_summary.evidence_board_only == false
+  and .aftermath_summary.player_first_battle_aftermath_screen_gate == true
+  and .aftermath_summary.battle_aftermath_pixel_counts.player_first_battle_view_non_background > 250000
+  and .aftermath_summary.battle_aftermath_pixel_counts.player_first_battle_outcome_panel > 90000
   and .open_world_summary.accepted_input_count == 3
   and .open_world_summary.final_current_room_id == "league-coliseum"
   and .open_world_summary.final_map_scene == "arena_outdoor"
