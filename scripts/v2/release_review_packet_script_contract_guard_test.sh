@@ -6,6 +6,8 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_release_review_packet.sh"
 
 required_lines=(
   'trillionnium_world_release_review_packet_v1'
+  'TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS'
+  'if [[ "$REFRESH_INPUTS" != "0" ]]'
   'check_trillionnium_world_release_review_convergence.sh'
   'release-review-packet.json'
   'release-review-packet.md'
