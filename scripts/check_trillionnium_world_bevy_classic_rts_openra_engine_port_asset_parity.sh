@@ -32,7 +32,9 @@ jq -e '
   and .source_contracts.openra_screen_for_screen_ui_replication == "trillionnium_world_bevy_classic_rts_openra_screen_for_screen_ui_replication_v1"
   and .source_contracts.openra_like_core == "trillionnium_world_bevy_classic_rts_openra_like_core_v1"
   and .source_contracts.classic_asset_pack == "trillionnium_world_bevy_classic_asset_pack_v1"
-  and .source_headline.openra_screen_for_screen_claimed == true
+  and .source_headline.openra_screen_for_screen_claimed == false
+  and .source_headline.openra_style_widget_root_screen_set_claimed == true
+  and .source_headline.player_first_openra_style_ingame_screen_gate == true
   and .source_headline.openra_reference_screen_count == 8
   and .source_headline.openra_like_runtime_model == "rust_bevy_owned_openra_like_rts_core"
   and .source_headline.rules_count >= 10

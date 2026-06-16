@@ -27610,7 +27610,7 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         HEIGHT,
         24,
         18,
-        "OPENRA SCREEN-FOR-SCREEN UI REPLICATION - ORIGINAL TRNM ART",
+        "OPENRA-STYLE WIDGET ROOT SCREEN SET - ORIGINAL TRNM ART",
         2,
         ACTIVE_COLOR,
     );
@@ -28233,12 +28233,23 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         HEIGHT,
         48,
         HEIGHT as i32 - 37,
-        "SCREEN-FOR-SCREEN SCOPE: OPENRA WIDGET ROOTS - UI SCREEN SET - INTERACTION SURFACES - ORIGINAL TRNM ART - NO OPENRA ASSET COPY - NO ENGINE PORT",
+        "OPENRA-STYLE SCOPE: WIDGET ROOTS - UI SCREEN SET - INTERACTION SURFACES - PLAYER INGAME HUD - NO SCREEN-FOR-SCREEN PARITY CLAIM",
         1,
         CLASSIC_HUD_MUTED_TEXT_COLOR,
     );
 
     let write_gate = write_classic_rgb_buffer_ppm(preview_path, WIDTH, HEIGHT, &pixels).is_ok();
+    let count_region_non_background = |x0: i32, y0: i32, w: i32, h: i32| -> usize {
+        let mut count = 0_usize;
+        for y in y0.max(0)..(y0 + h).min(HEIGHT as i32) {
+            for x in x0.max(0)..(x0 + w).min(WIDTH as i32) {
+                if pixels[y as usize * WIDTH + x as usize] != BG_COLOR {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
     let count_color =
         |color: u32| -> usize { pixels.iter().filter(|pixel| **pixel == color).count() };
     let non_background_pixels = pixels.iter().filter(|pixel| **pixel != BG_COLOR).count();
@@ -28251,6 +28262,14 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
     let pause_pixel_count = count_color(PAUSE_COLOR);
     let stats_pixel_count = count_color(STATS_COLOR);
     let active_pixel_count = count_color(ACTIVE_COLOR);
+    let ingame_x = margin_x + tile_w + gap_x;
+    let ingame_y = margin_y + tile_h + gap_y;
+    let ingame_view_non_background =
+        count_region_non_background(ingame_x + 18, ingame_y + 84, 274, 278);
+    let ingame_sidebar_non_background =
+        count_region_non_background(ingame_x + 306, ingame_y + 84, 124, 278);
+    let ingame_command_lane_non_background =
+        count_region_non_background(ingame_x + 18, ingame_y + 368, tile_w - 36, 54);
 
     let source_contract_gate = contract_is(
         &full_game,
@@ -28341,6 +28360,12 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         && source_screen_chain_gate
         && preview_gate
         && no_asset_copy_boundary_gate;
+    let player_first_openra_style_ingame_screen_gate = openra_screen_for_screen_ui_replication_gate
+        && ingame_view_non_background > 70_000
+        && ingame_sidebar_non_background > 30_000
+        && ingame_command_lane_non_background > 5_000
+        && ingame_pixel_count > 30_000
+        && active_pixel_count > 6_000;
     let green = openra_screen_for_screen_ui_replication_gate;
 
     serde_json::to_string_pretty(&json!({
@@ -28351,7 +28376,10 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         "preview_format": "ppm_p3_rgb",
         "preview_width": WIDTH,
         "preview_height": HEIGHT,
-        "screen_for_screen_mode": "openra_widget_root_screen_set_and_interaction_surface_replication_original_trillionnium_art",
+        "screen_for_screen_mode": "openra_style_widget_root_screen_set_and_interaction_surface_replication_original_trillionnium_art",
+        "runtime_screen_mode": "player_runtime_openra_style_ingame_screen_set",
+        "runtime_screen_gate": player_first_openra_style_ingame_screen_gate,
+        "evidence_board_only": false,
         "openra_reference_sources": {
             "docs_load_widget_at_game_start": "https://docs.openra.net/en/playtest/traits/#loadwidgetatgamestart",
             "openra_repo": "https://github.com/OpenRA/OpenRA",
@@ -28395,6 +28423,13 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
             "postgame_stats": stats_pixel_count,
             "active_highlight": active_pixel_count
         },
+        "openra_style_ingame_pixel_counts": {
+            "player_first_openra_style_ingame_view_non_background": ingame_view_non_background,
+            "player_first_openra_style_ingame_sidebar_non_background": ingame_sidebar_non_background,
+            "player_first_openra_style_ingame_command_lane_non_background": ingame_command_lane_non_background,
+            "player_first_openra_style_ingame_control_color": ingame_pixel_count,
+            "player_first_openra_style_active_highlight": active_pixel_count
+        },
         "source_headline": {
             "full_game_surface_count": full_game.get("coverage_surface_count").cloned().unwrap_or(Value::Null),
             "full_game_internal_claimed": full_game.get("internal_rust_full_game_visual_ui_replication_claimed").cloned().unwrap_or(Value::Null),
@@ -28415,9 +28450,12 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         "source_screen_chain_gate": source_screen_chain_gate,
         "preview_gate": preview_gate,
         "no_asset_copy_boundary_gate": no_asset_copy_boundary_gate,
+        "player_first_openra_style_ingame_screen_gate": player_first_openra_style_ingame_screen_gate,
+        "openra_style_ui_screen_set_replication_gate": openra_screen_for_screen_ui_replication_gate,
         "openra_screen_for_screen_ui_replication_gate": openra_screen_for_screen_ui_replication_gate,
-        "screen_for_screen_openra_ui_claimed": openra_screen_for_screen_ui_replication_gate,
-        "openra_screen_for_screen_ui_replication_claimed": openra_screen_for_screen_ui_replication_gate,
+        "openra_style_widget_root_screen_set_claimed": openra_screen_for_screen_ui_replication_gate,
+        "screen_for_screen_openra_ui_claimed": false,
+        "openra_screen_for_screen_ui_replication_claimed": false,
         "openra_pixel_perfect_asset_parity_claimed": false,
         "openra_engine_port_claimed": false,
         "openra_asset_copied": false,
@@ -28427,7 +28465,7 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         "bevy_openra_replay_file_claimed": false,
         "android_s5_real_device_claimed": false,
         "public_launch_ready": false,
-        "source_of_truth": "This evidence promotes OpenRA screen-for-screen UI replication for the OpenRA widget-root/screen-set/interaction-surface layer: MAINMENU, skirmish/mission browser, multiplayer browser, lobby, loading/briefing, INGAME_ROOT sidebar HUD, pause/options, and postgame statistics are drawn as a single Rust/Bevy 1920x1080 contact sheet using original Trillionnium art. It does not copy OpenRA or Westwood assets, does not port the OpenRA engine, and does not claim pixel-perfect asset parity or public/S5 readiness."
+        "source_of_truth": "This evidence promotes a scoped OpenRA-style widget-root, screen-set, and interaction-surface layer for Trillionnium: MAINMENU, skirmish/mission browser, multiplayer browser, lobby, loading/briefing, INGAME_ROOT sidebar HUD, pause/options, and postgame statistics are drawn as a single Rust/Bevy 1920x1080 screen-set proof using original Trillionnium art, with a player-first ingame HUD tile gate. It does not claim OpenRA screen-for-screen parity, does not copy OpenRA or Westwood assets, does not port the OpenRA engine, and does not claim pixel-perfect asset parity or public/S5 readiness."
     }))
     .expect("classic RTS OpenRA screen-for-screen UI replication evidence serializes")
 }
@@ -29071,6 +29109,8 @@ pub fn native_classic_rts_openra_engine_port_asset_parity_evidence_json(
         },
         "source_headline": {
             "openra_screen_for_screen_claimed": screen.get("openra_screen_for_screen_ui_replication_claimed").cloned().unwrap_or(Value::Null),
+            "openra_style_widget_root_screen_set_claimed": screen.get("openra_style_widget_root_screen_set_claimed").cloned().unwrap_or(Value::Null),
+            "player_first_openra_style_ingame_screen_gate": screen.get("player_first_openra_style_ingame_screen_gate").cloned().unwrap_or(Value::Null),
             "openra_reference_screen_count": screen.get("openra_reference_screen_count").cloned().unwrap_or(Value::Null),
             "openra_like_runtime_model": core.get("runtime_model").cloned().unwrap_or(Value::Null),
             "rules_count": core.pointer("/map/rule_count").cloned().unwrap_or(Value::Null),

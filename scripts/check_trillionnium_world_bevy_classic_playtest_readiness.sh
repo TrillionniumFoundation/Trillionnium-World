@@ -2242,10 +2242,16 @@ jq -n \
       rts_openra_screen_for_screen_ui_replication_screen_count: $rts_openra_screen_for_screen_ui_replication[0].openra_reference_screen_count,
       rts_openra_screen_for_screen_ui_replication_surface_count: $rts_openra_screen_for_screen_ui_replication[0].replicated_interaction_surface_count,
       rts_openra_screen_for_screen_ui_replication_widget_root_count: $rts_openra_screen_for_screen_ui_replication[0].openra_widget_root_count,
+      rts_openra_screen_for_screen_ui_replication_runtime_screen_mode: $rts_openra_screen_for_screen_ui_replication[0].runtime_screen_mode,
+      rts_openra_screen_for_screen_ui_replication_evidence_board_only: $rts_openra_screen_for_screen_ui_replication[0].evidence_board_only,
       rts_openra_screen_for_screen_ui_replication_non_background_pixels: $rts_openra_screen_for_screen_ui_replication[0].pixel_counts.non_background,
       rts_openra_screen_for_screen_ui_replication_mainmenu_pixel_count: $rts_openra_screen_for_screen_ui_replication[0].pixel_counts.mainmenu,
       rts_openra_screen_for_screen_ui_replication_ingame_pixel_count: $rts_openra_screen_for_screen_ui_replication[0].pixel_counts.ingame,
       rts_openra_screen_for_screen_ui_replication_postgame_pixel_count: $rts_openra_screen_for_screen_ui_replication[0].pixel_counts.postgame_stats,
+      rts_openra_screen_for_screen_ui_replication_player_first_ingame_view_non_background: $rts_openra_screen_for_screen_ui_replication[0].openra_style_ingame_pixel_counts.player_first_openra_style_ingame_view_non_background,
+      rts_openra_screen_for_screen_ui_replication_player_first_ingame_sidebar_non_background: $rts_openra_screen_for_screen_ui_replication[0].openra_style_ingame_pixel_counts.player_first_openra_style_ingame_sidebar_non_background,
+      rts_openra_screen_for_screen_ui_replication_player_first_ingame_command_lane_non_background: $rts_openra_screen_for_screen_ui_replication[0].openra_style_ingame_pixel_counts.player_first_openra_style_ingame_command_lane_non_background,
+      rts_openra_screen_for_screen_ui_replication_style_screen_set_claimed: $rts_openra_screen_for_screen_ui_replication[0].openra_style_widget_root_screen_set_claimed,
       rts_openra_screen_for_screen_ui_replication_claimed: $rts_openra_screen_for_screen_ui_replication[0].openra_screen_for_screen_ui_replication_claimed,
       rts_openra_screen_for_screen_ui_replication_asset_parity_claimed: $rts_openra_screen_for_screen_ui_replication[0].openra_pixel_perfect_asset_parity_claimed,
       rts_openra_screen_for_screen_ui_replication_engine_port_claimed: $rts_openra_screen_for_screen_ui_replication[0].openra_engine_port_claimed,
@@ -3088,6 +3094,8 @@ jq -n \
       rts_openra_screen_for_screen_ui_replication_source_screen_chain_gate: $rts_openra_screen_for_screen_ui_replication[0].source_screen_chain_gate,
       rts_openra_screen_for_screen_ui_replication_preview_gate: $rts_openra_screen_for_screen_ui_replication[0].preview_gate,
       rts_openra_screen_for_screen_ui_replication_no_asset_copy_boundary_gate: $rts_openra_screen_for_screen_ui_replication[0].no_asset_copy_boundary_gate,
+      rts_openra_screen_for_screen_ui_replication_player_first_ingame_screen_gate: $rts_openra_screen_for_screen_ui_replication[0].player_first_openra_style_ingame_screen_gate,
+      rts_openra_screen_for_screen_ui_replication_style_screen_set_gate: $rts_openra_screen_for_screen_ui_replication[0].openra_style_ui_screen_set_replication_gate,
       rts_openra_screen_for_screen_ui_replication_gate: $rts_openra_screen_for_screen_ui_replication[0].openra_screen_for_screen_ui_replication_gate,
       rts_openra_engine_port_asset_parity_source_contract_gate: $rts_openra_engine_port_asset_parity[0].source_contract_gate,
       rts_openra_engine_port_asset_parity_source_green_gate: $rts_openra_engine_port_asset_parity[0].source_green_gate,
@@ -3852,11 +3860,17 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_openra_screen_for_screen_ui_replication_screen_count == 8
   and .headline.rts_openra_screen_for_screen_ui_replication_surface_count == 8
   and .headline.rts_openra_screen_for_screen_ui_replication_widget_root_count == 4
+  and .headline.rts_openra_screen_for_screen_ui_replication_runtime_screen_mode == "player_runtime_openra_style_ingame_screen_set"
+  and .headline.rts_openra_screen_for_screen_ui_replication_evidence_board_only == false
   and .headline.rts_openra_screen_for_screen_ui_replication_non_background_pixels > 1200000
   and .headline.rts_openra_screen_for_screen_ui_replication_mainmenu_pixel_count > 8000
   and .headline.rts_openra_screen_for_screen_ui_replication_ingame_pixel_count > 8000
   and .headline.rts_openra_screen_for_screen_ui_replication_postgame_pixel_count > 8000
-  and .headline.rts_openra_screen_for_screen_ui_replication_claimed == true
+  and .headline.rts_openra_screen_for_screen_ui_replication_player_first_ingame_view_non_background > 70000
+  and .headline.rts_openra_screen_for_screen_ui_replication_player_first_ingame_sidebar_non_background > 30000
+  and .headline.rts_openra_screen_for_screen_ui_replication_player_first_ingame_command_lane_non_background > 5000
+  and .headline.rts_openra_screen_for_screen_ui_replication_style_screen_set_claimed == true
+  and .headline.rts_openra_screen_for_screen_ui_replication_claimed == false
   and .headline.rts_openra_screen_for_screen_ui_replication_asset_parity_claimed == false
   and .headline.rts_openra_screen_for_screen_ui_replication_engine_port_claimed == false
   and .headline.rts_openra_engine_port_asset_parity_module_count >= 10
@@ -5536,6 +5550,8 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_openra_screen_for_screen_ui_replication_source_screen_chain_gate == true
   and .gates.rts_openra_screen_for_screen_ui_replication_preview_gate == true
   and .gates.rts_openra_screen_for_screen_ui_replication_no_asset_copy_boundary_gate == true
+  and .gates.rts_openra_screen_for_screen_ui_replication_player_first_ingame_screen_gate == true
+  and .gates.rts_openra_screen_for_screen_ui_replication_style_screen_set_gate == true
   and .gates.rts_openra_screen_for_screen_ui_replication_gate == true
   and .gates.rts_openra_engine_port_asset_parity_source_contract_gate == true
   and .gates.rts_openra_engine_port_asset_parity_source_green_gate == true
