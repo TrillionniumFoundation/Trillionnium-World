@@ -24,7 +24,7 @@ jq -n \
     green: true,
     fixture_kind: "bot_gap_foundation_micro_intel_semantic_negative_fixture",
     fixture_rule: "packet_integrity_must_reject_semantically_invalid_bot_gap_foundation_micro_intel_artifacts_even_when_sha_bytes_contract_and_status_match",
-    fake_packet_artifact_count: 120,
+    fake_packet_artifact_count: 121,
     expected_semantic_failure_count: 8,
     expected_semantic_failure_names: [
       "bot_decision_state_gap_semantics",
@@ -51,7 +51,7 @@ jq -e '
   .contract_version == "trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture_v1"
   and .status == "release_review_packet_integrity_bot_gap_semantic_fixture_green"
   and .green == true
-  and .fake_packet_artifact_count == 120
+  and .fake_packet_artifact_count == 121
   and .expected_semantic_failure_count == 8
   and .expected_semantic_failure_names == [
     "bot_decision_state_gap_semantics",

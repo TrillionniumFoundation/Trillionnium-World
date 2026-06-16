@@ -281,6 +281,39 @@ add_camera_minimap_sync_packet_fixtures() {
   add_artifact_from_path native_bevy_classic_rts_camera_minimap_sync_ppm "Native/Bevy classic RTS camera/minimap sync PPM" "$camera_minimap_sync_ppm" release_review_visual_evidence
 }
 
+add_first_contact_basin_source_manifest_packet_fixtures() {
+  local first_contact_basin_spec_json="$TMP_DIR/bevy-classic-rts-first-contact-basin-spec.json"
+  jq -n '{
+    contract_version: "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1",
+    status: "classic_rts_first_contact_basin_spec_green",
+    green: true,
+    map_id: "first_contact_basin",
+    actor_count: 39,
+    spawn_count: 4,
+    rts_data_source_manifest: {
+      integration_mode: "gpl_internal_component",
+      copied_or_derived: true,
+      release_constraint: "internal_only_until_gpl_component_review_or_replacement",
+      license: "GPL-3.0-or-later OpenRA Mod SDK prototype boundary"
+    },
+    rts_data_consumer_gate: true,
+    rts_online_protocol_fixture: {
+      transport: {
+        contract_version: "trnm_rts_online_loopback_transport_v1",
+        green: true,
+        socket_opened: false,
+        hosted_service_claimed: false,
+        public_launch_ready: false
+      }
+    },
+    rts_online_protocol_gate: true,
+    source_policy: "OpenRA engine code and third-party/proprietary RTS assets are not copied; First Contact Basin remains internal-only until GPL component review or replacement.",
+    android_s5_real_device_claimed: false,
+    public_launch_ready: false
+  }' >"$first_contact_basin_spec_json"
+  add_artifact_from_path native_bevy_classic_rts_first_contact_basin_spec "Native/Bevy classic RTS First Contact Basin spec" "$first_contact_basin_spec_json" release_review_input
+}
+
 add_modeling_foundation_packet_fixtures() {
   local asset_pack_json="$TMP_DIR/bevy-classic-asset-pack.json"
   jq -n '{

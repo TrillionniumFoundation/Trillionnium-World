@@ -45,6 +45,7 @@ BOT_DECISION_STATE_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-decision-s
 BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-adaptive-build-order-gap.log"
 BOT_TACTICAL_MICRO_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-tactical-micro-gap.log"
 BOT_MAP_INTEL_GAP_LOG="$ACCEPTANCE_DIR/release-review-packet-bot-map-intel-gap.log"
+FIRST_CONTACT_BASIN_SPEC_LOG="$ACCEPTANCE_DIR/release-review-packet-first-contact-basin-spec.log"
 PLAYTEST_HANDOFF_PACKET_LOG="$ACCEPTANCE_DIR/release-review-packet-playtest-handoff-packet.log"
 WORLD_BEVY_RELEASE_BUILD_LOG="$ACCEPTANCE_DIR/release-review-packet-world-bevy-release-build.log"
 ARTIFACTS_FILE="$(mktemp)"
@@ -90,6 +91,7 @@ TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SOURCE_CHAIN_REFRESH=0 "$ROOT/scripts/check
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh" >"$BOT_ADAPTIVE_BUILD_ORDER_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh" >"$BOT_TACTICAL_MICRO_GAP_LOG"
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_bot_map_intel_gap.sh" >"$BOT_MAP_INTEL_GAP_LOG"
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_contact_basin_spec.sh" >"$FIRST_CONTACT_BASIN_SPEC_LOG"
 TRNM_BEVY_HANDOFF_READINESS_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh" >"$PLAYTEST_HANDOFF_PACKET_LOG"
 
 artifact() {
@@ -172,6 +174,7 @@ artifact native_bevy_classic_rts_tech_tree "Native/Bevy classic RTS tech tree" "
 artifact native_bevy_classic_rts_tech_tree_ppm "Native/Bevy classic RTS tech tree PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-tech-tree.ppm" release_review_visual_evidence
 artifact native_bevy_classic_rts_projectile_ability "Native/Bevy classic RTS projectile/ability" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.json" release_review_input
 artifact native_bevy_classic_rts_projectile_ability_ppm "Native/Bevy classic RTS projectile/ability PPM" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-projectile-ability.ppm" release_review_visual_evidence
+artifact native_bevy_classic_rts_first_contact_basin_spec "Native/Bevy classic RTS First Contact Basin spec" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contact-basin-spec.json" release_review_input
 artifact native_bevy_first_minute_command_feedback_replay "Native/Bevy first-minute command feedback replay" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-replay.json" release_review_input
 artifact native_bevy_first_minute_command_feedback_source_recording "Native/Bevy first-minute command feedback source recording" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-source-recording.json" release_review_recording
 artifact native_bevy_first_minute_command_feedback_recording "Native/Bevy first-minute command feedback command recording" "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-first-minute-command-feedback-recording.json" release_review_recording
