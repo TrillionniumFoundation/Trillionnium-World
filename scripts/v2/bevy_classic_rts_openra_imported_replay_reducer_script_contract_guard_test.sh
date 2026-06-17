@@ -15,6 +15,9 @@ required_script_lines=(
   'openra-imported-replay-reducer-comparison.json'
   'openra-imported-replay-reducer-negative-corpus.json'
   'classic-rts-openra-imported-replay-reducer'
+  '.source_paths.decoded_stream'
+  '.source_paths.payload_decoder_report'
+  '.source_paths.baseline_reducer'
   'openra_imported_replay_reducer_comparison_v1_json'
   'openra_order_payload_decoder_v1'
   'openra_imported_replay_reducer_gate == true'
@@ -38,6 +41,10 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REDUCER_CONTRACT'
   'native_classic_rts_openra_imported_replay_reducer_evidence_json'
+  'TRNM_OPENRA_ORDER_PAYLOAD_DECODER_SUMMARY'
+  'TRNM_OPENRA_ORDER_PAYLOAD_DECODER_DIR'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_SUMMARY'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_DIR'
   'classic-rts-openra-imported-replay-reducer'
   'bevy_owned_openra_decoded_payload_stream_replayed_by_rust_reducer'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT'
@@ -63,6 +70,10 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_imported_replay_reducer_contract_guard'
   'bevy_classic_rts_openra_imported_replay_reducer_gate'
+  'TRNM_OPENRA_ORDER_PAYLOAD_DECODER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-payload-decoder.json"'
+  'TRNM_OPENRA_ORDER_PAYLOAD_DECODER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-payload-decoder"'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-replay-reducer.json"'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-replay-reducer"'
   'bevy_classic_rts_openra_imported_replay_reducer_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_imported_replay_reducer.sh'
 )

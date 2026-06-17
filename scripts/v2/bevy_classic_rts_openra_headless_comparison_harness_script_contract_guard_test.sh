@@ -13,6 +13,8 @@ required_script_lines=(
   'openra-headless-comparison-harness.json'
   'openra-headless-comparison-mismatch-matrix.json'
   'classic-rts-openra-headless-comparison-harness'
+  '.source_paths.reducer_state'
+  '.source_paths.replay_summary_adapter'
   'openra_headless_comparison_harness_gate == true'
   'bevy_openra_headless_comparison_harness_claimed == true'
   'bevy_openra_order_replay_reducer_claimed == true'
@@ -34,6 +36,10 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_HEADLESS_COMPARISON_HARNESS_CONTRACT'
   'native_classic_rts_openra_headless_comparison_harness_evidence_json'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_SUMMARY'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_DIR'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR'
   'classic-rts-openra-headless-comparison-harness'
   'bevy_owned_openra_style_reducer_compared_with_headless_replay_harness'
   'openra_headless_comparison_harness_v1_json'
@@ -56,6 +62,10 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_headless_comparison_harness_contract_guard'
   'bevy_classic_rts_openra_headless_comparison_harness_gate'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-replay-reducer.json"'
+  'TRNM_OPENRA_ORDER_REPLAY_REDUCER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-replay-reducer"'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter.json"'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter"'
   'bevy_classic_rts_openra_headless_comparison_harness_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_headless_comparison_harness.sh'
 )

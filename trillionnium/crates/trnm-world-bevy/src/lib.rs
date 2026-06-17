@@ -55886,21 +55886,59 @@ pub fn native_classic_rts_openra_imported_replay_reducer_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let payload_decoder_dir = preview_path("openra-order-payload-decoder");
-    let baseline_reducer_dir = preview_path("openra-order-replay-reducer");
+    let default_payload_decoder_dir = preview_path("openra-order-payload-decoder");
+    let default_baseline_reducer_dir = preview_path("openra-order-replay-reducer");
     let reducer_path = preview_path("openra-imported-replay-reducer.json");
     let snapshot_path = preview_path("openra-imported-replay-snapshots.jsonl");
     let comparison_path = preview_path("openra-imported-replay-reducer-comparison.json");
     let negative_corpus_path = preview_path("openra-imported-replay-reducer-negative-corpus.json");
 
-    let payload_decoder_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_order_payload_decoder_evidence_json(&payload_decoder_dir),
-    )
-    .expect("OpenRA order payload decoder evidence parses");
-    let baseline_reducer_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_order_replay_reducer_evidence_json(&baseline_reducer_dir),
-    )
-    .expect("OpenRA order replay reducer evidence parses");
+    let payload_decoder_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_ORDER_PAYLOAD_DECODER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA order payload decoder override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_order_payload_decoder_evidence_json(
+                    &default_payload_decoder_dir,
+                ),
+            )
+            .expect("OpenRA order payload decoder evidence parses")
+        };
+    let payload_decoder_dir = std::env::var("TRNM_OPENRA_ORDER_PAYLOAD_DECODER_DIR")
+        .ok()
+        .or_else(|| {
+            payload_decoder_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_payload_decoder_dir);
+    let baseline_reducer_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_ORDER_REPLAY_REDUCER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA order replay reducer override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_order_replay_reducer_evidence_json(
+                    &default_baseline_reducer_dir,
+                ),
+            )
+            .expect("OpenRA order replay reducer evidence parses")
+        };
+    let baseline_reducer_dir = std::env::var("TRNM_OPENRA_ORDER_REPLAY_REDUCER_DIR")
+        .ok()
+        .or_else(|| {
+            baseline_reducer_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_baseline_reducer_dir);
 
     let imported_stream_path = payload_decoder_evidence
         .get("decoded_stream_path")
@@ -61803,19 +61841,55 @@ pub fn native_classic_rts_openra_headless_comparison_harness_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let reducer_dir = preview_path("openra-order-replay-reducer");
-    let replay_adapter_dir = preview_path("openra-replay-compat-adapter");
+    let default_reducer_dir = preview_path("openra-order-replay-reducer");
+    let default_replay_adapter_dir = preview_path("openra-replay-compat-adapter");
     let comparison_path = preview_path("openra-headless-comparison-harness.json");
     let mismatch_matrix_path = preview_path("openra-headless-comparison-mismatch-matrix.json");
 
-    let reducer_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_order_replay_reducer_evidence_json(&reducer_dir),
-    )
-    .expect("OpenRA order replay reducer evidence parses");
-    let replay_adapter: Value = serde_json::from_str(
-        &native_classic_rts_openra_replay_compat_adapter_evidence_json(&replay_adapter_dir),
-    )
-    .expect("OpenRA replay compatibility adapter evidence parses");
+    let reducer_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_ORDER_REPLAY_REDUCER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA order replay reducer override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_order_replay_reducer_evidence_json(&default_reducer_dir),
+            )
+            .expect("OpenRA order replay reducer evidence parses")
+        };
+    let reducer_dir = std::env::var("TRNM_OPENRA_ORDER_REPLAY_REDUCER_DIR")
+        .ok()
+        .or_else(|| {
+            reducer_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_reducer_dir);
+    let replay_adapter: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA replay compatibility adapter override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_replay_compat_adapter_evidence_json(
+                    &default_replay_adapter_dir,
+                ),
+            )
+            .expect("OpenRA replay compatibility adapter evidence parses")
+        };
+    let replay_adapter_dir = std::env::var("TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR")
+        .ok()
+        .or_else(|| {
+            replay_adapter
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_replay_adapter_dir);
 
     let bool_at =
         |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);

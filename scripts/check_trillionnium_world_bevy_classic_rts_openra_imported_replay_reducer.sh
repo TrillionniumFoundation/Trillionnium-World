@@ -8,12 +8,6 @@ REDUCER="$PREVIEW_DIR/openra-imported-replay-reducer.json"
 SNAPSHOTS="$PREVIEW_DIR/openra-imported-replay-snapshots.jsonl"
 COMPARISON="$PREVIEW_DIR/openra-imported-replay-reducer-comparison.json"
 NEGATIVE_CORPUS="$PREVIEW_DIR/openra-imported-replay-reducer-negative-corpus.json"
-IMPORTED_STREAM="$PREVIEW_DIR/openra-order-payload-decoder/openra-order-payload-decoded-stream.jsonl"
-PAYLOAD_DECODER="$PREVIEW_DIR/openra-order-payload-decoder/openra-order-payload-decoder.json"
-PAYLOAD_MANIFEST="$PREVIEW_DIR/openra-order-payload-decoder/openra-order-payload-decoder-manifest.json"
-IMPORTER="$PREVIEW_DIR/openra-order-payload-decoder/openra-replay-importer/openra-replay-importer.json"
-BASELINE_REDUCER="$PREVIEW_DIR/openra-order-replay-reducer/openra-order-replay-reducer.json"
-BASELINE_SNAPSHOTS="$PREVIEW_DIR/openra-order-replay-reducer/openra-order-replay-snapshots.jsonl"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-imported-replay-reducer "$PREVIEW_DIR" >"$SUMMARY"
@@ -83,6 +77,13 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+IMPORTED_STREAM="$(jq -er '.source_paths.decoded_stream' "$SUMMARY")"
+PAYLOAD_DECODER="$(jq -er '.source_paths.payload_decoder_report' "$SUMMARY")"
+PAYLOAD_MANIFEST="$(jq -er '.source_paths.payload_decoder_manifest' "$SUMMARY")"
+IMPORTER="$(jq -er '.source_paths.importer_report' "$SUMMARY")"
+BASELINE_REDUCER="$(jq -er '.source_paths.baseline_reducer' "$SUMMARY")"
+BASELINE_SNAPSHOTS="$(jq -er '.source_paths.baseline_snapshots' "$SUMMARY")"
 
 jq -e '
   .state_schema == "openra_order_stream_reducer_state_v1_json"

@@ -6,8 +6,6 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-h
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-headless-comparison-harness"
 COMPARISON="$PREVIEW_DIR/openra-headless-comparison-harness.json"
 MISMATCH_MATRIX="$PREVIEW_DIR/openra-headless-comparison-mismatch-matrix.json"
-REDUCER="$PREVIEW_DIR/openra-order-replay-reducer/openra-order-replay-reducer.json"
-REPLAY_ADAPTER="$PREVIEW_DIR/openra-replay-compat-adapter/openra-replay-summary-adapter.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-headless-comparison-harness "$PREVIEW_DIR" >"$SUMMARY"
@@ -58,6 +56,9 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+REDUCER="$(jq -er '.source_paths.reducer_state' "$SUMMARY")"
+REPLAY_ADAPTER="$(jq -er '.source_paths.replay_summary_adapter' "$SUMMARY")"
 
 jq -e '
   .comparison_schema == "openra_headless_comparison_harness_v1_json"
