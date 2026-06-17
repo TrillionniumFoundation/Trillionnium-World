@@ -22,8 +22,11 @@ if [[ -v TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_LOG && -n "$TRILLIONNIUM_WORLD
 fi
 CHECK_RESULTS="$(mktemp)"
 FAILURE_RESULTS="$(mktemp)"
+PACKET_ARTIFACTS_TSV="$(mktemp)"
 REFRESH_PACKET=1
-trap 'rm -f "$CHECK_RESULTS" "$FAILURE_RESULTS"' EXIT
+declare -A PACKET_ARTIFACT_PATH_BY_ID=()
+PACKET_ARTIFACT_COUNT=0
+trap 'rm -f "$CHECK_RESULTS" "$FAILURE_RESULTS" "$PACKET_ARTIFACTS_TSV"' EXIT
 
 for arg in "$@"; do
   case "$arg" in
@@ -72,10 +75,28 @@ require_json_expr() {
 
 packet_artifact_path() {
   local artifact_id="$1"
+  printf '%s\n' "${PACKET_ARTIFACT_PATH_BY_ID[$artifact_id]:-}"
+}
+
+load_packet_artifacts() {
+  PACKET_ARTIFACT_PATH_BY_ID=()
+  PACKET_ARTIFACT_COUNT=0
+  : >"$PACKET_ARTIFACTS_TSV"
   if [[ ! -f "$PACKET_JSON" ]]; then
-    return 0
+    return
   fi
-  jq -r --arg artifact_id "$artifact_id" '(.artifacts // [] | map(select(.id == $artifact_id)) | .[0].path) // empty' "$PACKET_JSON" 2>/dev/null || true
+  jq -r '(.artifacts // [])[] | [.id, .path, (.sha256 // ""), ((.bytes // "") | tostring), (.contract_version // ""), (.status // "")] | @tsv' "$PACKET_JSON" >"$PACKET_ARTIFACTS_TSV"
+  local id
+  local path
+  local expected_sha
+  local expected_bytes
+  local expected_contract
+  local expected_status
+  while IFS=$'\t' read -r id path expected_sha expected_bytes expected_contract expected_status; do
+    [[ -z "$id" ]] && continue
+    PACKET_ARTIFACT_PATH_BY_ID["$id"]="$path"
+    PACKET_ARTIFACT_COUNT=$((PACKET_ARTIFACT_COUNT + 1))
+  done <"$PACKET_ARTIFACTS_TSV"
 }
 
 require_artifact_json_expr() {
@@ -154,8 +175,7 @@ require_artifact_json_expr_when_packet_count_at_least() {
   local min_artifact_count="$3"
   local expr="$4"
   local detail="$5"
-  local artifact_count
-  artifact_count="$(jq -r '(.artifacts // []) | length' "$PACKET_JSON" 2>/dev/null || printf '0')"
+  local artifact_count="$PACKET_ARTIFACT_COUNT"
   if [[ "$artifact_count" -lt "$min_artifact_count" ]]; then
     add_check "$name" skipped "$artifact_id" legacy_packet_artifact_count "$min_artifact_count" "$artifact_count"
     return
@@ -170,8 +190,7 @@ require_artifact_ppm_header_when_packet_count_at_least() {
   local min_bytes="$4"
   local expected_width="${5:-1280}"
   local expected_height="${6:-720}"
-  local artifact_count
-  artifact_count="$(jq -r '(.artifacts // []) | length' "$PACKET_JSON" 2>/dev/null || printf '0')"
+  local artifact_count="$PACKET_ARTIFACT_COUNT"
   if [[ "$artifact_count" -lt "$min_artifact_count" ]]; then
     add_check "$name" skipped "$artifact_id" legacy_packet_artifact_count "$min_artifact_count" "$artifact_count"
     return
@@ -190,6 +209,8 @@ if [[ "$REFRESH_PACKET" -eq 1 ]]; then
 else
   add_check packet_refresh skipped "$PACKET_LOG" no_refresh_requested
 fi
+
+load_packet_artifacts
 
 require_json_expr packet_contract "$PACKET_JSON" '.contract_version == "trillionnium_world_release_review_packet_v1"' "packet contract matches"
 require_json_expr packet_boundary "$PACKET_JSON" '.android_s5_real_device_claimed == false and .proof_scope == "host_side_bevy_runtime_replay_not_android_real_device"' "packet keeps Android S5 no-claim boundary"
@@ -491,15 +512,7 @@ else
 fi
 
 if [[ -f "$PACKET_JSON" ]]; then
-  while IFS= read -r encoded; do
-    artifact_json="$(printf '%s' "$encoded" | base64 -d)"
-    id="$(jq -r '.id' <<<"$artifact_json")"
-    path="$(jq -r '.path' <<<"$artifact_json")"
-    expected_sha="$(jq -r '.sha256 // empty' <<<"$artifact_json")"
-    expected_bytes="$(jq -r '.bytes // empty' <<<"$artifact_json")"
-    expected_contract="$(jq -r '.contract_version // empty' <<<"$artifact_json")"
-    expected_status="$(jq -r '.status // empty' <<<"$artifact_json")"
-
+  while IFS=$'\t' read -r id path expected_sha expected_bytes expected_contract expected_status; do
     if [[ ! -f "$path" ]]; then
       add_check "artifact_${id}_present" fail "$path" missing
       continue
@@ -536,14 +549,14 @@ if [[ -f "$PACKET_JSON" ]]; then
         fi
       fi
     fi
-  done < <(jq -r '.artifacts[] | @base64' "$PACKET_JSON")
+  done <"$PACKET_ARTIFACTS_TSV"
 fi
 
 jq 'select(.status == "fail")' "$CHECK_RESULTS" >"$FAILURE_RESULTS"
 FAILURE_COUNT="$(jq -s 'length' "$FAILURE_RESULTS")"
 PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // false' "$PACKET_JSON" 2>/dev/null || printf 'false')"
 READY_FOR_RELEASE_REVIEW="$(jq -r '.ready_for_release_review // false' "$PACKET_JSON" 2>/dev/null || printf 'false')"
-ARTIFACT_COUNT="$(jq -r '(.artifacts // []) | length' "$PACKET_JSON" 2>/dev/null || printf '0')"
+ARTIFACT_COUNT="$PACKET_ARTIFACT_COUNT"
 
 GREEN=false
 STATUS=release_review_packet_integrity_blocked
