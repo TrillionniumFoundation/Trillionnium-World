@@ -53402,14 +53402,29 @@ pub fn native_classic_rts_openra_replay_compat_adapter_evidence_json(preview_dir
             .to_string_lossy()
             .into_owned()
     };
-    let lane_dir = preview_path("openra-parity-lane");
+    let default_lane_dir = preview_path("openra-parity-lane");
     let terminal_dir = preview_path("natural-terminal-contract");
     let adapter_path = preview_path("openra-replay-summary-adapter.json");
 
-    let lane: Value = serde_json::from_str(&native_classic_rts_openra_parity_lane_evidence_json(
-        &lane_dir,
-    ))
-    .expect("OpenRA parity lane evidence parses");
+    let lane: Value = if let Ok(path) = std::env::var("TRNM_OPENRA_PARITY_LANE_SUMMARY") {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("OpenRA parity lane override evidence parses")
+    } else {
+        serde_json::from_str(&native_classic_rts_openra_parity_lane_evidence_json(
+            &default_lane_dir,
+        ))
+        .expect("OpenRA parity lane evidence parses")
+    };
+    let lane_dir = std::env::var("TRNM_OPENRA_PARITY_LANE_DIR")
+        .ok()
+        .or_else(|| {
+            lane.get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_lane_dir);
     let replay_path = lane
         .pointer("/preview_paths/owned_replay_file")
         .and_then(Value::as_str)

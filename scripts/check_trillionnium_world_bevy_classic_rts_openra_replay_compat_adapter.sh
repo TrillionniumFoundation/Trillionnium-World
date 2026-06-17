@@ -5,7 +5,6 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter.json"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter"
 ADAPTER="$PREVIEW_DIR/openra-replay-summary-adapter.json"
-REPLAY="$PREVIEW_DIR/openra-parity-lane/openra-parity-lane.trnm-replay.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-replay-compat-adapter "$PREVIEW_DIR" >"$SUMMARY"
@@ -52,6 +51,8 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+REPLAY="$(jq -er '.source_paths.owned_replay_file' "$SUMMARY")"
 
 jq -e '
   .adapter_schema == "openra_replay_summary_adapter_v1_json"

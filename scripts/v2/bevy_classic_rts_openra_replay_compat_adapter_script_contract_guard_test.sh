@@ -12,6 +12,7 @@ required_script_lines=(
   'bevy-classic-rts-openra-replay-compat-adapter.json'
   'openra-replay-summary-adapter.json'
   'classic-rts-openra-replay-compat-adapter'
+  '.source_paths.owned_replay_file'
   'openra_replay_summary_adapter_v1_json'
   'openra_binary_replay_compatible == false'
   'openra_replay_file_claimed == false'
@@ -31,6 +32,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_COMPAT_ADAPTER_CONTRACT'
   'native_classic_rts_openra_replay_compat_adapter_evidence_json'
+  'TRNM_OPENRA_PARITY_LANE_SUMMARY'
+  'TRNM_OPENRA_PARITY_LANE_DIR'
   'classic-rts-openra-replay-compat-adapter'
   'bevy_owned_replay_to_openra_style_summary_adapter_not_binary_openra_replay'
   'openra_replay_summary_adapter_v1_json'
@@ -54,6 +57,8 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_replay_compat_adapter_contract_guard'
   'bevy_classic_rts_openra_replay_compat_adapter_gate'
+  'TRNM_OPENRA_PARITY_LANE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-lane.json"'
+  'TRNM_OPENRA_PARITY_LANE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-lane"'
   'bevy_classic_rts_openra_replay_compat_adapter_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter.sh'
 )
