@@ -9,6 +9,8 @@ required_lines=(
   'check_trillionnium_world_public_launch_readiness.sh'
   'public-launch-evidence-intake.json'
   'public-launch-evidence-intake.md'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'public-launch-evidence-intake-readiness.log'
   's5-device-evidence.template.json'
   'collection_command'

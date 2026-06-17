@@ -8,13 +8,15 @@ if [[ -v TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY && -n "$TRILLIONNIUM_
   SUMMARY_FILE="$TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY"
 fi
 
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
 CHECK_RESULTS="$(mktemp)"
 CHECKS_FILE="$(mktemp)"
 FAILURES_FILE="$(mktemp)"
 SLOW_CHECKS_FILE="$(mktemp)"
 trap 'rm -f "$CHECK_RESULTS" "$CHECKS_FILE" "$FAILURES_FILE" "$SLOW_CHECKS_FILE"' EXIT
-
-mkdir -p "$ACCEPTANCE_DIR"
 
 if [[ -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" && -x "$ROOT/target/release/trnm-world-bevy" ]]; then
   export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"

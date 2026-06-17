@@ -13,6 +13,11 @@ fi
 if [[ -v TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_KIT_MD && -n "$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_KIT_MD" ]]; then
   MARKDOWN_FILE="$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_KIT_MD"
 fi
+
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
 ITEMS_FILE="$(mktemp)"
 trap 'rm -f "$ITEMS_FILE"' EXIT
 

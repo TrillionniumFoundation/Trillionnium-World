@@ -7,6 +7,8 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency
 required_lines=(
   'trillionnium_world_public_launch_blocker_consistency_v1'
   'public-launch-blocker-consistency.json'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'public_launch_readiness_blockers_must_match_evidence_intake_items_and_field_level_validator_statuses'
   'check_trillionnium_world_public_launch_readiness.sh'
   'check_trillionnium_world_public_launch_evidence_intake.sh'

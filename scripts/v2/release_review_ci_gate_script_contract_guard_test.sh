@@ -7,6 +7,8 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_release_review_ci_gate.sh"
 required_lines=(
   'trillionnium_world_release_review_ci_gate_v1'
   'release-review-ci-gate.json'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'release-review-ci-gate-workflow-script-refs.json'
   'elapsed_millis'
   'elapsed_seconds'

@@ -7,6 +7,8 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_f
 required_lines=(
   'trillionnium_world_public_launch_template_negative_fixtures_v1'
   'public-launch-template-negative-fixtures.json'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'check_trillionnium_world_public_launch_evidence_kit.sh'
   's5-device-evidence.template.json'
   'production-map-pack-public-evidence.template.json'

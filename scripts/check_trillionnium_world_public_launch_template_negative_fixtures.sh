@@ -13,7 +13,11 @@ RESULTS_FILE="$(mktemp)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -f "$RESULTS_FILE"; rm -rf "$TMP_DIR"' EXIT
 
-mkdir -p "$ACCEPTANCE_DIR" "$S5_DIR" "$MAP_DIR"
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
+mkdir -p "$S5_DIR" "$MAP_DIR"
 
 KIT_LOG="$ACCEPTANCE_DIR/public-launch-template-negative-fixtures-kit.log"
 "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" >"$KIT_LOG"

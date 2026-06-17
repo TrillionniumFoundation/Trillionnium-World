@@ -30,12 +30,15 @@ for arg in "$@"; do
   esac
 done
 
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
 ITEMS_FILE="$(mktemp)"
 VALIDATORS_FILE="$(mktemp)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -f "$ITEMS_FILE" "$VALIDATORS_FILE"; rm -rf "$TMP_DIR"' EXIT
 
-mkdir -p "$ACCEPTANCE_DIR"
 TEMPLATE_FILE="$ACCEPTANCE_DIR/public-launch-evidence-bundle.template.json"
 KIT_LOG="$ACCEPTANCE_DIR/public-launch-evidence-bundle-kit.log"
 

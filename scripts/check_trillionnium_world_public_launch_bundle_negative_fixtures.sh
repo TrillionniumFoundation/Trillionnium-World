@@ -9,6 +9,11 @@ SUMMARY_FILE="$ACCEPTANCE_DIR/public-launch-bundle-negative-fixtures.json"
 if [[ -v TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_BUNDLE_NEGATIVE_FIXTURES_SUMMARY && -n "$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_BUNDLE_NEGATIVE_FIXTURES_SUMMARY" ]]; then
   SUMMARY_FILE="$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_BUNDLE_NEGATIVE_FIXTURES_SUMMARY"
 fi
+
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 

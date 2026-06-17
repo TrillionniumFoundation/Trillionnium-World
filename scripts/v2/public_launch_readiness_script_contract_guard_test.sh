@@ -7,6 +7,8 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_readiness.sh"
 required_lines=(
   'trillionnium_world_public_launch_readiness_v1'
   'public-launch-readiness.json'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'do_not_claim_public_launch_ready_without_native_bevy_local_playability_texture_sampling_render_asset_eligibility_real_device_map_pack_cohort_commercial_multi_node_and_public_deploy_evidence'
   'bevy-build-branch-title-route-all-branch-keyboard-replay.json'
   'bevy-action-coach.json'

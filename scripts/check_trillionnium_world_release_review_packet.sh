@@ -13,6 +13,10 @@ if [[ -v TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_MD && -n "$TRILLIONNIUM_WORLD_
 fi
 REFRESH_INPUTS="${TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS:-1}"
 
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
 CONVERGENCE_JSON="$ACCEPTANCE_DIR/release-review-convergence.json"
 STATUS_JSON="$ACCEPTANCE_DIR/release-review-status.json"
 STATUS_MD="$ACCEPTANCE_DIR/release-review-status.md"

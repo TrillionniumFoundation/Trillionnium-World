@@ -9,6 +9,8 @@ required_lines=(
   'trillionnium_world_public_launch_evidence_bundle_v1'
   'public-launch-evidence-bundle.json'
   'public-launch-evidence-bundle.md'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'public-launch-evidence-bundle.template.json'
   'TRILLIONNIUM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_PATH'
   'TRNM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_REFRESH_KIT'

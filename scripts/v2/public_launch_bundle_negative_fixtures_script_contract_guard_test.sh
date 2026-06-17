@@ -7,6 +7,8 @@ SCRIPT="$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fix
 required_lines=(
   'trillionnium_world_public_launch_bundle_negative_fixtures_v1'
   'public-launch-bundle-negative-fixtures.json'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'check_trillionnium_world_public_launch_evidence_kit.sh'
   'check_trillionnium_world_public_launch_evidence_bundle.sh'
   'TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_MD'

@@ -8,6 +8,8 @@ required_lines=(
   'trillionnium_world_public_launch_evidence_kit_v1'
   'public-launch-evidence-kit.json'
   'public-launch-evidence-kit.md'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'collection_command'
   'check_trillionnium_world_s5_device_evidence.sh --require-device'
   'check_trillionnium_world_production_map_pack_public_evidence_collection.sh'

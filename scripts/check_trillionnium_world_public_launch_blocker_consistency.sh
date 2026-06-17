@@ -11,7 +11,9 @@ INTAKE_LOG="$ACCEPTANCE_DIR/public-launch-blocker-consistency-intake.log"
 CHECKS_FILE="$(mktemp)"
 trap 'rm -f "$CHECKS_FILE"' EXIT
 
-mkdir -p "$ACCEPTANCE_DIR"
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
 
 "$ROOT/scripts/check_trillionnium_world_public_launch_readiness.sh" >"$READINESS_LOG"
 "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh" >"$INTAKE_LOG"

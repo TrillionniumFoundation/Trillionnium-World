@@ -11,6 +11,8 @@ required_lines=(
   'check_trillionnium_world_release_review_convergence.sh'
   'release-review-packet.json'
   'release-review-packet.md'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'release-review-packet-convergence.log'
   'release-review-packet-evidence-intake.log'
   'release-review-packet-blocker-consistency.log'

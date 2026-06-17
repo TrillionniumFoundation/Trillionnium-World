@@ -9,6 +9,8 @@ required_lines=(
   'check_trillionnium_world_release_review_packet.sh'
   'release-review-packet-integrity.json'
   'release-review-packet-integrity-packet.log'
+  'release_review_acceptance_lock.sh'
+  'trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"'
   'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON'
   'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_MD'
   'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_LOG'

@@ -13,6 +13,8 @@ done <<'REQUIRED_LINES'
 trillionnium_world_public_launch_operator_handoff_v1
 public-launch-operator-handoff.json
 public-launch-operator-handoff.md
+release_review_acceptance_lock.sh
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
 TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_OPERATOR_HANDOFF_SUMMARY
 TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_OPERATOR_HANDOFF_MD
 TRNM_PUBLIC_LAUNCH_OPERATOR_HANDOFF_REFRESH_INPUTS

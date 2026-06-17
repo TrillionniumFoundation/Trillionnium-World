@@ -23,7 +23,9 @@ for arg in "$@"; do
   esac
 done
 
-mkdir -p "$ACCEPTANCE_DIR"
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
 
 "$ROOT/scripts/check_trillionnium_world_public_launch_readiness.sh" >"$PUBLIC_LAUNCH_LOG"
 

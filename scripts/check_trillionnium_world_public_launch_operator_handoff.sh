@@ -19,7 +19,11 @@ ARTIFACTS_FILE="$(mktemp)"
 FAILURES_FILE="$(mktemp)"
 trap 'rm -f "$ARTIFACTS_FILE" "$FAILURES_FILE"' EXIT
 
-mkdir -p "$ACCEPTANCE_DIR" "$S5_DIR" "$MAP_DIR"
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
+mkdir -p "$S5_DIR" "$MAP_DIR"
 
 STATUS_LOG="$ACCEPTANCE_DIR/public-launch-operator-handoff-status.log"
 INTAKE_LOG="$ACCEPTANCE_DIR/public-launch-operator-handoff-intake.log"

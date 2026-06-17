@@ -40,7 +40,9 @@ for arg in "$@"; do
   esac
 done
 
-mkdir -p "$ACCEPTANCE_DIR"
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
 
 add_check() {
   local name="$1"

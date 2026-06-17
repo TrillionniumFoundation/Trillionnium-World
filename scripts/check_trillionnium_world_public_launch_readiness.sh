@@ -18,7 +18,10 @@ for arg in "$@"; do
   esac
 done
 
-mkdir -p "$ACCEPTANCE_DIR"
+# shellcheck source=scripts/release_review_acceptance_lock.sh
+source "$ROOT/scripts/release_review_acceptance_lock.sh"
+trnm_acquire_release_review_acceptance_lock "$ACCEPTANCE_DIR"
+
 TRILLIONNIUM_PRODUCTION_MAP_PACK_PUBLIC_SUMMARY="$ROOT/acceptance/S4_map_pack_gate/latest/production-map-pack-public-evidence.json" \
   "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence.sh" >/dev/null
