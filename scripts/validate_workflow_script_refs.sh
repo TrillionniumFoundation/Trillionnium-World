@@ -81,27 +81,33 @@ missing_file="$TMP_DIR/missing.txt"
 non_exec_file="$TMP_DIR/non_exec.txt"
 non_dot_refs_file="$TMP_DIR/non_dot_refs.txt"
 
-: >"$refs_file"
 : >"$missing_file"
 : >"$non_exec_file"
-: >"$non_dot_refs_file"
 
-for wf in "${WORKFLOW_FILES[@]}"; do
-  while IFS= read -r line; do
-    [[ -n "$line" ]] || continue
-    while IFS= read -r ref; do
-      [[ -n "$ref" ]] || continue
-      printf '%s\n' "$ref" >>"$refs_file"
-      # Only require ./-prefixed refs for executable workflow invocations.
-      # GitHub trigger path globs are repo-relative patterns, where retaining
-      # plain scripts/... or trillionnium/scripts/... is expected.
-      if [[ "$ref" != ./* ]] \
-        && ! printf '%s\n' "$line" | LC_ALL=C grep -Eq "^[[:space:]]*-[[:space:]]*['\"]?(scripts|trillionnium/scripts)/"; then
-        printf '%s\n' "$ref" >>"$non_dot_refs_file"
-      fi
-    done < <(printf '%s\n' "$line" | LC_ALL=C grep -Eo '(\./scripts|scripts|trillionnium/scripts)/[[:alnum:]_./-]+\.(sh|py)' || true)
-  done <"$wf"
-done
+# Python scanner mirrors: grep -Eo '(\./scripts|scripts|trillionnium/scripts)/[[:alnum:]_./-]+\.(sh|py)'
+python3 - "$refs_file" "$non_dot_refs_file" "${WORKFLOW_FILES[@]}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+refs_path = Path(sys.argv[1])
+non_dot_refs_path = Path(sys.argv[2])
+workflow_files = [Path(path) for path in sys.argv[3:]]
+ref_re = re.compile(r"(\./scripts|scripts|trillionnium/scripts)/[A-Za-z0-9_./-]+\.(sh|py)")
+trigger_path_re = re.compile(r"^[ \t]*-[ \t]*['\"]?(scripts|trillionnium/scripts)/")
+
+with refs_path.open("w", encoding="utf-8") as refs_out, non_dot_refs_path.open(
+    "w", encoding="utf-8"
+) as non_dot_out:
+    for workflow_file in workflow_files:
+        with workflow_file.open("r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                for match in ref_re.finditer(line):
+                    ref = match.group(0)
+                    refs_out.write(ref + "\n")
+                    if not ref.startswith("./") and not trigger_path_re.search(line):
+                        non_dot_out.write(ref + "\n")
+PY
 
 total_script_ref_count="$(wc -l <"$refs_file" | tr -d ' ')"
 non_dot_script_ref_count="$(wc -l <"$non_dot_refs_file" | tr -d ' ')"
