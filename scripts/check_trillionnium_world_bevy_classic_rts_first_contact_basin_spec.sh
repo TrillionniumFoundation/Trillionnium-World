@@ -3,7 +3,29 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contact-basin-spec.json"
+SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
 mkdir -p "$(dirname "$OUT")"
+
+if grep -Fq 'CLASSIC_FIRST_CONTACT_BASIN_ACTORS' "$SOURCE"; then
+  echo "[FAIL] First Contact actors must be derived from trnm-rts-data, not a Bevy-local actor table" >&2
+  exit 1
+fi
+
+required_source_lines=(
+  'fn classic_first_contact_map_actors_from_rts_data() -> Vec<ClassicFirstContactActor>'
+  'first_contact_basin_map()'
+  '.actors'
+  'classic_first_contact_actor_from_rts_data_actor(actor)'
+  'let map_actors = classic_first_contact_map_actors_from_rts_data();'
+  'let actor_template_count = classic_first_contact_map_actors_from_rts_data().len();'
+)
+
+for line in "${required_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$SOURCE"; then
+    echo "[FAIL] missing First Contact RTS data actor derivation source line: $line" >&2
+    exit 1
+  fi
+done
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-first-contact-basin-spec >"$OUT"
 
