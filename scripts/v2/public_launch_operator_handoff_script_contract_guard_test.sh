@@ -26,7 +26,7 @@ check_trillionnium_world_production_map_pack_public_evidence_collection.sh
 check_trillionnium_world_cohort_commercial_evidence_collection.sh
 check_trillionnium_world_external_ops_evidence_collection.sh
 check_trillionnium_world_public_launch_blocker_consistency.sh
-.green == true and (.failures // [] | length) == 0
+.green == true and (.blockers // [] | length) == 6 and (.failures // [] | length) == 0
 check_trillionnium_world_public_launch_template_negative_fixtures.sh
 check_trillionnium_world_public_launch_evidence_bundle.sh
 check_trillionnium_world_public_launch_bundle_negative_fixtures.sh
