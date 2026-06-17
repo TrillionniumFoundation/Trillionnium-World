@@ -26,6 +26,8 @@ required_lines=(
   'public_network_deploy_green'
   'unknown_readiness_blockers'
   'unknown_intake_blockers'
+  'green: ($failures | length == 0)'
+  'blockers: $known_blockers'
   'public_launch_claimed: false'
 )
 
