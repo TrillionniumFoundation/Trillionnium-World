@@ -386,6 +386,45 @@ deterministic_fixture_scripts=(
 )
 
 for fixture_script in "${deterministic_fixture_scripts[@]}"; do
+  case "$(basename "$fixture_script")" in
+    check_trillionnium_world_release_review_packet_integrity_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_bot_executor_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_bot_executor_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_bot_executor_matrix_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_bot_executor_matrix_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_bot_gap_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_bot_gap_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_control_loop_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_control_loop_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_selection_minimap_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_selection_minimap_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_build_lifecycle_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_build_lifecycle_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_tech_tree_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_tech_tree_semantic_guard_test.sh'
+      ;;
+    check_trillionnium_world_release_review_packet_integrity_projectile_ability_semantic_fixture.sh)
+      expected_guard='release_review_packet_integrity_projectile_ability_semantic_guard_test.sh'
+      ;;
+    *)
+      echo "[FAIL] release review packet fixture script missing expected guard mapping: $fixture_script" >&2
+      exit 1
+      ;;
+  esac
+
+  if ! grep -Fq -- "$expected_guard" "$fixture_script"; then
+    echo "[FAIL] release review packet fixture script does not invoke semantic guard: $fixture_script -> $expected_guard" >&2
+    exit 1
+  fi
+
   if ! grep -Fq -- 'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_FIXTURE_GENERATED_AT:-1970-01-01T00:00:00Z' "$fixture_script"; then
     echo "[FAIL] release review packet fixture script missing deterministic generated_at: $fixture_script" >&2
     exit 1

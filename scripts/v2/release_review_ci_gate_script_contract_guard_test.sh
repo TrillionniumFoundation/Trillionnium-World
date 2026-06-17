@@ -55,24 +55,15 @@ required_lines=(
 	  'release_review_packet_integrity_build_lifecycle_semantic_guard_test.sh'
 	  'release_review_packet_integrity_tech_tree_semantic_guard_test.sh'
 	  'release_review_packet_integrity_projectile_ability_semantic_guard_test.sh'
-  'packet_integrity_semantic_guard'
   'packet_integrity_semantic_fixture_gate'
-  'packet_integrity_bot_executor_semantic_guard'
   'packet_integrity_bot_executor_semantic_fixture_gate'
-  'packet_integrity_bot_executor_matrix_semantic_guard'
   'packet_integrity_bot_executor_matrix_semantic_fixture_gate'
   'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SOURCE_CHAIN_REFRESH=0'
-  'packet_integrity_bot_gap_semantic_guard'
   'packet_integrity_bot_gap_semantic_fixture_gate'
-  'packet_integrity_control_loop_semantic_guard'
   'packet_integrity_control_loop_semantic_fixture_gate'
-  'packet_integrity_selection_minimap_semantic_guard'
   'packet_integrity_selection_minimap_semantic_fixture_gate'
-  'packet_integrity_build_lifecycle_semantic_guard'
   'packet_integrity_build_lifecycle_semantic_fixture_gate'
-	  'packet_integrity_tech_tree_semantic_guard'
 	  'packet_integrity_tech_tree_semantic_fixture_gate'
-	  'packet_integrity_projectile_ability_semantic_guard'
 	  'packet_integrity_projectile_ability_semantic_fixture_gate'
 	  'release_review_checkpoint_manifest_script_contract_guard_test.sh'
   'checkpoint_manifest_contract_guard'
@@ -719,6 +710,25 @@ required_lines=(
 for line in "${required_lines[@]}"; do
   if ! grep -Fq -- "$line" "$SCRIPT"; then
     echo "[FAIL] release review CI gate script missing contract line: $line" >&2
+    exit 1
+  fi
+done
+
+duplicate_packet_integrity_guard_runs=(
+  'run_check packet_integrity_semantic_guard '
+  'run_check packet_integrity_bot_executor_semantic_guard '
+  'run_check packet_integrity_bot_executor_matrix_semantic_guard '
+  'run_check packet_integrity_bot_gap_semantic_guard '
+  'run_check packet_integrity_control_loop_semantic_guard '
+  'run_check packet_integrity_selection_minimap_semantic_guard '
+  'run_check packet_integrity_build_lifecycle_semantic_guard '
+  'run_check packet_integrity_tech_tree_semantic_guard '
+  'run_check packet_integrity_projectile_ability_semantic_guard '
+)
+
+for line in "${duplicate_packet_integrity_guard_runs[@]}"; do
+  if grep -Fq "$line" "$SCRIPT"; then
+    echo "[FAIL] release review CI gate reintroduced duplicate packet integrity semantic guard run: $line" >&2
     exit 1
   fi
 done
