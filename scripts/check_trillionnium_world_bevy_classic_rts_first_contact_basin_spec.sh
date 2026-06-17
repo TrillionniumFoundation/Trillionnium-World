@@ -673,6 +673,30 @@ jq -e '
   and .rts_online_offline_adapter_consumption.runtime_command_stamp_kind == "server_accepted_move"
   and .rts_online_offline_adapter_consumption.runtime_command_stamp_tile_id == "8,4"
   and (.rts_online_offline_adapter_consumption.runtime_last_feedback | contains("rejected target_actor_not_visible"))
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.map_scene == "first_contact_basin"
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.current_room_id == "first-contact-basin"
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.coins == 890
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.xp == 92
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.camera_focus_tile_id == "16,16"
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.visibility_percent == 76
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.army_supply_used == 12
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.army_supply_cap == 22
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.objective_status == "secure first relay beacon and hold the center lane"
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.production_queue == ["train:guard", "train:worker", "upgrade:signal_blade"]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.build_queue == ["build:watch_tower", "upgrade:training_hall"]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.selected_unit_ids == ["trnm.worker.alpha"]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.command_queue == ["move:8,4"]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.command_destination_tile_id == "8,4"
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.group_route_tile_ids == ["8,4"]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.visible_tile_count == 64
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.fogged_tile_count == 6
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.selection_box_tile_count == 4
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.unit_health_percents == [96,78,71,34]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_command_ids == ["worker", "scout", "warden", "relay", "core", "signal"]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_cooldown_percents == [0,0,16,0,42,25]
+  and .rts_online_offline_adapter_consumption.runtime_player_screen_review.active_ability_id == "worker"
+  and .rts_online_offline_adapter_consumption.local_session_handoff_gate == true
+  and .rts_online_offline_adapter_consumption.player_screen_review_gate == true
   and .rts_online_offline_adapter_consumption.accepted_order_runtime_gate == true
   and .rts_online_offline_adapter_consumption.rejected_order_runtime_gate == true
   and .rts_online_offline_adapter_consumption.scoped_update_runtime_gate == true
@@ -684,6 +708,8 @@ jq -e '
   and .rts_online_offline_adapter_consumption.socket_opened == false
   and .rts_online_offline_adapter_consumption.hosted_service_claimed == false
   and .rts_online_offline_adapter_consumption.public_launch_ready == false
+  and .rts_online_offline_adapter_consumption.runtime_path == "classic_first_contact_player_screen_runtime -> NativeFirstPlayableRuntime local player-screen/session handoff"
+  and (.rts_online_offline_adapter_consumption.source_of_truth | contains("player-screen/session surface"))
   and .rts_online_offline_adapter_consumption_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true

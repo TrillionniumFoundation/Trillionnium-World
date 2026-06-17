@@ -29420,6 +29420,33 @@ fn classic_first_contact_offline_adapter_consumption_summary(
         && runtime.rts_command_stamp_kind == "server_accepted_move"
         && runtime.rts_command_stamp_tile_id.as_deref() == Some("8,4")
         && runtime.rts_unit_response_state == "server_authoritative_move_applied";
+    let local_session_handoff_gate = runtime.map_scene == "first_contact_basin"
+        && runtime.current_room_id == "first-contact-basin"
+        && runtime.coins == 890
+        && runtime.xp == 92
+        && runtime.rts_camera_focus_tile_id.as_deref() == Some("16,16")
+        && runtime.rts_visibility_percent == 76
+        && runtime.rts_army_supply_used == 12
+        && runtime.rts_army_supply_cap == 22
+        && runtime.objective_status == "secure first relay beacon and hold the center lane"
+        && runtime.rts_production_queue
+            == string_vec(["train:guard", "train:worker", "upgrade:signal_blade"])
+        && runtime.rts_build_queue == string_vec(["build:watch_tower", "upgrade:training_hall"])
+        && runtime.rts_active_ability_id.as_deref() == Some("worker")
+        && runtime.rts_ability_command_ids
+            == string_vec(["worker", "scout", "warden", "relay", "core", "signal"])
+        && runtime.rts_visible_tile_ids.len() == 64
+        && runtime.rts_fogged_tile_ids.len() == 6
+        && runtime.rts_selection_box_tile_ids.len() == 4
+        && runtime.rts_unit_health_percents == vec![96, 78, 71, 34]
+        && runtime.rts_ability_cooldown_percents == vec![0, 0, 16, 0, 42, 25];
+    let player_screen_review_gate = local_session_handoff_gate
+        && runtime.rts_selected_unit_ids == accepted_runtime_subject_actor_ids
+        && runtime.rts_command_queue == accepted_runtime_command_labels
+        && runtime.rts_command_destination_tile.as_deref() == Some("8,4")
+        && runtime.rts_group_route_tile_ids == accepted_runtime_destination_tile_ids
+        && runtime.rts_control_group_id.as_deref() == Some("1")
+        && runtime.rts_group_command_state == "offline_adapter_authority_applied";
     let rejected_order_runtime_gate = rejected_runtime_command_labels
         == vec!["client:attack_fogged_keep".to_string()]
         && adapter.rejected_client_order_reasons == vec!["target_actor_not_visible".to_string()]
@@ -29442,6 +29469,8 @@ fn classic_first_contact_offline_adapter_consumption_summary(
         && !adapter.hosted_service_claimed
         && !adapter.public_launch_ready;
     let green = accepted_order_runtime_gate
+        && local_session_handoff_gate
+        && player_screen_review_gate
         && rejected_order_runtime_gate
         && scoped_update_runtime_gate
         && no_network_claim_gate;
@@ -29471,6 +29500,32 @@ fn classic_first_contact_offline_adapter_consumption_summary(
             "runtime_command_stamp_tile_id": runtime.rts_command_stamp_tile_id,
             "runtime_command_stamp_player_label": runtime.rts_command_stamp_player_label,
             "runtime_last_feedback": runtime.last_feedback,
+            "runtime_player_screen_review": {
+                "map_scene": runtime.map_scene,
+                "current_room_id": runtime.current_room_id,
+                "coins": runtime.coins,
+                "xp": runtime.xp,
+                "camera_focus_tile_id": runtime.rts_camera_focus_tile_id,
+                "visibility_percent": runtime.rts_visibility_percent,
+                "army_supply_used": runtime.rts_army_supply_used,
+                "army_supply_cap": runtime.rts_army_supply_cap,
+                "objective_status": runtime.objective_status,
+                "production_queue": runtime.rts_production_queue,
+                "build_queue": runtime.rts_build_queue,
+                "selected_unit_ids": runtime.rts_selected_unit_ids,
+                "command_queue": runtime.rts_command_queue,
+                "command_destination_tile_id": runtime.rts_command_destination_tile,
+                "group_route_tile_ids": runtime.rts_group_route_tile_ids,
+                "visible_tile_count": runtime.rts_visible_tile_ids.len(),
+                "fogged_tile_count": runtime.rts_fogged_tile_ids.len(),
+                "selection_box_tile_count": runtime.rts_selection_box_tile_ids.len(),
+                "unit_health_percents": runtime.rts_unit_health_percents,
+                "ability_command_ids": runtime.rts_ability_command_ids,
+                "ability_cooldown_percents": runtime.rts_ability_cooldown_percents,
+                "active_ability_id": runtime.rts_active_ability_id,
+            },
+            "local_session_handoff_gate": local_session_handoff_gate,
+            "player_screen_review_gate": player_screen_review_gate,
             "accepted_order_runtime_gate": accepted_order_runtime_gate,
             "rejected_order_runtime_gate": rejected_order_runtime_gate,
             "scoped_update_runtime_gate": scoped_update_runtime_gate,
@@ -29483,7 +29538,8 @@ fn classic_first_contact_offline_adapter_consumption_summary(
             "hosted_service_claimed": adapter.hosted_service_claimed,
             "public_launch_ready": adapter.public_launch_ready,
             "input_path": "trnm-rts-online offline adapter accepted_orders -> NativeFirstPlayableRuntime action replay",
-            "source_of_truth": "This proof consumes the no-socket offline adapter into Bevy local runtime state: the server-authoritative move reaches the runtime command queue and command stamp, while the fogged attack rejection is suppressed from UI/action replay state."
+            "runtime_path": "classic_first_contact_player_screen_runtime -> NativeFirstPlayableRuntime local player-screen/session handoff",
+            "source_of_truth": "This proof consumes the no-socket offline adapter into the Bevy local player-screen/session surface: the server-authoritative move reaches the visible command queue, route overlay, and command stamp while room, camera, visibility, queues, supply, and objective state stay coherent and the fogged attack rejection is suppressed from UI/action replay state."
         }),
         green,
     )
@@ -30335,7 +30391,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local UI/action replay consumption through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
