@@ -7,6 +7,7 @@ TMP_DIR="$(mktemp -d)"
 SUCCESS=0
 
 summary_paths=(
+  "$ACCEPTANCE_DIR/release-review-packet-integrity-semantic-fixture.json"
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.json"
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-matrix-semantic-fixture.json"
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-gap-semantic-fixture.json"
@@ -62,7 +63,7 @@ write_fixture_summary() {
       contract_version: $contract_version,
       status: $status,
       generated_at: $generated_at,
-      source_of_truth: "trillionnium_world_release_review_packet_integrity_rts_semantic_fixture_suite",
+      source_of_truth: "trillionnium_world_release_review_packet_integrity_semantic_fixture_suite",
       green: true,
       fixture_kind: $fixture_kind,
       fixture_rule: $fixture_rule,
@@ -77,9 +78,18 @@ write_fixture_summary() {
       public_launch_ready: false,
       android_s5_real_device_claimed: false,
       proof_scope: "host_side_bevy_runtime_replay_not_android_real_device",
-      reviewer_next_action: "inspect_release_review_packet_integrity_rts_semantic_fixture_suite_before_collecting_real_external_public_launch_evidence"
+      reviewer_next_action: "inspect_release_review_packet_integrity_semantic_fixture_suite_before_collecting_real_external_public_launch_evidence"
     }' >"$output_path"
 }
+
+write_fixture_summary \
+  "$ACCEPTANCE_DIR/release-review-packet-integrity-semantic-fixture.json" \
+  "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1" \
+  "release_review_packet_integrity_semantic_fixture_green" \
+  "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture" \
+  "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match" \
+  17 \
+  '["release_review_convergence_semantics","release_review_status_semantics","release_review_status_markdown_semantics","release_review_quickcheck_semantics","release_signoff_summary_semantics","cex_adapter_readiness_semantics","first_minute_command_feedback_replay_semantics","first_minute_command_feedback_source_recording_semantics","first_minute_command_feedback_recording_semantics","first_minute_command_feedback_replay_ppm_semantics","first_minute_command_feedback_rejection_replay_semantics","first_minute_command_feedback_rejection_source_recording_semantics","first_minute_command_feedback_rejection_recording_semantics","first_minute_command_feedback_rejection_replay_ppm_semantics","classic_playtest_readiness_full_game_visual_ui_replication_semantics","classic_playtest_readiness_semantics","campaign_outcome_ui_readiness_semantics"]'
 
 write_fixture_summary \
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.json" \
@@ -157,7 +167,7 @@ packet_json="$TMP_DIR/release-review-packet.json"
 packet_md="$TMP_DIR/release-review-packet.md"
 packet_log="$TMP_DIR/release-review-packet.log"
 mutated_packet_json="$TMP_DIR/release-review-packet-mutated.json"
-integrity_summary="$TMP_DIR/release-review-packet-integrity-rts-semantic-fixture-suite.json"
+integrity_summary="$TMP_DIR/release-review-packet-integrity-semantic-fixture-suite.json"
 
 TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS=0 \
 TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$packet_json" \
@@ -231,6 +241,31 @@ mutate_ppm_artifact() {
   update_packet_artifact "$artifact_id" "$target_path"
 }
 
+mutate_text_artifact() {
+  local artifact_id="$1"
+  local target_path="$TMP_DIR/${artifact_id}.txt"
+
+  printf 'semantic fixture intentionally invalidated this Markdown artifact\n' >"$target_path"
+  update_packet_artifact "$artifact_id" "$target_path"
+}
+
+mutate_json_artifact release_review_convergence '.green = false'
+mutate_json_artifact release_review_status_json '.ready_for_release_review = false'
+mutate_text_artifact release_review_status_markdown
+mutate_json_artifact release_review_quickcheck '.ready_for_release_review = false'
+mutate_json_artifact release_signoff_summary '.gates.native_bevy_keyboard_replay.green = false'
+mutate_json_artifact cex_adapter_readiness '.green = false'
+mutate_json_artifact native_bevy_first_minute_command_feedback_replay '.green = false'
+mutate_json_artifact native_bevy_first_minute_command_feedback_source_recording '.source_timeline_green = false'
+mutate_json_artifact native_bevy_first_minute_command_feedback_recording '.source_input_replay_green = false'
+mutate_ppm_artifact native_bevy_first_minute_command_feedback_replay_ppm 8000001
+mutate_json_artifact native_bevy_first_minute_command_feedback_rejection_replay '.green = false'
+mutate_json_artifact native_bevy_first_minute_command_feedback_rejection_source_recording '.source_timeline_green = false'
+mutate_json_artifact native_bevy_first_minute_command_feedback_rejection_recording '.source_input_replay_green = false'
+mutate_ppm_artifact native_bevy_first_minute_command_feedback_rejection_replay_ppm 8000001
+mutate_json_artifact native_bevy_classic_playtest_readiness '.green = false | .gates.rts_full_game_visual_ui_replication_gate = false'
+mutate_json_artifact native_bevy_classic_rts_campaign_outcome_ui_readiness '.green = false'
+
 mutate_json_artifact native_bevy_bot_planner_action_executor '.green = false'
 mutate_json_artifact native_bevy_bot_planner_action_executor_log '.executor_action_count = 0'
 mutate_ppm_artifact native_bevy_bot_planner_action_executor_ppm 8000001
@@ -267,6 +302,23 @@ mutate_ppm_artifact native_bevy_classic_rts_projectile_ability_ppm 8000001
 
 expected_names="$TMP_DIR/expected-failure-names.json"
 jq -n '[
+  "release_review_convergence_semantics",
+  "release_review_status_semantics",
+  "release_review_status_markdown_semantics",
+  "release_review_quickcheck_semantics",
+  "release_signoff_summary_semantics",
+  "cex_adapter_readiness_semantics",
+  "first_minute_command_feedback_replay_semantics",
+  "first_minute_command_feedback_source_recording_semantics",
+  "first_minute_command_feedback_recording_semantics",
+  "first_minute_command_feedback_replay_ppm_semantics",
+  "first_minute_command_feedback_rejection_replay_semantics",
+  "first_minute_command_feedback_rejection_source_recording_semantics",
+  "first_minute_command_feedback_rejection_recording_semantics",
+  "first_minute_command_feedback_rejection_replay_ppm_semantics",
+  "classic_playtest_readiness_full_game_visual_ui_replication_semantics",
+  "classic_playtest_readiness_semantics",
+  "campaign_outcome_ui_readiness_semantics",
   "bot_planner_action_executor_semantics",
   "bot_planner_action_executor_log_semantics",
   "bot_planner_action_executor_ppm_semantics",
@@ -334,4 +386,4 @@ for path in "${summary_paths[@]}"; do
 done
 
 SUCCESS=1
-printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_RTS_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=30 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"
+printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=47 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"
