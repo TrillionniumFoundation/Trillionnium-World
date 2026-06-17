@@ -14,6 +14,8 @@ required_script_lines=(
   'openra-imported-replay-repro-diff.json'
   'openra-imported-replay-repro-manifest-negative-corpus.json'
   'classic-rts-openra-imported-replay-repro-manifest'
+  'PRIMARY_LEDGER="$(jq -r '\''.ledger_path'\'' "$PRIMARY_SUMMARY")"'
+  'PRIMARY_NEGATIVE="$(jq -r '\''.negative_corpus_path'\'' "$PRIMARY_SUMMARY")"'
   'openra_imported_replay_repro_manifest_v1_json'
   'openra_imported_replay_repro_manifest_gate == true'
   'bevy_openra_imported_replay_repro_manifest_claimed == true'
@@ -37,6 +39,8 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_REPRO_MANIFEST_CONTRACT'
   'native_classic_rts_openra_imported_replay_repro_manifest_evidence_json'
   'classic-rts-openra-imported-replay-repro-manifest'
+  'TRNM_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_PRIMARY_SUMMARY'
+  'TRNM_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_PRIMARY_DIR'
   'bevy_owned_openra_imported_replay_repro_manifest_not_openra_runtime_parity'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT'
   'openra_imported_replay_repro_manifest_v1_json'
@@ -61,6 +65,8 @@ required_ci_lines=(
   'bevy_classic_rts_openra_imported_replay_repro_manifest_contract_guard'
   'bevy_classic_rts_openra_imported_replay_repro_manifest_gate'
   'bevy_classic_rts_openra_imported_replay_repro_manifest_script_contract_guard_test.sh'
+  'TRNM_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_PRIMARY_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-imported-replay-audit-ledger.json"'
+  'TRNM_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_PRIMARY_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-imported-replay-audit-ledger"'
   'check_trillionnium_world_bevy_classic_rts_openra_imported_replay_repro_manifest.sh'
 )
 

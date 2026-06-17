@@ -56881,20 +56881,58 @@ pub fn native_classic_rts_openra_imported_headless_comparison_harness_evidence_j
             .to_string_lossy()
             .into_owned()
     };
-    let imported_reducer_dir = preview_path("openra-imported-replay-reducer");
-    let replay_adapter_dir = preview_path("openra-replay-compat-adapter");
+    let default_imported_reducer_dir = preview_path("openra-imported-replay-reducer");
+    let default_replay_adapter_dir = preview_path("openra-replay-compat-adapter");
     let comparison_path = preview_path("openra-imported-headless-comparison-harness.json");
     let mismatch_matrix_path =
         preview_path("openra-imported-headless-comparison-mismatch-matrix.json");
 
-    let imported_reducer_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_imported_replay_reducer_evidence_json(&imported_reducer_dir),
-    )
-    .expect("OpenRA imported replay reducer evidence parses");
-    let replay_adapter: Value = serde_json::from_str(
-        &native_classic_rts_openra_replay_compat_adapter_evidence_json(&replay_adapter_dir),
-    )
-    .expect("OpenRA replay compatibility adapter evidence parses");
+    let imported_reducer_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REDUCER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA imported replay reducer override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_imported_replay_reducer_evidence_json(
+                    &default_imported_reducer_dir,
+                ),
+            )
+            .expect("OpenRA imported replay reducer evidence parses")
+        };
+    let imported_reducer_dir = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_REDUCER_DIR")
+        .ok()
+        .or_else(|| {
+            imported_reducer_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_imported_reducer_dir);
+    let replay_adapter: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA replay compatibility adapter override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_replay_compat_adapter_evidence_json(
+                    &default_replay_adapter_dir,
+                ),
+            )
+            .expect("OpenRA replay compatibility adapter evidence parses")
+        };
+    let replay_adapter_dir = std::env::var("TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR")
+        .ok()
+        .or_else(|| {
+            replay_adapter
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_replay_adapter_dir);
 
     let bool_at =
         |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
@@ -57510,7 +57548,7 @@ pub fn native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let imported_headless_dir = preview_path("openra-imported-headless-comparison-harness");
+    let default_imported_headless_dir = preview_path("openra-imported-headless-comparison-harness");
     let imported_headless_summary_path =
         preview_path("openra-imported-headless-comparison-harness.json");
     let ledger_path = preview_path("openra-imported-replay-audit-ledger.jsonl");
@@ -57518,12 +57556,29 @@ pub fn native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(
     let negative_corpus_path =
         preview_path("openra-imported-replay-audit-ledger-negative-corpus.json");
 
-    let imported_headless_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_imported_headless_comparison_harness_evidence_json(
-            &imported_headless_dir,
-        ),
-    )
-    .expect("OpenRA imported headless comparison harness evidence parses");
+    let imported_headless_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_IMPORTED_HEADLESS_COMPARISON_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA imported headless comparison harness override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_imported_headless_comparison_harness_evidence_json(
+                    &default_imported_headless_dir,
+                ),
+            )
+            .expect("OpenRA imported headless comparison harness evidence parses")
+        };
+    let imported_headless_dir = std::env::var("TRNM_OPENRA_IMPORTED_HEADLESS_COMPARISON_DIR")
+        .ok()
+        .or_else(|| {
+            imported_headless_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_imported_headless_dir);
     let imported_headless_summary_write_gate =
         serde_json::to_vec_pretty(&imported_headless_evidence)
             .map(|bytes| fs::write(&imported_headless_summary_path, bytes).is_ok())
@@ -58155,7 +58210,7 @@ pub fn native_classic_rts_openra_imported_replay_repro_manifest_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let primary_dir = preview_path("openra-imported-replay-audit-ledger-primary");
+    let default_primary_dir = preview_path("openra-imported-replay-audit-ledger-primary");
     let rerun_dir = preview_path("openra-imported-replay-audit-ledger-rerun");
     let primary_summary_path = preview_path("openra-imported-replay-audit-ledger-primary.json");
     let rerun_summary_path = preview_path("openra-imported-replay-audit-ledger-rerun.json");
@@ -58164,10 +58219,30 @@ pub fn native_classic_rts_openra_imported_replay_repro_manifest_evidence_json(
     let negative_corpus_path =
         preview_path("openra-imported-replay-repro-manifest-negative-corpus.json");
 
-    let primary_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(&primary_dir),
-    )
-    .expect("primary OpenRA imported replay audit ledger evidence parses");
+    let primary_evidence: Value = if let Ok(path) =
+        std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_PRIMARY_SUMMARY")
+    {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("primary OpenRA imported replay audit ledger override evidence parses")
+    } else {
+        serde_json::from_str(
+            &native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(
+                &default_primary_dir,
+            ),
+        )
+        .expect("primary OpenRA imported replay audit ledger evidence parses")
+    };
+    let primary_dir = std::env::var("TRNM_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_PRIMARY_DIR")
+        .ok()
+        .or_else(|| {
+            primary_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_primary_dir);
     let rerun_evidence: Value = serde_json::from_str(
         &native_classic_rts_openra_imported_replay_audit_ledger_evidence_json(&rerun_dir),
     )

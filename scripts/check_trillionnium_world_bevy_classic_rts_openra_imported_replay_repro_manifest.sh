@@ -9,10 +9,6 @@ DIFF="$PREVIEW_DIR/openra-imported-replay-repro-diff.json"
 NEGATIVE_CORPUS="$PREVIEW_DIR/openra-imported-replay-repro-manifest-negative-corpus.json"
 PRIMARY_SUMMARY="$PREVIEW_DIR/openra-imported-replay-audit-ledger-primary.json"
 RERUN_SUMMARY="$PREVIEW_DIR/openra-imported-replay-audit-ledger-rerun.json"
-PRIMARY_LEDGER="$PREVIEW_DIR/openra-imported-replay-audit-ledger-primary/openra-imported-replay-audit-ledger.jsonl"
-RERUN_LEDGER="$PREVIEW_DIR/openra-imported-replay-audit-ledger-rerun/openra-imported-replay-audit-ledger.jsonl"
-PRIMARY_NEGATIVE="$PREVIEW_DIR/openra-imported-replay-audit-ledger-primary/openra-imported-replay-audit-ledger-negative-corpus.json"
-RERUN_NEGATIVE="$PREVIEW_DIR/openra-imported-replay-audit-ledger-rerun/openra-imported-replay-audit-ledger-negative-corpus.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-imported-replay-repro-manifest "$PREVIEW_DIR" >"$SUMMARY"
@@ -115,6 +111,11 @@ jq -e '
   and .ledger_summary.entry_count >= 29
   and .ledger_summary.winner == "Multi2"
 ' "$PRIMARY_SUMMARY" "$RERUN_SUMMARY" >/dev/null
+
+PRIMARY_LEDGER="$(jq -r '.ledger_path' "$PRIMARY_SUMMARY")"
+RERUN_LEDGER="$(jq -r '.ledger_path' "$RERUN_SUMMARY")"
+PRIMARY_NEGATIVE="$(jq -r '.negative_corpus_path' "$PRIMARY_SUMMARY")"
+RERUN_NEGATIVE="$(jq -r '.negative_corpus_path' "$RERUN_SUMMARY")"
 
 test -s "$MANIFEST"
 test -s "$DIFF"

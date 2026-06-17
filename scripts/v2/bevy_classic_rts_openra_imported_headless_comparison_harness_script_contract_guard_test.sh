@@ -13,6 +13,8 @@ required_script_lines=(
   'openra-imported-headless-comparison-harness.json'
   'openra-imported-headless-comparison-mismatch-matrix.json'
   'classic-rts-openra-imported-headless-comparison-harness'
+  'IMPORTED_REDUCER="$(jq -r '\''.source_paths.imported_reducer_state'\'' "$SUMMARY")"'
+  'REPLAY_ADAPTER="$(jq -r '\''.source_paths.replay_summary_adapter'\'' "$SUMMARY")"'
   'openra_imported_headless_comparison_harness_v1_json'
   'openra_imported_headless_comparison_harness_gate == true'
   'bevy_openra_imported_headless_comparison_harness_claimed == true'
@@ -42,6 +44,8 @@ required_source_lines=(
   'openra_imported_headless_comparison_harness_v1_json'
   'imported_headless_comparison_gate'
   'openra_imported_headless_comparison_harness_gate'
+  'TRNM_OPENRA_IMPORTED_REPLAY_REDUCER_SUMMARY'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY'
   'bevy_openra_imported_headless_comparison_harness_claimed'
   'bevy_openra_imported_replay_reducer_claimed'
   'bevy_openra_order_payload_decoder_claimed'
@@ -58,6 +62,8 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_imported_headless_comparison_harness_contract_guard'
   'bevy_classic_rts_openra_imported_headless_comparison_harness_gate'
+  'TRNM_OPENRA_IMPORTED_REPLAY_REDUCER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-imported-replay-reducer.json"'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter.json"'
   'bevy_classic_rts_openra_imported_headless_comparison_harness_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_imported_headless_comparison_harness.sh'
 )

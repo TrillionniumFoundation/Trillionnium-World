@@ -38,6 +38,8 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_REPLAY_AUDIT_LEDGER_CONTRACT'
   'native_classic_rts_openra_imported_replay_audit_ledger_evidence_json'
   'classic-rts-openra-imported-replay-audit-ledger'
+  'TRNM_OPENRA_IMPORTED_HEADLESS_COMPARISON_SUMMARY'
+  'TRNM_OPENRA_IMPORTED_HEADLESS_COMPARISON_DIR'
   'bevy_owned_openra_imported_replay_hash_ledger_not_openra_runtime_parity'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_IMPORTED_HEADLESS_COMPARISON_HARNESS_CONTRACT'
   'openra_imported_replay_audit_ledger_v1_json'
@@ -61,6 +63,8 @@ required_ci_lines=(
   'bevy_classic_rts_openra_imported_replay_audit_ledger_contract_guard'
   'bevy_classic_rts_openra_imported_replay_audit_ledger_gate'
   'bevy_classic_rts_openra_imported_replay_audit_ledger_script_contract_guard_test.sh'
+  'TRNM_OPENRA_IMPORTED_HEADLESS_COMPARISON_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-imported-headless-comparison-harness.json"'
+  'TRNM_OPENRA_IMPORTED_HEADLESS_COMPARISON_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-imported-headless-comparison-harness"'
   'check_trillionnium_world_bevy_classic_rts_openra_imported_replay_audit_ledger.sh'
 )
 

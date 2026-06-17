@@ -6,9 +6,6 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-i
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-imported-headless-comparison-harness"
 COMPARISON="$PREVIEW_DIR/openra-imported-headless-comparison-harness.json"
 MISMATCH_MATRIX="$PREVIEW_DIR/openra-imported-headless-comparison-mismatch-matrix.json"
-IMPORTED_REDUCER="$PREVIEW_DIR/openra-imported-replay-reducer/openra-imported-replay-reducer.json"
-IMPORTED_SNAPSHOTS="$PREVIEW_DIR/openra-imported-replay-reducer/openra-imported-replay-snapshots.jsonl"
-REPLAY_ADAPTER="$PREVIEW_DIR/openra-replay-compat-adapter/openra-replay-summary-adapter.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-imported-headless-comparison-harness "$PREVIEW_DIR" >"$SUMMARY"
@@ -98,6 +95,10 @@ jq -e '
   and (map(.case) | index("decoded_stream_sha_probe") != null)
   and (map(.case) | index("headless_wgpu_toggle_probe") != null)
 ' "$MISMATCH_MATRIX" >/dev/null
+
+IMPORTED_REDUCER="$(jq -r '.source_paths.imported_reducer_state' "$SUMMARY")"
+IMPORTED_SNAPSHOTS="$(jq -r '.source_paths.imported_reducer_snapshots' "$SUMMARY")"
+REPLAY_ADAPTER="$(jq -r '.source_paths.replay_summary_adapter' "$SUMMARY")"
 
 jq -e '
   .state_schema == "openra_order_stream_reducer_state_v1_json"
