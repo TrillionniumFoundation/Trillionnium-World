@@ -96,6 +96,9 @@ jq -e '
   and .gpu_upload_claimed == false
 ' "$SUMMARY" >/dev/null
 
+UI_SKIN_PREVIEW="$(jq -er '.source_paths.production_ui_skin' "$SUMMARY")"
+
 test -s "$PREVIEW"
+test -s "$UI_SKIN_PREVIEW"
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_GREEN %s %s\n' "$SUMMARY" "$PREVIEW"

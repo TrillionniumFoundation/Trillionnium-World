@@ -14,6 +14,7 @@ required_script_lines=(
   'classic-rts-production-interaction-polish'
   'bevy-classic-rts-production-interaction-polish.json'
   'bevy-classic-rts-production-interaction-polish.ppm'
+  '.source_paths.production_ui_skin'
   'trillionnium_world_bevy_classic_rts_production_interaction_polish_v1'
   'trillionnium_world_bevy_classic_rts_production_ui_skin_v1'
   'trillionnium_world_bevy_classic_rts_command_affordance_v1'
@@ -44,6 +45,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_INTERACTION_POLISH_CONTRACT'
   'native_classic_rts_production_interaction_polish_evidence_json'
+  'TRNM_PRODUCTION_UI_SKIN_SUMMARY'
+  'TRNM_PRODUCTION_UI_SKIN_PREVIEW'
   'TRNM PRODUCTION INTERACTION POLISH'
   'native_classic_rts_production_ui_skin_evidence_json'
   'native_classic_rts_command_affordance_evidence_json'
@@ -95,6 +98,8 @@ required_ci_lines=(
   'check_trillionnium_world_bevy_classic_rts_production_interaction_polish.sh'
   'bevy_classic_rts_production_interaction_polish_script_contract_guard_test.sh'
   'bevy_classic_rts_production_interaction_polish_gate'
+  'TRNM_PRODUCTION_UI_SKIN_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.json"'
+  'TRNM_PRODUCTION_UI_SKIN_PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.ppm"'
   'trillionnium_world_bevy_classic_rts_production_interaction_polish_v1'
 )
 

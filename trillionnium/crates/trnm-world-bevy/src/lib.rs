@@ -19517,17 +19517,33 @@ pub fn native_classic_rts_production_interaction_polish_evidence_json(
         .join("bevy-classic-rts-production-interaction-polish-sources");
     let _ = fs::create_dir_all(&source_dir);
     let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
-    let ui_skin_path = source_path("bevy-classic-rts-production-ui-skin.ppm");
+    let default_ui_skin_path = source_path("bevy-classic-rts-production-ui-skin.ppm");
     let command_affordance_path = source_path("bevy-classic-rts-command-affordance.ppm");
     let selection_feedback_path = source_path("bevy-classic-rts-selection-command-feedback.ppm");
     let build_lifecycle_path = source_path("bevy-classic-rts-build-lifecycle.ppm");
     let scrollable_map_path = source_path("bevy-classic-rts-scrollable-map.ppm");
     let command_queue_path = source_path("bevy-classic-rts-command-queue-path-preview.ppm");
 
-    let ui_skin: Value = serde_json::from_str(
-        &native_classic_rts_production_ui_skin_evidence_json(&ui_skin_path),
-    )
-    .expect("production UI skin evidence parses for production interaction polish");
+    let ui_skin: Value = if let Ok(path) = std::env::var("TRNM_PRODUCTION_UI_SKIN_SUMMARY") {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("production UI skin override evidence parses for production interaction polish")
+    } else {
+        serde_json::from_str(&native_classic_rts_production_ui_skin_evidence_json(
+            &default_ui_skin_path,
+        ))
+        .expect("production UI skin evidence parses for production interaction polish")
+    };
+    let ui_skin_path = std::env::var("TRNM_PRODUCTION_UI_SKIN_PREVIEW")
+        .ok()
+        .or_else(|| {
+            ui_skin
+                .get("preview_path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_ui_skin_path);
     let command_affordance: Value = serde_json::from_str(
         &native_classic_rts_command_affordance_evidence_json(&command_affordance_path),
     )
