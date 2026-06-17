@@ -321,6 +321,51 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       objective_actor_tile_count: 4,
       spawn_actor_tile_count: 4
     },
+    rts_data_preview_actor_contract: "trnm_rts_data_first_contact_preview_actor_v1",
+    rts_data_preview_actor_projection: {
+      actor_count: 39,
+      spawn_count: 4,
+      flux_bloom_count: 11,
+      beacon_count: 4,
+      expansion_count: 4
+    },
+    rts_data_preview_actors: ([
+      {
+        contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+        source_actor_id: "Actor0",
+        kind: "spawn",
+        owner: "Multi0",
+        tile: {x: 8, y: 8},
+        source_rule_id: "mpspawn",
+        openra_preview_rule_id: "trnm.map.detail"
+      },
+      {
+        contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+        source_actor_id: "Actor15",
+        kind: "beacon",
+        owner: "Neutral",
+        tile: {x: 16, y: 9},
+        source_rule_id: "trnm.flux.beacon",
+        openra_preview_rule_id: "trnm.flux.beacon"
+      },
+      {
+        contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+        source_actor_id: "Actor35",
+        kind: "expansion_marker",
+        owner: "Neutral",
+        tile: {x: 11, y: 8},
+        source_rule_id: "trnm.expansion.marker",
+        openra_preview_rule_id: "trnm.map.detail"
+      }
+    ] + [range(0;36) | {
+      contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+      source_actor_id: ("FixtureActor" + tostring),
+      kind: "lane_marker",
+      owner: "Neutral",
+      tile: {x: 12, y: 12},
+      source_rule_id: "trnm.lane.marker",
+      openra_preview_rule_id: "trnm.map.detail"
+    }]),
     rts_online_protocol_fixture: {
       transport: {
         contract_version: "trnm_rts_online_loopback_transport_v1",

@@ -24,6 +24,8 @@ pub const TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT: &str =
     "trnm_rts_data_first_contact_visual_telemetry_v1";
 pub const TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT: &str =
     "trnm_rts_data_first_contact_player_screen_v1";
+pub const TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT: &str =
+    "trnm_rts_data_first_contact_preview_actor_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -616,6 +618,71 @@ pub struct RtsMapRendererModel {
     pub resource_actor_tiles: Vec<RtsTile>,
     pub objective_actor_tiles: Vec<RtsTile>,
     pub spawn_actor_tiles: Vec<RtsTile>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RtsFirstContactPreviewActorKind {
+    Spawn,
+    FluxBloom,
+    Beacon,
+    Ridge,
+    Vent,
+    LaneMarker,
+    BeaconRing,
+    ExpansionMarker,
+}
+
+impl RtsFirstContactPreviewActorKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Spawn => "spawn",
+            Self::FluxBloom => "flux_bloom",
+            Self::Beacon => "beacon",
+            Self::Ridge => "ridge",
+            Self::Vent => "vent",
+            Self::LaneMarker => "lane_marker",
+            Self::BeaconRing => "beacon_ring",
+            Self::ExpansionMarker => "expansion_marker",
+        }
+    }
+
+    pub const fn source_rule_id(self) -> &'static str {
+        match self {
+            Self::Spawn => "mpspawn",
+            Self::FluxBloom => "trnm.flux.bloom",
+            Self::Beacon => "trnm.flux.beacon",
+            Self::Ridge => "trnm.map.ridge",
+            Self::Vent => "trnm.flux.vent",
+            Self::LaneMarker => "trnm.lane.marker",
+            Self::BeaconRing => "trnm.beacon.ring",
+            Self::ExpansionMarker => "trnm.expansion.marker",
+        }
+    }
+
+    pub const fn openra_preview_rule_id(self) -> &'static str {
+        match self {
+            Self::FluxBloom => "trnm.flux.bloom",
+            Self::Beacon => "trnm.flux.beacon",
+            Self::Spawn
+            | Self::Ridge
+            | Self::Vent
+            | Self::LaneMarker
+            | Self::BeaconRing
+            | Self::ExpansionMarker => "trnm.map.detail",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactPreviewActor {
+    pub contract_version: String,
+    pub source_actor_id: String,
+    pub kind: RtsFirstContactPreviewActorKind,
+    pub owner: String,
+    pub tile: RtsTile,
+    pub source_rule_id: String,
+    pub openra_preview_rule_id: String,
 }
 
 impl RtsMapModel {
@@ -1500,6 +1567,48 @@ pub fn first_contact_map_renderer_model(map_model: &RtsMapModel) -> RtsMapRender
     }
 }
 
+pub fn first_contact_preview_actor_kind_from_rule_id(
+    rule_id: &str,
+) -> Option<RtsFirstContactPreviewActorKind> {
+    match rule_id {
+        "mpspawn" => Some(RtsFirstContactPreviewActorKind::Spawn),
+        "trnm.flux.bloom" => Some(RtsFirstContactPreviewActorKind::FluxBloom),
+        "trnm.flux.beacon" => Some(RtsFirstContactPreviewActorKind::Beacon),
+        "trnm.map.ridge" => Some(RtsFirstContactPreviewActorKind::Ridge),
+        "trnm.flux.vent" => Some(RtsFirstContactPreviewActorKind::Vent),
+        "trnm.lane.marker" => Some(RtsFirstContactPreviewActorKind::LaneMarker),
+        "trnm.beacon.ring" => Some(RtsFirstContactPreviewActorKind::BeaconRing),
+        "trnm.expansion.marker" => Some(RtsFirstContactPreviewActorKind::ExpansionMarker),
+        _ => None,
+    }
+}
+
+pub fn first_contact_preview_actor_from_map_actor(
+    actor: &RtsMapActor,
+) -> Option<RtsFirstContactPreviewActor> {
+    let kind = first_contact_preview_actor_kind_from_rule_id(&actor.rule_id)?;
+    Some(RtsFirstContactPreviewActor {
+        contract_version: TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT.to_string(),
+        source_actor_id: actor.id.clone(),
+        kind,
+        owner: actor.owner.clone(),
+        tile: actor.tile,
+        source_rule_id: kind.source_rule_id().to_string(),
+        openra_preview_rule_id: kind.openra_preview_rule_id().to_string(),
+    })
+}
+
+pub fn first_contact_preview_actors(map_model: &RtsMapModel) -> Vec<RtsFirstContactPreviewActor> {
+    map_model
+        .actors
+        .iter()
+        .map(|actor| {
+            first_contact_preview_actor_from_map_actor(actor)
+                .expect("First Contact map actor has a preview actor kind")
+        })
+        .collect()
+}
+
 pub fn first_contact_opening_loop_profile() -> RtsOpeningLoopProfile {
     RtsOpeningLoopProfile {
         contract_version: TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT.to_string(),
@@ -2320,6 +2429,67 @@ mod tests {
         assert!(renderer_model
             .spawn_actor_tiles
             .contains(&RtsTile::new(8, 8)));
+    }
+
+    #[test]
+    fn first_contact_preview_actors_preserve_map_actor_projection() {
+        let map = first_contact_basin_map();
+        let preview_actors = first_contact_preview_actors(&map);
+        assert_eq!(preview_actors.len(), 39);
+        assert!(preview_actors.iter().all(|actor| {
+            actor.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT
+                && map.bounds.contains(actor.tile)
+                && actor.source_rule_id == actor.kind.source_rule_id()
+                && actor.openra_preview_rule_id == actor.kind.openra_preview_rule_id()
+        }));
+        assert_eq!(
+            preview_actors
+                .iter()
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Spawn)
+                .count(),
+            4
+        );
+        assert_eq!(
+            preview_actors
+                .iter()
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::FluxBloom)
+                .count(),
+            11
+        );
+        assert_eq!(
+            preview_actors
+                .iter()
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Beacon)
+                .count(),
+            4
+        );
+        assert_eq!(
+            preview_actors
+                .iter()
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::ExpansionMarker)
+                .count(),
+            4
+        );
+        assert!(preview_actors.iter().any(|actor| {
+            actor.source_actor_id == "Actor0"
+                && actor.kind == RtsFirstContactPreviewActorKind::Spawn
+                && actor.owner == "Multi0"
+                && actor.tile == RtsTile::new(8, 8)
+                && actor.source_rule_id == "mpspawn"
+                && actor.openra_preview_rule_id == "trnm.map.detail"
+        }));
+        assert!(preview_actors.iter().any(|actor| {
+            actor.source_actor_id == "Actor15"
+                && actor.kind == RtsFirstContactPreviewActorKind::Beacon
+                && actor.tile == RtsTile::new(16, 9)
+                && actor.openra_preview_rule_id == "trnm.flux.beacon"
+        }));
+        assert!(preview_actors.iter().any(|actor| {
+            actor.source_actor_id == "Actor35"
+                && actor.kind == RtsFirstContactPreviewActorKind::ExpansionMarker
+                && actor.tile == RtsTile::new(11, 8)
+                && actor.source_rule_id == "trnm.expansion.marker"
+        }));
     }
 
     #[test]

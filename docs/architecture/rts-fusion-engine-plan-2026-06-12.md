@@ -21,11 +21,11 @@ The first cut has landed. The plan is now in extraction and Bevy-facing consumpt
 The following boundaries are already present on `main`:
 
 - `trnm-rts-data` exists with `RtsMapModel`, typed First Contact Basin players, rules, actors, bounds, source manifest, and deterministic canonical hash.
-- `trnm-rts-data` also owns the First Contact renderer-neutral map projection through `RtsMapRendererModel` and `first_contact_map_renderer_model(&RtsMapModel)`. Bevy consumes that projection for terrain/resource/base/objective/spawn/minimap evidence, and the OpenRA-like preview world derives its map actors from `first_contact_basin_map().actors` instead of a Bevy-local actor table.
+- `trnm-rts-data` also owns the First Contact renderer-neutral map projection through `RtsMapRendererModel` and `first_contact_map_renderer_model(&RtsMapModel)`. It now owns the First Contact preview actor projection through `RtsFirstContactPreviewActor`, `RtsFirstContactPreviewActorKind`, and `first_contact_preview_actors(&RtsMapModel)`. Bevy consumes those projections for terrain/resource/base/objective/spawn/minimap evidence and OpenRA-like preview actors instead of keeping Bevy-local actor tables or rule-kind adapters.
 - `trnm-rts-bevy-runtime` exists and owns deterministic camera, minimap, projection, path-preview, tile-line, hit-test, and runtime layout calculations.
 - `trnm-rts-evidence` exists and assembles deterministic Bevy runtime adapter evidence before `trnm-world-bevy` includes that proof in release-review evidence.
 - `trnm-rts-online` exists as a no-socket deterministic protocol fixture for authority resolution, visibility-scoped updates, loopback transport frames, bot plan, and arena lifecycle. It keeps hosted-service and public-launch claims false.
-- Release-review CI is green on the local release artifact path with 377 checks, 0 failures, and 128 packet artifacts. The current dominant local slow checks are live-window screenshot evidence, packet semantic fixtures, packet integrity, and release-packet refresh.
+- Release-review CI is green on the local release artifact path with 377 checks, 0 failures, 128 packet artifacts, and a current total of about 187 seconds. The current dominant local slow checks are live-window screenshot evidence, packet semantic fixtures, and packet integrity.
 - `public_launch_ready=false` and `android_s5_real_device_claimed=false` remain correct. They are blocked by real S5 device evidence, production map-pack public evidence, beta cohort evidence, commercial drill evidence, multi-node/live-traffic latency evidence, and public network exposure evidence. Public-launch blocker consistency now exposes explicit `green` and six-blocker fields, and operator handoff requires both before issuing the external-evidence handoff.
 
 ## Reference Ownership
@@ -108,7 +108,7 @@ Follow-up slices have also landed enough to change the plan:
 
 - Bevy First Contact spec/evidence consumes `trnm-rts-data`.
 - First Contact terrain/resource/base/objective/spawn/minimap projection is derived in `trnm-rts-data`, with Bevy consuming `RtsMapRendererModel`.
-- OpenRA-like preview map actors are derived from `first_contact_basin_map().actors`; a spec guard rejects a Bevy-local First Contact actor table regression.
+- OpenRA-like preview map actors are derived from `first_contact_preview_actors(&first_contact_basin_map())`; spec and packet guards reject Bevy-local First Contact actor tables or rule-kind adapter regressions.
 - Runtime adapter math and fixtures are split into `trnm-rts-bevy-runtime`.
 - Release-review evidence assembly is split into `trnm-rts-evidence`.
 - No-socket online protocol and authority fixtures are split into `trnm-rts-online`.

@@ -41,11 +41,12 @@ use trnm_rts_data::{
     first_contact_basin_map, first_contact_command_feedback_profile,
     first_contact_map_renderer_model, first_contact_opening_loop_profile,
     first_contact_player_screen_profile, first_contact_player_startup_profiles,
-    first_contact_terrain_profile, first_contact_terrain_profiles,
+    first_contact_preview_actors, first_contact_terrain_profile, first_contact_terrain_profiles,
     first_contact_visual_telemetry_profile, RtsActorColorRole, RtsActorGlyphAccent,
     RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
     RtsFirstContactPlayerScreenChromeProfile, RtsFirstContactPlayerScreenProfile,
-    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsMapRendererModel, RtsOpeningLoopProfile,
+    RtsFirstContactPreviewActor, RtsFirstContactPreviewActorKind,
+    RtsFirstContactVisualTelemetryProfile, RtsMapRendererModel, RtsOpeningLoopProfile,
     RtsPlayerScreenBuildPaletteSlotProfile, RtsPlayerScreenResourceReadoutKind,
     RtsPlayerScreenResourceReadoutProfile, RtsPlayerScreenTacticsRowKind,
     RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
@@ -56,6 +57,7 @@ use trnm_rts_data::{
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT,
+    TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT,
 };
 use trnm_world_api::{
@@ -29412,29 +29414,34 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && spawn_count
             == bevy_data_actor_templates
                 .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Spawn)
                 .count()
         && flux_count
             == bevy_data_actor_templates
                 .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::FluxBloom)
                 .count()
         && beacon_count
             == bevy_data_actor_templates
                 .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Beacon)
                 .count()
         && expansion_count
             == bevy_data_actor_templates
                 .iter()
-                .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
+                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::ExpansionMarker)
                 .count();
     let bevy_map_model_adapter_gate = rts_data_consumer_gate
         && bevy_data_actor_parity_gate
-        && map_model
-            .actors
-            .iter()
-            .all(|actor| classic_first_contact_actor_from_rts_data_actor(actor).is_some());
+        && bevy_data_actor_templates.iter().all(|actor| {
+            actor.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT
+                && actor.source_rule_id == actor.kind.source_rule_id()
+                && actor.openra_preview_rule_id == actor.kind.openra_preview_rule_id()
+                && map_model
+                    .actors
+                    .iter()
+                    .any(|source| source.id == actor.source_actor_id)
+        });
     let rts_data_terrain_profile_gate = terrain_profiles.len()
         == (map_model.width * map_model.height) as usize
         && terrain_profiles
@@ -29851,6 +29858,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         serde_json::to_value(&opening_profile).expect("RTS data opening profile serializes");
     let rts_data_command_feedback_profile = serde_json::to_value(&command_feedback_profile)
         .expect("RTS data command feedback profile serializes");
+    let rts_data_preview_actors = serde_json::to_value(&bevy_data_actor_templates)
+        .expect("RTS data preview actors serialize");
     let rts_data_player_startup_profiles = serde_json::to_value(&player_startup_profiles)
         .expect("RTS data player startup profiles serialize");
     let rts_data_actor_presentation_profiles = serde_json::to_value(&actor_presentation_profiles)
@@ -29994,6 +30003,17 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_renderer_projection_gate": rts_data_renderer_projection_gate,
         "rts_data_opening_profile": rts_data_opening_profile,
         "rts_data_command_feedback_profile": rts_data_command_feedback_profile,
+        "rts_data_preview_actor_contract": TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT,
+        "rts_data_preview_actor_projection": {
+            "actor_count": bevy_data_actor_templates.len(),
+            "spawn_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Spawn).count(),
+            "flux_bloom_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::FluxBloom).count(),
+            "beacon_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Beacon).count(),
+            "expansion_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::ExpansionMarker).count(),
+            "actor_samples": bevy_data_actor_templates.iter().take(6).collect::<Vec<_>>(),
+            "source": "trnm-rts-data first_contact_preview_actors projection from RtsMapModel actors",
+        },
+        "rts_data_preview_actors": rts_data_preview_actors,
         "rts_data_player_startup_profiles": rts_data_player_startup_profiles,
         "rts_data_actor_presentation_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
         "rts_data_actor_glyph_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
@@ -87793,58 +87813,6 @@ struct ClassicIsoEntity {
 }
 
 #[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ClassicFirstContactActorKind {
-    Spawn,
-    FluxBloom,
-    Beacon,
-    Ridge,
-    Vent,
-    LaneMarker,
-    BeaconRing,
-    ExpansionMarker,
-}
-
-#[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone, Copy)]
-struct ClassicFirstContactActor {
-    kind: ClassicFirstContactActorKind,
-    owner: &'static str,
-    tile: (i32, i32),
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_actor_kind_from_rule_id(
-    rule_id: &str,
-) -> Option<ClassicFirstContactActorKind> {
-    match rule_id {
-        "mpspawn" => Some(ClassicFirstContactActorKind::Spawn),
-        "trnm.flux.bloom" => Some(ClassicFirstContactActorKind::FluxBloom),
-        "trnm.flux.beacon" => Some(ClassicFirstContactActorKind::Beacon),
-        "trnm.map.ridge" => Some(ClassicFirstContactActorKind::Ridge),
-        "trnm.flux.vent" => Some(ClassicFirstContactActorKind::Vent),
-        "trnm.lane.marker" => Some(ClassicFirstContactActorKind::LaneMarker),
-        "trnm.beacon.ring" => Some(ClassicFirstContactActorKind::BeaconRing),
-        "trnm.expansion.marker" => Some(ClassicFirstContactActorKind::ExpansionMarker),
-        _ => None,
-    }
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_actor_rule_id(kind: ClassicFirstContactActorKind) -> &'static str {
-    match kind {
-        ClassicFirstContactActorKind::Spawn => "mpspawn",
-        ClassicFirstContactActorKind::FluxBloom => "trnm.flux.bloom",
-        ClassicFirstContactActorKind::Beacon => "trnm.flux.beacon",
-        ClassicFirstContactActorKind::Ridge => "trnm.map.ridge",
-        ClassicFirstContactActorKind::Vent => "trnm.flux.vent",
-        ClassicFirstContactActorKind::LaneMarker => "trnm.lane.marker",
-        ClassicFirstContactActorKind::BeaconRing => "trnm.beacon.ring",
-        ClassicFirstContactActorKind::ExpansionMarker => "trnm.expansion.marker",
-    }
-}
-
-#[cfg(not(target_os = "android"))]
 fn classic_first_contact_actor_owner_from_rts_data(owner: &str) -> &'static str {
     match owner {
         "Multi0" => "Multi0",
@@ -87859,26 +87827,8 @@ fn classic_first_contact_actor_owner_from_rts_data(owner: &str) -> &'static str 
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_actor_from_rts_data_actor(
-    actor: &RtsMapActor,
-) -> Option<ClassicFirstContactActor> {
-    Some(ClassicFirstContactActor {
-        kind: classic_first_contact_actor_kind_from_rule_id(&actor.rule_id)?,
-        owner: classic_first_contact_actor_owner_from_rts_data(&actor.owner),
-        tile: (actor.tile.x, actor.tile.y),
-    })
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_map_actors_from_rts_data() -> Vec<ClassicFirstContactActor> {
-    first_contact_basin_map()
-        .actors
-        .iter()
-        .map(|actor| {
-            classic_first_contact_actor_from_rts_data_actor(actor)
-                .expect("First Contact map actor has a Bevy adapter kind")
-        })
-        .collect()
+fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor> {
+    first_contact_preview_actors(&first_contact_basin_map())
 }
 
 #[cfg(not(target_os = "android"))]
@@ -88784,20 +88734,6 @@ fn classic_openra_like_rule_json(rule: &TrnmOpenRaLikeRuleSpec) -> Value {
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_openra_like_actor_rule_for(kind: ClassicFirstContactActorKind) -> &'static str {
-    match kind {
-        ClassicFirstContactActorKind::Spawn => "trnm.map.detail",
-        ClassicFirstContactActorKind::FluxBloom => "trnm.flux.bloom",
-        ClassicFirstContactActorKind::Beacon => "trnm.flux.beacon",
-        ClassicFirstContactActorKind::Ridge
-        | ClassicFirstContactActorKind::Vent
-        | ClassicFirstContactActorKind::LaneMarker
-        | ClassicFirstContactActorKind::BeaconRing
-        | ClassicFirstContactActorKind::ExpansionMarker => "trnm.map.detail",
-    }
-}
-
-#[cfg(not(target_os = "android"))]
 fn classic_openra_like_actor(
     id: impl Into<String>,
     rule_id: &'static str,
@@ -88856,9 +88792,10 @@ fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld
         .map(|(index, actor)| {
             classic_openra_like_actor(
                 format!("map.actor{index}"),
-                classic_openra_like_actor_rule_for(actor.kind),
-                actor.owner,
-                actor.tile,
+                classic_openra_like_static_rule_id(&actor.openra_preview_rule_id)
+                    .unwrap_or("trnm.map.detail"),
+                classic_first_contact_actor_owner_from_rts_data(&actor.owner),
+                classic_first_contact_tile_tuple(actor.tile),
                 None,
             )
         })
@@ -96410,30 +96347,35 @@ fn classic_draw_first_contact_actor(
     buffer: &mut [u32],
     width: usize,
     height: usize,
-    actor: ClassicFirstContactActor,
+    actor: RtsFirstContactPreviewActor,
     map_x: i32,
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
 ) {
-    let (tile_x, tile_y) =
-        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, actor.tile);
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        classic_first_contact_tile_tuple(actor.tile),
+    );
     let cx = tile_x + cell_w / 2;
     let cy = tile_y + cell_h / 2;
-    let rule_id = classic_first_contact_actor_rule_id(actor.kind);
+    let rule_id = actor.source_rule_id.as_str();
     let presentation = classic_first_contact_actor_presentation(rule_id);
     let glyph_body = presentation
         .as_ref()
         .map(|profile| profile.glyph.body)
         .unwrap_or_else(|| match actor.kind {
-            ClassicFirstContactActorKind::Spawn => RtsActorGlyphBody::SpawnPad,
-            ClassicFirstContactActorKind::FluxBloom => RtsActorGlyphBody::ResourceBloom,
-            ClassicFirstContactActorKind::Beacon => RtsActorGlyphBody::ObjectiveBeacon,
-            ClassicFirstContactActorKind::Ridge => RtsActorGlyphBody::TerrainRidge,
-            ClassicFirstContactActorKind::Vent => RtsActorGlyphBody::FluxVent,
-            ClassicFirstContactActorKind::LaneMarker => RtsActorGlyphBody::LaneMarker,
-            ClassicFirstContactActorKind::BeaconRing => RtsActorGlyphBody::BeaconRing,
-            ClassicFirstContactActorKind::ExpansionMarker => RtsActorGlyphBody::ExpansionMarker,
+            RtsFirstContactPreviewActorKind::Spawn => RtsActorGlyphBody::SpawnPad,
+            RtsFirstContactPreviewActorKind::FluxBloom => RtsActorGlyphBody::ResourceBloom,
+            RtsFirstContactPreviewActorKind::Beacon => RtsActorGlyphBody::ObjectiveBeacon,
+            RtsFirstContactPreviewActorKind::Ridge => RtsActorGlyphBody::TerrainRidge,
+            RtsFirstContactPreviewActorKind::Vent => RtsActorGlyphBody::FluxVent,
+            RtsFirstContactPreviewActorKind::LaneMarker => RtsActorGlyphBody::LaneMarker,
+            RtsFirstContactPreviewActorKind::BeaconRing => RtsActorGlyphBody::BeaconRing,
+            RtsFirstContactPreviewActorKind::ExpansionMarker => RtsActorGlyphBody::ExpansionMarker,
         });
     let glyph_accent = presentation
         .as_ref()
@@ -96441,7 +96383,7 @@ fn classic_draw_first_contact_actor(
         .unwrap_or(RtsActorGlyphAccent::None);
     match glyph_body {
         RtsActorGlyphBody::SpawnPad => {
-            let owner_color = match actor.owner {
+            let owner_color = match actor.owner.as_str() {
                 "Multi0" | "Multi2" => 0x67c980,
                 "Multi1" | "Multi3" => 0xd47967,
                 _ => CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
@@ -97752,11 +97694,7 @@ fn classic_draw_first_contact_basin_scene(
         );
     }
 
-    for actor in map_model
-        .actors
-        .iter()
-        .filter_map(classic_first_contact_actor_from_rts_data_actor)
-    {
+    for actor in classic_first_contact_map_actors_from_rts_data() {
         classic_draw_first_contact_actor(
             buffer, width, height, actor, map_x, map_y, cell_w, cell_h,
         );

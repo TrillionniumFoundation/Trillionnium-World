@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contact-basin-spec.json"
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
+DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
 mkdir -p "$(dirname "$OUT")"
 
 if grep -Fq 'CLASSIC_FIRST_CONTACT_BASIN_ACTORS' "$SOURCE"; then
@@ -11,11 +12,14 @@ if grep -Fq 'CLASSIC_FIRST_CONTACT_BASIN_ACTORS' "$SOURCE"; then
   exit 1
 fi
 
+if grep -Fq 'enum RtsFirstContactPreviewActorKind' "$SOURCE"; then
+  echo "[FAIL] First Contact preview actor kind must live in trnm-rts-data, not Bevy" >&2
+  exit 1
+fi
+
 required_source_lines=(
-  'fn classic_first_contact_map_actors_from_rts_data() -> Vec<ClassicFirstContactActor>'
-  'first_contact_basin_map()'
-  '.actors'
-  'classic_first_contact_actor_from_rts_data_actor(actor)'
+  'fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor>'
+  'first_contact_preview_actors(&first_contact_basin_map())'
   'let map_actors = classic_first_contact_map_actors_from_rts_data();'
   'let actor_template_count = classic_first_contact_map_actors_from_rts_data().len();'
 )
@@ -23,6 +27,21 @@ required_source_lines=(
 for line in "${required_source_lines[@]}"; do
   if ! grep -Fq "$line" "$SOURCE"; then
     echo "[FAIL] missing First Contact RTS data actor derivation source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_data_source_lines=(
+  'pub enum RtsFirstContactPreviewActorKind'
+  'pub struct RtsFirstContactPreviewActor'
+  'pub fn first_contact_preview_actor_from_map_actor'
+  'pub fn first_contact_preview_actors'
+  'openra_preview_rule_id'
+)
+
+for line in "${required_data_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$DATA_SOURCE"; then
+    echo "[FAIL] missing First Contact RTS data preview actor source line: $line" >&2
     exit 1
   fi
 done
@@ -91,6 +110,18 @@ jq -e '
   and .rts_data_command_feedback_profile.blocked_tile.y == 16
   and .rts_data_opening_profile_gate == true
   and .rts_data_command_feedback_gate == true
+  and .rts_data_preview_actor_contract == "trnm_rts_data_first_contact_preview_actor_v1"
+  and .rts_data_preview_actor_projection.actor_count == 39
+  and .rts_data_preview_actor_projection.spawn_count == 4
+  and .rts_data_preview_actor_projection.flux_bloom_count == 11
+  and .rts_data_preview_actor_projection.beacon_count == 4
+  and .rts_data_preview_actor_projection.expansion_count == 4
+  and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor0" and .kind == "spawn" and .owner == "Multi0" and .tile.x == 8 and .tile.y == 8 and .source_rule_id == "mpspawn" and .openra_preview_rule_id == "trnm.map.detail"))
+  and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor2" and .kind == "flux_bloom" and .tile.x == 12 and .tile.y == 16 and .source_rule_id == "trnm.flux.bloom" and .openra_preview_rule_id == "trnm.flux.bloom"))
+  and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor5" and .kind == "spawn" and .owner == "Multi2" and .tile.x == 25 and .tile.y == 8))
+  and (.rts_data_preview_actors | length) == 39
+  and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor15" and .kind == "beacon" and .tile.x == 16 and .tile.y == 9 and .openra_preview_rule_id == "trnm.flux.beacon"))
+  and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor35" and .kind == "expansion_marker" and .tile.x == 11 and .tile.y == 8 and .source_rule_id == "trnm.expansion.marker" and .openra_preview_rule_id == "trnm.map.detail"))
   and (.rts_data_player_startup_profiles | length) == 4
   and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi0" and .faction == "horizon" and .spawn_tile.x == 8 and .spawn_tile.y == 8 and .faction_unit_rule_id == "trnm.horizon.scout"))
   and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi1" and .faction == "forge" and .spawn_tile.x == 25 and .spawn_tile.y == 25 and .faction_unit_rule_id == "trnm.forge.warden"))
