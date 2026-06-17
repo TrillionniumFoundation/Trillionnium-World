@@ -742,7 +742,18 @@ run_check bevy_classic_rts_native_bot_ai_planner_gate "$ROOT/scripts/check_trill
 run_check bevy_classic_rts_planner_live_autonomous_bot_loop_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_planner_live_autonomous_bot_loop_script_contract_guard_test.sh"
 run_check bevy_classic_rts_planner_live_autonomous_bot_loop_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_planner_live_autonomous_bot_loop.sh"
 run_check bevy_classic_rts_openra_parity_lane_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_parity_lane_script_contract_guard_test.sh"
-run_check bevy_classic_rts_openra_parity_lane_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_parity_lane.sh"
+run_check bevy_classic_rts_openra_parity_lane_gate env \
+  TRNM_OPENRA_LIKE_CORE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-like-core.json" \
+  TRNM_OPENRA_PARITY_BRIDGE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-bridge.json" \
+  TRNM_OPENRA_PARITY_BRIDGE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-bridge" \
+  TRNM_OWNED_REPLAY_FILE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-owned-replay-file.json" \
+  TRNM_OWNED_REPLAY_FILE_PATH="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-owned-replay-file.trnm-replay.json" \
+  TRNM_HEADLESS_REPLAY_PLAYBACK_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-headless-replay-playback.json" \
+  TRNM_NATURAL_TERMINAL_CONTRACT_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-natural-terminal-contract.json" \
+  TRNM_NATURAL_TERMINAL_CONTRACT_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-natural-terminal-contract" \
+  TRNM_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-planner-live-autonomous-bot-loop.json" \
+  TRNM_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-planner-live-autonomous-bot-loop" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_parity_lane.sh"
 run_check bevy_classic_rts_openra_replay_compat_adapter_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_replay_compat_adapter_script_contract_guard_test.sh"
 run_check bevy_classic_rts_openra_replay_compat_adapter_gate env \
   TRNM_OPENRA_PARITY_LANE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-lane.json" \

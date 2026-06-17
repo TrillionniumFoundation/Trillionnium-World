@@ -53109,33 +53109,116 @@ pub fn native_classic_rts_openra_parity_lane_evidence_json(preview_dir: &str) ->
             .to_string_lossy()
             .into_owned()
     };
-    let bridge_dir = preview_path("openra-parity-bridge");
-    let replay_path = preview_path("openra-parity-lane.trnm-replay.json");
-    let terminal_dir = preview_path("natural-terminal-contract");
-    let planner_dir = preview_path("planner-live-autonomous-bot-loop");
+    let default_bridge_dir = preview_path("openra-parity-bridge");
+    let default_replay_path = preview_path("openra-parity-lane.trnm-replay.json");
+    let default_terminal_dir = preview_path("natural-terminal-contract");
+    let default_planner_dir = preview_path("planner-live-autonomous-bot-loop");
 
-    let core: Value = serde_json::from_str(&native_classic_rts_openra_like_core_evidence_json())
-        .expect("OpenRA-like core evidence parses");
-    let bridge: Value = serde_json::from_str(
-        &native_classic_rts_openra_parity_bridge_evidence_json(&bridge_dir),
-    )
-    .expect("OpenRA parity bridge evidence parses");
-    let owned_replay: Value = serde_json::from_str(
-        &native_classic_rts_owned_replay_file_evidence_json(&replay_path),
-    )
-    .expect("owned replay file evidence parses");
-    let headless: Value = serde_json::from_str(
-        &native_classic_rts_headless_replay_playback_evidence_json(&replay_path),
-    )
-    .expect("headless replay playback evidence parses");
-    let terminal: Value = serde_json::from_str(
-        &native_classic_rts_natural_terminal_contract_evidence_json(&terminal_dir, &replay_path),
-    )
-    .expect("natural terminal contract evidence parses");
-    let planner_loop: Value = serde_json::from_str(
-        &native_classic_rts_planner_live_autonomous_bot_loop_evidence_json(&planner_dir),
-    )
-    .expect("planner live autonomous bot loop evidence parses");
+    let core: Value = if let Ok(path) = std::env::var("TRNM_OPENRA_LIKE_CORE_SUMMARY") {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("OpenRA-like core override evidence parses")
+    } else {
+        serde_json::from_str(&native_classic_rts_openra_like_core_evidence_json())
+            .expect("OpenRA-like core evidence parses")
+    };
+    let bridge: Value = if let Ok(path) = std::env::var("TRNM_OPENRA_PARITY_BRIDGE_SUMMARY") {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("OpenRA parity bridge override evidence parses")
+    } else {
+        serde_json::from_str(&native_classic_rts_openra_parity_bridge_evidence_json(
+            &default_bridge_dir,
+        ))
+        .expect("OpenRA parity bridge evidence parses")
+    };
+    let bridge_dir = std::env::var("TRNM_OPENRA_PARITY_BRIDGE_DIR")
+        .ok()
+        .or_else(|| {
+            bridge
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_bridge_dir);
+    let owned_replay: Value = if let Ok(path) = std::env::var("TRNM_OWNED_REPLAY_FILE_SUMMARY") {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("owned replay file override evidence parses")
+    } else {
+        serde_json::from_str(&native_classic_rts_owned_replay_file_evidence_json(
+            &default_replay_path,
+        ))
+        .expect("owned replay file evidence parses")
+    };
+    let replay_path = std::env::var("TRNM_OWNED_REPLAY_FILE_PATH")
+        .ok()
+        .or_else(|| {
+            owned_replay
+                .get("replay_path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_replay_path);
+    let headless: Value = if let Ok(path) = std::env::var("TRNM_HEADLESS_REPLAY_PLAYBACK_SUMMARY") {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("headless replay playback override evidence parses")
+    } else {
+        serde_json::from_str(&native_classic_rts_headless_replay_playback_evidence_json(
+            &replay_path,
+        ))
+        .expect("headless replay playback evidence parses")
+    };
+    let terminal: Value = if let Ok(path) = std::env::var("TRNM_NATURAL_TERMINAL_CONTRACT_SUMMARY")
+    {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("natural terminal contract override evidence parses")
+    } else {
+        serde_json::from_str(&native_classic_rts_natural_terminal_contract_evidence_json(
+            &default_terminal_dir,
+            &replay_path,
+        ))
+        .expect("natural terminal contract evidence parses")
+    };
+    let terminal_dir = std::env::var("TRNM_NATURAL_TERMINAL_CONTRACT_DIR")
+        .ok()
+        .or_else(|| {
+            terminal
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_terminal_dir);
+    let planner_loop: Value =
+        if let Ok(path) = std::env::var("TRNM_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("planner live autonomous bot loop override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_planner_live_autonomous_bot_loop_evidence_json(
+                    &default_planner_dir,
+                ),
+            )
+            .expect("planner live autonomous bot loop evidence parses")
+        };
+    let planner_dir = std::env::var("TRNM_PLANNER_LIVE_AUTONOMOUS_BOT_LOOP_DIR")
+        .ok()
+        .or_else(|| {
+            planner_loop
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_planner_dir);
 
     let bool_at =
         |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);

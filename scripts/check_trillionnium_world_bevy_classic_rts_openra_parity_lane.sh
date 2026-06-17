@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-lane.json"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-lane"
-REPLAY="$PREVIEW_DIR/openra-parity-lane.trnm-replay.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-parity-lane "$PREVIEW_DIR" >"$SUMMARY"
@@ -69,9 +68,14 @@ jq -e '
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
 
+REPLAY="$(jq -er '.preview_paths.owned_replay_file' "$SUMMARY")"
+BRIDGE_DIR="$(jq -er '.preview_paths.openra_parity_bridge' "$SUMMARY")"
+TERMINAL_DIR="$(jq -er '.preview_paths.natural_terminal_contract' "$SUMMARY")"
+PLANNER_DIR="$(jq -er '.preview_paths.planner_live_autonomous_bot_loop' "$SUMMARY")"
+
 test -s "$REPLAY"
-test -s "$PREVIEW_DIR/openra-parity-bridge/organic-terminal-gap.ppm"
-test -s "$PREVIEW_DIR/natural-terminal-contract/organic-terminal.ppm"
-test -s "$PREVIEW_DIR/planner-live-autonomous-bot-loop/autonomous-bot-skirmish.ppm"
+test -s "$BRIDGE_DIR/organic-terminal-gap.ppm"
+test -s "$TERMINAL_DIR/organic-terminal.ppm"
+test -s "$PLANNER_DIR/autonomous-bot-skirmish.ppm"
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_PARITY_LANE_GREEN %s %s\n' "$SUMMARY" "$PREVIEW_DIR"
