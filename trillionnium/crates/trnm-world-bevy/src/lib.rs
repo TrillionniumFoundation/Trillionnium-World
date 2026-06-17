@@ -29407,24 +29407,25 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && map_summary.contract_version == TRNM_RTS_DATA_CONTRACT
         && map_summary.canonical_sha256.len() == 64
         && map_summary.source_integration_mode == "gpl_internal_component";
-    let bevy_data_actor_parity_gate = actor_count == CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len()
+    let bevy_data_actor_templates = classic_first_contact_map_actors_from_rts_data();
+    let bevy_data_actor_parity_gate = actor_count == bevy_data_actor_templates.len()
         && spawn_count
-            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+            == bevy_data_actor_templates
                 .iter()
                 .filter(|actor| actor.kind == ClassicFirstContactActorKind::Spawn)
                 .count()
         && flux_count
-            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+            == bevy_data_actor_templates
                 .iter()
                 .filter(|actor| actor.kind == ClassicFirstContactActorKind::FluxBloom)
                 .count()
         && beacon_count
-            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+            == bevy_data_actor_templates
                 .iter()
                 .filter(|actor| actor.kind == ClassicFirstContactActorKind::Beacon)
                 .count()
         && expansion_count
-            == CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+            == bevy_data_actor_templates
                 .iter()
                 .filter(|actor| actor.kind == ClassicFirstContactActorKind::ExpansionMarker)
                 .count();
@@ -31051,7 +31052,7 @@ pub fn native_classic_rts_openra_like_core_evidence_json() -> String {
         .iter()
         .find(|actor| actor.id == "multi0.worker.0");
     let rule_count = TRNM_OPENRA_LIKE_RULES.len();
-    let actor_template_count = CLASSIC_FIRST_CONTACT_BASIN_ACTORS.len();
+    let actor_template_count = classic_first_contact_map_actors_from_rts_data().len();
     let runtime_actor_count = world.actors.len();
     let rule_trait_gate =
         classic_openra_like_rule_has_trait("trnm.worker", TrnmOpenRaLikeTrait::Harvester)
@@ -87869,6 +87870,18 @@ fn classic_first_contact_actor_from_rts_data_actor(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_map_actors_from_rts_data() -> Vec<ClassicFirstContactActor> {
+    first_contact_basin_map()
+        .actors
+        .iter()
+        .map(|actor| {
+            classic_first_contact_actor_from_rts_data_actor(actor)
+                .expect("First Contact map actor has a Bevy adapter kind")
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_tuple(tile: RtsTile) -> (i32, i32) {
     (tile.x, tile.y)
 }
@@ -88733,205 +88746,6 @@ const TRNM_OPENRA_LIKE_SOURCE_POLICY: TrnmOpenRaLikeSourcePolicy = TrnmOpenRaLik
 };
 
 #[cfg(not(target_os = "android"))]
-const CLASSIC_FIRST_CONTACT_BASIN_ACTORS: &[ClassicFirstContactActor] = &[
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Spawn,
-        owner: "Multi0",
-        tile: (8, 8),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Spawn,
-        owner: "Multi1",
-        tile: (25, 25),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (12, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (21, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (16, 12),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Spawn,
-        owner: "Multi2",
-        tile: (25, 8),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Spawn,
-        owner: "Multi3",
-        tile: (8, 25),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (16, 21),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (8, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (25, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (10, 10),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (23, 23),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (23, 10),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (10, 23),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::FluxBloom,
-        owner: "Neutral",
-        tile: (16, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Beacon,
-        owner: "Neutral",
-        tile: (16, 9),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Beacon,
-        owner: "Neutral",
-        tile: (24, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Beacon,
-        owner: "Neutral",
-        tile: (16, 24),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Beacon,
-        owner: "Neutral",
-        tile: (9, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Ridge,
-        owner: "Neutral",
-        tile: (6, 13),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Ridge,
-        owner: "Neutral",
-        tile: (27, 20),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Ridge,
-        owner: "Neutral",
-        tile: (20, 6),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Ridge,
-        owner: "Neutral",
-        tile: (13, 27),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Vent,
-        owner: "Neutral",
-        tile: (14, 14),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Vent,
-        owner: "Neutral",
-        tile: (19, 19),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Vent,
-        owner: "Neutral",
-        tile: (19, 14),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::Vent,
-        owner: "Neutral",
-        tile: (14, 19),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::LaneMarker,
-        owner: "Neutral",
-        tile: (8, 12),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::LaneMarker,
-        owner: "Neutral",
-        tile: (25, 21),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::LaneMarker,
-        owner: "Neutral",
-        tile: (21, 8),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::LaneMarker,
-        owner: "Neutral",
-        tile: (12, 25),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::BeaconRing,
-        owner: "Neutral",
-        tile: (16, 10),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::BeaconRing,
-        owner: "Neutral",
-        tile: (23, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::BeaconRing,
-        owner: "Neutral",
-        tile: (16, 23),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::BeaconRing,
-        owner: "Neutral",
-        tile: (10, 16),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::ExpansionMarker,
-        owner: "Neutral",
-        tile: (11, 8),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::ExpansionMarker,
-        owner: "Neutral",
-        tile: (22, 25),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::ExpansionMarker,
-        owner: "Neutral",
-        tile: (22, 8),
-    },
-    ClassicFirstContactActor {
-        kind: ClassicFirstContactActorKind::ExpansionMarker,
-        owner: "Neutral",
-        tile: (11, 25),
-    },
-];
-
-#[cfg(not(target_os = "android"))]
 fn classic_openra_like_rule_for(id: &str) -> Option<&'static TrnmOpenRaLikeRuleSpec> {
     TRNM_OPENRA_LIKE_RULES.iter().find(|rule| rule.id == id)
 }
@@ -89035,7 +88849,8 @@ fn classic_openra_like_actor(
 
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_openra_like_core_initial_world() -> TrnmOpenRaLikeWorld {
-    let mut actors = CLASSIC_FIRST_CONTACT_BASIN_ACTORS
+    let map_actors = classic_first_contact_map_actors_from_rts_data();
+    let mut actors = map_actors
         .iter()
         .enumerate()
         .map(|(index, actor)| {
