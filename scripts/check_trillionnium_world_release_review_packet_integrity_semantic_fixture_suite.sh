@@ -168,6 +168,8 @@ packet_md="$TMP_DIR/release-review-packet.md"
 packet_log="$TMP_DIR/release-review-packet.log"
 mutated_packet_json="$TMP_DIR/release-review-packet-mutated.json"
 integrity_summary="$TMP_DIR/release-review-packet-integrity-semantic-fixture-suite.json"
+replacement_tsv="$TMP_DIR/replacements.tsv"
+replacements_json="$TMP_DIR/replacements.json"
 
 TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS=0 \
 TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$packet_json" \
@@ -175,10 +177,21 @@ TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_MD="$packet_md" \
   "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh" >"$packet_log"
 
 cp "$packet_json" "$mutated_packet_json"
+: >"$replacement_tsv"
+declare -A PACKET_ARTIFACT_PATH_BY_ID=()
+while IFS=$'\t' read -r id path; do
+  [[ -z "$id" ]] && continue
+  PACKET_ARTIFACT_PATH_BY_ID["$id"]="$path"
+done < <(jq -r '(.artifacts // [])[] | [.id, .path] | @tsv' "$mutated_packet_json")
 
 artifact_path_for_id() {
   local artifact_id="$1"
-  jq -er --arg id "$artifact_id" '.artifacts[] | select(.id == $id) | .path' "$mutated_packet_json"
+  local path="${PACKET_ARTIFACT_PATH_BY_ID[$artifact_id]:-}"
+  if [[ -z "$path" ]]; then
+    echo "[FAIL] missing packet artifact id for semantic fixture: $artifact_id" >&2
+    return 1
+  fi
+  printf '%s\n' "$path"
 }
 
 update_packet_artifact() {
@@ -188,7 +201,6 @@ update_packet_artifact() {
   local artifact_bytes
   local contract_version=""
   local status=""
-  local update_tmp="$TMP_DIR/packet-update.json"
 
   artifact_sha="$(sha256sum "$artifact_path" | awk '{print $1}')"
   artifact_bytes="$(wc -c <"$artifact_path" | tr -d ' ')"
@@ -197,21 +209,37 @@ update_packet_artifact() {
     status="$(jq -r '.status // .overall_status // empty' "$artifact_path" 2>/dev/null || true)"
   fi
 
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$artifact_id" "$artifact_path" "$artifact_sha" "$artifact_bytes" "$contract_version" "$status" >>"$replacement_tsv"
+  PACKET_ARTIFACT_PATH_BY_ID["$artifact_id"]="$artifact_path"
+}
+
+apply_packet_artifact_updates() {
+  local update_tmp="$TMP_DIR/packet-update.json"
+
+  if [[ ! -s "$replacement_tsv" ]]; then
+    return
+  fi
+
+  jq -Rn '[inputs | split("\t") | {
+    id: .[0],
+    path: .[1],
+    sha256: .[2],
+    bytes: (.[3] | tonumber),
+    contract_version: (if .[4] == "" then null else .[4] end),
+    status: (if .[5] == "" then null else .[5] end)
+  }]' <"$replacement_tsv" >"$replacements_json"
+
   jq \
-    --arg id "$artifact_id" \
-    --arg path "$artifact_path" \
-    --arg sha "$artifact_sha" \
-    --argjson bytes "$artifact_bytes" \
-    --arg contract_version "$contract_version" \
-    --arg status "$status" \
-    '.artifacts |= map(
-      if .id == $id then
-        .path = $path
+    --slurpfile replacements "$replacements_json" \
+    '($replacements[0] | INDEX(.id)) as $updates |
+    .artifacts |= map(
+      if $updates[.id] then
+        .path = $updates[.id].path
         | .file_status = "present"
-        | .sha256 = $sha
-        | .bytes = $bytes
-        | .contract_version = (if $contract_version == "" then null else $contract_version end)
-        | .status = (if $status == "" then null else $status end)
+        | .sha256 = $updates[.id].sha256
+        | .bytes = $updates[.id].bytes
+        | .contract_version = $updates[.id].contract_version
+        | .status = $updates[.id].status
       else
         .
       end
@@ -299,6 +327,8 @@ mutate_json_artifact native_bevy_classic_rts_tech_tree '.green = false'
 mutate_ppm_artifact native_bevy_classic_rts_tech_tree_ppm 8000001
 mutate_json_artifact native_bevy_classic_rts_projectile_ability '.green = false'
 mutate_ppm_artifact native_bevy_classic_rts_projectile_ability_ppm 8000001
+
+apply_packet_artifact_updates
 
 expected_names="$TMP_DIR/expected-failure-names.json"
 jq -n '[
