@@ -626,6 +626,7 @@ jq -e '
   and (.rts_online_offline_adapter.frame_sha256s | length) == 3
   and all(.rts_online_offline_adapter.frame_sha256s[]; length == 64)
   and .rts_online_offline_adapter_local_replay_contract == "trnm_rts_online_offline_adapter_local_replay_v1"
+  and .rts_online_offline_adapter_runtime_handoff_contract == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
   and .rts_online_offline_adapter.local_action_replay.contract_version == "trnm_rts_online_offline_adapter_local_replay_v1"
   and .rts_online_offline_adapter.local_action_replay.replay_mode == "bevy_local_ui_action_replay"
   and .rts_online_offline_adapter.local_action_replay.accepted_action_labels == ["RTS:SELECT:26", "RTS:MOVE:18,31:line", "RTS:SELECT:27", "RTS:MOVE:21,25:line", "RTS:SELECT:28", "RTS:MOVE:1,31:line", "RTS:SELECT:26"]
@@ -640,6 +641,22 @@ jq -e '
   and .rts_online_offline_adapter.local_action_replay.local_input_sources_ready == true
   and .rts_online_offline_adapter.local_action_replay.command_history_ready == true
   and .rts_online_offline_adapter.local_action_replay.green == true
+  and .rts_online_offline_adapter.local_runtime_handoff.contract_version == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
+  and .rts_online_offline_adapter.local_runtime_handoff.handoff_mode == "server_authoritative_runtime_command_handoff"
+  and .rts_online_offline_adapter.local_runtime_handoff.accepted_runtime_command_labels == ["move:8,4"]
+  and .rts_online_offline_adapter.local_runtime_handoff.accepted_runtime_destination_tile_ids == ["8,4"]
+  and .rts_online_offline_adapter.local_runtime_handoff.accepted_runtime_subject_actor_ids == ["trnm.worker.alpha"]
+  and .rts_online_offline_adapter.local_runtime_handoff.rejected_runtime_command_labels == ["client:attack_fogged_keep"]
+  and (.rts_online_offline_adapter.local_runtime_handoff.scoped_update_actor_ids | index("trnm.worker.alpha") != null)
+  and (.rts_online_offline_adapter.local_runtime_handoff.scoped_update_actor_ids | index("trnm.enemy.keep.fogged") == null)
+  and .rts_online_offline_adapter.local_runtime_handoff.runtime_command_stamp_source == "trnm-rts-online:offline_loopback_authority"
+  and .rts_online_offline_adapter.local_runtime_handoff.runtime_command_stamp_kind == "server_accepted_move"
+  and .rts_online_offline_adapter.local_runtime_handoff.runtime_command_stamp_tile_id == "8,4"
+  and .rts_online_offline_adapter.local_runtime_handoff.accepted_order_runtime_ready == true
+  and .rts_online_offline_adapter.local_runtime_handoff.rejected_order_runtime_ready == true
+  and .rts_online_offline_adapter.local_runtime_handoff.scoped_update_runtime_ready == true
+  and .rts_online_offline_adapter.local_runtime_handoff.no_socket_boundary_ready == true
+  and .rts_online_offline_adapter.local_runtime_handoff.green == true
   and .rts_online_offline_adapter.local_multiplayer_ready == true
   and .rts_online_offline_adapter.offline_bot_ready == true
   and .rts_online_offline_adapter.bevy_adapter_ready == true
@@ -654,6 +671,8 @@ jq -e '
   and .rts_online_offline_adapter_consumption.contract_version == "trillionnium_world_bevy_first_contact_offline_adapter_consumption_v1"
   and .rts_online_offline_adapter_consumption.green == true
   and .rts_online_offline_adapter_consumption.adapter_contract == "trnm_rts_online_offline_adapter_v1"
+  and .rts_online_offline_adapter_consumption.adapter_runtime_handoff_contract == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
+  and .rts_online_offline_adapter_consumption.adapter_runtime_handoff.green == true
   and .rts_online_offline_adapter_consumption.adapter_mode == "offline_loopback_authority"
   and .rts_online_offline_adapter_consumption.input_queue_labels == ["client:move_worker@8,4", "client:attack_fogged_keep"]
   and .rts_online_offline_adapter_consumption.accepted_server_order_labels == ["client:move_worker@8,4"]

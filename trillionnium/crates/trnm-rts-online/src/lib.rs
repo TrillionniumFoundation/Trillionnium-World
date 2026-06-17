@@ -22,6 +22,8 @@ pub const TRNM_RTS_ONLINE_LOCAL_HANDOFF_CONTRACT: &str = "trnm_rts_online_local_
 pub const TRNM_RTS_ONLINE_OFFLINE_ADAPTER_CONTRACT: &str = "trnm_rts_online_offline_adapter_v1";
 pub const TRNM_RTS_ONLINE_OFFLINE_ADAPTER_LOCAL_REPLAY_CONTRACT: &str =
     "trnm_rts_online_offline_adapter_local_replay_v1";
+pub const TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT: &str =
+    "trnm_rts_online_offline_adapter_runtime_handoff_v1";
 const TRNM_RTS_ONLINE_WIRE_MAGIC: &[u8; 8] = b"TRNMRTS1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -220,6 +222,31 @@ pub struct RtsOnlineOfflineAdapterLocalReplay {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOnlineOfflineAdapterRuntimeHandoff {
+    pub contract_version: String,
+    pub handoff_mode: String,
+    pub accepted_runtime_command_labels: Vec<String>,
+    pub accepted_runtime_destination_tile_ids: Vec<String>,
+    pub accepted_runtime_subject_actor_ids: Vec<String>,
+    pub rejected_runtime_command_labels: Vec<String>,
+    pub scoped_update_actor_ids: Vec<String>,
+    pub runtime_control_group_id: String,
+    pub runtime_group_command_state: String,
+    pub runtime_pathing_status: String,
+    pub runtime_unit_response_state: String,
+    pub runtime_command_stamp_source: String,
+    pub runtime_command_stamp_kind: String,
+    pub runtime_command_stamp_tile_id: Option<String>,
+    pub runtime_command_stamp_player_label: String,
+    pub runtime_last_feedback: String,
+    pub accepted_order_runtime_ready: bool,
+    pub rejected_order_runtime_ready: bool,
+    pub scoped_update_runtime_ready: bool,
+    pub no_socket_boundary_ready: bool,
+    pub green: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsOnlineOfflineAdapterSummary {
     pub contract_version: String,
     pub adapter_id: String,
@@ -238,6 +265,7 @@ pub struct RtsOnlineOfflineAdapterSummary {
     pub scoped_update_order_count: usize,
     pub frame_sha256s: Vec<String>,
     pub local_action_replay: RtsOnlineOfflineAdapterLocalReplay,
+    pub local_runtime_handoff: RtsOnlineOfflineAdapterRuntimeHandoff,
     pub local_multiplayer_ready: bool,
     pub offline_bot_ready: bool,
     pub bevy_adapter_ready: bool,
@@ -936,11 +964,127 @@ pub fn rts_online_offline_adapter_local_replay() -> RtsOnlineOfflineAdapterLocal
     }
 }
 
+pub fn rts_online_offline_adapter_runtime_handoff_from_fixture(
+    fixture: &RtsOnlineProtocolFixture,
+) -> RtsOnlineOfflineAdapterRuntimeHandoff {
+    let accepted_runtime_command_labels = fixture
+        .authority
+        .accepted_orders
+        .iter()
+        .filter_map(|order| match order.kind {
+            RtsOrderKind::Move => order
+                .target_tile
+                .map(|tile| format!("move:{},{}", tile.x, tile.y)),
+            RtsOrderKind::Attack => order
+                .target_actor_id
+                .as_deref()
+                .map(|actor_id| format!("attack:{actor_id}")),
+            _ => order.raw_command_label.clone(),
+        })
+        .collect::<Vec<_>>();
+    let accepted_runtime_destination_tile_ids = fixture
+        .authority
+        .accepted_orders
+        .iter()
+        .filter_map(|order| {
+            order
+                .target_tile
+                .map(|tile| format!("{},{}", tile.x, tile.y))
+        })
+        .collect::<Vec<_>>();
+    let mut accepted_runtime_subject_actor_ids = Vec::new();
+    for order in &fixture.authority.accepted_orders {
+        for actor_id in &order.subject_actor_ids {
+            if !accepted_runtime_subject_actor_ids
+                .iter()
+                .any(|existing| existing == actor_id)
+            {
+                accepted_runtime_subject_actor_ids.push(actor_id.clone());
+            }
+        }
+    }
+    let rejected_runtime_command_labels = fixture
+        .authority
+        .rejected_orders
+        .iter()
+        .filter_map(|rejection| rejection.raw_command_label.clone())
+        .collect::<Vec<_>>();
+    let scoped_update_actor_ids = fixture
+        .authority
+        .scoped_updates
+        .first()
+        .map(|update| update.scope.visible_actor_ids.clone())
+        .unwrap_or_default();
+
+    let runtime_command_stamp_tile_id = accepted_runtime_destination_tile_ids.first().cloned();
+    let accepted_order_runtime_ready = fixture.green
+        && accepted_runtime_command_labels == vec!["move:8,4".to_string()]
+        && accepted_runtime_destination_tile_ids == vec!["8,4".to_string()]
+        && accepted_runtime_subject_actor_ids == vec!["trnm.worker.alpha".to_string()]
+        && runtime_command_stamp_tile_id.as_deref() == Some("8,4");
+    let rejected_order_runtime_ready = rejected_runtime_command_labels
+        == vec!["client:attack_fogged_keep".to_string()]
+        && fixture
+            .authority
+            .rejected_orders
+            .iter()
+            .map(|rejection| rejection.reason.as_str())
+            .collect::<Vec<_>>()
+            == vec!["target_actor_not_visible"]
+        && accepted_runtime_command_labels
+            .iter()
+            .all(|command| !command.contains("fogged_keep"));
+    let scoped_update_runtime_ready = scoped_update_actor_ids.len() == 4
+        && scoped_update_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "trnm.worker.alpha")
+        && scoped_update_actor_ids
+            .iter()
+            .all(|actor_id| actor_id != "trnm.enemy.keep.fogged")
+        && fixture.transport.server_authoritative
+        && fixture.transport.visibility_scoped_response;
+    let no_socket_boundary_ready = fixture.transport.server_authoritative
+        && fixture.transport.visibility_scoped_response
+        && !fixture.transport.socket_opened
+        && !fixture.transport.hosted_service_claimed
+        && !fixture.transport.public_launch_ready;
+    let green = accepted_order_runtime_ready
+        && rejected_order_runtime_ready
+        && scoped_update_runtime_ready
+        && no_socket_boundary_ready;
+
+    RtsOnlineOfflineAdapterRuntimeHandoff {
+        contract_version: TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT.to_string(),
+        handoff_mode: "server_authoritative_runtime_command_handoff".to_string(),
+        accepted_runtime_command_labels,
+        accepted_runtime_destination_tile_ids,
+        accepted_runtime_subject_actor_ids,
+        rejected_runtime_command_labels,
+        scoped_update_actor_ids,
+        runtime_control_group_id: "1".to_string(),
+        runtime_group_command_state: "offline_adapter_authority_applied".to_string(),
+        runtime_pathing_status: "offline_adapter_replay_consumed".to_string(),
+        runtime_unit_response_state: "server_authoritative_move_applied".to_string(),
+        runtime_command_stamp_source: "trnm-rts-online:offline_loopback_authority".to_string(),
+        runtime_command_stamp_kind: "server_accepted_move".to_string(),
+        runtime_command_stamp_tile_id,
+        runtime_command_stamp_player_label: "SERVER ACCEPTED MOVE 8,4".to_string(),
+        runtime_last_feedback:
+            "Offline adapter applied server move 8,4; rejected target_actor_not_visible".to_string(),
+        accepted_order_runtime_ready,
+        rejected_order_runtime_ready,
+        scoped_update_runtime_ready,
+        no_socket_boundary_ready,
+        green,
+    }
+}
+
 pub fn rts_online_offline_adapter_from_fixture(
     fixture: &RtsOnlineProtocolFixture,
 ) -> RtsOnlineOfflineAdapterSummary {
     let handoff = rts_online_local_handoff_from_fixture(fixture);
     let local_action_replay = rts_online_offline_adapter_local_replay();
+    let local_runtime_handoff = rts_online_offline_adapter_runtime_handoff_from_fixture(fixture);
     let scoped_update = fixture.authority.scoped_updates.first();
     let input_queue_labels = fixture
         .authority
@@ -983,7 +1127,8 @@ pub fn rts_online_offline_adapter_from_fixture(
     let bevy_adapter_ready = handoff.green
         && handoff.bevy_client_role == "visualization_and_local_input_submitter"
         && handoff.authority_role == "trnm_rts_online_fixture_authority_no_socket"
-        && local_action_replay.green;
+        && local_action_replay.green
+        && local_runtime_handoff.green;
     let client_prediction_claimed = false;
     let rollback_netcode_claimed = false;
     let green = fixture.green
@@ -993,6 +1138,7 @@ pub fn rts_online_offline_adapter_from_fixture(
         && offline_bot_ready
         && bevy_adapter_ready
         && local_action_replay.green
+        && local_runtime_handoff.green
         && input_queue_labels.len() == 2
         && accepted_server_order_labels == vec!["client:move_worker@8,4".to_string()]
         && rejected_client_order_reasons == vec!["target_actor_not_visible".to_string()]
@@ -1025,6 +1171,7 @@ pub fn rts_online_offline_adapter_from_fixture(
         scoped_update_order_count,
         frame_sha256s,
         local_action_replay,
+        local_runtime_handoff,
         local_multiplayer_ready,
         offline_bot_ready,
         bevy_adapter_ready,
@@ -1235,6 +1382,57 @@ mod tests {
         assert!(adapter.local_action_replay.local_input_sources_ready);
         assert!(adapter.local_action_replay.command_history_ready);
         assert!(adapter.local_action_replay.green);
+        assert_eq!(
+            adapter.local_runtime_handoff.contract_version,
+            TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT
+        );
+        assert_eq!(
+            adapter.local_runtime_handoff.handoff_mode,
+            "server_authoritative_runtime_command_handoff"
+        );
+        assert_eq!(
+            adapter
+                .local_runtime_handoff
+                .accepted_runtime_command_labels,
+            vec!["move:8,4".to_string()]
+        );
+        assert_eq!(
+            adapter
+                .local_runtime_handoff
+                .accepted_runtime_destination_tile_ids,
+            vec!["8,4".to_string()]
+        );
+        assert_eq!(
+            adapter
+                .local_runtime_handoff
+                .accepted_runtime_subject_actor_ids,
+            vec!["trnm.worker.alpha".to_string()]
+        );
+        assert_eq!(
+            adapter
+                .local_runtime_handoff
+                .rejected_runtime_command_labels,
+            vec!["client:attack_fogged_keep".to_string()]
+        );
+        assert!(adapter
+            .local_runtime_handoff
+            .scoped_update_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "trnm.worker.alpha"));
+        assert!(adapter
+            .local_runtime_handoff
+            .scoped_update_actor_ids
+            .iter()
+            .all(|actor_id| actor_id != "trnm.enemy.keep.fogged"));
+        assert_eq!(
+            adapter.local_runtime_handoff.runtime_command_stamp_tile_id,
+            Some("8,4".to_string())
+        );
+        assert!(adapter.local_runtime_handoff.accepted_order_runtime_ready);
+        assert!(adapter.local_runtime_handoff.rejected_order_runtime_ready);
+        assert!(adapter.local_runtime_handoff.scoped_update_runtime_ready);
+        assert!(adapter.local_runtime_handoff.no_socket_boundary_ready);
+        assert!(adapter.local_runtime_handoff.green);
         assert!(adapter.local_multiplayer_ready);
         assert!(adapter.offline_bot_ready);
         assert!(adapter.bevy_adapter_ready);

@@ -29335,69 +29335,33 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_offline_adapter_consumption_summary(
     adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
-    fixture: &trnm_rts_online::RtsOnlineProtocolFixture,
 ) -> (Value, bool) {
     let mut runtime = classic_first_contact_player_screen_runtime();
-    let accepted_runtime_command_labels = fixture
-        .authority
-        .accepted_orders
-        .iter()
-        .filter_map(|order| match order.kind {
-            RtsOrderKind::Move => order
-                .target_tile
-                .map(|tile| format!("move:{},{}", tile.x, tile.y)),
-            RtsOrderKind::Attack => order
-                .target_actor_id
-                .as_deref()
-                .map(|actor_id| format!("attack:{actor_id}")),
-            _ => order.raw_command_label.clone(),
-        })
-        .collect::<Vec<_>>();
-    let accepted_runtime_destination_tile_ids = fixture
-        .authority
-        .accepted_orders
-        .iter()
-        .filter_map(|order| order.target_tile.map(classic_first_contact_tile_id))
-        .collect::<Vec<_>>();
-    let mut accepted_runtime_subject_actor_ids = Vec::new();
-    for order in &fixture.authority.accepted_orders {
-        for actor_id in &order.subject_actor_ids {
-            if !accepted_runtime_subject_actor_ids
-                .iter()
-                .any(|existing| existing == actor_id)
-            {
-                accepted_runtime_subject_actor_ids.push(actor_id.clone());
-            }
-        }
-    }
-    let rejected_runtime_command_labels = fixture
-        .authority
-        .rejected_orders
-        .iter()
-        .filter_map(|rejection| rejection.raw_command_label.clone())
-        .collect::<Vec<_>>();
+    let runtime_handoff = &adapter.local_runtime_handoff;
+    runtime.rts_control_group_id = Some(runtime_handoff.runtime_control_group_id.clone());
+    runtime.rts_selected_unit_ids = runtime_handoff.accepted_runtime_subject_actor_ids.clone();
+    runtime.rts_command_queue = runtime_handoff.accepted_runtime_command_labels.clone();
+    runtime.rts_command_destination_tile = runtime_handoff.runtime_command_stamp_tile_id.clone();
+    runtime.rts_group_route_tile_ids = runtime_handoff
+        .accepted_runtime_destination_tile_ids
+        .clone();
+    runtime.rts_group_command_state = runtime_handoff.runtime_group_command_state.clone();
+    runtime.rts_pathing_status = runtime_handoff.runtime_pathing_status.clone();
+    runtime.rts_unit_response_state = runtime_handoff.runtime_unit_response_state.clone();
+    runtime.rts_command_stamp_source = runtime_handoff.runtime_command_stamp_source.clone();
+    runtime.rts_command_stamp_kind = runtime_handoff.runtime_command_stamp_kind.clone();
+    runtime.rts_command_stamp_tile_id = runtime_handoff.runtime_command_stamp_tile_id.clone();
+    runtime.rts_command_stamp_player_label =
+        runtime_handoff.runtime_command_stamp_player_label.clone();
+    runtime.last_feedback = runtime_handoff.runtime_last_feedback.clone();
 
-    runtime.rts_control_group_id = Some("1".to_string());
-    runtime.rts_selected_unit_ids = accepted_runtime_subject_actor_ids.clone();
-    runtime.rts_command_queue = accepted_runtime_command_labels.clone();
-    runtime.rts_command_destination_tile = accepted_runtime_destination_tile_ids.first().cloned();
-    runtime.rts_group_route_tile_ids = accepted_runtime_destination_tile_ids.clone();
-    runtime.rts_group_command_state = "offline_adapter_authority_applied".to_string();
-    runtime.rts_pathing_status = "offline_adapter_replay_consumed".to_string();
-    runtime.rts_unit_response_state = "server_authoritative_move_applied".to_string();
-    runtime.rts_command_stamp_source = "trnm-rts-online:offline_loopback_authority".to_string();
-    runtime.rts_command_stamp_kind = "server_accepted_move".to_string();
-    runtime.rts_command_stamp_tile_id = runtime.rts_command_destination_tile.clone();
-    runtime.rts_command_stamp_player_label = "SERVER ACCEPTED MOVE 8,4".to_string();
-    runtime.last_feedback =
-        "Offline adapter applied server move 8,4; rejected target_actor_not_visible".to_string();
-
-    let scoped_update_actor_ids = fixture
-        .authority
-        .scoped_updates
-        .first()
-        .map(|update| update.scope.visible_actor_ids.clone())
-        .unwrap_or_default();
+    let accepted_runtime_destination_tile_ids = runtime_handoff
+        .accepted_runtime_destination_tile_ids
+        .clone();
+    let accepted_runtime_subject_actor_ids =
+        runtime_handoff.accepted_runtime_subject_actor_ids.clone();
+    let rejected_runtime_command_labels = runtime_handoff.rejected_runtime_command_labels.clone();
+    let scoped_update_actor_ids = runtime_handoff.scoped_update_actor_ids.clone();
     let rejected_commands_suppressed = rejected_runtime_command_labels.iter().all(|rejected| {
         runtime
             .rts_command_queue
@@ -29408,11 +29372,12 @@ fn classic_first_contact_offline_adapter_consumption_summary(
         .iter()
         .all(|command| !command.contains("trnm.enemy.keep.fogged"));
     let accepted_order_runtime_gate = adapter.green
-        && fixture.green
-        && accepted_runtime_command_labels == vec!["move:8,4".to_string()]
+        && runtime_handoff.green
+        && runtime_handoff.accepted_order_runtime_ready
+        && runtime_handoff.accepted_runtime_command_labels == vec!["move:8,4".to_string()]
         && accepted_runtime_destination_tile_ids == vec!["8,4".to_string()]
         && accepted_runtime_subject_actor_ids == vec!["trnm.worker.alpha".to_string()]
-        && runtime.rts_command_queue == accepted_runtime_command_labels
+        && runtime.rts_command_queue == runtime_handoff.accepted_runtime_command_labels
         && runtime.rts_command_destination_tile.as_deref() == Some("8,4")
         && runtime.rts_selected_unit_ids == accepted_runtime_subject_actor_ids
         && runtime.rts_group_command_state == "offline_adapter_authority_applied"
@@ -29442,19 +29407,20 @@ fn classic_first_contact_offline_adapter_consumption_summary(
         && runtime.rts_ability_cooldown_percents == vec![0, 0, 16, 0, 42, 25];
     let player_screen_review_gate = local_session_handoff_gate
         && runtime.rts_selected_unit_ids == accepted_runtime_subject_actor_ids
-        && runtime.rts_command_queue == accepted_runtime_command_labels
+        && runtime.rts_command_queue == runtime_handoff.accepted_runtime_command_labels
         && runtime.rts_command_destination_tile.as_deref() == Some("8,4")
         && runtime.rts_group_route_tile_ids == accepted_runtime_destination_tile_ids
         && runtime.rts_control_group_id.as_deref() == Some("1")
         && runtime.rts_group_command_state == "offline_adapter_authority_applied";
-    let rejected_order_runtime_gate = rejected_runtime_command_labels
-        == vec!["client:attack_fogged_keep".to_string()]
+    let rejected_order_runtime_gate = runtime_handoff.rejected_order_runtime_ready
+        && rejected_runtime_command_labels == vec!["client:attack_fogged_keep".to_string()]
         && adapter.rejected_client_order_reasons == vec!["target_actor_not_visible".to_string()]
         && rejected_commands_suppressed
         && runtime
             .last_feedback
             .contains("rejected target_actor_not_visible");
-    let scoped_update_runtime_gate = scoped_update_actor_ids.len() == 4
+    let scoped_update_runtime_gate = runtime_handoff.scoped_update_runtime_ready
+        && scoped_update_actor_ids.len() == 4
         && scoped_update_actor_ids
             .iter()
             .any(|actor_id| actor_id == "trnm.worker.alpha")
@@ -29463,7 +29429,8 @@ fn classic_first_contact_offline_adapter_consumption_summary(
             .all(|actor_id| actor_id != "trnm.enemy.keep.fogged")
         && adapter.visibility_scoped_response
         && adapter.server_authoritative;
-    let no_network_claim_gate = !adapter.client_prediction_claimed
+    let no_network_claim_gate = runtime_handoff.no_socket_boundary_ready
+        && !adapter.client_prediction_claimed
         && !adapter.rollback_netcode_claimed
         && !adapter.socket_opened
         && !adapter.hosted_service_claimed
@@ -29480,8 +29447,11 @@ fn classic_first_contact_offline_adapter_consumption_summary(
             "contract_version": "trillionnium_world_bevy_first_contact_offline_adapter_consumption_v1",
             "green": green,
             "adapter_contract": adapter.contract_version.as_str(),
+            "adapter_runtime_handoff_contract": runtime_handoff.contract_version.as_str(),
             "adapter_id": adapter.adapter_id.as_str(),
             "adapter_mode": adapter.adapter_mode.as_str(),
+            "adapter_runtime_handoff": serde_json::to_value(runtime_handoff)
+                .expect("offline adapter runtime handoff serializes"),
             "input_queue_labels": adapter.input_queue_labels.clone(),
             "accepted_server_order_labels": adapter.accepted_server_order_labels.clone(),
             "accepted_runtime_command_labels": runtime.rts_command_queue,
@@ -30167,6 +30137,45 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_online_offline_adapter.offline_bot_ready
         && rts_online_offline_adapter.bevy_adapter_ready
         && rts_online_offline_adapter.local_action_replay.green
+        && rts_online_offline_adapter.local_runtime_handoff.green
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .contract_version
+            .as_str()
+            == trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .accepted_runtime_command_labels
+            == string_vec(["move:8,4"])
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .accepted_runtime_destination_tile_ids
+            == string_vec(["8,4"])
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .accepted_runtime_subject_actor_ids
+            == string_vec(["trnm.worker.alpha"])
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .rejected_runtime_command_labels
+            == string_vec(["client:attack_fogged_keep"])
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .runtime_command_stamp_tile_id
+            .as_deref()
+            == Some("8,4")
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .accepted_order_runtime_ready
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .rejected_order_runtime_ready
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .scoped_update_runtime_ready
+        && rts_online_offline_adapter
+            .local_runtime_handoff
+            .no_socket_boundary_ready
         && rts_online_offline_adapter
             .local_action_replay
             .accepted_action_labels
@@ -30243,10 +30252,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && !rts_online_offline_adapter.hosted_service_claimed
         && !rts_online_offline_adapter.public_launch_ready;
     let (rts_online_offline_adapter_consumption_value, rts_online_offline_adapter_consumption_gate) =
-        classic_first_contact_offline_adapter_consumption_summary(
-            &rts_online_offline_adapter,
-            &rts_online_protocol_fixture,
-        );
+        classic_first_contact_offline_adapter_consumption_summary(&rts_online_offline_adapter);
     let rts_online_protocol_fixture_value = serde_json::to_value(&rts_online_protocol_fixture)
         .expect("RTS online protocol fixture serializes");
     let rts_online_local_handoff_value = serde_json::to_value(&rts_online_local_handoff)
@@ -30381,6 +30387,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_online_local_handoff_gate": rts_online_local_handoff_gate,
         "rts_online_offline_adapter_contract": trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_CONTRACT,
         "rts_online_offline_adapter_local_replay_contract": trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_LOCAL_REPLAY_CONTRACT,
+        "rts_online_offline_adapter_runtime_handoff_contract": trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT,
         "rts_online_offline_adapter": rts_online_offline_adapter_value,
         "rts_online_offline_adapter_gate": rts_online_offline_adapter_gate,
         "rts_online_offline_adapter_consumption": rts_online_offline_adapter_consumption_value,
