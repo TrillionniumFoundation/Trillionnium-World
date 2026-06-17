@@ -14,7 +14,19 @@ Do not start a separate rewrite. Keep the current playable Bevy RTS on `main`, t
 - `trnm-rts-online`: shared world/protocol/update envelope, arena lifecycle, visibility-scoped updates, bots.
 - `trnm-rts-evidence`: screenshots, JSON gates, PPM helpers, release-review proof generation.
 
-The first cut lands `trnm-rts-data` so First Contact Basin map/rules stop living only as hard-coded Bevy constants.
+The first cut has landed. The plan is now in extraction and Bevy-facing consumption mode rather than crate-bootstrap mode.
+
+## Current Status - 2026-06-17
+
+The following boundaries are already present on `main`:
+
+- `trnm-rts-data` exists with `RtsMapModel`, typed First Contact Basin players, rules, actors, bounds, source manifest, and deterministic canonical hash.
+- `trnm-world-bevy` depends on `trnm-rts-data` and consumes `first_contact_basin_map()` in First Contact spec/evidence paths. Remaining work is deeper player-screen renderer consumption, not the initial data handoff.
+- `trnm-rts-bevy-runtime` exists and owns deterministic camera, minimap, projection, path-preview, tile-line, hit-test, and runtime layout calculations.
+- `trnm-rts-evidence` exists and assembles deterministic Bevy runtime adapter evidence before `trnm-world-bevy` includes that proof in release-review evidence.
+- `trnm-rts-online` exists as a no-socket deterministic protocol fixture for authority resolution, visibility-scoped updates, loopback transport frames, bot plan, and arena lifecycle. It keeps hosted-service and public-launch claims false.
+- Release-review CI is green on the local release artifact path with 377 checks, 0 failures, and 128 packet artifacts. The current dominant local slow checks are live-window screenshot evidence, packet semantic fixtures, packet integrity, and release-packet refresh.
+- `public_launch_ready=false` and `android_s5_real_device_claimed=false` remain correct. They are blocked by real S5 device evidence, production map-pack public evidence, beta cohort evidence, commercial drill evidence, multi-node/live-traffic latency evidence, and public network exposure evidence.
 
 ## Reference Ownership
 
@@ -81,21 +93,31 @@ Requirements:
 - Add asset manifests before bundling new art.
 - Prefer typed Rust data models over ad hoc strings.
 
-## First Execution Slice
+## Execution Slices
 
-The current slice creates `trnm-rts-data`:
+### Landed
+
+The initial slice created `trnm-rts-data`:
 
 - `RtsMapModel` for First Contact Basin.
 - Typed players, rules, map actors, bounds, source manifest, and deterministic summary hash.
 - Direct internal derivation from `TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml` and `mods/trnm/rules/trnm.yaml`.
 - Tests for map size, playable bounds, players, actors, spawns, resources, objectives, expansion markers, and source manifest.
 
-Next slices:
+Follow-up slices have also landed enough to change the plan:
 
-1. Make the Bevy First Contact spec evidence consume `trnm-rts-data` instead of local constants.
-2. Make the player-screen map renderer consume `RtsMapModel` actors/rules for terrain/resource/base/minimap projection.
-3. Split runtime adapter surfaces using the Digital Extinction lane: camera/minimap/pathing first.
-4. Add `trnm-rts-online` protocol sketches using Kiomet/Kodiak lane: chunk visibility, update envelope, bots, arena lifecycle.
+- Bevy First Contact spec/evidence consumes `trnm-rts-data`.
+- Runtime adapter math and fixtures are split into `trnm-rts-bevy-runtime`.
+- Release-review evidence assembly is split into `trnm-rts-evidence`.
+- No-socket online protocol and authority fixtures are split into `trnm-rts-online`.
+
+### Next Local Slices
+
+1. Make the player-screen map renderer consume `RtsMapModel` actors/rules for terrain, resource, base, objective, spawn, and minimap projection instead of keeping those decisions in Bevy-local constants.
+2. Move remaining renderer-neutral RTS fixture, projection, command-surface, and evidence helper code out of `trnm-world-bevy/src/lib.rs` into `trnm-rts-bevy-runtime` or `trnm-rts-evidence`, leaving `trnm-world-bevy` as the adapter/rendering owner.
+3. Wire the `trnm-rts-online` authority and loopback fixtures into a Bevy-facing local multiplayer or offline bot handoff. Keep it explicitly no-socket, no-hosted-service, and no-public-launch until real network evidence exists.
+4. Add drift guards around release-review scripts that share `acceptance/S6_public_launch/latest` artifacts. Default packet refresh, public evidence kit/bundle refresh, and packet integrity should run sequentially unless a script proves it writes isolated temporary paths.
+5. Treat live-window screenshot compression as a stability problem, not a simple timeout trim. Further speed work needs a better readiness signal or cheaper capture pipeline before reducing evidence frames or settle retries.
 
 ## Release Boundary
 
@@ -107,3 +129,9 @@ Internal development may use direct AGPL/GPL imports. Public distribution, exter
 - CC BY-SA/OFL attribution/share-alike obligations for assets.
 
 Until that review is green, keep `public_launch_ready=false` and avoid claims that imported third-party code/assets are proprietary Trillionnium-owned work.
+
+CI and evidence boundary:
+
+- Release-review speedups are valid only when they preserve the same artifact semantics. The current live-window evidence gate is slow by design because it captures runtime window proof; do not weaken it without a better readiness/capture signal.
+- Scripts that write shared `acceptance/S6_public_launch/latest` artifacts must not be run in parallel by default. Parallel evidence-bundle, release-packet, and integrity refreshes can create checksum drift even when each script is individually correct.
+- Local green CI does not unblock public launch. The six public/S5 blockers above require real external evidence, and templates or synthetic fixtures must keep the readiness flags false.
