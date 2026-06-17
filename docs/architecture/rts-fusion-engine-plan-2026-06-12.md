@@ -21,12 +21,12 @@ The first cut has landed. The plan is now in extraction and Bevy-facing consumpt
 The following boundaries are already present on `main`:
 
 - `trnm-rts-data` exists with `RtsMapModel`, typed First Contact Basin players, rules, actors, bounds, source manifest, and deterministic canonical hash.
-- `trnm-world-bevy` depends on `trnm-rts-data` and consumes `first_contact_basin_map()` in First Contact spec/evidence paths. Remaining work is deeper player-screen renderer consumption, not the initial data handoff.
+- `trnm-rts-data` also owns the First Contact renderer-neutral map projection through `RtsMapRendererModel` and `first_contact_map_renderer_model(&RtsMapModel)`. Bevy consumes that projection for terrain/resource/base/objective/spawn/minimap evidence, and the OpenRA-like preview world derives its map actors from `first_contact_basin_map().actors` instead of a Bevy-local actor table.
 - `trnm-rts-bevy-runtime` exists and owns deterministic camera, minimap, projection, path-preview, tile-line, hit-test, and runtime layout calculations.
 - `trnm-rts-evidence` exists and assembles deterministic Bevy runtime adapter evidence before `trnm-world-bevy` includes that proof in release-review evidence.
 - `trnm-rts-online` exists as a no-socket deterministic protocol fixture for authority resolution, visibility-scoped updates, loopback transport frames, bot plan, and arena lifecycle. It keeps hosted-service and public-launch claims false.
 - Release-review CI is green on the local release artifact path with 377 checks, 0 failures, and 128 packet artifacts. The current dominant local slow checks are live-window screenshot evidence, packet semantic fixtures, packet integrity, and release-packet refresh.
-- `public_launch_ready=false` and `android_s5_real_device_claimed=false` remain correct. They are blocked by real S5 device evidence, production map-pack public evidence, beta cohort evidence, commercial drill evidence, multi-node/live-traffic latency evidence, and public network exposure evidence.
+- `public_launch_ready=false` and `android_s5_real_device_claimed=false` remain correct. They are blocked by real S5 device evidence, production map-pack public evidence, beta cohort evidence, commercial drill evidence, multi-node/live-traffic latency evidence, and public network exposure evidence. Public-launch blocker consistency now exposes explicit `green` and six-blocker fields, and operator handoff requires both before issuing the external-evidence handoff.
 
 ## Reference Ownership
 
@@ -107,17 +107,20 @@ The initial slice created `trnm-rts-data`:
 Follow-up slices have also landed enough to change the plan:
 
 - Bevy First Contact spec/evidence consumes `trnm-rts-data`.
+- First Contact terrain/resource/base/objective/spawn/minimap projection is derived in `trnm-rts-data`, with Bevy consuming `RtsMapRendererModel`.
+- OpenRA-like preview map actors are derived from `first_contact_basin_map().actors`; a spec guard rejects a Bevy-local First Contact actor table regression.
 - Runtime adapter math and fixtures are split into `trnm-rts-bevy-runtime`.
 - Release-review evidence assembly is split into `trnm-rts-evidence`.
 - No-socket online protocol and authority fixtures are split into `trnm-rts-online`.
+- Shared release-review acceptance writers are serialized with a common `flock` helper, and public-launch blocker consistency/operator handoff now expose machine-readable green/blocker-count state without claiming public launch.
 
 ### Next Local Slices
 
-1. Make the player-screen map renderer consume `RtsMapModel` actors/rules for terrain, resource, base, objective, spawn, and minimap projection instead of keeping those decisions in Bevy-local constants.
-2. Move remaining renderer-neutral RTS fixture, projection, command-surface, and evidence helper code out of `trnm-world-bevy/src/lib.rs` into `trnm-rts-bevy-runtime` or `trnm-rts-evidence`, leaving `trnm-world-bevy` as the adapter/rendering owner.
-3. Wire the `trnm-rts-online` authority and loopback fixtures into a Bevy-facing local multiplayer or offline bot handoff. Keep it explicitly no-socket, no-hosted-service, and no-public-launch until real network evidence exists.
-4. Add drift guards around release-review scripts that share `acceptance/S6_public_launch/latest` artifacts. Default packet refresh, public evidence kit/bundle refresh, and packet integrity should run sequentially unless a script proves it writes isolated temporary paths.
-5. Treat live-window screenshot compression as a stability problem, not a simple timeout trim. Further speed work needs a better readiness signal or cheaper capture pipeline before reducing evidence frames or settle retries.
+1. Move remaining renderer-neutral First Contact command-surface, runtime UI, and evidence helper code out of `trnm-world-bevy/src/lib.rs` into `trnm-rts-bevy-runtime` or `trnm-rts-evidence`, leaving `trnm-world-bevy` as the adapter/rendering owner.
+2. Wire the `trnm-rts-online` authority and loopback fixtures into a Bevy-facing local multiplayer or offline bot handoff. Keep it explicitly no-socket, no-hosted-service, and no-public-launch until real network evidence exists.
+3. Keep reducing packet semantic fixture and packet integrity cost only when the same semantic artifact checks remain covered. Avoid replacing semantic negatives with checksum-only assertions.
+4. Treat live-window screenshot compression as a stability problem, not a simple timeout trim. Further speed work needs a better readiness signal or cheaper capture pipeline before reducing evidence frames or settle retries.
+5. Keep public launch blocked until the six external evidence items are real and validator-green; templates, synthetic fixtures, local drills, and handoff manifests remain no-credit.
 
 ## Release Boundary
 
@@ -133,5 +136,5 @@ Until that review is green, keep `public_launch_ready=false` and avoid claims th
 CI and evidence boundary:
 
 - Release-review speedups are valid only when they preserve the same artifact semantics. The current live-window evidence gate is slow by design because it captures runtime window proof; do not weaken it without a better readiness/capture signal.
-- Scripts that write shared `acceptance/S6_public_launch/latest` artifacts must not be run in parallel by default. Parallel evidence-bundle, release-packet, and integrity refreshes can create checksum drift even when each script is individually correct.
+- Scripts that write shared `acceptance/S6_public_launch/latest` artifacts must use the shared release-review acceptance lock or isolated temporary paths. Parallel evidence-bundle, release-packet, and integrity refreshes can create checksum drift when they bypass that discipline.
 - Local green CI does not unblock public launch. The six public/S5 blockers above require real external evidence, and templates or synthetic fixtures must keep the readiness flags false.
