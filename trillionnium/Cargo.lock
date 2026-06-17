@@ -5197,6 +5197,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "trnm-rts-bevy-runtime",
  "trnm-rts-core",
 ]
 

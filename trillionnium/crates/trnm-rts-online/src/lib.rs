@@ -6,6 +6,10 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use trnm_rts_bevy_runtime::{
+    rts_control_group_command_feedback_rejection_replay_fixtures,
+    rts_control_group_command_feedback_replay_fixtures,
+};
 use trnm_rts_core::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 
 pub const TRNM_RTS_ONLINE_CONTRACT: &str = "trnm_rts_online_protocol_v1";
@@ -16,6 +20,8 @@ pub const TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT: &str =
     "trnm_rts_online_loopback_transport_v1";
 pub const TRNM_RTS_ONLINE_LOCAL_HANDOFF_CONTRACT: &str = "trnm_rts_online_local_handoff_v1";
 pub const TRNM_RTS_ONLINE_OFFLINE_ADAPTER_CONTRACT: &str = "trnm_rts_online_offline_adapter_v1";
+pub const TRNM_RTS_ONLINE_OFFLINE_ADAPTER_LOCAL_REPLAY_CONTRACT: &str =
+    "trnm_rts_online_offline_adapter_local_replay_v1";
 const TRNM_RTS_ONLINE_WIRE_MAGIC: &[u8; 8] = b"TRNMRTS1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -196,6 +202,24 @@ pub struct RtsOnlineLocalHandoff {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOnlineOfflineAdapterLocalReplay {
+    pub contract_version: String,
+    pub replay_mode: String,
+    pub accepted_action_labels: Vec<String>,
+    pub accepted_preview_stages: Vec<String>,
+    pub blocked_action_labels: Vec<String>,
+    pub blocked_input_sources: Vec<String>,
+    pub blocked_reasons: Vec<String>,
+    pub blocked_preview_stages: Vec<String>,
+    pub retained_history_group_ids: Vec<String>,
+    pub pruned_history_group_ids: Vec<String>,
+    pub command_history_capacity: usize,
+    pub local_input_sources_ready: bool,
+    pub command_history_ready: bool,
+    pub green: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsOnlineOfflineAdapterSummary {
     pub contract_version: String,
     pub adapter_id: String,
@@ -213,6 +237,7 @@ pub struct RtsOnlineOfflineAdapterSummary {
     pub scoped_update_actor_ids: Vec<String>,
     pub scoped_update_order_count: usize,
     pub frame_sha256s: Vec<String>,
+    pub local_action_replay: RtsOnlineOfflineAdapterLocalReplay,
     pub local_multiplayer_ready: bool,
     pub offline_bot_ready: bool,
     pub bevy_adapter_ready: bool,
@@ -800,10 +825,122 @@ pub fn first_contact_online_local_handoff() -> RtsOnlineLocalHandoff {
     rts_online_local_handoff_from_fixture(&first_contact_online_protocol_fixture())
 }
 
+pub fn rts_online_offline_adapter_local_replay() -> RtsOnlineOfflineAdapterLocalReplay {
+    let replay_fixtures = rts_control_group_command_feedback_replay_fixtures();
+    let rejection_fixtures = rts_control_group_command_feedback_rejection_replay_fixtures();
+    let accepted_action_labels = replay_fixtures
+        .command_steps
+        .iter()
+        .map(|step| step.action_label.clone())
+        .collect::<Vec<_>>();
+    let accepted_preview_stages = replay_fixtures
+        .command_steps
+        .iter()
+        .filter_map(|step| step.preview_stage.clone())
+        .collect::<Vec<_>>();
+    let blocked_action_labels = rejection_fixtures
+        .rejection_steps
+        .iter()
+        .filter(|step| !step.expected_accepted)
+        .map(|step| step.action_label.clone())
+        .collect::<Vec<_>>();
+    let blocked_input_sources = rejection_fixtures
+        .rejection_steps
+        .iter()
+        .filter(|step| !step.expected_accepted)
+        .map(|step| step.input_source.clone())
+        .collect::<Vec<_>>();
+    let blocked_reasons = rejection_fixtures
+        .rejection_steps
+        .iter()
+        .filter(|step| !step.expected_accepted)
+        .map(|step| step.expected_reason.clone())
+        .collect::<Vec<_>>();
+    let blocked_preview_stages = rejection_fixtures
+        .rejection_steps
+        .iter()
+        .filter(|step| !step.expected_accepted)
+        .filter_map(|step| step.preview_stage.clone())
+        .collect::<Vec<_>>();
+    let local_input_sources_ready = blocked_input_sources
+        == vec![
+            "classic_rts_mouse_viewport".to_string(),
+            "classic_rts_mouse_viewport".to_string(),
+            "classic_rts_mouse_viewport".to_string(),
+            "classic_rts_hotkey".to_string(),
+            "classic_rts_mouse_sidebar".to_string(),
+            "classic_rts_mouse_sidebar".to_string(),
+            "classic_rts_hotkey".to_string(),
+        ]
+        && blocked_preview_stages
+            == vec![
+                "group_selection_required".to_string(),
+                "invalid_tile".to_string(),
+                "attack_target_required".to_string(),
+                "history_preserved_after_rejections".to_string(),
+            ];
+    let command_history_ready = replay_fixtures.retained_history_group_ids
+        == vec!["26".to_string(), "27".to_string(), "28".to_string()]
+        && replay_fixtures.pruned_history_group_ids == vec!["25".to_string(), "24".to_string()]
+        && replay_fixtures.history_entries.len() == 3
+        && replay_fixtures.pruned_history_entries.len() == 2
+        && rejection_fixtures.retained_history_group_ids
+            == vec!["26".to_string(), "27".to_string(), "28".to_string()]
+        && rejection_fixtures.pruned_history_group_ids == vec!["25".to_string(), "24".to_string()];
+    let green = accepted_action_labels
+        == vec![
+            "RTS:SELECT:26".to_string(),
+            "RTS:MOVE:18,31:line".to_string(),
+            "RTS:SELECT:27".to_string(),
+            "RTS:MOVE:21,25:line".to_string(),
+            "RTS:SELECT:28".to_string(),
+            "RTS:MOVE:1,31:line".to_string(),
+            "RTS:SELECT:26".to_string(),
+        ]
+        && accepted_preview_stages
+            == vec![
+                "group_26_queued".to_string(),
+                "group_27_override".to_string(),
+                "group_28_formation".to_string(),
+                "cleared_history_bounded".to_string(),
+            ]
+        && blocked_action_labels
+            == vec![
+                "RTS:MOVE:18,31:line".to_string(),
+                "RTS:MOVE:bad-tile:line".to_string(),
+                "RTS:ATTACK:".to_string(),
+                "RTS:ABILITY:guard_break".to_string(),
+                "RTS:QUEUE:".to_string(),
+                "RTS:QUEUE:build:watch_tower@7,4".to_string(),
+                "RTS:SELECT:".to_string(),
+            ]
+        && blocked_reasons == rejection_fixtures.expected_blocked_reasons
+        && local_input_sources_ready
+        && command_history_ready;
+
+    RtsOnlineOfflineAdapterLocalReplay {
+        contract_version: TRNM_RTS_ONLINE_OFFLINE_ADAPTER_LOCAL_REPLAY_CONTRACT.to_string(),
+        replay_mode: "bevy_local_ui_action_replay".to_string(),
+        accepted_action_labels,
+        accepted_preview_stages,
+        blocked_action_labels,
+        blocked_input_sources,
+        blocked_reasons,
+        blocked_preview_stages,
+        retained_history_group_ids: replay_fixtures.retained_history_group_ids,
+        pruned_history_group_ids: replay_fixtures.pruned_history_group_ids,
+        command_history_capacity: 3,
+        local_input_sources_ready,
+        command_history_ready,
+        green,
+    }
+}
+
 pub fn rts_online_offline_adapter_from_fixture(
     fixture: &RtsOnlineProtocolFixture,
 ) -> RtsOnlineOfflineAdapterSummary {
     let handoff = rts_online_local_handoff_from_fixture(fixture);
+    let local_action_replay = rts_online_offline_adapter_local_replay();
     let scoped_update = fixture.authority.scoped_updates.first();
     let input_queue_labels = fixture
         .authority
@@ -845,7 +982,8 @@ pub fn rts_online_offline_adapter_from_fixture(
         && !fixture.bot_plan.order_labels.is_empty();
     let bevy_adapter_ready = handoff.green
         && handoff.bevy_client_role == "visualization_and_local_input_submitter"
-        && handoff.authority_role == "trnm_rts_online_fixture_authority_no_socket";
+        && handoff.authority_role == "trnm_rts_online_fixture_authority_no_socket"
+        && local_action_replay.green;
     let client_prediction_claimed = false;
     let rollback_netcode_claimed = false;
     let green = fixture.green
@@ -854,6 +992,7 @@ pub fn rts_online_offline_adapter_from_fixture(
         && local_multiplayer_ready
         && offline_bot_ready
         && bevy_adapter_ready
+        && local_action_replay.green
         && input_queue_labels.len() == 2
         && accepted_server_order_labels == vec!["client:move_worker@8,4".to_string()]
         && rejected_client_order_reasons == vec!["target_actor_not_visible".to_string()]
@@ -885,6 +1024,7 @@ pub fn rts_online_offline_adapter_from_fixture(
         scoped_update_actor_ids,
         scoped_update_order_count,
         frame_sha256s,
+        local_action_replay,
         local_multiplayer_ready,
         offline_bot_ready,
         bevy_adapter_ready,
@@ -1051,6 +1191,50 @@ mod tests {
         assert_eq!(adapter.scoped_update_order_count, 1);
         assert_eq!(adapter.frame_sha256s.len(), 3);
         assert!(adapter.frame_sha256s.iter().all(|sha| sha.len() == 64));
+        assert_eq!(
+            adapter.local_action_replay.contract_version,
+            TRNM_RTS_ONLINE_OFFLINE_ADAPTER_LOCAL_REPLAY_CONTRACT
+        );
+        assert_eq!(
+            adapter.local_action_replay.replay_mode,
+            "bevy_local_ui_action_replay"
+        );
+        assert_eq!(
+            adapter.local_action_replay.accepted_action_labels,
+            vec![
+                "RTS:SELECT:26".to_string(),
+                "RTS:MOVE:18,31:line".to_string(),
+                "RTS:SELECT:27".to_string(),
+                "RTS:MOVE:21,25:line".to_string(),
+                "RTS:SELECT:28".to_string(),
+                "RTS:MOVE:1,31:line".to_string(),
+                "RTS:SELECT:26".to_string(),
+            ]
+        );
+        assert_eq!(
+            adapter.local_action_replay.blocked_reasons,
+            vec![
+                "rts_group_selection_required".to_string(),
+                "rts_invalid_tile:bad-tile".to_string(),
+                "rts_attack_target_required".to_string(),
+                "rts_attack_required_before_ability".to_string(),
+                "rts_queue_id_required".to_string(),
+                "rts_queue_unaffordable:build:watch_tower@7,4".to_string(),
+                "rts_group_id_required".to_string(),
+            ]
+        );
+        assert_eq!(
+            adapter.local_action_replay.retained_history_group_ids,
+            vec!["26".to_string(), "27".to_string(), "28".to_string()]
+        );
+        assert_eq!(
+            adapter.local_action_replay.pruned_history_group_ids,
+            vec!["25".to_string(), "24".to_string()]
+        );
+        assert_eq!(adapter.local_action_replay.command_history_capacity, 3);
+        assert!(adapter.local_action_replay.local_input_sources_ready);
+        assert!(adapter.local_action_replay.command_history_ready);
+        assert!(adapter.local_action_replay.green);
         assert!(adapter.local_multiplayer_ready);
         assert!(adapter.offline_bot_ready);
         assert!(adapter.bevy_adapter_ready);

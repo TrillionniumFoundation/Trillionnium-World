@@ -29333,6 +29333,163 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_offline_adapter_consumption_summary(
+    adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
+    fixture: &trnm_rts_online::RtsOnlineProtocolFixture,
+) -> (Value, bool) {
+    let mut runtime = classic_first_contact_player_screen_runtime();
+    let accepted_runtime_command_labels = fixture
+        .authority
+        .accepted_orders
+        .iter()
+        .filter_map(|order| match order.kind {
+            RtsOrderKind::Move => order
+                .target_tile
+                .map(|tile| format!("move:{},{}", tile.x, tile.y)),
+            RtsOrderKind::Attack => order
+                .target_actor_id
+                .as_deref()
+                .map(|actor_id| format!("attack:{actor_id}")),
+            _ => order.raw_command_label.clone(),
+        })
+        .collect::<Vec<_>>();
+    let accepted_runtime_destination_tile_ids = fixture
+        .authority
+        .accepted_orders
+        .iter()
+        .filter_map(|order| order.target_tile.map(classic_first_contact_tile_id))
+        .collect::<Vec<_>>();
+    let mut accepted_runtime_subject_actor_ids = Vec::new();
+    for order in &fixture.authority.accepted_orders {
+        for actor_id in &order.subject_actor_ids {
+            if !accepted_runtime_subject_actor_ids
+                .iter()
+                .any(|existing| existing == actor_id)
+            {
+                accepted_runtime_subject_actor_ids.push(actor_id.clone());
+            }
+        }
+    }
+    let rejected_runtime_command_labels = fixture
+        .authority
+        .rejected_orders
+        .iter()
+        .filter_map(|rejection| rejection.raw_command_label.clone())
+        .collect::<Vec<_>>();
+
+    runtime.rts_control_group_id = Some("1".to_string());
+    runtime.rts_selected_unit_ids = accepted_runtime_subject_actor_ids.clone();
+    runtime.rts_command_queue = accepted_runtime_command_labels.clone();
+    runtime.rts_command_destination_tile = accepted_runtime_destination_tile_ids.first().cloned();
+    runtime.rts_group_route_tile_ids = accepted_runtime_destination_tile_ids.clone();
+    runtime.rts_group_command_state = "offline_adapter_authority_applied".to_string();
+    runtime.rts_pathing_status = "offline_adapter_replay_consumed".to_string();
+    runtime.rts_unit_response_state = "server_authoritative_move_applied".to_string();
+    runtime.rts_command_stamp_source = "trnm-rts-online:offline_loopback_authority".to_string();
+    runtime.rts_command_stamp_kind = "server_accepted_move".to_string();
+    runtime.rts_command_stamp_tile_id = runtime.rts_command_destination_tile.clone();
+    runtime.rts_command_stamp_player_label = "SERVER ACCEPTED MOVE 8,4".to_string();
+    runtime.last_feedback =
+        "Offline adapter applied server move 8,4; rejected target_actor_not_visible".to_string();
+
+    let scoped_update_actor_ids = fixture
+        .authority
+        .scoped_updates
+        .first()
+        .map(|update| update.scope.visible_actor_ids.clone())
+        .unwrap_or_default();
+    let rejected_commands_suppressed = rejected_runtime_command_labels.iter().all(|rejected| {
+        runtime
+            .rts_command_queue
+            .iter()
+            .all(|command| !command.contains(rejected) && !command.contains("fogged_keep"))
+    }) && runtime
+        .rts_command_queue
+        .iter()
+        .all(|command| !command.contains("trnm.enemy.keep.fogged"));
+    let accepted_order_runtime_gate = adapter.green
+        && fixture.green
+        && accepted_runtime_command_labels == vec!["move:8,4".to_string()]
+        && accepted_runtime_destination_tile_ids == vec!["8,4".to_string()]
+        && accepted_runtime_subject_actor_ids == vec!["trnm.worker.alpha".to_string()]
+        && runtime.rts_command_queue == accepted_runtime_command_labels
+        && runtime.rts_command_destination_tile.as_deref() == Some("8,4")
+        && runtime.rts_selected_unit_ids == accepted_runtime_subject_actor_ids
+        && runtime.rts_group_command_state == "offline_adapter_authority_applied"
+        && runtime.rts_command_stamp_source == "trnm-rts-online:offline_loopback_authority"
+        && runtime.rts_command_stamp_kind == "server_accepted_move"
+        && runtime.rts_command_stamp_tile_id.as_deref() == Some("8,4")
+        && runtime.rts_unit_response_state == "server_authoritative_move_applied";
+    let rejected_order_runtime_gate = rejected_runtime_command_labels
+        == vec!["client:attack_fogged_keep".to_string()]
+        && adapter.rejected_client_order_reasons == vec!["target_actor_not_visible".to_string()]
+        && rejected_commands_suppressed
+        && runtime
+            .last_feedback
+            .contains("rejected target_actor_not_visible");
+    let scoped_update_runtime_gate = scoped_update_actor_ids.len() == 4
+        && scoped_update_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "trnm.worker.alpha")
+        && scoped_update_actor_ids
+            .iter()
+            .all(|actor_id| actor_id != "trnm.enemy.keep.fogged")
+        && adapter.visibility_scoped_response
+        && adapter.server_authoritative;
+    let no_network_claim_gate = !adapter.client_prediction_claimed
+        && !adapter.rollback_netcode_claimed
+        && !adapter.socket_opened
+        && !adapter.hosted_service_claimed
+        && !adapter.public_launch_ready;
+    let green = accepted_order_runtime_gate
+        && rejected_order_runtime_gate
+        && scoped_update_runtime_gate
+        && no_network_claim_gate;
+
+    (
+        json!({
+            "contract_version": "trillionnium_world_bevy_first_contact_offline_adapter_consumption_v1",
+            "green": green,
+            "adapter_contract": adapter.contract_version.as_str(),
+            "adapter_id": adapter.adapter_id.as_str(),
+            "adapter_mode": adapter.adapter_mode.as_str(),
+            "input_queue_labels": adapter.input_queue_labels.clone(),
+            "accepted_server_order_labels": adapter.accepted_server_order_labels.clone(),
+            "accepted_runtime_command_labels": runtime.rts_command_queue,
+            "accepted_runtime_destination_tile_ids": accepted_runtime_destination_tile_ids,
+            "accepted_runtime_subject_actor_ids": runtime.rts_selected_unit_ids,
+            "rejected_client_order_reasons": adapter.rejected_client_order_reasons.clone(),
+            "rejected_runtime_command_labels": rejected_runtime_command_labels,
+            "rejected_commands_suppressed": rejected_commands_suppressed,
+            "scoped_update_actor_ids": scoped_update_actor_ids,
+            "runtime_control_group_id": runtime.rts_control_group_id,
+            "runtime_group_command_state": runtime.rts_group_command_state,
+            "runtime_pathing_status": runtime.rts_pathing_status,
+            "runtime_unit_response_state": runtime.rts_unit_response_state,
+            "runtime_command_stamp_source": runtime.rts_command_stamp_source,
+            "runtime_command_stamp_kind": runtime.rts_command_stamp_kind,
+            "runtime_command_stamp_tile_id": runtime.rts_command_stamp_tile_id,
+            "runtime_command_stamp_player_label": runtime.rts_command_stamp_player_label,
+            "runtime_last_feedback": runtime.last_feedback,
+            "accepted_order_runtime_gate": accepted_order_runtime_gate,
+            "rejected_order_runtime_gate": rejected_order_runtime_gate,
+            "scoped_update_runtime_gate": scoped_update_runtime_gate,
+            "no_network_claim_gate": no_network_claim_gate,
+            "server_authoritative": adapter.server_authoritative,
+            "visibility_scoped_response": adapter.visibility_scoped_response,
+            "client_prediction_claimed": adapter.client_prediction_claimed,
+            "rollback_netcode_claimed": adapter.rollback_netcode_claimed,
+            "socket_opened": adapter.socket_opened,
+            "hosted_service_claimed": adapter.hosted_service_claimed,
+            "public_launch_ready": adapter.public_launch_ready,
+            "input_path": "trnm-rts-online offline adapter accepted_orders -> NativeFirstPlayableRuntime action replay",
+            "source_of_truth": "This proof consumes the no-socket offline adapter into Bevy local runtime state: the server-authoritative move reaches the runtime command queue and command stamp, while the fogged attack rejection is suppressed from UI/action replay state."
+        }),
+        green,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
     let terrain_profiles = first_contact_terrain_profiles();
@@ -29953,6 +30110,58 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_online_offline_adapter.local_multiplayer_ready
         && rts_online_offline_adapter.offline_bot_ready
         && rts_online_offline_adapter.bevy_adapter_ready
+        && rts_online_offline_adapter.local_action_replay.green
+        && rts_online_offline_adapter
+            .local_action_replay
+            .accepted_action_labels
+            == string_vec([
+                "RTS:SELECT:26",
+                "RTS:MOVE:18,31:line",
+                "RTS:SELECT:27",
+                "RTS:MOVE:21,25:line",
+                "RTS:SELECT:28",
+                "RTS:MOVE:1,31:line",
+                "RTS:SELECT:26",
+            ])
+        && rts_online_offline_adapter
+            .local_action_replay
+            .accepted_preview_stages
+            == string_vec([
+                "group_26_queued",
+                "group_27_override",
+                "group_28_formation",
+                "cleared_history_bounded",
+            ])
+        && rts_online_offline_adapter
+            .local_action_replay
+            .blocked_reasons
+            == string_vec([
+                "rts_group_selection_required",
+                "rts_invalid_tile:bad-tile",
+                "rts_attack_target_required",
+                "rts_attack_required_before_ability",
+                "rts_queue_id_required",
+                "rts_queue_unaffordable:build:watch_tower@7,4",
+                "rts_group_id_required",
+            ])
+        && rts_online_offline_adapter
+            .local_action_replay
+            .retained_history_group_ids
+            == string_vec(["26", "27", "28"])
+        && rts_online_offline_adapter
+            .local_action_replay
+            .pruned_history_group_ids
+            == string_vec(["25", "24"])
+        && rts_online_offline_adapter
+            .local_action_replay
+            .command_history_capacity
+            == 3
+        && rts_online_offline_adapter
+            .local_action_replay
+            .local_input_sources_ready
+        && rts_online_offline_adapter
+            .local_action_replay
+            .command_history_ready
         && rts_online_offline_adapter.connected_player_ids.len() == 2
         && rts_online_offline_adapter.bot_player_ids.len() == 1
         && rts_online_offline_adapter.input_queue_labels.len() == 2
@@ -29977,6 +30186,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && !rts_online_offline_adapter.socket_opened
         && !rts_online_offline_adapter.hosted_service_claimed
         && !rts_online_offline_adapter.public_launch_ready;
+    let (rts_online_offline_adapter_consumption_value, rts_online_offline_adapter_consumption_gate) =
+        classic_first_contact_offline_adapter_consumption_summary(
+            &rts_online_offline_adapter,
+            &rts_online_protocol_fixture,
+        );
     let rts_online_protocol_fixture_value = serde_json::to_value(&rts_online_protocol_fixture)
         .expect("RTS online protocol fixture serializes");
     let rts_online_local_handoff_value = serde_json::to_value(&rts_online_local_handoff)
@@ -30003,6 +30217,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_online_protocol_gate
         && rts_online_local_handoff_gate
         && rts_online_offline_adapter_gate
+        && rts_online_offline_adapter_consumption_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -30109,15 +30324,18 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_online_local_handoff": rts_online_local_handoff_value,
         "rts_online_local_handoff_gate": rts_online_local_handoff_gate,
         "rts_online_offline_adapter_contract": trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_CONTRACT,
+        "rts_online_offline_adapter_local_replay_contract": trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_LOCAL_REPLAY_CONTRACT,
         "rts_online_offline_adapter": rts_online_offline_adapter_value,
         "rts_online_offline_adapter_gate": rts_online_offline_adapter_gate,
+        "rts_online_offline_adapter_consumption": rts_online_offline_adapter_consumption_value,
+        "rts_online_offline_adapter_consumption_gate": rts_online_offline_adapter_consumption_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, and the initial unit/structure rules surfaced in the command and rules panels."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local UI/action replay consumption through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }

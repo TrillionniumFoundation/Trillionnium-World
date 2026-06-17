@@ -625,6 +625,21 @@ jq -e '
   and .rts_online_offline_adapter.scoped_update_order_count == 1
   and (.rts_online_offline_adapter.frame_sha256s | length) == 3
   and all(.rts_online_offline_adapter.frame_sha256s[]; length == 64)
+  and .rts_online_offline_adapter_local_replay_contract == "trnm_rts_online_offline_adapter_local_replay_v1"
+  and .rts_online_offline_adapter.local_action_replay.contract_version == "trnm_rts_online_offline_adapter_local_replay_v1"
+  and .rts_online_offline_adapter.local_action_replay.replay_mode == "bevy_local_ui_action_replay"
+  and .rts_online_offline_adapter.local_action_replay.accepted_action_labels == ["RTS:SELECT:26", "RTS:MOVE:18,31:line", "RTS:SELECT:27", "RTS:MOVE:21,25:line", "RTS:SELECT:28", "RTS:MOVE:1,31:line", "RTS:SELECT:26"]
+  and .rts_online_offline_adapter.local_action_replay.accepted_preview_stages == ["group_26_queued", "group_27_override", "group_28_formation", "cleared_history_bounded"]
+  and .rts_online_offline_adapter.local_action_replay.blocked_action_labels == ["RTS:MOVE:18,31:line", "RTS:MOVE:bad-tile:line", "RTS:ATTACK:", "RTS:ABILITY:guard_break", "RTS:QUEUE:", "RTS:QUEUE:build:watch_tower@7,4", "RTS:SELECT:"]
+  and .rts_online_offline_adapter.local_action_replay.blocked_input_sources == ["classic_rts_mouse_viewport", "classic_rts_mouse_viewport", "classic_rts_mouse_viewport", "classic_rts_hotkey", "classic_rts_mouse_sidebar", "classic_rts_mouse_sidebar", "classic_rts_hotkey"]
+  and .rts_online_offline_adapter.local_action_replay.blocked_reasons == ["rts_group_selection_required", "rts_invalid_tile:bad-tile", "rts_attack_target_required", "rts_attack_required_before_ability", "rts_queue_id_required", "rts_queue_unaffordable:build:watch_tower@7,4", "rts_group_id_required"]
+  and .rts_online_offline_adapter.local_action_replay.blocked_preview_stages == ["group_selection_required", "invalid_tile", "attack_target_required", "history_preserved_after_rejections"]
+  and .rts_online_offline_adapter.local_action_replay.retained_history_group_ids == ["26", "27", "28"]
+  and .rts_online_offline_adapter.local_action_replay.pruned_history_group_ids == ["25", "24"]
+  and .rts_online_offline_adapter.local_action_replay.command_history_capacity == 3
+  and .rts_online_offline_adapter.local_action_replay.local_input_sources_ready == true
+  and .rts_online_offline_adapter.local_action_replay.command_history_ready == true
+  and .rts_online_offline_adapter.local_action_replay.green == true
   and .rts_online_offline_adapter.local_multiplayer_ready == true
   and .rts_online_offline_adapter.offline_bot_ready == true
   and .rts_online_offline_adapter.bevy_adapter_ready == true
@@ -636,6 +651,40 @@ jq -e '
   and .rts_online_offline_adapter.hosted_service_claimed == false
   and .rts_online_offline_adapter.public_launch_ready == false
   and .rts_online_offline_adapter_gate == true
+  and .rts_online_offline_adapter_consumption.contract_version == "trillionnium_world_bevy_first_contact_offline_adapter_consumption_v1"
+  and .rts_online_offline_adapter_consumption.green == true
+  and .rts_online_offline_adapter_consumption.adapter_contract == "trnm_rts_online_offline_adapter_v1"
+  and .rts_online_offline_adapter_consumption.adapter_mode == "offline_loopback_authority"
+  and .rts_online_offline_adapter_consumption.input_queue_labels == ["client:move_worker@8,4", "client:attack_fogged_keep"]
+  and .rts_online_offline_adapter_consumption.accepted_server_order_labels == ["client:move_worker@8,4"]
+  and .rts_online_offline_adapter_consumption.accepted_runtime_command_labels == ["move:8,4"]
+  and .rts_online_offline_adapter_consumption.accepted_runtime_destination_tile_ids == ["8,4"]
+  and .rts_online_offline_adapter_consumption.accepted_runtime_subject_actor_ids == ["trnm.worker.alpha"]
+  and .rts_online_offline_adapter_consumption.rejected_client_order_reasons == ["target_actor_not_visible"]
+  and .rts_online_offline_adapter_consumption.rejected_runtime_command_labels == ["client:attack_fogged_keep"]
+  and .rts_online_offline_adapter_consumption.rejected_commands_suppressed == true
+  and (.rts_online_offline_adapter_consumption.scoped_update_actor_ids | index("trnm.worker.alpha") != null)
+  and (.rts_online_offline_adapter_consumption.scoped_update_actor_ids | index("trnm.enemy.keep.fogged") == null)
+  and .rts_online_offline_adapter_consumption.runtime_control_group_id == "1"
+  and .rts_online_offline_adapter_consumption.runtime_group_command_state == "offline_adapter_authority_applied"
+  and .rts_online_offline_adapter_consumption.runtime_pathing_status == "offline_adapter_replay_consumed"
+  and .rts_online_offline_adapter_consumption.runtime_unit_response_state == "server_authoritative_move_applied"
+  and .rts_online_offline_adapter_consumption.runtime_command_stamp_source == "trnm-rts-online:offline_loopback_authority"
+  and .rts_online_offline_adapter_consumption.runtime_command_stamp_kind == "server_accepted_move"
+  and .rts_online_offline_adapter_consumption.runtime_command_stamp_tile_id == "8,4"
+  and (.rts_online_offline_adapter_consumption.runtime_last_feedback | contains("rejected target_actor_not_visible"))
+  and .rts_online_offline_adapter_consumption.accepted_order_runtime_gate == true
+  and .rts_online_offline_adapter_consumption.rejected_order_runtime_gate == true
+  and .rts_online_offline_adapter_consumption.scoped_update_runtime_gate == true
+  and .rts_online_offline_adapter_consumption.no_network_claim_gate == true
+  and .rts_online_offline_adapter_consumption.server_authoritative == true
+  and .rts_online_offline_adapter_consumption.visibility_scoped_response == true
+  and .rts_online_offline_adapter_consumption.client_prediction_claimed == false
+  and .rts_online_offline_adapter_consumption.rollback_netcode_claimed == false
+  and .rts_online_offline_adapter_consumption.socket_opened == false
+  and .rts_online_offline_adapter_consumption.hosted_service_claimed == false
+  and .rts_online_offline_adapter_consumption.public_launch_ready == false
+  and .rts_online_offline_adapter_consumption_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true
