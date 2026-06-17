@@ -29912,6 +29912,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_bevy_runtime_terrain_seed_sample.surface_seed == 12
         && rts_bevy_runtime_terrain_seed_sample.detail_seed == 20;
     let rts_online_protocol_fixture = trnm_rts_online::first_contact_online_protocol_fixture();
+    let rts_online_local_handoff =
+        trnm_rts_online::rts_online_local_handoff_from_fixture(&rts_online_protocol_fixture);
     let rts_online_protocol_gate = rts_online_protocol_fixture.green
         && rts_online_protocol_fixture.envelope.map_id.as_str() == map_model.map_id.as_str()
         && rts_online_protocol_fixture.lifecycle.map_id.as_str() == map_model.map_id.as_str()
@@ -29929,8 +29931,24 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .iter()
             .any(|actor_id| actor_id == "trnm.flux.beacon.center")
         && rts_online_protocol_fixture.lifecycle.bot_count == 1;
+    let rts_online_local_handoff_gate = rts_online_local_handoff.green
+        && rts_online_local_handoff.handoff_ready
+        && rts_online_local_handoff.map_id.as_str() == map_model.map_id.as_str()
+        && rts_online_local_handoff.accepted_order_count == 1
+        && rts_online_local_handoff.rejected_order_count == 1
+        && rts_online_local_handoff.scoped_update_count == 1
+        && rts_online_local_handoff.bot_count == 1
+        && rts_online_local_handoff.visible_chunk_count == 3
+        && rts_online_local_handoff.visible_actor_count == 4
+        && rts_online_local_handoff.server_authoritative
+        && rts_online_local_handoff.visibility_scoped_response
+        && !rts_online_local_handoff.socket_opened
+        && !rts_online_local_handoff.hosted_service_claimed
+        && !rts_online_local_handoff.public_launch_ready;
     let rts_online_protocol_fixture_value = serde_json::to_value(&rts_online_protocol_fixture)
         .expect("RTS online protocol fixture serializes");
+    let rts_online_local_handoff_value = serde_json::to_value(&rts_online_local_handoff)
+        .expect("RTS online local handoff serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29949,6 +29967,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_bevy_runtime_adapter_gate
         && rts_bevy_runtime_map_projection_gate
         && rts_online_protocol_gate
+        && rts_online_local_handoff_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -30051,6 +30070,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_online_protocol_fixture": rts_online_protocol_fixture_value,
         "rts_online_protocol_gate": rts_online_protocol_gate,
         "rts_online_update_envelope_sha256": rts_online_protocol_fixture.envelope.update_sha256.as_str(),
+        "rts_online_local_handoff_contract": trnm_rts_online::TRNM_RTS_ONLINE_LOCAL_HANDOFF_CONTRACT,
+        "rts_online_local_handoff": rts_online_local_handoff_value,
+        "rts_online_local_handoff_gate": rts_online_local_handoff_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,

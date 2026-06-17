@@ -376,6 +376,27 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       }
     },
     rts_online_protocol_gate: true,
+    rts_online_local_handoff_contract: "trnm_rts_online_local_handoff_v1",
+    rts_online_local_handoff: {
+      contract_version: "trnm_rts_online_local_handoff_v1",
+      handoff_id: "first-contact-local-loopback-handoff",
+      map_id: "first_contact_basin",
+      player_id: "mirror_guard",
+      green: true,
+      handoff_ready: true,
+      accepted_order_count: 1,
+      rejected_order_count: 1,
+      scoped_update_count: 1,
+      bot_count: 1,
+      visible_chunk_count: 3,
+      visible_actor_count: 4,
+      server_authoritative: true,
+      visibility_scoped_response: true,
+      socket_opened: false,
+      hosted_service_claimed: false,
+      public_launch_ready: false
+    },
+    rts_online_local_handoff_gate: true,
     source_policy: "OpenRA engine code and third-party/proprietary RTS assets are not copied; First Contact Basin remains internal-only until GPL component review or replacement.",
     android_s5_real_device_claimed: false,
     public_launch_ready: false

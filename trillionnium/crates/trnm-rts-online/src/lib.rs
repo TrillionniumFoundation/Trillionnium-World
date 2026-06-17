@@ -14,6 +14,7 @@ pub const TRNM_RTS_ONLINE_FIRST_CONTACT_FIXTURE_CONTRACT: &str =
 pub const TRNM_RTS_ONLINE_AUTHORITY_CONTRACT: &str = "trnm_rts_online_authority_v1";
 pub const TRNM_RTS_ONLINE_LOOPBACK_TRANSPORT_CONTRACT: &str =
     "trnm_rts_online_loopback_transport_v1";
+pub const TRNM_RTS_ONLINE_LOCAL_HANDOFF_CONTRACT: &str = "trnm_rts_online_local_handoff_v1";
 const TRNM_RTS_ONLINE_WIRE_MAGIC: &[u8; 8] = b"TRNMRTS1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -161,6 +162,35 @@ pub struct RtsOnlineProtocolFixture {
     pub authority: RtsOnlineAuthorityResolution,
     pub transport: RtsOnlineLoopbackTransportFixture,
     pub bot_plan: RtsOnlineBotPlan,
+    pub green: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOnlineLocalHandoff {
+    pub contract_version: String,
+    pub handoff_id: String,
+    pub arena_id: String,
+    pub map_id: String,
+    pub player_id: String,
+    pub phase: RtsOnlineArenaPhase,
+    pub authority_tick: u32,
+    pub accepted_order_count: usize,
+    pub rejected_order_count: usize,
+    pub scoped_update_count: usize,
+    pub bot_count: usize,
+    pub visible_chunk_count: usize,
+    pub visible_actor_count: usize,
+    pub loopback_session_id: String,
+    pub request_frame_sha256: String,
+    pub response_frame_sha256: String,
+    pub bevy_client_role: String,
+    pub authority_role: String,
+    pub server_authoritative: bool,
+    pub visibility_scoped_response: bool,
+    pub socket_opened: bool,
+    pub hosted_service_claimed: bool,
+    pub public_launch_ready: bool,
+    pub handoff_ready: bool,
     pub green: bool,
 }
 
@@ -662,6 +692,82 @@ pub fn first_contact_online_protocol_fixture() -> RtsOnlineProtocolFixture {
     }
 }
 
+pub fn rts_online_local_handoff_from_fixture(
+    fixture: &RtsOnlineProtocolFixture,
+) -> RtsOnlineLocalHandoff {
+    let scoped_update = fixture.authority.scoped_updates.first();
+    let player_id = scoped_update
+        .map(|update| update.scope.player_id.clone())
+        .or_else(|| {
+            fixture
+                .authority
+                .client_requests
+                .first()
+                .map(|request| request.player_id.clone())
+        })
+        .unwrap_or_else(|| "unknown".to_string());
+    let visible_chunk_count = scoped_update
+        .map(|update| update.scope.visible_chunks.len())
+        .unwrap_or(0);
+    let visible_actor_count = scoped_update
+        .map(|update| update.scope.visible_actor_ids.len())
+        .unwrap_or(0);
+    let bevy_client_role = "visualization_and_local_input_submitter".to_string();
+    let authority_role = "trnm_rts_online_fixture_authority_no_socket".to_string();
+    let handoff_ready = fixture.green
+        && fixture.authority.green
+        && fixture.transport.green
+        && fixture.transport.server_authoritative
+        && fixture.transport.visibility_scoped_response
+        && !fixture.transport.socket_opened
+        && !fixture.transport.hosted_service_claimed
+        && !fixture.transport.public_launch_ready
+        && fixture.lifecycle.phase == RtsOnlineArenaPhase::Playing
+        && fixture.lifecycle.bot_count >= 1
+        && fixture.authority.accepted_orders.len() == 1
+        && fixture.authority.rejected_orders.len() == 1
+        && scoped_update.is_some();
+    let green = handoff_ready
+        && fixture.contract_version == TRNM_RTS_ONLINE_FIRST_CONTACT_FIXTURE_CONTRACT
+        && fixture.lifecycle.map_id == fixture.envelope.map_id
+        && fixture.envelope.update_sha256.len() == 64
+        && fixture.authority.authority_sha256.len() == 64
+        && fixture.transport.request_frame.frame_sha256.len() == 64
+        && fixture.transport.response_frame.frame_sha256.len() == 64;
+
+    RtsOnlineLocalHandoff {
+        contract_version: TRNM_RTS_ONLINE_LOCAL_HANDOFF_CONTRACT.to_string(),
+        handoff_id: "first-contact-local-loopback-handoff".to_string(),
+        arena_id: fixture.lifecycle.arena_id.clone(),
+        map_id: fixture.lifecycle.map_id.clone(),
+        player_id,
+        phase: fixture.lifecycle.phase,
+        authority_tick: fixture.authority.authority_tick,
+        accepted_order_count: fixture.authority.accepted_orders.len(),
+        rejected_order_count: fixture.authority.rejected_orders.len(),
+        scoped_update_count: fixture.authority.scoped_updates.len(),
+        bot_count: fixture.lifecycle.bot_count,
+        visible_chunk_count,
+        visible_actor_count,
+        loopback_session_id: fixture.transport.session_id.clone(),
+        request_frame_sha256: fixture.transport.request_frame.frame_sha256.clone(),
+        response_frame_sha256: fixture.transport.response_frame.frame_sha256.clone(),
+        bevy_client_role,
+        authority_role,
+        server_authoritative: fixture.transport.server_authoritative,
+        visibility_scoped_response: fixture.transport.visibility_scoped_response,
+        socket_opened: fixture.transport.socket_opened,
+        hosted_service_claimed: fixture.transport.hosted_service_claimed,
+        public_launch_ready: fixture.transport.public_launch_ready,
+        handoff_ready,
+        green,
+    }
+}
+
+pub fn first_contact_online_local_handoff() -> RtsOnlineLocalHandoff {
+    rts_online_local_handoff_from_fixture(&first_contact_online_protocol_fixture())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -729,6 +835,48 @@ mod tests {
         assert!(!fixture.transport.hosted_service_claimed);
         assert!(!fixture.transport.public_launch_ready);
         assert_eq!(fixture.bot_plan.order_labels, vec!["move:rally@8,4"]);
+    }
+
+    #[test]
+    fn first_contact_online_local_handoff_is_no_socket_and_bevy_facing() {
+        let handoff = first_contact_online_local_handoff();
+
+        assert_eq!(
+            handoff.contract_version,
+            TRNM_RTS_ONLINE_LOCAL_HANDOFF_CONTRACT
+        );
+        assert!(handoff.green);
+        assert!(handoff.handoff_ready);
+        assert_eq!(handoff.handoff_id, "first-contact-local-loopback-handoff");
+        assert_eq!(handoff.map_id, "first_contact_basin");
+        assert_eq!(handoff.player_id, "mirror_guard");
+        assert_eq!(handoff.phase, RtsOnlineArenaPhase::Playing);
+        assert_eq!(handoff.authority_tick, 43);
+        assert_eq!(handoff.accepted_order_count, 1);
+        assert_eq!(handoff.rejected_order_count, 1);
+        assert_eq!(handoff.scoped_update_count, 1);
+        assert_eq!(handoff.bot_count, 1);
+        assert_eq!(handoff.visible_chunk_count, 3);
+        assert_eq!(handoff.visible_actor_count, 4);
+        assert_eq!(
+            handoff.loopback_session_id,
+            "first-contact-loopback-session"
+        );
+        assert_eq!(handoff.request_frame_sha256.len(), 64);
+        assert_eq!(handoff.response_frame_sha256.len(), 64);
+        assert_eq!(
+            handoff.bevy_client_role,
+            "visualization_and_local_input_submitter"
+        );
+        assert_eq!(
+            handoff.authority_role,
+            "trnm_rts_online_fixture_authority_no_socket"
+        );
+        assert!(handoff.server_authoritative);
+        assert!(handoff.visibility_scoped_response);
+        assert!(!handoff.socket_opened);
+        assert!(!handoff.hosted_service_claimed);
+        assert!(!handoff.public_launch_ready);
     }
 
     #[test]

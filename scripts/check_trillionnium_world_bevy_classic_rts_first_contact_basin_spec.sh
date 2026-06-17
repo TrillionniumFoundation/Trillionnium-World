@@ -583,6 +583,32 @@ jq -e '
   and .rts_online_protocol_fixture.lifecycle.phase == "playing"
   and .rts_online_protocol_fixture.lifecycle.bot_count == 1
   and .rts_online_protocol_gate == true
+  and .rts_online_local_handoff_contract == "trnm_rts_online_local_handoff_v1"
+  and .rts_online_local_handoff.contract_version == "trnm_rts_online_local_handoff_v1"
+  and .rts_online_local_handoff.green == true
+  and .rts_online_local_handoff.handoff_ready == true
+  and .rts_online_local_handoff.handoff_id == "first-contact-local-loopback-handoff"
+  and .rts_online_local_handoff.map_id == "first_contact_basin"
+  and .rts_online_local_handoff.player_id == "mirror_guard"
+  and .rts_online_local_handoff.phase == "playing"
+  and .rts_online_local_handoff.authority_tick == 43
+  and .rts_online_local_handoff.accepted_order_count == 1
+  and .rts_online_local_handoff.rejected_order_count == 1
+  and .rts_online_local_handoff.scoped_update_count == 1
+  and .rts_online_local_handoff.bot_count == 1
+  and .rts_online_local_handoff.visible_chunk_count == 3
+  and .rts_online_local_handoff.visible_actor_count == 4
+  and .rts_online_local_handoff.loopback_session_id == "first-contact-loopback-session"
+  and (.rts_online_local_handoff.request_frame_sha256 | length) == 64
+  and (.rts_online_local_handoff.response_frame_sha256 | length) == 64
+  and .rts_online_local_handoff.bevy_client_role == "visualization_and_local_input_submitter"
+  and .rts_online_local_handoff.authority_role == "trnm_rts_online_fixture_authority_no_socket"
+  and .rts_online_local_handoff.server_authoritative == true
+  and .rts_online_local_handoff.visibility_scoped_response == true
+  and .rts_online_local_handoff.socket_opened == false
+  and .rts_online_local_handoff.hosted_service_claimed == false
+  and .rts_online_local_handoff.public_launch_ready == false
+  and .rts_online_local_handoff_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true
