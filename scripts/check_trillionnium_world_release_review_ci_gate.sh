@@ -976,6 +976,7 @@ PACKET_INTEGRITY_JSON="$ACCEPTANCE_DIR/release-review-packet-integrity.json"
 jq -s '.' "$CHECK_RESULTS" >"$CHECKS_FILE"
 jq '[.[] | select(.status != "ok")]' "$CHECKS_FILE" >"$FAILURES_FILE"
 jq '[.[] | select((.elapsed_millis // 0) >= 5000)] | sort_by(.elapsed_millis) | reverse | .[:20]' "$CHECKS_FILE" >"$SLOW_CHECKS_FILE"
+CHECK_COUNT="$(jq 'length' "$CHECKS_FILE")"
 FAILURE_COUNT="$(jq 'length' "$FAILURES_FILE")"
 TOTAL_ELAPSED_MILLIS="$(jq 'map(.elapsed_millis // 0) | add // 0' "$CHECKS_FILE")"
 INTEGRITY_GREEN="$(jq -r '.green // false' "$PACKET_INTEGRITY_JSON" 2>/dev/null || printf 'false')"
@@ -1005,6 +1006,8 @@ jq -n \
   --argjson ready_for_release_review "$READY_FOR_RELEASE_REVIEW" \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
   --argjson artifact_count "$ARTIFACT_COUNT" \
+  --argjson check_count "$CHECK_COUNT" \
+  --argjson failed_check_count "$FAILURE_COUNT" \
   --argjson integrity_failure_count "$INTEGRITY_FAILURE_COUNT" \
   --argjson total_elapsed_millis "$TOTAL_ELAPSED_MILLIS" \
   --slurpfile checks "$CHECKS_FILE" \
@@ -1024,6 +1027,8 @@ jq -n \
     packet_integrity_summary: $packet_integrity_json,
     workflow_script_refs_summary: $workflow_refs_summary,
     artifact_count: $artifact_count,
+    check_count: $check_count,
+    failed_check_count: $failed_check_count,
     packet_integrity_failure_count: $integrity_failure_count,
     total_elapsed_millis: $total_elapsed_millis,
     total_elapsed_seconds: ($total_elapsed_millis / 1000),

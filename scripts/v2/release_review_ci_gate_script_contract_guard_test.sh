@@ -13,6 +13,8 @@ required_lines=(
   'elapsed_millis'
   'elapsed_seconds'
   'total_elapsed_millis'
+  'check_count'
+  'failed_check_count'
   '--slurpfile checks "$CHECKS_FILE"'
   'export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"'
   'slow_check_threshold_millis'
