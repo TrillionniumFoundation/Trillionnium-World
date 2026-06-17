@@ -207,6 +207,8 @@ required_lines=(
   'check_trillionnium_world_bevy_classic_rts_bot_planner_executor_replay_determinism.sh'
   'check_trillionnium_world_bevy_classic_rts_multi_match_bot_executor_evaluation.sh'
   'check_trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix.sh'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR'
   'check_trillionnium_world_bevy_classic_rts_bot_decision_state_gap.sh'
   'check_trillionnium_world_bevy_classic_rts_bot_adaptive_build_order_gap.sh'
   'check_trillionnium_world_bevy_classic_rts_bot_tactical_micro_gap.sh'

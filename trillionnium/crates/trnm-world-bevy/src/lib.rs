@@ -65488,16 +65488,38 @@ pub fn native_classic_rts_bot_executor_failure_recovery_matrix_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let source_multi_match_dir = preview_path("source-multi-match-bot-executor-evaluation");
+    let default_source_multi_match_dir = preview_path("source-multi-match-bot-executor-evaluation");
     let matrix_preview_path = preview_path("bot-executor-failure-recovery-matrix.ppm");
     let matrix_log_path = preview_path("bot-executor-failure-recovery-matrix.matrix.json");
 
-    let source_multi_match: Value = serde_json::from_str(
-        &native_classic_rts_multi_match_bot_executor_evaluation_evidence_json(
-            &source_multi_match_dir,
-        ),
-    )
-    .expect("multi-match bot executor evaluation evidence parses");
+    let source_multi_match_summary_path =
+        std::env::var("TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY").ok();
+    let source_multi_match: Value = if let Some(path) = source_multi_match_summary_path.as_deref() {
+        fs::read_to_string(path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("multi-match bot executor evaluation override evidence parses")
+    } else {
+        serde_json::from_str(
+            &native_classic_rts_multi_match_bot_executor_evaluation_evidence_json(
+                &default_source_multi_match_dir,
+            ),
+        )
+        .expect("multi-match bot executor evaluation evidence parses")
+    };
+    let source_multi_match_dir = if source_multi_match_summary_path.is_some() {
+        std::env::var("TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR")
+            .ok()
+            .or_else(|| {
+                source_multi_match
+                    .get("preview_dir")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            })
+            .unwrap_or_else(|| default_source_multi_match_dir.clone())
+    } else {
+        default_source_multi_match_dir
+    };
     let source_action_log_path = source_multi_match
         .get("source_action_log_path")
         .and_then(Value::as_str)
@@ -66065,6 +66087,7 @@ pub fn native_classic_rts_bot_executor_failure_recovery_matrix_evidence_json(
             "source_multi_match_bot_executor_evaluation": source_multi_match_dir,
             "failure_recovery_matrix_preview": matrix_preview_path
         },
+        "source_multi_match_summary_path": source_multi_match_summary_path.unwrap_or_default(),
         "matrix_log_path": matrix_log_path,
         "matrix_log_sha256": matrix_log_sha256,
         "source_action_log_path": source_action_log_path,

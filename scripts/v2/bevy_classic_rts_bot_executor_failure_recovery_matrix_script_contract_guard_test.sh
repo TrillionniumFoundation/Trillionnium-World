@@ -13,6 +13,8 @@ required_script_lines=(
   'bevy-classic-rts-bot-executor-failure-recovery-matrix'
   'bot-executor-failure-recovery-matrix.matrix.json'
   'classic-rts-bot-executor-failure-recovery-matrix'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR'
   'bevy_executor_rejects_blocked_actions_and_recovers_without_command_queue_pollution_not_openra_runtime_bot'
   'blocked_injection_count == 6'
   'blocked_rejection_count == 6'
@@ -43,6 +45,8 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_BOT_EXECUTOR_FAILURE_RECOVERY_MATRIX_CONTRACT'
   'native_classic_rts_bot_executor_failure_recovery_matrix_evidence_json'
   'classic-rts-bot-executor-failure-recovery-matrix'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR'
   'bot-executor-failure-recovery-matrix.matrix.json'
   'bevy_executor_rejects_blocked_actions_and_recovers_without_command_queue_pollution_not_openra_runtime_bot'
   'classic_rts_bot_executor_failure_recovery_matrix_blocked_input'
@@ -71,6 +75,8 @@ done
 
 required_ci_lines=(
   'check_trillionnium_world_bevy_classic_rts_bot_executor_failure_recovery_matrix.sh'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY'
+  'TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR'
   'bevy_classic_rts_bot_executor_failure_recovery_matrix_contract_guard'
   'bevy_classic_rts_bot_executor_failure_recovery_matrix_gate'
   'bevy_classic_rts_bot_executor_failure_recovery_matrix_script_contract_guard_test.sh'

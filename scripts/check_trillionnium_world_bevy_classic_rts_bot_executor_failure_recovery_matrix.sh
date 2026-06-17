@@ -7,6 +7,19 @@ PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-bot-
 MATRIX_LOG="$PREVIEW_DIR/bot-executor-failure-recovery-matrix.matrix.json"
 mkdir -p "$(dirname "$SUMMARY")"
 
+if [[ -n "${TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR:-}" && -z "${TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY:-}" ]]; then
+  echo "[FAIL] TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR requires TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY" >&2
+  exit 1
+fi
+
+if [[ -n "${TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY:-}" ]]; then
+  test -s "$TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY"
+fi
+
+if [[ -n "${TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR:-}" ]]; then
+  test -d "$TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_DIR"
+fi
+
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-bot-executor-failure-recovery-matrix "$PREVIEW_DIR" >"$SUMMARY"
 
 jq -e '
@@ -122,6 +135,15 @@ jq -e '
   and (.matrix_log | length) == 6
   and (.matrix_log | all(.blocked.rejected == true and .blocked.command_queue_unchanged == true and .recovery.accepted == true and .recovery.command_delta_match == true))
 ' "$MATRIX_LOG" >/dev/null
+
+if [[ -n "${TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY:-}" ]]; then
+  SOURCE_MULTI_MATCH_DIR="$(jq -r '.preview_paths.source_multi_match_bot_executor_evaluation // empty' "$SUMMARY")"
+  SOURCE_MULTI_MATCH_LOG="$(jq -r '.evaluation_log_path // empty' "$TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY")"
+  SOURCE_MULTI_MATCH_PREVIEW="$(jq -r '.preview_paths.evaluation_preview // empty' "$TRNM_MULTI_MATCH_BOT_EXECUTOR_EVALUATION_SUMMARY")"
+  test -d "$SOURCE_MULTI_MATCH_DIR"
+  test -s "$SOURCE_MULTI_MATCH_LOG"
+  test -s "$SOURCE_MULTI_MATCH_PREVIEW"
+fi
 
 test -s "$PREVIEW_DIR/bot-executor-failure-recovery-matrix.ppm"
 test -s "$MATRIX_LOG"
