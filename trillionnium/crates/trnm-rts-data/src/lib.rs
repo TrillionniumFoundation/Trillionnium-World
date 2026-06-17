@@ -606,6 +606,18 @@ pub struct RtsMapSummary {
     pub canonical_sha256: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsMapRendererModel {
+    pub renderable_tiles: Vec<RtsTerrainTileProfile>,
+    pub lane_tiles: Vec<RtsTile>,
+    pub resource_zone_tiles: Vec<RtsTile>,
+    pub base_pad_tiles: Vec<RtsTile>,
+    pub minimap_anchor_actor_ids: Vec<String>,
+    pub resource_actor_tiles: Vec<RtsTile>,
+    pub objective_actor_tiles: Vec<RtsTile>,
+    pub spawn_actor_tiles: Vec<RtsTile>,
+}
+
 impl RtsMapModel {
     pub fn validate(&self) -> Result<(), String> {
         if self.contract_version != TRNM_RTS_DATA_CONTRACT {
@@ -1441,6 +1453,53 @@ pub fn first_contact_terrain_profiles() -> Vec<RtsTerrainTileProfile> {
         .collect()
 }
 
+pub fn first_contact_map_renderer_model(map_model: &RtsMapModel) -> RtsMapRendererModel {
+    let mut renderable_tiles = Vec::new();
+    let mut lane_tiles = Vec::new();
+    let mut resource_zone_tiles = Vec::new();
+    let mut base_pad_tiles = Vec::new();
+    for y in map_model.bounds.y..=map_model.bounds.max_y() {
+        for x in map_model.bounds.x..=map_model.bounds.max_x() {
+            let profile = first_contact_terrain_profile(RtsTile::new(x, y));
+            if profile.lane {
+                lane_tiles.push(profile.tile);
+            }
+            if profile.resource_zone {
+                resource_zone_tiles.push(profile.tile);
+            }
+            if profile.base_pad {
+                base_pad_tiles.push(profile.tile);
+            }
+            renderable_tiles.push(profile);
+        }
+    }
+
+    let minimap_anchor_actor_ids = map_model
+        .actors
+        .iter()
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    let actor_tiles_for_kind = |kind| {
+        map_model
+            .actors
+            .iter()
+            .filter(|actor| actor.kind == kind)
+            .map(|actor| actor.tile)
+            .collect::<Vec<_>>()
+    };
+
+    RtsMapRendererModel {
+        renderable_tiles,
+        lane_tiles,
+        resource_zone_tiles,
+        base_pad_tiles,
+        minimap_anchor_actor_ids,
+        resource_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Resource),
+        objective_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Objective),
+        spawn_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Spawn),
+    }
+}
+
 pub fn first_contact_opening_loop_profile() -> RtsOpeningLoopProfile {
     RtsOpeningLoopProfile {
         contract_version: TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT.to_string(),
@@ -2238,6 +2297,29 @@ mod tests {
                 .count()
                 >= 76
         );
+    }
+
+    #[test]
+    fn first_contact_renderer_model_preserves_map_projection_inputs() {
+        let renderer_model = first_contact_map_renderer_model(&first_contact_basin_map());
+        assert_eq!(renderer_model.renderable_tiles.len(), 1024);
+        assert_eq!(renderer_model.lane_tiles.len(), 240);
+        assert_eq!(renderer_model.resource_zone_tiles.len(), 79);
+        assert_eq!(renderer_model.base_pad_tiles.len(), 144);
+        assert_eq!(renderer_model.minimap_anchor_actor_ids.len(), 39);
+        assert_eq!(renderer_model.resource_actor_tiles.len(), 11);
+        assert_eq!(renderer_model.objective_actor_tiles.len(), 4);
+        assert_eq!(renderer_model.spawn_actor_tiles.len(), 4);
+        assert!(renderer_model.lane_tiles.contains(&RtsTile::new(16, 1)));
+        assert!(renderer_model
+            .resource_zone_tiles
+            .contains(&RtsTile::new(12, 16)));
+        assert!(renderer_model
+            .objective_actor_tiles
+            .contains(&RtsTile::new(16, 9)));
+        assert!(renderer_model
+            .spawn_actor_tiles
+            .contains(&RtsTile::new(8, 8)));
     }
 
     #[test]

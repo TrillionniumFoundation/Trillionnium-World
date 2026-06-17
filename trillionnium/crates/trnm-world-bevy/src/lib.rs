@@ -39,12 +39,13 @@ use trnm_rts_core::{
 use trnm_rts_data::{
     first_contact_actor_presentation_profile, first_contact_actor_presentation_profiles,
     first_contact_basin_map, first_contact_command_feedback_profile,
-    first_contact_opening_loop_profile, first_contact_player_screen_profile,
-    first_contact_player_startup_profiles, first_contact_terrain_profile,
-    first_contact_terrain_profiles, first_contact_visual_telemetry_profile, RtsActorColorRole,
-    RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
+    first_contact_map_renderer_model, first_contact_opening_loop_profile,
+    first_contact_player_screen_profile, first_contact_player_startup_profiles,
+    first_contact_terrain_profile, first_contact_terrain_profiles,
+    first_contact_visual_telemetry_profile, RtsActorColorRole, RtsActorGlyphAccent,
+    RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
     RtsFirstContactPlayerScreenChromeProfile, RtsFirstContactPlayerScreenProfile,
-    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsMapModel, RtsOpeningLoopProfile,
+    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsMapRendererModel, RtsOpeningLoopProfile,
     RtsPlayerScreenBuildPaletteSlotProfile, RtsPlayerScreenResourceReadoutKind,
     RtsPlayerScreenResourceReadoutProfile, RtsPlayerScreenTacticsRowKind,
     RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
@@ -29333,7 +29334,7 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
     let terrain_profiles = first_contact_terrain_profiles();
-    let renderer_model = classic_first_contact_map_renderer_model(&map_model);
+    let renderer_model = first_contact_map_renderer_model(&map_model);
     let rts_data_validation_error = map_model.validate().err();
     let map_summary = map_model.summary();
     let actor_count = map_summary.actor_count;
@@ -87887,69 +87888,6 @@ fn classic_first_contact_tile_ids(tiles: &[RtsTile]) -> Vec<String> {
 }
 
 #[cfg(not(target_os = "android"))]
-#[derive(Debug, Clone)]
-struct ClassicFirstContactMapRendererModel {
-    renderable_tiles: Vec<RtsTerrainTileProfile>,
-    lane_tiles: Vec<RtsTile>,
-    resource_zone_tiles: Vec<RtsTile>,
-    base_pad_tiles: Vec<RtsTile>,
-    minimap_anchor_actor_ids: Vec<String>,
-    resource_actor_tiles: Vec<RtsTile>,
-    objective_actor_tiles: Vec<RtsTile>,
-    spawn_actor_tiles: Vec<RtsTile>,
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_map_renderer_model(
-    map_model: &RtsMapModel,
-) -> ClassicFirstContactMapRendererModel {
-    let mut renderable_tiles = Vec::new();
-    let mut lane_tiles = Vec::new();
-    let mut resource_zone_tiles = Vec::new();
-    let mut base_pad_tiles = Vec::new();
-    for y in map_model.bounds.y..=map_model.bounds.max_y() {
-        for x in map_model.bounds.x..=map_model.bounds.max_x() {
-            let profile = first_contact_terrain_profile(RtsTile::new(x, y));
-            if profile.lane {
-                lane_tiles.push(profile.tile);
-            }
-            if profile.resource_zone {
-                resource_zone_tiles.push(profile.tile);
-            }
-            if profile.base_pad {
-                base_pad_tiles.push(profile.tile);
-            }
-            renderable_tiles.push(profile);
-        }
-    }
-
-    let minimap_anchor_actor_ids = map_model
-        .actors
-        .iter()
-        .map(|actor| actor.id.clone())
-        .collect::<Vec<_>>();
-    let actor_tiles_for_kind = |kind| {
-        map_model
-            .actors
-            .iter()
-            .filter(|actor| actor.kind == kind)
-            .map(|actor| actor.tile)
-            .collect::<Vec<_>>()
-    };
-
-    ClassicFirstContactMapRendererModel {
-        renderable_tiles,
-        lane_tiles,
-        resource_zone_tiles,
-        base_pad_tiles,
-        minimap_anchor_actor_ids,
-        resource_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Resource),
-        objective_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Objective),
-        spawn_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Spawn),
-    }
-}
-
-#[cfg(not(target_os = "android"))]
 fn classic_first_contact_opening_loop() -> RtsOpeningLoopProfile {
     first_contact_opening_loop_profile()
 }
@@ -95868,7 +95806,7 @@ fn classic_draw_first_contact_terrain_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
-    renderer_model: &ClassicFirstContactMapRendererModel,
+    renderer_model: &RtsMapRendererModel,
 ) {
     for terrain in &renderer_model.renderable_tiles {
         let x = terrain.tile.x;
@@ -97902,7 +97840,7 @@ fn classic_draw_first_contact_basin_scene(
     };
     let map_model = first_contact_basin_map();
     let map_summary = map_model.summary();
-    let renderer_model = classic_first_contact_map_renderer_model(&map_model);
+    let renderer_model = first_contact_map_renderer_model(&map_model);
     let map_width_tiles = map_model.width as i32;
     let map_height_tiles = map_model.height as i32;
     let map_projection =
