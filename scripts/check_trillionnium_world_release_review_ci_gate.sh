@@ -16,6 +16,10 @@ trap 'rm -f "$CHECK_RESULTS" "$CHECKS_FILE" "$FAILURES_FILE" "$SLOW_CHECKS_FILE"
 
 mkdir -p "$ACCEPTANCE_DIR"
 
+if [[ -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" && -x "$ROOT/target/release/trnm-world-bevy" ]]; then
+  export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"
+fi
+
 now_millis() {
   date +%s%3N
 }
@@ -951,8 +955,14 @@ run_check release_review_convergence_gate "$ROOT/scripts/check_trillionnium_worl
 run_check bevy_classic_rts_first_contact_basin_spec_packet_refresh_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_contact_basin_spec.sh"
 run_check bevy_classic_playtest_runner_status_packet_integrity_refresh refresh_bevy_playtest_runner_for_fast_gates
 run_check bevy_classic_playtest_handoff_packet_packet_refresh_gate env TRNM_BEVY_HANDOFF_READINESS_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh"
-run_check packet_integrity_semantic_fixture_suite_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture_suite.sh"
+run_check packet_integrity_semantic_fixture_summary_refresh_gate env \
+  TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUMMARIES_ONLY=1 \
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture_suite.sh"
 run_check release_packet_refresh_gate env TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS=0 "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh"
+run_check packet_integrity_semantic_fixture_suite_gate env \
+  TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet.json" \
+  TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_PACKET_MD="$ACCEPTANCE_DIR/release-review-packet.md" \
+  "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity_semantic_fixture_suite.sh"
 run_check packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" --no-refresh
 run_check readme_local_links "$ROOT/scripts/check_root_readme_local_links.sh"
 run_check workflow_script_refs env \

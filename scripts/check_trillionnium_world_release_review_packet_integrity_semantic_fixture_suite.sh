@@ -5,6 +5,15 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
 TMP_DIR="$(mktemp -d)"
 SUCCESS=0
+SOURCE_PACKET_JSON="${TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_PACKET_JSON:-}"
+SOURCE_PACKET_MD="${TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_PACKET_MD:-}"
+SUMMARIES_ONLY="${TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUMMARIES_ONLY:-0}"
+
+if [[ -n "$SOURCE_PACKET_JSON" && -z "$SOURCE_PACKET_MD" ]] ||
+  [[ -z "$SOURCE_PACKET_JSON" && -n "$SOURCE_PACKET_MD" ]]; then
+  echo "[FAIL] semantic fixture packet overrides must provide both JSON and Markdown packet paths" >&2
+  exit 2
+fi
 
 summary_paths=(
   "$ACCEPTANCE_DIR/release-review-packet-integrity-semantic-fixture.json"
@@ -163,6 +172,15 @@ write_fixture_summary \
   2 \
   '["classic_rts_projectile_ability_semantics","classic_rts_projectile_ability_ppm_semantics"]'
 
+if [[ "$SUMMARIES_ONLY" == "1" ]]; then
+  for path in "${summary_paths[@]}"; do
+    test -s "$path"
+  done
+  SUCCESS=1
+  printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUMMARIES_GREEN summaries=%s\n' "${#summary_paths[@]}"
+  exit 0
+fi
+
 packet_json="$TMP_DIR/release-review-packet.json"
 packet_md="$TMP_DIR/release-review-packet.md"
 packet_log="$TMP_DIR/release-review-packet.log"
@@ -171,10 +189,18 @@ integrity_summary="$TMP_DIR/release-review-packet-integrity-semantic-fixture-sui
 replacement_tsv="$TMP_DIR/replacements.tsv"
 replacements_json="$TMP_DIR/replacements.json"
 
-TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS=0 \
-TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$packet_json" \
-TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_MD="$packet_md" \
-  "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh" >"$packet_log"
+if [[ -n "$SOURCE_PACKET_JSON" ]]; then
+  test -s "$SOURCE_PACKET_JSON"
+  test -s "$SOURCE_PACKET_MD"
+  cp "$SOURCE_PACKET_JSON" "$packet_json"
+  cp "$SOURCE_PACKET_MD" "$packet_md"
+  printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_REUSED_PACKET %s\n' "$SOURCE_PACKET_JSON" >"$packet_log"
+else
+  TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS=0 \
+  TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON="$packet_json" \
+  TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_MD="$packet_md" \
+    "$ROOT/scripts/check_trillionnium_world_release_review_packet.sh" >"$packet_log"
+fi
 
 cp "$packet_json" "$mutated_packet_json"
 : >"$replacement_tsv"
@@ -400,7 +426,7 @@ if [[ ! -f "$integrity_summary" ]]; then
   exit 1
 fi
 
-jq -e \
+if ! jq -e \
   --slurpfile expected "$expected_names" \
   '.status == "release_review_packet_integrity_blocked"
     and .green == false
@@ -409,7 +435,11 @@ jq -e \
     and (([.failures[].detail] | index("bytes_mismatch")) == null)
     and (([.failures[].detail] | index("contract_mismatch")) == null)
     and (([.failures[].detail] | index("status_mismatch")) == null)' \
-  "$integrity_summary" >/dev/null
+  "$integrity_summary" >/dev/null; then
+  echo "[FAIL] RTS packet semantic fixture suite saw unexpected integrity failures" >&2
+  jq -r '.failures[]? | "\(.name)\t\(.detail)"' "$integrity_summary" >&2
+  exit 1
+fi
 
 for path in "${summary_paths[@]}"; do
   test -s "$path"

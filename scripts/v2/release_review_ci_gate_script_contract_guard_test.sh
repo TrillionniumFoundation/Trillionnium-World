@@ -12,6 +12,7 @@ required_lines=(
   'elapsed_seconds'
   'total_elapsed_millis'
   '--slurpfile checks "$CHECKS_FILE"'
+  'export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"'
   'slow_check_threshold_millis'
   'slow_checks'
   'check_trillionnium_world_release_review_packet_integrity.sh'
@@ -23,6 +24,10 @@ required_lines=(
   'release_packet_refresh_gate'
   'TRNM_RELEASE_REVIEW_PACKET_REFRESH_INPUTS=0'
   'check_trillionnium_world_release_review_packet.sh'
+  'packet_integrity_semantic_fixture_summary_refresh_gate'
+  'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUMMARIES_ONLY=1'
+  'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet.json"'
+  'TRNM_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_PACKET_MD="$ACCEPTANCE_DIR/release-review-packet.md"'
   'packet_integrity_gate "$ROOT/scripts/check_trillionnium_world_release_review_packet_integrity.sh" --no-refresh'
   'check_trillionnium_world_release_review_checkpoint_manifest.sh'
   'check_trillionnium_world_client_boundary.sh'
@@ -729,5 +734,14 @@ for line in "${duplicate_packet_integrity_guard_runs[@]}"; do
     exit 1
   fi
 done
+
+summary_line="$(grep -nF 'run_check packet_integrity_semantic_fixture_summary_refresh_gate' "$SCRIPT" | head -n 1 | cut -d: -f1)"
+packet_line="$(grep -nF 'run_check release_packet_refresh_gate' "$SCRIPT" | head -n 1 | cut -d: -f1)"
+suite_line="$(grep -nF 'run_check packet_integrity_semantic_fixture_suite_gate' "$SCRIPT" | head -n 1 | cut -d: -f1)"
+if [[ -z "$summary_line" || -z "$packet_line" || -z "$suite_line" ]] ||
+  (( summary_line >= packet_line || packet_line >= suite_line )); then
+  echo "[FAIL] release review CI must refresh semantic fixture summaries, then packet, then reused-packet semantic fixture suite" >&2
+  exit 1
+fi
 
 echo "[PASS] release review CI gate script keeps packet integrity, static guards, README links, workflow refs, checkpoint manifest, and Android S5 boundary"
