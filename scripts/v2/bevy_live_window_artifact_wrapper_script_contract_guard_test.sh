@@ -36,6 +36,19 @@ for script in "${live_window_scripts[@]}"; do
   fi
 done
 
+if ! grep -Fq 'capture_diagnostics_gate' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"; then
+  echo "[FAIL] screenshot sequence script lost capture/readiness diagnostics" >&2
+  exit 1
+fi
+if ! grep -Fq 'window_wait_elapsed_millis' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"; then
+  echo "[FAIL] screenshot sequence script no longer reports window wait timing" >&2
+  exit 1
+fi
+if ! grep -Fq 'capture_attempt_counts' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"; then
+  echo "[FAIL] screenshot sequence script no longer reports frame capture attempts" >&2
+  exit 1
+fi
+
 if ! grep -Fq 'visible-button-hit-test-map' "$ROOT/scripts/check_trillionnium_world_bevy_live_window_mouse_hit_test_sequence.sh"; then
   echo "[FAIL] mouse hit-test script lost visible-button-hit-test-map fixture" >&2
   exit 1

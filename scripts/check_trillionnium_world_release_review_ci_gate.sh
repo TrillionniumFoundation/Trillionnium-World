@@ -933,7 +933,35 @@ run_check bevy_live_window_sampled_texture_correlation_gate "$ROOT/scripts/check
 # Bevy render asset eligibility contract: trillionnium_world_bevy_render_asset_eligibility_v1
 run_check bevy_render_asset_eligibility_contract_guard "$ROOT/scripts/v2/render_asset_eligibility_script_contract_guard_test.sh"
 run_check bevy_render_asset_eligibility_gate "$ROOT/scripts/check_trillionnium_world_bevy_render_asset_eligibility.sh"
-run_check bevy_live_window_screenshot_sequence_artifact jq -e '.contract_version == "trillionnium_world_bevy_live_window_screenshot_sequence_v1" and .green == true and .frame_sequence_gate == true and .contact_sheet_gate == true and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1" and .runtime_texture_manifest_hash_gate == true and .runtime_texture_launch_env_gate == true and .runtime_texture_handle_gate == true and .runtime_probe_contract == "trillionnium_world_bevy_runtime_probe_v1" and .runtime_texture_sprite_asset_binding_contract == "trillionnium_world_bevy_sprite_asset_binding_v1" and .runtime_texture_sprite_asset_binding_gate == true and .runtime_texture_sprite_bound_surface_count >= 24 and .runtime_texture_image_asset_handle_id == "bevy_image_handle::trnm_world_authored_sprite_sheet_v1" and .runtime_texture_atlas_layout_handle_id == "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1" and .gpu_upload_claimed == false and .android_s5_real_device_claimed == false and .live_osm_ingestion_claimed == false' "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-screenshot-sequence.json"
+run_check bevy_live_window_screenshot_sequence_artifact jq -e '
+  .contract_version == "trillionnium_world_bevy_live_window_screenshot_sequence_v1"
+  and .green == true
+  and .frame_sequence_gate == true
+  and .contact_sheet_gate == true
+  and .capture_diagnostics_gate == true
+  and .window_wait_elapsed_millis >= 0
+  and .sequence_elapsed_millis > 0
+  and (.capture_attempt_counts | length) == 11
+  and .total_capture_attempts >= 11
+  and .max_capture_attempts >= 1
+  and (.capture_elapsed_millis | length) == 11
+  and .max_frame_capture_elapsed_millis > 0
+  and (.key_attempts_per_frame | keys | length) == 11
+  and (.settle_attempts_per_frame | keys | length) == 11
+  and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
+  and .runtime_texture_manifest_hash_gate == true
+  and .runtime_texture_launch_env_gate == true
+  and .runtime_texture_handle_gate == true
+  and .runtime_probe_contract == "trillionnium_world_bevy_runtime_probe_v1"
+  and .runtime_texture_sprite_asset_binding_contract == "trillionnium_world_bevy_sprite_asset_binding_v1"
+  and .runtime_texture_sprite_asset_binding_gate == true
+  and .runtime_texture_sprite_bound_surface_count >= 24
+  and .runtime_texture_image_asset_handle_id == "bevy_image_handle::trnm_world_authored_sprite_sheet_v1"
+  and .runtime_texture_atlas_layout_handle_id == "bevy_texture_atlas_layout_handle::trnm_world_authored_sprite_sheet_layout_v1"
+  and .gpu_upload_claimed == false
+  and .android_s5_real_device_claimed == false
+  and .live_osm_ingestion_claimed == false
+' "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-live-window-screenshot-sequence.json"
 run_check bevy_desktop_real_machine_readiness_contract_guard "$ROOT/scripts/v2/bevy_desktop_real_machine_readiness_script_contract_guard_test.sh"
 run_check bevy_classic_playtest_runner_status_desktop_fast_gate_refresh refresh_bevy_playtest_runner_for_fast_gates
 run_check bevy_desktop_real_machine_readiness_gate env TRNM_WORLD_DESKTOP_REAL_MACHINE_REFRESH=0 "$ROOT/scripts/check_trillionnium_world_bevy_desktop_real_machine_readiness.sh"

@@ -66,6 +66,7 @@ cleanup() {
 trap cleanup EXIT
 
 WINDOW_ID=""
+WINDOW_WAIT_STARTED_MILLIS="$(date +%s%3N)"
 for _ in $(seq 1 160); do
   WINDOW_ID="$(
     DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" xwininfo -root -tree 2>/dev/null |
@@ -85,8 +86,9 @@ for _ in $(seq 1 160); do
   sleep 0.25
 done
 test -n "$WINDOW_ID"
+WINDOW_WAIT_ELAPSED_MILLIS="$(($(date +%s%3N) - WINDOW_WAIT_STARTED_MILLIS))"
 
-DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" python3 - "$WINDOW_ID" "$FRAME_DIR" "$CONTACT_SHEET" "$FINAL_FRAME" "$SUMMARY" "$SLOT_DIR" "$HOST_PID" "$RUNTIME_TEXTURE_SUMMARY" "$RUNTIME_TEXTURE_MANIFEST" "$RUNTIME_TEXTURE_MANIFEST_SHA256" "$RUNTIME_PROBE" <<'PY'
+DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTH" python3 - "$WINDOW_ID" "$FRAME_DIR" "$CONTACT_SHEET" "$FINAL_FRAME" "$SUMMARY" "$SLOT_DIR" "$HOST_PID" "$RUNTIME_TEXTURE_SUMMARY" "$RUNTIME_TEXTURE_MANIFEST" "$RUNTIME_TEXTURE_MANIFEST_SHA256" "$RUNTIME_PROBE" "$WINDOW_WAIT_ELAPSED_MILLIS" <<'PY'
 import ctypes
 import hashlib
 import json
@@ -110,6 +112,7 @@ runtime_texture_summary_path = Path(sys.argv[8])
 runtime_texture_manifest_path = Path(sys.argv[9])
 runtime_texture_manifest_sha256 = sys.argv[10]
 runtime_probe_path = Path(sys.argv[11])
+window_wait_elapsed_millis = int(sys.argv[12])
 runtime_texture_summary = json.loads(runtime_texture_summary_path.read_text())
 runtime_texture_manifest_bytes_data = runtime_texture_manifest_path.read_bytes()
 runtime_texture_manifest = json.loads(runtime_texture_manifest_bytes_data.decode("utf-8"))
@@ -139,6 +142,7 @@ xtst.XTestFakeKeyEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int,
 display = x11.XOpenDisplay(None)
 if not display:
     raise SystemExit("could not open X11 display for live-window screenshot gate")
+sequence_started_at = time.monotonic()
 
 def window_origin():
     info = subprocess.check_output(["xwininfo", "-id", hex(window_id)], env=env, text=True, stderr=subprocess.STDOUT)
@@ -189,12 +193,15 @@ def press_return(action_label):
     return {"key": "Return", "keycode": keycode, "action_label": action_label}
 
 def capture(frame_id, after_action=None, index=0, previous_image=None):
+    capture_started_at = time.monotonic()
     xwd_path = frame_dir / f"{index:02d}-{frame_id}.xwd"
     png_path = frame_dir / f"{index:02d}-{frame_id}.png"
     image = None
     stat = None
     colors = 0
-    for _ in range(20):
+    capture_attempts = 0
+    for attempt in range(1, 21):
+        capture_attempts = attempt
         subprocess.check_call(["xwd", "-silent", "-id", hex(window_id), "-out", str(xwd_path)], env=env)
         subprocess.check_call(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(xwd_path), str(png_path)], env=env)
         image = Image.open(png_path).convert("RGB")
@@ -223,6 +230,8 @@ def capture(frame_id, after_action=None, index=0, previous_image=None):
         "nonblank": nonblank,
         "diff_mean_from_previous": diff_mean,
         "diff_bbox_from_previous": diff_bbox,
+        "capture_attempts": capture_attempts,
+        "capture_elapsed_millis": int(round((time.monotonic() - capture_started_at) * 1000)),
     }, image
 
 steps = [
@@ -244,21 +253,25 @@ time.sleep(0.1)
 frames = []
 key_events = []
 frame, previous = capture("title", None, 0, None)
+frame.update({"key_attempt": 0, "settle_attempt": 0})
 frames.append(frame)
 for index, (step_id, action, frame_id) in enumerate(steps, start=1):
     frame = None
     candidate_image = None
+    settle_attempt_used = 0
     for attempt in range(1, 7):
         key_event = press_return(action)
         key_event.update({"step_id": step_id, "target_frame_id": frame_id, "attempt": attempt})
         key_events.append(key_event)
-        for _settle_attempt in range(1, 4):
+        for settle_attempt in range(1, 4):
+            settle_attempt_used = settle_attempt
             time.sleep(0.22)
             frame, candidate_image = capture(frame_id, action, index, previous)
             if frame["diff_mean_from_previous"] is not None and frame["diff_mean_from_previous"] >= 0.35:
                 break
         if frame["diff_mean_from_previous"] is not None and frame["diff_mean_from_previous"] >= 0.35:
             break
+    frame.update({"key_attempt": attempt, "settle_attempt": settle_attempt_used})
     previous = candidate_image
     frames.append(frame)
 
@@ -329,6 +342,11 @@ slot_bytes = slot_path.stat().st_size if slot_path.exists() else 0
 expected_frame_ids = ["title", "create", "talk", "train", "training_room", "arena", "fight_result", "save_continue", "title_continue", "resume_continue", "complete"]
 actual_frame_ids = [frame["frame_id"] for frame in frames]
 changed_frames = [frame for frame in frames[1:] if frame["diff_mean_from_previous"] is not None and frame["diff_mean_from_previous"] >= 0.35]
+capture_attempt_counts = [frame["capture_attempts"] for frame in frames]
+capture_elapsed_millis = [frame["capture_elapsed_millis"] for frame in frames]
+key_attempts_per_frame = {frame["frame_id"]: frame["key_attempt"] for frame in frames}
+settle_attempts_per_frame = {frame["frame_id"]: frame["settle_attempt"] for frame in frames}
+sequence_elapsed_millis = int(round((time.monotonic() - sequence_started_at) * 1000))
 host_window_gate = window_id > 0 and frames[0]["size"] == [960, 540]
 key_count_gate = len(key_events) >= len(steps) and len(key_events) <= len(steps) * 6
 frame_count_gate = len(frames) == len(expected_frame_ids)
@@ -351,7 +369,16 @@ runtime_texture_handle_gate = (
     and runtime_texture_manifest.get("image_asset_descriptor", {}).get("image_asset_handle_id") == runtime_texture_image_handle
     and runtime_texture_manifest.get("texture_atlas_layout_descriptor", {}).get("texture_atlas_layout_handle_id") == runtime_texture_layout_handle
 )
-green = all([host_window_gate, key_count_gate, frame_count_gate, frame_sequence_gate, screenshot_nonblank_gate, frame_change_gate, slot_write_gate, contact_sheet_gate, final_frame_gate, runtime_texture_asset_gate, runtime_texture_manifest_file_gate, runtime_texture_manifest_hash_gate, runtime_texture_launch_env_gate, runtime_texture_handle_gate, runtime_texture_sprite_asset_binding_gate])
+capture_diagnostics_gate = (
+    window_wait_elapsed_millis >= 0
+    and sequence_elapsed_millis > 0
+    and len(capture_attempt_counts) == len(expected_frame_ids)
+    and all(1 <= attempts <= 20 for attempts in capture_attempt_counts)
+    and all(elapsed > 0 for elapsed in capture_elapsed_millis)
+    and len(key_attempts_per_frame) == len(expected_frame_ids)
+    and len(settle_attempts_per_frame) == len(expected_frame_ids)
+)
+green = all([host_window_gate, key_count_gate, frame_count_gate, frame_sequence_gate, screenshot_nonblank_gate, frame_change_gate, slot_write_gate, contact_sheet_gate, final_frame_gate, runtime_texture_asset_gate, runtime_texture_manifest_file_gate, runtime_texture_manifest_hash_gate, runtime_texture_launch_env_gate, runtime_texture_handle_gate, runtime_texture_sprite_asset_binding_gate, capture_diagnostics_gate])
 
 evidence = {
     "contract_version": "trillionnium_world_bevy_live_window_screenshot_sequence_v1",
@@ -360,6 +387,8 @@ evidence = {
     "host_pid": host_pid,
     "window_id": hex(window_id),
     "display": display_value,
+    "window_wait_elapsed_millis": window_wait_elapsed_millis,
+    "sequence_elapsed_millis": sequence_elapsed_millis,
     "slot_dir": str(slot_dir),
     "slot_a_path": str(slot_path),
     "slot_a_bytes": slot_bytes,
@@ -390,6 +419,19 @@ evidence = {
     "focus_event": focus_event,
     "key_events": key_events,
     "frames": frames,
+    "capture_diagnostics_gate": capture_diagnostics_gate,
+    "capture_attempt_counts": capture_attempt_counts,
+    "total_capture_attempts": sum(capture_attempt_counts),
+    "max_capture_attempts": max(capture_attempt_counts) if capture_attempt_counts else 0,
+    "capture_elapsed_millis": capture_elapsed_millis,
+    "max_frame_capture_elapsed_millis": max(capture_elapsed_millis) if capture_elapsed_millis else 0,
+    "key_attempts_per_frame": key_attempts_per_frame,
+    "settle_attempts_per_frame": settle_attempts_per_frame,
+    "capture_settle_budget": {
+        "max_capture_attempts_per_frame": 20,
+        "max_key_attempts_per_action": 6,
+        "max_settle_attempts_per_key_attempt": 3,
+    },
     "host_window_gate": host_window_gate,
     "key_count_gate": key_count_gate,
     "frame_count_gate": frame_count_gate,
@@ -435,6 +477,16 @@ jq -e '
   and .slot_write_gate == true
   and .contact_sheet_gate == true
   and .final_frame_gate == true
+  and .capture_diagnostics_gate == true
+  and .window_wait_elapsed_millis >= 0
+  and .sequence_elapsed_millis > 0
+  and (.capture_attempt_counts | length) == 11
+  and .total_capture_attempts >= 11
+  and .max_capture_attempts >= 1
+  and (.capture_elapsed_millis | length) == 11
+  and .max_frame_capture_elapsed_millis > 0
+  and (.key_attempts_per_frame | keys | length) == 11
+  and (.settle_attempts_per_frame | keys | length) == 11
   and .runtime_texture_asset_contract == "trillionnium_world_bevy_runtime_texture_asset_v1"
   and .runtime_texture_asset_gate == true
   and .runtime_texture_manifest_file_gate == true

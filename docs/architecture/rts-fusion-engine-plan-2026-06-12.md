@@ -25,7 +25,7 @@ The following boundaries are already present on `main`:
 - `trnm-rts-bevy-runtime` exists and owns deterministic camera, minimap, projection, path-preview, tile-line, hit-test, and runtime layout calculations.
 - `trnm-rts-evidence` exists and assembles deterministic Bevy runtime adapter evidence before `trnm-world-bevy` includes that proof in release-review evidence.
 - `trnm-rts-online` exists as a no-socket deterministic protocol fixture for authority resolution, visibility-scoped updates, loopback transport frames, bot plan, arena lifecycle, and a Bevy-facing local handoff summary. It keeps hosted-service and public-launch claims false.
-- Release-review CI is green on the local release artifact path with 377 checks, 0 failures, 128 packet artifacts, and a current total of about 187 seconds. The current dominant local slow checks are live-window screenshot evidence, packet semantic fixtures, and packet integrity.
+- Release-review CI is green on the local release artifact path with 377 checks, 0 failures, 128 packet artifacts, and a current total of about 187 seconds. The current dominant local slow checks are live-window screenshot evidence, packet semantic fixtures, and packet integrity. Live-window screenshot evidence now emits capture/readiness diagnostics so future speed work can distinguish window readiness, frame capture retries, and settle/key retries before trimming any proof.
 - `public_launch_ready=false` and `android_s5_real_device_claimed=false` remain correct. They are blocked by real S5 device evidence, production map-pack public evidence, beta cohort evidence, commercial drill evidence, multi-node/live-traffic latency evidence, and public network exposure evidence. Public-launch blocker consistency now exposes explicit `green` and six-blocker fields, and operator handoff requires both before issuing the external-evidence handoff.
 
 ## Reference Ownership
@@ -112,14 +112,14 @@ Follow-up slices have also landed enough to change the plan:
 - Runtime adapter math and fixtures are split into `trnm-rts-bevy-runtime`.
 - Release-review evidence assembly is split into `trnm-rts-evidence`.
 - No-socket online protocol and authority fixtures are split into `trnm-rts-online`, with `RtsOnlineLocalHandoff` exposing the local Bevy-facing handoff contract while keeping socket/hosted-service/public-launch flags false.
-- Shared release-review acceptance writers are serialized with a common `flock` helper, and public-launch blocker consistency/operator handoff now expose machine-readable green/blocker-count state without claiming public launch.
+- Shared release-review acceptance writers are serialized with a common `flock` helper, release-review CI exposes explicit check-count aliases, live-window screenshot evidence exposes capture/readiness diagnostics, and public-launch blocker consistency/operator handoff now expose machine-readable green/blocker-count state without claiming public launch.
 
 ### Next Local Slices
 
 1. Move remaining renderer-neutral First Contact command-surface, runtime UI, and evidence helper code out of `trnm-world-bevy/src/lib.rs` into `trnm-rts-bevy-runtime` or `trnm-rts-evidence`, leaving `trnm-world-bevy` as the adapter/rendering owner.
 2. Deepen the `trnm-rts-online` handoff from a deterministic local summary into a Bevy-facing offline bot/local multiplayer adapter path. Keep it explicitly no-socket, no-hosted-service, and no-public-launch until real network evidence exists.
 3. Keep reducing packet semantic fixture and packet integrity cost only when the same semantic artifact checks remain covered. Avoid replacing semantic negatives with checksum-only assertions.
-4. Treat live-window screenshot compression as a stability problem, not a simple timeout trim. Further speed work needs a better readiness signal or cheaper capture pipeline before reducing evidence frames or settle retries.
+4. Use the new live-window capture/readiness diagnostics to identify whether the 16s path is window startup, xwd/ffmpeg capture, frame-change settling, or repeated key attempts. Do not reduce frames or settle retries until the diagnostics show a cheaper path preserves the same evidence.
 5. Keep public launch blocked until the six external evidence items are real and validator-green; templates, synthetic fixtures, local drills, and handoff manifests remain no-credit.
 
 ## Release Boundary
