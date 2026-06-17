@@ -915,7 +915,10 @@ run_check bevy_authored_render_frame_contract_guard "$ROOT/scripts/v2/authored_r
 run_check bevy_authored_render_frame_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_render_frame.sh"
 run_check bevy_live_window_artifact_wrapper_contract_guard "$ROOT/scripts/v2/bevy_live_window_artifact_wrapper_script_contract_guard_test.sh"
 run_check bevy_live_window_runtime_texture_manifest_contract_guard "$ROOT/scripts/v2/live_window_runtime_texture_manifest_script_contract_guard_test.sh"
-run_check bevy_live_window_screenshot_sequence_gate "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"
+run_check bevy_live_window_screenshot_sequence_gate env \
+  TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-runtime-texture-asset.json" \
+  TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_MANIFEST="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-runtime-texture-asset-manifest.json" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_live_window_screenshot_sequence.sh"
 run_check bevy_authored_live_visual_bridge_contract_guard "$ROOT/scripts/v2/authored_live_visual_bridge_script_contract_guard_test.sh"
 run_check bevy_authored_live_visual_bridge_gate "$ROOT/scripts/check_trillionnium_world_bevy_authored_live_visual_bridge.sh"
 run_check bevy_live_window_layer_pixel_probe_contract_guard "$ROOT/scripts/v2/live_window_layer_pixel_probe_script_contract_guard_test.sh"

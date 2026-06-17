@@ -11,14 +11,21 @@ FINAL_FRAME="$MANUAL_DIR/bevy-live-window-screenshot-sequence-final.png"
 LOG="$MANUAL_DIR/bevy-live-window-screenshot-sequence-host.log"
 RUNTIME_PROBE="$MANUAL_DIR/bevy-live-window-runtime-probe.json"
 SLOT_DIR="$EVIDENCE_DIR/bevy-live-window-screenshot-sequence-slots"
-RUNTIME_TEXTURE_SUMMARY="$EVIDENCE_DIR/bevy-runtime-texture-asset.json"
-RUNTIME_TEXTURE_MANIFEST="$EVIDENCE_DIR/bevy-runtime-texture-asset-manifest.json"
+RUNTIME_TEXTURE_SUMMARY="${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_SUMMARY:-$EVIDENCE_DIR/bevy-runtime-texture-asset.json}"
+RUNTIME_TEXTURE_MANIFEST="${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_MANIFEST:-$EVIDENCE_DIR/bevy-runtime-texture-asset-manifest.json}"
+if [[ -n "${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_SUMMARY:-}" && -z "${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_MANIFEST:-}" ]] ||
+  [[ -z "${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_SUMMARY:-}" && -n "${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_MANIFEST:-}" ]]; then
+  echo "[FAIL] live-window runtime texture overrides must provide both summary and manifest" >&2
+  exit 2
+fi
 mkdir -p "$EVIDENCE_DIR" "$MANUAL_DIR"
 rm -rf "$FRAME_DIR" "$SLOT_DIR"
 rm -f "$RUNTIME_PROBE"
 mkdir -p "$FRAME_DIR" "$SLOT_DIR"
 
-"$ROOT/scripts/check_trillionnium_world_bevy_runtime_texture_asset.sh" >/dev/null
+if [[ -z "${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_SUMMARY:-}" && -z "${TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_MANIFEST:-}" ]]; then
+  "$ROOT/scripts/check_trillionnium_world_bevy_runtime_texture_asset.sh" >/dev/null
+fi
 test -s "$RUNTIME_TEXTURE_SUMMARY"
 test -s "$RUNTIME_TEXTURE_MANIFEST"
 RUNTIME_TEXTURE_MANIFEST_SHA256="$(sha256sum "$RUNTIME_TEXTURE_MANIFEST" | awk '{print $1}')"
@@ -231,9 +238,9 @@ steps = [
     ("continue_session", "CONTINUE:SESSION", "complete"),
 ]
 
-time.sleep(3.0)
+time.sleep(0.8)
 focus_event = focus_window()
-time.sleep(0.5)
+time.sleep(0.1)
 frames = []
 key_events = []
 frame, previous = capture("title", None, 0, None)
@@ -245,8 +252,11 @@ for index, (step_id, action, frame_id) in enumerate(steps, start=1):
         key_event = press_return(action)
         key_event.update({"step_id": step_id, "target_frame_id": frame_id, "attempt": attempt})
         key_events.append(key_event)
-        time.sleep(0.55)
-        frame, candidate_image = capture(frame_id, action, index, previous)
+        for _settle_attempt in range(1, 4):
+            time.sleep(0.22)
+            frame, candidate_image = capture(frame_id, action, index, previous)
+            if frame["diff_mean_from_previous"] is not None and frame["diff_mean_from_previous"] >= 0.35:
+                break
         if frame["diff_mean_from_previous"] is not None and frame["diff_mean_from_previous"] >= 0.35:
             break
     previous = candidate_image

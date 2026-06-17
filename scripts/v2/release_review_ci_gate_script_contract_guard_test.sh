@@ -670,6 +670,8 @@ required_lines=(
   'live_window_runtime_texture_manifest_script_contract_guard_test.sh'
   'bevy_live_window_screenshot_sequence_gate'
   'check_trillionnium_world_bevy_live_window_screenshot_sequence.sh'
+  'TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-runtime-texture-asset.json"'
+  'TRNM_LIVE_WINDOW_RUNTIME_TEXTURE_ASSET_MANIFEST="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-runtime-texture-asset-manifest.json"'
   'bevy_live_window_screenshot_sequence_artifact'
   'trillionnium_world_bevy_runtime_texture_asset_v1'
   'trillionnium_world_bevy_runtime_texture_manifest_probe_v1'
