@@ -5,7 +5,6 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-command-vocab-adapter.json"
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-command-vocab-adapter"
 ADAPTER="$PREVIEW_DIR/openra-command-vocabulary-adapter.json"
-REPLAY="$PREVIEW_DIR/openra-replay-compat-adapter/openra-parity-lane/openra-parity-lane.trnm-replay.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-command-vocab-adapter "$PREVIEW_DIR" >"$SUMMARY"
@@ -51,6 +50,9 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+ADAPTER="$(jq -er '.command_adapter_path' "$SUMMARY")"
+REPLAY="$(jq -er '.source_paths.owned_replay_file' "$SUMMARY")"
 
 jq -e '
   .adapter_schema == "openra_replay_command_vocab_adapter_v1_json"

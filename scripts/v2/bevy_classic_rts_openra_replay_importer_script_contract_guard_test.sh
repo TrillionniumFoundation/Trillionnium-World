@@ -15,6 +15,13 @@ required_script_lines=(
   'openra-replay-imported-order-stream.jsonl'
   'openra-replay-importer-negative-corpus.json'
   'classic-rts-openra-replay-importer'
+  '.envelope_path'
+  '.metadata_path'
+  '.imported_stream_path'
+  '.importer_path'
+  '.negative_corpus_path'
+  '.source_paths.serializer_jsonl'
+  '.source_paths.serializer_manifest'
   'openra_replay_envelope_importer_v1_json'
   'openra_replay_envelope_metadata_v1_json'
   'openra_replay_outer_packet_v1'
@@ -37,6 +44,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_REPLAY_IMPORTER_CONTRACT'
   'native_classic_rts_openra_replay_importer_evidence_json'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR'
   'classic-rts-openra-replay-importer'
   'bevy_owned_openra_outer_replay_envelope_importer_not_full_binary_replay'
   'openra_replay_envelope_importer_v1_json'
@@ -65,6 +74,8 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_replay_importer_contract_guard'
   'bevy_classic_rts_openra_replay_importer_gate'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture.json"'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture"'
   'bevy_classic_rts_openra_replay_importer_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_replay_importer.sh'
 )

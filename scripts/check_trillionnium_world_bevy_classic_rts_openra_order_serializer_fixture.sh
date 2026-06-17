@@ -6,7 +6,6 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-o
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture"
 STREAM="$PREVIEW_DIR/openra-order-stream-fixture.jsonl"
 MANIFEST="$PREVIEW_DIR/openra-order-serializer-fixture.json"
-COMMAND_ADAPTER="$PREVIEW_DIR/openra-command-vocab-adapter/openra-command-vocabulary-adapter.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-order-serializer-fixture "$PREVIEW_DIR" >"$SUMMARY"
@@ -60,6 +59,10 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+STREAM="$(jq -er '.serializer_path' "$SUMMARY")"
+MANIFEST="$(jq -er '.manifest_path' "$SUMMARY")"
+COMMAND_ADAPTER="$(jq -er '.source_paths.command_adapter_json' "$SUMMARY")"
 
 jq -e '
   .manifest_schema == "openra_order_serializer_fixture_manifest_v1_json"

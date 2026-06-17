@@ -12,6 +12,8 @@ required_script_lines=(
   'bevy-classic-rts-openra-command-vocab-adapter.json'
   'openra-command-vocabulary-adapter.json'
   'classic-rts-openra-command-vocab-adapter'
+  '.command_adapter_path'
+  '.source_paths.owned_replay_file'
   'openra_replay_command_vocab_adapter_v1_json'
   'StartGame'
   'SyncFrame'
@@ -37,6 +39,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_COMMAND_VOCAB_ADAPTER_CONTRACT'
   'native_classic_rts_openra_command_vocab_adapter_evidence_json'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR'
   'classic-rts-openra-command-vocab-adapter'
   'bevy_owned_replay_to_openra_style_command_vocabulary_adapter_not_binary_openra_replay'
   'openra_replay_command_vocab_adapter_v1_json'
@@ -60,6 +64,8 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_command_vocab_adapter_contract_guard'
   'bevy_classic_rts_openra_command_vocab_adapter_gate'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter.json"'
+  'TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter"'
   'bevy_classic_rts_openra_command_vocab_adapter_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter.sh'
 )

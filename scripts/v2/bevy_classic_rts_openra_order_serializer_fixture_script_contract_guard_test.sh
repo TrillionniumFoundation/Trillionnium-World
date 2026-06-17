@@ -13,6 +13,9 @@ required_script_lines=(
   'openra-order-stream-fixture.jsonl'
   'openra-order-serializer-fixture.json'
   'classic-rts-openra-order-serializer-fixture'
+  '.serializer_path'
+  '.manifest_path'
+  '.source_paths.command_adapter_json'
   'openra_order_stream_fixture_v1_jsonl'
   'openra_order_stream_record_v1'
   'ReplayOutcome'
@@ -34,6 +37,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_SERIALIZER_FIXTURE_CONTRACT'
   'native_classic_rts_openra_order_serializer_fixture_evidence_json'
+  'TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_SUMMARY'
+  'TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_DIR'
   'classic-rts-openra-order-serializer-fixture'
   'bevy_owned_openra_style_order_serializer_fixture_not_openra_order_stream'
   'openra_order_stream_fixture_v1_jsonl'
@@ -57,6 +62,8 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_order_serializer_fixture_contract_guard'
   'bevy_classic_rts_openra_order_serializer_fixture_gate'
+  'TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-command-vocab-adapter.json"'
+  'TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-command-vocab-adapter"'
   'bevy_classic_rts_openra_order_serializer_fixture_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture.sh'
 )

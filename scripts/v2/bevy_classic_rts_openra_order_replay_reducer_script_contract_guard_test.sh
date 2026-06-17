@@ -13,6 +13,10 @@ required_script_lines=(
   'openra-order-replay-reducer.json'
   'openra-order-replay-snapshots.jsonl'
   'classic-rts-openra-order-replay-reducer'
+  '.reducer_path'
+  '.snapshot_path'
+  '.source_paths.serializer_jsonl'
+  '.source_paths.serializer_manifest'
   'openra_order_stream_reducer_state_v1_json'
   'openra_order_reducer_snapshot_v1'
   'openra_order_replay_reducer_gate == true'
@@ -34,6 +38,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_REPLAY_REDUCER_CONTRACT'
   'native_classic_rts_openra_order_replay_reducer_evidence_json'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR'
   'classic-rts-openra-order-replay-reducer'
   'bevy_owned_openra_style_order_stream_replayed_by_rust_reducer'
   'openra_order_stream_reducer_state_v1_json'
@@ -57,6 +63,8 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_order_replay_reducer_contract_guard'
   'bevy_classic_rts_openra_order_replay_reducer_gate'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture.json"'
+  'TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture"'
   'bevy_classic_rts_openra_order_replay_reducer_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_order_replay_reducer.sh'
 )

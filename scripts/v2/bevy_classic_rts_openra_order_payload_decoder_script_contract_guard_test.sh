@@ -15,6 +15,14 @@ required_script_lines=(
   'openra-order-payload-decoder-manifest.json'
   'openra-order-payload-decoder-negative-corpus.json'
   'classic-rts-openra-order-payload-decoder'
+  '.payload_codec_path'
+  '.decoded_stream_path'
+  '.decoder_path'
+  '.manifest_path'
+  '.negative_corpus_path'
+  '.source_paths.imported_stream'
+  '.source_paths.imported_metadata'
+  '.source_paths.importer_report'
   'openra_order_payload_decoder_v1_json'
   'openra_order_payload_codec_v1_bin'
   'openra_style_order_payload_codec == true'
@@ -37,6 +45,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_ORDER_PAYLOAD_DECODER_CONTRACT'
   'native_classic_rts_openra_order_payload_decoder_evidence_json'
+  'TRNM_OPENRA_REPLAY_IMPORTER_SUMMARY'
+  'TRNM_OPENRA_REPLAY_IMPORTER_DIR'
   'classic-rts-openra-order-payload-decoder'
   'bevy_owned_openra_style_order_payload_codec_decoder_not_native_orderio'
   'openra_order_payload_decoder_v1_json'
@@ -63,6 +73,8 @@ done
 required_ci_lines=(
   'bevy_classic_rts_openra_order_payload_decoder_contract_guard'
   'bevy_classic_rts_openra_order_payload_decoder_gate'
+  'TRNM_OPENRA_REPLAY_IMPORTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-importer.json"'
+  'TRNM_OPENRA_REPLAY_IMPORTER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-importer"'
   'bevy_classic_rts_openra_order_payload_decoder_script_contract_guard_test.sh'
   'check_trillionnium_world_bevy_classic_rts_openra_order_payload_decoder.sh'
 )

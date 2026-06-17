@@ -9,9 +9,6 @@ DECODED_STREAM="$PREVIEW_DIR/openra-order-payload-decoded-stream.jsonl"
 DECODER="$PREVIEW_DIR/openra-order-payload-decoder.json"
 MANIFEST="$PREVIEW_DIR/openra-order-payload-decoder-manifest.json"
 NEGATIVE_CORPUS="$PREVIEW_DIR/openra-order-payload-decoder-negative-corpus.json"
-IMPORTER_STREAM="$PREVIEW_DIR/openra-replay-importer/openra-replay-imported-order-stream.jsonl"
-IMPORTER="$PREVIEW_DIR/openra-replay-importer/openra-replay-importer.json"
-METADATA="$PREVIEW_DIR/openra-replay-importer/openra-replay-imported-metadata.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-order-payload-decoder "$PREVIEW_DIR" >"$SUMMARY"
@@ -67,6 +64,15 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+PAYLOAD_CODEC="$(jq -er '.payload_codec_path' "$SUMMARY")"
+DECODED_STREAM="$(jq -er '.decoded_stream_path' "$SUMMARY")"
+DECODER="$(jq -er '.decoder_path' "$SUMMARY")"
+MANIFEST="$(jq -er '.manifest_path' "$SUMMARY")"
+NEGATIVE_CORPUS="$(jq -er '.negative_corpus_path' "$SUMMARY")"
+IMPORTER_STREAM="$(jq -er '.source_paths.imported_stream' "$SUMMARY")"
+IMPORTER="$(jq -er '.source_paths.importer_report' "$SUMMARY")"
+METADATA="$(jq -er '.source_paths.imported_metadata' "$SUMMARY")"
 
 jq -e '
   .manifest_schema == "openra_order_payload_decoder_manifest_v1_json"

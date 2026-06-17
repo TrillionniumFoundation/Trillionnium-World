@@ -53741,13 +53741,32 @@ pub fn native_classic_rts_openra_command_vocab_adapter_evidence_json(preview_dir
             .to_string_lossy()
             .into_owned()
     };
-    let replay_adapter_dir = preview_path("openra-replay-compat-adapter");
+    let default_replay_adapter_dir = preview_path("openra-replay-compat-adapter");
     let command_adapter_path = preview_path("openra-command-vocabulary-adapter.json");
 
-    let replay_adapter: Value = serde_json::from_str(
-        &native_classic_rts_openra_replay_compat_adapter_evidence_json(&replay_adapter_dir),
-    )
-    .expect("OpenRA replay compatibility adapter evidence parses");
+    let replay_adapter: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA replay compatibility adapter override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_replay_compat_adapter_evidence_json(
+                    &default_replay_adapter_dir,
+                ),
+            )
+            .expect("OpenRA replay compatibility adapter evidence parses")
+        };
+    let replay_adapter_dir = std::env::var("TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR")
+        .ok()
+        .or_else(|| {
+            replay_adapter
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_replay_adapter_dir);
     let replay_path = replay_adapter
         .pointer("/source_paths/owned_replay_file")
         .and_then(Value::as_str)
@@ -54138,14 +54157,33 @@ pub fn native_classic_rts_openra_order_serializer_fixture_evidence_json(
             .to_string_lossy()
             .into_owned()
     };
-    let command_vocab_dir = preview_path("openra-command-vocab-adapter");
+    let default_command_vocab_dir = preview_path("openra-command-vocab-adapter");
     let serializer_path = preview_path("openra-order-stream-fixture.jsonl");
     let manifest_path = preview_path("openra-order-serializer-fixture.json");
 
-    let command_vocab_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_command_vocab_adapter_evidence_json(&command_vocab_dir),
-    )
-    .expect("OpenRA command vocabulary adapter evidence parses");
+    let command_vocab_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA command vocabulary adapter override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_command_vocab_adapter_evidence_json(
+                    &default_command_vocab_dir,
+                ),
+            )
+            .expect("OpenRA command vocabulary adapter evidence parses")
+        };
+    let command_vocab_dir = std::env::var("TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_DIR")
+        .ok()
+        .or_else(|| {
+            command_vocab_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_command_vocab_dir);
     let command_adapter_path = command_vocab_evidence
         .get("command_adapter_path")
         .and_then(Value::as_str)
@@ -54538,17 +54576,36 @@ pub fn native_classic_rts_openra_replay_importer_evidence_json(preview_dir: &str
             .to_string_lossy()
             .into_owned()
     };
-    let serializer_dir = preview_path("openra-order-serializer-fixture");
+    let default_serializer_dir = preview_path("openra-order-serializer-fixture");
     let envelope_path = preview_path("openra-replay-envelope-importer.orarep");
     let imported_stream_path = preview_path("openra-replay-imported-order-stream.jsonl");
     let metadata_path = preview_path("openra-replay-imported-metadata.json");
     let importer_path = preview_path("openra-replay-importer.json");
     let negative_corpus_path = preview_path("openra-replay-importer-negative-corpus.json");
 
-    let serializer_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_order_serializer_fixture_evidence_json(&serializer_dir),
-    )
-    .expect("OpenRA order serializer fixture evidence parses");
+    let serializer_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA order serializer fixture override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_order_serializer_fixture_evidence_json(
+                    &default_serializer_dir,
+                ),
+            )
+            .expect("OpenRA order serializer fixture evidence parses")
+        };
+    let serializer_dir = std::env::var("TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR")
+        .ok()
+        .or_else(|| {
+            serializer_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_serializer_dir);
     let serializer_path = serializer_evidence
         .get("serializer_path")
         .and_then(Value::as_str)
@@ -55188,17 +55245,34 @@ pub fn native_classic_rts_openra_order_payload_decoder_evidence_json(preview_dir
             .to_string_lossy()
             .into_owned()
     };
-    let importer_dir = preview_path("openra-replay-importer");
+    let default_importer_dir = preview_path("openra-replay-importer");
     let payload_codec_path = preview_path("openra-order-payload-codec.bin");
     let decoded_stream_path = preview_path("openra-order-payload-decoded-stream.jsonl");
     let decoder_path = preview_path("openra-order-payload-decoder.json");
     let manifest_path = preview_path("openra-order-payload-decoder-manifest.json");
     let negative_corpus_path = preview_path("openra-order-payload-decoder-negative-corpus.json");
 
-    let importer_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_replay_importer_evidence_json(&importer_dir),
-    )
-    .expect("OpenRA replay importer evidence parses");
+    let importer_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_REPLAY_IMPORTER_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA replay importer override evidence parses")
+        } else {
+            serde_json::from_str(&native_classic_rts_openra_replay_importer_evidence_json(
+                &default_importer_dir,
+            ))
+            .expect("OpenRA replay importer evidence parses")
+        };
+    let importer_dir = std::env::var("TRNM_OPENRA_REPLAY_IMPORTER_DIR")
+        .ok()
+        .or_else(|| {
+            importer_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_importer_dir);
     let imported_stream_path = importer_evidence
         .get("imported_stream_path")
         .and_then(Value::as_str)
@@ -61374,14 +61448,33 @@ pub fn native_classic_rts_openra_order_replay_reducer_evidence_json(preview_dir:
             .to_string_lossy()
             .into_owned()
     };
-    let serializer_dir = preview_path("openra-order-serializer-fixture");
+    let default_serializer_dir = preview_path("openra-order-serializer-fixture");
     let reducer_path = preview_path("openra-order-replay-reducer.json");
     let snapshot_path = preview_path("openra-order-replay-snapshots.jsonl");
 
-    let serializer_evidence: Value = serde_json::from_str(
-        &native_classic_rts_openra_order_serializer_fixture_evidence_json(&serializer_dir),
-    )
-    .expect("OpenRA order serializer fixture evidence parses");
+    let serializer_evidence: Value =
+        if let Ok(path) = std::env::var("TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY") {
+            fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok())
+                .expect("OpenRA order serializer fixture override evidence parses")
+        } else {
+            serde_json::from_str(
+                &native_classic_rts_openra_order_serializer_fixture_evidence_json(
+                    &default_serializer_dir,
+                ),
+            )
+            .expect("OpenRA order serializer fixture evidence parses")
+        };
+    let serializer_dir = std::env::var("TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR")
+        .ok()
+        .or_else(|| {
+            serializer_evidence
+                .get("preview_dir")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_serializer_dir);
     let serializer_path = serializer_evidence
         .get("serializer_path")
         .and_then(Value::as_str)

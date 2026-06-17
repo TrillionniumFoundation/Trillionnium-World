@@ -9,8 +9,6 @@ METADATA="$PREVIEW_DIR/openra-replay-imported-metadata.json"
 IMPORTED_STREAM="$PREVIEW_DIR/openra-replay-imported-order-stream.jsonl"
 IMPORTER="$PREVIEW_DIR/openra-replay-importer.json"
 NEGATIVE_CORPUS="$PREVIEW_DIR/openra-replay-importer-negative-corpus.json"
-SOURCE_STREAM="$PREVIEW_DIR/openra-order-serializer-fixture/openra-order-stream-fixture.jsonl"
-SOURCE_MANIFEST="$PREVIEW_DIR/openra-order-serializer-fixture/openra-order-serializer-fixture.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-replay-importer "$PREVIEW_DIR" >"$SUMMARY"
@@ -74,6 +72,14 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+ENVELOPE="$(jq -er '.envelope_path' "$SUMMARY")"
+METADATA="$(jq -er '.metadata_path' "$SUMMARY")"
+IMPORTED_STREAM="$(jq -er '.imported_stream_path' "$SUMMARY")"
+IMPORTER="$(jq -er '.importer_path' "$SUMMARY")"
+NEGATIVE_CORPUS="$(jq -er '.negative_corpus_path' "$SUMMARY")"
+SOURCE_STREAM="$(jq -er '.source_paths.serializer_jsonl' "$SUMMARY")"
+SOURCE_MANIFEST="$(jq -er '.source_paths.serializer_manifest' "$SUMMARY")"
 
 jq -e '
   .metadata_schema == "openra_replay_envelope_metadata_v1_json"

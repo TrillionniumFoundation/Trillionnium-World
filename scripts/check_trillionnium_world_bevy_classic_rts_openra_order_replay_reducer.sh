@@ -6,8 +6,6 @@ SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-o
 PREVIEW_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-replay-reducer"
 REDUCER="$PREVIEW_DIR/openra-order-replay-reducer.json"
 SNAPSHOTS="$PREVIEW_DIR/openra-order-replay-snapshots.jsonl"
-STREAM="$PREVIEW_DIR/openra-order-serializer-fixture/openra-order-stream-fixture.jsonl"
-MANIFEST="$PREVIEW_DIR/openra-order-serializer-fixture/openra-order-serializer-fixture.json"
 mkdir -p "$(dirname "$SUMMARY")" "$PREVIEW_DIR"
 
 "$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" classic-rts-openra-order-replay-reducer "$PREVIEW_DIR" >"$SUMMARY"
@@ -63,6 +61,11 @@ jq -e '
   and .cex_runtime_player_client_allowed == false
   and .wgpu_required == false
 ' "$SUMMARY" >/dev/null
+
+REDUCER="$(jq -er '.reducer_path' "$SUMMARY")"
+SNAPSHOTS="$(jq -er '.snapshot_path' "$SUMMARY")"
+STREAM="$(jq -er '.source_paths.serializer_jsonl' "$SUMMARY")"
+MANIFEST="$(jq -er '.source_paths.serializer_manifest' "$SUMMARY")"
 
 jq -e '
   .state_schema == "openra_order_stream_reducer_state_v1_json"

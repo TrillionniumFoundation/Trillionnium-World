@@ -749,15 +749,30 @@ run_check bevy_classic_rts_openra_replay_compat_adapter_gate env \
   TRNM_OPENRA_PARITY_LANE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-parity-lane" \
   "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_replay_compat_adapter.sh"
 run_check bevy_classic_rts_openra_command_vocab_adapter_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_command_vocab_adapter_script_contract_guard_test.sh"
-run_check bevy_classic_rts_openra_command_vocab_adapter_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter.sh"
+run_check bevy_classic_rts_openra_command_vocab_adapter_gate env \
+  TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter.json" \
+  TRNM_OPENRA_REPLAY_COMPAT_ADAPTER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-compat-adapter" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_command_vocab_adapter.sh"
 run_check bevy_classic_rts_openra_order_serializer_fixture_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_order_serializer_fixture_script_contract_guard_test.sh"
-run_check bevy_classic_rts_openra_order_serializer_fixture_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture.sh"
+run_check bevy_classic_rts_openra_order_serializer_fixture_gate env \
+  TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-command-vocab-adapter.json" \
+  TRNM_OPENRA_COMMAND_VOCAB_ADAPTER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-command-vocab-adapter" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_serializer_fixture.sh"
 run_check bevy_classic_rts_openra_replay_importer_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_replay_importer_script_contract_guard_test.sh"
-run_check bevy_classic_rts_openra_replay_importer_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_replay_importer.sh"
+run_check bevy_classic_rts_openra_replay_importer_gate env \
+  TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture.json" \
+  TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_replay_importer.sh"
 run_check bevy_classic_rts_openra_order_payload_decoder_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_order_payload_decoder_script_contract_guard_test.sh"
-run_check bevy_classic_rts_openra_order_payload_decoder_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_payload_decoder.sh"
+run_check bevy_classic_rts_openra_order_payload_decoder_gate env \
+  TRNM_OPENRA_REPLAY_IMPORTER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-importer.json" \
+  TRNM_OPENRA_REPLAY_IMPORTER_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-replay-importer" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_payload_decoder.sh"
 run_check bevy_classic_rts_openra_order_replay_reducer_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_order_replay_reducer_script_contract_guard_test.sh"
-run_check bevy_classic_rts_openra_order_replay_reducer_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_replay_reducer.sh"
+run_check bevy_classic_rts_openra_order_replay_reducer_gate env \
+  TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture.json" \
+  TRNM_OPENRA_ORDER_SERIALIZER_FIXTURE_DIR="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-serializer-fixture" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_openra_order_replay_reducer.sh"
 run_check bevy_classic_rts_openra_imported_replay_reducer_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_openra_imported_replay_reducer_script_contract_guard_test.sh"
 run_check bevy_classic_rts_openra_imported_replay_reducer_gate env \
   TRNM_OPENRA_ORDER_PAYLOAD_DECODER_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-openra-order-payload-decoder.json" \
