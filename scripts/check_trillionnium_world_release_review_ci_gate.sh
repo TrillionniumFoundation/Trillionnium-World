@@ -623,7 +623,10 @@ run_check bevy_classic_rts_production_art_replication_gate "$ROOT/scripts/check_
 run_check bevy_classic_rts_production_asset_atlas_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_production_asset_atlas_script_contract_guard_test.sh"
 run_check bevy_classic_rts_production_asset_atlas_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh"
 run_check bevy_classic_rts_production_ui_skin_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_production_ui_skin_script_contract_guard_test.sh"
-run_check bevy_classic_rts_production_ui_skin_gate "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_ui_skin.sh"
+run_check bevy_classic_rts_production_ui_skin_gate env \
+  TRNM_PRODUCTION_ASSET_ATLAS_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.json" \
+  TRNM_PRODUCTION_ASSET_ATLAS_PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.ppm" \
+  "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_ui_skin.sh"
 run_check bevy_classic_rts_production_interaction_polish_contract_guard "$ROOT/scripts/v2/bevy_classic_rts_production_interaction_polish_script_contract_guard_test.sh"
 run_check bevy_classic_rts_production_interaction_polish_gate env \
   TRNM_PRODUCTION_UI_SKIN_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.json" \

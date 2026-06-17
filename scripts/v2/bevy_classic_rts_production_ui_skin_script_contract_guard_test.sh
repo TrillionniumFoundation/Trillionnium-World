@@ -14,6 +14,7 @@ required_script_lines=(
   'classic-rts-production-ui-skin'
   'bevy-classic-rts-production-ui-skin.json'
   'bevy-classic-rts-production-ui-skin.ppm'
+  '.source_paths.production_asset_atlas'
   'trillionnium_world_bevy_classic_rts_production_ui_skin_v1'
   'trillionnium_world_bevy_classic_rts_production_asset_atlas_v1'
   'trillionnium_world_bevy_classic_rts_command_surface_v1'
@@ -44,6 +45,8 @@ done
 required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_CONTRACT'
   'native_classic_rts_production_ui_skin_evidence_json'
+  'TRNM_PRODUCTION_ASSET_ATLAS_SUMMARY'
+  'TRNM_PRODUCTION_ASSET_ATLAS_PREVIEW'
   'TRNM NATIVE PRODUCTION UI SKIN'
   'TACTICAL_FIELD_COLOR'
   'native_classic_rts_production_asset_atlas_evidence_json'
@@ -90,6 +93,8 @@ required_ci_lines=(
   'check_trillionnium_world_bevy_classic_rts_production_ui_skin.sh'
   'bevy_classic_rts_production_ui_skin_script_contract_guard_test.sh'
   'bevy_classic_rts_production_ui_skin_gate'
+  'TRNM_PRODUCTION_ASSET_ATLAS_SUMMARY="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.json"'
+  'TRNM_PRODUCTION_ASSET_ATLAS_PREVIEW="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.ppm"'
   'trillionnium_world_bevy_classic_rts_production_ui_skin_v1'
 )
 

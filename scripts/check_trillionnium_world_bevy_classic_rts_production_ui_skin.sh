@@ -106,6 +106,9 @@ jq -e '
   and .gpu_upload_claimed == false
 ' "$SUMMARY" >/dev/null
 
+ASSET_ATLAS_PREVIEW="$(jq -er '.source_paths.production_asset_atlas' "$SUMMARY")"
+
 test -s "$PREVIEW"
+test -s "$ASSET_ATLAS_PREVIEW"
 
 printf 'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_PRODUCTION_UI_SKIN_GREEN %s %s\n' "$SUMMARY" "$PREVIEW"

@@ -18532,7 +18532,7 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
         .join("bevy-classic-rts-production-ui-skin-sources");
     let _ = fs::create_dir_all(&source_dir);
     let source_path = |name: &str| source_dir.join(name).to_string_lossy().into_owned();
-    let asset_atlas_path = source_path("bevy-classic-rts-production-asset-atlas.ppm");
+    let default_asset_atlas_path = source_path("bevy-classic-rts-production-asset-atlas.ppm");
     let command_surface_path = source_path("bevy-classic-rts-command-surface.ppm");
     let selection_minimap_path = source_path("bevy-classic-rts-selection-minimap.ppm");
     let unit_status_path = source_path("bevy-classic-rts-unit-status-portrait.ppm");
@@ -18540,10 +18540,27 @@ pub fn native_classic_rts_production_ui_skin_evidence_json(preview_path: &str) -
     let ability_tooltip_path = source_path("bevy-classic-rts-ability-tooltip-telegraph.ppm");
     let hotkey_feedback_path = source_path("bevy-classic-rts-control-group-hotkey-feedback.ppm");
 
-    let asset_atlas: Value = serde_json::from_str(
-        &native_classic_rts_production_asset_atlas_evidence_json(&asset_atlas_path),
-    )
-    .expect("production asset atlas evidence parses for production UI skin");
+    let asset_atlas: Value = if let Ok(path) = std::env::var("TRNM_PRODUCTION_ASSET_ATLAS_SUMMARY")
+    {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .expect("production asset atlas override evidence parses for production UI skin")
+    } else {
+        serde_json::from_str(&native_classic_rts_production_asset_atlas_evidence_json(
+            &default_asset_atlas_path,
+        ))
+        .expect("production asset atlas evidence parses for production UI skin")
+    };
+    let asset_atlas_path = std::env::var("TRNM_PRODUCTION_ASSET_ATLAS_PREVIEW")
+        .ok()
+        .or_else(|| {
+            asset_atlas
+                .get("preview_path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or(default_asset_atlas_path);
     let command_surface: Value = serde_json::from_str(
         &native_classic_rts_command_surface_evidence_json(&command_surface_path),
     )
