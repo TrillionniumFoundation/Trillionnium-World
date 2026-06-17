@@ -10,6 +10,7 @@ required_lines=(
   'check_trillionnium_world_public_launch_evidence_kit.sh'
   'check_trillionnium_world_public_launch_evidence_bundle.sh'
   'TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_MD'
+  'TRNM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_REFRESH_KIT=0'
   'trillionnium_world_public_launch_evidence_bundle_v1'
   'public_launch_evidence_bundle_green'
   's5-device-evidence.template.json'

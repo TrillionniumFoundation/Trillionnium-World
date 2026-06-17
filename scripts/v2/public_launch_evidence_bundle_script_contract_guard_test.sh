@@ -11,6 +11,7 @@ required_lines=(
   'public-launch-evidence-bundle.md'
   'public-launch-evidence-bundle.template.json'
   'TRILLIONNIUM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_PATH'
+  'TRNM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_REFRESH_KIT'
   'check_trillionnium_world_public_launch_evidence_kit.sh'
   'check_trillionnium_world_s5_real_device_evidence.sh'
   'check_trillionnium_world_production_map_pack_public_evidence.sh'

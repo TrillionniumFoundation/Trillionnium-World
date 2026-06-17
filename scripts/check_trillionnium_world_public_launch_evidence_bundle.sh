@@ -7,6 +7,7 @@ SUMMARY_FILE="$ACCEPTANCE_DIR/public-launch-evidence-bundle.json"
 MARKDOWN_FILE="$ACCEPTANCE_DIR/public-launch-evidence-bundle.md"
 BUNDLE_PATH=""
 REQUIRE_READY=0
+REFRESH_KIT="${TRNM_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_REFRESH_KIT:-1}"
 if [[ -v TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_SUMMARY && -n "$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_SUMMARY" ]]; then
   SUMMARY_FILE="$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_EVIDENCE_BUNDLE_SUMMARY"
 fi
@@ -57,8 +58,9 @@ jq -n '{
     synthetic_or_template_data_rejected: true
   }
 }' >"$TEMPLATE_FILE"
-
-"$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" >"$KIT_LOG"
+if [[ "$REFRESH_KIT" != "0" ]]; then
+  "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" >"$KIT_LOG"
+fi
 
 read_json_field() {
   local path="$1"
