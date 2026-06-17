@@ -55,10 +55,12 @@ trap 'rm -f "$ARTIFACTS_FILE"' EXIT
 mkdir -p "$ACCEPTANCE_DIR"
 
 if [[ "${TRNM_RELEASE_REVIEW_PACKET_USE_RELEASE_ARTIFACT_BIN:-1}" != "0" && -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" ]]; then
-  (
-    cd "$ROOT/trillionnium"
-    CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build --release -p trnm-world-bevy --bin trnm-world-bevy
-  ) >"$WORLD_BEVY_RELEASE_BUILD_LOG" 2>&1
+  if [[ ! -x "$ROOT/target/release/trnm-world-bevy" ]]; then
+    (
+      cd "$ROOT/trillionnium"
+      CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build --release -p trnm-world-bevy --bin trnm-world-bevy
+    ) >"$WORLD_BEVY_RELEASE_BUILD_LOG" 2>&1
+  fi
   export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"
 fi
 
