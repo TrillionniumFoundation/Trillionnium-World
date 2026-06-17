@@ -78,6 +78,7 @@ required_lines=(
   'check_trillionnium_world_public_launch_evidence_kit.sh'
   'public_launch_operator_handoff_script_contract_guard_test.sh'
   'check_trillionnium_world_public_launch_operator_handoff.sh'
+  'TRNM_PUBLIC_LAUNCH_OPERATOR_HANDOFF_REFRESH_INPUTS=0'
   'public_launch_operator_handoff_contract_guard'
   'public_launch_operator_handoff_gate'
   'public_launch_readiness_script_contract_guard_test.sh'

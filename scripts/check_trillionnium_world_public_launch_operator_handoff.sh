@@ -13,6 +13,7 @@ fi
 if [[ -v TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_OPERATOR_HANDOFF_MD && -n "$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_OPERATOR_HANDOFF_MD" ]]; then
   MARKDOWN_FILE="$TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_OPERATOR_HANDOFF_MD"
 fi
+REFRESH_INPUTS="${TRNM_PUBLIC_LAUNCH_OPERATOR_HANDOFF_REFRESH_INPUTS:-1}"
 
 ARTIFACTS_FILE="$(mktemp)"
 FAILURES_FILE="$(mktemp)"
@@ -31,16 +32,18 @@ TEMPLATE_NEGATIVE_LOG="$ACCEPTANCE_DIR/public-launch-operator-handoff-template-n
 EVIDENCE_BUNDLE_LOG="$ACCEPTANCE_DIR/public-launch-operator-handoff-evidence-bundle.log"
 BUNDLE_NEGATIVE_LOG="$ACCEPTANCE_DIR/public-launch-operator-handoff-bundle-negative-fixtures.log"
 
-"$ROOT/scripts/check_trillionnium_world_release_review_status.sh" >"$STATUS_LOG"
-"$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh" >"$INTAKE_LOG"
-"$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" >"$KIT_LOG"
-"$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh" >"$MAP_COLLECTION_LOG"
-"$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" >"$COHORT_COLLECTION_LOG"
-"$ROOT/scripts/check_trillionnium_world_external_ops_evidence_collection.sh" >"$EXTERNAL_OPS_COLLECTION_LOG"
-"$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh" >"$BLOCKER_CONSISTENCY_LOG"
-"$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh" >"$TEMPLATE_NEGATIVE_LOG"
-"$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh" >"$EVIDENCE_BUNDLE_LOG"
-"$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh" >"$BUNDLE_NEGATIVE_LOG"
+if [[ "$REFRESH_INPUTS" != "0" ]]; then
+  "$ROOT/scripts/check_trillionnium_world_release_review_status.sh" >"$STATUS_LOG"
+  "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_intake.sh" >"$INTAKE_LOG"
+  "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_kit.sh" >"$KIT_LOG"
+  "$ROOT/scripts/check_trillionnium_world_production_map_pack_public_evidence_collection.sh" >"$MAP_COLLECTION_LOG"
+  "$ROOT/scripts/check_trillionnium_world_cohort_commercial_evidence_collection.sh" >"$COHORT_COLLECTION_LOG"
+  "$ROOT/scripts/check_trillionnium_world_external_ops_evidence_collection.sh" >"$EXTERNAL_OPS_COLLECTION_LOG"
+  "$ROOT/scripts/check_trillionnium_world_public_launch_blocker_consistency.sh" >"$BLOCKER_CONSISTENCY_LOG"
+  "$ROOT/scripts/check_trillionnium_world_public_launch_template_negative_fixtures.sh" >"$TEMPLATE_NEGATIVE_LOG"
+  "$ROOT/scripts/check_trillionnium_world_public_launch_evidence_bundle.sh" >"$EVIDENCE_BUNDLE_LOG"
+  "$ROOT/scripts/check_trillionnium_world_public_launch_bundle_negative_fixtures.sh" >"$BUNDLE_NEGATIVE_LOG"
+fi
 
 STATUS_JSON="$ACCEPTANCE_DIR/release-review-status.json"
 INTAKE_JSON="$ACCEPTANCE_DIR/public-launch-evidence-intake.json"

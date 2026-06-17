@@ -15,6 +15,8 @@ public-launch-operator-handoff.json
 public-launch-operator-handoff.md
 TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_OPERATOR_HANDOFF_SUMMARY
 TRILLIONNIUM_WORLD_PUBLIC_LAUNCH_OPERATOR_HANDOFF_MD
+TRNM_PUBLIC_LAUNCH_OPERATOR_HANDOFF_REFRESH_INPUTS
+if [[ "$REFRESH_INPUTS" != "0" ]]
 check_trillionnium_world_release_review_status.sh
 check_trillionnium_world_public_launch_evidence_intake.sh
 check_trillionnium_world_public_launch_evidence_kit.sh
