@@ -313,6 +313,14 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       license: "GPL-3.0-or-later OpenRA Mod SDK prototype boundary"
     },
     rts_data_consumer_gate: true,
+    rts_data_renderer_projection_gate: true,
+    rts_data_renderer_projection: {
+      renderable_tile_count: 1024,
+      lane_tile_count: 240,
+      resource_actor_tile_count: 11,
+      objective_actor_tile_count: 4,
+      spawn_actor_tile_count: 4
+    },
     rts_online_protocol_fixture: {
       transport: {
         contract_version: "trnm_rts_online_loopback_transport_v1",

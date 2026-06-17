@@ -42,6 +42,20 @@ jq -e '
   and .rts_data_terrain_profile_samples.base_pad.base_pad == true
   and .rts_data_terrain_profile_samples.resource_zone.resource_zone == true
   and .rts_data_terrain_profile_gate == true
+  and .rts_data_renderer_projection.renderable_tile_count == 1024
+  and .rts_data_renderer_projection.lane_tile_count == 240
+  and .rts_data_renderer_projection.resource_zone_tile_count == 79
+  and .rts_data_renderer_projection.base_pad_tile_count == 144
+  and .rts_data_renderer_projection.minimap_anchor_actor_count == 39
+  and .rts_data_renderer_projection.resource_actor_tile_count == 11
+  and .rts_data_renderer_projection.objective_actor_tile_count == 4
+  and .rts_data_renderer_projection.spawn_actor_tile_count == 4
+  and (.rts_data_renderer_projection.lane_tile_samples[] | select(.x == 16 and .y == 1))
+  and (.rts_data_renderer_projection.resource_actor_tile_samples[] | select(.x == 12 and .y == 16))
+  and (.rts_data_renderer_projection.objective_actor_tile_samples[] | select(.x == 16 and .y == 9))
+  and (.rts_data_renderer_projection.spawn_actor_tile_samples[] | select(.x == 8 and .y == 8))
+  and (.rts_data_renderer_projection.minimap_anchor_actor_samples | index("Actor0") != null)
+  and .rts_data_renderer_projection_gate == true
   and .rts_data_opening_profile.contract_version == "trnm_rts_data_first_contact_opening_profile_v1"
   and .rts_data_opening_profile.map_id == "first_contact_basin"
   and .rts_data_opening_profile.active_beacon_tile.x == 16

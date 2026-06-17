@@ -44,11 +44,11 @@ use trnm_rts_data::{
     first_contact_terrain_profiles, first_contact_visual_telemetry_profile, RtsActorColorRole,
     RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
     RtsFirstContactPlayerScreenChromeProfile, RtsFirstContactPlayerScreenProfile,
-    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsOpeningLoopProfile,
+    RtsFirstContactVisualTelemetryProfile, RtsMapActor, RtsMapModel, RtsOpeningLoopProfile,
     RtsPlayerScreenBuildPaletteSlotProfile, RtsPlayerScreenResourceReadoutKind,
     RtsPlayerScreenResourceReadoutProfile, RtsPlayerScreenTacticsRowKind,
     RtsPlayerScreenTacticsRowProfile, RtsPlayerStartupProfile, RtsRule, RtsRuleKind,
-    RtsTerrainRole, RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
+    RtsTerrainRole, RtsTerrainTileProfile, RtsVisualTelemetryColorRole, TRNM_RTS_DATA_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
@@ -29333,6 +29333,7 @@ fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
     let terrain_profiles = first_contact_terrain_profiles();
+    let renderer_model = classic_first_contact_map_renderer_model(&map_model);
     let rts_data_validation_error = map_model.validate().err();
     let map_summary = map_model.summary();
     let actor_count = map_summary.actor_count;
@@ -29449,6 +29450,27 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .count()
             >= 76
         && first_contact_terrain_profile(RtsTile::new(16, 16)).height == 2;
+    let rts_data_renderer_projection_gate = renderer_model.renderable_tiles.len()
+        == (map_model.bounds.width * map_model.bounds.height) as usize
+        && renderer_model.lane_tiles.len() >= 120
+        && renderer_model.resource_zone_tiles.len() >= 76
+        && renderer_model.base_pad_tiles.len() >= 120
+        && renderer_model.minimap_anchor_actor_ids.len() == actor_count
+        && renderer_model.resource_actor_tiles.len() == flux_count
+        && renderer_model.objective_actor_tiles.len() == beacon_count
+        && renderer_model.spawn_actor_tiles.len() == spawn_count
+        && renderer_model
+            .resource_actor_tiles
+            .iter()
+            .all(|tile| map_model.bounds.contains(*tile))
+        && renderer_model
+            .objective_actor_tiles
+            .iter()
+            .all(|tile| map_model.bounds.contains(*tile))
+        && renderer_model
+            .spawn_actor_tiles
+            .iter()
+            .all(|tile| map_model.bounds.contains(*tile));
     let opening_profile = classic_first_contact_opening_loop();
     let command_feedback_profile = classic_first_contact_command_feedback();
     let rts_data_opening_profile_gate = opening_profile.contract_version
@@ -29904,6 +29926,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_consumer_gate
         && bevy_map_model_adapter_gate
         && rts_data_terrain_profile_gate
+        && rts_data_renderer_projection_gate
         && rts_data_opening_profile_gate
         && rts_data_command_feedback_gate
         && rts_data_player_startup_gate
@@ -29950,6 +29973,23 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             "resource_zone": first_contact_terrain_profile(RtsTile::new(12, 16)),
         },
         "rts_data_terrain_profile_gate": rts_data_terrain_profile_gate,
+        "rts_data_renderer_projection": {
+            "renderable_tile_count": renderer_model.renderable_tiles.len(),
+            "lane_tile_count": renderer_model.lane_tiles.len(),
+            "resource_zone_tile_count": renderer_model.resource_zone_tiles.len(),
+            "base_pad_tile_count": renderer_model.base_pad_tiles.len(),
+            "minimap_anchor_actor_count": renderer_model.minimap_anchor_actor_ids.len(),
+            "resource_actor_tile_count": renderer_model.resource_actor_tiles.len(),
+            "objective_actor_tile_count": renderer_model.objective_actor_tiles.len(),
+            "spawn_actor_tile_count": renderer_model.spawn_actor_tiles.len(),
+            "lane_tile_samples": renderer_model.lane_tiles.iter().take(6).collect::<Vec<_>>(),
+            "resource_actor_tile_samples": renderer_model.resource_actor_tiles.iter().take(4).collect::<Vec<_>>(),
+            "objective_actor_tile_samples": renderer_model.objective_actor_tiles.iter().take(4).collect::<Vec<_>>(),
+            "spawn_actor_tile_samples": renderer_model.spawn_actor_tiles.iter().take(4).collect::<Vec<_>>(),
+            "minimap_anchor_actor_samples": renderer_model.minimap_anchor_actor_ids.iter().take(6).collect::<Vec<_>>(),
+            "source": "RtsMapModel bounds, terrain profiles, actor rules, and runtime projection math",
+        },
+        "rts_data_renderer_projection_gate": rts_data_renderer_projection_gate,
         "rts_data_opening_profile": rts_data_opening_profile,
         "rts_data_command_feedback_profile": rts_data_command_feedback_profile,
         "rts_data_player_startup_profiles": rts_data_player_startup_profiles,
@@ -87847,6 +87887,69 @@ fn classic_first_contact_tile_ids(tiles: &[RtsTile]) -> Vec<String> {
 }
 
 #[cfg(not(target_os = "android"))]
+#[derive(Debug, Clone)]
+struct ClassicFirstContactMapRendererModel {
+    renderable_tiles: Vec<RtsTerrainTileProfile>,
+    lane_tiles: Vec<RtsTile>,
+    resource_zone_tiles: Vec<RtsTile>,
+    base_pad_tiles: Vec<RtsTile>,
+    minimap_anchor_actor_ids: Vec<String>,
+    resource_actor_tiles: Vec<RtsTile>,
+    objective_actor_tiles: Vec<RtsTile>,
+    spawn_actor_tiles: Vec<RtsTile>,
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_map_renderer_model(
+    map_model: &RtsMapModel,
+) -> ClassicFirstContactMapRendererModel {
+    let mut renderable_tiles = Vec::new();
+    let mut lane_tiles = Vec::new();
+    let mut resource_zone_tiles = Vec::new();
+    let mut base_pad_tiles = Vec::new();
+    for y in map_model.bounds.y..=map_model.bounds.max_y() {
+        for x in map_model.bounds.x..=map_model.bounds.max_x() {
+            let profile = first_contact_terrain_profile(RtsTile::new(x, y));
+            if profile.lane {
+                lane_tiles.push(profile.tile);
+            }
+            if profile.resource_zone {
+                resource_zone_tiles.push(profile.tile);
+            }
+            if profile.base_pad {
+                base_pad_tiles.push(profile.tile);
+            }
+            renderable_tiles.push(profile);
+        }
+    }
+
+    let minimap_anchor_actor_ids = map_model
+        .actors
+        .iter()
+        .map(|actor| actor.id.clone())
+        .collect::<Vec<_>>();
+    let actor_tiles_for_kind = |kind| {
+        map_model
+            .actors
+            .iter()
+            .filter(|actor| actor.kind == kind)
+            .map(|actor| actor.tile)
+            .collect::<Vec<_>>()
+    };
+
+    ClassicFirstContactMapRendererModel {
+        renderable_tiles,
+        lane_tiles,
+        resource_zone_tiles,
+        base_pad_tiles,
+        minimap_anchor_actor_ids,
+        resource_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Resource),
+        objective_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Objective),
+        spawn_actor_tiles: actor_tiles_for_kind(RtsRuleKind::Spawn),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_opening_loop() -> RtsOpeningLoopProfile {
     first_contact_opening_loop_profile()
 }
@@ -95713,27 +95816,19 @@ fn classic_first_contact_tile_screen(
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_lane_tile(tile: (i32, i32)) -> bool {
-    first_contact_terrain_profile(RtsTile::new(tile.0, tile.1)).lane
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_base_pad(tile: (i32, i32)) -> bool {
-    first_contact_terrain_profile(RtsTile::new(tile.0, tile.1)).base_pad
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_resource_tile(tile: (i32, i32)) -> bool {
-    first_contact_terrain_profile(RtsTile::new(tile.0, tile.1)).resource_zone
-}
-
-#[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
-    let (x, y) = tile;
-    let terrain = first_contact_terrain_profile(RtsTile::new(x, y));
+    classic_first_contact_tile_profile_color(first_contact_terrain_profile(RtsTile::new(
+        tile.0, tile.1,
+    )))
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_tile_profile_color(terrain: RtsTerrainTileProfile) -> u32 {
     if !terrain.playable {
         return 0x111812;
     }
+    let x = terrain.tile.x;
+    let y = terrain.tile.y;
     let mut color = match terrain.role {
         RtsTerrainRole::Border => 0x111812,
         RtsTerrainRole::Lane => classic_darken(CLASSIC_RTS_PRODUCT_LANE_COLOR, 1, 4),
@@ -95748,6 +95843,7 @@ fn classic_first_contact_tile_color(tile: (i32, i32)) -> u32 {
             }
         }
     };
+    let tile = (terrain.tile.x, terrain.tile.y);
     let surface_seed = rts_bevy_runtime::rts_runtime_terrain_seeds(tile).surface_seed;
     if surface_seed == 0 {
         color = classic_lighten(color, 1, 10);
@@ -95772,102 +95868,103 @@ fn classic_draw_first_contact_terrain_layer(
     map_y: i32,
     cell_w: i32,
     cell_h: i32,
+    renderer_model: &ClassicFirstContactMapRendererModel,
 ) {
-    for y in 1..=32 {
-        for x in 1..=32 {
-            let tile = (x, y);
-            let tile_x = map_x + x * cell_w;
-            let tile_y = map_y + y * cell_h;
-            let surface_seed = rts_bevy_runtime::rts_runtime_terrain_seeds(tile).detail_seed;
-            if surface_seed == 0 && !classic_first_contact_lane_tile(tile) {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    tile_x + cell_w / 3,
-                    tile_y + cell_h / 2,
-                    (cell_w / 3).max(3),
-                    1,
-                    classic_lighten(classic_first_contact_tile_color(tile), 1, 6),
-                );
-            }
-            if classic_first_contact_resource_tile(tile) && surface_seed % 5 == 0 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    tile_x + cell_w / 2 - 2,
-                    tile_y + cell_h / 2 - 1,
-                    4,
-                    3,
-                    CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
-                );
-            }
-            if classic_first_contact_base_pad(tile)
-                && ((x == 6 || x == 11)
-                    || (y == 6 || y == 11)
-                    || (x == 22 || x == 27)
-                    || (y == 22 || y == 27))
-            {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    tile_x + 2,
-                    tile_y + 2,
-                    cell_w - 4,
-                    1,
-                    CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
-                );
-            }
-            let tile_height = classic_first_contact_tile_height((x, y));
-            if tile_height == 0 {
-                continue;
-            }
-            if tile_height >= 2 && (x + y) % 6 == 0 {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    tile_x + cell_w / 4,
-                    tile_y + 2,
-                    (cell_w / 2).max(4),
-                    1,
-                    CLASSIC_RTS_DEPTH_BEHIND_COLOR,
-                );
-            }
-            if classic_first_contact_tile_height((x + 1, y)) < tile_height {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    tile_x + cell_w - 3,
-                    tile_y + 2,
-                    2,
-                    cell_h - 4,
-                    if tile_height >= 2 {
-                        CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
-                    } else {
-                        CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
-                    },
-                );
-            }
-            if classic_first_contact_tile_height((x, y + 1)) < tile_height {
-                classic_draw_rect(
-                    buffer,
-                    width,
-                    height,
-                    tile_x + 2,
-                    tile_y + cell_h - 3,
-                    cell_w - 4,
-                    2,
-                    if tile_height >= 2 {
-                        CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
-                    } else {
-                        CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
-                    },
-                );
-            }
+    for terrain in &renderer_model.renderable_tiles {
+        let x = terrain.tile.x;
+        let y = terrain.tile.y;
+        let tile = (x, y);
+        let tile_x = map_x + x * cell_w;
+        let tile_y = map_y + y * cell_h;
+        let surface_seed = rts_bevy_runtime::rts_runtime_terrain_seeds(tile).detail_seed;
+        if surface_seed == 0 && !terrain.lane {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 3,
+                tile_y + cell_h / 2,
+                (cell_w / 3).max(3),
+                1,
+                classic_lighten(classic_first_contact_tile_color(tile), 1, 6),
+            );
+        }
+        if terrain.resource_zone && surface_seed % 5 == 0 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 2 - 2,
+                tile_y + cell_h / 2 - 1,
+                4,
+                3,
+                CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+            );
+        }
+        if terrain.base_pad
+            && ((x == 6 || x == 11)
+                || (y == 6 || y == 11)
+                || (x == 22 || x == 27)
+                || (y == 22 || y == 27))
+        {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + 2,
+                tile_y + 2,
+                cell_w - 4,
+                1,
+                CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+            );
+        }
+        let tile_height = i32::from(terrain.height);
+        if tile_height == 0 {
+            continue;
+        }
+        if tile_height >= 2 && (x + y) % 6 == 0 {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w / 4,
+                tile_y + 2,
+                (cell_w / 2).max(4),
+                1,
+                CLASSIC_RTS_DEPTH_BEHIND_COLOR,
+            );
+        }
+        if classic_first_contact_tile_height((x + 1, y)) < tile_height {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + cell_w - 3,
+                tile_y + 2,
+                2,
+                cell_h - 4,
+                if tile_height >= 2 {
+                    CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
+                } else {
+                    CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
+                },
+            );
+        }
+        if classic_first_contact_tile_height((x, y + 1)) < tile_height {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                tile_x + 2,
+                tile_y + cell_h - 3,
+                cell_w - 4,
+                2,
+                if tile_height >= 2 {
+                    CLASSIC_RTS_DEPTH_FOREGROUND_COLOR
+                } else {
+                    CLASSIC_RTS_DEPTH_CUTAWAY_COLOR
+                },
+            );
         }
     }
 }
@@ -97805,6 +97902,7 @@ fn classic_draw_first_contact_basin_scene(
     };
     let map_model = first_contact_basin_map();
     let map_summary = map_model.summary();
+    let renderer_model = classic_first_contact_map_renderer_model(&map_model);
     let map_width_tiles = map_model.width as i32;
     let map_height_tiles = map_model.height as i32;
     let map_projection =
@@ -97870,49 +97968,33 @@ fn classic_draw_first_contact_basin_scene(
             );
         }
     }
-    classic_draw_first_contact_terrain_layer(buffer, width, height, map_x, map_y, cell_w, cell_h);
+    classic_draw_first_contact_terrain_layer(
+        buffer,
+        width,
+        height,
+        map_x,
+        map_y,
+        cell_w,
+        cell_h,
+        &renderer_model,
+    );
 
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        map_x + 8 * cell_w,
-        map_y + 16 * cell_h - 2,
-        18 * cell_w,
-        4,
-        CLASSIC_RTS_PRODUCT_LANE_COLOR,
-    );
-    classic_draw_rect(
-        buffer,
-        width,
-        height,
-        map_x + 16 * cell_w - 2,
-        map_y + 8 * cell_h,
-        4,
-        18 * cell_h,
-        CLASSIC_RTS_PRODUCT_LANE_COLOR,
-    );
-    for step in 0..18 {
-        let x = 8 + step;
-        let y = 8 + step;
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
-            map_x + x * cell_w,
-            map_y + y * cell_h,
+    for tile in &renderer_model.lane_tiles {
+        let (tile_x, tile_y) = classic_first_contact_tile_screen(
+            map_x,
+            map_y,
             cell_w,
-            3,
-            CLASSIC_RTS_PRODUCT_LANE_COLOR,
+            cell_h,
+            classic_first_contact_tile_tuple(*tile),
         );
         classic_draw_rect(
             buffer,
             width,
             height,
-            map_x + (25 - step) * cell_w,
-            map_y + y * cell_h,
-            cell_w,
-            3,
+            tile_x + cell_w / 8,
+            tile_y + (cell_h / 2) - 1,
+            (cell_w * 3 / 4).max(4),
+            2,
             CLASSIC_RTS_PRODUCT_LANE_COLOR,
         );
     }
