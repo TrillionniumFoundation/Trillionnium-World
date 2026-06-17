@@ -29914,6 +29914,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let rts_online_protocol_fixture = trnm_rts_online::first_contact_online_protocol_fixture();
     let rts_online_local_handoff =
         trnm_rts_online::rts_online_local_handoff_from_fixture(&rts_online_protocol_fixture);
+    let rts_online_offline_adapter =
+        trnm_rts_online::rts_online_offline_adapter_from_fixture(&rts_online_protocol_fixture);
     let rts_online_protocol_gate = rts_online_protocol_fixture.green
         && rts_online_protocol_fixture.envelope.map_id.as_str() == map_model.map_id.as_str()
         && rts_online_protocol_fixture.lifecycle.map_id.as_str() == map_model.map_id.as_str()
@@ -29945,10 +29947,42 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && !rts_online_local_handoff.socket_opened
         && !rts_online_local_handoff.hosted_service_claimed
         && !rts_online_local_handoff.public_launch_ready;
+    let rts_online_offline_adapter_gate = rts_online_offline_adapter.green
+        && rts_online_offline_adapter.adapter_mode.as_str() == "offline_loopback_authority"
+        && rts_online_offline_adapter.map_id.as_str() == map_model.map_id.as_str()
+        && rts_online_offline_adapter.local_multiplayer_ready
+        && rts_online_offline_adapter.offline_bot_ready
+        && rts_online_offline_adapter.bevy_adapter_ready
+        && rts_online_offline_adapter.connected_player_ids.len() == 2
+        && rts_online_offline_adapter.bot_player_ids.len() == 1
+        && rts_online_offline_adapter.input_queue_labels.len() == 2
+        && rts_online_offline_adapter
+            .accepted_server_order_labels
+            .len()
+            == 1
+        && rts_online_offline_adapter
+            .rejected_client_order_reasons
+            .len()
+            == 1
+        && rts_online_offline_adapter.scoped_update_actor_ids.len() == 4
+        && rts_online_offline_adapter.scoped_update_order_count == 1
+        && rts_online_offline_adapter
+            .frame_sha256s
+            .iter()
+            .all(|sha| sha.len() == 64)
+        && rts_online_offline_adapter.server_authoritative
+        && rts_online_offline_adapter.visibility_scoped_response
+        && !rts_online_offline_adapter.client_prediction_claimed
+        && !rts_online_offline_adapter.rollback_netcode_claimed
+        && !rts_online_offline_adapter.socket_opened
+        && !rts_online_offline_adapter.hosted_service_claimed
+        && !rts_online_offline_adapter.public_launch_ready;
     let rts_online_protocol_fixture_value = serde_json::to_value(&rts_online_protocol_fixture)
         .expect("RTS online protocol fixture serializes");
     let rts_online_local_handoff_value = serde_json::to_value(&rts_online_local_handoff)
         .expect("RTS online local handoff serializes");
+    let rts_online_offline_adapter_value = serde_json::to_value(&rts_online_offline_adapter)
+        .expect("RTS online offline adapter serializes");
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29968,6 +30002,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_bevy_runtime_map_projection_gate
         && rts_online_protocol_gate
         && rts_online_local_handoff_gate
+        && rts_online_offline_adapter_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -30073,6 +30108,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_online_local_handoff_contract": trnm_rts_online::TRNM_RTS_ONLINE_LOCAL_HANDOFF_CONTRACT,
         "rts_online_local_handoff": rts_online_local_handoff_value,
         "rts_online_local_handoff_gate": rts_online_local_handoff_gate,
+        "rts_online_offline_adapter_contract": trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_CONTRACT,
+        "rts_online_offline_adapter": rts_online_offline_adapter_value,
+        "rts_online_offline_adapter_gate": rts_online_offline_adapter_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,

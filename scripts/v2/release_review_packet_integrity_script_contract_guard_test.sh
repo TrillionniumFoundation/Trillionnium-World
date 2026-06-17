@@ -24,6 +24,8 @@ required_lines=(
   'status_match'
   '([120, 121, 124, 126, 127, 128] | index($count)) != null'
   'expected one hundred twenty, one hundred twenty-one, one hundred twenty-four, one hundred twenty-six, one hundred twenty-seven, or one hundred twenty-eight artifacts including visible button hit-test map, live-window mouse hit-test sequence, classic playtest launcher, playtest handoff readiness/packet/Markdown, First Contact Basin source-manifest spec, full screen/UI replication, shell/meta UI replication, match setup UI replication, campaign outcome UI readiness, campaign UI continuity JSON/PPM, in-match HUD/state replication, session state continuity, combat readability/pressure readiness, camera/minimap sync JSON/PPM, full-game visual/UI replication JSON/PPM, OpenRA screen-for-screen UI replication JSON/PPM, OpenRA engine port asset parity JSON/PPM'
+  'first_contact_basin_offline_adapter_semantics'
+  'trnm_rts_online_offline_adapter_v1'
   'keyboard_replay_semantics'
   'native_bevy_keyboard_replay'
   'trillionnium_world_bevy_build_branch_title_route_all_branch_keyboard_replay_v1'

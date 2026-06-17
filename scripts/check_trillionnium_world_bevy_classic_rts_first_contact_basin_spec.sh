@@ -609,6 +609,33 @@ jq -e '
   and .rts_online_local_handoff.hosted_service_claimed == false
   and .rts_online_local_handoff.public_launch_ready == false
   and .rts_online_local_handoff_gate == true
+  and .rts_online_offline_adapter_contract == "trnm_rts_online_offline_adapter_v1"
+  and .rts_online_offline_adapter.contract_version == "trnm_rts_online_offline_adapter_v1"
+  and .rts_online_offline_adapter.green == true
+  and .rts_online_offline_adapter.adapter_id == "first-contact-offline-loopback-adapter"
+  and .rts_online_offline_adapter.handoff_id == "first-contact-local-loopback-handoff"
+  and .rts_online_offline_adapter.map_id == "first_contact_basin"
+  and .rts_online_offline_adapter.adapter_mode == "offline_loopback_authority"
+  and .rts_online_offline_adapter.connected_player_ids == ["local-player", "mirror_guard"]
+  and .rts_online_offline_adapter.bot_player_ids == ["mirror_guard"]
+  and .rts_online_offline_adapter.input_queue_labels == ["client:move_worker@8,4", "client:attack_fogged_keep"]
+  and .rts_online_offline_adapter.accepted_server_order_labels == ["client:move_worker@8,4"]
+  and .rts_online_offline_adapter.rejected_client_order_reasons == ["target_actor_not_visible"]
+  and (.rts_online_offline_adapter.scoped_update_actor_ids | length) == 4
+  and .rts_online_offline_adapter.scoped_update_order_count == 1
+  and (.rts_online_offline_adapter.frame_sha256s | length) == 3
+  and all(.rts_online_offline_adapter.frame_sha256s[]; length == 64)
+  and .rts_online_offline_adapter.local_multiplayer_ready == true
+  and .rts_online_offline_adapter.offline_bot_ready == true
+  and .rts_online_offline_adapter.bevy_adapter_ready == true
+  and .rts_online_offline_adapter.server_authoritative == true
+  and .rts_online_offline_adapter.visibility_scoped_response == true
+  and .rts_online_offline_adapter.client_prediction_claimed == false
+  and .rts_online_offline_adapter.rollback_netcode_claimed == false
+  and .rts_online_offline_adapter.socket_opened == false
+  and .rts_online_offline_adapter.hosted_service_claimed == false
+  and .rts_online_offline_adapter.public_launch_ready == false
+  and .rts_online_offline_adapter_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true
