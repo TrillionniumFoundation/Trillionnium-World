@@ -26345,12 +26345,12 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         .ok()
         .and_then(|body| fs::write(&trace_path, body).ok())
         .is_some();
-    let green = live_session_playthrough_gate && trace_write_gate;
+    let preliminary_green = live_session_playthrough_gate && trace_write_gate;
 
-    serde_json::to_string_pretty(&json!({
+    let mut evidence = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_CONTRACT,
-        "status": if green { "classic_rts_live_session_playthrough_green" } else { "classic_rts_live_session_playthrough_blocked" },
-        "green": green,
+        "status": if preliminary_green { "classic_rts_live_session_playthrough_green" } else { "classic_rts_live_session_playthrough_blocked" },
+        "green": preliminary_green,
         "preview_path": preview_path,
         "preview_format": "ppm_p3_rgb",
         "preview_width": PREVIEW_WIDTH,
@@ -26419,8 +26419,23 @@ pub fn native_classic_rts_live_session_playthrough_evidence_json(preview_path: &
         "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
         "wgpu_required": assets.manifest.wgpu_required,
         "source_of_truth": "Classic RTS live session playthrough evidence drives one local Rust/Bevy world/runtime through title/account, campaign start, in-match HUD, live command feedback, selected slot save/load/resume, and open-world outcome in the same process and fixed seed. It records the trace sidecar and a player-first final tactical screen with stage rail while keeping Android S5, public launch, production-ready UI, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
-    }))
-    .expect("classic RTS live session playthrough evidence serializes")
+    });
+    let review = trnm_rts_evidence::rts_live_session_playthrough_review(&evidence);
+    let green = review.green;
+    evidence["status"] = json!(if green {
+        "classic_rts_live_session_playthrough_green"
+    } else {
+        "classic_rts_live_session_playthrough_blocked"
+    });
+    evidence["green"] = json!(green);
+    evidence["rts_evidence_live_session_playthrough_review_contract"] =
+        json!(trnm_rts_evidence::TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT);
+    evidence["rts_evidence_live_session_playthrough_review"] =
+        serde_json::to_value(&review).expect("live session playthrough review serializes");
+    evidence["rts_evidence_live_session_playthrough_review_gate"] = json!(green);
+
+    serde_json::to_string_pretty(&evidence)
+        .expect("classic RTS live session playthrough evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

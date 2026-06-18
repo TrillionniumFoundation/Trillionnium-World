@@ -66,6 +66,23 @@ jq -e \
   and .preview_gate == true
   and .native_client_boundary_gate == true
   and .live_session_playthrough_gate == true
+  and .rts_evidence_live_session_playthrough_review_contract == "trnm_rts_evidence_live_session_playthrough_review_v1"
+  and .rts_evidence_live_session_playthrough_review.green == true
+  and .rts_evidence_live_session_playthrough_review.live_session_playthrough_contract == "trillionnium_world_bevy_classic_rts_live_session_playthrough_v1"
+  and .rts_evidence_live_session_playthrough_review.stage_sequence_gate == true
+  and .rts_evidence_live_session_playthrough_review.same_process_trace_gate == true
+  and .rts_evidence_live_session_playthrough_review.trace_sidecar_gate == true
+  and .rts_evidence_live_session_playthrough_review.live_command_gate == true
+  and .rts_evidence_live_session_playthrough_review.save_resume_gate == true
+  and .rts_evidence_live_session_playthrough_review.final_state_gate == true
+  and .rts_evidence_live_session_playthrough_review.player_first_live_session_screen_gate == true
+  and .rts_evidence_live_session_playthrough_review.native_client_boundary_gate == true
+  and .rts_evidence_live_session_playthrough_review.no_credit_boundary_gate == true
+  and .rts_evidence_live_session_playthrough_review.live_session_playthrough_gate == true
+  and (.rts_evidence_live_session_playthrough_review.input_path | contains("live-session playthrough trace"))
+  and (.rts_evidence_live_session_playthrough_review.evidence_path | contains("live_session_playthrough_review"))
+  and (.rts_evidence_live_session_playthrough_review.source_of_truth | contains("same-process local live session playthrough"))
+  and .rts_evidence_live_session_playthrough_review_gate == true
   and .internal_live_session_playthrough_claimed == true
   and .external_evidence_ignored_for_current_playtest_pass == true
   and .android_s5_real_device_claimed == false

@@ -33,6 +33,12 @@ required_script_lines=(
   'player_first_live_status_strip > 10000'
   'player_first_live_stage_rail > 25000'
   'live_session_playthrough_gate == true'
+  'rts_evidence_live_session_playthrough_review_contract == "trnm_rts_evidence_live_session_playthrough_review_v1"'
+  'rts_evidence_live_session_playthrough_review.stage_sequence_gate == true'
+  'rts_evidence_live_session_playthrough_review.same_process_trace_gate == true'
+  'rts_evidence_live_session_playthrough_review.live_command_gate == true'
+  'rts_evidence_live_session_playthrough_review.no_credit_boundary_gate == true'
+  'rts_evidence_live_session_playthrough_review_gate == true'
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_GREEN'
 )
 
@@ -66,6 +72,8 @@ required_source_lines=(
   'runtime_screen_gate'
   'player_first_live_session_screen_gate'
   'live_session_playthrough_gate'
+  'TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT'
+  'rts_live_session_playthrough_review'
   'production_ready_ui_claimed'
   'screen_for_screen_openra_ui_claimed'
   'third_party_asset_copied'
@@ -90,6 +98,9 @@ required_readiness_lines=(
   'rts_live_session_playthrough_player_first_live_view_frame_pixel_count > 8000'
   'rts_live_session_playthrough_player_first_live_status_strip_pixel_count > 10000'
   'rts_live_session_playthrough_player_first_live_stage_rail_pixel_count > 25000'
+  'rts_live_session_playthrough_review_contract == "trnm_rts_evidence_live_session_playthrough_review_v1"'
+  'rts_live_session_playthrough_review_source_of_truth'
+  'rts_live_session_playthrough_rts_evidence_review_gate == true'
   'rts_live_session_playthrough_gate'
   'rts_live_session_playthrough_stage_count'
 )

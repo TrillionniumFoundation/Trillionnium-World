@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! Bevy-free RTS evidence summaries and gates.
 //!
 //! This crate keeps proof contracts separate from `trnm-world-bevy` rendering code.
@@ -91,6 +93,8 @@ pub const TRNM_RTS_EVIDENCE_SESSION_STATE_CONTINUITY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_session_state_continuity_review_v1";
 pub const TRNM_RTS_EVIDENCE_CONTINUOUS_PLAYER_FLOW_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_continuous_player_flow_review_v1";
+pub const TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT: &str =
+    "trnm_rts_evidence_live_session_playthrough_review_v1";
 pub const TRNM_RTS_EVIDENCE_RELEASE_REVIEW_PACKET_ASSEMBLY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_release_review_packet_assembly_review_v1";
 
@@ -212,6 +216,47 @@ pub struct RtsContinuousPlayerFlowReview {
     pub runtime_screen_gate: bool,
     pub no_credit_boundary_gate: bool,
     pub continuous_player_flow_gate: bool,
+    pub input_path: String,
+    pub evidence_path: String,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsLiveSessionPlaythroughReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub live_session_playthrough_contract: String,
+    pub live_session_playthrough_green: bool,
+    pub preview_width: u64,
+    pub preview_height: u64,
+    pub stage_count: u64,
+    pub top_level_action_count: u64,
+    pub top_level_accepted_action_count: u64,
+    pub accepted_input_count: u64,
+    pub campaign_handoff_input_count: u64,
+    pub live_command_input_count: u64,
+    pub slot_a_bytes: u64,
+    pub final_objective_status: Option<String>,
+    pub final_open_world_handoff_state: Option<String>,
+    pub final_open_world_resume_room_id: Option<String>,
+    pub source_contract_gate: bool,
+    pub stage_sequence_gate: bool,
+    pub same_process_trace_gate: bool,
+    pub title_account_gate: bool,
+    pub match_setup_gate: bool,
+    pub in_match_hud_gate: bool,
+    pub command_feedback_gate: bool,
+    pub save_resume_gate: bool,
+    pub outcome_open_world_gate: bool,
+    pub live_command_gate: bool,
+    pub final_state_gate: bool,
+    pub pixel_gate: bool,
+    pub trace_sidecar_gate: bool,
+    pub player_first_live_session_screen_gate: bool,
+    pub runtime_screen_gate: bool,
+    pub native_client_boundary_gate: bool,
+    pub no_credit_boundary_gate: bool,
+    pub live_session_playthrough_gate: bool,
     pub input_path: String,
     pub evidence_path: String,
     pub source_of_truth: String,
@@ -1044,6 +1089,197 @@ pub fn rts_continuous_player_flow_review(input: &Value) -> RtsContinuousPlayerFl
         input_path: "trnm-world-bevy continuous player-flow source JSON and pixel counts -> trnm-rts-evidence continuous player-flow review".to_string(),
         evidence_path: "trnm-rts-evidence continuous_player_flow_review -> Bevy continuous player-flow packet/readiness artifact".to_string(),
         source_of_truth: "The RTS evidence crate reviews the six-step continuous player flow from title/account through match setup, in-match HUD, command feedback, save/resume, and outcome/open-world return, while preserving player-first screen gates and S5/public/OpenRA/third-party no-credit boundaries before trnm-world-bevy includes the flow in playtest readiness.".to_string(),
+    }
+}
+
+pub fn rts_live_session_playthrough_review(input: &Value) -> RtsLiveSessionPlaythroughReview {
+    let live_session_playthrough_contract =
+        json_string_at(input, "contract_version").unwrap_or_default();
+    let live_session_playthrough_green = json_bool_at(input, "green");
+    let preview_width = json_u64_at(input, "preview_width");
+    let preview_height = json_u64_at(input, "preview_height");
+    let stage_count = json_u64_at(input, "stage_count");
+    let top_level_action_count = json_u64_at(input, "top_level_action_count");
+    let top_level_accepted_action_count = json_u64_at(input, "top_level_accepted_action_count");
+    let accepted_input_count = json_u64_at(input, "accepted_input_count");
+    let campaign_handoff_input_count = json_u64_at(input, "campaign_handoff_input_count");
+    let live_command_input_count = json_u64_at(input, "live_command_input_count");
+    let slot_a_bytes = json_u64_at(input, "slot_a_bytes");
+    let final_objective_status = json_string_pointer(input, "/final_state/objective_status");
+    let final_open_world_handoff_state =
+        json_string_pointer(input, "/final_state/open_world_handoff_state");
+    let final_open_world_resume_room_id =
+        json_string_pointer(input, "/final_state/open_world_resume_room_id");
+    let expected_steps = [
+        "title_account",
+        "match_setup",
+        "in_match_hud",
+        "command_feedback",
+        "save_load_resume",
+        "outcome_open_world",
+    ];
+    let stage_ids_gate = input
+        .pointer("/stage_ids")
+        .and_then(Value::as_array)
+        .is_some_and(|steps| {
+            steps.len() == expected_steps.len()
+                && steps
+                    .iter()
+                    .zip(expected_steps.iter())
+                    .all(|(actual, expected)| actual.as_str() == Some(*expected))
+        });
+    let stage_summaries_gate = input
+        .pointer("/stage_summaries")
+        .and_then(Value::as_array)
+        .is_some_and(|summaries| {
+            summaries.len() == expected_steps.len()
+                && summaries
+                    .iter()
+                    .zip(expected_steps.iter())
+                    .all(|(summary, expected)| {
+                        summary.get("step_id").and_then(Value::as_str) == Some(*expected)
+                            && summary.get("turn").and_then(Value::as_u64).is_some()
+                            && summary
+                                .get("input_feedback_event_count")
+                                .and_then(Value::as_u64)
+                                .is_some()
+                    })
+        });
+    let source_contract_gate = json_contract_is(
+        input,
+        "trillionnium_world_bevy_classic_rts_live_session_playthrough_v1",
+    ) && live_session_playthrough_green;
+    let stage_sequence_gate = stage_count == 6 && stage_ids_gate && stage_summaries_gate;
+    let trace_sidecar_gate = json_bool_at(input, "trace_write_gate")
+        && json_string_equals(input, "trace_seed", "classic_rts_live_session_seed_v1")
+        && input
+            .get("trace_path")
+            .and_then(Value::as_str)
+            .is_some_and(|path| {
+                path.ends_with("bevy-classic-rts-live-session-playthrough.trace.json")
+            });
+    let same_process_trace_gate = json_bool_at(input, "same_process_trace_gate")
+        && json_bool_at(input, "same_process_session_playthrough")
+        && top_level_action_count >= 12
+        && top_level_action_count == top_level_accepted_action_count
+        && accepted_input_count >= 78
+        && campaign_handoff_input_count >= 70
+        && trace_sidecar_gate;
+    let title_account_gate = json_bool_at(input, "title_account_gate");
+    let match_setup_gate = json_bool_at(input, "match_setup_gate");
+    let in_match_hud_gate = json_bool_at(input, "in_match_hud_gate");
+    let command_feedback_gate = json_bool_at(input, "command_feedback_gate");
+    let save_resume_gate = json_bool_at(input, "save_resume_gate") && slot_a_bytes > 10_000;
+    let outcome_open_world_gate = json_bool_at(input, "outcome_open_world_gate");
+    let live_command_gate = command_feedback_gate && live_command_input_count == 5;
+    let final_state_gate = final_objective_status.as_deref()
+        == Some("open_world_after_action_ready")
+        && final_open_world_handoff_state.as_deref() == Some("resumed:league-coliseum")
+        && final_open_world_resume_room_id.as_deref() == Some("league-coliseum")
+        && json_string_pointer(input, "/final_state/current_room_id").as_deref()
+            == Some("league-coliseum")
+        && json_string_pointer(input, "/final_state/map_scene").as_deref()
+            == Some("arena_league_coliseum")
+        && json_string_pointer(input, "/final_state/contextual_primary_action_label").as_deref()
+            == Some("COMBAT:attack");
+    let player_first_live_session_screen_gate =
+        json_bool_at(input, "player_first_live_session_screen_gate")
+            && json_u64_pointer(input, "/pixel_counts/player_first_live_view_non_background")
+                > 250_000
+            && json_u64_pointer(input, "/pixel_counts/player_first_live_view_frame") > 8_000
+            && json_u64_pointer(input, "/pixel_counts/player_first_live_status_strip") > 10_000
+            && json_u64_pointer(input, "/pixel_counts/player_first_live_stage_rail") > 25_000;
+    let pixel_gate = json_bool_at(input, "preview_gate")
+        && preview_width == 1600
+        && preview_height == 900
+        && json_string_equals(input, "preview_format", "ppm_p3_rgb")
+        && json_u64_pointer(input, "/pixel_counts/non_background") > 300_000
+        && json_u64_pointer(input, "/pixel_counts/title_account") > 1_000
+        && json_u64_pointer(input, "/pixel_counts/match_setup") > 1_000
+        && json_u64_pointer(input, "/pixel_counts/in_match_hud") > 1_000
+        && json_u64_pointer(input, "/pixel_counts/command_feedback") > 1_000
+        && json_u64_pointer(input, "/pixel_counts/save_load_resume") > 1_000
+        && json_u64_pointer(input, "/pixel_counts/outcome_open_world") > 1_000
+        && player_first_live_session_screen_gate;
+    let runtime_screen_gate = json_bool_at(input, "runtime_screen_gate")
+        && json_string_equals(
+            input,
+            "runtime_screen_mode",
+            "player_runtime_live_session_playthrough_screen",
+        )
+        && input.get("evidence_board_only").and_then(Value::as_bool) == Some(false)
+        && same_process_trace_gate
+        && pixel_gate;
+    let native_client_boundary_gate = json_bool_at(input, "native_client_boundary_gate")
+        && input
+            .get("cex_runtime_player_client_allowed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && input.get("wgpu_required").and_then(Value::as_bool) == Some(false);
+    let no_credit_boundary_gate =
+        json_bool_at(input, "external_evidence_ignored_for_current_playtest_pass")
+            && !json_bool_at(input, "android_s5_real_device_claimed")
+            && !json_bool_at(input, "public_launch_ready")
+            && !json_bool_at(input, "production_ready_ui_claimed")
+            && !json_bool_at(input, "screen_for_screen_openra_ui_claimed")
+            && !json_bool_at(input, "openra_engine_port_claimed")
+            && !json_bool_at(input, "warcraft_iii_asset_copied")
+            && !json_bool_at(input, "openra_asset_copied")
+            && !json_bool_at(input, "third_party_asset_copied");
+    let live_session_playthrough_gate = json_bool_at(input, "live_session_playthrough_gate")
+        && source_contract_gate
+        && stage_sequence_gate
+        && same_process_trace_gate
+        && title_account_gate
+        && match_setup_gate
+        && in_match_hud_gate
+        && live_command_gate
+        && save_resume_gate
+        && outcome_open_world_gate
+        && final_state_gate
+        && runtime_screen_gate
+        && native_client_boundary_gate
+        && no_credit_boundary_gate;
+    let green = live_session_playthrough_gate;
+
+    RtsLiveSessionPlaythroughReview {
+        contract_version: TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT.to_string(),
+        green,
+        live_session_playthrough_contract,
+        live_session_playthrough_green,
+        preview_width,
+        preview_height,
+        stage_count,
+        top_level_action_count,
+        top_level_accepted_action_count,
+        accepted_input_count,
+        campaign_handoff_input_count,
+        live_command_input_count,
+        slot_a_bytes,
+        final_objective_status,
+        final_open_world_handoff_state,
+        final_open_world_resume_room_id,
+        source_contract_gate,
+        stage_sequence_gate,
+        same_process_trace_gate,
+        title_account_gate,
+        match_setup_gate,
+        in_match_hud_gate,
+        command_feedback_gate,
+        save_resume_gate,
+        outcome_open_world_gate,
+        live_command_gate,
+        final_state_gate,
+        pixel_gate,
+        trace_sidecar_gate,
+        player_first_live_session_screen_gate,
+        runtime_screen_gate,
+        native_client_boundary_gate,
+        no_credit_boundary_gate,
+        live_session_playthrough_gate,
+        input_path: "trnm-world-bevy live-session playthrough trace/source JSON and player-first pixels -> trnm-rts-evidence live-session playthrough review".to_string(),
+        evidence_path: "trnm-rts-evidence live_session_playthrough_review -> Bevy live-session playthrough packet/readiness artifact".to_string(),
+        source_of_truth: "The RTS evidence crate reviews the same-process local live session playthrough from title/account through campaign start, in-match HUD, live command feedback, slot A save/load/resume, and open-world outcome, including trace sidecar, player-first tactical screen, native-client boundary, and S5/public/OpenRA/third-party no-credit boundaries.".to_string(),
     }
 }
 
@@ -3522,6 +3758,119 @@ mod tests {
         assert!(review
             .source_of_truth
             .contains("six-step continuous player flow"));
+    }
+
+    #[test]
+    fn live_session_playthrough_review_preserves_trace_and_screen_gates() {
+        let input = json!({
+            "contract_version": "trillionnium_world_bevy_classic_rts_live_session_playthrough_v1",
+            "status": "classic_rts_live_session_playthrough_green",
+            "green": true,
+            "preview_format": "ppm_p3_rgb",
+            "preview_width": 1600,
+            "preview_height": 900,
+            "trace_path": "/tmp/bevy-classic-rts-live-session-playthrough.trace.json",
+            "trace_write_gate": true,
+            "trace_seed": "classic_rts_live_session_seed_v1",
+            "same_process_session_playthrough": true,
+            "runtime_screen_mode": "player_runtime_live_session_playthrough_screen",
+            "runtime_screen_gate": true,
+            "evidence_board_only": false,
+            "stage_count": 6,
+            "stage_ids": [
+                "title_account",
+                "match_setup",
+                "in_match_hud",
+                "command_feedback",
+                "save_load_resume",
+                "outcome_open_world"
+            ],
+            "stage_summaries": [
+                {"step_id": "title_account", "turn": 2, "input_feedback_event_count": 2},
+                {"step_id": "match_setup", "turn": 3, "input_feedback_event_count": 73},
+                {"step_id": "in_match_hud", "turn": 3, "input_feedback_event_count": 73},
+                {"step_id": "command_feedback", "turn": 8, "input_feedback_event_count": 78},
+                {"step_id": "save_load_resume", "turn": 13, "input_feedback_event_count": 83},
+                {"step_id": "outcome_open_world", "turn": 13, "input_feedback_event_count": 83}
+            ],
+            "top_level_action_count": 12,
+            "top_level_accepted_action_count": 12,
+            "accepted_input_count": 91,
+            "campaign_handoff_input_count": 70,
+            "live_command_input_count": 5,
+            "slot_a_bytes": 10001,
+            "pixel_counts": {
+                "non_background": 300001,
+                "title_account": 1001,
+                "match_setup": 1001,
+                "in_match_hud": 1001,
+                "command_feedback": 1001,
+                "save_load_resume": 1001,
+                "outcome_open_world": 1001,
+                "player_first_live_view_non_background": 250001,
+                "player_first_live_view_frame": 8001,
+                "player_first_live_status_strip": 10001,
+                "player_first_live_stage_rail": 25001
+            },
+            "final_state": {
+                "current_room_id": "league-coliseum",
+                "map_scene": "arena_league_coliseum",
+                "objective_status": "open_world_after_action_ready",
+                "open_world_handoff_state": "resumed:league-coliseum",
+                "open_world_resume_room_id": "league-coliseum",
+                "contextual_primary_action_label": "COMBAT:attack"
+            },
+            "title_account_gate": true,
+            "match_setup_gate": true,
+            "in_match_hud_gate": true,
+            "command_feedback_gate": true,
+            "save_resume_gate": true,
+            "outcome_open_world_gate": true,
+            "same_process_trace_gate": true,
+            "player_first_live_session_screen_gate": true,
+            "preview_gate": true,
+            "native_client_boundary_gate": true,
+            "live_session_playthrough_gate": true,
+            "external_evidence_ignored_for_current_playtest_pass": true,
+            "android_s5_real_device_claimed": false,
+            "public_launch_ready": false,
+            "production_ready_ui_claimed": false,
+            "screen_for_screen_openra_ui_claimed": false,
+            "openra_engine_port_claimed": false,
+            "warcraft_iii_asset_copied": false,
+            "openra_asset_copied": false,
+            "third_party_asset_copied": false,
+            "cex_runtime_player_client_allowed": false,
+            "wgpu_required": false
+        });
+
+        let review = rts_live_session_playthrough_review(&input);
+
+        assert_eq!(
+            review.contract_version,
+            TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT
+        );
+        assert!(review.green);
+        assert!(review.source_contract_gate);
+        assert!(review.stage_sequence_gate);
+        assert!(review.trace_sidecar_gate);
+        assert!(review.same_process_trace_gate);
+        assert!(review.live_command_gate);
+        assert!(review.save_resume_gate);
+        assert!(review.final_state_gate);
+        assert!(review.pixel_gate);
+        assert!(review.player_first_live_session_screen_gate);
+        assert!(review.native_client_boundary_gate);
+        assert!(review.no_credit_boundary_gate);
+        assert!(review.live_session_playthrough_gate);
+        assert_eq!(review.accepted_input_count, 91);
+        assert_eq!(
+            review.final_open_world_handoff_state.as_deref(),
+            Some("resumed:league-coliseum")
+        );
+        assert!(review
+            .source_of_truth
+            .contains("same-process local live session playthrough"));
     }
 
     #[test]

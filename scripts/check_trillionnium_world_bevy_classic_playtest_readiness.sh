@@ -2242,6 +2242,8 @@ jq -n \
       rts_live_session_playthrough_final_objective_status: $rts_live_session_playthrough[0].final_state.objective_status,
       rts_live_session_playthrough_open_world_state: $rts_live_session_playthrough[0].final_state.open_world_handoff_state,
       rts_live_session_playthrough_resume_room_id: $rts_live_session_playthrough[0].final_state.open_world_resume_room_id,
+      rts_live_session_playthrough_review_contract: $rts_live_session_playthrough[0].rts_evidence_live_session_playthrough_review_contract,
+      rts_live_session_playthrough_review_source_of_truth: $rts_live_session_playthrough[0].rts_evidence_live_session_playthrough_review.source_of_truth,
       rts_full_game_visual_ui_replication_runtime_screen_mode: $rts_full_game_visual_ui_replication[0].runtime_screen_mode,
       rts_full_game_visual_ui_replication_evidence_board_only: $rts_full_game_visual_ui_replication[0].evidence_board_only,
       rts_full_game_visual_ui_replication_surface_count: $rts_full_game_visual_ui_replication[0].coverage_surface_count,
@@ -3094,6 +3096,7 @@ jq -n \
       rts_live_session_playthrough_player_first_live_session_screen_gate: $rts_live_session_playthrough[0].player_first_live_session_screen_gate,
       rts_live_session_playthrough_runtime_screen_gate: $rts_live_session_playthrough[0].runtime_screen_gate,
       rts_live_session_playthrough_native_client_boundary_gate: $rts_live_session_playthrough[0].native_client_boundary_gate,
+      rts_live_session_playthrough_rts_evidence_review_gate: $rts_live_session_playthrough[0].rts_evidence_live_session_playthrough_review_gate,
       rts_live_session_playthrough_gate: $rts_live_session_playthrough[0].live_session_playthrough_gate,
       rts_full_game_visual_ui_replication_source_contract_gate: $rts_full_game_visual_ui_replication[0].source_contract_gate,
       rts_full_game_visual_ui_replication_source_green_gate: $rts_full_game_visual_ui_replication[0].source_green_gate,
@@ -3864,6 +3867,8 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_live_session_playthrough_final_objective_status == "open_world_after_action_ready"
   and .headline.rts_live_session_playthrough_open_world_state == "resumed:league-coliseum"
   and .headline.rts_live_session_playthrough_resume_room_id == "league-coliseum"
+  and .headline.rts_live_session_playthrough_review_contract == "trnm_rts_evidence_live_session_playthrough_review_v1"
+  and (.headline.rts_live_session_playthrough_review_source_of_truth | contains("same-process local live session playthrough"))
   and .headline.rts_full_game_visual_ui_replication_runtime_screen_mode == "player_runtime_full_game_visual_ui_screen"
   and .headline.rts_full_game_visual_ui_replication_evidence_board_only == false
   and .headline.rts_full_game_visual_ui_replication_surface_count == 18
@@ -5554,6 +5559,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_live_session_playthrough_player_first_live_session_screen_gate == true
   and .gates.rts_live_session_playthrough_runtime_screen_gate == true
   and .gates.rts_live_session_playthrough_native_client_boundary_gate == true
+  and .gates.rts_live_session_playthrough_rts_evidence_review_gate == true
   and .gates.rts_live_session_playthrough_gate == true
   and .gates.rts_full_game_visual_ui_replication_source_contract_gate == true
   and .gates.rts_full_game_visual_ui_replication_source_green_gate == true

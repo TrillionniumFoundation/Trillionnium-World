@@ -1863,6 +1863,7 @@ jq -n '{
     rts_full_game_visual_ui_replication_player_first_screen_gate: true,
     rts_live_session_playthrough_player_first_live_session_screen_gate: true,
     rts_live_session_playthrough_runtime_screen_gate: true,
+    rts_live_session_playthrough_rts_evidence_review_gate: true,
     rts_full_game_visual_ui_replication_no_copy_boundary_gate: true,
     rts_full_game_visual_ui_replication_gate: true
   },
@@ -1943,6 +1944,8 @@ jq -n '{
     rts_live_session_playthrough_player_first_live_view_frame_pixel_count: 15408,
     rts_live_session_playthrough_player_first_live_status_strip_pixel_count: 20880,
     rts_live_session_playthrough_player_first_live_stage_rail_pixel_count: 103032,
+    rts_live_session_playthrough_review_contract: "trnm_rts_evidence_live_session_playthrough_review_v1",
+    rts_live_session_playthrough_review_source_of_truth: "The RTS evidence crate reviews the same-process local live session playthrough from title/account through campaign start, in-match HUD, live command feedback, slot A save/load/resume, and open-world outcome.",
     rts_full_game_visual_ui_replication_final_objective_status: "open_world_after_action_ready",
     rts_full_game_visual_ui_replication_open_world_state: "resumed:league-coliseum",
     rts_central_keep_pressure_accepted_input_count: 40,
