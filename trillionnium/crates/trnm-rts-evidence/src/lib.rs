@@ -89,6 +89,8 @@ pub const TRNM_RTS_EVIDENCE_CAMPAIGN_UI_CONTINUITY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_campaign_ui_continuity_review_v1";
 pub const TRNM_RTS_EVIDENCE_SESSION_STATE_CONTINUITY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_session_state_continuity_review_v1";
+pub const TRNM_RTS_EVIDENCE_RELEASE_REVIEW_PACKET_ASSEMBLY_REVIEW_CONTRACT: &str =
+    "trnm_rts_evidence_release_review_packet_assembly_review_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsEvidencePoint {
@@ -171,6 +173,34 @@ pub struct RtsSessionStateContinuityReview {
     pub source_of_truth: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsReleaseReviewPacketAssemblyReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub packet_contract: String,
+    pub packet_status: String,
+    pub artifact_count: u64,
+    pub release_review_input_count: u64,
+    pub release_review_visual_evidence_count: u64,
+    pub release_review_gate_count: u64,
+    pub packet_integrity_fixture_count: u64,
+    pub ready_item_count: u64,
+    pub blocked_item_count: u64,
+    pub artifact_manifest_gate: bool,
+    pub missing_artifacts_gate: bool,
+    pub release_review_readiness_gate: bool,
+    pub status_handoff_gate: bool,
+    pub key_runtime_artifacts_gate: bool,
+    pub packet_integrity_fixture_gate: bool,
+    pub public_launch_boundary_gate: bool,
+    pub external_blocker_gate: bool,
+    pub reviewed_runtime_artifact_ids: Vec<String>,
+    pub reviewed_packet_fixture_ids: Vec<String>,
+    pub input_path: String,
+    pub evidence_path: String,
+    pub source_of_truth: String,
+}
+
 fn json_bool_at(value: &Value, key: &str) -> bool {
     value.get(key).and_then(Value::as_bool) == Some(true)
 }
@@ -220,8 +250,66 @@ fn json_array_contains(value: &Value, pointer: &str, expected: &str) -> bool {
         .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
 }
 
+fn json_array_len_at(value: &Value, key: &str) -> u64 {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| items.len() as u64)
+        .unwrap_or_default()
+}
+
 fn json_contract_is(value: &Value, expected: &str) -> bool {
     value.get("contract_version").and_then(Value::as_str) == Some(expected)
+}
+
+fn artifact_id_is(artifact: &Value, expected: &str) -> bool {
+    artifact.get("id").and_then(Value::as_str) == Some(expected)
+}
+
+fn artifact_role_is(artifact: &Value, expected: &str) -> bool {
+    artifact.get("role").and_then(Value::as_str) == Some(expected)
+}
+
+fn artifact_present_with_manifest_metadata(artifact: &Value) -> bool {
+    artifact
+        .get("id")
+        .and_then(Value::as_str)
+        .is_some_and(|id| !id.is_empty())
+        && artifact
+            .get("path")
+            .and_then(Value::as_str)
+            .is_some_and(|path| !path.is_empty())
+        && artifact.get("file_status").and_then(Value::as_str) == Some("present")
+        && artifact
+            .get("sha256")
+            .and_then(Value::as_str)
+            .is_some_and(|sha| sha.len() == 64)
+        && artifact
+            .get("bytes")
+            .and_then(Value::as_u64)
+            .unwrap_or_default()
+            > 0
+}
+
+fn artifacts_have_id(artifacts: &[Value], expected: &str) -> bool {
+    artifacts.iter().any(|artifact| {
+        artifact_id_is(artifact, expected) && artifact_present_with_manifest_metadata(artifact)
+    })
+}
+
+fn artifacts_have_id_with_role(artifacts: &[Value], expected: &str, role: &str) -> bool {
+    artifacts.iter().any(|artifact| {
+        artifact_id_is(artifact, expected)
+            && artifact_role_is(artifact, role)
+            && artifact_present_with_manifest_metadata(artifact)
+    })
+}
+
+fn artifact_role_count(artifacts: &[Value], role: &str) -> u64 {
+    artifacts
+        .iter()
+        .filter(|artifact| artifact_role_is(artifact, role))
+        .count() as u64
 }
 
 pub fn rts_campaign_ui_continuity_review(handoff: &Value) -> RtsCampaignUiContinuityReview {
@@ -713,6 +801,140 @@ pub fn rts_session_state_continuity_review(input: &Value) -> RtsSessionStateCont
         input_path: "trnm-world-bevy session-state continuity source JSON and pixel counts -> trnm-rts-evidence session-state continuity review".to_string(),
         evidence_path: "trnm-rts-evidence session_state_continuity_review -> Bevy session-state continuity packet artifact".to_string(),
         source_of_truth: "The RTS evidence crate reviews save-slot confirmation, load-resume lock/continue, recovery guard, match setup, restored HUD, campaign outcome, campaign continuity, source preview readiness, native-client no-credit boundaries, and the player-first session resume screen before trnm-world-bevy includes the session-state continuity artifact in release-review evidence.".to_string(),
+    }
+}
+
+pub fn rts_release_review_packet_assembly_review(
+    packet: &Value,
+) -> RtsReleaseReviewPacketAssemblyReview {
+    let artifacts = packet
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let packet_contract = json_string_at(packet, "contract_version").unwrap_or_default();
+    let packet_status = json_string_at(packet, "status").unwrap_or_default();
+    let artifact_count = artifacts.len() as u64;
+    let release_review_input_count = artifact_role_count(&artifacts, "release_review_input");
+    let release_review_visual_evidence_count =
+        artifact_role_count(&artifacts, "release_review_visual_evidence");
+    let release_review_gate_count = artifact_role_count(&artifacts, "release_review_gate");
+    let ready_item_count = json_array_len_at(packet, "ready_items");
+    let blocked_item_count = json_array_len_at(packet, "blocked_items");
+
+    let reviewed_runtime_artifact_ids = [
+        "native_bevy_classic_rts_first_contact_basin_spec",
+        "native_bevy_classic_rts_campaign_ui_continuity",
+        "native_bevy_classic_rts_campaign_ui_continuity_ppm",
+        "native_bevy_classic_rts_in_match_hud_state_replication",
+        "native_bevy_classic_rts_session_state_continuity",
+        "native_bevy_classic_rts_combat_readability_pressure_readiness",
+        "native_bevy_classic_playtest_readiness",
+        "native_bevy_classic_playtest_runner_status",
+        "native_bevy_classic_playtest_launcher",
+        "native_bevy_classic_playtest_handoff_packet",
+        "release_review_convergence",
+        "release_review_checkpoint_manifest",
+        "release_review_status_json",
+        "release_review_quickcheck",
+    ]
+    .iter()
+    .map(|id| (*id).to_string())
+    .collect::<Vec<_>>();
+    let reviewed_packet_fixture_ids = [
+        "release_review_packet_integrity_semantic_fixture",
+        "release_review_packet_integrity_bot_executor_semantic_fixture",
+        "release_review_packet_integrity_bot_executor_matrix_semantic_fixture",
+        "release_review_packet_integrity_bot_gap_semantic_fixture",
+        "release_review_packet_integrity_control_loop_semantic_fixture",
+        "release_review_packet_integrity_selection_minimap_semantic_fixture",
+        "release_review_packet_integrity_build_lifecycle_semantic_fixture",
+        "release_review_packet_integrity_tech_tree_semantic_fixture",
+        "release_review_packet_integrity_projectile_ability_semantic_fixture",
+    ]
+    .iter()
+    .map(|id| (*id).to_string())
+    .collect::<Vec<_>>();
+
+    let artifact_manifest_gate = artifact_count >= 120
+        && artifacts
+            .iter()
+            .all(artifact_present_with_manifest_metadata);
+    let missing_artifacts_gate = packet
+        .get("missing_artifacts")
+        .and_then(Value::as_array)
+        .is_some_and(Vec::is_empty);
+    let release_review_readiness_gate = packet_contract
+        == "trillionnium_world_release_review_packet_v1"
+        && json_bool_at(packet, "ready_for_release_review")
+        && matches!(
+            packet_status.as_str(),
+            "release_review_packet_ready_with_public_launch_blockers"
+                | "release_review_packet_green"
+        );
+    let status_handoff_gate = json_string_at(packet, "convergence_status")
+        .is_some_and(|status| status.contains("release_review_convergence_green"))
+        && matches!(
+            json_string_at(packet, "status_checklist_status").as_deref(),
+            Some("release_review_ready_public_launch_blocked" | "release_review_ready")
+        )
+        && ready_item_count >= 13;
+    let key_runtime_artifacts_gate = reviewed_runtime_artifact_ids
+        .iter()
+        .all(|id| artifacts_have_id(&artifacts, id));
+    let packet_integrity_fixture_count = reviewed_packet_fixture_ids
+        .iter()
+        .filter(|id| artifacts_have_id_with_role(&artifacts, id, "release_review_gate"))
+        .count() as u64;
+    let packet_integrity_fixture_gate =
+        packet_integrity_fixture_count == reviewed_packet_fixture_ids.len() as u64;
+    let public_launch_boundary_gate = !json_bool_at(packet, "public_launch_ready")
+        && !json_bool_at(packet, "android_s5_real_device_claimed")
+        && json_string_equals(
+            packet,
+            "proof_scope",
+            "host_side_bevy_runtime_replay_not_android_real_device",
+        );
+    let external_blocker_gate = blocked_item_count == 6
+        && matches!(
+            json_string_at(packet, "reviewer_next_action").as_deref(),
+            Some("collect_real_external_public_launch_evidence")
+        );
+    let green = artifact_manifest_gate
+        && missing_artifacts_gate
+        && release_review_readiness_gate
+        && status_handoff_gate
+        && key_runtime_artifacts_gate
+        && packet_integrity_fixture_gate
+        && public_launch_boundary_gate
+        && external_blocker_gate;
+
+    RtsReleaseReviewPacketAssemblyReview {
+        contract_version: TRNM_RTS_EVIDENCE_RELEASE_REVIEW_PACKET_ASSEMBLY_REVIEW_CONTRACT
+            .to_string(),
+        green,
+        packet_contract,
+        packet_status,
+        artifact_count,
+        release_review_input_count,
+        release_review_visual_evidence_count,
+        release_review_gate_count,
+        packet_integrity_fixture_count,
+        ready_item_count,
+        blocked_item_count,
+        artifact_manifest_gate,
+        missing_artifacts_gate,
+        release_review_readiness_gate,
+        status_handoff_gate,
+        key_runtime_artifacts_gate,
+        packet_integrity_fixture_gate,
+        public_launch_boundary_gate,
+        external_blocker_gate,
+        reviewed_runtime_artifact_ids,
+        reviewed_packet_fixture_ids,
+        input_path: "release-review packet manifest artifacts/status/checklist/blockers -> trnm-rts-evidence release review packet assembly review".to_string(),
+        evidence_path: "trnm-rts-evidence release_review_packet_assembly_review -> release-review packet handoff artifact".to_string(),
+        source_of_truth: "The RTS evidence crate reviews release-review packet assembly semantics after the shell manifest has gathered checksummed artifacts: manifest completeness, missing-artifact state, status handoff, key Bevy RTS runtime artifacts, packet semantic fixtures, public-launch no-credit boundary, and six external evidence blockers.".to_string(),
     }
 }
 
@@ -2640,6 +2862,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn campaign_ui_continuity_review_preserves_handoff_gates() {
@@ -2944,6 +3167,116 @@ mod tests {
         assert!(review
             .source_of_truth
             .contains("player-first session resume screen"));
+    }
+
+    #[test]
+    fn release_review_packet_assembly_review_preserves_manifest_handoff_gates() {
+        fn packet_artifact(id: &str, role: &str) -> Value {
+            json!({
+                "id": id,
+                "label": id,
+                "path": format!("/tmp/{id}.json"),
+                "role": role,
+                "file_status": "present",
+                "sha256": "a".repeat(64),
+                "bytes": 128,
+                "contract_version": "fixture_contract_v1",
+                "status": "fixture_green"
+            })
+        }
+
+        let runtime_ids = [
+            "native_bevy_classic_rts_first_contact_basin_spec",
+            "native_bevy_classic_rts_campaign_ui_continuity",
+            "native_bevy_classic_rts_campaign_ui_continuity_ppm",
+            "native_bevy_classic_rts_in_match_hud_state_replication",
+            "native_bevy_classic_rts_session_state_continuity",
+            "native_bevy_classic_rts_combat_readability_pressure_readiness",
+            "native_bevy_classic_playtest_readiness",
+            "native_bevy_classic_playtest_runner_status",
+            "native_bevy_classic_playtest_launcher",
+            "native_bevy_classic_playtest_handoff_packet",
+            "release_review_convergence",
+            "release_review_checkpoint_manifest",
+            "release_review_status_json",
+            "release_review_quickcheck",
+        ];
+        let fixture_ids = [
+            "release_review_packet_integrity_semantic_fixture",
+            "release_review_packet_integrity_bot_executor_semantic_fixture",
+            "release_review_packet_integrity_bot_executor_matrix_semantic_fixture",
+            "release_review_packet_integrity_bot_gap_semantic_fixture",
+            "release_review_packet_integrity_control_loop_semantic_fixture",
+            "release_review_packet_integrity_selection_minimap_semantic_fixture",
+            "release_review_packet_integrity_build_lifecycle_semantic_fixture",
+            "release_review_packet_integrity_tech_tree_semantic_fixture",
+            "release_review_packet_integrity_projectile_ability_semantic_fixture",
+        ];
+        let mut artifacts = Vec::new();
+        for id in runtime_ids {
+            let role = if id.ends_with("_ppm") {
+                "release_review_visual_evidence"
+            } else {
+                "release_review_input"
+            };
+            artifacts.push(packet_artifact(id, role));
+        }
+        for id in fixture_ids {
+            artifacts.push(packet_artifact(id, "release_review_gate"));
+        }
+        while artifacts.len() < 128 {
+            artifacts.push(packet_artifact(
+                &format!("fixture_release_review_input_{}", artifacts.len()),
+                "release_review_input",
+            ));
+        }
+        let ready_items = (0..13)
+            .map(|index| json!({"label": format!("ready_{index}"), "ready": true}))
+            .collect::<Vec<_>>();
+        let blocked_items = (0..6)
+            .map(|index| json!({"label": format!("blocked_{index}"), "needed": "real evidence"}))
+            .collect::<Vec<_>>();
+        let packet = json!({
+            "contract_version": "trillionnium_world_release_review_packet_v1",
+            "status": "release_review_packet_ready_with_public_launch_blockers",
+            "ready_for_release_review": true,
+            "public_launch_ready": false,
+            "android_s5_real_device_claimed": false,
+            "proof_scope": "host_side_bevy_runtime_replay_not_android_real_device",
+            "convergence_status": "release_review_convergence_green_with_public_launch_blockers",
+            "status_checklist_status": "release_review_ready_public_launch_blocked",
+            "missing_artifacts": [],
+            "ready_items": ready_items,
+            "blocked_items": blocked_items,
+            "reviewer_next_action": "collect_real_external_public_launch_evidence",
+            "artifacts": artifacts
+        });
+
+        let review = rts_release_review_packet_assembly_review(&packet);
+
+        assert_eq!(
+            review.contract_version,
+            TRNM_RTS_EVIDENCE_RELEASE_REVIEW_PACKET_ASSEMBLY_REVIEW_CONTRACT
+        );
+        assert!(review.green);
+        assert_eq!(review.artifact_count, 128);
+        assert_eq!(review.packet_integrity_fixture_count, 9);
+        assert_eq!(review.ready_item_count, 13);
+        assert_eq!(review.blocked_item_count, 6);
+        assert!(review.artifact_manifest_gate);
+        assert!(review.missing_artifacts_gate);
+        assert!(review.release_review_readiness_gate);
+        assert!(review.status_handoff_gate);
+        assert!(review.key_runtime_artifacts_gate);
+        assert!(review.packet_integrity_fixture_gate);
+        assert!(review.public_launch_boundary_gate);
+        assert!(review.external_blocker_gate);
+        assert!(review
+            .reviewed_runtime_artifact_ids
+            .contains(&"native_bevy_classic_rts_session_state_continuity".to_string()));
+        assert!(review
+            .source_of_truth
+            .contains("release-review packet assembly semantics"));
     }
 
     #[test]

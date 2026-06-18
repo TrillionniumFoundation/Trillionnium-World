@@ -24795,6 +24795,17 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
 }
 
 #[cfg(not(target_os = "android"))]
+pub fn release_review_packet_assembly_review_json(packet_path: &str) -> String {
+    let packet_text = fs::read_to_string(packet_path)
+        .unwrap_or_else(|error| panic!("release review packet JSON {packet_path} reads: {error}"));
+    let packet: Value = serde_json::from_str(&packet_text)
+        .unwrap_or_else(|error| panic!("release review packet JSON {packet_path} parses: {error}"));
+    let review = trnm_rts_evidence::rts_release_review_packet_assembly_review(&packet);
+
+    serde_json::to_string_pretty(&review).expect("release review packet assembly review serializes")
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_cached_source_json<F>(
     latest_dir: &Path,
     json_name: &str,

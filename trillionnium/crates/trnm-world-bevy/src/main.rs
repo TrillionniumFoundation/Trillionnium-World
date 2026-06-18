@@ -234,6 +234,24 @@ fn main() {
     if matches!(
         args.first().map(String::as_str),
         Some(
+            "release-review-packet-assembly-review"
+                | "--release-review-packet-assembly-review"
+                | "packet-assembly-review"
+        )
+    ) {
+        let packet_path = args
+            .get(1)
+            .map(String::as_str)
+            .unwrap_or("acceptance/S6_public_launch/latest/release-review-packet.json");
+        println!(
+            "{}",
+            trnm_world_bevy::release_review_packet_assembly_review_json(packet_path)
+        );
+        return;
+    }
+    if matches!(
+        args.first().map(String::as_str),
+        Some(
             "classic-rts-continuous-player-flow"
                 | "--classic-rts-continuous-player-flow"
                 | "continuous-player-flow"

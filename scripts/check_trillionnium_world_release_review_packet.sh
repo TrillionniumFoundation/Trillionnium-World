@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
 PACKET_JSON="$ACCEPTANCE_DIR/release-review-packet.json"
 PACKET_MD="$ACCEPTANCE_DIR/release-review-packet.md"
+PACKET_ASSEMBLY_REVIEW_CONTRACT="trnm_rts_evidence_release_review_packet_assembly_review_v1"
 if [[ -v TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON && -n "$TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON" ]]; then
   PACKET_JSON="$TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_JSON"
 fi
@@ -54,7 +55,8 @@ FIRST_CONTACT_BASIN_SPEC_LOG="$ACCEPTANCE_DIR/release-review-packet-first-contac
 PLAYTEST_HANDOFF_PACKET_LOG="$ACCEPTANCE_DIR/release-review-packet-playtest-handoff-packet.log"
 WORLD_BEVY_RELEASE_BUILD_LOG="$ACCEPTANCE_DIR/release-review-packet-world-bevy-release-build.log"
 ARTIFACTS_FILE="$(mktemp)"
-trap 'rm -f "$ARTIFACTS_FILE"' EXIT
+PACKET_JSON_TMP="$(mktemp)"
+trap 'rm -f "$ARTIFACTS_FILE" "$PACKET_JSON_TMP"' EXIT
 
 mkdir -p "$ACCEPTANCE_DIR"
 
@@ -329,6 +331,22 @@ jq -n \
     reviewer_next_action: (if $public_launch_ready then "review_public_launch_ready_evidence" else "collect_real_external_public_launch_evidence" end)
   }' >"$PACKET_JSON"
 
+PACKET_ASSEMBLY_REVIEW_JSON="$("$ROOT/scripts/run_trillionnium_world_bevy_artifact_command.sh" release-review-packet-assembly-review "$PACKET_JSON")"
+PACKET_ASSEMBLY_REVIEW_CONTRACT_OBSERVED="$(jq -r '.contract_version // empty' <<<"$PACKET_ASSEMBLY_REVIEW_JSON")"
+PACKET_ASSEMBLY_REVIEW_GREEN="$(jq -r '.green // false' <<<"$PACKET_ASSEMBLY_REVIEW_JSON")"
+if [[ "$PACKET_ASSEMBLY_REVIEW_CONTRACT_OBSERVED" != "$PACKET_ASSEMBLY_REVIEW_CONTRACT" || "$PACKET_ASSEMBLY_REVIEW_GREEN" != "true" ]]; then
+  PACKET_STATUS=release_review_packet_blocked
+fi
+jq \
+  --arg status "$PACKET_STATUS" \
+  --argjson review "$PACKET_ASSEMBLY_REVIEW_JSON" \
+  '.status = $status
+   | .rts_evidence_release_review_packet_assembly_review_contract = $review.contract_version
+   | .rts_evidence_release_review_packet_assembly_review = $review
+   | .rts_evidence_release_review_packet_assembly_review_gate = $review.green' \
+  "$PACKET_JSON" >"$PACKET_JSON_TMP"
+mv "$PACKET_JSON_TMP" "$PACKET_JSON"
+
 {
   printf '# Trillionnium World Release Review Packet\n\n'
   printf -- '- status: `%s`\n' "$PACKET_STATUS"
@@ -346,6 +364,7 @@ jq -n \
   printf -- '- Native/Bevy keyboard replay, classic animation preview/selector, classic player motion, action coach, HUD/debug layer, player UI rescue, live screenshots, sprite texture sampling, sampled texture live-window correlation, and render asset eligibility are host-side proof, not Android real-device proof.\n'
   printf -- '- CEX adapter readiness proves the current CEX incubator exports the Trillionnium world runtime adapter contract; it is not a substitute for real external public-launch evidence.\n'
   printf -- '- Public launch operator handoff is a checksum-bound collection checklist; it does not grant public-launch credit without real external evidence.\n'
+  printf -- '- RTS evidence packet assembly review checks the manifest, key runtime artifacts, semantic fixtures, status handoff, and external-evidence blockers before reviewer handoff.\n'
   printf -- '- The checkpoint manifest groups the current dirty working tree for review; it does not stage, commit, or publish anything.\n'
   printf -- '- Public launch remains blocked until the external evidence above is attached.\n'
 } >"$PACKET_MD"
