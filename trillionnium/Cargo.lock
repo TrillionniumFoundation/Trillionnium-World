@@ -5191,6 +5191,8 @@ dependencies = [
  "serde",
  "serde_json",
  "trnm-rts-bevy-runtime",
+ "trnm-rts-data",
+ "trnm-rts-online",
 ]
 
 [[package]]

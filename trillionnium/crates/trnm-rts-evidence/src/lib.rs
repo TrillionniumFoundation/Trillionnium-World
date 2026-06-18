@@ -46,7 +46,12 @@ use trnm_rts_bevy_runtime::{
     rts_enemy_structure_tile_for_id, rts_enemy_structures_for_recon, rts_enemy_unit_tile_for_id,
     rts_enemy_units_for_recon, rts_engagement_tiles_for_target, rts_environment_life_stage,
     rts_expansion_parts, rts_expansion_structure_tile_for_id, rts_expansion_tiles_for_camp,
-    rts_expansion_tiles_for_id, rts_expansion_workers_for_line, rts_focus_fire_units_for_target,
+    rts_expansion_tiles_for_id, rts_expansion_workers_for_line,
+    rts_first_contact_offline_adapter_consumption_review,
+    rts_first_contact_offline_adapter_lobby_ready_review,
+    rts_first_contact_offline_adapter_runtime_application,
+    rts_first_contact_offline_adapter_session_transition_review,
+    rts_first_contact_player_screen_runtime_application, rts_focus_fire_units_for_target,
     rts_fog_reveal_tiles_for_recon, rts_formation_move_execution_fixtures,
     rts_formation_move_execution_stage, rts_formation_move_preview_stage,
     rts_formation_move_preview_stage_fixtures, rts_garrison_units_for_id,
@@ -80,8 +85,13 @@ use trnm_rts_bevy_runtime::{
     rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
     rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
     rts_worker_harvest_animation_stage, RtsCameraMinimapViewportRect, RtsCommandStamp,
-    RtsControlGroupSlotSummary, RtsOrderQueueReplayAction, RtsRuntimeGridSpec,
-    RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    RtsControlGroupSlotSummary, RtsFirstContactPlayerScreenReview, RtsOrderQueueReplayAction,
+    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT,
+    TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT,
 };
 
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
@@ -2320,6 +2330,22 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub selection_feedback_stage_sample: Option<String>,
     pub ability_tooltip_stage_sample: Option<String>,
     pub control_group_hotkey_feedback_stage_sample: Option<String>,
+    pub first_contact_player_screen_application_contract: String,
+    pub first_contact_player_screen_application_green: bool,
+    pub first_contact_offline_adapter_application_contract: String,
+    pub first_contact_offline_adapter_application_green: bool,
+    pub first_contact_offline_adapter_consumption_contract: String,
+    pub first_contact_offline_adapter_consumption_green: bool,
+    pub first_contact_offline_adapter_session_transition_contract: String,
+    pub first_contact_offline_adapter_session_transition_green: bool,
+    pub first_contact_offline_adapter_lobby_ready_contract: String,
+    pub first_contact_offline_adapter_lobby_ready_green: bool,
+    pub first_contact_runtime_review_contracts: Vec<String>,
+    pub first_contact_runtime_review_before_command_queue_sample: Vec<String>,
+    pub first_contact_runtime_review_after_command_queue_sample: Vec<String>,
+    pub first_contact_runtime_review_ready_state_labels_sample: Vec<String>,
+    pub first_contact_runtime_review_command_stamp_tile_sample: Option<String>,
+    pub first_contact_runtime_review_gate: bool,
     pub source_of_truth: String,
 }
 
@@ -3148,6 +3174,130 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         &["control_group_hotkey_feedback:double_tap_camera".to_string()],
     )
     .map(str::to_string);
+    let first_contact_profile = trnm_rts_data::first_contact_player_screen_profile();
+    let first_contact_player_screen_application =
+        rts_first_contact_player_screen_runtime_application(&first_contact_profile);
+    let first_contact_adapter = trnm_rts_online::first_contact_online_offline_adapter();
+    let first_contact_runtime_handoff =
+        trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(
+            &first_contact_adapter,
+        );
+    let first_contact_offline_adapter_application =
+        rts_first_contact_offline_adapter_runtime_application(&first_contact_runtime_handoff);
+    let first_contact_session_transition_review =
+        rts_first_contact_offline_adapter_session_transition_review(
+            &first_contact_player_screen_application,
+            &first_contact_offline_adapter_application,
+            &first_contact_runtime_handoff,
+        );
+    let first_contact_lobby_ready_review = rts_first_contact_offline_adapter_lobby_ready_review(
+        trnm_rts_online::rts_online_offline_adapter_lobby_ready_review_input(
+            &first_contact_adapter,
+        ),
+    );
+    let first_contact_runtime_player_screen_review = RtsFirstContactPlayerScreenReview {
+        map_scene: first_contact_player_screen_application.map_scene.clone(),
+        current_room_id: first_contact_player_screen_application
+            .current_room_id
+            .clone(),
+        coins: first_contact_player_screen_application.coins,
+        xp: first_contact_player_screen_application.xp,
+        camera_focus_tile_id: first_contact_player_screen_application
+            .camera_focus_tile_id
+            .clone(),
+        visibility_percent: first_contact_player_screen_application.visibility_percent,
+        army_supply_used: first_contact_player_screen_application.army_supply_used,
+        army_supply_cap: first_contact_player_screen_application.army_supply_cap,
+        objective_status: first_contact_player_screen_application
+            .objective_status
+            .clone(),
+        production_queue: first_contact_player_screen_application
+            .production_queue
+            .clone(),
+        build_queue: first_contact_player_screen_application.build_queue.clone(),
+        selected_unit_ids: first_contact_offline_adapter_application
+            .selected_unit_ids
+            .clone(),
+        command_queue: first_contact_offline_adapter_application
+            .command_queue
+            .clone(),
+        command_destination_tile_id: first_contact_offline_adapter_application
+            .command_destination_tile_id
+            .clone(),
+        group_route_tile_ids: first_contact_offline_adapter_application
+            .group_route_tile_ids
+            .clone(),
+        visible_tile_count: first_contact_player_screen_application
+            .visible_tile_ids
+            .len(),
+        fogged_tile_count: first_contact_player_screen_application
+            .fogged_tile_ids
+            .len(),
+        selection_box_tile_count: first_contact_player_screen_application
+            .selection_box_tile_ids
+            .len(),
+        unit_health_percents: first_contact_player_screen_application
+            .unit_health_percents
+            .clone(),
+        ability_command_ids: first_contact_player_screen_application
+            .ability_command_ids
+            .clone(),
+        ability_cooldown_percents: first_contact_player_screen_application
+            .ability_cooldown_percents
+            .clone(),
+        active_ability_id: first_contact_player_screen_application
+            .active_ability_id
+            .clone(),
+    };
+    let first_contact_consumption_review = rts_first_contact_offline_adapter_consumption_review(
+        trnm_rts_online::rts_online_offline_adapter_consumption_review_input(
+            &first_contact_adapter,
+            first_contact_runtime_player_screen_review,
+        ),
+    );
+    let first_contact_runtime_review_contracts = vec![
+        TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT.to_string(),
+        TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT.to_string(),
+        TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT.to_string(),
+        TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT.to_string(),
+        TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT.to_string(),
+    ];
+    let first_contact_runtime_review_gate = first_contact_player_screen_application.green
+        && first_contact_offline_adapter_application.green
+        && first_contact_consumption_review.green
+        && first_contact_session_transition_review.green
+        && first_contact_lobby_ready_review.green
+        && first_contact_player_screen_application.contract_version
+            == TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT
+        && first_contact_offline_adapter_application.contract_version
+            == TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT
+        && first_contact_consumption_review.contract_version
+            == TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT
+        && first_contact_session_transition_review.contract_version
+            == TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT
+        && first_contact_lobby_ready_review.contract_version
+            == TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT
+        && first_contact_session_transition_review
+            .before_command_queue
+            .iter()
+            .any(|command| command == "build:trnm.flux.relay")
+        && first_contact_session_transition_review.after_command_queue == vec!["move:8,4"]
+        && first_contact_session_transition_review.after_route_tile_ids == vec!["8,4"]
+        && first_contact_session_transition_review
+            .after_command_destination_tile_id
+            .as_deref()
+            == Some("8,4")
+        && first_contact_lobby_ready_review
+            .ready_state_labels
+            .iter()
+            .any(|label| label == "authority:offline_loopback:no_socket")
+        && first_contact_consumption_review
+            .runtime_command_stamp_tile_id
+            .as_deref()
+            == Some("8,4")
+        && !first_contact_consumption_review.socket_opened
+        && !first_contact_consumption_review.hosted_service_claimed
+        && !first_contact_consumption_review.public_launch_ready;
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && scroll_camera_stage_summaries.len() == 6
@@ -3669,7 +3819,8 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && unit_status_role_badges == vec!["AUR", "LVL", "CMD"]
         && selection_feedback_stage.as_deref() == Some("attack_lock")
         && ability_tooltip_stage.as_deref() == Some("range_preview")
-        && control_group_hotkey_feedback_stage.as_deref() == Some("double_tap_camera");
+        && control_group_hotkey_feedback_stage.as_deref() == Some("double_tap_camera")
+        && first_contact_runtime_review_gate;
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -3997,7 +4148,35 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
-        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, scrollable camera/minimap sync, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, order-queue replay actions, command feedback lifecycle/history/execution target labels and tiles, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, and siege-route samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
+        first_contact_player_screen_application_contract: first_contact_player_screen_application
+            .contract_version,
+        first_contact_player_screen_application_green: first_contact_player_screen_application
+            .green,
+        first_contact_offline_adapter_application_contract:
+            first_contact_offline_adapter_application.contract_version,
+        first_contact_offline_adapter_application_green:
+            first_contact_offline_adapter_application.green,
+        first_contact_offline_adapter_consumption_contract: first_contact_consumption_review
+            .contract_version,
+        first_contact_offline_adapter_consumption_green: first_contact_consumption_review.green,
+        first_contact_offline_adapter_session_transition_contract:
+            first_contact_session_transition_review.contract_version,
+        first_contact_offline_adapter_session_transition_green:
+            first_contact_session_transition_review.green,
+        first_contact_offline_adapter_lobby_ready_contract: first_contact_lobby_ready_review
+            .contract_version,
+        first_contact_offline_adapter_lobby_ready_green: first_contact_lobby_ready_review.green,
+        first_contact_runtime_review_contracts,
+        first_contact_runtime_review_before_command_queue_sample:
+            first_contact_session_transition_review.before_command_queue,
+        first_contact_runtime_review_after_command_queue_sample:
+            first_contact_session_transition_review.after_command_queue,
+        first_contact_runtime_review_ready_state_labels_sample: first_contact_lobby_ready_review
+            .ready_state_labels,
+        first_contact_runtime_review_command_stamp_tile_sample: first_contact_consumption_review
+            .runtime_command_stamp_tile_id,
+        first_contact_runtime_review_gate,
+        source_of_truth: "The RTS evidence crate verifies the Bevy-free runtime adapter contract using deterministic First Contact minimap, scrollable camera/minimap sync, path preview, formation move preview/execution, local obstruction recovery, scene stage semantics, structure/environment stage semantics, harvest/production animation stage semantics, action cadence marks, action sequence phase/marks, unit-model depth marks, command-surface stage, command-grid, tile-line raster, combat-target, ability-effect, AI-pressure, recon-intel, base-assault, aftermath, commander-progression, expansion-counterattack, army-production/rally, siege breach counterplay, inner-lane breakthrough, central-keep, restoration/open-world handoff, economy/tech placement, queue economy, blocked-feedback chip visibility, scripted-demo timeline, selection roster, control-group roster, command parsing, command stamp semantics, order-queue replay actions, command feedback lifecycle/history/execution target labels and tiles, hover/cursor affordance, overlay stage/portrait semantics, objective, terrain-route, siege-route, and First Contact player-screen/offline-adapter application, consumption, session-transition, and lobby-ready review samples before trnm-world-bevy includes the proof in release-review evidence.".to_string(),
     }
 }
 
@@ -4975,6 +5154,58 @@ mod tests {
         );
         assert_eq!(evidence.runtime_contract, TRNM_RTS_BEVY_RUNTIME_CONTRACT);
         assert!(evidence.green);
+        assert_eq!(
+            evidence.first_contact_player_screen_application_contract,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT
+        );
+        assert!(evidence.first_contact_player_screen_application_green);
+        assert_eq!(
+            evidence.first_contact_offline_adapter_application_contract,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT
+        );
+        assert!(evidence.first_contact_offline_adapter_application_green);
+        assert_eq!(
+            evidence.first_contact_offline_adapter_consumption_contract,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT
+        );
+        assert!(evidence.first_contact_offline_adapter_consumption_green);
+        assert_eq!(
+            evidence.first_contact_offline_adapter_session_transition_contract,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT
+        );
+        assert!(evidence.first_contact_offline_adapter_session_transition_green);
+        assert_eq!(
+            evidence.first_contact_offline_adapter_lobby_ready_contract,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT
+        );
+        assert!(evidence.first_contact_offline_adapter_lobby_ready_green);
+        assert_eq!(
+            evidence.first_contact_runtime_review_contracts,
+            vec![
+                TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT,
+                TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT,
+                TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT,
+                TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT,
+                TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT,
+            ]
+        );
+        assert!(evidence
+            .first_contact_runtime_review_before_command_queue_sample
+            .contains(&"build:trnm.flux.relay".to_string()));
+        assert_eq!(
+            evidence.first_contact_runtime_review_after_command_queue_sample,
+            vec!["move:8,4"]
+        );
+        assert!(evidence
+            .first_contact_runtime_review_ready_state_labels_sample
+            .contains(&"authority:offline_loopback:no_socket".to_string()));
+        assert_eq!(
+            evidence
+                .first_contact_runtime_review_command_stamp_tile_sample
+                .as_deref(),
+            Some("8,4")
+        );
+        assert!(evidence.first_contact_runtime_review_gate);
         assert_eq!(
             evidence.minimap_cell_sample,
             RtsEvidencePoint { x: 134, y: 175 }

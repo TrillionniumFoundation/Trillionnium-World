@@ -399,6 +399,34 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       source_of_truth: "This Bevy-free runtime application translates the trnm-rts-data First Contact player-screen profile into room, camera, command queue, production/build queues, visibility, selection, route, ability, supply, and objective runtime fields before the Bevy adapter mutates NativeFirstPlayableRuntime."
     },
     rts_bevy_runtime_player_screen_application_gate: true,
+    rts_evidence_bevy_runtime_adapter: {
+      contract_version: "trnm_rts_evidence_bevy_runtime_adapter_v1",
+      runtime_contract: "trnm_rts_bevy_runtime_adapter_v1",
+      green: true,
+      first_contact_player_screen_application_contract: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
+      first_contact_player_screen_application_green: true,
+      first_contact_offline_adapter_application_contract: "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1",
+      first_contact_offline_adapter_application_green: true,
+      first_contact_offline_adapter_consumption_contract: "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1",
+      first_contact_offline_adapter_consumption_green: true,
+      first_contact_offline_adapter_session_transition_contract: "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1",
+      first_contact_offline_adapter_session_transition_green: true,
+      first_contact_offline_adapter_lobby_ready_contract: "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1",
+      first_contact_offline_adapter_lobby_ready_green: true,
+      first_contact_runtime_review_contracts: [
+        "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
+        "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1",
+        "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1",
+        "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1",
+        "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
+      ],
+      first_contact_runtime_review_before_command_queue_sample: ["select_group_1", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+      first_contact_runtime_review_after_command_queue_sample: ["move:8,4"],
+      first_contact_runtime_review_ready_state_labels_sample: ["player:local-player:ready", "player:mirror_guard:ready", "bot:mirror_guard:ready", "authority:offline_loopback:no_socket"],
+      first_contact_runtime_review_command_stamp_tile_sample: "8,4",
+      first_contact_runtime_review_gate: true
+    },
+    rts_evidence_bevy_runtime_adapter_gate: true,
     rts_online_protocol_fixture: {
       transport: {
         contract_version: "trnm_rts_online_loopback_transport_v1",

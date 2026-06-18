@@ -436,6 +436,26 @@ require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_
   and .rts_bevy_runtime_player_screen_application.runtime_application_path == "trnm-rts-data first_contact_player_screen_profile -> trnm-rts-bevy-runtime player_screen_runtime_application -> NativeFirstPlayableRuntime mutation"
   and (.rts_bevy_runtime_player_screen_application.source_of_truth | contains("trnm-rts-data First Contact player-screen profile"))
   and .rts_bevy_runtime_player_screen_application_gate == true
+  and .rts_evidence_bevy_runtime_adapter.contract_version == "trnm_rts_evidence_bevy_runtime_adapter_v1"
+  and .rts_evidence_bevy_runtime_adapter.green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_green == true
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_player_screen_application_v1") != null)
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1") != null)
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_before_command_queue_sample | index("build:trnm.flux.relay") != null)
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_after_command_queue_sample == ["move:8,4"]
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_ready_state_labels_sample | index("authority:offline_loopback:no_socket") != null)
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_command_stamp_tile_sample == "8,4"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_gate == true
+  and .rts_evidence_bevy_runtime_adapter_gate == true
   and
   .rts_online_offline_adapter_contract == "trnm_rts_online_offline_adapter_v1"
   and .rts_online_offline_adapter_local_replay_contract == "trnm_rts_online_offline_adapter_local_replay_v1"

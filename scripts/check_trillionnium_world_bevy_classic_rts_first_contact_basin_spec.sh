@@ -38,6 +38,7 @@ required_source_lines=(
   'trnm_rts_online::rts_online_offline_adapter_lobby_ready_review_input(adapter)'
   'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
   'rts_first_contact_offline_adapter_runtime_application(&runtime_handoff)'
+  'rts_first_contact_offline_adapter_consumption_review('
   'rts_first_contact_offline_adapter_session_transition_review('
   'rts_first_contact_offline_adapter_lobby_ready_review('
 )
@@ -78,6 +79,9 @@ required_runtime_source_lines=(
   'pub struct RtsOfflineAdapterLobbyReadyReviewInput'
   'pub struct RtsFirstContactOfflineAdapterLobbyReadyReview'
   'pub fn rts_first_contact_offline_adapter_lobby_ready_review'
+  'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT'
+  'pub struct RtsFirstContactOfflineAdapterConsumptionReview'
+  'pub fn rts_first_contact_offline_adapter_consumption_review'
   'pub runtime_application_gate: bool'
 )
 
@@ -328,6 +332,22 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.runtime_contract == "trnm_rts_bevy_runtime_adapter_v1"
   and .rts_evidence_bevy_runtime_adapter.green == true
   and .rts_evidence_bevy_runtime_adapter_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_green == true
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1") != null)
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_before_command_queue_sample | index("build:trnm.flux.relay") != null)
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_after_command_queue_sample == ["move:8,4"]
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_ready_state_labels_sample | index("authority:offline_loopback:no_socket") != null)
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_command_stamp_tile_sample == "8,4"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_gate == true
   and .rts_bevy_runtime_adapter_contract == "trnm_rts_bevy_runtime_adapter_v1"
   and .rts_bevy_runtime_adapter_gate == true
   and .rts_bevy_runtime_minimap_cell_sample.x == 134
