@@ -28389,7 +28389,7 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         && active_pixel_count > 6_000;
     let green = openra_screen_for_screen_ui_replication_gate;
 
-    serde_json::to_string_pretty(&json!({
+    let mut evidence = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_SCREEN_FOR_SCREEN_UI_REPLICATION_CONTRACT,
         "status": if green { "classic_rts_openra_screen_for_screen_ui_replication_green" } else { "classic_rts_openra_screen_for_screen_ui_replication_blocked" },
         "green": green,
@@ -28487,8 +28487,29 @@ pub fn native_classic_rts_openra_screen_for_screen_ui_replication_evidence_json(
         "android_s5_real_device_claimed": false,
         "public_launch_ready": false,
         "source_of_truth": "This evidence promotes a scoped OpenRA-style widget-root, screen-set, and interaction-surface layer for Trillionnium: MAINMENU, skirmish/mission browser, multiplayer browser, lobby, loading/briefing, INGAME_ROOT sidebar HUD, pause/options, and postgame statistics are drawn as a single Rust/Bevy 1920x1080 screen-set proof using original Trillionnium art, with a player-first ingame HUD tile gate. It does not claim OpenRA screen-for-screen parity, does not copy OpenRA or Westwood assets, does not port the OpenRA engine, and does not claim pixel-perfect asset parity or public/S5 readiness."
-    }))
-    .expect("classic RTS OpenRA screen-for-screen UI replication evidence serializes")
+    });
+    let review = trnm_rts_evidence::rts_openra_style_screen_set_review(&evidence);
+    let green = review.green;
+    evidence["status"] = json!(if green {
+        "classic_rts_openra_screen_for_screen_ui_replication_green"
+    } else {
+        "classic_rts_openra_screen_for_screen_ui_replication_blocked"
+    });
+    evidence["green"] = json!(green);
+    evidence["rts_evidence_openra_style_screen_set_review_contract"] =
+        json!(trnm_rts_evidence::TRNM_RTS_EVIDENCE_OPENRA_STYLE_SCREEN_SET_REVIEW_CONTRACT);
+    evidence["rts_evidence_openra_style_screen_set_review"] =
+        serde_json::to_value(&review).expect("OpenRA-style screen-set review serializes");
+    evidence["rts_evidence_openra_style_screen_set_review_gate"] = json!(green);
+    evidence["openra_style_ui_screen_set_replication_gate"] =
+        json!(review.openra_style_ui_screen_set_replication_gate);
+    evidence["openra_screen_for_screen_ui_replication_gate"] =
+        json!(review.openra_screen_for_screen_ui_replication_gate);
+    evidence["openra_style_widget_root_screen_set_claimed"] =
+        json!(review.openra_style_widget_root_screen_set_claimed);
+
+    serde_json::to_string_pretty(&evidence)
+        .expect("classic RTS OpenRA screen-for-screen UI replication evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

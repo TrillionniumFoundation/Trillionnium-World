@@ -52,6 +52,24 @@ jq -e '
   and .player_first_openra_style_ingame_screen_gate == true
   and .openra_style_ui_screen_set_replication_gate == true
   and .openra_screen_for_screen_ui_replication_gate == true
+  and .rts_evidence_openra_style_screen_set_review_contract == "trnm_rts_evidence_openra_style_screen_set_review_v1"
+  and .rts_evidence_openra_style_screen_set_review.green == true
+  and .rts_evidence_openra_style_screen_set_review.source_contract_gate == true
+  and .rts_evidence_openra_style_screen_set_review.source_green_gate == true
+  and .rts_evidence_openra_style_screen_set_review.openra_runtime_vocabulary_gate == true
+  and .rts_evidence_openra_style_screen_set_review.widget_root_reference_gate == true
+  and .rts_evidence_openra_style_screen_set_review.screen_set_gate == true
+  and .rts_evidence_openra_style_screen_set_review.source_screen_chain_gate == true
+  and .rts_evidence_openra_style_screen_set_review.pixel_gate == true
+  and .rts_evidence_openra_style_screen_set_review.preview_gate == true
+  and .rts_evidence_openra_style_screen_set_review.runtime_screen_gate == true
+  and .rts_evidence_openra_style_screen_set_review.player_first_openra_style_ingame_screen_gate == true
+  and .rts_evidence_openra_style_screen_set_review.no_asset_copy_boundary_gate == true
+  and .rts_evidence_openra_style_screen_set_review.no_credit_boundary_gate == true
+  and .rts_evidence_openra_style_screen_set_review.openra_style_ui_screen_set_replication_gate == true
+  and .rts_evidence_openra_style_screen_set_review.openra_screen_for_screen_ui_replication_gate == true
+  and (.rts_evidence_openra_style_screen_set_review.source_of_truth | contains("OpenRA-style screen-set"))
+  and .rts_evidence_openra_style_screen_set_review_gate == true
   and .openra_style_widget_root_screen_set_claimed == true
   and .screen_for_screen_openra_ui_claimed == false
   and .openra_screen_for_screen_ui_replication_claimed == false

@@ -20,6 +20,10 @@ required_script_lines=(
   'openra_reference_screen_count == 8'
   'replicated_interaction_surface_count == 8'
   'openra_style_widget_root_screen_set_claimed == true'
+  'rts_evidence_openra_style_screen_set_review_contract == "trnm_rts_evidence_openra_style_screen_set_review_v1"'
+  'rts_evidence_openra_style_screen_set_review.green == true'
+  'rts_evidence_openra_style_screen_set_review.openra_screen_for_screen_ui_replication_gate == true'
+  'rts_evidence_openra_style_screen_set_review_gate == true'
   'screen_for_screen_openra_ui_claimed == false'
   'openra_screen_for_screen_ui_replication_claimed == false'
   'openra_pixel_perfect_asset_parity_claimed == false'
@@ -52,6 +56,9 @@ required_source_lines=(
   'player_runtime_openra_style_ingame_screen_set'
   'player_first_openra_style_ingame_screen_gate'
   'openra_screen_for_screen_ui_replication_gate'
+  'rts_openra_style_screen_set_review'
+  'TRNM_RTS_EVIDENCE_OPENRA_STYLE_SCREEN_SET_REVIEW_CONTRACT'
+  'rts_evidence_openra_style_screen_set_review_gate'
   'openra_style_widget_root_screen_set_claimed'
   'screen_for_screen_openra_ui_claimed'
   'openra_pixel_perfect_asset_parity_claimed'
@@ -77,6 +84,9 @@ required_readiness_lines=(
   'rts_openra_screen_for_screen_ui_replication_screen_count'
   'rts_openra_screen_for_screen_ui_replication_style_screen_set_claimed'
   'rts_openra_screen_for_screen_ui_replication_claimed'
+  'rts_openra_screen_for_screen_ui_replication_review_contract'
+  'rts_openra_screen_for_screen_ui_replication_review_source_of_truth'
+  'rts_openra_screen_for_screen_ui_replication_rts_evidence_review_gate'
 )
 
 for line in "${required_readiness_lines[@]}"; do

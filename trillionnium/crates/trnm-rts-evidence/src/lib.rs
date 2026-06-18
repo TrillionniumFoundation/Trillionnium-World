@@ -97,6 +97,8 @@ pub const TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_live_session_playthrough_review_v1";
 pub const TRNM_RTS_EVIDENCE_FULL_GAME_VISUAL_UI_REPLICATION_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_full_game_visual_ui_replication_review_v1";
+pub const TRNM_RTS_EVIDENCE_OPENRA_STYLE_SCREEN_SET_REVIEW_CONTRACT: &str =
+    "trnm_rts_evidence_openra_style_screen_set_review_v1";
 pub const TRNM_RTS_EVIDENCE_RELEASE_REVIEW_PACKET_ASSEMBLY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_release_review_packet_assembly_review_v1";
 
@@ -306,6 +308,46 @@ pub struct RtsFullGameVisualUiReplicationReview {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOpenraStyleScreenSetReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub openra_screen_for_screen_ui_replication_contract: String,
+    pub openra_screen_for_screen_ui_replication_green: bool,
+    pub preview_width: u64,
+    pub preview_height: u64,
+    pub screen_for_screen_mode: Option<String>,
+    pub runtime_screen_mode: Option<String>,
+    pub openra_widget_root_count: u64,
+    pub openra_reference_screen_count: u64,
+    pub replicated_interaction_surface_count: u64,
+    pub full_game_surface_count: u64,
+    pub full_screen_surface_count: u64,
+    pub shell_meta_surface_count: u64,
+    pub match_setup_surface_count: u64,
+    pub hud_surface_count: u64,
+    pub session_surface_count: u64,
+    pub openra_parity_lane_axis_count: u64,
+    pub source_contract_gate: bool,
+    pub source_green_gate: bool,
+    pub openra_runtime_vocabulary_gate: bool,
+    pub widget_root_reference_gate: bool,
+    pub screen_set_gate: bool,
+    pub source_screen_chain_gate: bool,
+    pub pixel_gate: bool,
+    pub preview_gate: bool,
+    pub runtime_screen_gate: bool,
+    pub player_first_openra_style_ingame_screen_gate: bool,
+    pub no_asset_copy_boundary_gate: bool,
+    pub no_credit_boundary_gate: bool,
+    pub openra_style_ui_screen_set_replication_gate: bool,
+    pub openra_screen_for_screen_ui_replication_gate: bool,
+    pub openra_style_widget_root_screen_set_claimed: bool,
+    pub input_path: String,
+    pub evidence_path: String,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsReleaseReviewPacketAssemblyReview {
     pub contract_version: String,
     pub green: bool,
@@ -314,15 +356,26 @@ pub struct RtsReleaseReviewPacketAssemblyReview {
     pub artifact_count: u64,
     pub release_review_input_count: u64,
     pub release_review_visual_evidence_count: u64,
+    pub release_review_recording_count: u64,
+    pub release_review_collection_count: u64,
     pub release_review_gate_count: u64,
+    pub release_review_operator_handoff_count: u64,
+    pub release_review_checkpoint_count: u64,
+    pub release_review_checklist_count: u64,
+    pub release_review_log_count: u64,
+    pub missing_artifact_count: u64,
     pub packet_integrity_fixture_count: u64,
+    pub reviewed_runtime_artifact_count: u64,
+    pub reviewed_packet_fixture_count: u64,
     pub ready_item_count: u64,
     pub blocked_item_count: u64,
+    pub inventory_summary_gate: bool,
     pub artifact_manifest_gate: bool,
     pub missing_artifacts_gate: bool,
     pub release_review_readiness_gate: bool,
     pub status_handoff_gate: bool,
     pub key_runtime_artifacts_gate: bool,
+    pub full_game_visual_ui_handoff_gate: bool,
     pub packet_integrity_fixture_gate: bool,
     pub public_launch_boundary_gate: bool,
     pub external_blocker_gate: bool,
@@ -433,6 +486,20 @@ fn artifacts_have_id_with_role(artifacts: &[Value], expected: &str, role: &str) 
     artifacts.iter().any(|artifact| {
         artifact_id_is(artifact, expected)
             && artifact_role_is(artifact, role)
+            && artifact_present_with_manifest_metadata(artifact)
+    })
+}
+
+fn artifacts_have_id_contract_status(
+    artifacts: &[Value],
+    expected: &str,
+    contract_version: &str,
+    status: &str,
+) -> bool {
+    artifacts.iter().any(|artifact| {
+        artifact_id_is(artifact, expected)
+            && artifact.get("contract_version").and_then(Value::as_str) == Some(contract_version)
+            && artifact.get("status").and_then(Value::as_str) == Some(status)
             && artifact_present_with_manifest_metadata(artifact)
     })
 }
@@ -1554,6 +1621,269 @@ pub fn rts_full_game_visual_ui_replication_review(
     }
 }
 
+pub fn rts_openra_style_screen_set_review(input: &Value) -> RtsOpenraStyleScreenSetReview {
+    let openra_screen_for_screen_ui_replication_contract =
+        json_string_at(input, "contract_version").unwrap_or_default();
+    let openra_screen_for_screen_ui_replication_green = json_bool_at(input, "green");
+    let preview_width = json_u64_at(input, "preview_width");
+    let preview_height = json_u64_at(input, "preview_height");
+    let screen_for_screen_mode = json_string_at(input, "screen_for_screen_mode");
+    let runtime_screen_mode = json_string_at(input, "runtime_screen_mode");
+    let openra_widget_root_count = json_u64_at(input, "openra_widget_root_count");
+    let openra_reference_screen_count = json_u64_at(input, "openra_reference_screen_count");
+    let replicated_interaction_surface_count =
+        json_u64_at(input, "replicated_interaction_surface_count");
+    let full_game_surface_count =
+        json_u64_pointer(input, "/source_headline/full_game_surface_count");
+    let full_screen_surface_count =
+        json_u64_pointer(input, "/source_headline/full_screen_surface_count");
+    let shell_meta_surface_count =
+        json_u64_pointer(input, "/source_headline/shell_meta_surface_count");
+    let match_setup_surface_count =
+        json_u64_pointer(input, "/source_headline/match_setup_surface_count");
+    let hud_surface_count = json_u64_pointer(input, "/source_headline/hud_surface_count");
+    let session_surface_count = json_u64_pointer(input, "/source_headline/session_surface_count");
+    let openra_parity_lane_axis_count =
+        json_u64_pointer(input, "/source_headline/openra_parity_lane_axis_count");
+
+    let source_contract_gate = json_contract_is(
+        input,
+        "trillionnium_world_bevy_classic_rts_openra_screen_for_screen_ui_replication_v1",
+    ) && openra_screen_for_screen_ui_replication_green
+        && json_string_pointer(input, "/source_contracts/full_game_visual_ui_replication")
+            .as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1")
+        && json_string_pointer(input, "/source_contracts/full_screen_ui_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1")
+        && json_string_pointer(input, "/source_contracts/shell_meta_ui_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1")
+        && json_string_pointer(input, "/source_contracts/match_setup_ui_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1")
+        && json_string_pointer(input, "/source_contracts/in_match_hud_state_replication")
+            .as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1")
+        && json_string_pointer(input, "/source_contracts/session_state_continuity").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_session_state_continuity_v1")
+        && json_string_pointer(input, "/source_contracts/openra_like_core").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_openra_like_core_v1")
+        && json_string_pointer(input, "/source_contracts/openra_parity_lane").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_openra_parity_lane_v1")
+        && json_bool_at(input, "source_contract_gate");
+    let source_green_gate = json_bool_at(input, "source_green_gate");
+    let openra_runtime_vocabulary_gate = json_bool_at(input, "openra_runtime_vocabulary_gate")
+        && json_string_pointer(input, "/source_headline/openra_like_runtime_model").as_deref()
+            == Some("rust_bevy_owned_openra_like_rts_core")
+        && openra_parity_lane_axis_count == 6;
+    let widget_root_reference_gate = json_bool_at(input, "widget_root_reference_gate")
+        && openra_widget_root_count == 4
+        && json_array_contains(input, "/openra_widget_roots", "ShellmapRoot=MAINMENU")
+        && json_array_contains(input, "/openra_widget_roots", "IngameRoot=INGAME_ROOT")
+        && json_array_contains(
+            input,
+            "/openra_widget_roots",
+            "GameSaveLoadingRoot=GAMESAVE_LOADING_SCREEN",
+        )
+        && json_array_contains(input, "/openra_widget_roots", "EditorRoot=EDITOR_ROOT");
+    let screen_set_gate = json_bool_at(input, "screen_set_gate")
+        && openra_reference_screen_count == 8
+        && replicated_interaction_surface_count == 8
+        && json_array_contains(input, "/openra_reference_screens", "MAINMENU_shellmap_root")
+        && json_array_contains(
+            input,
+            "/openra_reference_screens",
+            "SKIRMISH_mission_browser",
+        )
+        && json_array_contains(
+            input,
+            "/openra_reference_screens",
+            "MULTIPLAYER_server_browser",
+        )
+        && json_array_contains(input, "/openra_reference_screens", "LOBBY_setup_room")
+        && json_array_contains(
+            input,
+            "/openra_reference_screens",
+            "LOADING_briefing_progress",
+        )
+        && json_array_contains(
+            input,
+            "/openra_reference_screens",
+            "INGAME_ROOT_sidebar_hud",
+        )
+        && json_array_contains(input, "/openra_reference_screens", "PAUSE_options_overlay")
+        && json_array_contains(input, "/openra_reference_screens", "POSTGAME_statistics")
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "shellmap_menu_stack",
+        )
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "mission_map_list",
+        )
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "server_filter_table",
+        )
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "lobby_player_slots",
+        )
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "loading_briefing_progress",
+        )
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "ingame_viewport_sidebar_minimap",
+        )
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "pause_settings_overlay",
+        )
+        && json_array_contains(
+            input,
+            "/replicated_interaction_surfaces",
+            "postgame_score_tabs",
+        );
+    let source_screen_chain_gate = json_bool_at(input, "source_screen_chain_gate")
+        && full_game_surface_count == 18
+        && json_bool_pointer(input, "/source_headline/full_game_internal_claimed")
+        && full_screen_surface_count == 10
+        && shell_meta_surface_count == 12
+        && match_setup_surface_count == 10
+        && hud_surface_count == 8
+        && session_surface_count == 8;
+    let pixel_gate = json_u64_pointer(input, "/pixel_counts/non_background") > 1_200_000
+        && json_u64_pointer(input, "/pixel_counts/mainmenu") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/skirmish") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/server_browser") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/lobby") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/loading") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/ingame") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/pause") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/postgame_stats") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/active_highlight") > 6_000
+        && json_u64_pointer(
+            input,
+            "/openra_style_ingame_pixel_counts/player_first_openra_style_ingame_view_non_background",
+        ) > 70_000
+        && json_u64_pointer(
+            input,
+            "/openra_style_ingame_pixel_counts/player_first_openra_style_ingame_sidebar_non_background",
+        ) > 30_000
+        && json_u64_pointer(
+            input,
+            "/openra_style_ingame_pixel_counts/player_first_openra_style_ingame_command_lane_non_background",
+        ) > 5_000
+        && json_u64_pointer(
+            input,
+            "/openra_style_ingame_pixel_counts/player_first_openra_style_ingame_control_color",
+        ) > 30_000
+        && json_u64_pointer(
+            input,
+            "/openra_style_ingame_pixel_counts/player_first_openra_style_active_highlight",
+        ) > 6_000;
+    let preview_gate = json_bool_at(input, "preview_gate")
+        && preview_width == 1920
+        && preview_height == 1080
+        && json_string_equals(input, "preview_format", "ppm_p3_rgb")
+        && pixel_gate;
+    let runtime_screen_gate = json_bool_at(input, "runtime_screen_gate")
+        && screen_for_screen_mode.as_deref()
+            == Some(
+                "openra_style_widget_root_screen_set_and_interaction_surface_replication_original_trillionnium_art",
+            )
+        && runtime_screen_mode.as_deref() == Some("player_runtime_openra_style_ingame_screen_set")
+        && input.get("evidence_board_only").and_then(Value::as_bool) == Some(false)
+        && preview_gate;
+    let player_first_openra_style_ingame_screen_gate =
+        json_bool_at(input, "player_first_openra_style_ingame_screen_gate")
+            && runtime_screen_gate
+            && pixel_gate;
+    let no_asset_copy_boundary_gate = json_bool_at(input, "no_asset_copy_boundary_gate")
+        && !json_bool_at(input, "openra_asset_copied")
+        && !json_bool_at(input, "warcraft_iii_asset_copied")
+        && !json_bool_at(input, "third_party_asset_copied")
+        && !json_bool_at(input, "openra_engine_port_claimed")
+        && !json_bool_at(input, "openra_pixel_perfect_asset_parity_claimed");
+    let openra_style_widget_root_screen_set_claimed =
+        json_bool_at(input, "openra_style_widget_root_screen_set_claimed");
+    let no_credit_boundary_gate = openra_style_widget_root_screen_set_claimed
+        && !json_bool_at(input, "screen_for_screen_openra_ui_claimed")
+        && !json_bool_at(input, "openra_screen_for_screen_ui_replication_claimed")
+        && !json_bool_at(input, "openra_pixel_perfect_asset_parity_claimed")
+        && !json_bool_at(input, "openra_engine_port_claimed")
+        && !json_bool_at(input, "openra_asset_copied")
+        && !json_bool_at(input, "warcraft_iii_asset_copied")
+        && !json_bool_at(input, "third_party_asset_copied")
+        && !json_bool_at(input, "bevy_openra_runtime_parity_claimed")
+        && !json_bool_at(input, "bevy_openra_replay_file_claimed")
+        && !json_bool_at(input, "android_s5_real_device_claimed")
+        && !json_bool_at(input, "public_launch_ready");
+    let openra_style_ui_screen_set_replication_gate =
+        json_bool_at(input, "openra_style_ui_screen_set_replication_gate")
+            && source_contract_gate
+            && source_green_gate
+            && openra_runtime_vocabulary_gate
+            && widget_root_reference_gate
+            && screen_set_gate
+            && source_screen_chain_gate
+            && preview_gate
+            && runtime_screen_gate
+            && player_first_openra_style_ingame_screen_gate
+            && no_asset_copy_boundary_gate
+            && no_credit_boundary_gate;
+    let openra_screen_for_screen_ui_replication_gate =
+        json_bool_at(input, "openra_screen_for_screen_ui_replication_gate")
+            && openra_style_ui_screen_set_replication_gate;
+    let green = openra_screen_for_screen_ui_replication_gate;
+
+    RtsOpenraStyleScreenSetReview {
+        contract_version: TRNM_RTS_EVIDENCE_OPENRA_STYLE_SCREEN_SET_REVIEW_CONTRACT.to_string(),
+        green,
+        openra_screen_for_screen_ui_replication_contract,
+        openra_screen_for_screen_ui_replication_green,
+        preview_width,
+        preview_height,
+        screen_for_screen_mode,
+        runtime_screen_mode,
+        openra_widget_root_count,
+        openra_reference_screen_count,
+        replicated_interaction_surface_count,
+        full_game_surface_count,
+        full_screen_surface_count,
+        shell_meta_surface_count,
+        match_setup_surface_count,
+        hud_surface_count,
+        session_surface_count,
+        openra_parity_lane_axis_count,
+        source_contract_gate,
+        source_green_gate,
+        openra_runtime_vocabulary_gate,
+        widget_root_reference_gate,
+        screen_set_gate,
+        source_screen_chain_gate,
+        pixel_gate,
+        preview_gate,
+        runtime_screen_gate,
+        player_first_openra_style_ingame_screen_gate,
+        no_asset_copy_boundary_gate,
+        no_credit_boundary_gate,
+        openra_style_ui_screen_set_replication_gate,
+        openra_screen_for_screen_ui_replication_gate,
+        openra_style_widget_root_screen_set_claimed,
+        input_path: "trnm-world-bevy OpenRA-style widget root/screen-set JSON and player-first pixels -> trnm-rts-evidence OpenRA-style screen-set review".to_string(),
+        evidence_path: "trnm-rts-evidence openra_style_screen_set_review -> Bevy OpenRA-style screen-set packet/readiness artifact".to_string(),
+        source_of_truth: "The RTS evidence crate reviews the OpenRA-style screen-set UI replication boundary: widget roots, eight reference screens, interaction surfaces, player-first ingame HUD pixels, source artifact chain, and no-copy/no-overclaim boundaries while keeping OpenRA screen-for-screen parity, engine-port, pixel-perfect asset parity, S5, public-launch, and third-party asset-copy claims false.".to_string(),
+    }
+}
+
 pub fn rts_release_review_packet_assembly_review(
     packet: &Value,
 ) -> RtsReleaseReviewPacketAssemblyReview {
@@ -1568,7 +1898,19 @@ pub fn rts_release_review_packet_assembly_review(
     let release_review_input_count = artifact_role_count(&artifacts, "release_review_input");
     let release_review_visual_evidence_count =
         artifact_role_count(&artifacts, "release_review_visual_evidence");
+    let release_review_recording_count =
+        artifact_role_count(&artifacts, "release_review_recording");
+    let release_review_collection_count =
+        artifact_role_count(&artifacts, "release_review_collection");
     let release_review_gate_count = artifact_role_count(&artifacts, "release_review_gate");
+    let release_review_operator_handoff_count =
+        artifact_role_count(&artifacts, "release_review_operator_handoff");
+    let release_review_checkpoint_count =
+        artifact_role_count(&artifacts, "release_review_checkpoint");
+    let release_review_checklist_count =
+        artifact_role_count(&artifacts, "release_review_checklist");
+    let release_review_log_count = artifact_role_count(&artifacts, "release_review_log");
+    let missing_artifact_count = json_array_len_at(packet, "missing_artifacts");
     let ready_item_count = json_array_len_at(packet, "ready_items");
     let blocked_item_count = json_array_len_at(packet, "blocked_items");
 
@@ -1579,6 +1921,8 @@ pub fn rts_release_review_packet_assembly_review(
         "native_bevy_classic_rts_in_match_hud_state_replication",
         "native_bevy_classic_rts_session_state_continuity",
         "native_bevy_classic_rts_combat_readability_pressure_readiness",
+        "native_bevy_classic_rts_full_game_visual_ui_replication",
+        "native_bevy_classic_rts_full_game_visual_ui_replication_ppm",
         "native_bevy_classic_playtest_readiness",
         "native_bevy_classic_playtest_runner_status",
         "native_bevy_classic_playtest_launcher",
@@ -1606,14 +1950,34 @@ pub fn rts_release_review_packet_assembly_review(
     .map(|id| (*id).to_string())
     .collect::<Vec<_>>();
 
+    let inventory_summary_gate = json_u64_at(packet, "artifact_count") == artifact_count
+        && json_u64_at(packet, "release_review_input_count") == release_review_input_count
+        && json_u64_at(packet, "release_review_visual_evidence_count")
+            == release_review_visual_evidence_count
+        && json_u64_at(packet, "release_review_recording_count") == release_review_recording_count
+        && json_u64_at(packet, "release_review_collection_count")
+            == release_review_collection_count
+        && json_u64_at(packet, "release_review_gate_count") == release_review_gate_count
+        && json_u64_at(packet, "release_review_operator_handoff_count")
+            == release_review_operator_handoff_count
+        && json_u64_at(packet, "release_review_checkpoint_count")
+            == release_review_checkpoint_count
+        && json_u64_at(packet, "release_review_checklist_count") == release_review_checklist_count
+        && json_u64_at(packet, "release_review_log_count") == release_review_log_count
+        && json_u64_at(packet, "missing_artifact_count") == missing_artifact_count
+        && json_u64_at(packet, "reviewed_runtime_artifact_count")
+            == reviewed_runtime_artifact_ids.len() as u64
+        && json_u64_at(packet, "reviewed_packet_fixture_count")
+            == reviewed_packet_fixture_ids.len() as u64;
     let artifact_manifest_gate = artifact_count >= 120
         && artifacts
             .iter()
             .all(artifact_present_with_manifest_metadata);
-    let missing_artifacts_gate = packet
-        .get("missing_artifacts")
-        .and_then(Value::as_array)
-        .is_some_and(Vec::is_empty);
+    let missing_artifacts_gate = missing_artifact_count == 0
+        && packet
+            .get("missing_artifacts")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty);
     let release_review_readiness_gate = packet_contract
         == "trillionnium_world_release_review_packet_v1"
         && json_bool_at(packet, "ready_for_release_review")
@@ -1636,6 +2000,21 @@ pub fn rts_release_review_packet_assembly_review(
         .iter()
         .filter(|id| artifacts_have_id_with_role(&artifacts, id, "release_review_gate"))
         .count() as u64;
+    let reviewed_runtime_artifact_count = reviewed_runtime_artifact_ids
+        .iter()
+        .filter(|id| artifacts_have_id(&artifacts, id))
+        .count() as u64;
+    let reviewed_packet_fixture_count = packet_integrity_fixture_count;
+    let full_game_visual_ui_handoff_gate = artifacts_have_id_contract_status(
+        &artifacts,
+        "native_bevy_classic_rts_full_game_visual_ui_replication",
+        "trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1",
+        "classic_rts_full_game_visual_ui_replication_green",
+    ) && artifacts_have_id_with_role(
+        &artifacts,
+        "native_bevy_classic_rts_full_game_visual_ui_replication_ppm",
+        "release_review_visual_evidence",
+    );
     let packet_integrity_fixture_gate =
         packet_integrity_fixture_count == reviewed_packet_fixture_ids.len() as u64;
     let public_launch_boundary_gate = !json_bool_at(packet, "public_launch_ready")
@@ -1650,11 +2029,13 @@ pub fn rts_release_review_packet_assembly_review(
             json_string_at(packet, "reviewer_next_action").as_deref(),
             Some("collect_real_external_public_launch_evidence")
         );
-    let green = artifact_manifest_gate
+    let green = inventory_summary_gate
+        && artifact_manifest_gate
         && missing_artifacts_gate
         && release_review_readiness_gate
         && status_handoff_gate
         && key_runtime_artifacts_gate
+        && full_game_visual_ui_handoff_gate
         && packet_integrity_fixture_gate
         && public_launch_boundary_gate
         && external_blocker_gate;
@@ -1668,15 +2049,26 @@ pub fn rts_release_review_packet_assembly_review(
         artifact_count,
         release_review_input_count,
         release_review_visual_evidence_count,
+        release_review_recording_count,
+        release_review_collection_count,
         release_review_gate_count,
+        release_review_operator_handoff_count,
+        release_review_checkpoint_count,
+        release_review_checklist_count,
+        release_review_log_count,
+        missing_artifact_count,
         packet_integrity_fixture_count,
+        reviewed_runtime_artifact_count,
+        reviewed_packet_fixture_count,
         ready_item_count,
         blocked_item_count,
+        inventory_summary_gate,
         artifact_manifest_gate,
         missing_artifacts_gate,
         release_review_readiness_gate,
         status_handoff_gate,
         key_runtime_artifacts_gate,
+        full_game_visual_ui_handoff_gate,
         packet_integrity_fixture_gate,
         public_launch_boundary_gate,
         external_blocker_gate,
@@ -1684,7 +2076,7 @@ pub fn rts_release_review_packet_assembly_review(
         reviewed_packet_fixture_ids,
         input_path: "release-review packet manifest artifacts/status/checklist/blockers -> trnm-rts-evidence release review packet assembly review".to_string(),
         evidence_path: "trnm-rts-evidence release_review_packet_assembly_review -> release-review packet handoff artifact".to_string(),
-        source_of_truth: "The RTS evidence crate reviews release-review packet assembly semantics after the shell manifest has gathered checksummed artifacts: manifest completeness, missing-artifact state, status handoff, key Bevy RTS runtime artifacts, packet semantic fixtures, public-launch no-credit boundary, and six external evidence blockers.".to_string(),
+        source_of_truth: "The RTS evidence crate reviews release-review packet assembly semantics after the shell manifest has gathered checksummed artifacts: top-level inventory summary, manifest completeness, missing-artifact state, status handoff, key Bevy RTS runtime artifacts including full-game visual/UI handoff, packet semantic fixtures, public-launch no-credit boundary, and six external evidence blockers.".to_string(),
     }
 }
 
@@ -4284,6 +4676,129 @@ mod tests {
     }
 
     #[test]
+    fn openra_style_screen_set_review_preserves_no_overclaim_gates() {
+        let input = json!({
+            "contract_version": "trillionnium_world_bevy_classic_rts_openra_screen_for_screen_ui_replication_v1",
+            "status": "classic_rts_openra_screen_for_screen_ui_replication_green",
+            "green": true,
+            "preview_width": 1920,
+            "preview_height": 1080,
+            "preview_format": "ppm_p3_rgb",
+            "screen_for_screen_mode": "openra_style_widget_root_screen_set_and_interaction_surface_replication_original_trillionnium_art",
+            "runtime_screen_mode": "player_runtime_openra_style_ingame_screen_set",
+            "runtime_screen_gate": true,
+            "evidence_board_only": false,
+            "openra_widget_roots": [
+                "ShellmapRoot=MAINMENU",
+                "IngameRoot=INGAME_ROOT",
+                "GameSaveLoadingRoot=GAMESAVE_LOADING_SCREEN",
+                "EditorRoot=EDITOR_ROOT"
+            ],
+            "openra_widget_root_count": 4,
+            "openra_reference_screens": [
+                "MAINMENU_shellmap_root",
+                "SKIRMISH_mission_browser",
+                "MULTIPLAYER_server_browser",
+                "LOBBY_setup_room",
+                "LOADING_briefing_progress",
+                "INGAME_ROOT_sidebar_hud",
+                "PAUSE_options_overlay",
+                "POSTGAME_statistics"
+            ],
+            "openra_reference_screen_count": 8,
+            "replicated_interaction_surfaces": [
+                "shellmap_menu_stack",
+                "mission_map_list",
+                "server_filter_table",
+                "lobby_player_slots",
+                "loading_briefing_progress",
+                "ingame_viewport_sidebar_minimap",
+                "pause_settings_overlay",
+                "postgame_score_tabs"
+            ],
+            "replicated_interaction_surface_count": 8,
+            "source_contracts": {
+                "full_game_visual_ui_replication": "trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1",
+                "full_screen_ui_replication": "trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1",
+                "shell_meta_ui_replication": "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1",
+                "match_setup_ui_replication": "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1",
+                "in_match_hud_state_replication": "trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1",
+                "session_state_continuity": "trillionnium_world_bevy_classic_rts_session_state_continuity_v1",
+                "openra_like_core": "trillionnium_world_bevy_classic_rts_openra_like_core_v1",
+                "openra_parity_lane": "trillionnium_world_bevy_classic_rts_openra_parity_lane_v1"
+            },
+            "pixel_counts": {
+                "non_background": 1400000,
+                "mainmenu": 12000,
+                "skirmish": 12000,
+                "server_browser": 12000,
+                "lobby": 12000,
+                "loading": 12000,
+                "ingame": 45000,
+                "pause": 12000,
+                "postgame_stats": 12000,
+                "active_highlight": 7000
+            },
+            "openra_style_ingame_pixel_counts": {
+                "player_first_openra_style_ingame_view_non_background": 80000,
+                "player_first_openra_style_ingame_sidebar_non_background": 35000,
+                "player_first_openra_style_ingame_command_lane_non_background": 6000,
+                "player_first_openra_style_ingame_control_color": 45000,
+                "player_first_openra_style_active_highlight": 7000
+            },
+            "source_headline": {
+                "full_game_surface_count": 18,
+                "full_game_internal_claimed": true,
+                "full_screen_surface_count": 10,
+                "shell_meta_surface_count": 12,
+                "match_setup_surface_count": 10,
+                "hud_surface_count": 8,
+                "session_surface_count": 8,
+                "openra_like_runtime_model": "rust_bevy_owned_openra_like_rts_core",
+                "openra_parity_lane_axis_count": 6
+            },
+            "source_contract_gate": true,
+            "source_green_gate": true,
+            "openra_runtime_vocabulary_gate": true,
+            "widget_root_reference_gate": true,
+            "screen_set_gate": true,
+            "source_screen_chain_gate": true,
+            "preview_gate": true,
+            "no_asset_copy_boundary_gate": true,
+            "player_first_openra_style_ingame_screen_gate": true,
+            "openra_style_ui_screen_set_replication_gate": true,
+            "openra_screen_for_screen_ui_replication_gate": true,
+            "openra_style_widget_root_screen_set_claimed": true,
+            "screen_for_screen_openra_ui_claimed": false,
+            "openra_screen_for_screen_ui_replication_claimed": false,
+            "openra_pixel_perfect_asset_parity_claimed": false,
+            "openra_engine_port_claimed": false,
+            "openra_asset_copied": false,
+            "warcraft_iii_asset_copied": false,
+            "third_party_asset_copied": false,
+            "bevy_openra_runtime_parity_claimed": false,
+            "bevy_openra_replay_file_claimed": false,
+            "android_s5_real_device_claimed": false,
+            "public_launch_ready": false
+        });
+
+        let review = rts_openra_style_screen_set_review(&input);
+
+        assert!(review.green);
+        assert!(review.source_contract_gate);
+        assert!(review.widget_root_reference_gate);
+        assert!(review.screen_set_gate);
+        assert!(review.player_first_openra_style_ingame_screen_gate);
+        assert!(review.no_credit_boundary_gate);
+        assert_eq!(
+            review.contract_version,
+            TRNM_RTS_EVIDENCE_OPENRA_STYLE_SCREEN_SET_REVIEW_CONTRACT
+        );
+        assert_eq!(review.openra_reference_screen_count, 8);
+        assert!(review.source_of_truth.contains("OpenRA-style screen-set"));
+    }
+
+    #[test]
     fn release_review_packet_assembly_review_preserves_manifest_handoff_gates() {
         fn packet_artifact(id: &str, role: &str) -> Value {
             json!({
@@ -4306,6 +4821,8 @@ mod tests {
             "native_bevy_classic_rts_in_match_hud_state_replication",
             "native_bevy_classic_rts_session_state_continuity",
             "native_bevy_classic_rts_combat_readability_pressure_readiness",
+            "native_bevy_classic_rts_full_game_visual_ui_replication",
+            "native_bevy_classic_rts_full_game_visual_ui_replication_ppm",
             "native_bevy_classic_playtest_readiness",
             "native_bevy_classic_playtest_runner_status",
             "native_bevy_classic_playtest_launcher",
@@ -4344,15 +4861,56 @@ mod tests {
                 "release_review_input",
             ));
         }
+        for artifact in &mut artifacts {
+            if artifact.get("id").and_then(Value::as_str)
+                == Some("native_bevy_classic_rts_full_game_visual_ui_replication")
+            {
+                artifact["contract_version"] =
+                    json!("trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1");
+                artifact["status"] = json!("classic_rts_full_game_visual_ui_replication_green");
+            }
+        }
         let ready_items = (0..13)
             .map(|index| json!({"label": format!("ready_{index}"), "ready": true}))
             .collect::<Vec<_>>();
         let blocked_items = (0..6)
             .map(|index| json!({"label": format!("blocked_{index}"), "needed": "real evidence"}))
             .collect::<Vec<_>>();
+        let release_review_input_count = artifacts
+            .iter()
+            .filter(|artifact| {
+                artifact.get("role").and_then(Value::as_str) == Some("release_review_input")
+            })
+            .count() as u64;
+        let release_review_visual_evidence_count = artifacts
+            .iter()
+            .filter(|artifact| {
+                artifact.get("role").and_then(Value::as_str)
+                    == Some("release_review_visual_evidence")
+            })
+            .count() as u64;
+        let release_review_gate_count = artifacts
+            .iter()
+            .filter(|artifact| {
+                artifact.get("role").and_then(Value::as_str) == Some("release_review_gate")
+            })
+            .count() as u64;
         let packet = json!({
             "contract_version": "trillionnium_world_release_review_packet_v1",
             "status": "release_review_packet_ready_with_public_launch_blockers",
+            "artifact_count": artifacts.len() as u64,
+            "release_review_input_count": release_review_input_count,
+            "release_review_visual_evidence_count": release_review_visual_evidence_count,
+            "release_review_recording_count": 0,
+            "release_review_collection_count": 0,
+            "release_review_gate_count": release_review_gate_count,
+            "release_review_operator_handoff_count": 0,
+            "release_review_checkpoint_count": 0,
+            "release_review_checklist_count": 0,
+            "release_review_log_count": 0,
+            "missing_artifact_count": 0,
+            "reviewed_runtime_artifact_count": runtime_ids.len() as u64,
+            "reviewed_packet_fixture_count": fixture_ids.len() as u64,
             "ready_for_release_review": true,
             "public_launch_ready": false,
             "android_s5_real_device_claimed": false,
@@ -4375,13 +4933,24 @@ mod tests {
         assert!(review.green);
         assert_eq!(review.artifact_count, 128);
         assert_eq!(review.packet_integrity_fixture_count, 9);
+        assert_eq!(
+            review.reviewed_runtime_artifact_count,
+            runtime_ids.len() as u64
+        );
+        assert_eq!(
+            review.reviewed_packet_fixture_count,
+            fixture_ids.len() as u64
+        );
+        assert_eq!(review.missing_artifact_count, 0);
         assert_eq!(review.ready_item_count, 13);
         assert_eq!(review.blocked_item_count, 6);
+        assert!(review.inventory_summary_gate);
         assert!(review.artifact_manifest_gate);
         assert!(review.missing_artifacts_gate);
         assert!(review.release_review_readiness_gate);
         assert!(review.status_handoff_gate);
         assert!(review.key_runtime_artifacts_gate);
+        assert!(review.full_game_visual_ui_handoff_gate);
         assert!(review.packet_integrity_fixture_gate);
         assert!(review.public_launch_boundary_gate);
         assert!(review.external_blocker_gate);
@@ -4389,8 +4958,11 @@ mod tests {
             .reviewed_runtime_artifact_ids
             .contains(&"native_bevy_classic_rts_session_state_continuity".to_string()));
         assert!(review
+            .reviewed_runtime_artifact_ids
+            .contains(&"native_bevy_classic_rts_full_game_visual_ui_replication".to_string()));
+        assert!(review
             .source_of_truth
-            .contains("release-review packet assembly semantics"));
+            .contains("top-level inventory summary"));
     }
 
     #[test]

@@ -279,6 +279,16 @@ artifact release_review_packet_integrity_projectile_ability_semantic_fixture "Re
 artifact release_review_packet_convergence_log "Release review packet convergence log" "$CONVERGENCE_LOG" release_review_log
 
 ARTIFACTS_JSON="$(jq -s '.' "$ARTIFACTS_FILE")"
+ARTIFACT_COUNT="$(jq 'length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_INPUT_COUNT="$(jq '[.[] | select(.role == "release_review_input")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_VISUAL_EVIDENCE_COUNT="$(jq '[.[] | select(.role == "release_review_visual_evidence")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_RECORDING_COUNT="$(jq '[.[] | select(.role == "release_review_recording")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_COLLECTION_COUNT="$(jq '[.[] | select(.role == "release_review_collection")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_GATE_COUNT="$(jq '[.[] | select(.role == "release_review_gate")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_OPERATOR_HANDOFF_COUNT="$(jq '[.[] | select(.role == "release_review_operator_handoff")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_CHECKPOINT_COUNT="$(jq '[.[] | select(.role == "release_review_checkpoint")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_CHECKLIST_COUNT="$(jq '[.[] | select(.role == "release_review_checklist")] | length' <<<"$ARTIFACTS_JSON")"
+RELEASE_REVIEW_LOG_COUNT="$(jq '[.[] | select(.role == "release_review_log")] | length' <<<"$ARTIFACTS_JSON")"
 CONVERGENCE_GREEN="$(jq -r '.green // false' "$CONVERGENCE_JSON")"
 READY_FOR_RELEASE_REVIEW="$(jq -r '.ready_for_release_review // false' "$STATUS_JSON")"
 PUBLIC_LAUNCH_READY="$(jq -r '.public_launch_ready // false' "$STATUS_JSON")"
@@ -288,6 +298,8 @@ BLOCKED_ITEMS_JSON="$(jq -c '.blocked_items // []' "$STATUS_JSON")"
 READY_ITEMS_JSON="$(jq -c '.ready_items // []' "$STATUS_JSON")"
 MISSING_ARTIFACTS_JSON="$(jq -c '[.[] | select(.file_status != "present") | .id]' <<<"$ARTIFACTS_JSON")"
 MISSING_ARTIFACT_COUNT="$(jq 'length' <<<"$MISSING_ARTIFACTS_JSON")"
+REVIEWED_RUNTIME_ARTIFACT_COUNT=16
+REVIEWED_PACKET_FIXTURE_COUNT=9
 
 PACKET_STATUS=release_review_packet_blocked
 if [[ "$CONVERGENCE_GREEN" == "true" && "$READY_FOR_RELEASE_REVIEW" == "true" && "$MISSING_ARTIFACT_COUNT" == "0" ]]; then
@@ -306,11 +318,24 @@ jq -n \
   --arg convergence_status "$CONVERGENCE_STATUS" \
   --arg status_checklist_status "$STATUS_READY" \
   --argjson artifacts "$ARTIFACTS_JSON" \
+  --argjson artifact_count "$ARTIFACT_COUNT" \
+  --argjson release_review_input_count "$RELEASE_REVIEW_INPUT_COUNT" \
+  --argjson release_review_visual_evidence_count "$RELEASE_REVIEW_VISUAL_EVIDENCE_COUNT" \
+  --argjson release_review_recording_count "$RELEASE_REVIEW_RECORDING_COUNT" \
+  --argjson release_review_collection_count "$RELEASE_REVIEW_COLLECTION_COUNT" \
+  --argjson release_review_gate_count "$RELEASE_REVIEW_GATE_COUNT" \
+  --argjson release_review_operator_handoff_count "$RELEASE_REVIEW_OPERATOR_HANDOFF_COUNT" \
+  --argjson release_review_checkpoint_count "$RELEASE_REVIEW_CHECKPOINT_COUNT" \
+  --argjson release_review_checklist_count "$RELEASE_REVIEW_CHECKLIST_COUNT" \
+  --argjson release_review_log_count "$RELEASE_REVIEW_LOG_COUNT" \
   --argjson ready_for_release_review "$READY_FOR_RELEASE_REVIEW" \
   --argjson public_launch_ready "$PUBLIC_LAUNCH_READY" \
   --argjson blocked_items "$BLOCKED_ITEMS_JSON" \
   --argjson ready_items "$READY_ITEMS_JSON" \
   --argjson missing_artifacts "$MISSING_ARTIFACTS_JSON" \
+  --argjson missing_artifact_count "$MISSING_ARTIFACT_COUNT" \
+  --argjson reviewed_runtime_artifact_count "$REVIEWED_RUNTIME_ARTIFACT_COUNT" \
+  --argjson reviewed_packet_fixture_count "$REVIEWED_PACKET_FIXTURE_COUNT" \
   '{
     contract_version: $contract_version,
     status: $status,
@@ -324,8 +349,21 @@ jq -n \
     convergence_status: $convergence_status,
     status_checklist_status: $status_checklist_status,
     packet_rule: "refresh_release_review_convergence_then_emit_a_checksummed_review_manifest_for_operator_and_reviewer_handoff",
+    artifact_count: $artifact_count,
+    release_review_input_count: $release_review_input_count,
+    release_review_visual_evidence_count: $release_review_visual_evidence_count,
+    release_review_recording_count: $release_review_recording_count,
+    release_review_collection_count: $release_review_collection_count,
+    release_review_gate_count: $release_review_gate_count,
+    release_review_operator_handoff_count: $release_review_operator_handoff_count,
+    release_review_checkpoint_count: $release_review_checkpoint_count,
+    release_review_checklist_count: $release_review_checklist_count,
+    release_review_log_count: $release_review_log_count,
     artifacts: $artifacts,
     missing_artifacts: $missing_artifacts,
+    missing_artifact_count: $missing_artifact_count,
+    reviewed_runtime_artifact_count: $reviewed_runtime_artifact_count,
+    reviewed_packet_fixture_count: $reviewed_packet_fixture_count,
     ready_items: $ready_items,
     blocked_items: $blocked_items,
     reviewer_next_action: (if $public_launch_ready then "review_public_launch_ready_evidence" else "collect_real_external_public_launch_evidence" end)
@@ -354,6 +392,16 @@ mv "$PACKET_JSON_TMP" "$PACKET_JSON"
   printf -- '- public_launch_ready: `%s`\n' "$PUBLIC_LAUNCH_READY"
   printf -- '- android_s5_real_device_claimed: `false`\n'
   printf -- '- proof_scope: `host_side_bevy_runtime_replay_not_android_real_device`\n\n'
+  printf '## Inventory\n\n'
+  printf -- '- artifact_count: `%s`\n' "$ARTIFACT_COUNT"
+  printf -- '- release_review_input_count: `%s`\n' "$RELEASE_REVIEW_INPUT_COUNT"
+  printf -- '- release_review_visual_evidence_count: `%s`\n' "$RELEASE_REVIEW_VISUAL_EVIDENCE_COUNT"
+  printf -- '- release_review_recording_count: `%s`\n' "$RELEASE_REVIEW_RECORDING_COUNT"
+  printf -- '- release_review_collection_count: `%s`\n' "$RELEASE_REVIEW_COLLECTION_COUNT"
+  printf -- '- release_review_gate_count: `%s`\n' "$RELEASE_REVIEW_GATE_COUNT"
+  printf -- '- missing_artifact_count: `%s`\n' "$MISSING_ARTIFACT_COUNT"
+  printf -- '- reviewed_runtime_artifact_count: `%s`\n' "$REVIEWED_RUNTIME_ARTIFACT_COUNT"
+  printf -- '- reviewed_packet_fixture_count: `%s`\n\n' "$REVIEWED_PACKET_FIXTURE_COUNT"
   printf '## Evidence Artifacts\n\n'
   jq -r '.artifacts[] | "- `\(.id)`: \(.path)\n  - role: `\(.role)`\n  - file_status: `\(.file_status)`\n  - contract_version: `\(.contract_version // "n/a")`\n  - status: `\(.status // "n/a")`\n  - sha256: `\(.sha256 // "missing")`\n  - bytes: `\(.bytes // 0)`"' "$PACKET_JSON"
   printf '\n## Green For Review\n\n'

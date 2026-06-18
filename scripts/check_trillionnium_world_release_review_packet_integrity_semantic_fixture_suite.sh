@@ -97,8 +97,8 @@ write_fixture_summary \
   "release_review_packet_integrity_semantic_fixture_green" \
   "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture" \
   "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match" \
-  17 \
-  '["release_review_convergence_semantics","release_review_status_semantics","release_review_status_markdown_semantics","release_review_quickcheck_semantics","release_signoff_summary_semantics","cex_adapter_readiness_semantics","first_minute_command_feedback_replay_semantics","first_minute_command_feedback_source_recording_semantics","first_minute_command_feedback_recording_semantics","first_minute_command_feedback_replay_ppm_semantics","first_minute_command_feedback_rejection_replay_semantics","first_minute_command_feedback_rejection_source_recording_semantics","first_minute_command_feedback_rejection_recording_semantics","first_minute_command_feedback_rejection_replay_ppm_semantics","classic_playtest_readiness_full_game_visual_ui_replication_semantics","classic_playtest_readiness_semantics","campaign_outcome_ui_readiness_semantics"]'
+  18 \
+  '["release_review_convergence_semantics","release_review_status_semantics","release_review_status_markdown_semantics","release_review_quickcheck_semantics","release_signoff_summary_semantics","cex_adapter_readiness_semantics","first_minute_command_feedback_replay_semantics","first_minute_command_feedback_source_recording_semantics","first_minute_command_feedback_recording_semantics","first_minute_command_feedback_replay_ppm_semantics","first_minute_command_feedback_rejection_replay_semantics","first_minute_command_feedback_rejection_source_recording_semantics","first_minute_command_feedback_rejection_recording_semantics","first_minute_command_feedback_rejection_replay_ppm_semantics","classic_playtest_readiness_full_game_visual_ui_replication_semantics","classic_playtest_readiness_openra_style_screen_set_review_semantics","classic_playtest_readiness_semantics","campaign_outcome_ui_readiness_semantics"]'
 
 write_fixture_summary \
   "$ACCEPTANCE_DIR/release-review-packet-integrity-bot-executor-semantic-fixture.json" \
@@ -317,7 +317,7 @@ mutate_json_artifact native_bevy_first_minute_command_feedback_rejection_replay 
 mutate_json_artifact native_bevy_first_minute_command_feedback_rejection_source_recording '.source_timeline_green = false'
 mutate_json_artifact native_bevy_first_minute_command_feedback_rejection_recording '.source_input_replay_green = false'
 mutate_ppm_artifact native_bevy_first_minute_command_feedback_rejection_replay_ppm 8000001
-mutate_json_artifact native_bevy_classic_playtest_readiness '.green = false | .gates.rts_full_game_visual_ui_replication_gate = false'
+mutate_json_artifact native_bevy_classic_playtest_readiness '.green = false | .gates.rts_full_game_visual_ui_replication_gate = false | .gates.rts_openra_screen_for_screen_ui_replication_rts_evidence_review_gate = false'
 mutate_json_artifact native_bevy_classic_rts_campaign_outcome_ui_readiness '.green = false'
 
 mutate_json_artifact native_bevy_bot_planner_action_executor '.green = false'
@@ -373,6 +373,7 @@ jq -n '[
   "first_minute_command_feedback_rejection_recording_semantics",
   "first_minute_command_feedback_rejection_replay_ppm_semantics",
   "classic_playtest_readiness_full_game_visual_ui_replication_semantics",
+  "classic_playtest_readiness_openra_style_screen_set_review_semantics",
   "classic_playtest_readiness_semantics",
   "campaign_outcome_ui_readiness_semantics",
   "bot_planner_action_executor_semantics",
@@ -446,4 +447,4 @@ for path in "${summary_paths[@]}"; do
 done
 
 SUCCESS=1
-printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=47 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"
+printf 'TRILLIONNIUM_WORLD_RELEASE_REVIEW_PACKET_INTEGRITY_SEMANTIC_FIXTURE_SUITE_GREEN %s failures=48 summaries=%s\n' "$integrity_summary" "${#summary_paths[@]}"
