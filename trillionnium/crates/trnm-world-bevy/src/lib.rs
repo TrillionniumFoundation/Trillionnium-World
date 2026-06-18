@@ -29412,6 +29412,27 @@ fn classic_first_contact_offline_adapter_consumption_summary(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_offline_adapter_session_transition_summary(
+    adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
+    player_screen_application: &rts_bevy_runtime::RtsFirstContactPlayerScreenRuntimeApplication,
+) -> (Value, bool) {
+    let runtime_handoff =
+        trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter);
+    let runtime_application =
+        rts_bevy_runtime::rts_first_contact_offline_adapter_runtime_application(&runtime_handoff);
+    let review = rts_bevy_runtime::rts_first_contact_offline_adapter_session_transition_review(
+        player_screen_application,
+        &runtime_application,
+        &runtime_handoff,
+    );
+    let green = review.green;
+    (
+        serde_json::to_value(review).expect("offline adapter session transition review serializes"),
+        green,
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
     let terrain_profiles = first_contact_terrain_profiles();
@@ -30187,6 +30208,13 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && !rts_online_offline_adapter.public_launch_ready;
     let (rts_online_offline_adapter_consumption_value, rts_online_offline_adapter_consumption_gate) =
         classic_first_contact_offline_adapter_consumption_summary(&rts_online_offline_adapter);
+    let (
+        rts_online_offline_adapter_session_transition_value,
+        rts_online_offline_adapter_session_transition_gate,
+    ) = classic_first_contact_offline_adapter_session_transition_summary(
+        &rts_online_offline_adapter,
+        &player_screen_runtime_application,
+    );
     let rts_online_protocol_fixture_value = serde_json::to_value(&rts_online_protocol_fixture)
         .expect("RTS online protocol fixture serializes");
     let rts_online_local_handoff_value = serde_json::to_value(&rts_online_local_handoff)
@@ -30215,6 +30243,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_online_local_handoff_gate
         && rts_online_offline_adapter_gate
         && rts_online_offline_adapter_consumption_gate
+        && rts_online_offline_adapter_session_transition_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -30330,13 +30359,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_online_offline_adapter_gate": rts_online_offline_adapter_gate,
         "rts_online_offline_adapter_consumption": rts_online_offline_adapter_consumption_value,
         "rts_online_offline_adapter_consumption_gate": rts_online_offline_adapter_consumption_gate,
+        "rts_online_offline_adapter_session_transition_contract": rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT,
+        "rts_online_offline_adapter_session_transition": rts_online_offline_adapter_session_transition_value,
+        "rts_online_offline_adapter_session_transition_gate": rts_online_offline_adapter_session_transition_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus a Bevy-free session-transition review through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }

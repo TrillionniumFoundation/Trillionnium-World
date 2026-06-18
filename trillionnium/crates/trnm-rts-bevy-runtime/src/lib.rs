@@ -22,6 +22,8 @@ pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRA
     "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1";
 pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT: &str =
     "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1";
+pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT: &str =
+    "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1";
 pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT: &str =
     "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1";
 
@@ -747,6 +749,42 @@ pub struct RtsFirstContactOfflineAdapterConsumptionReview {
     pub source_of_truth: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactOfflineAdapterSessionTransitionReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub initial_application_contract: String,
+    pub runtime_application_contract: String,
+    pub handoff_contract: String,
+    pub map_scene: String,
+    pub current_room_id: String,
+    pub camera_focus_tile_id: Option<String>,
+    pub before_command_queue: Vec<String>,
+    pub after_command_queue: Vec<String>,
+    pub before_route_tile_ids: Vec<String>,
+    pub after_route_tile_ids: Vec<String>,
+    pub before_command_destination_tile_id: Option<String>,
+    pub after_command_destination_tile_id: Option<String>,
+    pub selected_unit_ids: Vec<String>,
+    pub scoped_update_actor_ids: Vec<String>,
+    pub accepted_runtime_command_labels: Vec<String>,
+    pub rejected_runtime_command_labels: Vec<String>,
+    pub runtime_control_group_id: Option<String>,
+    pub runtime_group_command_state: String,
+    pub runtime_command_stamp_source: String,
+    pub runtime_command_stamp_kind: String,
+    pub runtime_command_stamp_tile_id: Option<String>,
+    pub runtime_last_feedback: String,
+    pub command_surface_replaced_gate: bool,
+    pub route_overlay_replaced_gate: bool,
+    pub session_context_preserved_gate: bool,
+    pub rejected_order_suppressed_gate: bool,
+    pub no_socket_boundary_gate: bool,
+    pub input_path: String,
+    pub runtime_path: String,
+    pub source_of_truth: String,
+}
+
 pub fn rts_first_contact_player_screen_runtime_application(
     profile: &RtsFirstContactPlayerScreenProfile,
 ) -> RtsFirstContactPlayerScreenRuntimeApplication {
@@ -946,6 +984,99 @@ pub fn rts_first_contact_offline_adapter_runtime_application(
                 .to_string(),
         source_of_truth:
             "This Bevy-free runtime application translates the trnm-rts-online offline adapter handoff into the command queue, selected actors, route tile, command stamp, pathing/group response state, and feedback that the Bevy adapter mutates onto NativeFirstPlayableRuntime."
+                .to_string(),
+    }
+}
+
+pub fn rts_first_contact_offline_adapter_session_transition_review(
+    initial_application: &RtsFirstContactPlayerScreenRuntimeApplication,
+    runtime_application: &RtsOfflineAdapterRuntimeApplication,
+    handoff: &RtsOfflineAdapterRuntimeHandoffReviewInput,
+) -> RtsFirstContactOfflineAdapterSessionTransitionReview {
+    let before_command_queue = initial_application.command_queue.clone();
+    let after_command_queue = runtime_application.command_queue.clone();
+    let before_route_tile_ids = initial_application.group_route_tile_ids.clone();
+    let after_route_tile_ids = runtime_application.group_route_tile_ids.clone();
+    let command_surface_replaced_gate = initial_application.green
+        && runtime_application.green
+        && before_command_queue != after_command_queue
+        && before_command_queue
+            .iter()
+            .any(|command| command == "build:trnm.flux.relay")
+        && after_command_queue == rts_string_vec(["move:8,4"])
+        && runtime_application.selected_unit_ids == rts_string_vec(["trnm.worker.alpha"])
+        && runtime_application.runtime_control_group_id.as_deref() == Some("1")
+        && runtime_application.runtime_group_command_state == "offline_adapter_authority_applied";
+    let route_overlay_replaced_gate = before_route_tile_ids.iter().any(|tile| tile == "16,9")
+        && initial_application.command_destination_tile_id.as_deref() == Some("16,9")
+        && after_route_tile_ids == rts_string_vec(["8,4"])
+        && runtime_application.command_destination_tile_id.as_deref() == Some("8,4")
+        && handoff.accepted_runtime_destination_tile_ids == after_route_tile_ids
+        && handoff.accepted_runtime_command_labels == after_command_queue;
+    let session_context_preserved_gate = initial_application.map_scene == "first_contact_basin"
+        && initial_application.current_room_id == "first-contact-basin"
+        && initial_application.camera_focus_tile_id.as_deref() == Some("16,16")
+        && initial_application.visibility_percent <= 100
+        && initial_application.army_supply_used <= initial_application.army_supply_cap
+        && !initial_application.objective_status.is_empty();
+    let rejected_order_suppressed_gate = runtime_application.rejected_order_runtime_gate
+        && runtime_application.rejected_runtime_command_labels
+            == rts_string_vec(["client:attack_fogged_keep"])
+        && after_command_queue
+            .iter()
+            .all(|command| !command.contains("fogged_keep"))
+        && runtime_application
+            .runtime_last_feedback
+            .contains("rejected target_actor_not_visible");
+    let no_socket_boundary_gate = runtime_application.no_socket_boundary_gate
+        && handoff.no_socket_boundary_ready
+        && handoff.handoff_mode == "server_authoritative_runtime_command_handoff";
+    let green = command_surface_replaced_gate
+        && route_overlay_replaced_gate
+        && session_context_preserved_gate
+        && rejected_order_suppressed_gate
+        && no_socket_boundary_gate;
+
+    RtsFirstContactOfflineAdapterSessionTransitionReview {
+        contract_version:
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT
+                .to_string(),
+        green,
+        initial_application_contract: initial_application.contract_version.clone(),
+        runtime_application_contract: runtime_application.contract_version.clone(),
+        handoff_contract: handoff.contract_version.clone(),
+        map_scene: initial_application.map_scene.clone(),
+        current_room_id: initial_application.current_room_id.clone(),
+        camera_focus_tile_id: initial_application.camera_focus_tile_id.clone(),
+        before_command_queue,
+        after_command_queue,
+        before_route_tile_ids,
+        after_route_tile_ids,
+        before_command_destination_tile_id: initial_application.command_destination_tile_id.clone(),
+        after_command_destination_tile_id: runtime_application.command_destination_tile_id.clone(),
+        selected_unit_ids: runtime_application.selected_unit_ids.clone(),
+        scoped_update_actor_ids: runtime_application.scoped_update_actor_ids.clone(),
+        accepted_runtime_command_labels: handoff.accepted_runtime_command_labels.clone(),
+        rejected_runtime_command_labels: runtime_application.rejected_runtime_command_labels.clone(),
+        runtime_control_group_id: runtime_application.runtime_control_group_id.clone(),
+        runtime_group_command_state: runtime_application.runtime_group_command_state.clone(),
+        runtime_command_stamp_source: runtime_application.runtime_command_stamp_source.clone(),
+        runtime_command_stamp_kind: runtime_application.runtime_command_stamp_kind.clone(),
+        runtime_command_stamp_tile_id: runtime_application.runtime_command_stamp_tile_id.clone(),
+        runtime_last_feedback: runtime_application.runtime_last_feedback.clone(),
+        command_surface_replaced_gate,
+        route_overlay_replaced_gate,
+        session_context_preserved_gate,
+        rejected_order_suppressed_gate,
+        no_socket_boundary_gate,
+        input_path:
+            "trnm-rts-data player-screen application + trnm-rts-online offline adapter handoff -> trnm-rts-bevy-runtime session transition review"
+                .to_string(),
+        runtime_path:
+            "trnm-rts-bevy-runtime first_contact_offline_adapter_session_transition -> Bevy local session UI transition evidence"
+                .to_string(),
+        source_of_truth:
+            "This Bevy-free transition review proves the First Contact player-screen command surface and route overlay move from data-seeded local UI state to the server-authoritative offline adapter handoff while room, camera, visibility, supply, objective context, scoped updates, and no-socket claims stay coherent."
                 .to_string(),
     }
 }
@@ -8730,6 +8861,45 @@ mod tests {
             runtime_application.runtime_application_path,
             "trnm-rts-bevy-runtime offline_adapter_runtime_application -> NativeFirstPlayableRuntime mutation"
         );
+
+        let session_transition = rts_first_contact_offline_adapter_session_transition_review(
+            &player_screen_application,
+            &runtime_application,
+            &handoff,
+        );
+        assert_eq!(
+            session_transition.contract_version,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT
+        );
+        assert!(session_transition.green);
+        assert!(session_transition.command_surface_replaced_gate);
+        assert!(session_transition.route_overlay_replaced_gate);
+        assert!(session_transition.session_context_preserved_gate);
+        assert!(session_transition.rejected_order_suppressed_gate);
+        assert!(session_transition.no_socket_boundary_gate);
+        assert!(session_transition
+            .before_command_queue
+            .iter()
+            .any(|command| command == "build:trnm.flux.relay"));
+        assert_eq!(
+            session_transition.after_command_queue,
+            rts_string_vec(["move:8,4"])
+        );
+        assert_eq!(
+            session_transition
+                .before_command_destination_tile_id
+                .as_deref(),
+            Some("16,9")
+        );
+        assert_eq!(
+            session_transition
+                .after_command_destination_tile_id
+                .as_deref(),
+            Some("8,4")
+        );
+        assert!(session_transition
+            .source_of_truth
+            .contains("server-authoritative offline adapter handoff"));
 
         let runtime_player_screen_review = RtsFirstContactPlayerScreenReview {
             map_scene: "first_contact_basin".to_string(),

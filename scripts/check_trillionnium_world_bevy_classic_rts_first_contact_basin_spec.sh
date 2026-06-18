@@ -32,9 +32,11 @@ required_source_lines=(
   'fn apply_first_contact_player_screen_application_to_runtime'
   'rts_bevy_runtime::rts_first_contact_player_screen_runtime_application('
   'fn apply_first_contact_offline_adapter_application_to_runtime'
+  'fn classic_first_contact_offline_adapter_session_transition_summary'
   'trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter)'
   'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
   'rts_first_contact_offline_adapter_runtime_application(&runtime_handoff)'
+  'rts_first_contact_offline_adapter_session_transition_review('
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -66,6 +68,9 @@ required_runtime_source_lines=(
   'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT'
   'pub struct RtsOfflineAdapterRuntimeApplication'
   'pub fn rts_first_contact_offline_adapter_runtime_application'
+  'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT'
+  'pub struct RtsFirstContactOfflineAdapterSessionTransitionReview'
+  'pub fn rts_first_contact_offline_adapter_session_transition_review'
   'pub runtime_application_gate: bool'
 )
 
@@ -813,6 +818,41 @@ jq -e '
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("trnm-rts-online-owned review input"))
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("player-screen/session surface"))
   and .rts_online_offline_adapter_consumption_gate == true
+  and .rts_online_offline_adapter_session_transition_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
+  and .rts_online_offline_adapter_session_transition.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
+  and .rts_online_offline_adapter_session_transition.green == true
+  and .rts_online_offline_adapter_session_transition.initial_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
+  and .rts_online_offline_adapter_session_transition.runtime_application_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
+  and .rts_online_offline_adapter_session_transition.handoff_contract == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
+  and .rts_online_offline_adapter_session_transition.map_scene == "first_contact_basin"
+  and .rts_online_offline_adapter_session_transition.current_room_id == "first-contact-basin"
+  and .rts_online_offline_adapter_session_transition.camera_focus_tile_id == "16,16"
+  and (.rts_online_offline_adapter_session_transition.before_command_queue | index("build:trnm.flux.relay") != null)
+  and .rts_online_offline_adapter_session_transition.after_command_queue == ["move:8,4"]
+  and (.rts_online_offline_adapter_session_transition.before_route_tile_ids | index("16,9") != null)
+  and .rts_online_offline_adapter_session_transition.after_route_tile_ids == ["8,4"]
+  and .rts_online_offline_adapter_session_transition.before_command_destination_tile_id == "16,9"
+  and .rts_online_offline_adapter_session_transition.after_command_destination_tile_id == "8,4"
+  and .rts_online_offline_adapter_session_transition.selected_unit_ids == ["trnm.worker.alpha"]
+  and (.rts_online_offline_adapter_session_transition.scoped_update_actor_ids | index("trnm.worker.alpha") != null)
+  and (.rts_online_offline_adapter_session_transition.scoped_update_actor_ids | index("trnm.enemy.keep.fogged") == null)
+  and .rts_online_offline_adapter_session_transition.accepted_runtime_command_labels == ["move:8,4"]
+  and .rts_online_offline_adapter_session_transition.rejected_runtime_command_labels == ["client:attack_fogged_keep"]
+  and .rts_online_offline_adapter_session_transition.runtime_control_group_id == "1"
+  and .rts_online_offline_adapter_session_transition.runtime_group_command_state == "offline_adapter_authority_applied"
+  and .rts_online_offline_adapter_session_transition.runtime_command_stamp_source == "trnm-rts-online:offline_loopback_authority"
+  and .rts_online_offline_adapter_session_transition.runtime_command_stamp_kind == "server_accepted_move"
+  and .rts_online_offline_adapter_session_transition.runtime_command_stamp_tile_id == "8,4"
+  and (.rts_online_offline_adapter_session_transition.runtime_last_feedback | contains("rejected target_actor_not_visible"))
+  and .rts_online_offline_adapter_session_transition.command_surface_replaced_gate == true
+  and .rts_online_offline_adapter_session_transition.route_overlay_replaced_gate == true
+  and .rts_online_offline_adapter_session_transition.session_context_preserved_gate == true
+  and .rts_online_offline_adapter_session_transition.rejected_order_suppressed_gate == true
+  and .rts_online_offline_adapter_session_transition.no_socket_boundary_gate == true
+  and .rts_online_offline_adapter_session_transition.input_path == "trnm-rts-data player-screen application + trnm-rts-online offline adapter handoff -> trnm-rts-bevy-runtime session transition review"
+  and .rts_online_offline_adapter_session_transition.runtime_path == "trnm-rts-bevy-runtime first_contact_offline_adapter_session_transition -> Bevy local session UI transition evidence"
+  and (.rts_online_offline_adapter_session_transition.source_of_truth | contains("server-authoritative offline adapter handoff"))
+  and .rts_online_offline_adapter_session_transition_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true
