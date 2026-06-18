@@ -153,6 +153,7 @@ if [[ "$REFRESH" != "0" ]]; then
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_depth_readability.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_minute_readiness.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness.sh" >/dev/null
+"$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_first_contact_basin_spec.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_art_replication.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_asset_atlas.sh" >/dev/null
 "$ROOT/scripts/check_trillionnium_world_bevy_classic_rts_production_ui_skin.sh" >/dev/null
@@ -263,6 +264,7 @@ jq -n \
   --slurpfile rts_depth_readability "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-depth-readability.json" \
   --slurpfile rts_first_minute_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-minute-readiness.json" \
   --slurpfile rts_map_ui_modeling_readiness "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-map-ui-modeling-readiness.json" \
+  --slurpfile rts_first_contact_basin_spec "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contact-basin-spec.json" \
   --slurpfile rts_production_art_replication "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-art-replication.json" \
   --slurpfile rts_production_asset_atlas "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-asset-atlas.json" \
   --slurpfile rts_production_ui_skin "$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-production-ui-skin.json" \
@@ -379,6 +381,7 @@ jq -n \
       and ok($rts_depth_readability)
       and ok($rts_first_minute_readiness)
       and ok($rts_map_ui_modeling_readiness)
+      and ok($rts_first_contact_basin_spec)
       and ok($rts_production_art_replication)
       and ok($rts_production_asset_atlas)
       and ok($rts_production_ui_skin)
@@ -740,6 +743,7 @@ jq -n \
       classic_rts_depth_readability_green: ok($rts_depth_readability),
       classic_rts_first_minute_readiness_green: ok($rts_first_minute_readiness),
       classic_rts_map_ui_modeling_readiness_green: ok($rts_map_ui_modeling_readiness),
+      classic_rts_first_contact_basin_spec_green: ok($rts_first_contact_basin_spec),
       classic_rts_production_art_replication_green: ok($rts_production_art_replication),
       classic_rts_production_asset_atlas_green: ok($rts_production_asset_atlas),
       classic_rts_production_ui_skin_green: ok($rts_production_ui_skin),
@@ -2170,6 +2174,17 @@ jq -n \
       rts_match_setup_ui_replication_player_first_ready_strip_pixel_count: $rts_match_setup_ui_replication[0].match_setup_player_first_pixel_counts.player_first_match_setup_ready_strip,
       rts_match_setup_ui_replication_map_id: $rts_match_setup_ui_replication[0].source_headline.map_id,
       rts_match_setup_ui_replication_faction_id: $rts_match_setup_ui_replication[0].source_headline.faction_id,
+      rts_first_contact_basin_spec_map_id: $rts_first_contact_basin_spec[0].map_id,
+      rts_first_contact_basin_spec_actor_count: $rts_first_contact_basin_spec[0].actor_count,
+      rts_first_contact_basin_spec_spawn_count: $rts_first_contact_basin_spec[0].spawn_count,
+      rts_first_contact_runtime_review_contract: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.contract_version,
+      rts_first_contact_runtime_review_contract_count: ($rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts | length),
+      rts_first_contact_runtime_review_contracts: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts,
+      rts_first_contact_runtime_review_before_command_queue: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_before_command_queue_sample,
+      rts_first_contact_runtime_review_after_command_queue: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_after_command_queue_sample,
+      rts_first_contact_runtime_review_ready_state_labels: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_ready_state_labels_sample,
+      rts_first_contact_runtime_review_command_stamp_tile: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_command_stamp_tile_sample,
+      rts_first_contact_runtime_review_source_of_truth: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.source_of_truth,
       rts_campaign_outcome_ui_readiness_runtime_screen_mode: $rts_campaign_outcome_ui_readiness[0].runtime_screen_mode,
       rts_campaign_outcome_ui_readiness_evidence_board_only: $rts_campaign_outcome_ui_readiness[0].evidence_board_only,
       rts_campaign_outcome_ui_readiness_first_minute_player_first_non_background: $rts_campaign_outcome_ui_readiness[0].first_minute_summary.first_minute_pixel_counts.player_first_campaign_view_non_background,
@@ -3040,6 +3055,12 @@ jq -n \
       rts_match_setup_ui_replication_no_external_boundary_gate: $rts_match_setup_ui_replication[0].no_external_boundary_gate,
       rts_match_setup_ui_replication_player_first_screen_gate: $rts_match_setup_ui_replication[0].player_first_match_setup_screen_gate,
       rts_match_setup_ui_replication_gate: $rts_match_setup_ui_replication[0].match_setup_ui_replication_gate,
+      rts_first_contact_basin_spec_gate: ok($rts_first_contact_basin_spec),
+      rts_first_contact_runtime_review_gate: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_gate,
+      rts_first_contact_runtime_adapter_evidence_gate: $rts_first_contact_basin_spec[0].rts_evidence_bevy_runtime_adapter_gate,
+      rts_first_contact_offline_adapter_consumption_gate: $rts_first_contact_basin_spec[0].rts_online_offline_adapter_consumption_gate,
+      rts_first_contact_offline_adapter_session_transition_gate: $rts_first_contact_basin_spec[0].rts_online_offline_adapter_session_transition_gate,
+      rts_first_contact_offline_adapter_lobby_ready_gate: $rts_first_contact_basin_spec[0].rts_online_offline_adapter_lobby_ready_gate,
       rts_campaign_outcome_ui_readiness_runtime_screen_gate: $rts_campaign_outcome_ui_readiness[0].runtime_screen_gate,
       rts_campaign_outcome_ui_readiness_first_minute_gate: $rts_campaign_outcome_ui_readiness[0].first_minute_gate,
       rts_campaign_outcome_ui_readiness_objective_victory_gate: $rts_campaign_outcome_ui_readiness[0].objective_victory_gate,
@@ -3712,6 +3733,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .checks.classic_rts_depth_readability_green == true
   and .checks.classic_rts_first_minute_readiness_green == true
   and .checks.classic_rts_map_ui_modeling_readiness_green == true
+  and .checks.classic_rts_first_contact_basin_spec_green == true
   and .checks.classic_rts_production_art_replication_green == true
   and .checks.classic_rts_production_asset_atlas_green == true
   and .checks.classic_rts_production_ui_skin_green == true
@@ -3800,6 +3822,21 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_match_setup_ui_replication_player_first_ready_strip_pixel_count > 40000
   and .headline.rts_match_setup_ui_replication_map_id == "first_contact_basin"
   and .headline.rts_match_setup_ui_replication_faction_id == "mirror_guard"
+  and .headline.rts_first_contact_basin_spec_map_id == "first_contact_basin"
+  and .headline.rts_first_contact_basin_spec_actor_count == 39
+  and .headline.rts_first_contact_basin_spec_spawn_count == 4
+  and .headline.rts_first_contact_runtime_review_contract == "trnm_rts_evidence_bevy_runtime_adapter_v1"
+  and .headline.rts_first_contact_runtime_review_contract_count == 5
+  and (.headline.rts_first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_player_screen_application_v1") != null)
+  and (.headline.rts_first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1") != null)
+  and (.headline.rts_first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1") != null)
+  and (.headline.rts_first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1") != null)
+  and (.headline.rts_first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1") != null)
+  and (.headline.rts_first_contact_runtime_review_before_command_queue | index("build:trnm.flux.relay") != null)
+  and .headline.rts_first_contact_runtime_review_after_command_queue == ["move:8,4"]
+  and (.headline.rts_first_contact_runtime_review_ready_state_labels | index("authority:offline_loopback:no_socket") != null)
+  and .headline.rts_first_contact_runtime_review_command_stamp_tile == "8,4"
+  and (.headline.rts_first_contact_runtime_review_source_of_truth | contains("First Contact player-screen/offline-adapter application, consumption, session-transition, and lobby-ready review samples"))
   and .checks.classic_rts_campaign_outcome_ui_readiness_green == true
   and .headline.rts_campaign_outcome_ui_readiness_runtime_screen_mode == "player_runtime_campaign_outcome_screen"
   and .headline.rts_campaign_outcome_ui_readiness_evidence_board_only == false
@@ -5509,6 +5546,12 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_match_setup_ui_replication_no_external_boundary_gate == true
   and .gates.rts_match_setup_ui_replication_player_first_screen_gate == true
   and .gates.rts_match_setup_ui_replication_gate == true
+  and .gates.rts_first_contact_basin_spec_gate == true
+  and .gates.rts_first_contact_runtime_review_gate == true
+  and .gates.rts_first_contact_runtime_adapter_evidence_gate == true
+  and .gates.rts_first_contact_offline_adapter_consumption_gate == true
+  and .gates.rts_first_contact_offline_adapter_session_transition_gate == true
+  and .gates.rts_first_contact_offline_adapter_lobby_ready_gate == true
   and .gates.rts_campaign_outcome_ui_readiness_runtime_screen_gate == true
   and .gates.rts_campaign_outcome_ui_readiness_first_minute_gate == true
   and .gates.rts_campaign_outcome_ui_readiness_objective_victory_gate == true
