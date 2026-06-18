@@ -1996,6 +1996,7 @@ jq -n '{
     rts_live_session_playthrough_runtime_screen_gate: true,
     rts_live_session_playthrough_rts_evidence_review_gate: true,
     rts_full_game_visual_ui_replication_no_copy_boundary_gate: true,
+    rts_full_game_visual_ui_replication_rts_evidence_review_gate: true,
     rts_full_game_visual_ui_replication_gate: true
   },
   headline: {
@@ -2079,6 +2080,8 @@ jq -n '{
     rts_live_session_playthrough_review_source_of_truth: "The RTS evidence crate reviews the same-process local live session playthrough from title/account through campaign start, in-match HUD, live command feedback, slot A save/load/resume, and open-world outcome.",
     rts_full_game_visual_ui_replication_final_objective_status: "open_world_after_action_ready",
     rts_full_game_visual_ui_replication_open_world_state: "resumed:league-coliseum",
+    rts_full_game_visual_ui_replication_review_contract: "trnm_rts_evidence_full_game_visual_ui_replication_review_v1",
+    rts_full_game_visual_ui_replication_review_source_of_truth: "The RTS evidence crate reviews the local Rust/Bevy full-game visual/UI replication aggregate.",
     rts_central_keep_pressure_accepted_input_count: 40,
     rts_central_keep_pressure_state: "pressure_locked:central_keep",
     rts_unit_status_portrait_frame_pixel_count: 15339,

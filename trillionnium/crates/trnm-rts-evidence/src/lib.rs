@@ -95,6 +95,8 @@ pub const TRNM_RTS_EVIDENCE_CONTINUOUS_PLAYER_FLOW_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_continuous_player_flow_review_v1";
 pub const TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_live_session_playthrough_review_v1";
+pub const TRNM_RTS_EVIDENCE_FULL_GAME_VISUAL_UI_REPLICATION_REVIEW_CONTRACT: &str =
+    "trnm_rts_evidence_full_game_visual_ui_replication_review_v1";
 pub const TRNM_RTS_EVIDENCE_RELEASE_REVIEW_PACKET_ASSEMBLY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_release_review_packet_assembly_review_v1";
 
@@ -257,6 +259,47 @@ pub struct RtsLiveSessionPlaythroughReview {
     pub native_client_boundary_gate: bool,
     pub no_credit_boundary_gate: bool,
     pub live_session_playthrough_gate: bool,
+    pub input_path: String,
+    pub evidence_path: String,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFullGameVisualUiReplicationReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub full_game_visual_ui_replication_contract: String,
+    pub full_game_visual_ui_replication_green: bool,
+    pub preview_width: u64,
+    pub preview_height: u64,
+    pub coverage_surface_count: u64,
+    pub runtime_screen_mode: Option<String>,
+    pub session_state_review_contract: Option<String>,
+    pub continuous_player_flow_review_contract: Option<String>,
+    pub live_session_playthrough_review_contract: Option<String>,
+    pub full_screen_surface_count: u64,
+    pub shell_meta_surface_count: u64,
+    pub match_setup_surface_count: u64,
+    pub hud_surface_count: u64,
+    pub continuous_step_count: u64,
+    pub live_session_stage_count: u64,
+    pub live_session_accepted_input_count: u64,
+    pub live_session_final_objective_status: Option<String>,
+    pub live_session_open_world_state: Option<String>,
+    pub source_contract_gate: bool,
+    pub source_green_gate: bool,
+    pub source_review_gate: bool,
+    pub coverage_surface_gate: bool,
+    pub source_headline_gate: bool,
+    pub player_flow_gate: bool,
+    pub pixel_gate: bool,
+    pub preview_gate: bool,
+    pub runtime_screen_chain_gate: bool,
+    pub runtime_screen_gate: bool,
+    pub player_first_tactical_composition_gate: bool,
+    pub player_first_full_game_visual_ui_screen_gate: bool,
+    pub no_copy_boundary_gate: bool,
+    pub full_game_visual_ui_replication_gate: bool,
     pub input_path: String,
     pub evidence_path: String,
     pub source_of_truth: String,
@@ -1280,6 +1323,234 @@ pub fn rts_live_session_playthrough_review(input: &Value) -> RtsLiveSessionPlayt
         input_path: "trnm-world-bevy live-session playthrough trace/source JSON and player-first pixels -> trnm-rts-evidence live-session playthrough review".to_string(),
         evidence_path: "trnm-rts-evidence live_session_playthrough_review -> Bevy live-session playthrough packet/readiness artifact".to_string(),
         source_of_truth: "The RTS evidence crate reviews the same-process local live session playthrough from title/account through campaign start, in-match HUD, live command feedback, slot A save/load/resume, and open-world outcome, including trace sidecar, player-first tactical screen, native-client boundary, and S5/public/OpenRA/third-party no-credit boundaries.".to_string(),
+    }
+}
+
+pub fn rts_full_game_visual_ui_replication_review(
+    input: &Value,
+) -> RtsFullGameVisualUiReplicationReview {
+    let full_game_visual_ui_replication_contract =
+        json_string_at(input, "contract_version").unwrap_or_default();
+    let full_game_visual_ui_replication_green = json_bool_at(input, "green");
+    let preview_width = json_u64_at(input, "preview_width");
+    let preview_height = json_u64_at(input, "preview_height");
+    let coverage_surface_count = json_u64_at(input, "coverage_surface_count");
+    let runtime_screen_mode = json_string_at(input, "runtime_screen_mode");
+    let session_state_review_contract =
+        json_string_pointer(input, "/source_review_contracts/session_state_continuity");
+    let continuous_player_flow_review_contract =
+        json_string_pointer(input, "/source_review_contracts/continuous_player_flow");
+    let live_session_playthrough_review_contract =
+        json_string_pointer(input, "/source_review_contracts/live_session_playthrough");
+    let full_screen_surface_count =
+        json_u64_pointer(input, "/source_headline/full_screen_surface_count");
+    let shell_meta_surface_count =
+        json_u64_pointer(input, "/source_headline/shell_meta_surface_count");
+    let match_setup_surface_count =
+        json_u64_pointer(input, "/source_headline/match_setup_surface_count");
+    let hud_surface_count = json_u64_pointer(input, "/source_headline/hud_surface_count");
+    let continuous_step_count = json_u64_pointer(input, "/source_headline/continuous_step_count");
+    let live_session_stage_count =
+        json_u64_pointer(input, "/source_headline/live_session_stage_count");
+    let live_session_accepted_input_count =
+        json_u64_pointer(input, "/source_headline/live_session_accepted_input_count");
+    let live_session_final_objective_status = json_string_pointer(
+        input,
+        "/source_headline/live_session_final_objective_status",
+    );
+    let live_session_open_world_state =
+        json_string_pointer(input, "/source_headline/live_session_open_world_state");
+
+    let source_contract_gate = json_contract_is(
+        input,
+        "trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1",
+    ) && full_game_visual_ui_replication_green
+        && json_string_pointer(input, "/source_contracts/visual_fidelity").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_visual_fidelity_v1")
+        && json_string_pointer(input, "/source_contracts/production_art_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_production_art_replication_v1")
+        && json_string_pointer(input, "/source_contracts/production_asset_atlas").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_production_asset_atlas_v1")
+        && json_string_pointer(input, "/source_contracts/production_ui_skin").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_production_ui_skin_v1")
+        && json_string_pointer(input, "/source_contracts/production_interaction_polish").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_production_interaction_polish_v1")
+        && json_string_pointer(input, "/source_contracts/full_screen_ui_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1")
+        && json_string_pointer(input, "/source_contracts/shell_meta_ui_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1")
+        && json_string_pointer(input, "/source_contracts/match_setup_ui_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1")
+        && json_string_pointer(input, "/source_contracts/in_match_hud_state_replication")
+            .as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1")
+        && json_string_pointer(input, "/source_contracts/session_state_continuity").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_session_state_continuity_v1")
+        && json_string_pointer(input, "/source_contracts/continuous_player_flow").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_continuous_player_flow_v1")
+        && json_string_pointer(input, "/source_contracts/live_session_playthrough").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_live_session_playthrough_v1")
+        && json_string_pointer(input, "/source_contracts/command_surface").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_command_surface_v1")
+        && json_string_pointer(input, "/source_contracts/command_affordance").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_command_affordance_v1");
+    let source_green_gate = json_bool_at(input, "source_green_gate");
+    let source_review_gate = session_state_review_contract.as_deref()
+        == Some(TRNM_RTS_EVIDENCE_SESSION_STATE_CONTINUITY_REVIEW_CONTRACT)
+        && continuous_player_flow_review_contract.as_deref()
+            == Some(TRNM_RTS_EVIDENCE_CONTINUOUS_PLAYER_FLOW_REVIEW_CONTRACT)
+        && live_session_playthrough_review_contract.as_deref()
+            == Some(TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT)
+        && json_bool_pointer(input, "/source_review_gates/session_state_continuity")
+        && json_bool_pointer(input, "/source_review_gates/continuous_player_flow")
+        && json_bool_pointer(input, "/source_review_gates/live_session_playthrough")
+        && json_string_pointer(input, "/source_review_sources/session_state_continuity")
+            .is_some_and(|source| source.contains("save-slot confirmation"))
+        && json_string_pointer(input, "/source_review_sources/continuous_player_flow")
+            .is_some_and(|source| source.contains("six-step continuous player flow"))
+        && json_string_pointer(input, "/source_review_sources/live_session_playthrough")
+            .is_some_and(|source| source.contains("same-process local live session playthrough"));
+    let coverage_surface_gate = coverage_surface_count == 18
+        && json_array_contains(input, "/coverage_surface_names", "title_account_shell")
+        && json_array_contains(input, "/coverage_surface_names", "match_setup_start")
+        && json_array_contains(input, "/coverage_surface_names", "tactical_viewport")
+        && json_array_contains(input, "/coverage_surface_names", "map_minimap_camera")
+        && json_array_contains(input, "/coverage_surface_names", "command_grid")
+        && json_array_contains(input, "/coverage_surface_names", "session_slot_save_load")
+        && json_array_contains(input, "/coverage_surface_names", "open_world_handoff")
+        && json_bool_at(input, "coverage_surface_gate");
+    let source_headline_gate = full_screen_surface_count == 10
+        && shell_meta_surface_count == 12
+        && match_setup_surface_count == 10
+        && hud_surface_count == 8
+        && continuous_step_count == 6
+        && live_session_stage_count == 6
+        && live_session_accepted_input_count >= 78
+        && live_session_final_objective_status.as_deref() == Some("open_world_after_action_ready")
+        && live_session_open_world_state.as_deref() == Some("resumed:league-coliseum")
+        && json_string_pointer(input, "/source_headline/live_session_runtime_screen_mode")
+            .as_deref()
+            == Some("player_runtime_live_session_playthrough_screen")
+        && json_bool_pointer(input, "/source_headline/live_session_runtime_screen_gate")
+        && json_string_pointer(input, "/source_headline/production_ui_runtime_screen_mode")
+            .as_deref()
+            == Some("player_runtime_production_hud_skin_screen")
+        && json_string_pointer(input, "/source_headline/interaction_runtime_screen_mode")
+            .as_deref()
+            == Some("player_runtime_command_interaction_screen")
+        && json_u64_pointer(input, "/source_headline/command_surface_ready_pixel_count") > 1_000
+        && json_u64_pointer(
+            input,
+            "/source_headline/command_affordance_hotkey_pixel_count",
+        ) > 3_000;
+    let player_flow_gate = json_bool_at(input, "player_flow_gate")
+        && continuous_step_count == 6
+        && live_session_stage_count == 6
+        && live_session_accepted_input_count >= 78
+        && live_session_final_objective_status.as_deref() == Some("open_world_after_action_ready")
+        && live_session_open_world_state.as_deref() == Some("resumed:league-coliseum");
+    let player_first_tactical_composition_gate =
+        json_bool_at(input, "player_first_tactical_composition_gate")
+            && json_u64_pointer(
+                input,
+                "/pixel_counts/player_first_tactical_preview_non_background",
+            ) > 350_000
+            && json_u64_pointer(input, "/pixel_counts/player_first_tactical_viewport_frame")
+                > 8_000
+            && json_u64_pointer(input, "/pixel_counts/player_first_tactical_status_strip") > 10_000;
+    let pixel_gate = json_u64_pointer(input, "/pixel_counts/non_background") > 900_000
+        && json_u64_pointer(input, "/pixel_counts/hud_chrome") > 120_000
+        && json_u64_pointer(input, "/pixel_counts/shell_session") > 8_000
+        && json_u64_pointer(input, "/pixel_counts/match_setup") > 5_000
+        && json_u64_pointer(input, "/pixel_counts/hud") > 500
+        && json_u64_pointer(input, "/pixel_counts/command") > 20_000
+        && json_u64_pointer(input, "/pixel_counts/session") > 10_000
+        && json_u64_pointer(input, "/pixel_counts/outcome") > 10_000
+        && json_u64_pointer(input, "/pixel_counts/tech") > 1_000
+        && json_u64_pointer(input, "/pixel_counts/minimap") > 1_000
+        && json_u64_pointer(input, "/pixel_counts/highlight") > 4_000
+        && player_first_tactical_composition_gate;
+    let preview_gate = json_bool_at(input, "preview_gate")
+        && preview_width == 1920
+        && preview_height == 1080
+        && json_string_equals(input, "preview_format", "ppm_p3_rgb")
+        && pixel_gate;
+    let runtime_screen_chain_gate = json_bool_at(input, "runtime_screen_chain_gate");
+    let runtime_screen_gate = json_bool_at(input, "runtime_screen_gate")
+        && runtime_screen_mode.as_deref() == Some("player_runtime_full_game_visual_ui_screen")
+        && input.get("evidence_board_only").and_then(Value::as_bool) == Some(false)
+        && runtime_screen_chain_gate
+        && preview_gate;
+    let player_first_full_game_visual_ui_screen_gate =
+        json_bool_at(input, "player_first_full_game_visual_ui_screen_gate")
+            && runtime_screen_gate
+            && player_flow_gate
+            && coverage_surface_gate
+            && source_review_gate;
+    let no_copy_boundary_gate = json_bool_at(
+        input,
+        "external_evidence_ignored_for_current_replication_pass",
+    ) && !json_bool_at(input, "android_s5_real_device_claimed")
+        && !json_bool_at(input, "public_launch_ready")
+        && !json_bool_at(input, "production_ready_ui_claimed")
+        && !json_bool_at(input, "screen_for_screen_openra_ui_claimed")
+        && !json_bool_at(input, "openra_engine_port_claimed")
+        && !json_bool_at(input, "warcraft_iii_asset_copied")
+        && !json_bool_at(input, "openra_asset_copied")
+        && !json_bool_at(input, "third_party_asset_copied");
+    let full_game_visual_ui_replication_gate =
+        json_bool_at(input, "full_game_visual_ui_replication_gate")
+            && source_contract_gate
+            && source_green_gate
+            && source_review_gate
+            && coverage_surface_gate
+            && source_headline_gate
+            && player_flow_gate
+            && preview_gate
+            && runtime_screen_gate
+            && player_first_full_game_visual_ui_screen_gate
+            && no_copy_boundary_gate;
+    let green = full_game_visual_ui_replication_gate;
+
+    RtsFullGameVisualUiReplicationReview {
+        contract_version: TRNM_RTS_EVIDENCE_FULL_GAME_VISUAL_UI_REPLICATION_REVIEW_CONTRACT
+            .to_string(),
+        green,
+        full_game_visual_ui_replication_contract,
+        full_game_visual_ui_replication_green,
+        preview_width,
+        preview_height,
+        coverage_surface_count,
+        runtime_screen_mode,
+        session_state_review_contract,
+        continuous_player_flow_review_contract,
+        live_session_playthrough_review_contract,
+        full_screen_surface_count,
+        shell_meta_surface_count,
+        match_setup_surface_count,
+        hud_surface_count,
+        continuous_step_count,
+        live_session_stage_count,
+        live_session_accepted_input_count,
+        live_session_final_objective_status,
+        live_session_open_world_state,
+        source_contract_gate,
+        source_green_gate,
+        source_review_gate,
+        coverage_surface_gate,
+        source_headline_gate,
+        player_flow_gate,
+        pixel_gate,
+        preview_gate,
+        runtime_screen_chain_gate,
+        runtime_screen_gate,
+        player_first_tactical_composition_gate,
+        player_first_full_game_visual_ui_screen_gate,
+        no_copy_boundary_gate,
+        full_game_visual_ui_replication_gate,
+        input_path: "trnm-world-bevy full-game visual/UI aggregate JSON, source review contracts, and player-first pixels -> trnm-rts-evidence full-game visual/UI replication review".to_string(),
+        evidence_path: "trnm-rts-evidence full_game_visual_ui_replication_review -> Bevy full-game visual/UI packet/readiness artifact".to_string(),
+        source_of_truth: "The RTS evidence crate reviews the local Rust/Bevy full-game visual/UI replication aggregate across source contracts, nested evidence reviews, 18 coverage surfaces, live-session/open-world handoff, player-first tactical pixels, runtime screen chain, and S5/public/OpenRA/third-party no-credit boundaries.".to_string(),
     }
 }
 
@@ -3871,6 +4142,145 @@ mod tests {
         assert!(review
             .source_of_truth
             .contains("same-process local live session playthrough"));
+    }
+
+    #[test]
+    fn full_game_visual_ui_replication_review_preserves_aggregate_gates() {
+        let input = json!({
+            "contract_version": "trillionnium_world_bevy_classic_rts_full_game_visual_ui_replication_v1",
+            "status": "classic_rts_full_game_visual_ui_replication_green",
+            "green": true,
+            "preview_width": 1920,
+            "preview_height": 1080,
+            "preview_format": "ppm_p3_rgb",
+            "runtime_screen_mode": "player_runtime_full_game_visual_ui_screen",
+            "runtime_screen_gate": true,
+            "evidence_board_only": false,
+            "coverage_surface_count": 18,
+            "coverage_surface_names": [
+                "title_account_shell",
+                "character_create",
+                "session_slot_save_load",
+                "match_setup_start",
+                "tactical_viewport",
+                "map_minimap_camera",
+                "resource_topbar",
+                "selection_unit_status",
+                "command_grid",
+                "ability_tooltip_telegraph",
+                "production_queue",
+                "build_tech_tree",
+                "command_feedback",
+                "formation_path_preview",
+                "combat_alerts",
+                "campaign_outcome",
+                "open_world_handoff",
+                "observability_boundary"
+            ],
+            "source_contracts": {
+                "visual_fidelity": "trillionnium_world_bevy_classic_rts_visual_fidelity_v1",
+                "production_art_replication": "trillionnium_world_bevy_classic_rts_production_art_replication_v1",
+                "production_asset_atlas": "trillionnium_world_bevy_classic_rts_production_asset_atlas_v1",
+                "production_ui_skin": "trillionnium_world_bevy_classic_rts_production_ui_skin_v1",
+                "production_interaction_polish": "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1",
+                "full_screen_ui_replication": "trillionnium_world_bevy_classic_rts_full_screen_ui_replication_v1",
+                "shell_meta_ui_replication": "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1",
+                "match_setup_ui_replication": "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1",
+                "in_match_hud_state_replication": "trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1",
+                "session_state_continuity": "trillionnium_world_bevy_classic_rts_session_state_continuity_v1",
+                "continuous_player_flow": "trillionnium_world_bevy_classic_rts_continuous_player_flow_v1",
+                "live_session_playthrough": "trillionnium_world_bevy_classic_rts_live_session_playthrough_v1",
+                "command_surface": "trillionnium_world_bevy_classic_rts_command_surface_v1",
+                "command_affordance": "trillionnium_world_bevy_classic_rts_command_affordance_v1"
+            },
+            "source_review_contracts": {
+                "session_state_continuity": "trnm_rts_evidence_session_state_continuity_review_v1",
+                "continuous_player_flow": "trnm_rts_evidence_continuous_player_flow_review_v1",
+                "live_session_playthrough": "trnm_rts_evidence_live_session_playthrough_review_v1"
+            },
+            "source_review_gates": {
+                "session_state_continuity": true,
+                "continuous_player_flow": true,
+                "live_session_playthrough": true
+            },
+            "source_review_sources": {
+                "session_state_continuity": "The RTS evidence crate reviews save-slot confirmation and resume gates.",
+                "continuous_player_flow": "The RTS evidence crate reviews the six-step continuous player flow.",
+                "live_session_playthrough": "The RTS evidence crate reviews the same-process local live session playthrough."
+            },
+            "pixel_counts": {
+                "non_background": 2073600,
+                "hud_chrome": 276317,
+                "shell_session": 10018,
+                "match_setup": 6581,
+                "hud": 3414,
+                "command": 42590,
+                "session": 39312,
+                "outcome": 26546,
+                "tech": 2824,
+                "minimap": 2242,
+                "highlight": 6752,
+                "player_first_tactical_preview_non_background": 570458,
+                "player_first_tactical_viewport_frame": 16704,
+                "player_first_tactical_status_strip": 21375
+            },
+            "source_headline": {
+                "full_screen_surface_count": 10,
+                "shell_meta_surface_count": 12,
+                "match_setup_surface_count": 10,
+                "hud_surface_count": 8,
+                "continuous_step_count": 6,
+                "live_session_stage_count": 6,
+                "live_session_accepted_input_count": 91,
+                "live_session_final_objective_status": "open_world_after_action_ready",
+                "live_session_open_world_state": "resumed:league-coliseum",
+                "live_session_runtime_screen_mode": "player_runtime_live_session_playthrough_screen",
+                "live_session_runtime_screen_gate": true,
+                "production_ui_runtime_screen_mode": "player_runtime_production_hud_skin_screen",
+                "interaction_runtime_screen_mode": "player_runtime_command_interaction_screen",
+                "command_surface_ready_pixel_count": 1890,
+                "command_affordance_hotkey_pixel_count": 3600
+            },
+            "source_green_gate": true,
+            "runtime_screen_chain_gate": true,
+            "player_flow_gate": true,
+            "coverage_surface_gate": true,
+            "preview_gate": true,
+            "player_first_tactical_composition_gate": true,
+            "player_first_full_game_visual_ui_screen_gate": true,
+            "no_copy_boundary_gate": true,
+            "full_game_visual_ui_replication_gate": true,
+            "internal_rust_full_game_visual_ui_replication_claimed": true,
+            "external_evidence_ignored_for_current_replication_pass": true,
+            "android_s5_real_device_claimed": false,
+            "public_launch_ready": false,
+            "production_ready_ui_claimed": false,
+            "screen_for_screen_openra_ui_claimed": false,
+            "openra_engine_port_claimed": false,
+            "warcraft_iii_asset_copied": false,
+            "openra_asset_copied": false,
+            "third_party_asset_copied": false
+        });
+
+        let review = rts_full_game_visual_ui_replication_review(&input);
+
+        assert!(review.green);
+        assert!(review.source_contract_gate);
+        assert!(review.source_review_gate);
+        assert!(review.source_headline_gate);
+        assert!(review.player_first_full_game_visual_ui_screen_gate);
+        assert_eq!(review.coverage_surface_count, 18);
+        assert_eq!(
+            review.live_session_final_objective_status.as_deref(),
+            Some("open_world_after_action_ready")
+        );
+        assert_eq!(
+            review.live_session_playthrough_review_contract.as_deref(),
+            Some(TRNM_RTS_EVIDENCE_LIVE_SESSION_PLAYTHROUGH_REVIEW_CONTRACT)
+        );
+        assert!(review
+            .source_of_truth
+            .contains("full-game visual/UI replication aggregate"));
     }
 
     #[test]

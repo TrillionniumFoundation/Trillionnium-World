@@ -27330,7 +27330,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         && no_copy_boundary_gate;
     let green = full_game_visual_ui_replication_gate;
 
-    serde_json::to_string_pretty(&json!({
+    let mut evidence = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FULL_GAME_VISUAL_UI_REPLICATION_CONTRACT,
         "status": if green { "classic_rts_full_game_visual_ui_replication_green" } else { "classic_rts_full_game_visual_ui_replication_blocked" },
         "green": green,
@@ -27354,6 +27354,21 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "live_session_playthrough": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_LIVE_SESSION_PLAYTHROUGH_CONTRACT,
             "command_surface": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_SURFACE_CONTRACT,
             "command_affordance": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_COMMAND_AFFORDANCE_CONTRACT
+        },
+        "source_review_contracts": {
+            "session_state_continuity": session.get("rts_evidence_session_state_continuity_review_contract").cloned().unwrap_or(Value::Null),
+            "continuous_player_flow": continuous.get("rts_evidence_continuous_player_flow_review_contract").cloned().unwrap_or(Value::Null),
+            "live_session_playthrough": live_session.get("rts_evidence_live_session_playthrough_review_contract").cloned().unwrap_or(Value::Null)
+        },
+        "source_review_gates": {
+            "session_state_continuity": session.get("rts_evidence_session_state_continuity_review_gate").cloned().unwrap_or(Value::Null),
+            "continuous_player_flow": continuous.get("rts_evidence_continuous_player_flow_review_gate").cloned().unwrap_or(Value::Null),
+            "live_session_playthrough": live_session.get("rts_evidence_live_session_playthrough_review_gate").cloned().unwrap_or(Value::Null)
+        },
+        "source_review_sources": {
+            "session_state_continuity": session.pointer("/rts_evidence_session_state_continuity_review/source_of_truth").cloned().unwrap_or(Value::Null),
+            "continuous_player_flow": continuous.pointer("/rts_evidence_continuous_player_flow_review/source_of_truth").cloned().unwrap_or(Value::Null),
+            "live_session_playthrough": live_session.pointer("/rts_evidence_live_session_playthrough_review/source_of_truth").cloned().unwrap_or(Value::Null)
         },
         "source_paths": {
             "visual_fidelity_preview": visual_path,
@@ -27441,8 +27456,23 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "This gate is the local Rust/Bevy full-game visual/UI replication completion surface: it renders one 1920x1080 native runtime screen and binds {} UI surfaces across shell/session, match setup, tactical viewport, minimap/camera, HUD/resources, unit status, command grid, production/tech, ability feedback, save/load/resume, campaign outcome, and open-world handoff. It is an original Trillionnium implementation and keeps public launch, S5 real-device, OpenRA screen-for-screen, OpenRA engine port, and copied third-party asset claims false.",
             coverage_surfaces.len()
         )
-    }))
-    .expect("classic RTS full-game visual/UI replication evidence serializes")
+    });
+    let review = trnm_rts_evidence::rts_full_game_visual_ui_replication_review(&evidence);
+    let green = review.green;
+    evidence["status"] = json!(if green {
+        "classic_rts_full_game_visual_ui_replication_green"
+    } else {
+        "classic_rts_full_game_visual_ui_replication_blocked"
+    });
+    evidence["green"] = json!(green);
+    evidence["rts_evidence_full_game_visual_ui_replication_review_contract"] =
+        json!(trnm_rts_evidence::TRNM_RTS_EVIDENCE_FULL_GAME_VISUAL_UI_REPLICATION_REVIEW_CONTRACT);
+    evidence["rts_evidence_full_game_visual_ui_replication_review"] =
+        serde_json::to_value(&review).expect("full-game visual/UI review serializes");
+    evidence["rts_evidence_full_game_visual_ui_replication_review_gate"] = json!(green);
+
+    serde_json::to_string_pretty(&evidence)
+        .expect("classic RTS full-game visual/UI replication evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

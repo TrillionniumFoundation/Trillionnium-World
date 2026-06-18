@@ -33,6 +33,15 @@ jq -e '
   and .source_contracts.session_state_continuity == "trillionnium_world_bevy_classic_rts_session_state_continuity_v1"
   and .source_contracts.continuous_player_flow == "trillionnium_world_bevy_classic_rts_continuous_player_flow_v1"
   and .source_contracts.live_session_playthrough == "trillionnium_world_bevy_classic_rts_live_session_playthrough_v1"
+  and .source_review_contracts.session_state_continuity == "trnm_rts_evidence_session_state_continuity_review_v1"
+  and .source_review_contracts.continuous_player_flow == "trnm_rts_evidence_continuous_player_flow_review_v1"
+  and .source_review_contracts.live_session_playthrough == "trnm_rts_evidence_live_session_playthrough_review_v1"
+  and .source_review_gates.session_state_continuity == true
+  and .source_review_gates.continuous_player_flow == true
+  and .source_review_gates.live_session_playthrough == true
+  and (.source_review_sources.session_state_continuity | contains("save-slot confirmation"))
+  and (.source_review_sources.continuous_player_flow | contains("six-step continuous player flow"))
+  and (.source_review_sources.live_session_playthrough | contains("same-process local live session playthrough"))
   and .source_contract_gate == true
   and .source_green_gate == true
   and .runtime_screen_chain_gate == true
@@ -43,6 +52,21 @@ jq -e '
   and .player_first_full_game_visual_ui_screen_gate == true
   and .no_copy_boundary_gate == true
   and .full_game_visual_ui_replication_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review_contract == "trnm_rts_evidence_full_game_visual_ui_replication_review_v1"
+  and .rts_evidence_full_game_visual_ui_replication_review.green == true
+  and .rts_evidence_full_game_visual_ui_replication_review.source_contract_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.source_green_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.source_review_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.coverage_surface_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.source_headline_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.player_flow_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.preview_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.runtime_screen_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.player_first_full_game_visual_ui_screen_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.no_copy_boundary_gate == true
+  and .rts_evidence_full_game_visual_ui_replication_review.full_game_visual_ui_replication_gate == true
+  and (.rts_evidence_full_game_visual_ui_replication_review.source_of_truth | contains("full-game visual/UI replication aggregate"))
+  and .rts_evidence_full_game_visual_ui_replication_review_gate == true
   and .internal_rust_full_game_visual_ui_replication_claimed == true
   and .pixel_counts.non_background > 900000
   and .pixel_counts.hud_chrome > 120000
