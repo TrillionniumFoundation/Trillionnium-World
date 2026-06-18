@@ -1153,7 +1153,8 @@ add_classic_playtest_handoff_packet_fixtures() {
         playtest_readiness: "trillionnium_world_bevy_classic_playtest_readiness_v1",
         playtest_launcher: "trillionnium_world_bevy_classic_playtest_launcher_v1",
         playtest_runner_status: "trillionnium_world_bevy_classic_playtest_runner_status_v1",
-        playtest_observability_readiness: "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
+        playtest_observability_readiness: "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1",
+        first_contact_runtime_review: "trnm_rts_evidence_bevy_runtime_adapter_v1"
       },
       handoff_summary: {
         playtest_readiness_green: true,
@@ -1173,7 +1174,16 @@ add_classic_playtest_handoff_packet_fixtures() {
         observability_preview_count: 4,
         replay_elapsed_seconds: 61,
         endurance_elapsed_seconds: 128,
-        endurance_peak_active_units: 32
+        endurance_peak_active_units: 32,
+        first_contact_basin_map_id: "first_contact_basin",
+        first_contact_basin_actor_count: 39,
+        first_contact_runtime_review_contract: "trnm_rts_evidence_bevy_runtime_adapter_v1",
+        first_contact_runtime_review_contract_count: 5,
+        first_contact_runtime_review_contracts: ["trnm_rts_bevy_runtime_first_contact_player_screen_application_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1", "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"],
+        first_contact_runtime_review_before_command_queue: ["build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+        first_contact_runtime_review_after_command_queue: ["move:8,4"],
+        first_contact_runtime_review_ready_state_labels: ["authority:offline_loopback:no_socket", "player:local-player:ready", "bot:mirror_guard:ready"],
+        first_contact_runtime_review_command_stamp_tile: "8,4"
       },
       gates: {
         playtest_readiness_gate: true,
@@ -1182,6 +1192,7 @@ add_classic_playtest_handoff_packet_fixtures() {
         observability_gate: true,
         first_minute_gate: true,
         map_ui_modeling_gate: true,
+        first_contact_basin_spec_green: true,
         campaign_outcome_ui_gate: true,
         combat_readability_pressure_gate: true,
         playtest_observability_gate: true,
@@ -1200,6 +1211,12 @@ add_classic_playtest_handoff_packet_fixtures() {
         launcher_open_world_resume_gate: true,
         launcher_player_command_gate: true,
         launcher_cex_path_gate: true,
+        first_contact_basin_spec_gate: true,
+        first_contact_runtime_review_gate: true,
+        first_contact_runtime_adapter_evidence_gate: true,
+        first_contact_offline_adapter_consumption_gate: true,
+        first_contact_offline_adapter_session_transition_gate: true,
+        first_contact_offline_adapter_lobby_ready_gate: true,
         public_launch_not_claimed_gate: true,
         android_s5_real_device_not_claimed_gate: true
       },
@@ -1233,7 +1250,8 @@ add_classic_playtest_handoff_packet_fixtures() {
         playtest_readiness: "trillionnium_world_bevy_classic_playtest_readiness_v1",
         playtest_launcher: "trillionnium_world_bevy_classic_playtest_launcher_v1",
         playtest_runner_status: "trillionnium_world_bevy_classic_playtest_runner_status_v1",
-        playtest_observability_readiness: "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
+        playtest_observability_readiness: "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1",
+        first_contact_runtime_review: "trnm_rts_evidence_bevy_runtime_adapter_v1"
       },
       handoff_summary: {
         playtest_readiness_green: true,
@@ -1251,7 +1269,12 @@ add_classic_playtest_handoff_packet_fixtures() {
         observability_preview_count: 4,
         replay_elapsed_seconds: 61,
         endurance_elapsed_seconds: 128,
-        endurance_peak_active_units: 32
+        endurance_peak_active_units: 32,
+        first_contact_basin_map_id: "first_contact_basin",
+        first_contact_runtime_review_contract: "trnm_rts_evidence_bevy_runtime_adapter_v1",
+        first_contact_runtime_review_contract_count: 5,
+        first_contact_runtime_review_after_command_queue: ["move:8,4"],
+        first_contact_runtime_review_command_stamp_tile: "8,4"
       },
       gates: {
         handoff_readiness_green: true,
@@ -1261,6 +1284,12 @@ add_classic_playtest_handoff_packet_fixtures() {
         observability_green: true,
         public_launch_not_claimed_gate: true,
         android_s5_real_device_not_claimed_gate: true,
+        first_contact_basin_spec_gate: true,
+        first_contact_runtime_review_gate: true,
+        first_contact_runtime_adapter_evidence_gate: true,
+        first_contact_offline_adapter_consumption_gate: true,
+        first_contact_offline_adapter_session_transition_gate: true,
+        first_contact_offline_adapter_lobby_ready_gate: true,
         artifact_count_gate: true,
         artifact_sha_gate: true
       },
@@ -1290,6 +1319,7 @@ add_classic_playtest_handoff_packet_fixtures() {
     printf -- '- Resume: `league-coliseum` / `arena_outdoor` / `resumed:league-coliseum`\n'
     printf -- '- Campaign slot bytes: `71913`\n'
     printf -- '- Title actions: `CAMPAIGN:START, CAMPAIGN:CONTINUE, CAMPAIGN:REPLAY`\n\n'
+    printf -- '- First Contact runtime review: `trnm_rts_evidence_bevy_runtime_adapter_v1` after `move:8,4` tile `8,4`\n\n'
     printf '## Commands\n\n'
     printf -- '- `refresh_handoff`: `./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_readiness.sh`\n'
     printf -- '- `refresh_packet`: `./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh`\n'

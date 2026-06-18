@@ -33,6 +33,7 @@ jq -n \
       and ok($observability)
       and readiness_check("classic_rts_first_minute_readiness_green")
       and readiness_check("classic_rts_map_ui_modeling_readiness_green")
+      and readiness_check("classic_rts_first_contact_basin_spec_green")
       and readiness_check("classic_rts_campaign_outcome_ui_readiness_green")
       and readiness_check("classic_rts_combat_readability_pressure_readiness_green")
       and readiness_check("classic_rts_playtest_observability_readiness_green")
@@ -47,6 +48,15 @@ jq -n \
       and readiness_gate("runner_cex_path_gate")
       and readiness_gate("launcher_player_launch_ready_gate")
       and readiness_gate("launcher_open_world_resume_gate")
+      and readiness_gate("rts_first_contact_basin_spec_gate")
+      and readiness_gate("rts_first_contact_runtime_review_gate")
+      and readiness_gate("rts_first_contact_runtime_adapter_evidence_gate")
+      and readiness_gate("rts_first_contact_offline_adapter_consumption_gate")
+      and readiness_gate("rts_first_contact_offline_adapter_session_transition_gate")
+      and readiness_gate("rts_first_contact_offline_adapter_lobby_ready_gate")
+      and ($readiness[0].headline.rts_first_contact_runtime_review_contract == "trnm_rts_evidence_bevy_runtime_adapter_v1")
+      and ($readiness[0].headline.rts_first_contact_runtime_review_contract_count == 5)
+      and ($readiness[0].headline.rts_first_contact_runtime_review_after_command_queue == ["move:8,4"])
       and launcher_gate("player_launch_ready_gate")
       and launcher_gate("campaign_slot_gate")
       and launcher_gate("open_world_resume_gate")
@@ -68,7 +78,8 @@ jq -n \
       playtest_readiness: $readiness[0].contract_version,
       playtest_launcher: $launcher[0].contract_version,
       playtest_runner_status: $runner[0].contract_version,
-      playtest_observability_readiness: $observability[0].contract_version
+      playtest_observability_readiness: $observability[0].contract_version,
+      first_contact_runtime_review: $readiness[0].headline.rts_first_contact_runtime_review_contract
     },
     handoff_summary: {
       playtest_readiness_green: ok($readiness),
@@ -88,7 +99,16 @@ jq -n \
       observability_preview_count: $observability[0].preview_count,
       replay_elapsed_seconds: $observability[0].replay_metrics_summary.elapsed_seconds,
       endurance_elapsed_seconds: $observability[0].endurance_skirmish_summary.elapsed_seconds,
-      endurance_peak_active_units: $observability[0].endurance_skirmish_summary.peak_active_units
+      endurance_peak_active_units: $observability[0].endurance_skirmish_summary.peak_active_units,
+      first_contact_basin_map_id: $readiness[0].headline.rts_first_contact_basin_spec_map_id,
+      first_contact_basin_actor_count: $readiness[0].headline.rts_first_contact_basin_spec_actor_count,
+      first_contact_runtime_review_contract: $readiness[0].headline.rts_first_contact_runtime_review_contract,
+      first_contact_runtime_review_contract_count: $readiness[0].headline.rts_first_contact_runtime_review_contract_count,
+      first_contact_runtime_review_contracts: $readiness[0].headline.rts_first_contact_runtime_review_contracts,
+      first_contact_runtime_review_before_command_queue: $readiness[0].headline.rts_first_contact_runtime_review_before_command_queue,
+      first_contact_runtime_review_after_command_queue: $readiness[0].headline.rts_first_contact_runtime_review_after_command_queue,
+      first_contact_runtime_review_ready_state_labels: $readiness[0].headline.rts_first_contact_runtime_review_ready_state_labels,
+      first_contact_runtime_review_command_stamp_tile: $readiness[0].headline.rts_first_contact_runtime_review_command_stamp_tile
     },
     gates: {
       playtest_readiness_gate: ok($readiness),
@@ -97,6 +117,7 @@ jq -n \
       observability_gate: ok($observability),
       first_minute_gate: readiness_check("classic_rts_first_minute_readiness_green"),
       map_ui_modeling_gate: readiness_check("classic_rts_map_ui_modeling_readiness_green"),
+      first_contact_basin_spec_green: readiness_check("classic_rts_first_contact_basin_spec_green"),
       campaign_outcome_ui_gate: readiness_check("classic_rts_campaign_outcome_ui_readiness_green"),
       combat_readability_pressure_gate: readiness_check("classic_rts_combat_readability_pressure_readiness_green"),
       playtest_observability_gate: readiness_check("classic_rts_playtest_observability_readiness_green"),
@@ -115,6 +136,12 @@ jq -n \
       launcher_open_world_resume_gate: launcher_gate("open_world_resume_gate"),
       launcher_player_command_gate: launcher_gate("player_command_gate"),
       launcher_cex_path_gate: launcher_gate("cex_path_gate"),
+      first_contact_basin_spec_gate: readiness_gate("rts_first_contact_basin_spec_gate"),
+      first_contact_runtime_review_gate: readiness_gate("rts_first_contact_runtime_review_gate"),
+      first_contact_runtime_adapter_evidence_gate: readiness_gate("rts_first_contact_runtime_adapter_evidence_gate"),
+      first_contact_offline_adapter_consumption_gate: readiness_gate("rts_first_contact_offline_adapter_consumption_gate"),
+      first_contact_offline_adapter_session_transition_gate: readiness_gate("rts_first_contact_offline_adapter_session_transition_gate"),
+      first_contact_offline_adapter_lobby_ready_gate: readiness_gate("rts_first_contact_offline_adapter_lobby_ready_gate"),
       public_launch_not_claimed_gate: ($readiness[0].status != "public_launch_ready"),
       android_s5_real_device_not_claimed_gate: ($launcher[0].android_s5_real_device_claimed == false)
     },
@@ -138,6 +165,7 @@ jq -e '
   and .source_contracts.playtest_launcher == "trillionnium_world_bevy_classic_playtest_launcher_v1"
   and .source_contracts.playtest_runner_status == "trillionnium_world_bevy_classic_playtest_runner_status_v1"
   and .source_contracts.playtest_observability_readiness == "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
+  and .source_contracts.first_contact_runtime_review == "trnm_rts_evidence_bevy_runtime_adapter_v1"
   and .handoff_summary.playtest_readiness_green == true
   and .handoff_summary.launcher_green == true
   and .handoff_summary.runner_green == true
@@ -155,12 +183,23 @@ jq -e '
   and .handoff_summary.replay_elapsed_seconds >= 55
   and .handoff_summary.endurance_elapsed_seconds >= 120
   and .handoff_summary.endurance_peak_active_units >= 24
+  and .handoff_summary.first_contact_basin_map_id == "first_contact_basin"
+  and .handoff_summary.first_contact_basin_actor_count == 39
+  and .handoff_summary.first_contact_runtime_review_contract == "trnm_rts_evidence_bevy_runtime_adapter_v1"
+  and .handoff_summary.first_contact_runtime_review_contract_count == 5
+  and (.handoff_summary.first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_player_screen_application_v1") != null)
+  and (.handoff_summary.first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1") != null)
+  and (.handoff_summary.first_contact_runtime_review_before_command_queue | index("build:trnm.flux.relay") != null)
+  and .handoff_summary.first_contact_runtime_review_after_command_queue == ["move:8,4"]
+  and (.handoff_summary.first_contact_runtime_review_ready_state_labels | index("authority:offline_loopback:no_socket") != null)
+  and .handoff_summary.first_contact_runtime_review_command_stamp_tile == "8,4"
   and .gates.playtest_readiness_gate == true
   and .gates.launcher_gate == true
   and .gates.runner_gate == true
   and .gates.observability_gate == true
   and .gates.first_minute_gate == true
   and .gates.map_ui_modeling_gate == true
+  and .gates.first_contact_basin_spec_green == true
   and .gates.campaign_outcome_ui_gate == true
   and .gates.combat_readability_pressure_gate == true
   and .gates.playtest_observability_gate == true
@@ -179,6 +218,12 @@ jq -e '
   and .gates.launcher_open_world_resume_gate == true
   and .gates.launcher_player_command_gate == true
   and .gates.launcher_cex_path_gate == true
+  and .gates.first_contact_basin_spec_gate == true
+  and .gates.first_contact_runtime_review_gate == true
+  and .gates.first_contact_runtime_adapter_evidence_gate == true
+  and .gates.first_contact_offline_adapter_consumption_gate == true
+  and .gates.first_contact_offline_adapter_session_transition_gate == true
+  and .gates.first_contact_offline_adapter_lobby_ready_gate == true
   and .gates.public_launch_not_claimed_gate == true
   and .gates.android_s5_real_device_not_claimed_gate == true
   and .android_s5_real_device_claimed == false

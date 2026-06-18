@@ -65,13 +65,18 @@ jq -n \
       and ($handoff[0].handoff_summary.runner_main_pid > 0)
       and ($handoff[0].handoff_summary.campaign_slot_bytes > 20000)
       and ($handoff[0].handoff_summary.resume_handoff_state == "resumed:league-coliseum")
+      and ($handoff[0].handoff_summary.first_contact_runtime_review_contract == "trnm_rts_evidence_bevy_runtime_adapter_v1")
+      and ($handoff[0].handoff_summary.first_contact_runtime_review_after_command_queue == ["move:8,4"])
+      and ($handoff[0].gates.first_contact_runtime_review_gate == true)
+      and ($handoff[0].gates.first_contact_runtime_adapter_evidence_gate == true)
     ),
     source_contracts: {
       playtest_handoff_readiness: $handoff[0].contract_version,
       playtest_readiness: $readiness[0].contract_version,
       playtest_launcher: $launcher[0].contract_version,
       playtest_runner_status: $runner[0].contract_version,
-      playtest_observability_readiness: $observability[0].contract_version
+      playtest_observability_readiness: $observability[0].contract_version,
+      first_contact_runtime_review: $handoff[0].source_contracts.first_contact_runtime_review
     },
     handoff_summary: $handoff[0].handoff_summary,
     gates: {
@@ -82,6 +87,12 @@ jq -n \
       observability_green: ok($observability),
       public_launch_not_claimed_gate: ($handoff[0].public_launch_ready_claimed == false),
       android_s5_real_device_not_claimed_gate: ($handoff[0].android_s5_real_device_claimed == false),
+      first_contact_basin_spec_gate: $handoff[0].gates.first_contact_basin_spec_gate,
+      first_contact_runtime_review_gate: $handoff[0].gates.first_contact_runtime_review_gate,
+      first_contact_runtime_adapter_evidence_gate: $handoff[0].gates.first_contact_runtime_adapter_evidence_gate,
+      first_contact_offline_adapter_consumption_gate: $handoff[0].gates.first_contact_offline_adapter_consumption_gate,
+      first_contact_offline_adapter_session_transition_gate: $handoff[0].gates.first_contact_offline_adapter_session_transition_gate,
+      first_contact_offline_adapter_lobby_ready_gate: $handoff[0].gates.first_contact_offline_adapter_lobby_ready_gate,
       artifact_count_gate: ($artifacts | length == 5),
       artifact_sha_gate: ($artifacts | all((.sha256 | test("^[0-9a-f]{64}$")) and (.bytes > 0)))
     },
@@ -111,6 +122,7 @@ jq -e '
   and .source_contracts.playtest_launcher == "trillionnium_world_bevy_classic_playtest_launcher_v1"
   and .source_contracts.playtest_runner_status == "trillionnium_world_bevy_classic_playtest_runner_status_v1"
   and .source_contracts.playtest_observability_readiness == "trillionnium_world_bevy_classic_rts_playtest_observability_readiness_v1"
+  and .source_contracts.first_contact_runtime_review == "trnm_rts_evidence_bevy_runtime_adapter_v1"
   and .gates.handoff_readiness_green == true
   and .gates.playtest_readiness_green == true
   and .gates.launcher_green == true
@@ -118,6 +130,12 @@ jq -e '
   and .gates.observability_green == true
   and .gates.public_launch_not_claimed_gate == true
   and .gates.android_s5_real_device_not_claimed_gate == true
+  and .gates.first_contact_basin_spec_gate == true
+  and .gates.first_contact_runtime_review_gate == true
+  and .gates.first_contact_runtime_adapter_evidence_gate == true
+  and .gates.first_contact_offline_adapter_consumption_gate == true
+  and .gates.first_contact_offline_adapter_session_transition_gate == true
+  and .gates.first_contact_offline_adapter_lobby_ready_gate == true
   and .gates.artifact_count_gate == true
   and .gates.artifact_sha_gate == true
   and .handoff_summary.runner_main_pid > 0
@@ -126,6 +144,11 @@ jq -e '
   and (.handoff_summary.title_actions | index("CAMPAIGN:CONTINUE") != null)
   and (.handoff_summary.title_actions | index("CAMPAIGN:REPLAY") != null)
   and .handoff_summary.resume_handoff_state == "resumed:league-coliseum"
+  and .handoff_summary.first_contact_basin_map_id == "first_contact_basin"
+  and .handoff_summary.first_contact_runtime_review_contract == "trnm_rts_evidence_bevy_runtime_adapter_v1"
+  and .handoff_summary.first_contact_runtime_review_contract_count == 5
+  and .handoff_summary.first_contact_runtime_review_after_command_queue == ["move:8,4"]
+  and .handoff_summary.first_contact_runtime_review_command_stamp_tile == "8,4"
   and .run_commands.refresh_handoff == "./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_readiness.sh"
   and .run_commands.refresh_packet == "./scripts/check_trillionnium_world_bevy_classic_playtest_handoff_packet.sh"
   and .no_credit_boundaries.public_launch_ready_claimed == false
@@ -143,6 +166,7 @@ jq -e '
     "- Resume: \`$(jq -r '.handoff_summary.resume_room_id' "$SUMMARY")\` / \`$(jq -r '.handoff_summary.resume_map_scene' "$SUMMARY")\` / \`$(jq -r '.handoff_summary.resume_handoff_state' "$SUMMARY")\`"
   printf '%s\n' "- Campaign slot bytes: \`$(jq -r '.handoff_summary.campaign_slot_bytes' "$SUMMARY")\`"
   printf '%s\n' "- Title actions: \`$(jq -r '.handoff_summary.title_actions | join(", ")' "$SUMMARY")\`"
+  printf '%s\n' "- First Contact runtime review: \`$(jq -r '.handoff_summary.first_contact_runtime_review_contract' "$SUMMARY")\` after \`$(jq -r '.handoff_summary.first_contact_runtime_review_after_command_queue | join(", ")' "$SUMMARY")\` tile \`$(jq -r '.handoff_summary.first_contact_runtime_review_command_stamp_tile' "$SUMMARY")\`"
   printf '%s\n\n' \
     "- Observability: replay \`$(jq -r '.handoff_summary.replay_elapsed_seconds' "$SUMMARY")s\`, endurance \`$(jq -r '.handoff_summary.endurance_elapsed_seconds' "$SUMMARY")s\`, peak units \`$(jq -r '.handoff_summary.endurance_peak_active_units' "$SUMMARY")\`"
   printf '## Commands\n\n'
