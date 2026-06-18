@@ -467,7 +467,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
     },
     rts_online_offline_adapter_gate: true,
     rts_online_offline_adapter_consumption: {
-      contract_version: "trillionnium_world_bevy_first_contact_offline_adapter_consumption_v1",
+      contract_version: "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1",
       green: true,
       adapter_contract: "trnm_rts_online_offline_adapter_v1",
       adapter_runtime_handoff_contract: "trnm_rts_online_offline_adapter_runtime_handoff_v1",
@@ -551,9 +551,9 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       socket_opened: false,
       hosted_service_claimed: false,
       public_launch_ready: false,
-      input_path: "trnm-rts-online offline adapter accepted_orders -> NativeFirstPlayableRuntime action replay",
-      runtime_path: "classic_first_contact_player_screen_runtime -> NativeFirstPlayableRuntime local player-screen/session handoff",
-      source_of_truth: "This proof consumes the no-socket offline adapter into the Bevy local player-screen/session surface: the server-authoritative move reaches the visible command queue, route overlay, and command stamp while room, camera, visibility, queues, supply, and objective state stay coherent and the fogged attack rejection is suppressed from UI/action replay state."
+      input_path: "trnm-rts-online offline adapter runtime handoff -> Bevy local player-screen snapshot",
+      runtime_path: "trnm-rts-bevy-runtime first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer",
+      source_of_truth: "This Bevy-free runtime review consumes the no-socket offline adapter handoff and a local player-screen/session surface snapshot: the server-authoritative move reaches the visible command queue, route overlay, and command stamp while room, camera, visibility, queues, supply, and objective state stay coherent and the fogged attack rejection is suppressed from UI/action replay state."
     },
     rts_online_offline_adapter_consumption_gate: true,
     source_policy: "OpenRA engine code and third-party/proprietary RTS assets are not copied; First Contact Basin remains internal-only until GPL component review or replacement.",

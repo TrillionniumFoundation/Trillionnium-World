@@ -668,7 +668,7 @@ jq -e '
   and .rts_online_offline_adapter.hosted_service_claimed == false
   and .rts_online_offline_adapter.public_launch_ready == false
   and .rts_online_offline_adapter_gate == true
-  and .rts_online_offline_adapter_consumption.contract_version == "trillionnium_world_bevy_first_contact_offline_adapter_consumption_v1"
+  and .rts_online_offline_adapter_consumption.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1"
   and .rts_online_offline_adapter_consumption.green == true
   and .rts_online_offline_adapter_consumption.adapter_contract == "trnm_rts_online_offline_adapter_v1"
   and .rts_online_offline_adapter_consumption.adapter_runtime_handoff_contract == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
@@ -727,7 +727,7 @@ jq -e '
   and .rts_online_offline_adapter_consumption.socket_opened == false
   and .rts_online_offline_adapter_consumption.hosted_service_claimed == false
   and .rts_online_offline_adapter_consumption.public_launch_ready == false
-  and .rts_online_offline_adapter_consumption.runtime_path == "classic_first_contact_player_screen_runtime -> NativeFirstPlayableRuntime local player-screen/session handoff"
+  and .rts_online_offline_adapter_consumption.runtime_path == "trnm-rts-bevy-runtime first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("player-screen/session surface"))
   and .rts_online_offline_adapter_consumption_gate == true
   and .bevy_data_actor_parity_gate == true

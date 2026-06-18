@@ -16,6 +16,8 @@ pub const TRNM_RTS_RUNTIME_CAMERA_ORIGIN_X: i32 = 17;
 pub const TRNM_RTS_RUNTIME_CAMERA_ORIGIN_Y: i32 = 17;
 pub const TRNM_RTS_RUNTIME_TILE_WORLD_W: f32 = 72.0;
 pub const TRNM_RTS_RUNTIME_TILE_WORLD_H: f32 = 48.0;
+pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT: &str =
+    "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct RtsRuntimeVec2 {
@@ -546,6 +548,269 @@ pub struct RtsControlGroupSlotSummary {
     pub member_count: usize,
     pub occupied: bool,
     pub active: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactPlayerScreenReview {
+    pub map_scene: String,
+    pub current_room_id: String,
+    pub coins: u64,
+    pub xp: u64,
+    pub camera_focus_tile_id: Option<String>,
+    pub visibility_percent: u8,
+    pub army_supply_used: u8,
+    pub army_supply_cap: u8,
+    pub objective_status: String,
+    pub production_queue: Vec<String>,
+    pub build_queue: Vec<String>,
+    pub selected_unit_ids: Vec<String>,
+    pub command_queue: Vec<String>,
+    pub command_destination_tile_id: Option<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub visible_tile_count: usize,
+    pub fogged_tile_count: usize,
+    pub selection_box_tile_count: usize,
+    pub unit_health_percents: Vec<u8>,
+    pub ability_command_ids: Vec<String>,
+    pub ability_cooldown_percents: Vec<u8>,
+    pub active_ability_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOfflineAdapterRuntimeHandoffReviewInput {
+    pub contract_version: String,
+    pub handoff_mode: String,
+    pub accepted_runtime_command_labels: Vec<String>,
+    pub accepted_runtime_destination_tile_ids: Vec<String>,
+    pub accepted_runtime_subject_actor_ids: Vec<String>,
+    pub rejected_runtime_command_labels: Vec<String>,
+    pub scoped_update_actor_ids: Vec<String>,
+    pub runtime_control_group_id: String,
+    pub runtime_group_command_state: String,
+    pub runtime_pathing_status: String,
+    pub runtime_unit_response_state: String,
+    pub runtime_command_stamp_source: String,
+    pub runtime_command_stamp_kind: String,
+    pub runtime_command_stamp_tile_id: Option<String>,
+    pub runtime_command_stamp_player_label: String,
+    pub runtime_last_feedback: String,
+    pub accepted_order_runtime_ready: bool,
+    pub rejected_order_runtime_ready: bool,
+    pub scoped_update_runtime_ready: bool,
+    pub no_socket_boundary_ready: bool,
+    pub green: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactOfflineAdapterConsumptionReviewInput {
+    pub adapter_green: bool,
+    pub adapter_contract: String,
+    pub adapter_id: String,
+    pub adapter_mode: String,
+    pub adapter_runtime_handoff: RtsOfflineAdapterRuntimeHandoffReviewInput,
+    pub input_queue_labels: Vec<String>,
+    pub accepted_server_order_labels: Vec<String>,
+    pub rejected_client_order_reasons: Vec<String>,
+    pub runtime_player_screen_review: RtsFirstContactPlayerScreenReview,
+    pub server_authoritative: bool,
+    pub visibility_scoped_response: bool,
+    pub client_prediction_claimed: bool,
+    pub rollback_netcode_claimed: bool,
+    pub socket_opened: bool,
+    pub hosted_service_claimed: bool,
+    pub public_launch_ready: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactOfflineAdapterConsumptionReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub adapter_contract: String,
+    pub adapter_runtime_handoff_contract: String,
+    pub adapter_id: String,
+    pub adapter_mode: String,
+    pub adapter_runtime_handoff: RtsOfflineAdapterRuntimeHandoffReviewInput,
+    pub input_queue_labels: Vec<String>,
+    pub accepted_server_order_labels: Vec<String>,
+    pub accepted_runtime_command_labels: Vec<String>,
+    pub accepted_runtime_destination_tile_ids: Vec<String>,
+    pub accepted_runtime_subject_actor_ids: Vec<String>,
+    pub rejected_client_order_reasons: Vec<String>,
+    pub rejected_runtime_command_labels: Vec<String>,
+    pub rejected_commands_suppressed: bool,
+    pub scoped_update_actor_ids: Vec<String>,
+    pub runtime_control_group_id: Option<String>,
+    pub runtime_group_command_state: String,
+    pub runtime_pathing_status: String,
+    pub runtime_unit_response_state: String,
+    pub runtime_command_stamp_source: String,
+    pub runtime_command_stamp_kind: String,
+    pub runtime_command_stamp_tile_id: Option<String>,
+    pub runtime_command_stamp_player_label: String,
+    pub runtime_last_feedback: String,
+    pub runtime_player_screen_review: RtsFirstContactPlayerScreenReview,
+    pub local_session_handoff_gate: bool,
+    pub player_screen_review_gate: bool,
+    pub accepted_order_runtime_gate: bool,
+    pub rejected_order_runtime_gate: bool,
+    pub scoped_update_runtime_gate: bool,
+    pub no_network_claim_gate: bool,
+    pub server_authoritative: bool,
+    pub visibility_scoped_response: bool,
+    pub client_prediction_claimed: bool,
+    pub rollback_netcode_claimed: bool,
+    pub socket_opened: bool,
+    pub hosted_service_claimed: bool,
+    pub public_launch_ready: bool,
+    pub input_path: String,
+    pub runtime_path: String,
+    pub source_of_truth: String,
+}
+
+pub fn rts_first_contact_offline_adapter_consumption_review(
+    input: RtsFirstContactOfflineAdapterConsumptionReviewInput,
+) -> RtsFirstContactOfflineAdapterConsumptionReview {
+    let runtime_handoff = input.adapter_runtime_handoff;
+    let runtime = input.runtime_player_screen_review;
+    let accepted_runtime_destination_tile_ids = runtime_handoff
+        .accepted_runtime_destination_tile_ids
+        .clone();
+    let accepted_runtime_subject_actor_ids =
+        runtime_handoff.accepted_runtime_subject_actor_ids.clone();
+    let rejected_runtime_command_labels = runtime_handoff.rejected_runtime_command_labels.clone();
+    let scoped_update_actor_ids = runtime_handoff.scoped_update_actor_ids.clone();
+    let rejected_commands_suppressed = rejected_runtime_command_labels.iter().all(|rejected| {
+        runtime
+            .command_queue
+            .iter()
+            .all(|command| !command.contains(rejected) && !command.contains("fogged_keep"))
+    }) && runtime
+        .command_queue
+        .iter()
+        .all(|command| !command.contains("trnm.enemy.keep.fogged"));
+    let accepted_order_runtime_gate = input.adapter_green
+        && runtime_handoff.green
+        && runtime_handoff.accepted_order_runtime_ready
+        && runtime_handoff.accepted_runtime_command_labels == rts_string_vec(["move:8,4"])
+        && accepted_runtime_destination_tile_ids == rts_string_vec(["8,4"])
+        && accepted_runtime_subject_actor_ids == rts_string_vec(["trnm.worker.alpha"])
+        && runtime.command_queue == runtime_handoff.accepted_runtime_command_labels
+        && runtime.command_destination_tile_id.as_deref() == Some("8,4")
+        && runtime.selected_unit_ids == accepted_runtime_subject_actor_ids
+        && runtime_handoff.runtime_group_command_state == "offline_adapter_authority_applied"
+        && runtime_handoff.runtime_command_stamp_source
+            == "trnm-rts-online:offline_loopback_authority"
+        && runtime_handoff.runtime_command_stamp_kind == "server_accepted_move"
+        && runtime_handoff.runtime_command_stamp_tile_id.as_deref() == Some("8,4")
+        && runtime_handoff.runtime_unit_response_state == "server_authoritative_move_applied";
+    let local_session_handoff_gate = runtime.map_scene == "first_contact_basin"
+        && runtime.current_room_id == "first-contact-basin"
+        && runtime.coins == 890
+        && runtime.xp == 92
+        && runtime.camera_focus_tile_id.as_deref() == Some("16,16")
+        && runtime.visibility_percent == 76
+        && runtime.army_supply_used == 12
+        && runtime.army_supply_cap == 22
+        && runtime.objective_status == "secure first relay beacon and hold the center lane"
+        && runtime.production_queue
+            == rts_string_vec(["train:guard", "train:worker", "upgrade:signal_blade"])
+        && runtime.build_queue == rts_string_vec(["build:watch_tower", "upgrade:training_hall"])
+        && runtime.active_ability_id.as_deref() == Some("worker")
+        && runtime.ability_command_ids
+            == rts_string_vec(["worker", "scout", "warden", "relay", "core", "signal"])
+        && runtime.visible_tile_count == 64
+        && runtime.fogged_tile_count == 6
+        && runtime.selection_box_tile_count == 4
+        && runtime.unit_health_percents == vec![96, 78, 71, 34]
+        && runtime.ability_cooldown_percents == vec![0, 0, 16, 0, 42, 25];
+    let player_screen_review_gate = local_session_handoff_gate
+        && runtime.selected_unit_ids == accepted_runtime_subject_actor_ids
+        && runtime.command_queue == runtime_handoff.accepted_runtime_command_labels
+        && runtime.command_destination_tile_id.as_deref() == Some("8,4")
+        && runtime.group_route_tile_ids == accepted_runtime_destination_tile_ids
+        && runtime_handoff.runtime_control_group_id == "1"
+        && runtime_handoff.runtime_group_command_state == "offline_adapter_authority_applied";
+    let rejected_order_runtime_gate = runtime_handoff.rejected_order_runtime_ready
+        && rejected_runtime_command_labels == rts_string_vec(["client:attack_fogged_keep"])
+        && input.rejected_client_order_reasons == rts_string_vec(["target_actor_not_visible"])
+        && rejected_commands_suppressed
+        && runtime_handoff
+            .runtime_last_feedback
+            .contains("rejected target_actor_not_visible");
+    let scoped_update_runtime_gate = runtime_handoff.scoped_update_runtime_ready
+        && scoped_update_actor_ids.len() == 4
+        && scoped_update_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "trnm.worker.alpha")
+        && scoped_update_actor_ids
+            .iter()
+            .all(|actor_id| actor_id != "trnm.enemy.keep.fogged")
+        && input.visibility_scoped_response
+        && input.server_authoritative;
+    let no_network_claim_gate = runtime_handoff.no_socket_boundary_ready
+        && !input.client_prediction_claimed
+        && !input.rollback_netcode_claimed
+        && !input.socket_opened
+        && !input.hosted_service_claimed
+        && !input.public_launch_ready;
+    let green = accepted_order_runtime_gate
+        && local_session_handoff_gate
+        && player_screen_review_gate
+        && rejected_order_runtime_gate
+        && scoped_update_runtime_gate
+        && no_network_claim_gate;
+
+    RtsFirstContactOfflineAdapterConsumptionReview {
+        contract_version:
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT.to_string(),
+        green,
+        adapter_contract: input.adapter_contract,
+        adapter_runtime_handoff_contract: runtime_handoff.contract_version.clone(),
+        adapter_id: input.adapter_id,
+        adapter_mode: input.adapter_mode,
+        adapter_runtime_handoff: runtime_handoff.clone(),
+        input_queue_labels: input.input_queue_labels,
+        accepted_server_order_labels: input.accepted_server_order_labels,
+        accepted_runtime_command_labels: runtime.command_queue.clone(),
+        accepted_runtime_destination_tile_ids,
+        accepted_runtime_subject_actor_ids: runtime.selected_unit_ids.clone(),
+        rejected_client_order_reasons: input.rejected_client_order_reasons,
+        rejected_runtime_command_labels,
+        rejected_commands_suppressed,
+        scoped_update_actor_ids,
+        runtime_control_group_id: Some(runtime_handoff.runtime_control_group_id.clone()),
+        runtime_group_command_state: runtime_handoff.runtime_group_command_state.clone(),
+        runtime_pathing_status: runtime_handoff.runtime_pathing_status.clone(),
+        runtime_unit_response_state: runtime_handoff.runtime_unit_response_state.clone(),
+        runtime_command_stamp_source: runtime_handoff.runtime_command_stamp_source.clone(),
+        runtime_command_stamp_kind: runtime_handoff.runtime_command_stamp_kind.clone(),
+        runtime_command_stamp_tile_id: runtime_handoff.runtime_command_stamp_tile_id.clone(),
+        runtime_command_stamp_player_label: runtime_handoff.runtime_command_stamp_player_label.clone(),
+        runtime_last_feedback: runtime_handoff.runtime_last_feedback.clone(),
+        runtime_player_screen_review: runtime,
+        local_session_handoff_gate,
+        player_screen_review_gate,
+        accepted_order_runtime_gate,
+        rejected_order_runtime_gate,
+        scoped_update_runtime_gate,
+        no_network_claim_gate,
+        server_authoritative: input.server_authoritative,
+        visibility_scoped_response: input.visibility_scoped_response,
+        client_prediction_claimed: input.client_prediction_claimed,
+        rollback_netcode_claimed: input.rollback_netcode_claimed,
+        socket_opened: input.socket_opened,
+        hosted_service_claimed: input.hosted_service_claimed,
+        public_launch_ready: input.public_launch_ready,
+        input_path:
+            "trnm-rts-online offline adapter runtime handoff -> Bevy local player-screen snapshot"
+                .to_string(),
+        runtime_path:
+            "trnm-rts-bevy-runtime first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
+                .to_string(),
+        source_of_truth:
+            "This Bevy-free runtime review consumes the no-socket offline adapter handoff and a local player-screen/session surface snapshot: the server-authoritative move reaches the visible command queue, route overlay, and command stamp while room, camera, visibility, queues, supply, and objective state stay coherent and the fogged attack rejection is suppressed from UI/action replay state."
+                .to_string(),
+    }
 }
 
 pub fn rts_large_map_clamp_tile(tile: (i32, i32)) -> (i32, i32) {
@@ -8100,6 +8365,114 @@ mod tests {
         assert!(
             summaries[5].viewport_rect_area < summaries[0].viewport_rect_area,
             "zoom stage should shrink the minimap viewport rect"
+        );
+    }
+
+    #[test]
+    fn offline_adapter_consumption_review_preserves_player_screen_handoff_contract() {
+        let handoff = RtsOfflineAdapterRuntimeHandoffReviewInput {
+            contract_version: "trnm_rts_online_offline_adapter_runtime_handoff_v1".to_string(),
+            handoff_mode: "server_authoritative_runtime_command_handoff".to_string(),
+            accepted_runtime_command_labels: rts_string_vec(["move:8,4"]),
+            accepted_runtime_destination_tile_ids: rts_string_vec(["8,4"]),
+            accepted_runtime_subject_actor_ids: rts_string_vec(["trnm.worker.alpha"]),
+            rejected_runtime_command_labels: rts_string_vec(["client:attack_fogged_keep"]),
+            scoped_update_actor_ids: rts_string_vec([
+                "trnm.worker.alpha",
+                "trnm.horizon.scout.alpha",
+                "trnm.command.core.alpha",
+                "trnm.flux.beacon.center",
+            ]),
+            runtime_control_group_id: "1".to_string(),
+            runtime_group_command_state: "offline_adapter_authority_applied".to_string(),
+            runtime_pathing_status: "offline_adapter_replay_consumed".to_string(),
+            runtime_unit_response_state: "server_authoritative_move_applied".to_string(),
+            runtime_command_stamp_source: "trnm-rts-online:offline_loopback_authority".to_string(),
+            runtime_command_stamp_kind: "server_accepted_move".to_string(),
+            runtime_command_stamp_tile_id: Some("8,4".to_string()),
+            runtime_command_stamp_player_label: "SERVER ACCEPTED MOVE 8,4".to_string(),
+            runtime_last_feedback:
+                "Offline adapter applied server move 8,4; rejected target_actor_not_visible"
+                    .to_string(),
+            accepted_order_runtime_ready: true,
+            rejected_order_runtime_ready: true,
+            scoped_update_runtime_ready: true,
+            no_socket_boundary_ready: true,
+            green: true,
+        };
+        let runtime_player_screen_review = RtsFirstContactPlayerScreenReview {
+            map_scene: "first_contact_basin".to_string(),
+            current_room_id: "first-contact-basin".to_string(),
+            coins: 890,
+            xp: 92,
+            camera_focus_tile_id: Some("16,16".to_string()),
+            visibility_percent: 76,
+            army_supply_used: 12,
+            army_supply_cap: 22,
+            objective_status: "secure first relay beacon and hold the center lane".to_string(),
+            production_queue: rts_string_vec([
+                "train:guard",
+                "train:worker",
+                "upgrade:signal_blade",
+            ]),
+            build_queue: rts_string_vec(["build:watch_tower", "upgrade:training_hall"]),
+            selected_unit_ids: rts_string_vec(["trnm.worker.alpha"]),
+            command_queue: rts_string_vec(["move:8,4"]),
+            command_destination_tile_id: Some("8,4".to_string()),
+            group_route_tile_ids: rts_string_vec(["8,4"]),
+            visible_tile_count: 64,
+            fogged_tile_count: 6,
+            selection_box_tile_count: 4,
+            unit_health_percents: vec![96, 78, 71, 34],
+            ability_command_ids: rts_string_vec([
+                "worker", "scout", "warden", "relay", "core", "signal",
+            ]),
+            ability_cooldown_percents: vec![0, 0, 16, 0, 42, 25],
+            active_ability_id: Some("worker".to_string()),
+        };
+        let review = rts_first_contact_offline_adapter_consumption_review(
+            RtsFirstContactOfflineAdapterConsumptionReviewInput {
+                adapter_green: true,
+                adapter_contract: "trnm_rts_online_offline_adapter_v1".to_string(),
+                adapter_id: "first-contact-offline-loopback-adapter".to_string(),
+                adapter_mode: "offline_loopback_authority".to_string(),
+                adapter_runtime_handoff: handoff,
+                input_queue_labels: rts_string_vec([
+                    "client:move_worker@8,4",
+                    "client:attack_fogged_keep",
+                ]),
+                accepted_server_order_labels: rts_string_vec(["client:move_worker@8,4"]),
+                rejected_client_order_reasons: rts_string_vec(["target_actor_not_visible"]),
+                runtime_player_screen_review,
+                server_authoritative: true,
+                visibility_scoped_response: true,
+                client_prediction_claimed: false,
+                rollback_netcode_claimed: false,
+                socket_opened: false,
+                hosted_service_claimed: false,
+                public_launch_ready: false,
+            },
+        );
+
+        assert_eq!(
+            review.contract_version,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT
+        );
+        assert!(review.green);
+        assert!(review.accepted_order_runtime_gate);
+        assert!(review.local_session_handoff_gate);
+        assert!(review.player_screen_review_gate);
+        assert!(review.rejected_order_runtime_gate);
+        assert!(review.scoped_update_runtime_gate);
+        assert!(review.no_network_claim_gate);
+        assert!(review.rejected_commands_suppressed);
+        assert_eq!(
+            review.runtime_player_screen_review.command_queue,
+            rts_string_vec(["move:8,4"])
+        );
+        assert_eq!(
+            review.runtime_path,
+            "trnm-rts-bevy-runtime first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
         );
     }
 }
