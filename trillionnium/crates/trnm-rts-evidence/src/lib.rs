@@ -123,6 +123,33 @@ pub struct RtsEvidencePoint {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactTerrainProfileSamples {
+    pub border: trnm_rts_data::RtsTerrainTileProfile,
+    pub lane: trnm_rts_data::RtsTerrainTileProfile,
+    pub center: trnm_rts_data::RtsTerrainTileProfile,
+    pub base_pad: trnm_rts_data::RtsTerrainTileProfile,
+    pub resource_zone: trnm_rts_data::RtsTerrainTileProfile,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactRendererProjectionEvidence {
+    pub renderable_tile_count: usize,
+    pub lane_tile_count: usize,
+    pub resource_zone_tile_count: usize,
+    pub base_pad_tile_count: usize,
+    pub minimap_anchor_actor_count: usize,
+    pub resource_actor_tile_count: usize,
+    pub objective_actor_tile_count: usize,
+    pub spawn_actor_tile_count: usize,
+    pub lane_tile_samples: Vec<trnm_rts_core::RtsTile>,
+    pub resource_actor_tile_samples: Vec<trnm_rts_core::RtsTile>,
+    pub objective_actor_tile_samples: Vec<trnm_rts_core::RtsTile>,
+    pub spawn_actor_tile_samples: Vec<trnm_rts_core::RtsTile>,
+    pub minimap_anchor_actor_samples: Vec<String>,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsCampaignUiContinuityReview {
     pub contract_version: String,
     pub green: bool,
@@ -2348,6 +2375,11 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub first_contact_online_protocol_gate: bool,
     pub first_contact_online_local_handoff_gate: bool,
     pub first_contact_online_offline_adapter_gate: bool,
+    pub first_contact_terrain_profile_count: usize,
+    pub first_contact_terrain_profile_samples: RtsFirstContactTerrainProfileSamples,
+    pub first_contact_terrain_profile_gate: bool,
+    pub first_contact_renderer_projection: RtsFirstContactRendererProjectionEvidence,
+    pub first_contact_renderer_projection_gate: bool,
     pub first_contact_player_screen_application_contract: String,
     pub first_contact_player_screen_application_green: bool,
     pub first_contact_offline_adapter_application_contract: String,
@@ -3193,6 +3225,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     )
     .map(str::to_string);
     let first_contact_profile = trnm_rts_data::first_contact_player_screen_profile();
+    let first_contact_map_model = trnm_rts_data::first_contact_basin_map();
+    let first_contact_map_summary = first_contact_map_model.summary();
+    let first_contact_terrain_profiles = trnm_rts_data::first_contact_terrain_profiles();
+    let first_contact_renderer_model =
+        trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model);
     let first_contact_player_screen_application =
         rts_first_contact_player_screen_runtime_application(&first_contact_profile);
     let first_contact_online_protocol_fixture =
@@ -3468,6 +3505,101 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && !first_contact_adapter.socket_opened
         && !first_contact_adapter.hosted_service_claimed
         && !first_contact_adapter.public_launch_ready;
+    let first_contact_terrain_profile_samples = RtsFirstContactTerrainProfileSamples {
+        border: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(0, 0)),
+        lane: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(16, 9)),
+        center: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(16, 16)),
+        base_pad: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(10, 10)),
+        resource_zone: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(
+            12, 16,
+        )),
+    };
+    let first_contact_terrain_profile_count = first_contact_terrain_profiles.len();
+    let first_contact_terrain_profile_gate = first_contact_terrain_profile_count
+        == (first_contact_map_model.width * first_contact_map_model.height) as usize
+        && first_contact_terrain_profiles
+            .iter()
+            .any(|profile| profile.role == trnm_rts_data::RtsTerrainRole::Lane)
+        && first_contact_terrain_profiles
+            .iter()
+            .any(|profile| profile.role == trnm_rts_data::RtsTerrainRole::BasePad)
+        && first_contact_terrain_profiles
+            .iter()
+            .any(|profile| profile.role == trnm_rts_data::RtsTerrainRole::CentralBasin)
+        && first_contact_terrain_profiles
+            .iter()
+            .filter(|profile| profile.resource_zone)
+            .count()
+            >= 76
+        && first_contact_terrain_profile_samples.center.height == 2;
+    let first_contact_renderer_projection = RtsFirstContactRendererProjectionEvidence {
+        renderable_tile_count: first_contact_renderer_model.renderable_tiles.len(),
+        lane_tile_count: first_contact_renderer_model.lane_tiles.len(),
+        resource_zone_tile_count: first_contact_renderer_model.resource_zone_tiles.len(),
+        base_pad_tile_count: first_contact_renderer_model.base_pad_tiles.len(),
+        minimap_anchor_actor_count: first_contact_renderer_model.minimap_anchor_actor_ids.len(),
+        resource_actor_tile_count: first_contact_renderer_model.resource_actor_tiles.len(),
+        objective_actor_tile_count: first_contact_renderer_model.objective_actor_tiles.len(),
+        spawn_actor_tile_count: first_contact_renderer_model.spawn_actor_tiles.len(),
+        lane_tile_samples: first_contact_renderer_model
+            .lane_tiles
+            .iter()
+            .take(6)
+            .copied()
+            .collect(),
+        resource_actor_tile_samples: first_contact_renderer_model
+            .resource_actor_tiles
+            .iter()
+            .take(4)
+            .copied()
+            .collect(),
+        objective_actor_tile_samples: first_contact_renderer_model
+            .objective_actor_tiles
+            .iter()
+            .take(4)
+            .copied()
+            .collect(),
+        spawn_actor_tile_samples: first_contact_renderer_model
+            .spawn_actor_tiles
+            .iter()
+            .take(4)
+            .copied()
+            .collect(),
+        minimap_anchor_actor_samples: first_contact_renderer_model
+            .minimap_anchor_actor_ids
+            .iter()
+            .take(6)
+            .cloned()
+            .collect(),
+        source: "RtsMapModel bounds, terrain profiles, actor rules, and runtime projection math"
+            .to_string(),
+    };
+    let first_contact_renderer_projection_gate = first_contact_renderer_projection
+        .renderable_tile_count
+        == (first_contact_map_model.bounds.width * first_contact_map_model.bounds.height) as usize
+        && first_contact_renderer_projection.lane_tile_count >= 120
+        && first_contact_renderer_projection.resource_zone_tile_count >= 76
+        && first_contact_renderer_projection.base_pad_tile_count >= 120
+        && first_contact_renderer_projection.minimap_anchor_actor_count
+            == first_contact_map_summary.actor_count
+        && first_contact_renderer_projection.resource_actor_tile_count
+            == first_contact_map_summary.flux_bloom_count
+        && first_contact_renderer_projection.objective_actor_tile_count
+            == first_contact_map_summary.beacon_count
+        && first_contact_renderer_projection.spawn_actor_tile_count
+            == first_contact_map_summary.spawn_count
+        && first_contact_renderer_model
+            .resource_actor_tiles
+            .iter()
+            .all(|tile| first_contact_map_model.bounds.contains(*tile))
+        && first_contact_renderer_model
+            .objective_actor_tiles
+            .iter()
+            .all(|tile| first_contact_map_model.bounds.contains(*tile))
+        && first_contact_renderer_model
+            .spawn_actor_tiles
+            .iter()
+            .all(|tile| first_contact_map_model.bounds.contains(*tile));
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && scroll_camera_stage_summaries.len() == 6
@@ -3993,7 +4125,9 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && first_contact_runtime_review_gate
         && first_contact_online_protocol_gate
         && first_contact_online_local_handoff_gate
-        && first_contact_online_offline_adapter_gate;
+        && first_contact_online_offline_adapter_gate
+        && first_contact_terrain_profile_gate
+        && first_contact_renderer_projection_gate;
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -4336,6 +4470,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         first_contact_online_protocol_gate,
         first_contact_online_local_handoff_gate,
         first_contact_online_offline_adapter_gate,
+        first_contact_terrain_profile_count,
+        first_contact_terrain_profile_samples,
+        first_contact_terrain_profile_gate,
+        first_contact_renderer_projection,
+        first_contact_renderer_projection_gate,
         first_contact_player_screen_application_contract: first_contact_player_screen_application
             .contract_version,
         first_contact_player_screen_application_green: first_contact_player_screen_application
@@ -5488,6 +5627,39 @@ mod tests {
                 .accepted_runtime_command_labels,
             vec!["move:8,4"]
         );
+        assert!(evidence.first_contact_terrain_profile_gate);
+        assert_eq!(evidence.first_contact_terrain_profile_count, 1156);
+        assert_eq!(
+            evidence.first_contact_terrain_profile_samples.center.height,
+            2
+        );
+        assert!(
+            evidence
+                .first_contact_terrain_profile_samples
+                .resource_zone
+                .resource_zone
+        );
+        assert!(evidence.first_contact_renderer_projection_gate);
+        assert_eq!(
+            evidence
+                .first_contact_renderer_projection
+                .renderable_tile_count,
+            1024
+        );
+        assert_eq!(
+            evidence.first_contact_renderer_projection.lane_tile_count,
+            240
+        );
+        assert_eq!(
+            evidence
+                .first_contact_renderer_projection
+                .minimap_anchor_actor_count,
+            39
+        );
+        assert!(evidence
+            .first_contact_renderer_projection
+            .minimap_anchor_actor_samples
+            .contains(&"Actor0".to_string()));
         assert_eq!(
             evidence.minimap_cell_sample,
             RtsEvidencePoint { x: 134, y: 175 }

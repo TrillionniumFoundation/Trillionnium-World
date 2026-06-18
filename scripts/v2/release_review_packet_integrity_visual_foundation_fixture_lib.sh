@@ -313,13 +313,31 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       license: "GPL-3.0-or-later OpenRA Mod SDK prototype boundary"
     },
     rts_data_consumer_gate: true,
+    rts_data_terrain_profile_count: 1156,
+    rts_data_terrain_profile_samples: {
+      border: {role: "border", height: 0, base_pad: false, resource_zone: false},
+      lane: {role: "lane", height: 1, base_pad: false, resource_zone: false},
+      center: {role: "central_basin", height: 2, base_pad: false, resource_zone: false},
+      base_pad: {role: "base_pad", height: 1, base_pad: true, resource_zone: false},
+      resource_zone: {role: "resource_zone", height: 1, base_pad: false, resource_zone: true}
+    },
+    rts_data_terrain_profile_gate: true,
     rts_data_renderer_projection_gate: true,
     rts_data_renderer_projection: {
       renderable_tile_count: 1024,
       lane_tile_count: 240,
+      resource_zone_tile_count: 79,
+      base_pad_tile_count: 144,
+      minimap_anchor_actor_count: 39,
       resource_actor_tile_count: 11,
       objective_actor_tile_count: 4,
-      spawn_actor_tile_count: 4
+      spawn_actor_tile_count: 4,
+      lane_tile_samples: [{x: 16, y: 1}],
+      resource_actor_tile_samples: [{x: 12, y: 16}],
+      objective_actor_tile_samples: [{x: 16, y: 9}],
+      spawn_actor_tile_samples: [{x: 8, y: 8}],
+      minimap_anchor_actor_samples: ["Actor0"],
+      source: "RtsMapModel bounds, terrain profiles, actor rules, and runtime projection math"
     },
     rts_data_preview_actor_contract: "trnm_rts_data_first_contact_preview_actor_v1",
     rts_data_preview_actor_projection: {
@@ -425,6 +443,32 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       first_contact_online_protocol_gate: true,
       first_contact_online_local_handoff_gate: true,
       first_contact_online_offline_adapter_gate: true,
+      first_contact_terrain_profile_count: 1156,
+      first_contact_terrain_profile_samples: {
+        border: {role: "border", height: 0, base_pad: false, resource_zone: false},
+        lane: {role: "lane", height: 1, base_pad: false, resource_zone: false},
+        center: {role: "central_basin", height: 2, base_pad: false, resource_zone: false},
+        base_pad: {role: "base_pad", height: 1, base_pad: true, resource_zone: false},
+        resource_zone: {role: "resource_zone", height: 1, base_pad: false, resource_zone: true}
+      },
+      first_contact_terrain_profile_gate: true,
+      first_contact_renderer_projection: {
+        renderable_tile_count: 1024,
+        lane_tile_count: 240,
+        resource_zone_tile_count: 79,
+        base_pad_tile_count: 144,
+        minimap_anchor_actor_count: 39,
+        resource_actor_tile_count: 11,
+        objective_actor_tile_count: 4,
+        spawn_actor_tile_count: 4,
+        lane_tile_samples: [{x: 16, y: 1}],
+        resource_actor_tile_samples: [{x: 12, y: 16}],
+        objective_actor_tile_samples: [{x: 16, y: 9}],
+        spawn_actor_tile_samples: [{x: 8, y: 8}],
+        minimap_anchor_actor_samples: ["Actor0"],
+        source: "RtsMapModel bounds, terrain profiles, actor rules, and runtime projection math"
+      },
+      first_contact_renderer_projection_gate: true,
       first_contact_player_screen_application: {
         contract_version: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
         green: true

@@ -41,7 +41,7 @@ use trnm_rts_data::{
     first_contact_basin_map, first_contact_command_feedback_profile,
     first_contact_map_renderer_model, first_contact_opening_loop_profile,
     first_contact_player_screen_profile, first_contact_player_startup_profiles,
-    first_contact_preview_actors, first_contact_terrain_profile, first_contact_terrain_profiles,
+    first_contact_preview_actors, first_contact_terrain_profile,
     first_contact_visual_telemetry_profile, RtsActorColorRole, RtsActorGlyphAccent,
     RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
     RtsFirstContactPlayerScreenChromeProfile, RtsFirstContactPlayerScreenProfile,
@@ -29346,10 +29346,10 @@ fn apply_first_contact_player_screen_application_to_runtime(
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
-    let terrain_profiles = first_contact_terrain_profiles();
-    let renderer_model = first_contact_map_renderer_model(&map_model);
     let rts_data_validation_error = map_model.validate().err();
     let map_summary = map_model.summary();
+    let rts_evidence_bevy_runtime_adapter =
+        trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence();
     let actor_count = map_summary.actor_count;
     let spawn_count = map_summary.spawn_count;
     let flux_count = map_summary.flux_bloom_count;
@@ -29453,44 +29453,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
                     .iter()
                     .any(|source| source.id == actor.source_actor_id)
         });
-    let rts_data_terrain_profile_gate = terrain_profiles.len()
-        == (map_model.width * map_model.height) as usize
-        && terrain_profiles
-            .iter()
-            .any(|profile| profile.role == RtsTerrainRole::Lane)
-        && terrain_profiles
-            .iter()
-            .any(|profile| profile.role == RtsTerrainRole::BasePad)
-        && terrain_profiles
-            .iter()
-            .any(|profile| profile.role == RtsTerrainRole::CentralBasin)
-        && terrain_profiles
-            .iter()
-            .filter(|profile| profile.resource_zone)
-            .count()
-            >= 76
-        && first_contact_terrain_profile(RtsTile::new(16, 16)).height == 2;
-    let rts_data_renderer_projection_gate = renderer_model.renderable_tiles.len()
-        == (map_model.bounds.width * map_model.bounds.height) as usize
-        && renderer_model.lane_tiles.len() >= 120
-        && renderer_model.resource_zone_tiles.len() >= 76
-        && renderer_model.base_pad_tiles.len() >= 120
-        && renderer_model.minimap_anchor_actor_ids.len() == actor_count
-        && renderer_model.resource_actor_tiles.len() == flux_count
-        && renderer_model.objective_actor_tiles.len() == beacon_count
-        && renderer_model.spawn_actor_tiles.len() == spawn_count
-        && renderer_model
-            .resource_actor_tiles
-            .iter()
-            .all(|tile| map_model.bounds.contains(*tile))
-        && renderer_model
-            .objective_actor_tiles
-            .iter()
-            .all(|tile| map_model.bounds.contains(*tile))
-        && renderer_model
-            .spawn_actor_tiles
-            .iter()
-            .all(|tile| map_model.bounds.contains(*tile));
+    let rts_data_terrain_profile_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate;
+    let rts_data_renderer_projection_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate;
     let opening_profile = classic_first_contact_opening_loop();
     let command_feedback_profile = classic_first_contact_command_feedback();
     let rts_data_opening_profile_gate = opening_profile.contract_version
@@ -29921,8 +29887,6 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let rts_bevy_runtime_player_screen_application_value =
         serde_json::to_value(&player_screen_runtime_application)
             .expect("RTS Bevy runtime player screen application serializes");
-    let rts_evidence_bevy_runtime_adapter =
-        trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence();
     let rts_evidence_bevy_runtime_adapter_value =
         serde_json::to_value(&rts_evidence_bevy_runtime_adapter)
             .expect("RTS Bevy runtime adapter evidence serializes");
@@ -30049,31 +30013,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_canonical_sha256": map_summary.canonical_sha256,
         "rts_data_validation_error": rts_data_validation_error,
         "rts_data_consumer_gate": rts_data_consumer_gate,
-        "rts_data_terrain_profile_count": terrain_profiles.len(),
-        "rts_data_terrain_profile_samples": {
-            "border": first_contact_terrain_profile(RtsTile::new(0, 0)),
-            "lane": first_contact_terrain_profile(RtsTile::new(16, 9)),
-            "center": first_contact_terrain_profile(RtsTile::new(16, 16)),
-            "base_pad": first_contact_terrain_profile(RtsTile::new(10, 10)),
-            "resource_zone": first_contact_terrain_profile(RtsTile::new(12, 16)),
-        },
+        "rts_data_terrain_profile_count": rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count,
+        "rts_data_terrain_profile_samples": rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples,
         "rts_data_terrain_profile_gate": rts_data_terrain_profile_gate,
-        "rts_data_renderer_projection": {
-            "renderable_tile_count": renderer_model.renderable_tiles.len(),
-            "lane_tile_count": renderer_model.lane_tiles.len(),
-            "resource_zone_tile_count": renderer_model.resource_zone_tiles.len(),
-            "base_pad_tile_count": renderer_model.base_pad_tiles.len(),
-            "minimap_anchor_actor_count": renderer_model.minimap_anchor_actor_ids.len(),
-            "resource_actor_tile_count": renderer_model.resource_actor_tiles.len(),
-            "objective_actor_tile_count": renderer_model.objective_actor_tiles.len(),
-            "spawn_actor_tile_count": renderer_model.spawn_actor_tiles.len(),
-            "lane_tile_samples": renderer_model.lane_tiles.iter().take(6).collect::<Vec<_>>(),
-            "resource_actor_tile_samples": renderer_model.resource_actor_tiles.iter().take(4).collect::<Vec<_>>(),
-            "objective_actor_tile_samples": renderer_model.objective_actor_tiles.iter().take(4).collect::<Vec<_>>(),
-            "spawn_actor_tile_samples": renderer_model.spawn_actor_tiles.iter().take(4).collect::<Vec<_>>(),
-            "minimap_anchor_actor_samples": renderer_model.minimap_anchor_actor_ids.iter().take(6).collect::<Vec<_>>(),
-            "source": "RtsMapModel bounds, terrain profiles, actor rules, and runtime projection math",
-        },
+        "rts_data_renderer_projection": rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection,
         "rts_data_renderer_projection_gate": rts_data_renderer_projection_gate,
         "rts_data_opening_profile": rts_data_opening_profile,
         "rts_data_command_feedback_profile": rts_data_command_feedback_profile,

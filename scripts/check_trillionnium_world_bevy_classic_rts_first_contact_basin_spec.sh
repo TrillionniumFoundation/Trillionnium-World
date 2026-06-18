@@ -25,6 +25,16 @@ if grep -Fq 'fn classic_first_contact_adapter_runtime_handoff_review_input' "$SO
   exit 1
 fi
 
+if grep -Fq 'let terrain_profiles = first_contact_terrain_profiles();' "$SOURCE"; then
+  echo "[FAIL] First Contact terrain profile aggregate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let rts_data_renderer_projection_gate = renderer_model.renderable_tiles.len()' "$SOURCE"; then
+  echo "[FAIL] First Contact renderer projection summary must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
 required_source_lines=(
   'fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor>'
   'first_contact_preview_actors(&first_contact_basin_map())'
@@ -39,6 +49,11 @@ required_source_lines=(
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate'
+  'rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count'
+  'rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples'
+  'rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate'
+  'rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection'
+  'rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review'
   'first_contact_offline_adapter_session_transition_review'
   'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review'
@@ -64,7 +79,16 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate: bool'
   'first_contact_online_local_handoff_gate: bool'
   'first_contact_online_offline_adapter_gate: bool'
+  'pub struct RtsFirstContactTerrainProfileSamples'
+  'pub struct RtsFirstContactRendererProjectionEvidence'
+  'first_contact_terrain_profile_count: usize'
+  'first_contact_terrain_profile_samples: RtsFirstContactTerrainProfileSamples'
+  'first_contact_terrain_profile_gate: bool'
+  'first_contact_renderer_projection: RtsFirstContactRendererProjectionEvidence'
+  'first_contact_renderer_projection_gate: bool'
   'pub fn first_contact_bevy_runtime_adapter_evidence'
+  'trnm_rts_data::first_contact_terrain_profiles()'
+  'trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model)'
   'trnm_rts_online::first_contact_online_protocol_fixture()'
   'trnm_rts_online::rts_online_local_handoff_from_fixture('
   'trnm_rts_online::rts_online_offline_adapter_from_fixture('
@@ -84,6 +108,8 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate'
   'first_contact_online_local_handoff_gate'
   'first_contact_online_offline_adapter_gate'
+  'first_contact_terrain_profile_gate'
+  'first_contact_renderer_projection_gate'
 )
 
 for line in "${required_evidence_source_lines[@]}"; do
@@ -188,6 +214,13 @@ jq -e '
   and .rts_data_terrain_profile_samples.base_pad.base_pad == true
   and .rts_data_terrain_profile_samples.resource_zone.resource_zone == true
   and .rts_data_terrain_profile_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count == 1156
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples.center.height == 2
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples.resource_zone.resource_zone == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate == true
+  and .rts_data_terrain_profile_count == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count
+  and .rts_data_terrain_profile_samples == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples
+  and .rts_data_terrain_profile_gate == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate
   and .rts_data_renderer_projection.renderable_tile_count == 1024
   and .rts_data_renderer_projection.lane_tile_count == 240
   and .rts_data_renderer_projection.resource_zone_tile_count == 79
@@ -202,6 +235,18 @@ jq -e '
   and (.rts_data_renderer_projection.spawn_actor_tile_samples[] | select(.x == 8 and .y == 8))
   and (.rts_data_renderer_projection.minimap_anchor_actor_samples | index("Actor0") != null)
   and .rts_data_renderer_projection_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.renderable_tile_count == 1024
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.lane_tile_count == 240
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.resource_zone_tile_count == 79
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.base_pad_tile_count == 144
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.minimap_anchor_actor_count == 39
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.resource_actor_tile_count == 11
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.objective_actor_tile_count == 4
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.spawn_actor_tile_count == 4
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.minimap_anchor_actor_samples | index("Actor0") != null)
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate == true
+  and .rts_data_renderer_projection == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection
+  and .rts_data_renderer_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate
   and .rts_data_opening_profile.contract_version == "trnm_rts_data_first_contact_opening_profile_v1"
   and .rts_data_opening_profile.map_id == "first_contact_basin"
   and .rts_data_opening_profile.active_beacon_tile.x == 16
@@ -387,6 +432,17 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter.green == true
   and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter.local_runtime_handoff.accepted_runtime_command_labels == ["move:8,4"]
   and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count == 1156
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples.center.height == 2
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples.resource_zone.resource_zone == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.renderable_tile_count == 1024
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.lane_tile_count == 240
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection.minimap_anchor_actor_count == 39
+  and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate == true
+  and .rts_data_terrain_profile_count == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count
+  and .rts_data_terrain_profile_samples == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples
+  and .rts_data_renderer_projection == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection
   and .rts_online_protocol_fixture == .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture
   and .rts_online_local_handoff == .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff
   and .rts_online_offline_adapter == .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter
