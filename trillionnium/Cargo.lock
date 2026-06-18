@@ -5161,6 +5161,8 @@ name = "trnm-rts-bevy-runtime"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "trnm-rts-core",
+ "trnm-rts-data",
 ]
 
 [[package]]

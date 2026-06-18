@@ -29293,43 +29293,48 @@ fn classic_product_alignment_runtime() -> NativeFirstPlayableRuntime {
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_player_screen_runtime() -> NativeFirstPlayableRuntime {
     let mut runtime = classic_product_alignment_runtime();
-    let profile = classic_first_contact_player_screen_profile();
-    runtime.map_scene = profile.map_id.clone();
-    runtime.current_room_id = profile.room_id.clone();
-    runtime.coins = profile.coins;
-    runtime.xp = profile.xp;
-    runtime.rts_camera_focus_tile_id =
-        Some(classic_first_contact_tile_id(profile.camera_focus_tile));
-    runtime.rts_camera_zoom_percent = profile.camera_zoom_percent;
-    runtime.rts_group_command_state = profile.group_command_state.clone();
-    runtime.rts_command_queue = profile.command_queue.clone();
-    runtime.rts_production_queue = profile.production_queue.clone();
-    runtime.rts_build_queue = profile.build_queue.clone();
-    runtime.rts_unit_health_percents = profile.unit_health_percents.clone();
-    runtime.rts_active_ability_id = Some(profile.active_ability_id.clone());
-    runtime.rts_ability_cooldown_percents = profile.ability_cooldown_percents.clone();
-    runtime.rts_visible_tile_ids = classic_first_contact_tile_ids(&profile.visible_tiles);
-    runtime.rts_fogged_tile_ids = classic_first_contact_tile_ids(&profile.fogged_tiles);
-    runtime.rts_selection_box_tile_ids =
-        classic_first_contact_tile_ids(&profile.selection_box_tiles);
-    runtime.rts_group_route_tile_ids = classic_first_contact_tile_ids(&profile.group_route_tiles);
-    runtime.rts_terrain_route_tile_ids =
-        classic_first_contact_tile_ids(&profile.terrain_route_tiles);
-    runtime.rts_command_destination_tile = Some(classic_first_contact_tile_id(
-        profile.command_destination_tile,
-    ));
-    runtime.rts_attack_target_id = Some(profile.attack_target_rule_id.clone());
-    runtime.rts_training_progress_percent = profile.training_progress_percent;
-    runtime.rts_build_progress_percent = profile.build_progress_percent;
-    runtime.rts_ai_pressure_percent = profile.ai_pressure_percent;
-    runtime.rts_visibility_percent = profile.visibility_percent;
-    runtime.rts_enemy_pressure_warning_percent = profile.enemy_pressure_warning_percent;
-    runtime.rts_army_supply_used = profile.army_supply_used;
-    runtime.rts_army_supply_cap = profile.army_supply_cap;
-    runtime.rts_ability_command_ids = profile.chrome.command_grid_slot_ids.clone();
-    runtime.last_feedback = profile.last_feedback.clone();
-    runtime.objective_status = profile.objective_status.clone();
+    let application = rts_bevy_runtime::rts_first_contact_player_screen_runtime_application(
+        &classic_first_contact_player_screen_profile(),
+    );
+    apply_first_contact_player_screen_application_to_runtime(&mut runtime, &application);
     runtime
+}
+
+#[cfg(not(target_os = "android"))]
+fn apply_first_contact_player_screen_application_to_runtime(
+    runtime: &mut NativeFirstPlayableRuntime,
+    application: &rts_bevy_runtime::RtsFirstContactPlayerScreenRuntimeApplication,
+) {
+    runtime.map_scene = application.map_scene.clone();
+    runtime.current_room_id = application.current_room_id.clone();
+    runtime.coins = application.coins;
+    runtime.xp = application.xp;
+    runtime.rts_camera_focus_tile_id = application.camera_focus_tile_id.clone();
+    runtime.rts_camera_zoom_percent = application.camera_zoom_percent;
+    runtime.rts_group_command_state = application.group_command_state.clone();
+    runtime.rts_command_queue = application.command_queue.clone();
+    runtime.rts_production_queue = application.production_queue.clone();
+    runtime.rts_build_queue = application.build_queue.clone();
+    runtime.rts_unit_health_percents = application.unit_health_percents.clone();
+    runtime.rts_active_ability_id = application.active_ability_id.clone();
+    runtime.rts_ability_cooldown_percents = application.ability_cooldown_percents.clone();
+    runtime.rts_visible_tile_ids = application.visible_tile_ids.clone();
+    runtime.rts_fogged_tile_ids = application.fogged_tile_ids.clone();
+    runtime.rts_selection_box_tile_ids = application.selection_box_tile_ids.clone();
+    runtime.rts_group_route_tile_ids = application.group_route_tile_ids.clone();
+    runtime.rts_terrain_route_tile_ids = application.terrain_route_tile_ids.clone();
+    runtime.rts_command_destination_tile = application.command_destination_tile_id.clone();
+    runtime.rts_attack_target_id = application.attack_target_id.clone();
+    runtime.rts_training_progress_percent = application.training_progress_percent;
+    runtime.rts_build_progress_percent = application.build_progress_percent;
+    runtime.rts_ai_pressure_percent = application.ai_pressure_percent;
+    runtime.rts_visibility_percent = application.visibility_percent;
+    runtime.rts_enemy_pressure_warning_percent = application.enemy_pressure_warning_percent;
+    runtime.rts_army_supply_used = application.army_supply_used;
+    runtime.rts_army_supply_cap = application.army_supply_cap;
+    runtime.rts_ability_command_ids = application.ability_command_ids.clone();
+    runtime.last_feedback = application.last_feedback.clone();
+    runtime.objective_status = application.objective_status.clone();
 }
 
 #[cfg(not(target_os = "android"))]
@@ -29676,6 +29681,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
                     && track.to_tile == opening_profile.active_beacon_tile
             });
     let player_screen_profile = classic_first_contact_player_screen_profile();
+    let player_screen_runtime_application =
+        rts_bevy_runtime::rts_first_contact_player_screen_runtime_application(
+            &player_screen_profile,
+        );
     let player_screen_runtime = classic_first_contact_player_screen_runtime();
     let player_screen_camera_focus_tile_id =
         classic_first_contact_tile_id(player_screen_profile.camera_focus_tile);
@@ -29907,6 +29916,33 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_profile.army_supply_used <= player_screen_profile.army_supply_cap
         && !player_screen_profile.last_feedback.is_empty()
         && !player_screen_profile.objective_status.is_empty();
+    let rts_bevy_runtime_player_screen_application_gate = player_screen_runtime_application.green
+        && player_screen_runtime_application.contract_version
+            == rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT
+        && player_screen_runtime_application.profile_contract
+            == TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
+        && player_screen_runtime_application.profile_application_gate
+        && player_screen_runtime_application.command_surface_seed_gate
+        && player_screen_runtime_application.route_surface_seed_gate
+        && player_screen_runtime_application.map_scene == player_screen_profile.map_id
+        && player_screen_runtime_application.current_room_id == player_screen_profile.room_id
+        && player_screen_runtime_application.camera_focus_tile_id.as_deref()
+            == Some(player_screen_camera_focus_tile_id.as_str())
+        && player_screen_runtime_application.command_queue == player_screen_profile.command_queue
+        && player_screen_runtime_application.production_queue == player_screen_profile.production_queue
+        && player_screen_runtime_application.build_queue == player_screen_profile.build_queue
+        && player_screen_runtime_application.unit_health_percents
+            == player_screen_profile.unit_health_percents
+        && player_screen_runtime_application.active_ability_id.as_deref()
+            == Some(player_screen_profile.active_ability_id.as_str())
+        && player_screen_runtime_application.ability_command_ids
+            == player_screen_chrome.command_grid_slot_ids
+        && player_screen_runtime_application.visible_tile_ids.len()
+            == player_screen_profile.visible_tiles.len()
+        && player_screen_runtime_application.command_destination_tile_id.as_deref()
+            == Some("16,9")
+        && player_screen_runtime_application.runtime_application_path
+            == "trnm-rts-data first_contact_player_screen_profile -> trnm-rts-bevy-runtime player_screen_runtime_application -> NativeFirstPlayableRuntime mutation";
     let ui_runtime_gate = classic_product_alignment_runtime().map_scene == "first_contact_basin"
         && player_screen_runtime.map_scene == player_screen_profile.map_id
         && player_screen_runtime.current_room_id == player_screen_profile.room_id
@@ -29922,7 +29958,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && player_screen_runtime.rts_visible_tile_ids.len()
             == player_screen_profile.visible_tiles.len()
         && player_screen_runtime.rts_camera_focus_tile_id.as_deref()
-            == Some(player_screen_camera_focus_tile_id.as_str());
+            == Some(player_screen_camera_focus_tile_id.as_str())
+        && player_screen_runtime.rts_command_queue
+            == player_screen_runtime_application.command_queue
+        && player_screen_runtime.rts_ability_command_ids
+            == player_screen_runtime_application.ability_command_ids;
     let rts_data_map_model = serde_json::to_value(&map_model).expect("RTS data map serializes");
     let rts_data_map_summary =
         serde_json::to_value(&map_summary).expect("RTS data map summary serializes");
@@ -29946,6 +29986,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS data player screen layout profile serializes");
     let rts_data_player_screen_chrome_profile = serde_json::to_value(player_screen_chrome)
         .expect("RTS data player screen chrome profile serializes");
+    let rts_bevy_runtime_player_screen_application_value =
+        serde_json::to_value(&player_screen_runtime_application)
+            .expect("RTS Bevy runtime player screen application serializes");
     let rts_evidence_bevy_runtime_adapter =
         trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence();
     let rts_evidence_bevy_runtime_adapter_value =
@@ -30165,6 +30208,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_data_player_screen_layout_gate
         && rts_data_player_screen_chrome_gate
         && rts_data_player_screen_gate
+        && rts_bevy_runtime_player_screen_application_gate
         && rts_bevy_runtime_adapter_gate
         && rts_bevy_runtime_map_projection_gate
         && rts_online_protocol_gate
@@ -30254,6 +30298,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_player_screen_layout_gate": rts_data_player_screen_layout_gate,
         "rts_data_player_screen_chrome_gate": rts_data_player_screen_chrome_gate,
         "rts_data_player_screen_gate": rts_data_player_screen_gate,
+        "rts_bevy_runtime_player_screen_application_contract": rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT,
+        "rts_bevy_runtime_player_screen_application": rts_bevy_runtime_player_screen_application_value,
+        "rts_bevy_runtime_player_screen_application_gate": rts_bevy_runtime_player_screen_application_gate,
         "rts_evidence_contract": trnm_rts_evidence::TRNM_RTS_EVIDENCE_CONTRACT,
         "rts_evidence_bevy_runtime_adapter": rts_evidence_bevy_runtime_adapter_value,
         "rts_evidence_bevy_runtime_adapter_gate": rts_evidence_bevy_runtime_adapter.green,
@@ -88071,15 +88118,6 @@ fn classic_first_contact_tile_tuple(tile: RtsTile) -> (i32, i32) {
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_tile_id(tile: RtsTile) -> String {
     classic_rts_tile_id(classic_first_contact_tile_tuple(tile))
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_tile_ids(tiles: &[RtsTile]) -> Vec<String> {
-    tiles
-        .iter()
-        .copied()
-        .map(classic_first_contact_tile_id)
-        .collect()
 }
 
 #[cfg(not(target_os = "android"))]

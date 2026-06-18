@@ -366,6 +366,39 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       source_rule_id: "trnm.lane.marker",
       openra_preview_rule_id: "trnm.map.detail"
     }]),
+    rts_data_player_screen_profile: {
+      contract_version: "trnm_rts_data_first_contact_player_screen_v1",
+      map_id: "first_contact_basin",
+      room_id: "first-contact-basin",
+      command_queue: ["select_group_1", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+      production_queue: ["train:guard", "train:worker", "upgrade:signal_blade"],
+      build_queue: ["build:watch_tower", "upgrade:training_hall"]
+    },
+    rts_data_player_screen_chrome_profile: {
+      command_grid_slot_ids: ["worker", "scout", "warden", "relay", "core", "signal"]
+    },
+    rts_bevy_runtime_player_screen_application_contract: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
+    rts_bevy_runtime_player_screen_application: {
+      contract_version: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
+      green: true,
+      profile_contract: "trnm_rts_data_first_contact_player_screen_v1",
+      map_scene: "first_contact_basin",
+      current_room_id: "first-contact-basin",
+      camera_focus_tile_id: "16,16",
+      command_destination_tile_id: "16,9",
+      command_queue: ["select_group_1", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+      production_queue: ["train:guard", "train:worker", "upgrade:signal_blade"],
+      build_queue: ["build:watch_tower", "upgrade:training_hall"],
+      ability_command_ids: ["worker", "scout", "warden", "relay", "core", "signal"],
+      visible_tile_ids: [range(0;64) | "visible_fixture_tile"],
+      group_route_tile_ids: ["11,8", "13,8", "16,9"],
+      profile_application_gate: true,
+      command_surface_seed_gate: true,
+      route_surface_seed_gate: true,
+      runtime_application_path: "trnm-rts-data first_contact_player_screen_profile -> trnm-rts-bevy-runtime player_screen_runtime_application -> NativeFirstPlayableRuntime mutation",
+      source_of_truth: "This Bevy-free runtime application translates the trnm-rts-data First Contact player-screen profile into room, camera, command queue, production/build queues, visibility, selection, route, ability, supply, and objective runtime fields before the Bevy adapter mutates NativeFirstPlayableRuntime."
+    },
+    rts_bevy_runtime_player_screen_application_gate: true,
     rts_online_protocol_fixture: {
       transport: {
         contract_version: "trnm_rts_online_loopback_transport_v1",

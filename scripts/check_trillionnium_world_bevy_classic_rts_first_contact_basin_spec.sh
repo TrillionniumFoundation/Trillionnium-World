@@ -29,6 +29,8 @@ required_source_lines=(
   'first_contact_preview_actors(&first_contact_basin_map())'
   'let map_actors = classic_first_contact_map_actors_from_rts_data();'
   'let actor_template_count = classic_first_contact_map_actors_from_rts_data().len();'
+  'fn apply_first_contact_player_screen_application_to_runtime'
+  'rts_bevy_runtime::rts_first_contact_player_screen_runtime_application('
   'fn apply_first_contact_offline_adapter_application_to_runtime'
   'trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter)'
   'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
@@ -58,6 +60,9 @@ for line in "${required_data_source_lines[@]}"; do
 done
 
 required_runtime_source_lines=(
+  'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT'
+  'pub struct RtsFirstContactPlayerScreenRuntimeApplication'
+  'pub fn rts_first_contact_player_screen_runtime_application'
   'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT'
   'pub struct RtsOfflineAdapterRuntimeApplication'
   'pub fn rts_first_contact_offline_adapter_runtime_application'
@@ -284,6 +289,26 @@ jq -e '
   and (.rts_data_player_screen_profile.visible_tiles | length) == 64
   and (.rts_data_player_screen_profile.fogged_tiles | length) == 6
   and .rts_data_player_screen_gate == true
+  and .rts_bevy_runtime_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
+  and .rts_bevy_runtime_player_screen_application.contract_version == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
+  and .rts_bevy_runtime_player_screen_application.green == true
+  and .rts_bevy_runtime_player_screen_application.profile_contract == "trnm_rts_data_first_contact_player_screen_v1"
+  and .rts_bevy_runtime_player_screen_application.map_scene == "first_contact_basin"
+  and .rts_bevy_runtime_player_screen_application.current_room_id == "first-contact-basin"
+  and .rts_bevy_runtime_player_screen_application.camera_focus_tile_id == "16,16"
+  and .rts_bevy_runtime_player_screen_application.command_destination_tile_id == "16,9"
+  and .rts_bevy_runtime_player_screen_application.command_queue == .rts_data_player_screen_profile.command_queue
+  and .rts_bevy_runtime_player_screen_application.production_queue == .rts_data_player_screen_profile.production_queue
+  and .rts_bevy_runtime_player_screen_application.build_queue == .rts_data_player_screen_profile.build_queue
+  and .rts_bevy_runtime_player_screen_application.ability_command_ids == .rts_data_player_screen_chrome_profile.command_grid_slot_ids
+  and (.rts_bevy_runtime_player_screen_application.visible_tile_ids | length) == 64
+  and (.rts_bevy_runtime_player_screen_application.group_route_tile_ids | index("16,9") != null)
+  and .rts_bevy_runtime_player_screen_application.profile_application_gate == true
+  and .rts_bevy_runtime_player_screen_application.command_surface_seed_gate == true
+  and .rts_bevy_runtime_player_screen_application.route_surface_seed_gate == true
+  and .rts_bevy_runtime_player_screen_application.runtime_application_path == "trnm-rts-data first_contact_player_screen_profile -> trnm-rts-bevy-runtime player_screen_runtime_application -> NativeFirstPlayableRuntime mutation"
+  and (.rts_bevy_runtime_player_screen_application.source_of_truth | contains("trnm-rts-data First Contact player-screen profile"))
+  and .rts_bevy_runtime_player_screen_application_gate == true
   and .rts_evidence_contract == "trnm_rts_evidence_v1"
   and .rts_evidence_bevy_runtime_adapter.contract_version == "trnm_rts_evidence_bevy_runtime_adapter_v1"
   and .rts_evidence_bevy_runtime_adapter.runtime_contract == "trnm_rts_bevy_runtime_adapter_v1"

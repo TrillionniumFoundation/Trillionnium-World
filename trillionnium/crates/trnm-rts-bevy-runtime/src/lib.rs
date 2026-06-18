@@ -4,6 +4,8 @@
 //! `trnm-world-bevy` keeps renderer colors, pixels, assets, and Bevy integration.
 
 use serde::{Deserialize, Serialize};
+use trnm_rts_core::RtsTile;
+use trnm_rts_data::RtsFirstContactPlayerScreenProfile;
 
 pub const TRNM_RTS_BEVY_RUNTIME_CONTRACT: &str = "trnm_rts_bevy_runtime_adapter_v1";
 
@@ -20,6 +22,8 @@ pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRA
     "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1";
 pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT: &str =
     "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1";
+pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT: &str =
+    "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct RtsRuntimeVec2 {
@@ -553,6 +557,48 @@ pub struct RtsControlGroupSlotSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactPlayerScreenRuntimeApplication {
+    pub contract_version: String,
+    pub green: bool,
+    pub profile_contract: String,
+    pub map_scene: String,
+    pub current_room_id: String,
+    pub coins: u64,
+    pub xp: u64,
+    pub camera_focus_tile_id: Option<String>,
+    pub camera_zoom_percent: u8,
+    pub group_command_state: String,
+    pub command_queue: Vec<String>,
+    pub production_queue: Vec<String>,
+    pub build_queue: Vec<String>,
+    pub unit_health_percents: Vec<u8>,
+    pub active_ability_id: Option<String>,
+    pub ability_command_ids: Vec<String>,
+    pub ability_cooldown_percents: Vec<u8>,
+    pub visible_tile_ids: Vec<String>,
+    pub fogged_tile_ids: Vec<String>,
+    pub selection_box_tile_ids: Vec<String>,
+    pub group_route_tile_ids: Vec<String>,
+    pub terrain_route_tile_ids: Vec<String>,
+    pub command_destination_tile_id: Option<String>,
+    pub attack_target_id: Option<String>,
+    pub training_progress_percent: u8,
+    pub build_progress_percent: u8,
+    pub ai_pressure_percent: u8,
+    pub visibility_percent: u8,
+    pub enemy_pressure_warning_percent: u8,
+    pub army_supply_used: u8,
+    pub army_supply_cap: u8,
+    pub last_feedback: String,
+    pub objective_status: String,
+    pub profile_application_gate: bool,
+    pub command_surface_seed_gate: bool,
+    pub route_surface_seed_gate: bool,
+    pub runtime_application_path: String,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsFirstContactPlayerScreenReview {
     pub map_scene: String,
     pub current_room_id: String,
@@ -699,6 +745,136 @@ pub struct RtsFirstContactOfflineAdapterConsumptionReview {
     pub input_path: String,
     pub runtime_path: String,
     pub source_of_truth: String,
+}
+
+pub fn rts_first_contact_player_screen_runtime_application(
+    profile: &RtsFirstContactPlayerScreenProfile,
+) -> RtsFirstContactPlayerScreenRuntimeApplication {
+    let tile_id = |tile: RtsTile| rts_runtime_tile_id((tile.x, tile.y));
+    let visible_tile_ids = profile
+        .visible_tiles
+        .iter()
+        .copied()
+        .map(tile_id)
+        .collect::<Vec<_>>();
+    let fogged_tile_ids = profile
+        .fogged_tiles
+        .iter()
+        .copied()
+        .map(tile_id)
+        .collect::<Vec<_>>();
+    let selection_box_tile_ids = profile
+        .selection_box_tiles
+        .iter()
+        .copied()
+        .map(tile_id)
+        .collect::<Vec<_>>();
+    let group_route_tile_ids = profile
+        .group_route_tiles
+        .iter()
+        .copied()
+        .map(tile_id)
+        .collect::<Vec<_>>();
+    let terrain_route_tile_ids = profile
+        .terrain_route_tiles
+        .iter()
+        .copied()
+        .map(tile_id)
+        .collect::<Vec<_>>();
+    let camera_focus_tile_id = Some(tile_id(profile.camera_focus_tile));
+    let command_destination_tile_id = Some(tile_id(profile.command_destination_tile));
+    let ability_command_ids = profile.chrome.command_grid_slot_ids.clone();
+
+    let profile_application_gate = profile.contract_version
+        == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
+        && profile.map_id == "first_contact_basin"
+        && profile.room_id == "first-contact-basin"
+        && profile.camera_zoom_percent > 0
+        && profile.army_supply_used <= profile.army_supply_cap
+        && !profile.last_feedback.is_empty()
+        && !profile.objective_status.is_empty();
+    let command_surface_seed_gate = profile.command_queue.len() == 4
+        && profile
+            .command_queue
+            .iter()
+            .any(|command| command == "build:trnm.flux.relay")
+        && profile
+            .command_queue
+            .iter()
+            .any(|command| command == "train:trnm.worker")
+        && profile
+            .command_queue
+            .iter()
+            .any(|command| command == "attack:trnm.flux.beacon")
+        && ability_command_ids
+            .iter()
+            .any(|ability| ability == &profile.active_ability_id)
+        && profile.ability_cooldown_percents.len() == ability_command_ids.len()
+        && profile
+            .ability_cooldown_percents
+            .iter()
+            .all(|percent| *percent <= 100)
+        && profile
+            .unit_health_percents
+            .iter()
+            .all(|percent| *percent <= 100);
+    let route_surface_seed_gate = visible_tile_ids.len() == 64
+        && fogged_tile_ids.len() == 6
+        && selection_box_tile_ids.len() == 4
+        && group_route_tile_ids.iter().any(|tile| tile == "16,9")
+        && command_destination_tile_id.as_deref() == Some("16,9")
+        && profile.training_progress_percent <= 100
+        && profile.build_progress_percent <= 100
+        && profile.ai_pressure_percent <= 100
+        && profile.visibility_percent <= 100
+        && profile.enemy_pressure_warning_percent <= 100;
+    let green = profile_application_gate && command_surface_seed_gate && route_surface_seed_gate;
+
+    RtsFirstContactPlayerScreenRuntimeApplication {
+        contract_version:
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT.to_string(),
+        green,
+        profile_contract: profile.contract_version.clone(),
+        map_scene: profile.map_id.clone(),
+        current_room_id: profile.room_id.clone(),
+        coins: profile.coins,
+        xp: profile.xp,
+        camera_focus_tile_id,
+        camera_zoom_percent: profile.camera_zoom_percent,
+        group_command_state: profile.group_command_state.clone(),
+        command_queue: profile.command_queue.clone(),
+        production_queue: profile.production_queue.clone(),
+        build_queue: profile.build_queue.clone(),
+        unit_health_percents: profile.unit_health_percents.clone(),
+        active_ability_id: Some(profile.active_ability_id.clone()),
+        ability_command_ids,
+        ability_cooldown_percents: profile.ability_cooldown_percents.clone(),
+        visible_tile_ids,
+        fogged_tile_ids,
+        selection_box_tile_ids,
+        group_route_tile_ids,
+        terrain_route_tile_ids,
+        command_destination_tile_id,
+        attack_target_id: Some(profile.attack_target_rule_id.clone()),
+        training_progress_percent: profile.training_progress_percent,
+        build_progress_percent: profile.build_progress_percent,
+        ai_pressure_percent: profile.ai_pressure_percent,
+        visibility_percent: profile.visibility_percent,
+        enemy_pressure_warning_percent: profile.enemy_pressure_warning_percent,
+        army_supply_used: profile.army_supply_used,
+        army_supply_cap: profile.army_supply_cap,
+        last_feedback: profile.last_feedback.clone(),
+        objective_status: profile.objective_status.clone(),
+        profile_application_gate,
+        command_surface_seed_gate,
+        route_surface_seed_gate,
+        runtime_application_path:
+            "trnm-rts-data first_contact_player_screen_profile -> trnm-rts-bevy-runtime player_screen_runtime_application -> NativeFirstPlayableRuntime mutation"
+                .to_string(),
+        source_of_truth:
+            "This Bevy-free runtime application translates the trnm-rts-data First Contact player-screen profile into room, camera, command queue, production/build queues, visibility, selection, route, ability, supply, and objective runtime fields before the Bevy adapter mutates NativeFirstPlayableRuntime."
+                .to_string(),
+    }
 }
 
 pub fn rts_first_contact_offline_adapter_runtime_application(
@@ -8470,6 +8646,46 @@ mod tests {
 
     #[test]
     fn offline_adapter_consumption_review_preserves_player_screen_handoff_contract() {
+        let player_screen_application = rts_first_contact_player_screen_runtime_application(
+            &trnm_rts_data::first_contact_player_screen_profile(),
+        );
+        assert_eq!(
+            player_screen_application.contract_version,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT
+        );
+        assert!(player_screen_application.green);
+        assert!(player_screen_application.profile_application_gate);
+        assert!(player_screen_application.command_surface_seed_gate);
+        assert!(player_screen_application.route_surface_seed_gate);
+        assert_eq!(
+            player_screen_application.profile_contract,
+            trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
+        );
+        assert_eq!(player_screen_application.map_scene, "first_contact_basin");
+        assert_eq!(
+            player_screen_application.current_room_id,
+            "first-contact-basin"
+        );
+        assert_eq!(
+            player_screen_application.camera_focus_tile_id.as_deref(),
+            Some("16,16")
+        );
+        assert_eq!(
+            player_screen_application
+                .command_destination_tile_id
+                .as_deref(),
+            Some("16,9")
+        );
+        assert_eq!(player_screen_application.command_queue.len(), 4);
+        assert_eq!(player_screen_application.visible_tile_ids.len(), 64);
+        assert_eq!(
+            player_screen_application.ability_command_ids,
+            rts_string_vec(["worker", "scout", "warden", "relay", "core", "signal"])
+        );
+        assert!(player_screen_application
+            .source_of_truth
+            .contains("trnm-rts-data First Contact player-screen profile"));
+
         let handoff = RtsOfflineAdapterRuntimeHandoffReviewInput {
             contract_version: "trnm_rts_online_offline_adapter_runtime_handoff_v1".to_string(),
             handoff_mode: "server_authoritative_runtime_command_handoff".to_string(),
