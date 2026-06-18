@@ -6,6 +6,7 @@ OUT="$ROOT/acceptance/S5_native_bevy_device/latest/bevy-classic-rts-first-contac
 SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
 DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
 RUNTIME_SOURCE="$ROOT/trillionnium/crates/trnm-rts-bevy-runtime/src/lib.rs"
+ONLINE_SOURCE="$ROOT/trillionnium/crates/trnm-rts-online/src/lib.rs"
 mkdir -p "$(dirname "$OUT")"
 
 if grep -Fq 'CLASSIC_FIRST_CONTACT_BASIN_ACTORS' "$SOURCE"; then
@@ -18,12 +19,19 @@ if grep -Fq 'enum RtsFirstContactPreviewActorKind' "$SOURCE"; then
   exit 1
 fi
 
+if grep -Fq 'fn classic_first_contact_adapter_runtime_handoff_review_input' "$SOURCE"; then
+  echo "[FAIL] First Contact offline-adapter handoff review input must live in trnm-rts-online, not Bevy" >&2
+  exit 1
+fi
+
 required_source_lines=(
   'fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor>'
   'first_contact_preview_actors(&first_contact_basin_map())'
   'let map_actors = classic_first_contact_map_actors_from_rts_data();'
   'let actor_template_count = classic_first_contact_map_actors_from_rts_data().len();'
   'fn apply_first_contact_offline_adapter_application_to_runtime'
+  'trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter)'
+  'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
   'rts_first_contact_offline_adapter_runtime_application(&runtime_handoff)'
 )
 
@@ -59,6 +67,20 @@ required_runtime_source_lines=(
 for line in "${required_runtime_source_lines[@]}"; do
   if ! grep -Fq "$line" "$RUNTIME_SOURCE"; then
     echo "[FAIL] missing First Contact RTS runtime application source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_online_source_lines=(
+  'pub fn rts_online_offline_adapter_runtime_handoff_review_input'
+  'pub fn rts_online_offline_adapter_consumption_review_input'
+  'RtsFirstContactOfflineAdapterConsumptionReviewInput'
+  'RtsOfflineAdapterRuntimeHandoffReviewInput'
+)
+
+for line in "${required_online_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$ONLINE_SOURCE"; then
+    echo "[FAIL] missing First Contact RTS online review-input source line: $line" >&2
     exit 1
   fi
 done
@@ -760,9 +782,10 @@ jq -e '
   and .rts_online_offline_adapter_consumption.socket_opened == false
   and .rts_online_offline_adapter_consumption.hosted_service_claimed == false
   and .rts_online_offline_adapter_consumption.public_launch_ready == false
-  and .rts_online_offline_adapter_consumption.input_path == "trnm-rts-online offline adapter runtime handoff -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
+  and .rts_online_offline_adapter_consumption.input_path == "trnm-rts-online offline adapter review input -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
   and .rts_online_offline_adapter_consumption.runtime_path == "trnm-rts-bevy-runtime offline_adapter_runtime_application + first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("Bevy-free runtime application"))
+  and (.rts_online_offline_adapter_consumption.source_of_truth | contains("trnm-rts-online-owned review input"))
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("player-screen/session surface"))
   and .rts_online_offline_adapter_consumption_gate == true
   and .bevy_data_actor_parity_gate == true

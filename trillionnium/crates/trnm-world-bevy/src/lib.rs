@@ -29363,42 +29363,6 @@ fn classic_first_contact_runtime_player_screen_review(
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_adapter_runtime_handoff_review_input(
-    adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
-) -> rts_bevy_runtime::RtsOfflineAdapterRuntimeHandoffReviewInput {
-    let runtime_handoff = &adapter.local_runtime_handoff;
-    rts_bevy_runtime::RtsOfflineAdapterRuntimeHandoffReviewInput {
-        contract_version: runtime_handoff.contract_version.clone(),
-        handoff_mode: runtime_handoff.handoff_mode.clone(),
-        accepted_runtime_command_labels: runtime_handoff.accepted_runtime_command_labels.clone(),
-        accepted_runtime_destination_tile_ids: runtime_handoff
-            .accepted_runtime_destination_tile_ids
-            .clone(),
-        accepted_runtime_subject_actor_ids: runtime_handoff
-            .accepted_runtime_subject_actor_ids
-            .clone(),
-        rejected_runtime_command_labels: runtime_handoff.rejected_runtime_command_labels.clone(),
-        scoped_update_actor_ids: runtime_handoff.scoped_update_actor_ids.clone(),
-        runtime_control_group_id: runtime_handoff.runtime_control_group_id.clone(),
-        runtime_group_command_state: runtime_handoff.runtime_group_command_state.clone(),
-        runtime_pathing_status: runtime_handoff.runtime_pathing_status.clone(),
-        runtime_unit_response_state: runtime_handoff.runtime_unit_response_state.clone(),
-        runtime_command_stamp_source: runtime_handoff.runtime_command_stamp_source.clone(),
-        runtime_command_stamp_kind: runtime_handoff.runtime_command_stamp_kind.clone(),
-        runtime_command_stamp_tile_id: runtime_handoff.runtime_command_stamp_tile_id.clone(),
-        runtime_command_stamp_player_label: runtime_handoff
-            .runtime_command_stamp_player_label
-            .clone(),
-        runtime_last_feedback: runtime_handoff.runtime_last_feedback.clone(),
-        accepted_order_runtime_ready: runtime_handoff.accepted_order_runtime_ready,
-        rejected_order_runtime_ready: runtime_handoff.rejected_order_runtime_ready,
-        scoped_update_runtime_ready: runtime_handoff.scoped_update_runtime_ready,
-        no_socket_boundary_ready: runtime_handoff.no_socket_boundary_ready,
-        green: runtime_handoff.green,
-    }
-}
-
-#[cfg(not(target_os = "android"))]
 fn apply_first_contact_offline_adapter_application_to_runtime(
     runtime: &mut NativeFirstPlayableRuntime,
     application: &rts_bevy_runtime::RtsOfflineAdapterRuntimeApplication,
@@ -29423,32 +29387,17 @@ fn classic_first_contact_offline_adapter_consumption_summary(
     adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
 ) -> (Value, bool) {
     let mut runtime = classic_first_contact_player_screen_runtime();
-    let runtime_handoff = classic_first_contact_adapter_runtime_handoff_review_input(adapter);
+    let runtime_handoff =
+        trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter);
     let runtime_application =
         rts_bevy_runtime::rts_first_contact_offline_adapter_runtime_application(&runtime_handoff);
     apply_first_contact_offline_adapter_application_to_runtime(&mut runtime, &runtime_application);
 
     let review = rts_bevy_runtime::rts_first_contact_offline_adapter_consumption_review(
-        rts_bevy_runtime::RtsFirstContactOfflineAdapterConsumptionReviewInput {
-            adapter_green: adapter.green,
-            adapter_contract: adapter.contract_version.clone(),
-            adapter_id: adapter.adapter_id.clone(),
-            adapter_mode: adapter.adapter_mode.clone(),
-            adapter_runtime_handoff: runtime_handoff,
-            input_queue_labels: adapter.input_queue_labels.clone(),
-            accepted_server_order_labels: adapter.accepted_server_order_labels.clone(),
-            rejected_client_order_reasons: adapter.rejected_client_order_reasons.clone(),
-            runtime_player_screen_review: classic_first_contact_runtime_player_screen_review(
-                &runtime,
-            ),
-            server_authoritative: adapter.server_authoritative,
-            visibility_scoped_response: adapter.visibility_scoped_response,
-            client_prediction_claimed: adapter.client_prediction_claimed,
-            rollback_netcode_claimed: adapter.rollback_netcode_claimed,
-            socket_opened: adapter.socket_opened,
-            hosted_service_claimed: adapter.hosted_service_claimed,
-            public_launch_ready: adapter.public_launch_ready,
-        },
+        trnm_rts_online::rts_online_offline_adapter_consumption_review_input(
+            adapter,
+            classic_first_contact_runtime_player_screen_review(&runtime),
+        ),
     );
     let green = review.green;
     (

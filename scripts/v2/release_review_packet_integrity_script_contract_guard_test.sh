@@ -41,6 +41,8 @@ required_lines=(
   'runtime_player_screen_review.command_queue == ["move:8,4"]'
   'local_session_handoff_gate == true'
   'player_screen_review_gate == true'
+  'input_path == "trnm-rts-online offline adapter review input -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"'
+  'trnm-rts-online-owned review input'
   'runtime_path == "trnm-rts-bevy-runtime offline_adapter_runtime_application + first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"'
   'no_network_claim_gate == true'
   'keyboard_replay_semantics'

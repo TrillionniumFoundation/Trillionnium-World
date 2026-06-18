@@ -902,13 +902,13 @@ pub fn rts_first_contact_offline_adapter_consumption_review(
         hosted_service_claimed: input.hosted_service_claimed,
         public_launch_ready: input.public_launch_ready,
         input_path:
-            "trnm-rts-online offline adapter runtime handoff -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
+            "trnm-rts-online offline adapter review input -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
                 .to_string(),
         runtime_path:
             "trnm-rts-bevy-runtime offline_adapter_runtime_application + first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
                 .to_string(),
         source_of_truth:
-            "This Bevy-free runtime review consumes the no-socket offline adapter handoff through a Bevy-free runtime application and a local player-screen/session surface snapshot: the server-authoritative move reaches the visible command queue, route overlay, and command stamp while room, camera, visibility, queues, supply, and objective state stay coherent and the fogged attack rejection is suppressed from UI/action replay state."
+            "This Bevy-free runtime review consumes the no-socket offline adapter through a trnm-rts-online-owned review input, a Bevy-free runtime application, and a local player-screen/session surface snapshot: the server-authoritative move reaches the visible command queue, route overlay, and command stamp while room, camera, visibility, queues, supply, and objective state stay coherent and the fogged attack rejection is suppressed from UI/action replay state."
                 .to_string(),
     }
 }
@@ -8595,5 +8595,12 @@ mod tests {
             review.runtime_path,
             "trnm-rts-bevy-runtime offline_adapter_runtime_application + first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
         );
+        assert_eq!(
+            review.input_path,
+            "trnm-rts-online offline adapter review input -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
+        );
+        assert!(review
+            .source_of_truth
+            .contains("trnm-rts-online-owned review input"));
     }
 }

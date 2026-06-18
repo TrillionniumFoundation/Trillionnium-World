@@ -494,9 +494,10 @@ require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_
   and .rts_online_offline_adapter_consumption.socket_opened == false
   and .rts_online_offline_adapter_consumption.hosted_service_claimed == false
   and .rts_online_offline_adapter_consumption.public_launch_ready == false
-  and .rts_online_offline_adapter_consumption.input_path == "trnm-rts-online offline adapter runtime handoff -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
+  and .rts_online_offline_adapter_consumption.input_path == "trnm-rts-online offline adapter review input -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
   and .rts_online_offline_adapter_consumption.runtime_path == "trnm-rts-bevy-runtime offline_adapter_runtime_application + first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("Bevy-free runtime application"))
+  and (.rts_online_offline_adapter_consumption.source_of_truth | contains("trnm-rts-online-owned review input"))
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("player-screen/session surface"))
   and .rts_online_offline_adapter_consumption_gate == true
 ' "First Contact Basin packet artifact binds no-socket offline adapter summary plus Bevy runtime action-replay consumption without prediction, rollback-netcode, hosted-service, or public-launch claims"

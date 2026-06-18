@@ -9,6 +9,8 @@ use std::collections::BTreeSet;
 use trnm_rts_bevy_runtime::{
     rts_control_group_command_feedback_rejection_replay_fixtures,
     rts_control_group_command_feedback_replay_fixtures,
+    RtsFirstContactOfflineAdapterConsumptionReviewInput, RtsFirstContactPlayerScreenReview,
+    RtsOfflineAdapterRuntimeHandoffReviewInput,
 };
 use trnm_rts_core::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 
@@ -1190,6 +1192,65 @@ pub fn first_contact_online_offline_adapter() -> RtsOnlineOfflineAdapterSummary 
     rts_online_offline_adapter_from_fixture(&first_contact_online_protocol_fixture())
 }
 
+pub fn rts_online_offline_adapter_runtime_handoff_review_input(
+    adapter: &RtsOnlineOfflineAdapterSummary,
+) -> RtsOfflineAdapterRuntimeHandoffReviewInput {
+    let runtime_handoff = &adapter.local_runtime_handoff;
+    RtsOfflineAdapterRuntimeHandoffReviewInput {
+        contract_version: runtime_handoff.contract_version.clone(),
+        handoff_mode: runtime_handoff.handoff_mode.clone(),
+        accepted_runtime_command_labels: runtime_handoff.accepted_runtime_command_labels.clone(),
+        accepted_runtime_destination_tile_ids: runtime_handoff
+            .accepted_runtime_destination_tile_ids
+            .clone(),
+        accepted_runtime_subject_actor_ids: runtime_handoff
+            .accepted_runtime_subject_actor_ids
+            .clone(),
+        rejected_runtime_command_labels: runtime_handoff.rejected_runtime_command_labels.clone(),
+        scoped_update_actor_ids: runtime_handoff.scoped_update_actor_ids.clone(),
+        runtime_control_group_id: runtime_handoff.runtime_control_group_id.clone(),
+        runtime_group_command_state: runtime_handoff.runtime_group_command_state.clone(),
+        runtime_pathing_status: runtime_handoff.runtime_pathing_status.clone(),
+        runtime_unit_response_state: runtime_handoff.runtime_unit_response_state.clone(),
+        runtime_command_stamp_source: runtime_handoff.runtime_command_stamp_source.clone(),
+        runtime_command_stamp_kind: runtime_handoff.runtime_command_stamp_kind.clone(),
+        runtime_command_stamp_tile_id: runtime_handoff.runtime_command_stamp_tile_id.clone(),
+        runtime_command_stamp_player_label: runtime_handoff
+            .runtime_command_stamp_player_label
+            .clone(),
+        runtime_last_feedback: runtime_handoff.runtime_last_feedback.clone(),
+        accepted_order_runtime_ready: runtime_handoff.accepted_order_runtime_ready,
+        rejected_order_runtime_ready: runtime_handoff.rejected_order_runtime_ready,
+        scoped_update_runtime_ready: runtime_handoff.scoped_update_runtime_ready,
+        no_socket_boundary_ready: runtime_handoff.no_socket_boundary_ready,
+        green: runtime_handoff.green,
+    }
+}
+
+pub fn rts_online_offline_adapter_consumption_review_input(
+    adapter: &RtsOnlineOfflineAdapterSummary,
+    runtime_player_screen_review: RtsFirstContactPlayerScreenReview,
+) -> RtsFirstContactOfflineAdapterConsumptionReviewInput {
+    RtsFirstContactOfflineAdapterConsumptionReviewInput {
+        adapter_green: adapter.green,
+        adapter_contract: adapter.contract_version.clone(),
+        adapter_id: adapter.adapter_id.clone(),
+        adapter_mode: adapter.adapter_mode.clone(),
+        adapter_runtime_handoff: rts_online_offline_adapter_runtime_handoff_review_input(adapter),
+        input_queue_labels: adapter.input_queue_labels.clone(),
+        accepted_server_order_labels: adapter.accepted_server_order_labels.clone(),
+        rejected_client_order_reasons: adapter.rejected_client_order_reasons.clone(),
+        runtime_player_screen_review,
+        server_authoritative: adapter.server_authoritative,
+        visibility_scoped_response: adapter.visibility_scoped_response,
+        client_prediction_claimed: adapter.client_prediction_claimed,
+        rollback_netcode_claimed: adapter.rollback_netcode_claimed,
+        socket_opened: adapter.socket_opened,
+        hosted_service_claimed: adapter.hosted_service_claimed,
+        public_launch_ready: adapter.public_launch_ready,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1443,6 +1504,109 @@ mod tests {
         assert!(!adapter.socket_opened);
         assert!(!adapter.hosted_service_claimed);
         assert!(!adapter.public_launch_ready);
+    }
+
+    #[test]
+    fn offline_adapter_exports_bevy_runtime_review_inputs_without_bevy_glue() {
+        let adapter = first_contact_online_offline_adapter();
+        let handoff = rts_online_offline_adapter_runtime_handoff_review_input(&adapter);
+
+        assert_eq!(
+            handoff.contract_version,
+            TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT
+        );
+        assert!(handoff.green);
+        assert_eq!(handoff.accepted_runtime_command_labels, vec!["move:8,4"]);
+        assert_eq!(handoff.accepted_runtime_destination_tile_ids, vec!["8,4"]);
+        assert_eq!(
+            handoff.accepted_runtime_subject_actor_ids,
+            vec!["trnm.worker.alpha"]
+        );
+        assert_eq!(
+            handoff.rejected_runtime_command_labels,
+            vec!["client:attack_fogged_keep"]
+        );
+        assert_eq!(
+            handoff.runtime_command_stamp_source,
+            "trnm-rts-online:offline_loopback_authority"
+        );
+        assert_eq!(handoff.runtime_command_stamp_kind, "server_accepted_move");
+        assert_eq!(
+            handoff.runtime_command_stamp_tile_id.as_deref(),
+            Some("8,4")
+        );
+        assert!(handoff.accepted_order_runtime_ready);
+        assert!(handoff.rejected_order_runtime_ready);
+        assert!(handoff.scoped_update_runtime_ready);
+        assert!(handoff.no_socket_boundary_ready);
+
+        let runtime_review = RtsFirstContactPlayerScreenReview {
+            map_scene: "first_contact_basin".to_string(),
+            current_room_id: "first-contact-basin".to_string(),
+            coins: 890,
+            xp: 92,
+            camera_focus_tile_id: Some("16,16".to_string()),
+            visibility_percent: 76,
+            army_supply_used: 12,
+            army_supply_cap: 22,
+            objective_status: "secure first relay beacon and hold the center lane".to_string(),
+            production_queue: vec![
+                "train:guard".to_string(),
+                "train:worker".to_string(),
+                "upgrade:signal_blade".to_string(),
+            ],
+            build_queue: vec![
+                "build:watch_tower".to_string(),
+                "upgrade:training_hall".to_string(),
+            ],
+            selected_unit_ids: vec!["trnm.worker.alpha".to_string()],
+            command_queue: vec!["move:8,4".to_string()],
+            command_destination_tile_id: Some("8,4".to_string()),
+            group_route_tile_ids: vec!["8,4".to_string()],
+            visible_tile_count: 64,
+            fogged_tile_count: 6,
+            selection_box_tile_count: 4,
+            unit_health_percents: vec![96, 78, 71, 34],
+            ability_command_ids: vec![
+                "worker".to_string(),
+                "scout".to_string(),
+                "warden".to_string(),
+                "relay".to_string(),
+                "core".to_string(),
+                "signal".to_string(),
+            ],
+            ability_cooldown_percents: vec![0, 0, 16, 0, 42, 25],
+            active_ability_id: Some("worker".to_string()),
+        };
+        let input = rts_online_offline_adapter_consumption_review_input(&adapter, runtime_review);
+
+        assert!(input.adapter_green);
+        assert_eq!(
+            input.adapter_runtime_handoff.contract_version,
+            TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT
+        );
+        assert_eq!(input.input_queue_labels, adapter.input_queue_labels);
+        assert_eq!(
+            input.accepted_server_order_labels,
+            vec!["client:move_worker@8,4"]
+        );
+        assert_eq!(
+            input.rejected_client_order_reasons,
+            vec!["target_actor_not_visible"]
+        );
+        assert!(input.server_authoritative);
+        assert!(input.visibility_scoped_response);
+        assert!(!input.client_prediction_claimed);
+        assert!(!input.rollback_netcode_claimed);
+        assert!(!input.socket_opened);
+        assert!(!input.hosted_service_claimed);
+        assert!(!input.public_launch_ready);
+
+        let review =
+            trnm_rts_bevy_runtime::rts_first_contact_offline_adapter_consumption_review(input);
+        assert!(review.green);
+        assert!(review.runtime_application_gate);
+        assert!(review.no_network_claim_gate);
     }
 
     #[test]
