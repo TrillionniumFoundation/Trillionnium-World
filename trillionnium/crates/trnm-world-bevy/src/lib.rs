@@ -24251,32 +24251,6 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         native_classic_rts_campaign_ui_continuity_evidence_json,
     );
 
-    let bool_at =
-        |value: &Value, key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
-    let u64_at = |value: &Value, key: &str| value.get(key).and_then(Value::as_u64).unwrap_or(0);
-    let pointer_str = |value: &Value, pointer: &str| {
-        value
-            .pointer(pointer)
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string()
-    };
-    let contract_is = |value: &Value, expected: &str| {
-        value.get("contract_version").and_then(Value::as_str) == Some(expected)
-    };
-    let array_contains = |value: &Value, key: &str, expected: &str| {
-        value
-            .get(key)
-            .and_then(Value::as_array)
-            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
-    };
-    let file_ready = |path: &str| {
-        Path::new(path).exists()
-            && fs::metadata(path)
-                .map(|metadata| metadata.len() > 100_000)
-                .unwrap_or(false)
-    };
-
     let runtime = classic_product_alignment_runtime();
     let assets = load_classic_runtime_assets();
     let mut pixels = vec![BACKGROUND_COLOR; WIDTH * HEIGHT];
@@ -24623,148 +24597,86 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
         + open_world_pixel_count
         + recovery_pixel_count;
 
-    let shell_meta_gate = contract_is(
-        &shell_meta,
-        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SHELL_META_UI_REPLICATION_CONTRACT,
-    ) && bool_at(&shell_meta, "green")
-        && bool_at(&shell_meta, "runtime_screen_gate")
-        && !bool_at(&shell_meta, "evidence_board_only")
-        && bool_at(&shell_meta, "session_slot_confirm_gate")
-        && bool_at(&shell_meta, "session_load_resume_gate")
-        && bool_at(&shell_meta, "session_recovery_gate")
-        && bool_at(&shell_meta, "no_external_boundary_gate");
-    let session_slot_confirm_gate = contract_is(
-        &session_slot_confirm,
-        TRILLIONNIUM_WORLD_BEVY_SESSION_SLOT_CONFIRM_CONTRACT,
-    ) && bool_at(&session_slot_confirm, "green")
-        && bool_at(&session_slot_confirm, "save_selected_gate")
-        && bool_at(&session_slot_confirm, "confirm_overwrite_gate")
-        && bool_at(&session_slot_confirm, "load_selected_restore_gate")
-        && bool_at(&session_slot_confirm, "continue_after_load_gate")
-        && bool_at(&session_slot_confirm, "slot_file_gate")
-        && u64_at(&session_slot_confirm, "confirmed_slot_a_bytes") > 512;
-    let session_load_resume_gate = contract_is(
-        &session_load_resume,
-        TRILLIONNIUM_WORLD_BEVY_SESSION_LOAD_RESUME_CONTRACT,
-    ) && bool_at(&session_load_resume, "green")
-        && bool_at(&session_load_resume, "save_selected_gate")
-        && bool_at(&session_load_resume, "load_resume_gate")
-        && bool_at(&session_load_resume, "locked_input_gate")
-        && bool_at(&session_load_resume, "continue_gate")
-        && bool_at(&session_load_resume, "final_hud_gate")
-        && pointer_str(&session_load_resume, "/final_runtime/objective_status")
-            == "first_playable_loop_complete";
-    let session_recovery_gate = contract_is(
-        &session_recovery,
-        TRILLIONNIUM_WORLD_BEVY_SESSION_RECOVERY_UI_CONTRACT,
-    ) && bool_at(&session_recovery, "green")
-        && bool_at(&session_recovery, "recovered_status_gate")
-        && bool_at(&session_recovery, "continued_summary_gate")
-        && bool_at(&session_recovery, "guard_status_gate");
-    let match_setup_gate = contract_is(
-        &match_setup,
-        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MATCH_SETUP_UI_REPLICATION_CONTRACT,
-    ) && bool_at(&match_setup, "green")
-        && bool_at(&match_setup, "match_setup_ui_replication_gate")
-        && bool_at(&match_setup, "runtime_screen_gate")
-        && !bool_at(&match_setup, "evidence_board_only")
-        && bool_at(&match_setup, "shell_meta_gate")
-        && bool_at(&match_setup, "faction_gate")
-        && bool_at(&match_setup, "no_external_boundary_gate");
-    let hud_restore_gate = contract_is(
-        &hud,
-        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_IN_MATCH_HUD_STATE_REPLICATION_CONTRACT,
-    ) && bool_at(&hud, "green")
-        && bool_at(&hud, "in_match_hud_state_replication_gate")
-        && bool_at(&hud, "runtime_screen_gate")
-        && !bool_at(&hud, "evidence_board_only")
-        && bool_at(&hud, "selection_gate")
-        && bool_at(&hud, "command_gate")
-        && bool_at(&hud, "production_gate")
-        && bool_at(&hud, "native_client_boundary_gate")
-        && u64_at(&hud, "hud_surface_count") == 8
-        && array_contains(&hud, "command_queue", "move:16,9")
-        && array_contains(&hud, "command_queue", "train:trnm.worker")
-        && array_contains(&hud, "command_queue", "build:trnm.flux.relay")
-        && array_contains(&hud, "command_queue", "attack:trnm.flux.beacon");
-    let campaign_outcome_gate = contract_is(
-        &campaign_outcome,
-        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_OUTCOME_UI_READINESS_CONTRACT,
-    ) && bool_at(&campaign_outcome, "green")
-        && bool_at(&campaign_outcome, "first_minute_gate")
-        && bool_at(&campaign_outcome, "objective_victory_gate")
-        && bool_at(&campaign_outcome, "base_assault_gate")
-        && bool_at(&campaign_outcome, "battle_aftermath_gate")
-        && bool_at(&campaign_outcome, "open_world_return_gate")
-        && bool_at(&campaign_outcome, "runtime_screen_gate")
-        && !bool_at(&campaign_outcome, "evidence_board_only")
-        && pointer_str(
-            &campaign_outcome,
-            "/open_world_summary/final_open_world_handoff_state",
-        ) == "resumed:league-coliseum";
-    let campaign_continuity_gate = contract_is(
-        &campaign_continuity,
-        TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT,
-    ) && bool_at(&campaign_continuity, "green")
-        && bool_at(&campaign_continuity, "persistence_gate")
-        && bool_at(&campaign_continuity, "restored_ui_state_gate")
-        && bool_at(&campaign_continuity, "map_ui_state_gate")
-        && bool_at(&campaign_continuity, "native_client_boundary_gate")
-        && pointer_str(&campaign_continuity, "/restored_current_room_id") == "league-coliseum"
-        && pointer_str(&campaign_continuity, "/restored_open_world_handoff_state")
-            == "resumed:league-coliseum";
-    let native_client_boundary_gate = !bool_at(&shell_meta, "android_s5_real_device_claimed")
-        && !bool_at(&session_slot_confirm, "android_s5_real_device_claimed")
-        && !bool_at(&session_load_resume, "android_s5_real_device_claimed")
-        && !bool_at(&session_recovery, "android_s5_real_device_claimed")
-        && !bool_at(&match_setup, "android_s5_real_device_claimed")
-        && !bool_at(&hud, "android_s5_real_device_claimed")
-        && !bool_at(&campaign_outcome, "android_s5_real_device_claimed")
-        && !bool_at(&shell_meta, "public_launch_ready")
-        && !bool_at(&match_setup, "public_launch_ready")
-        && !bool_at(&hud, "public_launch_ready")
-        && !bool_at(&campaign_outcome, "public_launch_ready")
-        && !bool_at(&hud, "screen_for_screen_openra_ui_claimed")
-        && !bool_at(&hud, "openra_engine_port_claimed")
-        && !bool_at(&hud, "warcraft_iii_asset_copied")
-        && !bool_at(&hud, "openra_asset_copied")
-        && !bool_at(&hud, "third_party_asset_copied")
-        && !assets.manifest.cex_runtime_player_client_allowed
-        && !assets.manifest.wgpu_required;
-    let player_first_session_resume_screen_gate = player_first_resume_view_non_background > 250_000
-        && player_first_resume_view_frame_pixel_count > 8_000
-        && player_first_resume_status_strip_pixel_count > 10_000
-        && player_first_resume_stage_rail_pixel_count > 70_000;
-    let preview_gate = write_gate
-        && file_ready(preview_path)
-        && non_background_pixels > 300_000
-        && board_pixel_count > 100_000
-        && match_setup_pixel_count > 2_000
-        && slot_write_pixel_count > 2_000
-        && load_lock_pixel_count > 2_000
-        && continue_pixel_count > 2_000
-        && hud_restore_pixel_count > 2_000
-        && outcome_pixel_count > 2_000
-        && open_world_pixel_count > 2_000
-        && recovery_pixel_count > 2_000
-        && highlight_pixel_count > 1_000
-        && player_first_session_resume_screen_gate;
-    let source_preview_gate = file_ready(&shell_meta_path)
-        && file_ready(&match_setup_path)
-        && file_ready(&hud_path)
-        && file_ready(&campaign_continuity_path)
-        && bool_at(&campaign_outcome, "preview_gate");
-    let state_continuity_chain_gate = shell_meta_gate
-        && session_slot_confirm_gate
-        && session_load_resume_gate
-        && session_recovery_gate
-        && match_setup_gate
-        && hud_restore_gate
-        && campaign_outcome_gate
-        && campaign_continuity_gate;
-    let runtime_screen_gate = state_continuity_chain_gate && preview_gate && source_preview_gate;
-    let session_state_continuity_gate = runtime_screen_gate && native_client_boundary_gate;
-    let green = session_state_continuity_gate;
+    let file_ready = |path: &str| {
+        Path::new(path).exists()
+            && fs::metadata(path)
+                .map(|metadata| metadata.len() > 100_000)
+                .unwrap_or(false)
+    };
+    let preview_file_ready = file_ready(preview_path);
+    let review_input = json!({
+        "preview_width": WIDTH,
+        "preview_height": HEIGHT,
+        "preview_format": "ppm_p3_rgb",
+        "write_gate": write_gate,
+        "preview_file_ready": preview_file_ready,
+        "source_preview_ready": {
+            "shell_meta_ui_replication": file_ready(&shell_meta_path),
+            "match_setup_ui_replication": file_ready(&match_setup_path),
+            "in_match_hud_state_replication": file_ready(&hud_path),
+            "campaign_ui_continuity": file_ready(&campaign_continuity_path)
+        },
+        "state_continuity_surface_names": state_surfaces.iter().map(|(label, _, _, _)| *label).collect::<Vec<_>>(),
+        "state_continuity_slot_ids": state_surfaces.iter().map(|(_, _, slot, _)| *slot).collect::<Vec<_>>(),
+        "state_continuity_source_surfaces": state_surfaces.iter().map(|(_, _, _, source)| *source).collect::<Vec<_>>(),
+        "resume_chain": [
+            "match_setup_saved",
+            "slot_a_written",
+            "load_resume_locked",
+            "continue_unlocked",
+            "in_match_hud_restored",
+            "campaign_outcome_saved",
+            "open_world_resumed"
+        ],
+        "state_continuity_pixel_counts": {
+            "non_background": non_background_pixels,
+            "board": board_pixel_count,
+            "match_setup_snapshot": match_setup_pixel_count,
+            "session_slot_write": slot_write_pixel_count,
+            "load_resume_lock": load_lock_pixel_count,
+            "continue_unlock": continue_pixel_count,
+            "in_match_hud_restore": hud_restore_pixel_count,
+            "outcome_reward_state": outcome_pixel_count,
+            "open_world_resume": open_world_pixel_count,
+            "recovery_ui_guard": recovery_pixel_count,
+            "highlight": highlight_pixel_count,
+            "player_first_resume_view_non_background": player_first_resume_view_non_background,
+            "player_first_resume_view_frame": player_first_resume_view_frame_pixel_count,
+            "player_first_resume_status_strip": player_first_resume_status_strip_pixel_count,
+            "player_first_resume_stage_rail": player_first_resume_stage_rail_pixel_count
+        },
+        "native_client_boundary": {
+            "cex_runtime_player_client_allowed": assets.manifest.cex_runtime_player_client_allowed,
+            "wgpu_required": assets.manifest.wgpu_required
+        },
+        "sources": {
+            "shell_meta_ui_replication": &shell_meta,
+            "session_slot_confirm": &session_slot_confirm,
+            "session_load_resume": &session_load_resume,
+            "session_recovery_ui": &session_recovery,
+            "match_setup_ui_replication": &match_setup,
+            "in_match_hud_state_replication": &hud,
+            "campaign_outcome_ui_readiness": &campaign_outcome,
+            "campaign_ui_continuity": &campaign_continuity
+        }
+    });
+    let review = trnm_rts_evidence::rts_session_state_continuity_review(&review_input);
+    let shell_meta_gate = review.shell_meta_gate;
+    let session_slot_confirm_gate = review.session_slot_confirm_gate;
+    let session_load_resume_gate = review.session_load_resume_gate;
+    let session_recovery_gate = review.session_recovery_gate;
+    let match_setup_gate = review.match_setup_gate;
+    let hud_restore_gate = review.hud_restore_gate;
+    let campaign_outcome_gate = review.campaign_outcome_gate;
+    let campaign_continuity_gate = review.campaign_continuity_gate;
+    let state_continuity_chain_gate = review.state_continuity_chain_gate;
+    let native_client_boundary_gate = review.native_client_boundary_gate;
+    let preview_gate = review.preview_gate;
+    let player_first_session_resume_screen_gate = review.player_first_session_resume_screen_gate;
+    let source_preview_gate = review.source_preview_gate;
+    let runtime_screen_gate = review.runtime_screen_gate;
+    let session_state_continuity_gate = review.session_state_continuity_gate;
+    let green = review.green;
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_SESSION_STATE_CONTINUITY_CONTRACT,
@@ -24798,6 +24710,9 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
             "outcome_resume_panel": "campaign outcome rewards and open-world league-coliseum route resume",
             "recovery_guard_panel": "session recovery and no-external boundary guard"
         },
+        "rts_evidence_session_state_continuity_review_contract": trnm_rts_evidence::TRNM_RTS_EVIDENCE_SESSION_STATE_CONTINUITY_REVIEW_CONTRACT,
+        "rts_evidence_session_state_continuity_review": &review,
+        "rts_evidence_session_state_continuity_review_gate": green,
         "source_paths": {
             "shell_meta_ui_replication_preview": shell_meta_path,
             "match_setup_ui_replication_preview": match_setup_path,
@@ -24841,14 +24756,14 @@ pub fn native_classic_rts_session_state_continuity_evidence_json(preview_path: &
             "shell_meta_runtime_screen_mode": shell_meta.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
             "match_setup_runtime_screen_mode": match_setup.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
             "hud_runtime_screen_mode": hud.get("runtime_screen_mode").cloned().unwrap_or(Value::Null),
-            "confirmed_slot_a_bytes": session_slot_confirm.get("confirmed_slot_a_bytes").cloned().unwrap_or(Value::Null),
-            "load_resume_slot_a_bytes": session_load_resume.get("slot_a_bytes").cloned().unwrap_or(Value::Null),
-            "load_resume_final_objective_status": session_load_resume.pointer("/final_runtime/objective_status").cloned().unwrap_or(Value::Null),
-            "match_setup_map_id": match_setup.pointer("/source_headline/map_id").cloned().unwrap_or(Value::Null),
-            "hud_surface_count": hud.get("hud_surface_count").cloned().unwrap_or(Value::Null),
-            "hud_army_supply_used": hud.get("army_supply_used").cloned().unwrap_or(Value::Null),
-            "campaign_outcome_open_world_state": campaign_outcome.pointer("/open_world_summary/final_open_world_handoff_state").cloned().unwrap_or(Value::Null),
-            "campaign_continuity_restored_room_id": campaign_continuity.get("restored_current_room_id").cloned().unwrap_or(Value::Null)
+            "confirmed_slot_a_bytes": review.confirmed_slot_a_bytes,
+            "load_resume_slot_a_bytes": review.load_resume_slot_a_bytes,
+            "load_resume_final_objective_status": &review.load_resume_final_objective_status,
+            "match_setup_map_id": &review.match_setup_map_id,
+            "hud_surface_count": review.hud_surface_count,
+            "hud_army_supply_used": review.hud_army_supply_used,
+            "campaign_outcome_open_world_state": &review.campaign_outcome_open_world_state,
+            "campaign_continuity_restored_room_id": &review.campaign_continuity_restored_room_id
         },
         "shell_meta_gate": shell_meta_gate,
         "session_slot_confirm_gate": session_slot_confirm_gate,

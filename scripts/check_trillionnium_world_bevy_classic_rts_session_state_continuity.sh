@@ -31,6 +31,31 @@ jq -e '
   and .runtime_screen_layout.slot_resume_controls == "selected Slot A write, load lock, and continue unlock controls"
   and .runtime_screen_layout.hud_restore_panel == "restored in-match resources, selection, command, minimap, and objective state"
   and .runtime_screen_layout.outcome_resume_panel == "campaign outcome rewards and open-world league-coliseum route resume"
+  and .rts_evidence_session_state_continuity_review_contract == "trnm_rts_evidence_session_state_continuity_review_v1"
+  and .rts_evidence_session_state_continuity_review.green == true
+  and .rts_evidence_session_state_continuity_review.shell_meta_contract == "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1"
+  and .rts_evidence_session_state_continuity_review.session_slot_confirm_contract == "trillionnium_world_bevy_session_slot_confirm_v1"
+  and .rts_evidence_session_state_continuity_review.session_load_resume_contract == "trillionnium_world_bevy_session_load_resume_v1"
+  and .rts_evidence_session_state_continuity_review.session_recovery_contract == "trillionnium_world_bevy_session_recovery_ui_v1"
+  and .rts_evidence_session_state_continuity_review.match_setup_contract == "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1"
+  and .rts_evidence_session_state_continuity_review.hud_contract == "trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1"
+  and .rts_evidence_session_state_continuity_review.campaign_outcome_contract == "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1"
+  and .rts_evidence_session_state_continuity_review.campaign_continuity_contract == "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1"
+  and .rts_evidence_session_state_continuity_review.surface_chain_gate == true
+  and .rts_evidence_session_state_continuity_review.state_continuity_chain_gate == true
+  and .rts_evidence_session_state_continuity_review.native_client_boundary_gate == true
+  and .rts_evidence_session_state_continuity_review.preview_gate == true
+  and .rts_evidence_session_state_continuity_review.player_first_session_resume_screen_gate == true
+  and .rts_evidence_session_state_continuity_review.source_preview_gate == true
+  and .rts_evidence_session_state_continuity_review.runtime_screen_gate == true
+  and .rts_evidence_session_state_continuity_review.session_state_continuity_gate == true
+  and .rts_evidence_session_state_continuity_review.load_resume_final_objective_status == "first_playable_loop_complete"
+  and .rts_evidence_session_state_continuity_review.campaign_outcome_open_world_state == "resumed:league-coliseum"
+  and .rts_evidence_session_state_continuity_review.campaign_continuity_restored_room_id == "league-coliseum"
+  and (.rts_evidence_session_state_continuity_review.input_path | contains("session-state continuity source JSON"))
+  and (.rts_evidence_session_state_continuity_review.evidence_path | contains("session_state_continuity_review"))
+  and (.rts_evidence_session_state_continuity_review.source_of_truth | contains("RTS evidence crate reviews save-slot confirmation"))
+  and .rts_evidence_session_state_continuity_review_gate == true
   and .state_continuity_surface_count == 8
   and (.state_continuity_surface_names | index("MATCH SETUP SNAPSHOT") != null)
   and (.state_continuity_surface_names | index("SESSION SLOT WRITE") != null)
