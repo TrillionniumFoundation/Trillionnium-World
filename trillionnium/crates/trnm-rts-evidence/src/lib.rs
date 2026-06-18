@@ -3,6 +3,7 @@
 //! This crate keeps proof contracts separate from `trnm-world-bevy` rendering code.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use trnm_rts_bevy_runtime::{
     rts_ability_effect_tiles_for_target, rts_ability_tooltip_telegraph_stage,
     rts_action_cadence_marks, rts_action_sequence_marks, rts_action_sequence_phase,
@@ -84,11 +85,246 @@ use trnm_rts_bevy_runtime::{
 pub const TRNM_RTS_EVIDENCE_CONTRACT: &str = "trnm_rts_evidence_v1";
 pub const TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT: &str =
     "trnm_rts_evidence_bevy_runtime_adapter_v1";
+pub const TRNM_RTS_EVIDENCE_CAMPAIGN_UI_CONTINUITY_REVIEW_CONTRACT: &str =
+    "trnm_rts_evidence_campaign_ui_continuity_review_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsEvidencePoint {
     pub x: i32,
     pub y: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsCampaignUiContinuityReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub campaign_handoff_contract: String,
+    pub campaign_handoff_green: bool,
+    pub preview_width: u64,
+    pub preview_height: u64,
+    pub capture_frame_count: u64,
+    pub final_current_room_id: Option<String>,
+    pub restored_current_room_id: Option<String>,
+    pub final_route_director_task_id: Option<String>,
+    pub restored_route_director_task_id: Option<String>,
+    pub final_open_world_handoff_state: Option<String>,
+    pub restored_open_world_handoff_state: Option<String>,
+    pub handoff_green_gate: bool,
+    pub preview_resolution_gate: bool,
+    pub live_input_gate: bool,
+    pub milestone_gate: bool,
+    pub map_ui_state_gate: bool,
+    pub restored_ui_state_gate: bool,
+    pub persistence_gate: bool,
+    pub render_readability_gate: bool,
+    pub native_client_boundary_gate: bool,
+    pub player_first_campaign_continuity_screen_gate: bool,
+    pub input_path: String,
+    pub evidence_path: String,
+    pub source_of_truth: String,
+}
+
+fn json_bool_at(value: &Value, key: &str) -> bool {
+    value.get(key).and_then(Value::as_bool) == Some(true)
+}
+
+fn json_string_at(value: &Value, key: &str) -> Option<String> {
+    value.get(key).and_then(Value::as_str).map(str::to_string)
+}
+
+fn json_string_equals(value: &Value, key: &str, expected: &str) -> bool {
+    value.get(key).and_then(Value::as_str) == Some(expected)
+}
+
+fn json_u64_at(value: &Value, key: &str) -> u64 {
+    value.get(key).and_then(Value::as_u64).unwrap_or_default()
+}
+
+fn json_u64_pointer(value: &Value, pointer: &str) -> u64 {
+    value
+        .pointer(pointer)
+        .and_then(Value::as_u64)
+        .unwrap_or_default()
+}
+
+fn json_array_contains(value: &Value, pointer: &str, expected: &str) -> bool {
+    value
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+}
+
+pub fn rts_campaign_ui_continuity_review(handoff: &Value) -> RtsCampaignUiContinuityReview {
+    let campaign_handoff_contract = json_string_at(handoff, "contract_version").unwrap_or_default();
+    let campaign_handoff_green = json_bool_at(handoff, "green");
+    let preview_width = json_u64_at(handoff, "preview_width");
+    let preview_height = json_u64_at(handoff, "preview_height");
+    let capture_frame_count = json_u64_at(handoff, "capture_frame_count");
+    let final_current_room_id = json_string_at(handoff, "final_current_room_id");
+    let restored_current_room_id = json_string_at(handoff, "restored_current_room_id");
+    let final_route_director_task_id = json_string_at(handoff, "final_route_director_task_id");
+    let restored_route_director_task_id =
+        json_string_at(handoff, "restored_route_director_task_id");
+    let final_open_world_handoff_state = json_string_at(handoff, "final_open_world_handoff_state");
+    let restored_open_world_handoff_state =
+        json_string_at(handoff, "restored_open_world_handoff_state");
+    let milestone_gate = handoff
+        .get("milestones")
+        .and_then(Value::as_object)
+        .is_some_and(|milestones| {
+            milestones
+                .values()
+                .all(|milestone| milestone.as_bool() == Some(true))
+        });
+    let handoff_green_gate = campaign_handoff_green
+        && campaign_handoff_contract == "trillionnium_world_bevy_classic_rts_campaign_handoff_v1";
+    let preview_resolution_gate = json_bool_at(handoff, "write_gate")
+        && preview_width == 1920
+        && preview_height == 1080
+        && capture_frame_count == 16;
+    let map_ui_state_gate = json_string_equals(handoff, "final_current_room_id", "league-coliseum")
+        && json_string_equals(handoff, "final_map_scene", "arena_outdoor")
+        && json_string_equals(
+            handoff,
+            "final_route_director_task_id",
+            "task-fixture-first-route",
+        )
+        && handoff
+            .get("final_route_director_next_room_id")
+            .is_some_and(Value::is_null)
+        && json_string_equals(
+            handoff,
+            "final_open_world_handoff_state",
+            "resumed:league-coliseum",
+        )
+        && json_string_equals(
+            handoff,
+            "final_contextual_primary_action_label",
+            "COMBAT:attack",
+        )
+        && json_string_equals(
+            handoff,
+            "final_objective_status",
+            "open_world_after_action_ready",
+        )
+        && json_array_contains(handoff, "/final_contextual_action_labels", "COMBAT:attack")
+        && json_array_contains(
+            handoff,
+            "/final_active_task_ids",
+            "task-fixture-first-route",
+        )
+        && json_array_contains(
+            handoff,
+            "/final_route_director_history",
+            "rts_open_world_after_action:league-coliseum:arrived",
+        );
+    let restored_ui_state_gate =
+        json_string_equals(handoff, "restored_current_room_id", "league-coliseum")
+            && json_string_equals(handoff, "restored_map_scene", "arena_outdoor")
+            && json_string_equals(
+                handoff,
+                "restored_open_world_handoff_state",
+                "resumed:league-coliseum",
+            )
+            && json_string_equals(
+                handoff,
+                "restored_route_director_task_id",
+                "task-fixture-first-route",
+            )
+            && handoff
+                .get("restored_route_director_next_room_id")
+                .is_some_and(Value::is_null)
+            && json_array_contains(
+                handoff,
+                "/restored_contextual_action_labels",
+                "COMBAT:attack",
+            )
+            && json_array_contains(
+                handoff,
+                "/restored_active_task_ids",
+                "task-fixture-first-route",
+            );
+    let render_readability_gate = json_u64_at(handoff, "non_background_pixels") > 500_000
+        && json_u64_at(handoff, "victory_pixel_count") > 20
+        && json_u64_at(handoff, "expansion_pixel_count") > 60
+        && json_u64_at(handoff, "breach_pixel_count") > 40
+        && json_u64_at(handoff, "keep_pixel_count") > 40
+        && json_u64_at(handoff, "restoration_pixel_count") > 20
+        && json_u64_at(handoff, "open_world_pixel_count") > 60;
+    let live_input_gate = json_bool_at(handoff, "live_campaign_input_gate")
+        && json_bool_at(handoff, "early_campaign_gate")
+        && json_bool_at(handoff, "mid_campaign_gate")
+        && json_bool_at(handoff, "end_campaign_gate")
+        && json_bool_at(handoff, "open_world_resume_gate");
+    let persistence_gate = json_bool_at(handoff, "snapshot_round_trip_gate");
+    let native_client_boundary_gate = handoff
+        .get("cex_runtime_player_client_allowed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        && handoff.get("wgpu_required").and_then(Value::as_bool) == Some(false);
+    let player_first_campaign_continuity_screen_gate =
+        json_bool_at(handoff, "player_first_campaign_handoff_screen_gate")
+            && json_string_equals(
+                handoff,
+                "runtime_screen_mode",
+                "player_runtime_campaign_handoff_screen",
+            )
+            && handoff.get("evidence_board_only").and_then(Value::as_bool) == Some(false)
+            && json_u64_pointer(
+                handoff,
+                "/campaign_handoff_pixel_counts/player_first_campaign_view_non_background",
+            ) > 600_000
+            && json_u64_pointer(
+                handoff,
+                "/campaign_handoff_pixel_counts/player_first_campaign_view_frame",
+            ) > 10_000
+            && json_u64_pointer(
+                handoff,
+                "/campaign_handoff_pixel_counts/player_first_campaign_status_strip",
+            ) > 8_000
+            && json_u64_pointer(
+                handoff,
+                "/campaign_handoff_pixel_counts/player_first_campaign_route_rail",
+            ) > 100_000;
+    let green = handoff_green_gate
+        && preview_resolution_gate
+        && live_input_gate
+        && milestone_gate
+        && map_ui_state_gate
+        && restored_ui_state_gate
+        && persistence_gate
+        && render_readability_gate
+        && native_client_boundary_gate
+        && player_first_campaign_continuity_screen_gate;
+
+    RtsCampaignUiContinuityReview {
+        contract_version: TRNM_RTS_EVIDENCE_CAMPAIGN_UI_CONTINUITY_REVIEW_CONTRACT.to_string(),
+        green,
+        campaign_handoff_contract,
+        campaign_handoff_green,
+        preview_width,
+        preview_height,
+        capture_frame_count,
+        final_current_room_id,
+        restored_current_room_id,
+        final_route_director_task_id,
+        restored_route_director_task_id,
+        final_open_world_handoff_state,
+        restored_open_world_handoff_state,
+        handoff_green_gate,
+        preview_resolution_gate,
+        live_input_gate,
+        milestone_gate,
+        map_ui_state_gate,
+        restored_ui_state_gate,
+        persistence_gate,
+        render_readability_gate,
+        native_client_boundary_gate,
+        player_first_campaign_continuity_screen_gate,
+        input_path: "trnm-world-bevy campaign handoff evidence JSON -> trnm-rts-evidence campaign UI continuity review".to_string(),
+        evidence_path: "trnm-rts-evidence campaign_ui_continuity_review -> Bevy campaign UI continuity packet artifact".to_string(),
+        source_of_truth: "The RTS evidence crate reviews campaign handoff final/restored route state, save-restore persistence, milestone pixels, native-client no-credit boundary, and player-first route-resume screen gates before trnm-world-bevy includes the campaign UI continuity artifact in release-review evidence.".to_string(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2015,6 +2251,98 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn campaign_ui_continuity_review_preserves_handoff_gates() {
+        let handoff: Value = serde_json::from_str(
+            r#"{
+                "contract_version": "trillionnium_world_bevy_classic_rts_campaign_handoff_v1",
+                "green": true,
+                "write_gate": true,
+                "preview_width": 1920,
+                "preview_height": 1080,
+                "capture_frame_count": 16,
+                "final_current_room_id": "league-coliseum",
+                "final_map_scene": "arena_outdoor",
+                "final_route_director_task_id": "task-fixture-first-route",
+                "final_route_director_next_room_id": null,
+                "final_open_world_handoff_state": "resumed:league-coliseum",
+                "final_contextual_primary_action_label": "COMBAT:attack",
+                "final_contextual_action_labels": ["COMBAT:attack"],
+                "final_active_task_ids": ["task-fixture-first-route"],
+                "final_objective_status": "open_world_after_action_ready",
+                "final_route_director_history": [
+                    "rts_open_world_after_action:league-coliseum:arrived"
+                ],
+                "restored_current_room_id": "league-coliseum",
+                "restored_map_scene": "arena_outdoor",
+                "restored_open_world_handoff_state": "resumed:league-coliseum",
+                "restored_route_director_task_id": "task-fixture-first-route",
+                "restored_route_director_next_room_id": null,
+                "restored_contextual_action_labels": ["COMBAT:attack"],
+                "restored_active_task_ids": ["task-fixture-first-route"],
+                "milestones": {
+                    "victory": true,
+                    "expansion": true,
+                    "open_world": true
+                },
+                "non_background_pixels": 500001,
+                "victory_pixel_count": 21,
+                "expansion_pixel_count": 61,
+                "breach_pixel_count": 41,
+                "keep_pixel_count": 41,
+                "restoration_pixel_count": 21,
+                "open_world_pixel_count": 61,
+                "live_campaign_input_gate": true,
+                "early_campaign_gate": true,
+                "mid_campaign_gate": true,
+                "end_campaign_gate": true,
+                "open_world_resume_gate": true,
+                "snapshot_round_trip_gate": true,
+                "cex_runtime_player_client_allowed": false,
+                "wgpu_required": false,
+                "player_first_campaign_handoff_screen_gate": true,
+                "runtime_screen_mode": "player_runtime_campaign_handoff_screen",
+                "evidence_board_only": false,
+                "campaign_handoff_pixel_counts": {
+                    "player_first_campaign_view_non_background": 600001,
+                    "player_first_campaign_view_frame": 10001,
+                    "player_first_campaign_status_strip": 8001,
+                    "player_first_campaign_route_rail": 100001
+                }
+            }"#,
+        )
+        .expect("campaign UI continuity handoff fixture parses");
+
+        let review = rts_campaign_ui_continuity_review(&handoff);
+
+        assert_eq!(
+            review.contract_version,
+            TRNM_RTS_EVIDENCE_CAMPAIGN_UI_CONTINUITY_REVIEW_CONTRACT
+        );
+        assert!(review.green);
+        assert!(review.handoff_green_gate);
+        assert!(review.preview_resolution_gate);
+        assert!(review.live_input_gate);
+        assert!(review.milestone_gate);
+        assert!(review.map_ui_state_gate);
+        assert!(review.restored_ui_state_gate);
+        assert!(review.persistence_gate);
+        assert!(review.render_readability_gate);
+        assert!(review.native_client_boundary_gate);
+        assert!(review.player_first_campaign_continuity_screen_gate);
+        assert_eq!(
+            review.final_current_room_id.as_deref(),
+            Some("league-coliseum")
+        );
+        assert_eq!(
+            review.restored_open_world_handoff_state.as_deref(),
+            Some("resumed:league-coliseum")
+        );
+        assert!(review
+            .source_of_truth
+            .contains("player-first route-resume screen"));
+    }
 
     #[test]
     fn first_contact_runtime_adapter_evidence_is_green() {

@@ -21,6 +21,28 @@ jq -e '
   and .runtime_screen_layout.primary_tactical_viewport == "large restored route tactical state with open-world resume status"
   and .runtime_screen_layout.campaign_route_rail == "sixteen accepted campaign handoff stages shown as a player-side route rail"
   and .runtime_screen_layout.resume_timeline == "bottom player timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
+  and .rts_evidence_campaign_ui_continuity_review_contract == "trnm_rts_evidence_campaign_ui_continuity_review_v1"
+  and .rts_evidence_campaign_ui_continuity_review.green == true
+  and .rts_evidence_campaign_ui_continuity_review.campaign_handoff_contract == "trillionnium_world_bevy_classic_rts_campaign_handoff_v1"
+  and .rts_evidence_campaign_ui_continuity_review.preview_width == 1920
+  and .rts_evidence_campaign_ui_continuity_review.preview_height == 1080
+  and .rts_evidence_campaign_ui_continuity_review.capture_frame_count == 16
+  and .rts_evidence_campaign_ui_continuity_review.final_current_room_id == "league-coliseum"
+  and .rts_evidence_campaign_ui_continuity_review.restored_current_room_id == "league-coliseum"
+  and .rts_evidence_campaign_ui_continuity_review.handoff_green_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.preview_resolution_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.live_input_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.milestone_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.map_ui_state_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.restored_ui_state_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.persistence_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.render_readability_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.native_client_boundary_gate == true
+  and .rts_evidence_campaign_ui_continuity_review.player_first_campaign_continuity_screen_gate == true
+  and (.rts_evidence_campaign_ui_continuity_review.input_path | contains("campaign handoff evidence JSON"))
+  and (.rts_evidence_campaign_ui_continuity_review.evidence_path | contains("campaign_ui_continuity_review"))
+  and (.rts_evidence_campaign_ui_continuity_review.source_of_truth | contains("RTS evidence crate reviews campaign handoff"))
+  and .rts_evidence_campaign_ui_continuity_review_gate == true
   and .capture_frame_count == 16
   and .final_current_room_id == "league-coliseum"
   and .final_map_scene == "arena_outdoor"

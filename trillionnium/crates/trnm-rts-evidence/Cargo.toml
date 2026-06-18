@@ -7,4 +7,5 @@ authors.workspace = true
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 trnm-rts-bevy-runtime = { path = "../trnm-rts-bevy-runtime" }

@@ -5189,6 +5189,7 @@ name = "trnm-rts-evidence"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "trnm-rts-bevy-runtime",
 ]
 

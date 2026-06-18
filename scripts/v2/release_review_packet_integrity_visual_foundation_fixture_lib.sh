@@ -1299,6 +1299,36 @@ add_campaign_ui_continuity_packet_fixtures() {
       campaign_route_rail: "sixteen accepted campaign handoff stages shown as a player-side route rail",
       resume_timeline: "bottom player timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
     },
+    rts_evidence_campaign_ui_continuity_review_contract: "trnm_rts_evidence_campaign_ui_continuity_review_v1",
+    rts_evidence_campaign_ui_continuity_review: {
+      contract_version: "trnm_rts_evidence_campaign_ui_continuity_review_v1",
+      green: true,
+      campaign_handoff_contract: "trillionnium_world_bevy_classic_rts_campaign_handoff_v1",
+      campaign_handoff_green: true,
+      preview_width: 1920,
+      preview_height: 1080,
+      capture_frame_count: 16,
+      final_current_room_id: "league-coliseum",
+      restored_current_room_id: "league-coliseum",
+      final_route_director_task_id: "task-fixture-first-route",
+      restored_route_director_task_id: "task-fixture-first-route",
+      final_open_world_handoff_state: "resumed:league-coliseum",
+      restored_open_world_handoff_state: "resumed:league-coliseum",
+      handoff_green_gate: true,
+      preview_resolution_gate: true,
+      live_input_gate: true,
+      milestone_gate: true,
+      map_ui_state_gate: true,
+      restored_ui_state_gate: true,
+      persistence_gate: true,
+      render_readability_gate: true,
+      native_client_boundary_gate: true,
+      player_first_campaign_continuity_screen_gate: true,
+      input_path: "trnm-world-bevy campaign handoff evidence JSON -> trnm-rts-evidence campaign UI continuity review",
+      evidence_path: "trnm-rts-evidence campaign_ui_continuity_review -> Bevy campaign UI continuity packet artifact",
+      source_of_truth: "The RTS evidence crate reviews campaign handoff final/restored route state, save-restore persistence, milestone pixels, native-client no-credit boundary, and player-first route-resume screen gates before trnm-world-bevy includes the campaign UI continuity artifact in release-review evidence."
+    },
+    rts_evidence_campaign_ui_continuity_review_gate: true,
     capture_frame_count: 16,
     final_current_room_id: "league-coliseum",
     final_map_scene: "arena_outdoor",
@@ -1361,7 +1391,7 @@ add_campaign_ui_continuity_packet_fixtures() {
     public_launch_ready: false,
     screen_for_screen_openra_ui_claimed: false,
     openra_engine_port_claimed: false,
-    source_of_truth: "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently. The preview is a player-first route-resume screen, not a contact sheet."
+    source_of_truth: "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates through trnm-rts-evidence review so the RTS-to-open-world map/UI handoff cannot regress silently. The preview is a player-first route-resume screen, not a contact sheet."
   }' >"$campaign_ui_continuity_json"
   add_artifact_from_path native_bevy_classic_rts_campaign_ui_continuity "Native/Bevy classic RTS campaign UI continuity" "$campaign_ui_continuity_json" release_review_input
 

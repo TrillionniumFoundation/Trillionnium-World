@@ -80603,109 +80603,8 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
     let handoff_json = native_classic_rts_campaign_handoff_evidence_json(preview_path);
     let handoff: Value =
         serde_json::from_str(&handoff_json).expect("classic RTS handoff evidence parses");
-    let bool_at = |key: &str| handoff.get(key).and_then(Value::as_bool) == Some(true);
-    let string_at =
-        |key: &str, expected: &str| handoff.get(key).and_then(Value::as_str) == Some(expected);
-    let u64_at = |key: &str| handoff.get(key).and_then(Value::as_u64).unwrap_or_default();
-    let u64_pointer = |pointer: &str| {
-        handoff
-            .pointer(pointer)
-            .and_then(Value::as_u64)
-            .unwrap_or_default()
-    };
-    let array_contains = |pointer: &str, expected: &str| {
-        handoff
-            .pointer(pointer)
-            .and_then(Value::as_array)
-            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(expected)))
-    };
-    let milestone_gate = handoff
-        .get("milestones")
-        .and_then(Value::as_object)
-        .is_some_and(|milestones| {
-            milestones
-                .values()
-                .all(|milestone| milestone.as_bool() == Some(true))
-        });
-    let handoff_green_gate = bool_at("green")
-        && handoff.get("contract_version").and_then(Value::as_str)
-            == Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT);
-    let preview_resolution_gate = bool_at("write_gate")
-        && u64_at("preview_width") == 1920
-        && u64_at("preview_height") == 1080
-        && u64_at("capture_frame_count") == 16;
-    let map_ui_state_gate = string_at("final_current_room_id", "league-coliseum")
-        && string_at("final_map_scene", "arena_outdoor")
-        && string_at("final_route_director_task_id", "task-fixture-first-route")
-        && handoff
-            .get("final_route_director_next_room_id")
-            .is_some_and(Value::is_null)
-        && string_at("final_open_world_handoff_state", "resumed:league-coliseum")
-        && string_at("final_contextual_primary_action_label", "COMBAT:attack")
-        && string_at("final_objective_status", "open_world_after_action_ready")
-        && array_contains("/final_contextual_action_labels", "COMBAT:attack")
-        && array_contains("/final_active_task_ids", "task-fixture-first-route")
-        && array_contains(
-            "/final_route_director_history",
-            "rts_open_world_after_action:league-coliseum:arrived",
-        );
-    let restored_ui_state_gate = string_at("restored_current_room_id", "league-coliseum")
-        && string_at("restored_map_scene", "arena_outdoor")
-        && string_at(
-            "restored_open_world_handoff_state",
-            "resumed:league-coliseum",
-        )
-        && string_at(
-            "restored_route_director_task_id",
-            "task-fixture-first-route",
-        )
-        && handoff
-            .get("restored_route_director_next_room_id")
-            .is_some_and(Value::is_null)
-        && array_contains("/restored_contextual_action_labels", "COMBAT:attack")
-        && array_contains("/restored_active_task_ids", "task-fixture-first-route");
-    let render_readability_gate = u64_at("non_background_pixels") > 500_000
-        && u64_at("victory_pixel_count") > 20
-        && u64_at("expansion_pixel_count") > 60
-        && u64_at("breach_pixel_count") > 40
-        && u64_at("keep_pixel_count") > 40
-        && u64_at("restoration_pixel_count") > 20
-        && u64_at("open_world_pixel_count") > 60;
-    let live_input_gate = bool_at("live_campaign_input_gate")
-        && bool_at("early_campaign_gate")
-        && bool_at("mid_campaign_gate")
-        && bool_at("end_campaign_gate")
-        && bool_at("open_world_resume_gate");
-    let persistence_gate = bool_at("snapshot_round_trip_gate");
-    let native_client_boundary_gate = handoff
-        .get("cex_runtime_player_client_allowed")
-        .and_then(Value::as_bool)
-        == Some(false)
-        && handoff.get("wgpu_required").and_then(Value::as_bool) == Some(false);
-    let player_first_campaign_continuity_screen_gate =
-        bool_at("player_first_campaign_handoff_screen_gate")
-            && handoff.get("runtime_screen_mode").and_then(Value::as_str)
-                == Some("player_runtime_campaign_handoff_screen")
-            && handoff.get("evidence_board_only").and_then(Value::as_bool) == Some(false)
-            && u64_pointer(
-                "/campaign_handoff_pixel_counts/player_first_campaign_view_non_background",
-            ) > 600_000
-            && u64_pointer("/campaign_handoff_pixel_counts/player_first_campaign_view_frame")
-                > 10_000
-            && u64_pointer("/campaign_handoff_pixel_counts/player_first_campaign_status_strip")
-                > 8_000
-            && u64_pointer("/campaign_handoff_pixel_counts/player_first_campaign_route_rail")
-                > 100_000;
-    let green = handoff_green_gate
-        && preview_resolution_gate
-        && live_input_gate
-        && milestone_gate
-        && map_ui_state_gate
-        && restored_ui_state_gate
-        && persistence_gate
-        && render_readability_gate
-        && native_client_boundary_gate
-        && player_first_campaign_continuity_screen_gate;
+    let review = trnm_rts_evidence::rts_campaign_ui_continuity_review(&handoff);
+    let green = review.green;
 
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_UI_CONTINUITY_CONTRACT,
@@ -80715,13 +80614,16 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         "preview_width": handoff.get("preview_width").cloned().unwrap_or(Value::Null),
         "preview_height": handoff.get("preview_height").cloned().unwrap_or(Value::Null),
         "runtime_screen_mode": "player_runtime_campaign_ui_continuity_screen",
-        "runtime_screen_gate": player_first_campaign_continuity_screen_gate,
+        "runtime_screen_gate": review.player_first_campaign_continuity_screen_gate,
         "evidence_board_only": false,
         "runtime_screen_layout": {
             "primary_tactical_viewport": "large restored route tactical state with open-world resume status",
             "campaign_route_rail": "sixteen accepted campaign handoff stages shown as a player-side route rail",
             "resume_timeline": "bottom player timeline binds objective, expansion, siege, keep, restoration, and open-world resume"
         },
+        "rts_evidence_campaign_ui_continuity_review_contract": trnm_rts_evidence::TRNM_RTS_EVIDENCE_CAMPAIGN_UI_CONTINUITY_REVIEW_CONTRACT,
+        "rts_evidence_campaign_ui_continuity_review": &review,
+        "rts_evidence_campaign_ui_continuity_review_gate": green,
         "campaign_handoff_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CAMPAIGN_HANDOFF_CONTRACT,
         "campaign_handoff_green": handoff.get("green").cloned().unwrap_or(Value::Bool(false)),
         "capture_frame_count": handoff.get("capture_frame_count").cloned().unwrap_or(Value::Null),
@@ -80750,17 +80652,17 @@ pub fn native_classic_rts_campaign_ui_continuity_evidence_json(preview_path: &st
         "restoration_pixel_count": handoff.get("restoration_pixel_count").cloned().unwrap_or(Value::Null),
         "open_world_pixel_count": handoff.get("open_world_pixel_count").cloned().unwrap_or(Value::Null),
         "campaign_continuity_pixel_counts": handoff.get("campaign_handoff_pixel_counts").cloned().unwrap_or(Value::Null),
-        "handoff_green_gate": handoff_green_gate,
-        "preview_resolution_gate": preview_resolution_gate,
-        "live_input_gate": live_input_gate,
-        "milestone_gate": milestone_gate,
-        "map_ui_state_gate": map_ui_state_gate,
-        "restored_ui_state_gate": restored_ui_state_gate,
-        "persistence_gate": persistence_gate,
-        "render_readability_gate": render_readability_gate,
-        "native_client_boundary_gate": native_client_boundary_gate,
-        "player_first_campaign_continuity_screen_gate": player_first_campaign_continuity_screen_gate,
-        "source_of_truth": "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates so the RTS-to-open-world map/UI handoff cannot regress silently. The preview is a player-first route-resume screen, not a contact sheet."
+        "handoff_green_gate": review.handoff_green_gate,
+        "preview_resolution_gate": review.preview_resolution_gate,
+        "live_input_gate": review.live_input_gate,
+        "milestone_gate": review.milestone_gate,
+        "map_ui_state_gate": review.map_ui_state_gate,
+        "restored_ui_state_gate": review.restored_ui_state_gate,
+        "persistence_gate": review.persistence_gate,
+        "render_readability_gate": review.render_readability_gate,
+        "native_client_boundary_gate": review.native_client_boundary_gate,
+        "player_first_campaign_continuity_screen_gate": review.player_first_campaign_continuity_screen_gate,
+        "source_of_truth": "Classic RTS campaign UI continuity evidence binds the Bevy-owned campaign handoff preview to final and restored map scene, route director, objective panel, contextual action labels, milestone pixels, and native-client boundary gates through trnm-rts-evidence review so the RTS-to-open-world map/UI handoff cannot regress silently. The preview is a player-first route-resume screen, not a contact sheet."
     }))
     .expect("classic RTS campaign UI continuity evidence serializes")
 }
