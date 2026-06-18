@@ -29344,115 +29344,6 @@ fn apply_first_contact_player_screen_application_to_runtime(
 }
 
 #[cfg(not(target_os = "android"))]
-fn classic_first_contact_runtime_player_screen_review(
-    runtime: &NativeFirstPlayableRuntime,
-) -> rts_bevy_runtime::RtsFirstContactPlayerScreenReview {
-    rts_bevy_runtime::RtsFirstContactPlayerScreenReview {
-        map_scene: runtime.map_scene.clone(),
-        current_room_id: runtime.current_room_id.clone(),
-        coins: runtime.coins,
-        xp: runtime.xp,
-        camera_focus_tile_id: runtime.rts_camera_focus_tile_id.clone(),
-        visibility_percent: runtime.rts_visibility_percent,
-        army_supply_used: runtime.rts_army_supply_used,
-        army_supply_cap: runtime.rts_army_supply_cap,
-        objective_status: runtime.objective_status.clone(),
-        production_queue: runtime.rts_production_queue.clone(),
-        build_queue: runtime.rts_build_queue.clone(),
-        selected_unit_ids: runtime.rts_selected_unit_ids.clone(),
-        command_queue: runtime.rts_command_queue.clone(),
-        command_destination_tile_id: runtime.rts_command_destination_tile.clone(),
-        group_route_tile_ids: runtime.rts_group_route_tile_ids.clone(),
-        visible_tile_count: runtime.rts_visible_tile_ids.len(),
-        fogged_tile_count: runtime.rts_fogged_tile_ids.len(),
-        selection_box_tile_count: runtime.rts_selection_box_tile_ids.len(),
-        unit_health_percents: runtime.rts_unit_health_percents.clone(),
-        ability_command_ids: runtime.rts_ability_command_ids.clone(),
-        ability_cooldown_percents: runtime.rts_ability_cooldown_percents.clone(),
-        active_ability_id: runtime.rts_active_ability_id.clone(),
-    }
-}
-
-#[cfg(not(target_os = "android"))]
-fn apply_first_contact_offline_adapter_application_to_runtime(
-    runtime: &mut NativeFirstPlayableRuntime,
-    application: &rts_bevy_runtime::RtsOfflineAdapterRuntimeApplication,
-) {
-    runtime.rts_control_group_id = application.runtime_control_group_id.clone();
-    runtime.rts_selected_unit_ids = application.selected_unit_ids.clone();
-    runtime.rts_command_queue = application.command_queue.clone();
-    runtime.rts_command_destination_tile = application.command_destination_tile_id.clone();
-    runtime.rts_group_route_tile_ids = application.group_route_tile_ids.clone();
-    runtime.rts_group_command_state = application.runtime_group_command_state.clone();
-    runtime.rts_pathing_status = application.runtime_pathing_status.clone();
-    runtime.rts_unit_response_state = application.runtime_unit_response_state.clone();
-    runtime.rts_command_stamp_source = application.runtime_command_stamp_source.clone();
-    runtime.rts_command_stamp_kind = application.runtime_command_stamp_kind.clone();
-    runtime.rts_command_stamp_tile_id = application.runtime_command_stamp_tile_id.clone();
-    runtime.rts_command_stamp_player_label = application.runtime_command_stamp_player_label.clone();
-    runtime.last_feedback = application.runtime_last_feedback.clone();
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_offline_adapter_consumption_summary(
-    adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
-) -> (Value, bool) {
-    let mut runtime = classic_first_contact_player_screen_runtime();
-    let runtime_handoff =
-        trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter);
-    let runtime_application =
-        rts_bevy_runtime::rts_first_contact_offline_adapter_runtime_application(&runtime_handoff);
-    apply_first_contact_offline_adapter_application_to_runtime(&mut runtime, &runtime_application);
-
-    let review = rts_bevy_runtime::rts_first_contact_offline_adapter_consumption_review(
-        trnm_rts_online::rts_online_offline_adapter_consumption_review_input(
-            adapter,
-            classic_first_contact_runtime_player_screen_review(&runtime),
-        ),
-    );
-    let green = review.green;
-    (
-        serde_json::to_value(review).expect("offline adapter consumption review serializes"),
-        green,
-    )
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_offline_adapter_session_transition_summary(
-    adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
-    player_screen_application: &rts_bevy_runtime::RtsFirstContactPlayerScreenRuntimeApplication,
-) -> (Value, bool) {
-    let runtime_handoff =
-        trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter);
-    let runtime_application =
-        rts_bevy_runtime::rts_first_contact_offline_adapter_runtime_application(&runtime_handoff);
-    let review = rts_bevy_runtime::rts_first_contact_offline_adapter_session_transition_review(
-        player_screen_application,
-        &runtime_application,
-        &runtime_handoff,
-    );
-    let green = review.green;
-    (
-        serde_json::to_value(review).expect("offline adapter session transition review serializes"),
-        green,
-    )
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_offline_adapter_lobby_ready_summary(
-    adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
-) -> (Value, bool) {
-    let review = rts_bevy_runtime::rts_first_contact_offline_adapter_lobby_ready_review(
-        trnm_rts_online::rts_online_offline_adapter_lobby_ready_review_input(adapter),
-    );
-    let green = review.green;
-    (
-        serde_json::to_value(review).expect("offline adapter lobby ready review serializes"),
-        green,
-    )
-}
-
-#[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
     let terrain_profiles = first_contact_terrain_profiles();
@@ -30226,17 +30117,27 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && !rts_online_offline_adapter.socket_opened
         && !rts_online_offline_adapter.hosted_service_claimed
         && !rts_online_offline_adapter.public_launch_ready;
-    let (rts_online_offline_adapter_consumption_value, rts_online_offline_adapter_consumption_gate) =
-        classic_first_contact_offline_adapter_consumption_summary(&rts_online_offline_adapter);
-    let (
-        rts_online_offline_adapter_session_transition_value,
-        rts_online_offline_adapter_session_transition_gate,
-    ) = classic_first_contact_offline_adapter_session_transition_summary(
-        &rts_online_offline_adapter,
-        &player_screen_runtime_application,
-    );
-    let (rts_online_offline_adapter_lobby_ready_value, rts_online_offline_adapter_lobby_ready_gate) =
-        classic_first_contact_offline_adapter_lobby_ready_summary(&rts_online_offline_adapter);
+    let rts_online_offline_adapter_consumption_value = serde_json::to_value(
+        &rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review,
+    )
+    .expect("RTS evidence offline adapter consumption review serializes");
+    let rts_online_offline_adapter_consumption_gate = rts_evidence_bevy_runtime_adapter
+        .first_contact_offline_adapter_consumption_review
+        .green;
+    let rts_online_offline_adapter_session_transition_value = serde_json::to_value(
+        &rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_review,
+    )
+    .expect("RTS evidence offline adapter session transition review serializes");
+    let rts_online_offline_adapter_session_transition_gate = rts_evidence_bevy_runtime_adapter
+        .first_contact_offline_adapter_session_transition_review
+        .green;
+    let rts_online_offline_adapter_lobby_ready_value = serde_json::to_value(
+        &rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review,
+    )
+    .expect("RTS evidence offline adapter lobby ready review serializes");
+    let rts_online_offline_adapter_lobby_ready_gate = rts_evidence_bevy_runtime_adapter
+        .first_contact_offline_adapter_lobby_ready_review
+        .green;
     let rts_online_protocol_fixture_value = serde_json::to_value(&rts_online_protocol_fixture)
         .expect("RTS online protocol fixture serializes");
     let rts_online_local_handoff_value = serde_json::to_value(&rts_online_local_handoff)

@@ -85,8 +85,12 @@ use trnm_rts_bevy_runtime::{
     rts_unit_status_portrait_unit_id, rts_unit_status_role_badges,
     rts_units_from_control_group_assignment, rts_unlock_unit_tile_for_id,
     rts_worker_harvest_animation_stage, RtsCameraMinimapViewportRect, RtsCommandStamp,
-    RtsControlGroupSlotSummary, RtsFirstContactPlayerScreenReview, RtsOrderQueueReplayAction,
-    RtsRuntimeGridSpec, RtsRuntimeTileLineStep, TRNM_RTS_BEVY_RUNTIME_CONTRACT,
+    RtsControlGroupSlotSummary, RtsFirstContactOfflineAdapterConsumptionReview,
+    RtsFirstContactOfflineAdapterLobbyReadyReview,
+    RtsFirstContactOfflineAdapterSessionTransitionReview, RtsFirstContactPlayerScreenReview,
+    RtsFirstContactPlayerScreenRuntimeApplication, RtsOfflineAdapterRuntimeApplication,
+    RtsOrderQueueReplayAction, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
+    TRNM_RTS_BEVY_RUNTIME_CONTRACT,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT,
@@ -2330,6 +2334,14 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub selection_feedback_stage_sample: Option<String>,
     pub ability_tooltip_stage_sample: Option<String>,
     pub control_group_hotkey_feedback_stage_sample: Option<String>,
+    pub first_contact_player_screen_application: RtsFirstContactPlayerScreenRuntimeApplication,
+    pub first_contact_offline_adapter_application: RtsOfflineAdapterRuntimeApplication,
+    pub first_contact_offline_adapter_consumption_review:
+        RtsFirstContactOfflineAdapterConsumptionReview,
+    pub first_contact_offline_adapter_session_transition_review:
+        RtsFirstContactOfflineAdapterSessionTransitionReview,
+    pub first_contact_offline_adapter_lobby_ready_review:
+        RtsFirstContactOfflineAdapterLobbyReadyReview,
     pub first_contact_player_screen_application_contract: String,
     pub first_contact_player_screen_application_green: bool,
     pub first_contact_offline_adapter_application_contract: String,
@@ -4148,6 +4160,15 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         selection_feedback_stage_sample: selection_feedback_stage,
         ability_tooltip_stage_sample: ability_tooltip_stage,
         control_group_hotkey_feedback_stage_sample: control_group_hotkey_feedback_stage,
+        first_contact_player_screen_application: first_contact_player_screen_application.clone(),
+        first_contact_offline_adapter_application: first_contact_offline_adapter_application
+            .clone(),
+        first_contact_offline_adapter_consumption_review: first_contact_consumption_review
+            .clone(),
+        first_contact_offline_adapter_session_transition_review:
+            first_contact_session_transition_review.clone(),
+        first_contact_offline_adapter_lobby_ready_review: first_contact_lobby_ready_review
+            .clone(),
         first_contact_player_screen_application_contract: first_contact_player_screen_application
             .contract_version,
         first_contact_player_screen_application_green: first_contact_player_screen_application
@@ -5160,25 +5181,79 @@ mod tests {
         );
         assert!(evidence.first_contact_player_screen_application_green);
         assert_eq!(
+            evidence
+                .first_contact_player_screen_application
+                .contract_version,
+            evidence.first_contact_player_screen_application_contract
+        );
+        assert!(evidence.first_contact_player_screen_application.green);
+        assert_eq!(
             evidence.first_contact_offline_adapter_application_contract,
             TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT
         );
         assert!(evidence.first_contact_offline_adapter_application_green);
+        assert_eq!(
+            evidence
+                .first_contact_offline_adapter_application
+                .contract_version,
+            evidence.first_contact_offline_adapter_application_contract
+        );
+        assert_eq!(
+            evidence
+                .first_contact_offline_adapter_application
+                .command_queue,
+            vec!["move:8,4"]
+        );
         assert_eq!(
             evidence.first_contact_offline_adapter_consumption_contract,
             TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT
         );
         assert!(evidence.first_contact_offline_adapter_consumption_green);
         assert_eq!(
+            evidence
+                .first_contact_offline_adapter_consumption_review
+                .contract_version,
+            evidence.first_contact_offline_adapter_consumption_contract
+        );
+        assert_eq!(
+            evidence
+                .first_contact_offline_adapter_consumption_review
+                .runtime_command_stamp_tile_id
+                .as_deref(),
+            Some("8,4")
+        );
+        assert_eq!(
             evidence.first_contact_offline_adapter_session_transition_contract,
             TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT
         );
         assert!(evidence.first_contact_offline_adapter_session_transition_green);
         assert_eq!(
+            evidence
+                .first_contact_offline_adapter_session_transition_review
+                .contract_version,
+            evidence.first_contact_offline_adapter_session_transition_contract
+        );
+        assert_eq!(
+            evidence
+                .first_contact_offline_adapter_session_transition_review
+                .after_command_queue,
+            vec!["move:8,4"]
+        );
+        assert_eq!(
             evidence.first_contact_offline_adapter_lobby_ready_contract,
             TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT
         );
         assert!(evidence.first_contact_offline_adapter_lobby_ready_green);
+        assert_eq!(
+            evidence
+                .first_contact_offline_adapter_lobby_ready_review
+                .contract_version,
+            evidence.first_contact_offline_adapter_lobby_ready_contract
+        );
+        assert!(evidence
+            .first_contact_offline_adapter_lobby_ready_review
+            .ready_state_labels
+            .contains(&"authority:offline_loopback:no_socket".to_string()));
         assert_eq!(
             evidence.first_contact_runtime_review_contracts,
             vec![

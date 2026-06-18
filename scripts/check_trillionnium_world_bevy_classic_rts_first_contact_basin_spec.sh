@@ -7,6 +7,7 @@ SOURCE="$ROOT/trillionnium/crates/trnm-world-bevy/src/lib.rs"
 DATA_SOURCE="$ROOT/trillionnium/crates/trnm-rts-data/src/lib.rs"
 RUNTIME_SOURCE="$ROOT/trillionnium/crates/trnm-rts-bevy-runtime/src/lib.rs"
 ONLINE_SOURCE="$ROOT/trillionnium/crates/trnm-rts-online/src/lib.rs"
+EVIDENCE_SOURCE="$ROOT/trillionnium/crates/trnm-rts-evidence/src/lib.rs"
 mkdir -p "$(dirname "$OUT")"
 
 if grep -Fq 'CLASSIC_FIRST_CONTACT_BASIN_ACTORS' "$SOURCE"; then
@@ -31,21 +32,42 @@ required_source_lines=(
   'let actor_template_count = classic_first_contact_map_actors_from_rts_data().len();'
   'fn apply_first_contact_player_screen_application_to_runtime'
   'rts_bevy_runtime::rts_first_contact_player_screen_runtime_application('
-  'fn apply_first_contact_offline_adapter_application_to_runtime'
-  'fn classic_first_contact_offline_adapter_session_transition_summary'
-  'fn classic_first_contact_offline_adapter_lobby_ready_summary'
-  'trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter)'
-  'trnm_rts_online::rts_online_offline_adapter_lobby_ready_review_input(adapter)'
-  'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
-  'rts_first_contact_offline_adapter_runtime_application(&runtime_handoff)'
-  'rts_first_contact_offline_adapter_consumption_review('
-  'rts_first_contact_offline_adapter_session_transition_review('
-  'rts_first_contact_offline_adapter_lobby_ready_review('
+  'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
+  'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review'
+  'first_contact_offline_adapter_session_transition_review'
+  'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review'
 )
 
 for line in "${required_source_lines[@]}"; do
   if ! grep -Fq "$line" "$SOURCE"; then
     echo "[FAIL] missing First Contact RTS data actor derivation source line: $line" >&2
+    exit 1
+  fi
+done
+
+required_evidence_source_lines=(
+  'pub struct RtsBevyRuntimeAdapterEvidence'
+  'first_contact_player_screen_application: RtsFirstContactPlayerScreenRuntimeApplication'
+  'first_contact_offline_adapter_application: RtsOfflineAdapterRuntimeApplication'
+  'first_contact_offline_adapter_consumption_review:'
+  'first_contact_offline_adapter_session_transition_review:'
+  'first_contact_offline_adapter_lobby_ready_review:'
+  'pub fn first_contact_bevy_runtime_adapter_evidence'
+  'trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input('
+  'trnm_rts_online::rts_online_offline_adapter_lobby_ready_review_input('
+  'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
+  'rts_first_contact_offline_adapter_runtime_application(&first_contact_runtime_handoff)'
+  'rts_first_contact_offline_adapter_consumption_review('
+  'rts_first_contact_offline_adapter_session_transition_review('
+  'rts_first_contact_offline_adapter_lobby_ready_review('
+  'first_contact_offline_adapter_consumption_review: first_contact_consumption_review'
+  'first_contact_offline_adapter_session_transition_review:'
+  'first_contact_offline_adapter_lobby_ready_review: first_contact_lobby_ready_review'
+)
+
+for line in "${required_evidence_source_lines[@]}"; do
+  if ! grep -Fq "$line" "$EVIDENCE_SOURCE"; then
+    echo "[FAIL] missing First Contact RTS evidence aggregate source line: $line" >&2
     exit 1
   fi
 done
@@ -334,14 +356,28 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter_gate == true
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application.contract_version == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application.green == true
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_application.command_queue == ["move:8,4"]
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1"
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review.runtime_command_stamp_tile_id == "8,4"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review.runtime_application.command_queue == ["move:8,4"]
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_review.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_review.after_command_queue == ["move:8,4"]
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
   and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review.ready_state_labels | index("authority:offline_loopback:no_socket") != null)
+  and .rts_online_offline_adapter_consumption == .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review
+  and .rts_online_offline_adapter_session_transition == .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_session_transition_review
+  and .rts_online_offline_adapter_lobby_ready == .rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review
   and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_contracts | index("trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1") != null)
   and (.rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_before_command_queue_sample | index("build:trnm.flux.relay") != null)
   and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_review_after_command_queue_sample == ["move:8,4"]

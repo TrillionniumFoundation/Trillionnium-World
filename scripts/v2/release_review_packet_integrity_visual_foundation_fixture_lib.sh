@@ -403,6 +403,33 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       contract_version: "trnm_rts_evidence_bevy_runtime_adapter_v1",
       runtime_contract: "trnm_rts_bevy_runtime_adapter_v1",
       green: true,
+      first_contact_player_screen_application: {
+        contract_version: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
+        green: true
+      },
+      first_contact_offline_adapter_application: {
+        contract_version: "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1",
+        green: true,
+        command_queue: ["move:8,4"]
+      },
+      first_contact_offline_adapter_consumption_review: {
+        contract_version: "trnm_rts_bevy_runtime_first_contact_offline_adapter_consumption_v1",
+        green: true,
+        runtime_command_stamp_tile_id: "8,4",
+        runtime_application: {
+          command_queue: ["move:8,4"]
+        }
+      },
+      first_contact_offline_adapter_session_transition_review: {
+        contract_version: "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1",
+        green: true,
+        after_command_queue: ["move:8,4"]
+      },
+      first_contact_offline_adapter_lobby_ready_review: {
+        contract_version: "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1",
+        green: true,
+        ready_state_labels: ["player:local-player:ready", "player:mirror_guard:ready", "bot:mirror_guard:ready", "authority:offline_loopback:no_socket"]
+      },
       first_contact_player_screen_application_contract: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
       first_contact_player_screen_application_green: true,
       first_contact_offline_adapter_application_contract: "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1",
