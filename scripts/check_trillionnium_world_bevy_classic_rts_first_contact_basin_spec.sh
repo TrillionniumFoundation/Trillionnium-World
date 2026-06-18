@@ -33,10 +33,13 @@ required_source_lines=(
   'rts_bevy_runtime::rts_first_contact_player_screen_runtime_application('
   'fn apply_first_contact_offline_adapter_application_to_runtime'
   'fn classic_first_contact_offline_adapter_session_transition_summary'
+  'fn classic_first_contact_offline_adapter_lobby_ready_summary'
   'trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(adapter)'
+  'trnm_rts_online::rts_online_offline_adapter_lobby_ready_review_input(adapter)'
   'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
   'rts_first_contact_offline_adapter_runtime_application(&runtime_handoff)'
   'rts_first_contact_offline_adapter_session_transition_review('
+  'rts_first_contact_offline_adapter_lobby_ready_review('
 )
 
 for line in "${required_source_lines[@]}"; do
@@ -71,6 +74,10 @@ required_runtime_source_lines=(
   'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT'
   'pub struct RtsFirstContactOfflineAdapterSessionTransitionReview'
   'pub fn rts_first_contact_offline_adapter_session_transition_review'
+  'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT'
+  'pub struct RtsOfflineAdapterLobbyReadyReviewInput'
+  'pub struct RtsFirstContactOfflineAdapterLobbyReadyReview'
+  'pub fn rts_first_contact_offline_adapter_lobby_ready_review'
   'pub runtime_application_gate: bool'
 )
 
@@ -83,8 +90,10 @@ done
 
 required_online_source_lines=(
   'pub fn rts_online_offline_adapter_runtime_handoff_review_input'
+  'pub fn rts_online_offline_adapter_lobby_ready_review_input'
   'pub fn rts_online_offline_adapter_consumption_review_input'
   'RtsFirstContactOfflineAdapterConsumptionReviewInput'
+  'RtsOfflineAdapterLobbyReadyReviewInput'
   'RtsOfflineAdapterRuntimeHandoffReviewInput'
 )
 
@@ -853,6 +862,34 @@ jq -e '
   and .rts_online_offline_adapter_session_transition.runtime_path == "trnm-rts-bevy-runtime first_contact_offline_adapter_session_transition -> Bevy local session UI transition evidence"
   and (.rts_online_offline_adapter_session_transition.source_of_truth | contains("server-authoritative offline adapter handoff"))
   and .rts_online_offline_adapter_session_transition_gate == true
+  and .rts_online_offline_adapter_lobby_ready_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
+  and .rts_online_offline_adapter_lobby_ready.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
+  and .rts_online_offline_adapter_lobby_ready.green == true
+  and .rts_online_offline_adapter_lobby_ready.adapter_contract == "trnm_rts_online_offline_adapter_v1"
+  and .rts_online_offline_adapter_lobby_ready.adapter_id == "first-contact-offline-loopback-adapter"
+  and .rts_online_offline_adapter_lobby_ready.handoff_id == "first-contact-local-loopback-handoff"
+  and .rts_online_offline_adapter_lobby_ready.arena_id == "first-contact-local-arena"
+  and .rts_online_offline_adapter_lobby_ready.map_id == "first_contact_basin"
+  and .rts_online_offline_adapter_lobby_ready.adapter_mode == "offline_loopback_authority"
+  and .rts_online_offline_adapter_lobby_ready.bevy_client_role == "visualization_and_local_input_submitter"
+  and .rts_online_offline_adapter_lobby_ready.authority_role == "trnm_rts_online_fixture_authority_no_socket"
+  and .rts_online_offline_adapter_lobby_ready.connected_player_ids == ["local-player", "mirror_guard"]
+  and .rts_online_offline_adapter_lobby_ready.bot_player_ids == ["mirror_guard"]
+  and (.rts_online_offline_adapter_lobby_ready.ready_state_labels | index("player:local-player:ready") != null)
+  and (.rts_online_offline_adapter_lobby_ready.ready_state_labels | index("player:mirror_guard:ready") != null)
+  and (.rts_online_offline_adapter_lobby_ready.ready_state_labels | index("bot:mirror_guard:ready") != null)
+  and (.rts_online_offline_adapter_lobby_ready.ready_state_labels | index("authority:offline_loopback:no_socket") != null)
+  and .rts_online_offline_adapter_lobby_ready.blocked_network_claim_labels == ["client_prediction:not_claimed", "rollback_netcode:not_claimed", "socket:not_claimed", "hosted_service:not_claimed", "public_launch:not_claimed"]
+  and .rts_online_offline_adapter_lobby_ready.local_multiplayer_ready_gate == true
+  and .rts_online_offline_adapter_lobby_ready.offline_bot_ready_gate == true
+  and .rts_online_offline_adapter_lobby_ready.bevy_adapter_ready_gate == true
+  and .rts_online_offline_adapter_lobby_ready.authority_ready_gate == true
+  and .rts_online_offline_adapter_lobby_ready.frame_identity_gate == true
+  and .rts_online_offline_adapter_lobby_ready.no_network_claim_gate == true
+  and .rts_online_offline_adapter_lobby_ready.input_path == "trnm-rts-online offline adapter lobby ready input -> trnm-rts-bevy-runtime lobby ready review"
+  and .rts_online_offline_adapter_lobby_ready.runtime_path == "trnm-rts-bevy-runtime first_contact_offline_adapter_lobby_ready -> Bevy local lobby/ready-state evidence"
+  and (.rts_online_offline_adapter_lobby_ready.source_of_truth | contains("lobby ready review"))
+  and .rts_online_offline_adapter_lobby_ready_gate == true
   and .bevy_data_actor_parity_gate == true
   and .bevy_map_model_adapter_gate == true
   and .ui_runtime_gate == true

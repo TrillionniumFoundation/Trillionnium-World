@@ -24,6 +24,8 @@ pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRA
     "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1";
 pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_SESSION_TRANSITION_CONTRACT: &str =
     "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1";
+pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT: &str =
+    "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1";
 pub const TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_PLAYER_SCREEN_APPLICATION_CONTRACT: &str =
     "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1";
 
@@ -750,6 +752,59 @@ pub struct RtsFirstContactOfflineAdapterConsumptionReview {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsOfflineAdapterLobbyReadyReviewInput {
+    pub adapter_green: bool,
+    pub adapter_contract: String,
+    pub adapter_id: String,
+    pub handoff_id: String,
+    pub arena_id: String,
+    pub map_id: String,
+    pub adapter_mode: String,
+    pub bevy_client_role: String,
+    pub authority_role: String,
+    pub connected_player_ids: Vec<String>,
+    pub bot_player_ids: Vec<String>,
+    pub frame_sha256s: Vec<String>,
+    pub local_multiplayer_ready: bool,
+    pub offline_bot_ready: bool,
+    pub bevy_adapter_ready: bool,
+    pub server_authoritative: bool,
+    pub visibility_scoped_response: bool,
+    pub client_prediction_claimed: bool,
+    pub rollback_netcode_claimed: bool,
+    pub socket_opened: bool,
+    pub hosted_service_claimed: bool,
+    pub public_launch_ready: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactOfflineAdapterLobbyReadyReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub adapter_contract: String,
+    pub adapter_id: String,
+    pub handoff_id: String,
+    pub arena_id: String,
+    pub map_id: String,
+    pub adapter_mode: String,
+    pub bevy_client_role: String,
+    pub authority_role: String,
+    pub connected_player_ids: Vec<String>,
+    pub bot_player_ids: Vec<String>,
+    pub ready_state_labels: Vec<String>,
+    pub blocked_network_claim_labels: Vec<String>,
+    pub local_multiplayer_ready_gate: bool,
+    pub offline_bot_ready_gate: bool,
+    pub bevy_adapter_ready_gate: bool,
+    pub authority_ready_gate: bool,
+    pub frame_identity_gate: bool,
+    pub no_network_claim_gate: bool,
+    pub input_path: String,
+    pub runtime_path: String,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsFirstContactOfflineAdapterSessionTransitionReview {
     pub contract_version: String,
     pub green: bool,
@@ -1077,6 +1132,97 @@ pub fn rts_first_contact_offline_adapter_session_transition_review(
                 .to_string(),
         source_of_truth:
             "This Bevy-free transition review proves the First Contact player-screen command surface and route overlay move from data-seeded local UI state to the server-authoritative offline adapter handoff while room, camera, visibility, supply, objective context, scoped updates, and no-socket claims stay coherent."
+                .to_string(),
+    }
+}
+
+pub fn rts_first_contact_offline_adapter_lobby_ready_review(
+    input: RtsOfflineAdapterLobbyReadyReviewInput,
+) -> RtsFirstContactOfflineAdapterLobbyReadyReview {
+    let ready_state_labels = input
+        .connected_player_ids
+        .iter()
+        .map(|player_id| format!("player:{player_id}:ready"))
+        .chain(
+            input
+                .bot_player_ids
+                .iter()
+                .map(|bot_id| format!("bot:{bot_id}:ready")),
+        )
+        .chain(std::iter::once(
+            "authority:offline_loopback:no_socket".to_string(),
+        ))
+        .collect::<Vec<_>>();
+    let blocked_network_claim_labels = [
+        ("client_prediction", input.client_prediction_claimed),
+        ("rollback_netcode", input.rollback_netcode_claimed),
+        ("socket", input.socket_opened),
+        ("hosted_service", input.hosted_service_claimed),
+        ("public_launch", input.public_launch_ready),
+    ]
+    .into_iter()
+    .filter_map(|(label, claimed)| (!claimed).then(|| format!("{label}:not_claimed")))
+    .collect::<Vec<_>>();
+    let local_multiplayer_ready_gate = input.adapter_green
+        && input.local_multiplayer_ready
+        && input.connected_player_ids == rts_string_vec(["local-player", "mirror_guard"])
+        && input.adapter_mode == "offline_loopback_authority";
+    let offline_bot_ready_gate =
+        input.offline_bot_ready && input.bot_player_ids == rts_string_vec(["mirror_guard"]);
+    let bevy_adapter_ready_gate = input.bevy_adapter_ready
+        && input.bevy_client_role == "visualization_and_local_input_submitter"
+        && input.authority_role == "trnm_rts_online_fixture_authority_no_socket";
+    let authority_ready_gate = input.server_authoritative && input.visibility_scoped_response;
+    let frame_identity_gate =
+        input.frame_sha256s.len() == 3 && input.frame_sha256s.iter().all(|sha| sha.len() == 64);
+    let no_network_claim_gate = !input.client_prediction_claimed
+        && !input.rollback_netcode_claimed
+        && !input.socket_opened
+        && !input.hosted_service_claimed
+        && !input.public_launch_ready
+        && blocked_network_claim_labels.len() == 5;
+    let green = local_multiplayer_ready_gate
+        && offline_bot_ready_gate
+        && bevy_adapter_ready_gate
+        && authority_ready_gate
+        && frame_identity_gate
+        && no_network_claim_gate
+        && input.adapter_contract == "trnm_rts_online_offline_adapter_v1"
+        && input.adapter_id == "first-contact-offline-loopback-adapter"
+        && input.handoff_id == "first-contact-local-loopback-handoff"
+        && input.arena_id == "first-contact-local-arena"
+        && input.map_id == "first_contact_basin";
+
+    RtsFirstContactOfflineAdapterLobbyReadyReview {
+        contract_version:
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT.to_string(),
+        green,
+        adapter_contract: input.adapter_contract,
+        adapter_id: input.adapter_id,
+        handoff_id: input.handoff_id,
+        arena_id: input.arena_id,
+        map_id: input.map_id,
+        adapter_mode: input.adapter_mode,
+        bevy_client_role: input.bevy_client_role,
+        authority_role: input.authority_role,
+        connected_player_ids: input.connected_player_ids,
+        bot_player_ids: input.bot_player_ids,
+        ready_state_labels,
+        blocked_network_claim_labels,
+        local_multiplayer_ready_gate,
+        offline_bot_ready_gate,
+        bevy_adapter_ready_gate,
+        authority_ready_gate,
+        frame_identity_gate,
+        no_network_claim_gate,
+        input_path:
+            "trnm-rts-online offline adapter lobby ready input -> trnm-rts-bevy-runtime lobby ready review"
+                .to_string(),
+        runtime_path:
+            "trnm-rts-bevy-runtime first_contact_offline_adapter_lobby_ready -> Bevy local lobby/ready-state evidence"
+                .to_string(),
+        source_of_truth:
+            "This Bevy-free lobby ready review proves the local First Contact offline adapter has two connected players, one offline bot, stable frame identities, Bevy acting only as visualization/input submitter, and no socket, hosted-service, client-prediction, rollback, or public-launch credit before the Bevy adapter renders any lobby or ready-state UI."
                 .to_string(),
     }
 }
@@ -8900,6 +9046,61 @@ mod tests {
         assert!(session_transition
             .source_of_truth
             .contains("server-authoritative offline adapter handoff"));
+
+        let lobby_ready_review = rts_first_contact_offline_adapter_lobby_ready_review(
+            RtsOfflineAdapterLobbyReadyReviewInput {
+                adapter_green: true,
+                adapter_contract: "trnm_rts_online_offline_adapter_v1".to_string(),
+                adapter_id: "first-contact-offline-loopback-adapter".to_string(),
+                handoff_id: "first-contact-local-loopback-handoff".to_string(),
+                arena_id: "first-contact-local-arena".to_string(),
+                map_id: "first_contact_basin".to_string(),
+                adapter_mode: "offline_loopback_authority".to_string(),
+                bevy_client_role: "visualization_and_local_input_submitter".to_string(),
+                authority_role: "trnm_rts_online_fixture_authority_no_socket".to_string(),
+                connected_player_ids: rts_string_vec(["local-player", "mirror_guard"]),
+                bot_player_ids: rts_string_vec(["mirror_guard"]),
+                frame_sha256s: rts_string_vec([
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                ]),
+                local_multiplayer_ready: true,
+                offline_bot_ready: true,
+                bevy_adapter_ready: true,
+                server_authoritative: true,
+                visibility_scoped_response: true,
+                client_prediction_claimed: false,
+                rollback_netcode_claimed: false,
+                socket_opened: false,
+                hosted_service_claimed: false,
+                public_launch_ready: false,
+            },
+        );
+        assert_eq!(
+            lobby_ready_review.contract_version,
+            TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT
+        );
+        assert!(lobby_ready_review.green);
+        assert!(lobby_ready_review.local_multiplayer_ready_gate);
+        assert!(lobby_ready_review.offline_bot_ready_gate);
+        assert!(lobby_ready_review.bevy_adapter_ready_gate);
+        assert!(lobby_ready_review.authority_ready_gate);
+        assert!(lobby_ready_review.frame_identity_gate);
+        assert!(lobby_ready_review.no_network_claim_gate);
+        assert_eq!(
+            lobby_ready_review.ready_state_labels,
+            rts_string_vec([
+                "player:local-player:ready",
+                "player:mirror_guard:ready",
+                "bot:mirror_guard:ready",
+                "authority:offline_loopback:no_socket",
+            ])
+        );
+        assert_eq!(lobby_ready_review.blocked_network_claim_labels.len(), 5);
+        assert!(lobby_ready_review
+            .source_of_truth
+            .contains("lobby ready review"));
 
         let runtime_player_screen_review = RtsFirstContactPlayerScreenReview {
             map_scene: "first_contact_basin".to_string(),

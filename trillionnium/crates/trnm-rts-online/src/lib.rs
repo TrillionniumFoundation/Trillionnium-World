@@ -10,7 +10,7 @@ use trnm_rts_bevy_runtime::{
     rts_control_group_command_feedback_rejection_replay_fixtures,
     rts_control_group_command_feedback_replay_fixtures,
     RtsFirstContactOfflineAdapterConsumptionReviewInput, RtsFirstContactPlayerScreenReview,
-    RtsOfflineAdapterRuntimeHandoffReviewInput,
+    RtsOfflineAdapterLobbyReadyReviewInput, RtsOfflineAdapterRuntimeHandoffReviewInput,
 };
 use trnm_rts_core::{RtsFrameOrder, RtsOrderKind, RtsOrderSource, RtsTile};
 
@@ -1227,6 +1227,35 @@ pub fn rts_online_offline_adapter_runtime_handoff_review_input(
     }
 }
 
+pub fn rts_online_offline_adapter_lobby_ready_review_input(
+    adapter: &RtsOnlineOfflineAdapterSummary,
+) -> RtsOfflineAdapterLobbyReadyReviewInput {
+    RtsOfflineAdapterLobbyReadyReviewInput {
+        adapter_green: adapter.green,
+        adapter_contract: adapter.contract_version.clone(),
+        adapter_id: adapter.adapter_id.clone(),
+        handoff_id: adapter.handoff_id.clone(),
+        arena_id: adapter.arena_id.clone(),
+        map_id: adapter.map_id.clone(),
+        adapter_mode: adapter.adapter_mode.clone(),
+        bevy_client_role: adapter.bevy_client_role.clone(),
+        authority_role: adapter.authority_role.clone(),
+        connected_player_ids: adapter.connected_player_ids.clone(),
+        bot_player_ids: adapter.bot_player_ids.clone(),
+        frame_sha256s: adapter.frame_sha256s.clone(),
+        local_multiplayer_ready: adapter.local_multiplayer_ready,
+        offline_bot_ready: adapter.offline_bot_ready,
+        bevy_adapter_ready: adapter.bevy_adapter_ready,
+        server_authoritative: adapter.server_authoritative,
+        visibility_scoped_response: adapter.visibility_scoped_response,
+        client_prediction_claimed: adapter.client_prediction_claimed,
+        rollback_netcode_claimed: adapter.rollback_netcode_claimed,
+        socket_opened: adapter.socket_opened,
+        hosted_service_claimed: adapter.hosted_service_claimed,
+        public_launch_ready: adapter.public_launch_ready,
+    }
+}
+
 pub fn rts_online_offline_adapter_consumption_review_input(
     adapter: &RtsOnlineOfflineAdapterSummary,
     runtime_player_screen_review: RtsFirstContactPlayerScreenReview,
@@ -1539,6 +1568,34 @@ mod tests {
         assert!(handoff.rejected_order_runtime_ready);
         assert!(handoff.scoped_update_runtime_ready);
         assert!(handoff.no_socket_boundary_ready);
+
+        let lobby_input = rts_online_offline_adapter_lobby_ready_review_input(&adapter);
+        assert!(lobby_input.adapter_green);
+        assert_eq!(
+            lobby_input.adapter_contract,
+            TRNM_RTS_ONLINE_OFFLINE_ADAPTER_CONTRACT
+        );
+        assert_eq!(
+            lobby_input.connected_player_ids,
+            vec!["local-player", "mirror_guard"]
+        );
+        assert_eq!(lobby_input.bot_player_ids, vec!["mirror_guard"]);
+        assert!(lobby_input.local_multiplayer_ready);
+        assert!(lobby_input.offline_bot_ready);
+        assert!(lobby_input.bevy_adapter_ready);
+        assert!(lobby_input.server_authoritative);
+        assert!(lobby_input.visibility_scoped_response);
+        assert!(!lobby_input.socket_opened);
+        assert!(!lobby_input.hosted_service_claimed);
+        assert!(!lobby_input.public_launch_ready);
+        let lobby_review =
+            trnm_rts_bevy_runtime::rts_first_contact_offline_adapter_lobby_ready_review(
+                lobby_input,
+            );
+        assert!(lobby_review.green);
+        assert!(lobby_review.local_multiplayer_ready_gate);
+        assert!(lobby_review.offline_bot_ready_gate);
+        assert!(lobby_review.no_network_claim_gate);
 
         let runtime_review = RtsFirstContactPlayerScreenReview {
             map_scene: "first_contact_basin".to_string(),
