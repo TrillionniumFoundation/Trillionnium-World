@@ -89,6 +89,8 @@ pub const TRNM_RTS_EVIDENCE_CAMPAIGN_UI_CONTINUITY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_campaign_ui_continuity_review_v1";
 pub const TRNM_RTS_EVIDENCE_SESSION_STATE_CONTINUITY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_session_state_continuity_review_v1";
+pub const TRNM_RTS_EVIDENCE_CONTINUOUS_PLAYER_FLOW_REVIEW_CONTRACT: &str =
+    "trnm_rts_evidence_continuous_player_flow_review_v1";
 pub const TRNM_RTS_EVIDENCE_RELEASE_REVIEW_PACKET_ASSEMBLY_REVIEW_CONTRACT: &str =
     "trnm_rts_evidence_release_review_packet_assembly_review_v1";
 
@@ -168,6 +170,48 @@ pub struct RtsSessionStateContinuityReview {
     pub source_preview_gate: bool,
     pub runtime_screen_gate: bool,
     pub session_state_continuity_gate: bool,
+    pub input_path: String,
+    pub evidence_path: String,
+    pub source_of_truth: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsContinuousPlayerFlowReview {
+    pub contract_version: String,
+    pub green: bool,
+    pub continuous_player_flow_contract: String,
+    pub continuous_player_flow_green: bool,
+    pub preview_width: u64,
+    pub preview_height: u64,
+    pub continuous_player_flow_step_count: u64,
+    pub shell_meta_surface_count: u64,
+    pub match_setup_map_id: Option<String>,
+    pub match_setup_faction_id: Option<String>,
+    pub hud_surface_count: u64,
+    pub hud_army_supply_used: u64,
+    pub interaction_surface_count: u64,
+    pub session_final_objective_status: Option<String>,
+    pub session_open_world_state: Option<String>,
+    pub campaign_outcome_open_world_state: Option<String>,
+    pub campaign_continuity_restored_room_id: Option<String>,
+    pub source_contract_gate: bool,
+    pub transition_sequence_gate: bool,
+    pub source_headline_gate: bool,
+    pub pixel_gate: bool,
+    pub title_account_gate: bool,
+    pub match_setup_gate: bool,
+    pub in_match_hud_gate: bool,
+    pub command_feedback_gate: bool,
+    pub save_resume_gate: bool,
+    pub outcome_open_world_gate: bool,
+    pub continuous_player_flow_chain_gate: bool,
+    pub source_preview_gate: bool,
+    pub preview_gate: bool,
+    pub player_first_continuous_flow_screen_gate: bool,
+    pub native_client_boundary_gate: bool,
+    pub runtime_screen_gate: bool,
+    pub no_credit_boundary_gate: bool,
+    pub continuous_player_flow_gate: bool,
     pub input_path: String,
     pub evidence_path: String,
     pub source_of_truth: String,
@@ -801,6 +845,205 @@ pub fn rts_session_state_continuity_review(input: &Value) -> RtsSessionStateCont
         input_path: "trnm-world-bevy session-state continuity source JSON and pixel counts -> trnm-rts-evidence session-state continuity review".to_string(),
         evidence_path: "trnm-rts-evidence session_state_continuity_review -> Bevy session-state continuity packet artifact".to_string(),
         source_of_truth: "The RTS evidence crate reviews save-slot confirmation, load-resume lock/continue, recovery guard, match setup, restored HUD, campaign outcome, campaign continuity, source preview readiness, native-client no-credit boundaries, and the player-first session resume screen before trnm-world-bevy includes the session-state continuity artifact in release-review evidence.".to_string(),
+    }
+}
+
+pub fn rts_continuous_player_flow_review(input: &Value) -> RtsContinuousPlayerFlowReview {
+    let continuous_player_flow_contract =
+        json_string_at(input, "contract_version").unwrap_or_default();
+    let continuous_player_flow_green = json_bool_at(input, "green");
+    let preview_width = json_u64_at(input, "preview_width");
+    let preview_height = json_u64_at(input, "preview_height");
+    let continuous_player_flow_step_count = json_u64_at(input, "continuous_player_flow_step_count");
+    let shell_meta_surface_count =
+        json_u64_pointer(input, "/source_headline/shell_meta_surface_count");
+    let match_setup_map_id = json_string_pointer(input, "/source_headline/match_setup_map_id");
+    let match_setup_faction_id =
+        json_string_pointer(input, "/source_headline/match_setup_faction_id");
+    let hud_surface_count = json_u64_pointer(input, "/source_headline/hud_surface_count");
+    let hud_army_supply_used = json_u64_pointer(input, "/source_headline/hud_army_supply_used");
+    let interaction_surface_count =
+        json_u64_pointer(input, "/source_headline/interaction_surface_count");
+    let session_final_objective_status =
+        json_string_pointer(input, "/source_headline/session_final_objective_status");
+    let session_open_world_state =
+        json_string_pointer(input, "/source_headline/session_open_world_state");
+    let campaign_outcome_open_world_state =
+        json_string_pointer(input, "/source_headline/campaign_outcome_open_world_state");
+    let campaign_continuity_restored_room_id = json_string_pointer(
+        input,
+        "/source_headline/campaign_continuity_restored_room_id",
+    );
+
+    let source_contract_gate =
+        json_string_pointer(input, "/source_contracts/shell_meta_ui_replication").as_deref()
+            == Some("trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1")
+            && json_string_pointer(input, "/source_contracts/match_setup_ui_replication")
+                .as_deref()
+                == Some("trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1")
+            && json_string_pointer(input, "/source_contracts/in_match_hud_state_replication")
+                .as_deref()
+                == Some("trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1")
+            && json_string_pointer(input, "/source_contracts/production_interaction_polish")
+                .as_deref()
+                == Some("trillionnium_world_bevy_classic_rts_production_interaction_polish_v1")
+            && json_string_pointer(input, "/source_contracts/session_state_continuity").as_deref()
+                == Some("trillionnium_world_bevy_classic_rts_session_state_continuity_v1")
+            && json_string_pointer(input, "/source_contracts/campaign_outcome_ui_readiness")
+                .as_deref()
+                == Some("trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1")
+            && json_string_pointer(input, "/source_contracts/campaign_ui_continuity").as_deref()
+                == Some("trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1");
+    let expected_steps = [
+        "title_account",
+        "match_setup",
+        "in_match_hud",
+        "command_feedback",
+        "save_load_resume",
+        "outcome_open_world",
+    ];
+    let step_ids_gate = input
+        .pointer("/continuous_player_flow_steps")
+        .and_then(Value::as_array)
+        .is_some_and(|steps| {
+            expected_steps.iter().all(|expected| {
+                steps.iter().any(|step| {
+                    step.get("step_id").and_then(Value::as_str) == Some(*expected)
+                        && step
+                            .get("runtime_screen_mode")
+                            .and_then(Value::as_str)
+                            .is_some_and(|mode| mode.starts_with("player_runtime_"))
+                })
+            })
+        });
+    let transition_sequence_gate = continuous_player_flow_step_count == 6
+        && step_ids_gate
+        && expected_steps
+            .iter()
+            .all(|expected| json_array_contains(input, "/transition_sequence", expected));
+    let source_headline_gate = shell_meta_surface_count == 12
+        && match_setup_map_id.as_deref() == Some("first_contact_basin")
+        && match_setup_faction_id.as_deref() == Some("mirror_guard")
+        && hud_surface_count == 8
+        && hud_army_supply_used == 9
+        && interaction_surface_count == 6
+        && session_final_objective_status.as_deref() == Some("first_playable_loop_complete")
+        && session_open_world_state.as_deref() == Some("resumed:league-coliseum")
+        && campaign_outcome_open_world_state.as_deref() == Some("resumed:league-coliseum")
+        && campaign_continuity_restored_room_id.as_deref() == Some("league-coliseum");
+    let pixel_gate = json_u64_pointer(input, "/flow_pixel_counts/non_background") > 250_000
+        && json_u64_pointer(input, "/flow_pixel_counts/board") > 100_000
+        && json_u64_pointer(input, "/flow_pixel_counts/title_account") > 2_000
+        && json_u64_pointer(input, "/flow_pixel_counts/match_setup") > 2_000
+        && json_u64_pointer(input, "/flow_pixel_counts/in_match_hud") > 2_000
+        && json_u64_pointer(input, "/flow_pixel_counts/command_feedback") > 2_000
+        && json_u64_pointer(input, "/flow_pixel_counts/save_load_resume") > 2_000
+        && json_u64_pointer(input, "/flow_pixel_counts/outcome_open_world") > 2_000
+        && json_u64_pointer(input, "/flow_pixel_counts/lane") > 500
+        && json_u64_pointer(input, "/flow_pixel_counts/highlight") > 1_000
+        && json_u64_pointer(
+            input,
+            "/flow_pixel_counts/player_first_flow_view_non_background",
+        ) > 300_000
+        && json_u64_pointer(input, "/flow_pixel_counts/player_first_flow_view_frame") > 8_000
+        && json_u64_pointer(input, "/flow_pixel_counts/player_first_flow_status_strip") > 10_000
+        && json_u64_pointer(input, "/flow_pixel_counts/player_first_flow_stage_rail") > 50_000;
+    let title_account_gate = json_bool_at(input, "title_account_gate");
+    let match_setup_gate = json_bool_at(input, "match_setup_gate");
+    let in_match_hud_gate = json_bool_at(input, "in_match_hud_gate");
+    let command_feedback_gate = json_bool_at(input, "command_feedback_gate");
+    let save_resume_gate = json_bool_at(input, "save_resume_gate");
+    let outcome_open_world_gate = json_bool_at(input, "outcome_open_world_gate");
+    let continuous_player_flow_chain_gate = title_account_gate
+        && match_setup_gate
+        && in_match_hud_gate
+        && command_feedback_gate
+        && save_resume_gate
+        && outcome_open_world_gate
+        && json_bool_at(input, "continuous_player_flow_chain_gate");
+    let source_preview_gate = json_bool_at(input, "source_preview_gate");
+    let preview_gate = json_bool_at(input, "preview_gate")
+        && preview_width == 1600
+        && preview_height == 900
+        && json_string_equals(input, "preview_format", "ppm_p3_rgb")
+        && pixel_gate;
+    let player_first_continuous_flow_screen_gate =
+        json_bool_at(input, "player_first_continuous_flow_screen_gate");
+    let native_client_boundary_gate = json_bool_at(input, "native_client_boundary_gate");
+    let runtime_screen_gate = json_bool_at(input, "runtime_screen_gate")
+        && json_string_equals(
+            input,
+            "runtime_screen_mode",
+            "player_runtime_continuous_player_flow_screen",
+        )
+        && input.get("evidence_board_only").and_then(Value::as_bool) == Some(false);
+    let no_credit_boundary_gate = json_bool_at(
+        input,
+        "external_evidence_ignored_for_current_replication_pass",
+    ) && !json_bool_at(input, "android_s5_real_device_claimed")
+        && !json_bool_at(input, "public_launch_ready")
+        && !json_bool_at(input, "production_ready_ui_claimed")
+        && !json_bool_at(input, "screen_for_screen_openra_ui_claimed")
+        && !json_bool_at(input, "openra_engine_port_claimed")
+        && !json_bool_at(input, "warcraft_iii_asset_copied")
+        && !json_bool_at(input, "openra_asset_copied")
+        && !json_bool_at(input, "third_party_asset_copied");
+    let continuous_player_flow_gate = json_bool_at(input, "continuous_player_flow_gate")
+        && source_contract_gate
+        && transition_sequence_gate
+        && source_headline_gate
+        && continuous_player_flow_chain_gate
+        && source_preview_gate
+        && preview_gate
+        && player_first_continuous_flow_screen_gate
+        && native_client_boundary_gate
+        && runtime_screen_gate
+        && no_credit_boundary_gate;
+    let green = json_contract_is(
+        input,
+        "trillionnium_world_bevy_classic_rts_continuous_player_flow_v1",
+    ) && continuous_player_flow_green
+        && continuous_player_flow_gate;
+
+    RtsContinuousPlayerFlowReview {
+        contract_version: TRNM_RTS_EVIDENCE_CONTINUOUS_PLAYER_FLOW_REVIEW_CONTRACT.to_string(),
+        green,
+        continuous_player_flow_contract,
+        continuous_player_flow_green,
+        preview_width,
+        preview_height,
+        continuous_player_flow_step_count,
+        shell_meta_surface_count,
+        match_setup_map_id,
+        match_setup_faction_id,
+        hud_surface_count,
+        hud_army_supply_used,
+        interaction_surface_count,
+        session_final_objective_status,
+        session_open_world_state,
+        campaign_outcome_open_world_state,
+        campaign_continuity_restored_room_id,
+        source_contract_gate,
+        transition_sequence_gate,
+        source_headline_gate,
+        pixel_gate,
+        title_account_gate,
+        match_setup_gate,
+        in_match_hud_gate,
+        command_feedback_gate,
+        save_resume_gate,
+        outcome_open_world_gate,
+        continuous_player_flow_chain_gate,
+        source_preview_gate,
+        preview_gate,
+        player_first_continuous_flow_screen_gate,
+        native_client_boundary_gate,
+        runtime_screen_gate,
+        no_credit_boundary_gate,
+        continuous_player_flow_gate,
+        input_path: "trnm-world-bevy continuous player-flow source JSON and pixel counts -> trnm-rts-evidence continuous player-flow review".to_string(),
+        evidence_path: "trnm-rts-evidence continuous_player_flow_review -> Bevy continuous player-flow packet/readiness artifact".to_string(),
+        source_of_truth: "The RTS evidence crate reviews the six-step continuous player flow from title/account through match setup, in-match HUD, command feedback, save/resume, and outcome/open-world return, while preserving player-first screen gates and S5/public/OpenRA/third-party no-credit boundaries before trnm-world-bevy includes the flow in playtest readiness.".to_string(),
     }
 }
 
@@ -3167,6 +3410,118 @@ mod tests {
         assert!(review
             .source_of_truth
             .contains("player-first session resume screen"));
+    }
+
+    #[test]
+    fn continuous_player_flow_review_preserves_six_step_screen_gates() {
+        let input = json!({
+            "contract_version": "trillionnium_world_bevy_classic_rts_continuous_player_flow_v1",
+            "green": true,
+            "preview_format": "ppm_p3_rgb",
+            "preview_width": 1600,
+            "preview_height": 900,
+            "source_contracts": {
+                "shell_meta_ui_replication": "trillionnium_world_bevy_classic_rts_shell_meta_ui_replication_v1",
+                "match_setup_ui_replication": "trillionnium_world_bevy_classic_rts_match_setup_ui_replication_v1",
+                "in_match_hud_state_replication": "trillionnium_world_bevy_classic_rts_in_match_hud_state_replication_v1",
+                "production_interaction_polish": "trillionnium_world_bevy_classic_rts_production_interaction_polish_v1",
+                "session_state_continuity": "trillionnium_world_bevy_classic_rts_session_state_continuity_v1",
+                "campaign_outcome_ui_readiness": "trillionnium_world_bevy_classic_rts_campaign_outcome_ui_readiness_v1",
+                "campaign_ui_continuity": "trillionnium_world_bevy_classic_rts_campaign_ui_continuity_v1"
+            },
+            "runtime_screen_mode": "player_runtime_continuous_player_flow_screen",
+            "runtime_screen_gate": true,
+            "evidence_board_only": false,
+            "continuous_player_flow_steps": [
+                {"step_id": "title_account", "runtime_screen_mode": "player_runtime_shell_meta_screen"},
+                {"step_id": "match_setup", "runtime_screen_mode": "player_runtime_match_setup_screen"},
+                {"step_id": "in_match_hud", "runtime_screen_mode": "player_runtime_in_match_hud_screen"},
+                {"step_id": "command_feedback", "runtime_screen_mode": "player_runtime_command_interaction_screen"},
+                {"step_id": "save_load_resume", "runtime_screen_mode": "player_runtime_session_resume_screen"},
+                {"step_id": "outcome_open_world", "runtime_screen_mode": "player_runtime_campaign_outcome_screen"}
+            ],
+            "continuous_player_flow_step_count": 6,
+            "transition_sequence": [
+                "title_account",
+                "match_setup",
+                "in_match_hud",
+                "command_feedback",
+                "save_load_resume",
+                "outcome_open_world"
+            ],
+            "flow_pixel_counts": {
+                "non_background": 250001,
+                "board": 100001,
+                "title_account": 2001,
+                "match_setup": 2001,
+                "in_match_hud": 2001,
+                "command_feedback": 2001,
+                "save_load_resume": 2001,
+                "outcome_open_world": 2001,
+                "lane": 501,
+                "highlight": 1001,
+                "player_first_flow_view_non_background": 300001,
+                "player_first_flow_view_frame": 8001,
+                "player_first_flow_status_strip": 10001,
+                "player_first_flow_stage_rail": 50001
+            },
+            "source_headline": {
+                "shell_meta_surface_count": 12,
+                "match_setup_map_id": "first_contact_basin",
+                "match_setup_faction_id": "mirror_guard",
+                "hud_surface_count": 8,
+                "hud_army_supply_used": 9,
+                "interaction_surface_count": 6,
+                "session_final_objective_status": "first_playable_loop_complete",
+                "session_open_world_state": "resumed:league-coliseum",
+                "campaign_outcome_open_world_state": "resumed:league-coliseum",
+                "campaign_continuity_restored_room_id": "league-coliseum"
+            },
+            "title_account_gate": true,
+            "match_setup_gate": true,
+            "in_match_hud_gate": true,
+            "command_feedback_gate": true,
+            "save_resume_gate": true,
+            "outcome_open_world_gate": true,
+            "continuous_player_flow_chain_gate": true,
+            "source_preview_gate": true,
+            "preview_gate": true,
+            "player_first_continuous_flow_screen_gate": true,
+            "native_client_boundary_gate": true,
+            "continuous_player_flow_gate": true,
+            "external_evidence_ignored_for_current_replication_pass": true,
+            "android_s5_real_device_claimed": false,
+            "public_launch_ready": false,
+            "production_ready_ui_claimed": false,
+            "screen_for_screen_openra_ui_claimed": false,
+            "openra_engine_port_claimed": false,
+            "warcraft_iii_asset_copied": false,
+            "openra_asset_copied": false,
+            "third_party_asset_copied": false
+        });
+
+        let review = rts_continuous_player_flow_review(&input);
+
+        assert_eq!(
+            review.contract_version,
+            TRNM_RTS_EVIDENCE_CONTINUOUS_PLAYER_FLOW_REVIEW_CONTRACT
+        );
+        assert!(review.green);
+        assert!(review.source_contract_gate);
+        assert!(review.transition_sequence_gate);
+        assert!(review.source_headline_gate);
+        assert!(review.pixel_gate);
+        assert!(review.continuous_player_flow_chain_gate);
+        assert!(review.player_first_continuous_flow_screen_gate);
+        assert!(review.no_credit_boundary_gate);
+        assert!(review.continuous_player_flow_gate);
+        assert_eq!(
+            review.session_open_world_state.as_deref(),
+            Some("resumed:league-coliseum")
+        );
+        assert!(review
+            .source_of_truth
+            .contains("six-step continuous player flow"));
     }
 
     #[test]

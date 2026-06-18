@@ -2258,7 +2258,8 @@ jq -n '{
     rts_continuous_player_flow_chain_gate: true,
     rts_continuous_player_flow_player_first_continuous_flow_screen_gate: true,
     rts_continuous_player_flow_native_client_boundary_gate: true,
-    rts_continuous_player_flow_gate: true
+    rts_continuous_player_flow_gate: true,
+    rts_continuous_player_flow_rts_evidence_review_gate: true
   },
   headline: {
     rts_full_screen_ui_replication_surface_count: 10,
@@ -2310,6 +2311,8 @@ jq -n '{
     rts_continuous_player_flow_final_objective_status: "first_playable_loop_complete",
     rts_continuous_player_flow_open_world_state: "resumed:league-coliseum",
     rts_continuous_player_flow_restored_room_id: "league-coliseum",
+    rts_continuous_player_flow_review_contract: "trnm_rts_evidence_continuous_player_flow_review_v1",
+    rts_continuous_player_flow_review_source_of_truth: "The RTS evidence crate reviews the six-step continuous player flow from title/account through match setup, in-match HUD, command feedback, save/resume, and outcome/open-world return.",
     rts_central_keep_pressure_accepted_input_count: 40,
     rts_central_keep_pressure_state: "pressure_locked:central_keep",
     rts_unit_status_portrait_frame_pixel_count: 15339,

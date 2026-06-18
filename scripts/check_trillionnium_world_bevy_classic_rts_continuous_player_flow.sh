@@ -25,6 +25,22 @@ jq -e '
   and .runtime_screen_mode == "player_runtime_continuous_player_flow_screen"
   and .runtime_screen_gate == true
   and .evidence_board_only == false
+  and .rts_evidence_continuous_player_flow_review_contract == "trnm_rts_evidence_continuous_player_flow_review_v1"
+  and .rts_evidence_continuous_player_flow_review.green == true
+  and .rts_evidence_continuous_player_flow_review.continuous_player_flow_contract == "trillionnium_world_bevy_classic_rts_continuous_player_flow_v1"
+  and .rts_evidence_continuous_player_flow_review.source_contract_gate == true
+  and .rts_evidence_continuous_player_flow_review.transition_sequence_gate == true
+  and .rts_evidence_continuous_player_flow_review.source_headline_gate == true
+  and .rts_evidence_continuous_player_flow_review.pixel_gate == true
+  and .rts_evidence_continuous_player_flow_review.continuous_player_flow_chain_gate == true
+  and .rts_evidence_continuous_player_flow_review.player_first_continuous_flow_screen_gate == true
+  and .rts_evidence_continuous_player_flow_review.native_client_boundary_gate == true
+  and .rts_evidence_continuous_player_flow_review.no_credit_boundary_gate == true
+  and .rts_evidence_continuous_player_flow_review.continuous_player_flow_gate == true
+  and (.rts_evidence_continuous_player_flow_review.input_path | contains("continuous player-flow source JSON"))
+  and (.rts_evidence_continuous_player_flow_review.evidence_path | contains("continuous_player_flow_review"))
+  and (.rts_evidence_continuous_player_flow_review.source_of_truth | contains("six-step continuous player flow"))
+  and .rts_evidence_continuous_player_flow_review_gate == true
   and .runtime_screen_layout.flow_lane == "single continuous local Rust/Bevy player flow from title/account through open-world return"
   and .runtime_screen_layout.primary_tactical_viewport == "large current playable tactical state with continuous flow rail"
   and .runtime_screen_layout.title_account == "title actions, account panels, save slots, recovery surfaces"

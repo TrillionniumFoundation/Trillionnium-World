@@ -25450,12 +25450,11 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
     let runtime_screen_gate =
         continuous_player_flow_chain_gate && source_preview_gate && preview_gate;
     let continuous_player_flow_gate = runtime_screen_gate && native_client_boundary_gate;
-    let green = continuous_player_flow_gate;
 
-    serde_json::to_string_pretty(&json!({
+    let mut evidence = json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_CONTINUOUS_PLAYER_FLOW_CONTRACT,
-        "status": if green { "classic_rts_continuous_player_flow_green" } else { "classic_rts_continuous_player_flow_blocked" },
-        "green": green,
+        "status": if continuous_player_flow_gate { "classic_rts_continuous_player_flow_green" } else { "classic_rts_continuous_player_flow_blocked" },
+        "green": continuous_player_flow_gate,
         "preview_path": preview_path,
         "preview_format": "ppm_p3_rgb",
         "preview_width": WIDTH,
@@ -25566,8 +25565,23 @@ pub fn native_classic_rts_continuous_player_flow_evidence_json(preview_path: &st
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
         "source_of_truth": "Classic RTS continuous player flow evidence binds already-green native Rust/Bevy title/account, match setup, in-match HUD, command interaction feedback, save/load resume, campaign outcome, and open-world continuity screens into one local runtime player-flow surface while keeping Android S5, public launch, production-ready UI, OpenRA screen-for-screen UI, OpenRA engine port, and copied third-party asset claims false."
-    }))
-    .expect("classic RTS continuous player flow evidence serializes")
+    });
+    let review = trnm_rts_evidence::rts_continuous_player_flow_review(&evidence);
+    let green = review.green;
+    evidence["status"] = json!(if green {
+        "classic_rts_continuous_player_flow_green"
+    } else {
+        "classic_rts_continuous_player_flow_blocked"
+    });
+    evidence["green"] = json!(green);
+    evidence["rts_evidence_continuous_player_flow_review_contract"] =
+        json!(trnm_rts_evidence::TRNM_RTS_EVIDENCE_CONTINUOUS_PLAYER_FLOW_REVIEW_CONTRACT);
+    evidence["rts_evidence_continuous_player_flow_review"] =
+        serde_json::to_value(&review).expect("continuous player-flow review serializes");
+    evidence["rts_evidence_continuous_player_flow_review_gate"] = json!(green);
+
+    serde_json::to_string_pretty(&evidence)
+        .expect("classic RTS continuous player flow evidence serializes")
 }
 
 #[cfg(not(target_os = "android"))]

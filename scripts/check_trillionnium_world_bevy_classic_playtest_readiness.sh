@@ -2225,6 +2225,8 @@ jq -n \
       rts_continuous_player_flow_final_objective_status: $rts_continuous_player_flow[0].source_headline.session_final_objective_status,
       rts_continuous_player_flow_open_world_state: $rts_continuous_player_flow[0].source_headline.session_open_world_state,
       rts_continuous_player_flow_restored_room_id: $rts_continuous_player_flow[0].source_headline.campaign_continuity_restored_room_id,
+      rts_continuous_player_flow_review_contract: $rts_continuous_player_flow[0].rts_evidence_continuous_player_flow_review_contract,
+      rts_continuous_player_flow_review_source_of_truth: $rts_continuous_player_flow[0].rts_evidence_continuous_player_flow_review.source_of_truth,
       rts_live_session_playthrough_runtime_screen_mode: $rts_live_session_playthrough[0].runtime_screen_mode,
       rts_live_session_playthrough_stage_count: $rts_live_session_playthrough[0].stage_count,
       rts_live_session_playthrough_top_level_action_count: $rts_live_session_playthrough[0].top_level_action_count,
@@ -3081,6 +3083,7 @@ jq -n \
       rts_continuous_player_flow_player_first_continuous_flow_screen_gate: $rts_continuous_player_flow[0].player_first_continuous_flow_screen_gate,
       rts_continuous_player_flow_native_client_boundary_gate: $rts_continuous_player_flow[0].native_client_boundary_gate,
       rts_continuous_player_flow_gate: $rts_continuous_player_flow[0].continuous_player_flow_gate,
+      rts_continuous_player_flow_rts_evidence_review_gate: $rts_continuous_player_flow[0].rts_evidence_continuous_player_flow_review_gate,
       rts_live_session_playthrough_title_account_gate: $rts_live_session_playthrough[0].title_account_gate,
       rts_live_session_playthrough_match_setup_gate: $rts_live_session_playthrough[0].match_setup_gate,
       rts_live_session_playthrough_in_match_hud_gate: $rts_live_session_playthrough[0].in_match_hud_gate,
@@ -3844,6 +3847,8 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_continuous_player_flow_final_objective_status == "first_playable_loop_complete"
   and .headline.rts_continuous_player_flow_open_world_state == "resumed:league-coliseum"
   and .headline.rts_continuous_player_flow_restored_room_id == "league-coliseum"
+  and .headline.rts_continuous_player_flow_review_contract == "trnm_rts_evidence_continuous_player_flow_review_v1"
+  and (.headline.rts_continuous_player_flow_review_source_of_truth | contains("six-step continuous player flow"))
   and .headline.rts_live_session_playthrough_runtime_screen_mode == "player_runtime_live_session_playthrough_screen"
   and .headline.rts_live_session_playthrough_stage_count == 6
   and .headline.rts_live_session_playthrough_top_level_action_count >= 12
@@ -5538,6 +5543,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_continuous_player_flow_player_first_continuous_flow_screen_gate == true
   and .gates.rts_continuous_player_flow_native_client_boundary_gate == true
   and .gates.rts_continuous_player_flow_gate == true
+  and .gates.rts_continuous_player_flow_rts_evidence_review_gate == true
   and .gates.rts_live_session_playthrough_title_account_gate == true
   and .gates.rts_live_session_playthrough_match_setup_gate == true
   and .gates.rts_live_session_playthrough_in_match_hud_gate == true
