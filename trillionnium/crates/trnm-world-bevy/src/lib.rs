@@ -29960,163 +29960,18 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_bevy_runtime_tile_rect_sample.height == 14
         && rts_bevy_runtime_terrain_seed_sample.surface_seed == 12
         && rts_bevy_runtime_terrain_seed_sample.detail_seed == 20;
-    let rts_online_protocol_fixture = trnm_rts_online::first_contact_online_protocol_fixture();
+    let rts_online_protocol_fixture =
+        &rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture;
     let rts_online_local_handoff =
-        trnm_rts_online::rts_online_local_handoff_from_fixture(&rts_online_protocol_fixture);
+        &rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff;
     let rts_online_offline_adapter =
-        trnm_rts_online::rts_online_offline_adapter_from_fixture(&rts_online_protocol_fixture);
-    let rts_online_protocol_gate = rts_online_protocol_fixture.green
-        && rts_online_protocol_fixture.envelope.map_id.as_str() == map_model.map_id.as_str()
-        && rts_online_protocol_fixture.lifecycle.map_id.as_str() == map_model.map_id.as_str()
-        && rts_online_protocol_fixture.envelope.update_sha256.len() == 64
-        && rts_online_protocol_fixture
-            .envelope
-            .scope
-            .visible_chunks
-            .len()
-            == 3
-        && rts_online_protocol_fixture
-            .envelope
-            .scope
-            .visible_actor_ids
-            .iter()
-            .any(|actor_id| actor_id == "trnm.flux.beacon.center")
-        && rts_online_protocol_fixture.lifecycle.bot_count == 1;
-    let rts_online_local_handoff_gate = rts_online_local_handoff.green
-        && rts_online_local_handoff.handoff_ready
-        && rts_online_local_handoff.map_id.as_str() == map_model.map_id.as_str()
-        && rts_online_local_handoff.accepted_order_count == 1
-        && rts_online_local_handoff.rejected_order_count == 1
-        && rts_online_local_handoff.scoped_update_count == 1
-        && rts_online_local_handoff.bot_count == 1
-        && rts_online_local_handoff.visible_chunk_count == 3
-        && rts_online_local_handoff.visible_actor_count == 4
-        && rts_online_local_handoff.server_authoritative
-        && rts_online_local_handoff.visibility_scoped_response
-        && !rts_online_local_handoff.socket_opened
-        && !rts_online_local_handoff.hosted_service_claimed
-        && !rts_online_local_handoff.public_launch_ready;
-    let rts_online_offline_adapter_gate = rts_online_offline_adapter.green
-        && rts_online_offline_adapter.adapter_mode.as_str() == "offline_loopback_authority"
-        && rts_online_offline_adapter.map_id.as_str() == map_model.map_id.as_str()
-        && rts_online_offline_adapter.local_multiplayer_ready
-        && rts_online_offline_adapter.offline_bot_ready
-        && rts_online_offline_adapter.bevy_adapter_ready
-        && rts_online_offline_adapter.local_action_replay.green
-        && rts_online_offline_adapter.local_runtime_handoff.green
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .contract_version
-            .as_str()
-            == trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .accepted_runtime_command_labels
-            == string_vec(["move:8,4"])
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .accepted_runtime_destination_tile_ids
-            == string_vec(["8,4"])
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .accepted_runtime_subject_actor_ids
-            == string_vec(["trnm.worker.alpha"])
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .rejected_runtime_command_labels
-            == string_vec(["client:attack_fogged_keep"])
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .runtime_command_stamp_tile_id
-            .as_deref()
-            == Some("8,4")
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .accepted_order_runtime_ready
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .rejected_order_runtime_ready
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .scoped_update_runtime_ready
-        && rts_online_offline_adapter
-            .local_runtime_handoff
-            .no_socket_boundary_ready
-        && rts_online_offline_adapter
-            .local_action_replay
-            .accepted_action_labels
-            == string_vec([
-                "RTS:SELECT:26",
-                "RTS:MOVE:18,31:line",
-                "RTS:SELECT:27",
-                "RTS:MOVE:21,25:line",
-                "RTS:SELECT:28",
-                "RTS:MOVE:1,31:line",
-                "RTS:SELECT:26",
-            ])
-        && rts_online_offline_adapter
-            .local_action_replay
-            .accepted_preview_stages
-            == string_vec([
-                "group_26_queued",
-                "group_27_override",
-                "group_28_formation",
-                "cleared_history_bounded",
-            ])
-        && rts_online_offline_adapter
-            .local_action_replay
-            .blocked_reasons
-            == string_vec([
-                "rts_group_selection_required",
-                "rts_invalid_tile:bad-tile",
-                "rts_attack_target_required",
-                "rts_attack_required_before_ability",
-                "rts_queue_id_required",
-                "rts_queue_unaffordable:build:watch_tower@7,4",
-                "rts_group_id_required",
-            ])
-        && rts_online_offline_adapter
-            .local_action_replay
-            .retained_history_group_ids
-            == string_vec(["26", "27", "28"])
-        && rts_online_offline_adapter
-            .local_action_replay
-            .pruned_history_group_ids
-            == string_vec(["25", "24"])
-        && rts_online_offline_adapter
-            .local_action_replay
-            .command_history_capacity
-            == 3
-        && rts_online_offline_adapter
-            .local_action_replay
-            .local_input_sources_ready
-        && rts_online_offline_adapter
-            .local_action_replay
-            .command_history_ready
-        && rts_online_offline_adapter.connected_player_ids.len() == 2
-        && rts_online_offline_adapter.bot_player_ids.len() == 1
-        && rts_online_offline_adapter.input_queue_labels.len() == 2
-        && rts_online_offline_adapter
-            .accepted_server_order_labels
-            .len()
-            == 1
-        && rts_online_offline_adapter
-            .rejected_client_order_reasons
-            .len()
-            == 1
-        && rts_online_offline_adapter.scoped_update_actor_ids.len() == 4
-        && rts_online_offline_adapter.scoped_update_order_count == 1
-        && rts_online_offline_adapter
-            .frame_sha256s
-            .iter()
-            .all(|sha| sha.len() == 64)
-        && rts_online_offline_adapter.server_authoritative
-        && rts_online_offline_adapter.visibility_scoped_response
-        && !rts_online_offline_adapter.client_prediction_claimed
-        && !rts_online_offline_adapter.rollback_netcode_claimed
-        && !rts_online_offline_adapter.socket_opened
-        && !rts_online_offline_adapter.hosted_service_claimed
-        && !rts_online_offline_adapter.public_launch_ready;
+        &rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter;
+    let rts_online_protocol_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate;
+    let rts_online_local_handoff_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate;
+    let rts_online_offline_adapter_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate;
     let rts_online_offline_adapter_consumption_value = serde_json::to_value(
         &rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review,
     )

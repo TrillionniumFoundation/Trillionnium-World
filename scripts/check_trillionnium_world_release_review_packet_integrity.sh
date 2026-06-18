@@ -438,6 +438,15 @@ require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_
   and .rts_bevy_runtime_player_screen_application_gate == true
   and .rts_evidence_bevy_runtime_adapter.contract_version == "trnm_rts_evidence_bevy_runtime_adapter_v1"
   and .rts_evidence_bevy_runtime_adapter.green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture.contract_version == "trnm_rts_online_first_contact_fixture_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture.envelope.map_id == "first_contact_basin"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff.contract_version == "trnm_rts_online_local_handoff_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff.accepted_order_count == 1
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter.contract_version == "trnm_rts_online_offline_adapter_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter.local_runtime_handoff.accepted_runtime_command_labels == ["move:8,4"]
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate == true
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_green == true
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application.contract_version == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"

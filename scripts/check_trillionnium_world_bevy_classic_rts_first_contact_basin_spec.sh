@@ -33,6 +33,12 @@ required_source_lines=(
   'fn apply_first_contact_player_screen_application_to_runtime'
   'rts_bevy_runtime::rts_first_contact_player_screen_runtime_application('
   'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
+  'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture'
+  'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff'
+  'rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter'
+  'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate'
+  'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate'
+  'rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review'
   'first_contact_offline_adapter_session_transition_review'
   'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review'
@@ -52,7 +58,16 @@ required_evidence_source_lines=(
   'first_contact_offline_adapter_consumption_review:'
   'first_contact_offline_adapter_session_transition_review:'
   'first_contact_offline_adapter_lobby_ready_review:'
+  'first_contact_online_protocol_fixture: trnm_rts_online::RtsOnlineProtocolFixture'
+  'first_contact_online_local_handoff: trnm_rts_online::RtsOnlineLocalHandoff'
+  'first_contact_online_offline_adapter: trnm_rts_online::RtsOnlineOfflineAdapterSummary'
+  'first_contact_online_protocol_gate: bool'
+  'first_contact_online_local_handoff_gate: bool'
+  'first_contact_online_offline_adapter_gate: bool'
   'pub fn first_contact_bevy_runtime_adapter_evidence'
+  'trnm_rts_online::first_contact_online_protocol_fixture()'
+  'trnm_rts_online::rts_online_local_handoff_from_fixture('
+  'trnm_rts_online::rts_online_offline_adapter_from_fixture('
   'trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input('
   'trnm_rts_online::rts_online_offline_adapter_lobby_ready_review_input('
   'trnm_rts_online::rts_online_offline_adapter_consumption_review_input('
@@ -63,6 +78,12 @@ required_evidence_source_lines=(
   'first_contact_offline_adapter_consumption_review: first_contact_consumption_review'
   'first_contact_offline_adapter_session_transition_review:'
   'first_contact_offline_adapter_lobby_ready_review: first_contact_lobby_ready_review'
+  'first_contact_online_protocol_fixture: first_contact_online_protocol_fixture'
+  'first_contact_online_local_handoff: first_contact_online_local_handoff'
+  'first_contact_online_offline_adapter: first_contact_adapter'
+  'first_contact_online_protocol_gate'
+  'first_contact_online_local_handoff_gate'
+  'first_contact_online_offline_adapter_gate'
 )
 
 for line in "${required_evidence_source_lines[@]}"; do
@@ -354,6 +375,21 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.runtime_contract == "trnm_rts_bevy_runtime_adapter_v1"
   and .rts_evidence_bevy_runtime_adapter.green == true
   and .rts_evidence_bevy_runtime_adapter_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture.contract_version == "trnm_rts_online_first_contact_fixture_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture.green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture.envelope.map_id == "first_contact_basin"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff.contract_version == "trnm_rts_online_local_handoff_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff.green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff.accepted_order_count == 1
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter.contract_version == "trnm_rts_online_offline_adapter_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter.green == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter.local_runtime_handoff.accepted_runtime_command_labels == ["move:8,4"]
+  and .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate == true
+  and .rts_online_protocol_fixture == .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture
+  and .rts_online_local_handoff == .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff
+  and .rts_online_offline_adapter == .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application_green == true
   and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_application.contract_version == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"

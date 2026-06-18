@@ -2342,6 +2342,12 @@ pub struct RtsBevyRuntimeAdapterEvidence {
         RtsFirstContactOfflineAdapterSessionTransitionReview,
     pub first_contact_offline_adapter_lobby_ready_review:
         RtsFirstContactOfflineAdapterLobbyReadyReview,
+    pub first_contact_online_protocol_fixture: trnm_rts_online::RtsOnlineProtocolFixture,
+    pub first_contact_online_local_handoff: trnm_rts_online::RtsOnlineLocalHandoff,
+    pub first_contact_online_offline_adapter: trnm_rts_online::RtsOnlineOfflineAdapterSummary,
+    pub first_contact_online_protocol_gate: bool,
+    pub first_contact_online_local_handoff_gate: bool,
+    pub first_contact_online_offline_adapter_gate: bool,
     pub first_contact_player_screen_application_contract: String,
     pub first_contact_player_screen_application_green: bool,
     pub first_contact_offline_adapter_application_contract: String,
@@ -3189,7 +3195,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let first_contact_profile = trnm_rts_data::first_contact_player_screen_profile();
     let first_contact_player_screen_application =
         rts_first_contact_player_screen_runtime_application(&first_contact_profile);
-    let first_contact_adapter = trnm_rts_online::first_contact_online_offline_adapter();
+    let first_contact_online_protocol_fixture =
+        trnm_rts_online::first_contact_online_protocol_fixture();
+    let first_contact_online_local_handoff = trnm_rts_online::rts_online_local_handoff_from_fixture(
+        &first_contact_online_protocol_fixture,
+    );
+    let first_contact_adapter = trnm_rts_online::rts_online_offline_adapter_from_fixture(
+        &first_contact_online_protocol_fixture,
+    );
     let first_contact_runtime_handoff =
         trnm_rts_online::rts_online_offline_adapter_runtime_handoff_review_input(
             &first_contact_adapter,
@@ -3310,6 +3323,151 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && !first_contact_consumption_review.socket_opened
         && !first_contact_consumption_review.hosted_service_claimed
         && !first_contact_consumption_review.public_launch_ready;
+    let first_contact_online_protocol_gate = first_contact_online_protocol_fixture.green
+        && first_contact_online_protocol_fixture.envelope.map_id == "first_contact_basin"
+        && first_contact_online_protocol_fixture.lifecycle.map_id == "first_contact_basin"
+        && first_contact_online_protocol_fixture
+            .envelope
+            .update_sha256
+            .len()
+            == 64
+        && first_contact_online_protocol_fixture
+            .envelope
+            .scope
+            .visible_chunks
+            .len()
+            == 3
+        && first_contact_online_protocol_fixture
+            .envelope
+            .scope
+            .visible_actor_ids
+            .iter()
+            .any(|actor_id| actor_id == "trnm.flux.beacon.center")
+        && first_contact_online_protocol_fixture.lifecycle.bot_count == 1;
+    let first_contact_online_local_handoff_gate = first_contact_online_local_handoff.green
+        && first_contact_online_local_handoff.handoff_ready
+        && first_contact_online_local_handoff.map_id == "first_contact_basin"
+        && first_contact_online_local_handoff.accepted_order_count == 1
+        && first_contact_online_local_handoff.rejected_order_count == 1
+        && first_contact_online_local_handoff.scoped_update_count == 1
+        && first_contact_online_local_handoff.bot_count == 1
+        && first_contact_online_local_handoff.visible_chunk_count == 3
+        && first_contact_online_local_handoff.visible_actor_count == 4
+        && first_contact_online_local_handoff.server_authoritative
+        && first_contact_online_local_handoff.visibility_scoped_response
+        && !first_contact_online_local_handoff.socket_opened
+        && !first_contact_online_local_handoff.hosted_service_claimed
+        && !first_contact_online_local_handoff.public_launch_ready;
+    let first_contact_online_offline_adapter_gate = first_contact_adapter.green
+        && first_contact_adapter.adapter_mode == "offline_loopback_authority"
+        && first_contact_adapter.map_id == "first_contact_basin"
+        && first_contact_adapter.local_multiplayer_ready
+        && first_contact_adapter.offline_bot_ready
+        && first_contact_adapter.bevy_adapter_ready
+        && first_contact_adapter.local_action_replay.green
+        && first_contact_adapter.local_runtime_handoff.green
+        && first_contact_adapter.local_runtime_handoff.contract_version
+            == trnm_rts_online::TRNM_RTS_ONLINE_OFFLINE_ADAPTER_RUNTIME_HANDOFF_CONTRACT
+        && first_contact_adapter
+            .local_runtime_handoff
+            .accepted_runtime_command_labels
+            == vec!["move:8,4"]
+        && first_contact_adapter
+            .local_runtime_handoff
+            .accepted_runtime_destination_tile_ids
+            == vec!["8,4"]
+        && first_contact_adapter
+            .local_runtime_handoff
+            .accepted_runtime_subject_actor_ids
+            == vec!["trnm.worker.alpha"]
+        && first_contact_adapter
+            .local_runtime_handoff
+            .rejected_runtime_command_labels
+            == vec!["client:attack_fogged_keep"]
+        && first_contact_adapter
+            .local_runtime_handoff
+            .runtime_command_stamp_tile_id
+            .as_deref()
+            == Some("8,4")
+        && first_contact_adapter
+            .local_runtime_handoff
+            .accepted_order_runtime_ready
+        && first_contact_adapter
+            .local_runtime_handoff
+            .rejected_order_runtime_ready
+        && first_contact_adapter
+            .local_runtime_handoff
+            .scoped_update_runtime_ready
+        && first_contact_adapter
+            .local_runtime_handoff
+            .no_socket_boundary_ready
+        && first_contact_adapter
+            .local_action_replay
+            .accepted_action_labels
+            == vec![
+                "RTS:SELECT:26",
+                "RTS:MOVE:18,31:line",
+                "RTS:SELECT:27",
+                "RTS:MOVE:21,25:line",
+                "RTS:SELECT:28",
+                "RTS:MOVE:1,31:line",
+                "RTS:SELECT:26",
+            ]
+        && first_contact_adapter
+            .local_action_replay
+            .accepted_preview_stages
+            == vec![
+                "group_26_queued",
+                "group_27_override",
+                "group_28_formation",
+                "cleared_history_bounded",
+            ]
+        && first_contact_adapter.local_action_replay.blocked_reasons
+            == vec![
+                "rts_group_selection_required",
+                "rts_invalid_tile:bad-tile",
+                "rts_attack_target_required",
+                "rts_attack_required_before_ability",
+                "rts_queue_id_required",
+                "rts_queue_unaffordable:build:watch_tower@7,4",
+                "rts_group_id_required",
+            ]
+        && first_contact_adapter
+            .local_action_replay
+            .retained_history_group_ids
+            == vec!["26", "27", "28"]
+        && first_contact_adapter
+            .local_action_replay
+            .pruned_history_group_ids
+            == vec!["25", "24"]
+        && first_contact_adapter
+            .local_action_replay
+            .command_history_capacity
+            == 3
+        && first_contact_adapter
+            .local_action_replay
+            .local_input_sources_ready
+        && first_contact_adapter
+            .local_action_replay
+            .command_history_ready
+        && first_contact_adapter.connected_player_ids.len() == 2
+        && first_contact_adapter.bot_player_ids.len() == 1
+        && first_contact_adapter.input_queue_labels.len() == 2
+        && first_contact_adapter.accepted_server_order_labels.len() == 1
+        && first_contact_adapter.rejected_client_order_reasons.len() == 1
+        && first_contact_adapter.scoped_update_actor_ids.len() == 4
+        && first_contact_adapter.scoped_update_order_count == 1
+        && first_contact_adapter
+            .frame_sha256s
+            .iter()
+            .all(|sha| sha.len() == 64)
+        && first_contact_adapter.server_authoritative
+        && first_contact_adapter.visibility_scoped_response
+        && !first_contact_adapter.client_prediction_claimed
+        && !first_contact_adapter.rollback_netcode_claimed
+        && !first_contact_adapter.socket_opened
+        && !first_contact_adapter.hosted_service_claimed
+        && !first_contact_adapter.public_launch_ready;
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && scroll_camera_stage_summaries.len() == 6
@@ -3832,7 +3990,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && selection_feedback_stage.as_deref() == Some("attack_lock")
         && ability_tooltip_stage.as_deref() == Some("range_preview")
         && control_group_hotkey_feedback_stage.as_deref() == Some("double_tap_camera")
-        && first_contact_runtime_review_gate;
+        && first_contact_runtime_review_gate
+        && first_contact_online_protocol_gate
+        && first_contact_online_local_handoff_gate
+        && first_contact_online_offline_adapter_gate;
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -4169,6 +4330,12 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             first_contact_session_transition_review.clone(),
         first_contact_offline_adapter_lobby_ready_review: first_contact_lobby_ready_review
             .clone(),
+        first_contact_online_protocol_fixture: first_contact_online_protocol_fixture.clone(),
+        first_contact_online_local_handoff: first_contact_online_local_handoff.clone(),
+        first_contact_online_offline_adapter: first_contact_adapter.clone(),
+        first_contact_online_protocol_gate,
+        first_contact_online_local_handoff_gate,
+        first_contact_online_offline_adapter_gate,
         first_contact_player_screen_application_contract: first_contact_player_screen_application
             .contract_version,
         first_contact_player_screen_application_green: first_contact_player_screen_application
@@ -5281,6 +5448,46 @@ mod tests {
             Some("8,4")
         );
         assert!(evidence.first_contact_runtime_review_gate);
+        assert!(evidence.first_contact_online_protocol_gate);
+        assert_eq!(
+            evidence
+                .first_contact_online_protocol_fixture
+                .envelope
+                .map_id,
+            "first_contact_basin"
+        );
+        assert_eq!(
+            evidence
+                .first_contact_online_protocol_fixture
+                .envelope
+                .scope
+                .visible_chunks
+                .len(),
+            3
+        );
+        assert!(evidence.first_contact_online_local_handoff_gate);
+        assert_eq!(
+            evidence.first_contact_online_local_handoff.map_id,
+            "first_contact_basin"
+        );
+        assert_eq!(
+            evidence
+                .first_contact_online_local_handoff
+                .accepted_order_count,
+            1
+        );
+        assert!(evidence.first_contact_online_offline_adapter_gate);
+        assert_eq!(
+            evidence.first_contact_online_offline_adapter.adapter_mode,
+            "offline_loopback_authority"
+        );
+        assert_eq!(
+            evidence
+                .first_contact_online_offline_adapter
+                .local_runtime_handoff
+                .accepted_runtime_command_labels,
+            vec!["move:8,4"]
+        );
         assert_eq!(
             evidence.minimap_cell_sample,
             RtsEvidencePoint { x: 134, y: 175 }
