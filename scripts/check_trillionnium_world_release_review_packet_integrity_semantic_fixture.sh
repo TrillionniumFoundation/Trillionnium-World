@@ -22,10 +22,10 @@ jq -n \
     generated_at: $generated_at,
     source_of_truth: "trillionnium_world_release_review_packet_integrity_semantic_fixture",
     green: true,
-    fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
-    fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
+    fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_first_minute_command_feedback_and_handoff_first_contact_semantic_negative_fixture",
+    fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_first_minute_command_feedback_and_handoff_first_contact_artifacts_even_when_sha_bytes_contract_and_status_match",
     fake_packet_artifact_count: 121,
-    expected_semantic_failure_count: 18,
+    expected_semantic_failure_count: 21,
     expected_semantic_failure_names: [
       "release_review_convergence_semantics",
       "release_review_status_semantics",
@@ -44,7 +44,10 @@ jq -n \
       "classic_playtest_readiness_full_game_visual_ui_replication_semantics",
       "classic_playtest_readiness_openra_style_screen_set_review_semantics",
       "classic_playtest_readiness_semantics",
-      "campaign_outcome_ui_readiness_semantics"
+      "campaign_outcome_ui_readiness_semantics",
+      "classic_playtest_handoff_readiness_semantics",
+      "classic_playtest_handoff_packet_semantics",
+      "classic_playtest_handoff_packet_markdown_semantics"
     ],
     checksum_mismatch_failure_count: 0,
     bytes_mismatch_failure_count: 0,
@@ -62,7 +65,7 @@ jq -e '
   and .status == "release_review_packet_integrity_semantic_fixture_green"
   and .green == true
   and .fake_packet_artifact_count == 121
-  and .expected_semantic_failure_count == 18
+  and .expected_semantic_failure_count == 21
   and .expected_semantic_failure_names == [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
@@ -81,7 +84,10 @@ jq -e '
     "classic_playtest_readiness_full_game_visual_ui_replication_semantics",
     "classic_playtest_readiness_openra_style_screen_set_review_semantics",
     "classic_playtest_readiness_semantics",
-    "campaign_outcome_ui_readiness_semantics"
+    "campaign_outcome_ui_readiness_semantics",
+    "classic_playtest_handoff_readiness_semantics",
+    "classic_playtest_handoff_packet_semantics",
+    "classic_playtest_handoff_packet_markdown_semantics"
   ]
   and .checksum_mismatch_failure_count == 0
   and .bytes_mismatch_failure_count == 0

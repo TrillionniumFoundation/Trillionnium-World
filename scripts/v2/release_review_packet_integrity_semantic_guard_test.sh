@@ -52,6 +52,58 @@ add_artifact_from_path() {
     }' >>"$artifacts_jsonl"
 }
 
+refresh_artifacts_jsonl_metadata() {
+  local refreshed_jsonl="$TMP_DIR/artifacts-refreshed.jsonl"
+  local artifact_json
+  local id
+  local label
+  local path
+  local role
+  local artifact_sha
+  local artifact_bytes
+  local contract_version
+  local status
+
+  : >"$refreshed_jsonl"
+  while IFS= read -r artifact_json; do
+    id="$(jq -r '.id' <<<"$artifact_json")"
+    label="$(jq -r '.label' <<<"$artifact_json")"
+    path="$(jq -r '.path' <<<"$artifact_json")"
+    role="$(jq -r '.role' <<<"$artifact_json")"
+    artifact_sha="$(sha256sum "$path" | awk '{print $1}')"
+    artifact_bytes="$(wc -c <"$path" | tr -d ' ')"
+    contract_version=""
+    status=""
+    if [[ "$path" == *.json ]]; then
+      contract_version="$(jq -r '.contract_version // empty' "$path" 2>/dev/null || true)"
+      status="$(jq -r '.status // .overall_status // empty' "$path" 2>/dev/null || true)"
+    fi
+
+    jq -nc \
+      --arg id "$id" \
+      --arg label "$label" \
+      --arg path "$path" \
+      --arg role "$role" \
+      --arg sha "$artifact_sha" \
+      --arg bytes "$artifact_bytes" \
+      --arg contract_version "$contract_version" \
+      --arg status "$status" \
+      '{
+        id: $id,
+        label: $label,
+        path: $path,
+        role: $role,
+        file_status: "present",
+        sha256: $sha,
+        bytes: ($bytes | tonumber),
+        contract_version: (if $contract_version == "" then null else $contract_version end),
+        status: (if $status == "" then null else $status end)
+      }' >>"$refreshed_jsonl"
+  done <"$artifacts_jsonl"
+
+  mv "$refreshed_jsonl" "$artifacts_jsonl"
+}
+
 for index in $(seq 1 1); do
   artifact_path="$TMP_DIR/fixture_${index}.json"
   jq -nc \
@@ -90,15 +142,25 @@ add_live_window_mouse_hit_test_packet_fixtures
 add_camera_minimap_sync_packet_fixtures
 add_first_contact_basin_source_manifest_packet_fixtures
 
+jq '.handoff_summary.first_contact_runtime_review_after_command_queue = ["move:9,4"] | .gates.first_contact_runtime_review_gate = false' \
+  "$TMP_DIR/bevy-classic-playtest-handoff-readiness.json" >"$TMP_DIR/bevy-classic-playtest-handoff-readiness.invalid.json"
+mv "$TMP_DIR/bevy-classic-playtest-handoff-readiness.invalid.json" "$TMP_DIR/bevy-classic-playtest-handoff-readiness.json"
+jq '.handoff_summary.first_contact_runtime_review_after_command_queue = ["move:9,4"] | .handoff_summary.first_contact_runtime_review_command_stamp_tile = "9,4" | .gates.first_contact_runtime_review_gate = false' \
+  "$TMP_DIR/bevy-classic-playtest-handoff-packet.json" >"$TMP_DIR/bevy-classic-playtest-handoff-packet.invalid.json"
+mv "$TMP_DIR/bevy-classic-playtest-handoff-packet.invalid.json" "$TMP_DIR/bevy-classic-playtest-handoff-packet.json"
+printf '# Bevy Classic Playtest Handoff Packet\n\n- First Contact runtime review: `drifted-runtime-review` after `move:9,4` tile `9,4`\n' \
+  >"$TMP_DIR/bevy-classic-playtest-handoff-packet.md"
+refresh_artifacts_jsonl_metadata
+
 semantic_fixture_json="$TMP_DIR/release-review-packet-integrity-semantic-fixture.json"
 jq -n '{
   contract_version: "trillionnium_world_release_review_packet_integrity_semantic_fixture_v1",
   status: "release_review_packet_integrity_semantic_fixture_green",
   green: true,
-  fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_and_first_minute_command_feedback_semantic_negative_fixture",
-  fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_and_first_minute_command_feedback_artifacts_even_when_sha_bytes_contract_and_status_match",
+  fixture_kind: "release_review_convergence_status_quickcheck_release_signoff_cex_adapter_first_minute_command_feedback_and_handoff_first_contact_semantic_negative_fixture",
+  fixture_rule: "packet_integrity_must_reject_semantically_invalid_release_review_convergence_status_quickcheck_release_signoff_summary_cex_adapter_readiness_first_minute_command_feedback_and_handoff_first_contact_artifacts_even_when_sha_bytes_contract_and_status_match",
   fake_packet_artifact_count: 121,
-  expected_semantic_failure_count: 18,
+  expected_semantic_failure_count: 21,
   expected_semantic_failure_names: [
     "release_review_convergence_semantics",
     "release_review_status_semantics",
@@ -117,7 +179,10 @@ jq -n '{
     "classic_playtest_readiness_full_game_visual_ui_replication_semantics",
     "classic_playtest_readiness_openra_style_screen_set_review_semantics",
     "classic_playtest_readiness_semantics",
-    "campaign_outcome_ui_readiness_semantics"
+    "campaign_outcome_ui_readiness_semantics",
+    "classic_playtest_handoff_readiness_semantics",
+    "classic_playtest_handoff_packet_semantics",
+    "classic_playtest_handoff_packet_markdown_semantics"
   ],
   checksum_mismatch_failure_count: 0,
   bytes_mismatch_failure_count: 0,
@@ -2406,7 +2471,7 @@ fi
 jq -e '
   .status == "release_review_packet_integrity_blocked"
   and .green == false
-  and (.failures | length) == 18
+  and (.failures | length) == 21
   and ([.failures[].name] | index("release_review_convergence_semantics"))
   and ([.failures[].name] | index("release_review_status_semantics"))
   and ([.failures[].name] | index("release_review_status_markdown_semantics"))
@@ -2425,10 +2490,13 @@ jq -e '
   and ([.failures[].name] | index("classic_playtest_readiness_openra_style_screen_set_review_semantics"))
   and ([.failures[].name] | index("classic_playtest_readiness_semantics"))
   and ([.failures[].name] | index("campaign_outcome_ui_readiness_semantics"))
+  and ([.failures[].name] | index("classic_playtest_handoff_readiness_semantics"))
+  and ([.failures[].name] | index("classic_playtest_handoff_packet_semantics"))
+  and ([.failures[].name] | index("classic_playtest_handoff_packet_markdown_semantics"))
   and (([.failures[].detail] | index("sha256_mismatch")) == null)
   and (([.failures[].detail] | index("bytes_mismatch")) == null)
   and (([.failures[].detail] | index("contract_mismatch")) == null)
   and (([.failures[].detail] | index("status_mismatch")) == null)
 ' "$summary_json" >/dev/null
 
-echo "[PASS] release review packet integrity rejects semantically invalid release review convergence, status, quickcheck, release signoff, CEX adapter readiness, and first-minute command feedback artifacts even when checksums match"
+echo "[PASS] release review packet integrity rejects semantically invalid release review convergence, status, quickcheck, release signoff, CEX adapter readiness, first-minute command feedback, and handoff First Contact artifacts even when checksums match"
