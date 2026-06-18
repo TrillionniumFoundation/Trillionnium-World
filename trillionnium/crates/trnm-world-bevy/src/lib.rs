@@ -29399,27 +29399,23 @@ fn classic_first_contact_adapter_runtime_handoff_review_input(
 }
 
 #[cfg(not(target_os = "android"))]
-fn apply_first_contact_offline_adapter_handoff_to_runtime(
+fn apply_first_contact_offline_adapter_application_to_runtime(
     runtime: &mut NativeFirstPlayableRuntime,
-    adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
+    application: &rts_bevy_runtime::RtsOfflineAdapterRuntimeApplication,
 ) {
-    let runtime_handoff = &adapter.local_runtime_handoff;
-    runtime.rts_control_group_id = Some(runtime_handoff.runtime_control_group_id.clone());
-    runtime.rts_selected_unit_ids = runtime_handoff.accepted_runtime_subject_actor_ids.clone();
-    runtime.rts_command_queue = runtime_handoff.accepted_runtime_command_labels.clone();
-    runtime.rts_command_destination_tile = runtime_handoff.runtime_command_stamp_tile_id.clone();
-    runtime.rts_group_route_tile_ids = runtime_handoff
-        .accepted_runtime_destination_tile_ids
-        .clone();
-    runtime.rts_group_command_state = runtime_handoff.runtime_group_command_state.clone();
-    runtime.rts_pathing_status = runtime_handoff.runtime_pathing_status.clone();
-    runtime.rts_unit_response_state = runtime_handoff.runtime_unit_response_state.clone();
-    runtime.rts_command_stamp_source = runtime_handoff.runtime_command_stamp_source.clone();
-    runtime.rts_command_stamp_kind = runtime_handoff.runtime_command_stamp_kind.clone();
-    runtime.rts_command_stamp_tile_id = runtime_handoff.runtime_command_stamp_tile_id.clone();
-    runtime.rts_command_stamp_player_label =
-        runtime_handoff.runtime_command_stamp_player_label.clone();
-    runtime.last_feedback = runtime_handoff.runtime_last_feedback.clone();
+    runtime.rts_control_group_id = application.runtime_control_group_id.clone();
+    runtime.rts_selected_unit_ids = application.selected_unit_ids.clone();
+    runtime.rts_command_queue = application.command_queue.clone();
+    runtime.rts_command_destination_tile = application.command_destination_tile_id.clone();
+    runtime.rts_group_route_tile_ids = application.group_route_tile_ids.clone();
+    runtime.rts_group_command_state = application.runtime_group_command_state.clone();
+    runtime.rts_pathing_status = application.runtime_pathing_status.clone();
+    runtime.rts_unit_response_state = application.runtime_unit_response_state.clone();
+    runtime.rts_command_stamp_source = application.runtime_command_stamp_source.clone();
+    runtime.rts_command_stamp_kind = application.runtime_command_stamp_kind.clone();
+    runtime.rts_command_stamp_tile_id = application.runtime_command_stamp_tile_id.clone();
+    runtime.rts_command_stamp_player_label = application.runtime_command_stamp_player_label.clone();
+    runtime.last_feedback = application.runtime_last_feedback.clone();
 }
 
 #[cfg(not(target_os = "android"))]
@@ -29427,7 +29423,10 @@ fn classic_first_contact_offline_adapter_consumption_summary(
     adapter: &trnm_rts_online::RtsOnlineOfflineAdapterSummary,
 ) -> (Value, bool) {
     let mut runtime = classic_first_contact_player_screen_runtime();
-    apply_first_contact_offline_adapter_handoff_to_runtime(&mut runtime, adapter);
+    let runtime_handoff = classic_first_contact_adapter_runtime_handoff_review_input(adapter);
+    let runtime_application =
+        rts_bevy_runtime::rts_first_contact_offline_adapter_runtime_application(&runtime_handoff);
+    apply_first_contact_offline_adapter_application_to_runtime(&mut runtime, &runtime_application);
 
     let review = rts_bevy_runtime::rts_first_contact_offline_adapter_consumption_review(
         rts_bevy_runtime::RtsFirstContactOfflineAdapterConsumptionReviewInput {
@@ -29435,9 +29434,7 @@ fn classic_first_contact_offline_adapter_consumption_summary(
             adapter_contract: adapter.contract_version.clone(),
             adapter_id: adapter.adapter_id.clone(),
             adapter_mode: adapter.adapter_mode.clone(),
-            adapter_runtime_handoff: classic_first_contact_adapter_runtime_handoff_review_input(
-                adapter,
-            ),
+            adapter_runtime_handoff: runtime_handoff,
             input_queue_labels: adapter.input_queue_labels.clone(),
             accepted_server_order_labels: adapter.accepted_server_order_labels.clone(),
             rejected_client_order_reasons: adapter.rejected_client_order_reasons.clone(),

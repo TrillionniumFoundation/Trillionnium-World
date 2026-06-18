@@ -424,6 +424,21 @@ require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_
   and .rts_online_offline_adapter_consumption.adapter_contract == "trnm_rts_online_offline_adapter_v1"
   and .rts_online_offline_adapter_consumption.adapter_runtime_handoff_contract == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
   and .rts_online_offline_adapter_consumption.adapter_runtime_handoff.green == true
+  and .rts_online_offline_adapter_consumption.runtime_application_contract == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
+  and .rts_online_offline_adapter_consumption.runtime_application.contract_version == "trnm_rts_bevy_runtime_first_contact_offline_adapter_runtime_application_v1"
+  and .rts_online_offline_adapter_consumption.runtime_application.green == true
+  and .rts_online_offline_adapter_consumption.runtime_application.handoff_contract == "trnm_rts_online_offline_adapter_runtime_handoff_v1"
+  and .rts_online_offline_adapter_consumption.runtime_application.command_queue == ["move:8,4"]
+  and .rts_online_offline_adapter_consumption.runtime_application.selected_unit_ids == ["trnm.worker.alpha"]
+  and .rts_online_offline_adapter_consumption.runtime_application.group_route_tile_ids == ["8,4"]
+  and .rts_online_offline_adapter_consumption.runtime_application.runtime_command_stamp_source == "trnm-rts-online:offline_loopback_authority"
+  and .rts_online_offline_adapter_consumption.runtime_application.runtime_command_stamp_kind == "server_accepted_move"
+  and .rts_online_offline_adapter_consumption.runtime_application.runtime_command_stamp_tile_id == "8,4"
+  and .rts_online_offline_adapter_consumption.runtime_application.accepted_order_runtime_gate == true
+  and .rts_online_offline_adapter_consumption.runtime_application.rejected_order_runtime_gate == true
+  and .rts_online_offline_adapter_consumption.runtime_application.scoped_update_runtime_gate == true
+  and .rts_online_offline_adapter_consumption.runtime_application.no_socket_boundary_gate == true
+  and .rts_online_offline_adapter_consumption.runtime_application.runtime_application_path == "trnm-rts-bevy-runtime offline_adapter_runtime_application -> NativeFirstPlayableRuntime mutation"
   and .rts_online_offline_adapter_consumption.adapter_mode == "offline_loopback_authority"
   and .rts_online_offline_adapter_consumption.input_queue_labels == ["client:move_worker@8,4", "client:attack_fogged_keep"]
   and .rts_online_offline_adapter_consumption.accepted_server_order_labels == ["client:move_worker@8,4"]
@@ -466,6 +481,7 @@ require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.ability_cooldown_percents == [0,0,16,0,42,25]
   and .rts_online_offline_adapter_consumption.runtime_player_screen_review.active_ability_id == "worker"
   and .rts_online_offline_adapter_consumption.local_session_handoff_gate == true
+  and .rts_online_offline_adapter_consumption.runtime_application_gate == true
   and .rts_online_offline_adapter_consumption.player_screen_review_gate == true
   and .rts_online_offline_adapter_consumption.accepted_order_runtime_gate == true
   and .rts_online_offline_adapter_consumption.rejected_order_runtime_gate == true
@@ -478,7 +494,9 @@ require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_
   and .rts_online_offline_adapter_consumption.socket_opened == false
   and .rts_online_offline_adapter_consumption.hosted_service_claimed == false
   and .rts_online_offline_adapter_consumption.public_launch_ready == false
-  and .rts_online_offline_adapter_consumption.runtime_path == "trnm-rts-bevy-runtime first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
+  and .rts_online_offline_adapter_consumption.input_path == "trnm-rts-online offline adapter runtime handoff -> trnm-rts-bevy-runtime runtime application -> Bevy local player-screen snapshot"
+  and .rts_online_offline_adapter_consumption.runtime_path == "trnm-rts-bevy-runtime offline_adapter_runtime_application + first_contact_offline_adapter_consumption_review -> NativeFirstPlayableRuntime consumer"
+  and (.rts_online_offline_adapter_consumption.source_of_truth | contains("Bevy-free runtime application"))
   and (.rts_online_offline_adapter_consumption.source_of_truth | contains("player-screen/session surface"))
   and .rts_online_offline_adapter_consumption_gate == true
 ' "First Contact Basin packet artifact binds no-socket offline adapter summary plus Bevy runtime action-replay consumption without prediction, rollback-netcode, hosted-service, or public-launch claims"
