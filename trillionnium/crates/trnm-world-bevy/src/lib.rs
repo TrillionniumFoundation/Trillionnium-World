@@ -107317,6 +107317,7 @@ fn classic_rts_queue_slot_label(queue_id: &str) -> String {
     match queue_id {
         "train:guard" => "GUARD".to_string(),
         "train:worker" => "WORKER".to_string(),
+        "train:ai_skirmish" | "ai:skirmish_wave" => "SKIRMISH".to_string(),
         "upgrade:signal_blade" => "SIGNAL".to_string(),
         "build:watch_tower" => "WATCH".to_string(),
         "upgrade:training_hall" => "TRAINING".to_string(),
@@ -107328,9 +107329,259 @@ fn classic_rts_queue_slot_label(queue_id: &str) -> String {
                 .or_else(|| queue_id.strip_prefix("upgrade:"))
                 .unwrap_or(queue_id);
             let item = item.strip_prefix("trnm.").unwrap_or(item);
+            let normalized = item.to_ascii_lowercase();
+            if normalized.contains("ai_skirmish") || normalized.contains("skirmish_wave") {
+                return "SKIRMISH".to_string();
+            }
+            if normalized.contains("objective") {
+                return "OBJECT".to_string();
+            }
+            if normalized.contains("scout") {
+                return "SCOUT".to_string();
+            }
+            if normalized.contains("tier2") || normalized.contains("tier_two") {
+                return "TIER2".to_string();
+            }
+            if normalized.contains("open_world") || normalized.contains("resume") {
+                return "RESUME".to_string();
+            }
             classic_catalog_text_label(&item.replace(['_', '.', ':', '-'], " "), 8)
         }
     }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_subject_label(subject: &str, max_chars: usize) -> String {
+    let subject = subject.split("->").next().unwrap_or(subject);
+    let subject = subject.split('@').next().unwrap_or(subject);
+    let subject = subject
+        .strip_prefix("train:")
+        .or_else(|| subject.strip_prefix("build:"))
+        .or_else(|| subject.strip_prefix("upgrade:"))
+        .or_else(|| subject.strip_prefix("attack:"))
+        .or_else(|| subject.strip_prefix("objective:claim:"))
+        .or_else(|| subject.strip_prefix("objective:extract:"))
+        .unwrap_or(subject);
+    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
+    let normalized = subject.to_ascii_lowercase();
+    let label = if normalized.contains("flux.beacon")
+        || normalized.contains("relay_beacon")
+        || normalized == "beacon"
+    {
+        "RELAY BEACON".to_string()
+    } else if normalized.contains("flux.relay") || normalized.contains("relay_outpost") {
+        "RELAY".to_string()
+    } else if normalized.contains("ai_skirmish") || normalized.contains("skirmish_wave") {
+        "SKIRMISH".to_string()
+    } else if normalized.contains("ridge_sentries") {
+        "RIDGE SENTRIES".to_string()
+    } else if normalized.contains("scout") {
+        "SCOUT CREW".to_string()
+    } else if normalized.contains("tier_two") || normalized.contains("tier2") {
+        "TIER2".to_string()
+    } else if normalized.contains("open_world") || normalized.contains("resume") {
+        "RESUME".to_string()
+    } else {
+        classic_rts_order_completion_subject_label(subject)
+    };
+    classic_catalog_text_label(&label, max_chars)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_order_label(command_state: &str) -> String {
+    let normalized = command_state.to_ascii_lowercase();
+    let label = if normalized.contains("attack") {
+        "ATTACK READY"
+    } else if normalized.contains("move") || normalized.contains("rally") {
+        "MOVE READY"
+    } else if normalized.contains("build") {
+        "BUILD READY"
+    } else if normalized.contains("select") {
+        "SQUAD READY"
+    } else if command_state.trim().is_empty() {
+        "READY"
+    } else {
+        command_state
+    };
+    classic_catalog_text_label(label, 24)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_build_label(runtime: &NativeFirstPlayableRuntime) -> String {
+    runtime
+        .rts_building_blueprint_id
+        .as_deref()
+        .map(|id| {
+            classic_catalog_text_label(
+                &format!(
+                    "{} {}%",
+                    classic_rts_live_subject_label(id, 16),
+                    runtime.rts_building_progress_percent.min(100)
+                ),
+                24,
+            )
+        })
+        .unwrap_or_else(|| "IDLE".to_string())
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_queue_label(runtime: &NativeFirstPlayableRuntime) -> String {
+    let production = runtime.rts_production_queue.first().map(|queue| {
+        format!(
+            "{} {}%",
+            classic_rts_live_subject_label(queue, 14),
+            runtime.rts_training_progress_percent.min(100)
+        )
+    });
+    let build = runtime.rts_build_queue.first().map(|queue| {
+        format!(
+            "{} {}%",
+            classic_rts_live_subject_label(queue, 14),
+            runtime.rts_build_progress_percent.min(100)
+        )
+    });
+    let label = production.or(build).unwrap_or_else(|| "READY".to_string());
+    classic_catalog_text_label(&label, 22)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_resource_label(entry: &str) -> String {
+    let normalized = entry.to_ascii_lowercase();
+    let credit_part = entry
+        .split(':')
+        .find(|part| part.ends_with('g') || part.ends_with('G'))
+        .map(|part| {
+            part.trim_end_matches(['g', 'G'])
+                .replace('+', "")
+                .replace('-', "")
+        })
+        .filter(|value| !value.is_empty());
+    let subject = if normalized.contains("tier_two") || normalized.contains("tier2") {
+        "TIER2"
+    } else if normalized.contains("expansion") {
+        "EXPAND"
+    } else if normalized.contains("train") {
+        "TRAIN"
+    } else if normalized.contains("build") {
+        "BUILD"
+    } else if normalized.contains("upgrade") {
+        "UPGRADE"
+    } else if normalized.contains("tech") {
+        "TECH"
+    } else {
+        "SPEND"
+    };
+    if let Some(credits) = credit_part {
+        classic_catalog_text_label(&format!("{subject} {credits} CREDITS"), 24)
+    } else {
+        classic_catalog_text_label(subject, 24)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_status_labels(runtime: &NativeFirstPlayableRuntime) -> Vec<String> {
+    vec![
+        format!(
+            "SQUAD {}",
+            if classic_selected_unit_display_count(&[], runtime) > 0 {
+                "READY"
+            } else {
+                "STANDBY"
+            }
+        ),
+        format!(
+            "RALLY {}",
+            runtime
+                .rts_command_destination_tile
+                .as_deref()
+                .or(runtime.rts_minimap_command_tile_id.as_deref())
+                .map(classic_hud_tile_label)
+                .unwrap_or_else(|| "READY".to_string())
+        ),
+        format!("QUEUE {}", classic_rts_live_queue_label(runtime)),
+        format!("SCOUTING {}%", runtime.rts_visibility_percent.min(100)),
+        format!(
+            "CAMERA {}",
+            runtime
+                .rts_camera_focus_tile_id
+                .as_deref()
+                .or(runtime.rts_minimap_command_tile_id.as_deref())
+                .map(classic_hud_tile_label)
+                .unwrap_or_else(|| "READY".to_string())
+        ),
+        format!(
+            "SUPPLY {}/{}",
+            runtime.rts_army_supply_used, runtime.rts_army_supply_cap
+        ),
+        "SAVE ROUTE READY".to_string(),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_state_lines(runtime: &NativeFirstPlayableRuntime) -> Vec<String> {
+    vec![
+        format!(
+            "ORDER {}",
+            classic_rts_live_order_label(&runtime.rts_group_command_state)
+        ),
+        format!(
+            "TARGET {}",
+            runtime
+                .rts_attack_target_id
+                .as_deref()
+                .map(|target| classic_rts_live_subject_label(target, 20))
+                .unwrap_or_else(|| "NONE".to_string())
+        ),
+        format!("BUILD {}", classic_rts_live_build_label(runtime)),
+        format!("QUEUE {}", classic_rts_live_queue_label(runtime)),
+        format!(
+            "CAM {}",
+            runtime
+                .rts_camera_focus_tile_id
+                .as_deref()
+                .or(runtime.rts_minimap_command_tile_id.as_deref())
+                .map(classic_hud_tile_label)
+                .unwrap_or_else(|| "-".to_string())
+        ),
+        format!(
+            "DRAG {}",
+            if runtime.rts_drag_select_player_label.is_empty() {
+                "NONE".to_string()
+            } else {
+                classic_catalog_text_label(&runtime.rts_drag_select_player_label, 18)
+            }
+        ),
+        format!(
+            "HOVER {}",
+            if runtime.rts_hover_player_label.is_empty() {
+                "NONE".to_string()
+            } else {
+                classic_catalog_text_label(&runtime.rts_hover_player_label, 18)
+            }
+        ),
+        format!(
+            "RES {}",
+            runtime
+                .rts_resource_spend_log
+                .last()
+                .map(|entry| classic_rts_live_resource_label(entry))
+                .unwrap_or_else(|| "NONE".to_string())
+        ),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_live_label_has_raw_marker(label: &str) -> bool {
+    let upper = label.to_ascii_uppercase();
+    label.contains(':')
+        || label.contains('_')
+        || label.contains("->")
+        || upper.contains("LIVE INPUT")
+        || upper.contains("LMB")
+        || upper.contains("WASD")
+        || upper.contains("CTRL")
+        || upper.contains("SHIFT")
+        || upper.contains("PROD ")
 }
 
 #[cfg(not(target_os = "android"))]
@@ -108389,6 +108640,9 @@ fn classic_first_contact_player_screen_label_guard(
         .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Build)
         .map(|row| classic_first_contact_tactics_row_value(runtime, row))
         .unwrap_or_else(|| "IDLE".to_string());
+    let field_status_title = "FIELD STATUS".to_string();
+    let live_status_labels = classic_rts_live_status_labels(runtime);
+    let live_state_labels = classic_rts_live_state_lines(runtime);
     let mut all_display_labels = Vec::new();
     all_display_labels.extend(resource_labels.iter().cloned());
     all_display_labels.extend(production_slot_labels.iter().cloned());
@@ -108396,6 +108650,9 @@ fn classic_first_contact_player_screen_label_guard(
     all_display_labels.extend(order_queue_labels.iter().cloned());
     all_display_labels.extend(completion_event_labels.iter().cloned());
     all_display_labels.extend(tactics_detail_labels.iter().cloned());
+    all_display_labels.push(field_status_title.clone());
+    all_display_labels.extend(live_status_labels.iter().cloned());
+    all_display_labels.extend(live_state_labels.iter().cloned());
 
     let expected_label_gate = resource_labels
         == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
@@ -108415,7 +108672,29 @@ fn classic_first_contact_player_screen_label_guard(
             ])
         && tactics_queue_summary == "GUARD 64% TOWER 42%"
         && tactics_target_label == "RELAY BEACON"
-        && tactics_build_label == "IDLE";
+        && tactics_build_label == "IDLE"
+        && field_status_title == "FIELD STATUS"
+        && live_status_labels
+            == string_vec([
+                "SQUAD READY",
+                "RALLY 16/9",
+                "QUEUE GUARD 64%",
+                "SCOUTING 76%",
+                "CAMERA 16/16",
+                "SUPPLY 12/22",
+                "SAVE ROUTE READY",
+            ])
+        && live_state_labels
+            == string_vec([
+                "ORDER SECURE RELAY BEACON",
+                "TARGET RELAY BEACON",
+                "BUILD IDLE",
+                "QUEUE GUARD 64%",
+                "CAM 16/16",
+                "DRAG NONE",
+                "HOVER NONE",
+                "RES UPGRADE 210 CREDITS",
+            ]);
     let resource_spacing_gate = resource_spacing_samples
         .iter()
         .all(|sample| sample.get("value_spacing_gate").and_then(Value::as_bool) == Some(true));
@@ -108433,9 +108712,16 @@ fn classic_first_contact_player_screen_label_guard(
     let tactics_detail_width_gate = tactics_detail_labels
         .iter()
         .all(|label| classic_text_advance_px(label, 1) <= 132);
-    let raw_marker_gate = all_display_labels
+    let live_status_width_gate = live_status_labels
         .iter()
-        .all(|label| !classic_first_contact_label_has_raw_marker(label));
+        .all(|label| classic_text_advance_px(label, 1) <= 132);
+    let live_state_width_gate = live_state_labels
+        .iter()
+        .all(|label| classic_text_advance_px(label, 1) <= 180);
+    let raw_marker_gate = all_display_labels.iter().all(|label| {
+        !classic_first_contact_label_has_raw_marker(label)
+            && !classic_rts_live_label_has_raw_marker(label)
+    });
     let green = expected_label_gate
         && resource_spacing_gate
         && production_slot_width_gate
@@ -108443,6 +108729,8 @@ fn classic_first_contact_player_screen_label_guard(
         && order_queue_width_gate
         && tactics_summary_width_gate
         && tactics_detail_width_gate
+        && live_status_width_gate
+        && live_state_width_gate
         && raw_marker_gate;
 
     json!({
@@ -108460,7 +108748,10 @@ fn classic_first_contact_player_screen_label_guard(
         "tactics_target_label": tactics_target_label,
         "tactics_build_label": tactics_build_label,
         "tactics_detail_labels": tactics_detail_labels,
-        "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "@", "_", "->"],
+        "field_status_title": field_status_title,
+        "live_status_labels": live_status_labels,
+        "live_state_labels": live_state_labels,
+        "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", "LIVE INPUT", "LMB", "WASD", "CTRL", "SHIFT", "PROD ", ":", ".", "@", "_", "->"],
         "expected_label_gate": expected_label_gate,
         "resource_spacing_gate": resource_spacing_gate,
         "production_slot_width_gate": production_slot_width_gate,
@@ -108468,6 +108759,8 @@ fn classic_first_contact_player_screen_label_guard(
         "order_queue_width_gate": order_queue_width_gate,
         "tactics_summary_width_gate": tactics_summary_width_gate,
         "tactics_detail_width_gate": tactics_detail_width_gate,
+        "live_status_width_gate": live_status_width_gate,
+        "live_state_width_gate": live_state_width_gate,
         "raw_marker_gate": raw_marker_gate,
     })
 }
@@ -109283,22 +109576,11 @@ fn classic_draw_openra_style_rts_shell(
             height,
             sidebar_x + 12,
             input_y,
-            "LIVE INPUT",
+            "FIELD STATUS",
             1,
             CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
         );
-        for (index, label) in [
-            "LMB CLICK/DRAG SELECT",
-            "DOUBLE-LMB SAME CLASS",
-            "SHIFT+LMB ADD/REMOVE",
-            "RADAR CLICK RALLY",
-            "SIDEBAR QUEUE/BUILD",
-            "CTRL+1 ASSIGN / 1 RECALL",
-            "SHIFT+WASD/WHEEL CAMERA",
-        ]
-        .iter()
-        .enumerate()
-        {
+        for (index, label) in classic_rts_live_status_labels(runtime).iter().enumerate() {
             classic_draw_rect(
                 buffer,
                 width,
@@ -109335,75 +109617,7 @@ fn classic_draw_openra_style_rts_shell(
             );
         }
         let state_y = input_y + 132;
-        let state_lines = [
-            format!(
-                "ORDER {}",
-                classic_catalog_text_label(&runtime.rts_group_command_state, 24)
-            ),
-            format!(
-                "TARGET {}",
-                runtime
-                    .rts_attack_target_id
-                    .as_deref()
-                    .map(|target| classic_catalog_text_label(target, 22))
-                    .unwrap_or_else(|| "NONE".to_string())
-            ),
-            format!(
-                "BUILD {} {}",
-                runtime
-                    .rts_building_blueprint_id
-                    .as_deref()
-                    .map(|id| classic_catalog_text_label(id, 14))
-                    .unwrap_or_else(|| "NONE".to_string()),
-                runtime.rts_building_progress_percent.min(100)
-            ),
-            format!(
-                "PROD {}",
-                classic_catalog_text_label(&classic_rts_sidebar_queue_summary(runtime), 24)
-            ),
-            format!(
-                "CAM {} {}",
-                runtime
-                    .rts_camera_focus_tile_id
-                    .as_deref()
-                    .or(runtime.rts_minimap_command_tile_id.as_deref())
-                    .map(classic_hud_tile_label)
-                    .unwrap_or_else(|| "-".to_string()),
-                classic_catalog_text_label(
-                    if runtime.rts_camera_input_source.is_empty() {
-                        "viewport"
-                    } else {
-                        &runtime.rts_camera_input_source
-                    },
-                    12
-                )
-            ),
-            format!(
-                "DRAG {}",
-                if runtime.rts_drag_select_player_label.is_empty() {
-                    "NONE".to_string()
-                } else {
-                    classic_catalog_text_label(&runtime.rts_drag_select_player_label, 24)
-                }
-            ),
-            format!(
-                "HOVER {}",
-                if runtime.rts_hover_player_label.is_empty() {
-                    "NONE".to_string()
-                } else {
-                    classic_catalog_text_label(&runtime.rts_hover_player_label, 24)
-                }
-            ),
-            format!(
-                "RES {}",
-                runtime
-                    .rts_resource_spend_log
-                    .last()
-                    .map(|entry| classic_catalog_text_label(entry, 24))
-                    .unwrap_or_else(|| "NONE".to_string())
-            ),
-        ];
-        for (index, line) in state_lines.iter().enumerate() {
+        for (index, line) in classic_rts_live_state_lines(runtime).iter().enumerate() {
             classic_draw_text(
                 buffer,
                 width,
@@ -154789,6 +155003,18 @@ mod tests {
         assert_eq!(classic_rts_queue_slot_label("train:guard"), "GUARD");
         assert_eq!(classic_rts_queue_slot_label("train:worker"), "WORKER");
         assert_eq!(
+            classic_rts_queue_slot_label("train:ai_skirmish"),
+            "SKIRMISH"
+        );
+        assert_eq!(
+            classic_rts_queue_slot_label("objective:claim:relay_beacon@6,5"),
+            "OBJECT"
+        );
+        assert_eq!(
+            classic_rts_queue_slot_label("scout:creep_route@9,2"),
+            "SCOUT"
+        );
+        assert_eq!(
             classic_rts_queue_slot_label("upgrade:signal_blade"),
             "SIGNAL"
         );
@@ -154801,6 +155027,48 @@ mod tests {
             classic_rts_queue_slot_label("train:trnm.relay_guard"),
             "RELAY GU"
         );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_live_status_lane_hides_shortcuts_and_raw_runtime_ids() {
+        let runtime = NativeFirstPlayableRuntime {
+            rts_selected_unit_ids: string_vec(["guard_01", "worker_02", "scout_03"]),
+            rts_command_destination_tile: Some("13,3".to_string()),
+            rts_minimap_command_tile_id: Some("13,3".to_string()),
+            rts_visibility_percent: 84,
+            rts_camera_focus_tile_id: Some("13,3".to_string()),
+            rts_army_supply_used: 13,
+            rts_army_supply_cap: 24,
+            rts_group_command_state: "primary_combat:attack".to_string(),
+            rts_attack_target_id: Some("ridge_sentries".to_string()),
+            rts_building_blueprint_id: Some("relay_outpost".to_string()),
+            rts_building_progress_percent: 100,
+            rts_production_queue: string_vec(["train:ai_skirmish"]),
+            rts_build_queue: string_vec(["objective:claim:relay_beacon@6,5"]),
+            rts_training_progress_percent: 100,
+            rts_build_progress_percent: 64,
+            rts_resource_spend_log: string_vec(["res_commit:+120g:tier2:open_world_resume"]),
+            ..Default::default()
+        };
+
+        assert_eq!(classic_rts_live_queue_label(&runtime), "SKIRMISH 100%");
+        assert_eq!(classic_rts_live_build_label(&runtime), "RELAY 100%");
+        assert_eq!(
+            classic_rts_live_resource_label("res_commit:+120g:tier2:open_world_resume"),
+            "TIER2 120 CREDITS"
+        );
+
+        let mut visible = classic_rts_live_status_labels(&runtime);
+        visible.extend(classic_rts_live_state_lines(&runtime));
+        assert!(visible.iter().any(|line| line == "QUEUE SKIRMISH 100%"));
+        assert!(visible.iter().any(|line| line == "ORDER ATTACK READY"));
+        assert!(visible.iter().any(|line| line == "TARGET RIDGE SENTRIES"));
+        assert!(visible.iter().any(|line| line == "BUILD RELAY 100%"));
+        assert!(visible.iter().any(|line| line == "RES TIER2 120 CREDITS"));
+        assert!(visible
+            .iter()
+            .all(|line| !classic_rts_live_label_has_raw_marker(line)));
     }
 
     #[cfg(not(target_os = "android"))]
@@ -154904,6 +155172,35 @@ mod tests {
             ]))
         );
         assert_eq!(
+            guard.get("field_status_title").and_then(Value::as_str),
+            Some("FIELD STATUS")
+        );
+        assert_eq!(
+            guard.get("live_status_labels").cloned(),
+            Some(json!([
+                "SQUAD READY",
+                "RALLY 16/9",
+                "QUEUE GUARD 64%",
+                "SCOUTING 76%",
+                "CAMERA 16/16",
+                "SUPPLY 12/22",
+                "SAVE ROUTE READY"
+            ]))
+        );
+        assert_eq!(
+            guard.get("live_state_labels").cloned(),
+            Some(json!([
+                "ORDER SECURE RELAY BEACON",
+                "TARGET RELAY BEACON",
+                "BUILD IDLE",
+                "QUEUE GUARD 64%",
+                "CAM 16/16",
+                "DRAG NONE",
+                "HOVER NONE",
+                "RES UPGRADE 210 CREDITS"
+            ]))
+        );
+        assert_eq!(
             guard
                 .get("tactics_summary_width_gate")
                 .and_then(Value::as_bool),
@@ -154913,6 +155210,14 @@ mod tests {
             guard
                 .get("tactics_detail_width_gate")
                 .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("live_status_width_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard.get("live_state_width_gate").and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -154937,6 +155242,8 @@ mod tests {
             classic_first_contact_label_has_raw_marker("P:WORKER@42% B:WATCH_TOWER@66%"),
             true
         );
+        assert_eq!(classic_rts_live_label_has_raw_marker("LIVE INPUT"), true);
+        assert_eq!(classic_rts_live_label_has_raw_marker("CTRL+1 ASSIGN"), true);
     }
 
     #[test]

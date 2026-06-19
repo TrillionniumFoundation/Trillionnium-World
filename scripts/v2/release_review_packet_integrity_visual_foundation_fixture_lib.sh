@@ -545,7 +545,27 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         "GUARD 64% TOWER 42%",
         "IDLE"
       ],
-      forbidden_display_fragments: ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "@", "_", "->"],
+      field_status_title: "FIELD STATUS",
+      live_status_labels: [
+        "SQUAD READY",
+        "RALLY 16/9",
+        "QUEUE GUARD 64%",
+        "SCOUTING 76%",
+        "CAMERA 16/16",
+        "SUPPLY 12/22",
+        "SAVE ROUTE READY"
+      ],
+      live_state_labels: [
+        "ORDER SECURE RELAY BEACON",
+        "TARGET RELAY BEACON",
+        "BUILD IDLE",
+        "QUEUE GUARD 64%",
+        "CAM 16/16",
+        "DRAG NONE",
+        "HOVER NONE",
+        "RES UPGRADE 210 CREDITS"
+      ],
+      forbidden_display_fragments: ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", "LIVE INPUT", "LMB", "WASD", "CTRL", "SHIFT", "PROD ", ":", ".", "@", "_", "->"],
       expected_label_gate: true,
       resource_spacing_gate: true,
       production_slot_width_gate: true,
@@ -553,6 +573,8 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       order_queue_width_gate: true,
       tactics_summary_width_gate: true,
       tactics_detail_width_gate: true,
+      live_status_width_gate: true,
+      live_state_width_gate: true,
       raw_marker_gate: true
     },
     first_contact_player_screen_label_guard_gate: true,

@@ -599,8 +599,14 @@ jq -e '
   and .first_contact_player_screen_label_guard.tactics_target_label == "RELAY BEACON"
   and .first_contact_player_screen_label_guard.tactics_build_label == "IDLE"
   and .first_contact_player_screen_label_guard.tactics_detail_labels == ["SECURE RELAY BEACON","RELAY BEACON","16/16","GUARD 64% TOWER 42%","IDLE"]
+  and .first_contact_player_screen_label_guard.field_status_title == "FIELD STATUS"
+  and .first_contact_player_screen_label_guard.live_status_labels == ["SQUAD READY","RALLY 16/9","QUEUE GUARD 64%","SCOUTING 76%","CAMERA 16/16","SUPPLY 12/22","SAVE ROUTE READY"]
+  and .first_contact_player_screen_label_guard.live_state_labels == ["ORDER SECURE RELAY BEACON","TARGET RELAY BEACON","BUILD IDLE","QUEUE GUARD 64%","CAM 16/16","DRAG NONE","HOVER NONE","RES UPGRADE 210 CREDITS"]
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("TRNM") != null)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("PRODUCTION COMPLETE") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("LIVE INPUT") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("LMB") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("WASD") != null)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("@") != null)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("_") != null)
   and (.first_contact_player_screen_label_guard.resource_spacing_samples | all(.value_spacing_gate == true))
@@ -612,6 +618,8 @@ jq -e '
   and .first_contact_player_screen_label_guard.order_queue_width_gate == true
   and .first_contact_player_screen_label_guard.tactics_summary_width_gate == true
   and .first_contact_player_screen_label_guard.tactics_detail_width_gate == true
+  and .first_contact_player_screen_label_guard.live_status_width_gate == true
+  and .first_contact_player_screen_label_guard.live_state_width_gate == true
   and .first_contact_player_screen_label_guard.raw_marker_gate == true
   and .first_contact_player_screen_label_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
