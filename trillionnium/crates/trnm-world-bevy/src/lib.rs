@@ -108233,6 +108233,8 @@ fn classic_first_contact_label_has_raw_marker(label: &str) -> bool {
         || upper.contains("UPGRADE COMPLETE")
         || label.contains(':')
         || label.contains('.')
+        || label.contains('@')
+        || label.contains('_')
         || label.contains("->")
 }
 
@@ -108345,12 +108347,19 @@ fn classic_first_contact_player_screen_label_guard(
         classic_rts_order_queue_label("build_complete:build:watch_tower@7,4->watch_tower"),
         classic_rts_order_queue_label("build_complete:upgrade:training_hall->training_hall"),
     ];
+    let tactics_queue_summary = chrome
+        .tactics_rows
+        .iter()
+        .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Queue)
+        .map(|row| classic_first_contact_tactics_row_value(runtime, row))
+        .unwrap_or_else(|| "READY".to_string());
     let mut all_display_labels = Vec::new();
     all_display_labels.extend(resource_labels.iter().cloned());
     all_display_labels.extend(production_slot_labels.iter().cloned());
     all_display_labels.extend(build_palette_labels.iter().cloned());
     all_display_labels.extend(order_queue_labels.iter().cloned());
     all_display_labels.extend(completion_event_labels.iter().cloned());
+    all_display_labels.push(tactics_queue_summary.clone());
 
     let expected_label_gate = resource_labels
         == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
@@ -108367,7 +108376,8 @@ fn classic_first_contact_player_screen_label_guard(
                 "SIGNAL READY",
                 "TOWER READY",
                 "TRAINING READY",
-            ]);
+            ])
+        && tactics_queue_summary == "GUARD 64% TOWER 42%";
     let resource_spacing_gate = resource_spacing_samples
         .iter()
         .all(|sample| sample.get("value_spacing_gate").and_then(Value::as_bool) == Some(true));
@@ -108381,6 +108391,7 @@ fn classic_first_contact_player_screen_label_guard(
         .iter()
         .chain(completion_event_labels.iter())
         .all(|label| classic_text_advance_px(label, 1) <= 210);
+    let tactics_summary_width_gate = classic_text_advance_px(&tactics_queue_summary, 1) <= 120;
     let raw_marker_gate = all_display_labels
         .iter()
         .all(|label| !classic_first_contact_label_has_raw_marker(label));
@@ -108389,6 +108400,7 @@ fn classic_first_contact_player_screen_label_guard(
         && production_slot_width_gate
         && build_palette_width_gate
         && order_queue_width_gate
+        && tactics_summary_width_gate
         && raw_marker_gate;
 
     json!({
@@ -108402,12 +108414,14 @@ fn classic_first_contact_player_screen_label_guard(
         "build_palette_fit_samples": build_palette_fit_samples,
         "order_queue_labels": order_queue_labels,
         "completion_event_labels": completion_event_labels,
-        "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "->"],
+        "tactics_queue_summary": tactics_queue_summary,
+        "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "@", "_", "->"],
         "expected_label_gate": expected_label_gate,
         "resource_spacing_gate": resource_spacing_gate,
         "production_slot_width_gate": production_slot_width_gate,
         "build_palette_width_gate": build_palette_width_gate,
         "order_queue_width_gate": order_queue_width_gate,
+        "tactics_summary_width_gate": tactics_summary_width_gate,
         "raw_marker_gate": raw_marker_gate,
     })
 }
@@ -154665,10 +154679,27 @@ mod tests {
             .iter()
             .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Camera)
             .expect("camera tactics row");
+        let queue_row = profile
+            .chrome
+            .tactics_rows
+            .iter()
+            .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Queue)
+            .expect("queue tactics row");
         assert_eq!(
             classic_first_contact_tactics_row_value(&runtime, camera_row),
             "5/4"
         );
+        runtime.rts_production_queue = string_vec(["train:worker"]);
+        runtime.rts_build_queue = string_vec(["build:watch_tower@7,4"]);
+        runtime.rts_training_progress_percent = 42;
+        runtime.rts_build_progress_percent = 66;
+        assert_eq!(
+            classic_first_contact_tactics_row_value(&runtime, queue_row),
+            "WORKER 42% TOWER 66%"
+        );
+        assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains(':'));
+        assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains('@'));
+        assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains('_'));
         assert_eq!(classic_selected_unit_display_count(&[], &runtime), 3);
 
         runtime.rts_selected_unit_ids.clear();
@@ -154783,6 +154814,16 @@ mod tests {
             ]))
         );
         assert_eq!(
+            guard.get("tactics_queue_summary").and_then(Value::as_str),
+            Some("GUARD 64% TOWER 42%")
+        );
+        assert_eq!(
+            guard
+                .get("tactics_summary_width_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             guard.get("raw_marker_gate").and_then(Value::as_bool),
             Some(true)
         );
@@ -154798,6 +154839,10 @@ mod tests {
         );
         assert_eq!(
             classic_first_contact_label_has_raw_marker("PRODUCTION COMPLETE TRAIN WORKER"),
+            true
+        );
+        assert_eq!(
+            classic_first_contact_label_has_raw_marker("P:WORKER@42% B:WATCH_TOWER@66%"),
             true
         );
     }

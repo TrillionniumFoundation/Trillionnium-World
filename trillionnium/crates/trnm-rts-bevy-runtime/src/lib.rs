@@ -3310,6 +3310,33 @@ pub fn rts_sidebar_slot_status_label(
     }
 }
 
+pub fn rts_queue_item_player_label(queue_id: &str) -> String {
+    let item = queue_id
+        .split_once('@')
+        .map(|(item, _)| item)
+        .unwrap_or(queue_id);
+    let item = item
+        .strip_prefix("train:")
+        .or_else(|| item.strip_prefix("build:"))
+        .or_else(|| item.strip_prefix("upgrade:"))
+        .unwrap_or(item);
+    let item = item.strip_prefix("trnm.").unwrap_or(item);
+    match item {
+        "guard" => "GUARD".to_string(),
+        "worker" => "WORKER".to_string(),
+        "relay_guard" => "RELAY".to_string(),
+        "signal_blade" | "signal_beacon" => "SIGNAL".to_string(),
+        "watch_tower" | "scout_tower" => "TOWER".to_string(),
+        "training_hall" => "TRAINING".to_string(),
+        "power_node" => "POWER".to_string(),
+        "refinery" => "REFINE".to_string(),
+        "command_post" => "COMMAND".to_string(),
+        "radar_spire" => "RADAR".to_string(),
+        "wall" => "WALL".to_string(),
+        _ => rts_catalog_text_label(&item.replace(['_', '.', ':', '-'], " "), 10),
+    }
+}
+
 pub fn rts_palette_state_label(
     active_blueprint_id: Option<&str>,
     build_queue: &[String],
@@ -3359,27 +3386,27 @@ pub fn rts_sidebar_queue_summary(
     training_progress_percent: u8,
     build_progress_percent: u8,
 ) -> String {
-    let production = production_queue
-        .first()
-        .map(|queue| {
-            format!(
-                "{}@{}%",
-                queue.replace("train:", "").replace("upgrade:", "up:"),
-                training_progress_percent.min(100)
-            )
-        })
-        .unwrap_or_else(|| "ready".to_string());
-    let build = build_queue
-        .first()
-        .map(|queue| {
-            format!(
-                "{}@{}%",
-                rts_structure_id_from_queue(queue),
-                build_progress_percent.min(100)
-            )
-        })
-        .unwrap_or_else(|| "ready".to_string());
-    format!("P:{production} B:{build}")
+    let production = production_queue.first().map(|queue| {
+        format!(
+            "{} {}%",
+            rts_queue_item_player_label(queue),
+            training_progress_percent.min(100)
+        )
+    });
+    let build = build_queue.first().map(|queue| {
+        format!(
+            "{} {}%",
+            rts_queue_item_player_label(queue),
+            build_progress_percent.min(100)
+        )
+    });
+    let summary = match (production, build) {
+        (Some(production), Some(build)) => format!("{production} {build}"),
+        (Some(production), None) => format!("TRAIN {production}"),
+        (None, Some(build)) => format!("BUILD {build}"),
+        (None, None) => "READY".to_string(),
+    };
+    rts_catalog_text_label(&summary, 20)
 }
 
 pub fn rts_build_parts(queue_id: &str) -> (String, String) {
@@ -7346,9 +7373,18 @@ mod tests {
             rts_palette_state_label(Some("refinery"), &[], &[], true, "build:refinery@6,4"),
             "ACT"
         );
+        assert_eq!(rts_queue_item_player_label("train:worker"), "WORKER");
+        assert_eq!(
+            rts_queue_item_player_label("upgrade:signal_blade"),
+            "SIGNAL"
+        );
+        assert_eq!(
+            rts_queue_item_player_label("build:watch_tower@7,4"),
+            "TOWER"
+        );
         assert_eq!(
             rts_sidebar_queue_summary(&production_queue, &build_queue, 42, 66),
-            "P:worker@42% B:watch_tower@66%"
+            "WORKER 42% TOWER 66%"
         );
         assert_eq!(
             rts_spawned_unit_id_from_queue("train:worker", 2),

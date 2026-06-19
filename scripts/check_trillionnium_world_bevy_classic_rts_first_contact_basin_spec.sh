@@ -595,8 +595,11 @@ jq -e '
   and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
   and .first_contact_player_screen_label_guard.order_queue_labels == ["ATTACK BEACON","TRAIN WORKER","BUILD RELAY","MOVE 16/9"]
   and .first_contact_player_screen_label_guard.completion_event_labels == ["WORKER READY","SIGNAL READY","TOWER READY","TRAINING READY"]
+  and .first_contact_player_screen_label_guard.tactics_queue_summary == "GUARD 64% TOWER 42%"
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("TRNM") != null)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("PRODUCTION COMPLETE") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("@") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("_") != null)
   and (.first_contact_player_screen_label_guard.resource_spacing_samples | all(.value_spacing_gate == true))
   and (.first_contact_player_screen_label_guard.build_palette_fit_samples | all(.fits_tile_gate == true))
   and .first_contact_player_screen_label_guard.expected_label_gate == true
@@ -604,6 +607,7 @@ jq -e '
   and .first_contact_player_screen_label_guard.production_slot_width_gate == true
   and .first_contact_player_screen_label_guard.build_palette_width_gate == true
   and .first_contact_player_screen_label_guard.order_queue_width_gate == true
+  and .first_contact_player_screen_label_guard.tactics_summary_width_gate == true
   and .first_contact_player_screen_label_guard.raw_marker_gate == true
   and .first_contact_player_screen_label_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
@@ -922,7 +926,7 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.command_panel_palette_cancel_queue_id_sample == "cancel:active_build"
   and .rts_evidence_bevy_runtime_adapter.command_panel_sidebar_slot_status_label_sample == "B1 66 R"
   and .rts_evidence_bevy_runtime_adapter.command_panel_palette_state_label_sample == "ACT"
-  and .rts_evidence_bevy_runtime_adapter.command_panel_sidebar_queue_summary_sample == "P:worker@42% B:watch_tower@66%"
+  and .rts_evidence_bevy_runtime_adapter.command_panel_sidebar_queue_summary_sample == "WORKER 42% TOWER 66%"
   and .rts_evidence_bevy_runtime_adapter.command_panel_spawned_unit_id_sample == "worker_3"
   and .rts_evidence_bevy_runtime_adapter.command_panel_structure_id_sample == "watch_tower"
   and .rts_evidence_bevy_runtime_adapter.scripted_demo_pauses_queue_tick_sample == true

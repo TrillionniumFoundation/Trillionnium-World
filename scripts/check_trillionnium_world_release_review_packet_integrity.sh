@@ -539,8 +539,11 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
   and .first_contact_player_screen_label_guard.order_queue_labels == ["ATTACK BEACON","TRAIN WORKER","BUILD RELAY","MOVE 16/9"]
   and .first_contact_player_screen_label_guard.completion_event_labels == ["WORKER READY","SIGNAL READY","TOWER READY","TRAINING READY"]
+  and .first_contact_player_screen_label_guard.tactics_queue_summary == "GUARD 64% TOWER 42%"
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("TRNM") != null)
   and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("PRODUCTION COMPLETE") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("@") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("_") != null)
   and (.first_contact_player_screen_label_guard.resource_spacing_samples | all(.value_spacing_gate == true))
   and (.first_contact_player_screen_label_guard.build_palette_fit_samples | all(.fits_tile_gate == true))
   and .first_contact_player_screen_label_guard.expected_label_gate == true
@@ -548,6 +551,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_player_screen_label_guard.production_slot_width_gate == true
   and .first_contact_player_screen_label_guard.build_palette_width_gate == true
   and .first_contact_player_screen_label_guard.order_queue_width_gate == true
+  and .first_contact_player_screen_label_guard.tactics_summary_width_gate == true
   and .first_contact_player_screen_label_guard.raw_marker_gate == true
   and .first_contact_player_screen_label_guard_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
