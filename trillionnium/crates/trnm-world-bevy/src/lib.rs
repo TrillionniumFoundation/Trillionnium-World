@@ -107304,6 +107304,36 @@ fn classic_rts_queue_slot_label(queue_id: &str) -> String {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_order_subject_label(subject: &str) -> String {
+    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
+    let subject = subject.strip_prefix("flux.").unwrap_or(subject);
+    classic_catalog_text_label(&subject.replace(['_', '.', ':', '-'], " "), 18)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_order_queue_label(order: &str) -> String {
+    if order.starts_with("feedback:blocked:") {
+        return classic_rts_blocked_feedback_player_label(order);
+    }
+    if let Some(tile_id) = order.strip_prefix("move:") {
+        return format!("MOVE {}", classic_hud_tile_label(tile_id));
+    }
+    if let Some(subject) = order.strip_prefix("attack:") {
+        return format!("ATTACK {}", classic_rts_order_subject_label(subject));
+    }
+    if let Some(subject) = order.strip_prefix("train:") {
+        return format!("TRAIN {}", classic_rts_order_subject_label(subject));
+    }
+    if let Some(subject) = order.strip_prefix("build:") {
+        return format!("BUILD {}", classic_rts_order_subject_label(subject));
+    }
+    if let Some(subject) = order.strip_prefix("upgrade:") {
+        return format!("UPGRADE {}", classic_rts_order_subject_label(subject));
+    }
+    classic_catalog_text_label(&order.replace(['_', '.', ':', '-'], " "), 32)
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_rts_command_glyph(
     buffer: &mut [u32],
@@ -109410,11 +109440,7 @@ fn classic_draw_openra_style_rts_shell(
             },
         );
         classic_draw_rect(buffer, width, height, queue_x, y, 4, 14, chip_color);
-        let order_label = if order.starts_with("feedback:blocked:") {
-            classic_rts_blocked_feedback_player_label(order)
-        } else {
-            order.replace(':', " ").replace('_', " ")
-        };
+        let order_label = classic_rts_order_queue_label(order);
         classic_draw_text(
             buffer,
             width,
@@ -154408,6 +154434,24 @@ mod tests {
         assert_eq!(
             classic_rts_queue_slot_label("train:trnm.relay_guard"),
             "RELAY GU"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_order_queue_labels_hide_raw_runtime_ids() {
+        assert_eq!(classic_rts_order_queue_label("move:16,9"), "MOVE 16/9");
+        assert_eq!(
+            classic_rts_order_queue_label("attack:trnm.flux.beacon"),
+            "ATTACK BEACON"
+        );
+        assert_eq!(
+            classic_rts_order_queue_label("train:trnm.worker"),
+            "TRAIN WORKER"
+        );
+        assert_eq!(
+            classic_rts_order_queue_label("build:trnm.flux.relay"),
+            "BUILD RELAY"
         );
     }
 
