@@ -29344,25 +29344,19 @@ fn apply_first_contact_player_screen_application_to_runtime(
 #[cfg(not(target_os = "android"))]
 pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
     let map_model = first_contact_basin_map();
-    let rts_data_validation_error = map_model.validate().err();
-    let map_summary = map_model.summary();
     let rts_evidence_bevy_runtime_adapter =
         trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence();
+    let first_contact_map_model_review =
+        &rts_evidence_bevy_runtime_adapter.first_contact_map_model_review;
+    let rts_data_validation_error = first_contact_map_model_review.data_validation_error.clone();
+    let map_summary = first_contact_map_model_review.map_summary.clone();
     let actor_count = map_summary.actor_count;
     let spawn_count = map_summary.spawn_count;
     let flux_count = map_summary.flux_bloom_count;
     let beacon_count = map_summary.beacon_count;
     let expansion_count = map_summary.expansion_count;
-    let unit_count = map_model
-        .rules
-        .iter()
-        .filter(|rule| rule.kind == RtsRuleKind::Unit)
-        .count();
-    let building_count = map_model
-        .rules
-        .iter()
-        .filter(|rule| rule.kind == RtsRuleKind::Structure)
-        .count();
+    let unit_count = first_contact_map_model_review.unit_rule_count;
+    let building_count = first_contact_map_model_review.building_rule_count;
     let rule_summaries = map_model
         .rules
         .iter()
@@ -29388,50 +29382,15 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             })
         })
         .collect::<Vec<_>>();
-    let map_actor_gate = actor_count == 39;
-    let map_topology_gate =
-        spawn_count == 4 && flux_count == 11 && beacon_count == 4 && expansion_count == 4;
-    let rules_gate = unit_count >= 4
-        && building_count >= 2
-        && map_model
-            .rules
-            .iter()
-            .any(|rule| rule.id == "trnm.worker" && rule.cost == 200 && rule.hp == 8000)
-        && map_model
-            .rules
-            .iter()
-            .any(|rule| rule.id == "trnm.horizon.scout" && rule.speed == Some(92))
-        && map_model
-            .rules
-            .iter()
-            .any(|rule| rule.id == "trnm.forge.warden" && rule.hp == 18000)
-        && map_model
-            .rules
-            .iter()
-            .any(|rule| rule.id == "trnm.command.core" && rule.cost == 1600)
-        && map_model
-            .rules
-            .iter()
-            .any(|rule| rule.id == "trnm.flux.relay" && rule.cost == 500);
-    let rts_data_consumer_gate = rts_data_validation_error.is_none()
-        && map_model.contract_version == TRNM_RTS_DATA_CONTRACT
-        && map_summary.contract_version == TRNM_RTS_DATA_CONTRACT
-        && map_summary.canonical_sha256.len() == 64
-        && map_summary.source_integration_mode == "gpl_internal_component";
+    let map_actor_gate = first_contact_map_model_review.map_actor_gate;
+    let map_topology_gate = first_contact_map_model_review.map_topology_gate;
+    let rules_gate = first_contact_map_model_review.rules_gate;
+    let rts_data_consumer_gate = first_contact_map_model_review.data_consumer_gate;
     let bevy_data_actor_templates = classic_first_contact_map_actors_from_rts_data();
     let rts_data_preview_actor_projection_gate =
         rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate;
     let bevy_data_actor_parity_gate = rts_data_preview_actor_projection_gate;
-    let bevy_map_model_adapter_gate = rts_data_consumer_gate
-        && bevy_data_actor_parity_gate
-        && actor_count
-            == rts_evidence_bevy_runtime_adapter
-                .first_contact_preview_actor_projection
-                .actor_count
-        && bevy_data_actor_templates.len()
-            == rts_evidence_bevy_runtime_adapter
-                .first_contact_preview_actor_projection
-                .actor_count;
+    let bevy_map_model_adapter_gate = first_contact_map_model_review.map_model_adapter_gate;
     let rts_data_terrain_profile_gate =
         rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate;
     let rts_data_renderer_projection_gate =
@@ -29653,6 +29612,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_contract": TRNM_RTS_DATA_CONTRACT,
         "rts_data_map_model": rts_data_map_model,
         "rts_data_map_summary": rts_data_map_summary,
+        "rts_data_map_model_review": first_contact_map_model_review,
+        "rts_data_map_model_gate": rts_evidence_bevy_runtime_adapter.first_contact_map_model_gate,
         "rts_data_source_manifest": rts_data_source_manifest,
         "rts_data_canonical_sha256": map_summary.canonical_sha256,
         "rts_data_validation_error": rts_data_validation_error,

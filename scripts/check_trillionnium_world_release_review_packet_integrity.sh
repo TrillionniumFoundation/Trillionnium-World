@@ -427,6 +427,19 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .rts_data_source_manifest.release_constraint == "internal_only_until_gpl_component_review_or_replacement"
   and .rts_data_source_manifest.license == "GPL-3.0-or-later OpenRA Mod SDK prototype boundary"
   and .rts_data_consumer_gate == true
+  and .rts_data_map_model_review.map_summary == .rts_data_map_summary
+  and .rts_data_map_model_review.unit_rule_count == .unit_rule_count
+  and .rts_data_map_model_review.building_rule_count == .building_rule_count
+  and .rts_data_map_model_review.data_validation_error == .rts_data_validation_error
+  and .rts_data_map_model_review.map_actor_gate == .map_actor_gate
+  and .rts_data_map_model_review.map_topology_gate == .map_topology_gate
+  and .rts_data_map_model_review.rules_gate == .rules_gate
+  and .rts_data_map_model_review.data_consumer_gate == .rts_data_consumer_gate
+  and .rts_data_map_model_review.map_model_adapter_gate == .bevy_map_model_adapter_gate
+  and .rts_data_map_model_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_map_model_review == .rts_data_map_model_review
+  and .rts_evidence_bevy_runtime_adapter.first_contact_map_model_gate == true
+  and .rts_data_map_model_gate == .rts_evidence_bevy_runtime_adapter.first_contact_map_model_gate
   and .rts_data_terrain_profile_count == 1156
   and .rts_data_terrain_profile_samples.center.height == 2
   and .rts_data_terrain_profile_samples.base_pad.base_pad == true

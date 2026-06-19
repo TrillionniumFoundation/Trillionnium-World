@@ -146,6 +146,20 @@ pub struct RtsFirstContactPreviewActorProjectionEvidence {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactMapModelReview {
+    pub map_summary: trnm_rts_data::RtsMapSummary,
+    pub unit_rule_count: usize,
+    pub building_rule_count: usize,
+    pub data_validation_error: Option<String>,
+    pub map_actor_gate: bool,
+    pub map_topology_gate: bool,
+    pub rules_gate: bool,
+    pub data_consumer_gate: bool,
+    pub map_model_adapter_gate: bool,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsFirstContactRendererProjectionEvidence {
     pub renderable_tile_count: usize,
     pub lane_tile_count: usize,
@@ -2389,6 +2403,8 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub first_contact_online_protocol_gate: bool,
     pub first_contact_online_local_handoff_gate: bool,
     pub first_contact_online_offline_adapter_gate: bool,
+    pub first_contact_map_model_review: RtsFirstContactMapModelReview,
+    pub first_contact_map_model_gate: bool,
     pub first_contact_opening_profile: trnm_rts_data::RtsOpeningLoopProfile,
     pub first_contact_opening_profile_gate: bool,
     pub first_contact_command_feedback_profile: trnm_rts_data::RtsCommandFeedbackProfile,
@@ -3261,7 +3277,18 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     .map(str::to_string);
     let first_contact_profile = trnm_rts_data::first_contact_player_screen_profile();
     let first_contact_map_model = trnm_rts_data::first_contact_basin_map();
+    let first_contact_data_validation_error = first_contact_map_model.validate().err();
     let first_contact_map_summary = first_contact_map_model.summary();
+    let first_contact_unit_rule_count = first_contact_map_model
+        .rules
+        .iter()
+        .filter(|rule| rule.kind == trnm_rts_data::RtsRuleKind::Unit)
+        .count();
+    let first_contact_building_rule_count = first_contact_map_model
+        .rules
+        .iter()
+        .filter(|rule| rule.kind == trnm_rts_data::RtsRuleKind::Structure)
+        .count();
     let first_contact_terrain_profiles = trnm_rts_data::first_contact_terrain_profiles();
     let first_contact_renderer_model =
         trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model);
@@ -3736,6 +3763,62 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                         .iter()
                         .any(|source| source.id == actor.source_actor_id)
             });
+    let first_contact_map_actor_gate = first_contact_map_summary.actor_count == 39;
+    let first_contact_map_topology_gate = first_contact_map_summary.spawn_count == 4
+        && first_contact_map_summary.flux_bloom_count == 11
+        && first_contact_map_summary.beacon_count == 4
+        && first_contact_map_summary.expansion_count == 4;
+    let first_contact_rules_gate = first_contact_unit_rule_count >= 4
+        && first_contact_building_rule_count >= 2
+        && first_contact_map_model
+            .rules
+            .iter()
+            .any(|rule| rule.id == "trnm.worker" && rule.cost == 200 && rule.hp == 8000)
+        && first_contact_map_model
+            .rules
+            .iter()
+            .any(|rule| rule.id == "trnm.horizon.scout" && rule.speed == Some(92))
+        && first_contact_map_model
+            .rules
+            .iter()
+            .any(|rule| rule.id == "trnm.forge.warden" && rule.hp == 18000)
+        && first_contact_map_model
+            .rules
+            .iter()
+            .any(|rule| rule.id == "trnm.command.core" && rule.cost == 1600)
+        && first_contact_map_model
+            .rules
+            .iter()
+            .any(|rule| rule.id == "trnm.flux.relay" && rule.cost == 500);
+    let first_contact_data_consumer_gate = first_contact_data_validation_error.is_none()
+        && first_contact_map_model.contract_version == trnm_rts_data::TRNM_RTS_DATA_CONTRACT
+        && first_contact_map_summary.contract_version == trnm_rts_data::TRNM_RTS_DATA_CONTRACT
+        && first_contact_map_summary.canonical_sha256.len() == 64
+        && first_contact_map_summary.source_integration_mode == "gpl_internal_component";
+    let first_contact_map_model_adapter_gate = first_contact_data_consumer_gate
+        && first_contact_preview_actor_projection_gate
+        && first_contact_map_summary.actor_count
+            == first_contact_preview_actor_projection.actor_count
+        && first_contact_preview_actors.len() == first_contact_preview_actor_projection.actor_count;
+    let first_contact_map_model_gate = first_contact_map_actor_gate
+        && first_contact_map_topology_gate
+        && first_contact_rules_gate
+        && first_contact_data_consumer_gate
+        && first_contact_map_model_adapter_gate;
+    let first_contact_map_model_review = RtsFirstContactMapModelReview {
+        map_summary: first_contact_map_summary.clone(),
+        unit_rule_count: first_contact_unit_rule_count,
+        building_rule_count: first_contact_building_rule_count,
+        data_validation_error: first_contact_data_validation_error.clone(),
+        map_actor_gate: first_contact_map_actor_gate,
+        map_topology_gate: first_contact_map_topology_gate,
+        rules_gate: first_contact_rules_gate,
+        data_consumer_gate: first_contact_data_consumer_gate,
+        map_model_adapter_gate: first_contact_map_model_adapter_gate,
+        source:
+            "trnm-rts-data First Contact map model and rule summary reviewed by trnm-rts-evidence"
+                .to_string(),
+    };
     let first_contact_player_screen_layout = first_contact_profile.layout;
     let first_contact_player_screen_layout_gate =
         first_contact_player_screen_layout.player_map.map_origin_x == 16
@@ -4677,6 +4760,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && first_contact_online_protocol_gate
         && first_contact_online_local_handoff_gate
         && first_contact_online_offline_adapter_gate
+        && first_contact_map_model_gate
         && first_contact_opening_profile_gate
         && first_contact_command_feedback_gate
         && first_contact_player_startup_gate
@@ -5029,6 +5113,8 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         first_contact_online_protocol_gate,
         first_contact_online_local_handoff_gate,
         first_contact_online_offline_adapter_gate,
+        first_contact_map_model_review,
+        first_contact_map_model_gate,
         first_contact_opening_profile: first_contact_opening_profile.clone(),
         first_contact_opening_profile_gate,
         first_contact_command_feedback_profile: first_contact_command_feedback_profile.clone(),
@@ -6206,6 +6292,41 @@ mod tests {
                 .local_runtime_handoff
                 .accepted_runtime_command_labels,
             vec!["move:8,4"]
+        );
+        assert!(evidence.first_contact_map_model_gate);
+        assert!(evidence.first_contact_map_model_review.map_actor_gate);
+        assert!(evidence.first_contact_map_model_review.map_topology_gate);
+        assert!(evidence.first_contact_map_model_review.rules_gate);
+        assert!(evidence.first_contact_map_model_review.data_consumer_gate);
+        assert!(
+            evidence
+                .first_contact_map_model_review
+                .map_model_adapter_gate
+        );
+        assert_eq!(
+            evidence
+                .first_contact_map_model_review
+                .map_summary
+                .actor_count,
+            39
+        );
+        assert_eq!(
+            evidence
+                .first_contact_map_model_review
+                .map_summary
+                .source_integration_mode,
+            "gpl_internal_component"
+        );
+        assert_eq!(evidence.first_contact_map_model_review.unit_rule_count, 6);
+        assert_eq!(
+            evidence.first_contact_map_model_review.building_rule_count,
+            5
+        );
+        assert_eq!(
+            evidence
+                .first_contact_map_model_review
+                .data_validation_error,
+            None
         );
         assert!(evidence.first_contact_opening_profile_gate);
         assert_eq!(

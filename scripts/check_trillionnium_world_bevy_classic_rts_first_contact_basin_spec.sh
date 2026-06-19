@@ -85,6 +85,26 @@ if grep -Fq 'let rts_data_visual_telemetry_gate = visual_telemetry_profile.contr
   exit 1
 fi
 
+if grep -Fq 'let map_actor_gate = actor_count == 39' "$SOURCE"; then
+  echo "[FAIL] First Contact map actor gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let rules_gate = unit_count >= 4' "$SOURCE"; then
+  echo "[FAIL] First Contact rule summary gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let rts_data_consumer_gate = rts_data_validation_error.is_none()' "$SOURCE"; then
+  echo "[FAIL] First Contact data consumer gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let bevy_map_model_adapter_gate = rts_data_consumer_gate' "$SOURCE"; then
+  echo "[FAIL] First Contact map-model adapter gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
 required_source_lines=(
   'fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor>'
   'first_contact_preview_actors(&first_contact_basin_map())'
@@ -99,6 +119,8 @@ required_source_lines=(
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate'
+  'rts_evidence_bevy_runtime_adapter.first_contact_map_model_review'
+  'rts_evidence_bevy_runtime_adapter.first_contact_map_model_gate'
   '.first_contact_opening_profile'
   'rts_evidence_bevy_runtime_adapter.first_contact_opening_profile_gate'
   '.first_contact_command_feedback_profile'
@@ -149,6 +171,9 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate: bool'
   'first_contact_online_local_handoff_gate: bool'
   'first_contact_online_offline_adapter_gate: bool'
+  'pub struct RtsFirstContactMapModelReview'
+  'first_contact_map_model_review: RtsFirstContactMapModelReview'
+  'first_contact_map_model_gate: bool'
   'first_contact_opening_profile: trnm_rts_data::RtsOpeningLoopProfile'
   'first_contact_opening_profile_gate: bool'
   'first_contact_command_feedback_profile: trnm_rts_data::RtsCommandFeedbackProfile'
@@ -179,6 +204,8 @@ required_evidence_source_lines=(
   'first_contact_runtime_map_projection_gate: bool'
   'pub fn first_contact_bevy_runtime_adapter_evidence'
   'trnm_rts_data::first_contact_player_screen_profile()'
+  'first_contact_map_model.validate().err()'
+  'first_contact_map_model.summary()'
   'trnm_rts_data::first_contact_opening_loop_profile()'
   'trnm_rts_data::first_contact_command_feedback_profile()'
   'trnm_rts_data::first_contact_player_startup_profiles()'
@@ -209,6 +236,7 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate'
   'first_contact_online_local_handoff_gate'
   'first_contact_online_offline_adapter_gate'
+  'first_contact_map_model_gate'
   'first_contact_opening_profile_gate'
   'first_contact_command_feedback_gate'
   'first_contact_player_startup_gate'
@@ -327,6 +355,19 @@ jq -e '
   and (.rts_data_canonical_sha256 | type == "string" and length == 64)
   and .rts_data_validation_error == null
   and .rts_data_consumer_gate == true
+  and .rts_data_map_model_review.map_summary == .rts_data_map_summary
+  and .rts_data_map_model_review.unit_rule_count == .unit_rule_count
+  and .rts_data_map_model_review.building_rule_count == .building_rule_count
+  and .rts_data_map_model_review.data_validation_error == .rts_data_validation_error
+  and .rts_data_map_model_review.map_actor_gate == .map_actor_gate
+  and .rts_data_map_model_review.map_topology_gate == .map_topology_gate
+  and .rts_data_map_model_review.rules_gate == .rules_gate
+  and .rts_data_map_model_review.data_consumer_gate == .rts_data_consumer_gate
+  and .rts_data_map_model_review.map_model_adapter_gate == .bevy_map_model_adapter_gate
+  and .rts_data_map_model_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_map_model_review == .rts_data_map_model_review
+  and .rts_evidence_bevy_runtime_adapter.first_contact_map_model_gate == true
+  and .rts_data_map_model_gate == .rts_evidence_bevy_runtime_adapter.first_contact_map_model_gate
   and .rts_data_terrain_profile_count == 1156
   and .rts_data_terrain_profile_samples.border.role == "border"
   and .rts_data_terrain_profile_samples.lane.role == "lane"

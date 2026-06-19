@@ -306,13 +306,50 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
     map_id: "first_contact_basin",
     actor_count: 39,
     spawn_count: 4,
+    flux_bloom_count: 11,
+    beacon_count: 4,
+    expansion_count: 4,
+    unit_rule_count: 6,
+    building_rule_count: 5,
+    map_actor_gate: true,
+    map_topology_gate: true,
+    rules_gate: true,
     rts_data_source_manifest: {
       integration_mode: "gpl_internal_component",
       copied_or_derived: true,
       release_constraint: "internal_only_until_gpl_component_review_or_replacement",
       license: "GPL-3.0-or-later OpenRA Mod SDK prototype boundary"
     },
+    rts_data_map_summary: {
+      actor_count: 39,
+      spawn_count: 4,
+      flux_bloom_count: 11,
+      beacon_count: 4,
+      expansion_count: 4,
+      source_integration_mode: "gpl_internal_component"
+    },
+    rts_data_validation_error: null,
     rts_data_consumer_gate: true,
+    bevy_map_model_adapter_gate: true,
+    rts_data_map_model_review: {
+      map_summary: {
+        actor_count: 39,
+        spawn_count: 4,
+        flux_bloom_count: 11,
+        beacon_count: 4,
+        expansion_count: 4,
+        source_integration_mode: "gpl_internal_component"
+      },
+      unit_rule_count: 6,
+      building_rule_count: 5,
+      data_validation_error: null,
+      map_actor_gate: true,
+      map_topology_gate: true,
+      rules_gate: true,
+      data_consumer_gate: true,
+      map_model_adapter_gate: true
+    },
+    rts_data_map_model_gate: true,
     rts_data_terrain_profile_count: 1156,
     rts_data_terrain_profile_samples: {
       border: {role: "border", height: 0, base_pad: false, resource_zone: false},
@@ -523,6 +560,25 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       first_contact_online_protocol_gate: true,
       first_contact_online_local_handoff_gate: true,
       first_contact_online_offline_adapter_gate: true,
+      first_contact_map_model_review: {
+        map_summary: {
+          actor_count: 39,
+          spawn_count: 4,
+          flux_bloom_count: 11,
+          beacon_count: 4,
+          expansion_count: 4,
+          source_integration_mode: "gpl_internal_component"
+        },
+        unit_rule_count: 6,
+        building_rule_count: 5,
+        data_validation_error: null,
+        map_actor_gate: true,
+        map_topology_gate: true,
+        rules_gate: true,
+        data_consumer_gate: true,
+        map_model_adapter_gate: true
+      },
+      first_contact_map_model_gate: true,
       first_contact_opening_profile: {
         contract_version: "trnm_rts_data_first_contact_opening_profile_v1",
         map_id: "first_contact_basin",
