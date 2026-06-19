@@ -40,6 +40,11 @@ if rg -Uq 'let rts_bevy_runtime_map_projection\s*=\s*rts_bevy_runtime::rts_runti
   exit 1
 fi
 
+if grep -Fq 'let bevy_data_actor_parity_gate = actor_count == bevy_data_actor_templates.len()' "$SOURCE"; then
+  echo "[FAIL] First Contact preview actor projection gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
 required_source_lines=(
   'fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor>'
   'first_contact_preview_actors(&first_contact_basin_map())'
@@ -54,6 +59,8 @@ required_source_lines=(
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate'
+  'rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection'
+  'rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count'
   'rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples'
   'rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate'
@@ -88,6 +95,9 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate: bool'
   'first_contact_online_local_handoff_gate: bool'
   'first_contact_online_offline_adapter_gate: bool'
+  'pub struct RtsFirstContactPreviewActorProjectionEvidence'
+  'first_contact_preview_actor_projection: RtsFirstContactPreviewActorProjectionEvidence'
+  'first_contact_preview_actor_projection_gate: bool'
   'pub struct RtsFirstContactTerrainProfileSamples'
   'pub struct RtsFirstContactRendererProjectionEvidence'
   'first_contact_terrain_profile_count: usize'
@@ -100,6 +110,7 @@ required_evidence_source_lines=(
   'first_contact_runtime_terrain_seed_sample: RtsRuntimeTerrainSeeds'
   'first_contact_runtime_map_projection_gate: bool'
   'pub fn first_contact_bevy_runtime_adapter_evidence'
+  'trnm_rts_data::first_contact_preview_actors(&first_contact_map_model)'
   'trnm_rts_data::first_contact_terrain_profiles()'
   'trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model)'
   'rts_runtime_map_projection(RtsRuntimeMapLayoutInput'
@@ -124,6 +135,7 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate'
   'first_contact_online_local_handoff_gate'
   'first_contact_online_offline_adapter_gate'
+  'first_contact_preview_actor_projection_gate'
   'first_contact_terrain_profile_gate'
   'first_contact_renderer_projection_gate'
   'first_contact_runtime_map_projection_gate'
@@ -306,6 +318,18 @@ jq -e '
   and .rts_data_preview_actor_projection.flux_bloom_count == 11
   and .rts_data_preview_actor_projection.beacon_count == 4
   and .rts_data_preview_actor_projection.expansion_count == 4
+  and .rts_data_preview_actor_projection_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.actor_count == 39
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.spawn_count == 4
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.flux_bloom_count == 11
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.beacon_count == 4
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.expansion_count == 4
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor0" and .kind == "spawn" and .owner == "Multi0" and .tile.x == 8 and .tile.y == 8 and .source_rule_id == "mpspawn" and .openra_preview_rule_id == "trnm.map.detail"))
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor2" and .kind == "flux_bloom" and .tile.x == 12 and .tile.y == 16 and .source_rule_id == "trnm.flux.bloom" and .openra_preview_rule_id == "trnm.flux.bloom"))
+  and (.rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor5" and .kind == "spawn" and .owner == "Multi2" and .tile.x == 25 and .tile.y == 8))
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate == true
+  and .rts_data_preview_actor_projection == .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection
+  and .rts_data_preview_actor_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate
   and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor0" and .kind == "spawn" and .owner == "Multi0" and .tile.x == 8 and .tile.y == 8 and .source_rule_id == "mpspawn" and .openra_preview_rule_id == "trnm.map.detail"))
   and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor2" and .kind == "flux_bloom" and .tile.x == 12 and .tile.y == 16 and .source_rule_id == "trnm.flux.bloom" and .openra_preview_rule_id == "trnm.flux.bloom"))
   and (.rts_data_preview_actor_projection.actor_samples[] | select(.source_actor_id == "Actor5" and .kind == "spawn" and .owner == "Multi2" and .tile.x == 25 and .tile.y == 8))

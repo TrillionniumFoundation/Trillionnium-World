@@ -482,6 +482,15 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .rts_data_preview_actor_projection.flux_bloom_count == 11
   and .rts_data_preview_actor_projection.beacon_count == 4
   and .rts_data_preview_actor_projection.expansion_count == 4
+  and .rts_data_preview_actor_projection_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.actor_count == 39
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.spawn_count == 4
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.flux_bloom_count == 11
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.beacon_count == 4
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection.expansion_count == 4
+  and .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate == true
+  and .rts_data_preview_actor_projection == .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection
+  and .rts_data_preview_actor_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate
   and (.rts_data_preview_actors | length) == 39
   and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor0" and .kind == "spawn" and .owner == "Multi0" and .source_rule_id == "mpspawn" and .openra_preview_rule_id == "trnm.map.detail"))
   and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor15" and .kind == "beacon" and .openra_preview_rule_id == "trnm.flux.beacon"))

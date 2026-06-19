@@ -29421,38 +29421,19 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && map_summary.canonical_sha256.len() == 64
         && map_summary.source_integration_mode == "gpl_internal_component";
     let bevy_data_actor_templates = classic_first_contact_map_actors_from_rts_data();
-    let bevy_data_actor_parity_gate = actor_count == bevy_data_actor_templates.len()
-        && spawn_count
-            == bevy_data_actor_templates
-                .iter()
-                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Spawn)
-                .count()
-        && flux_count
-            == bevy_data_actor_templates
-                .iter()
-                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::FluxBloom)
-                .count()
-        && beacon_count
-            == bevy_data_actor_templates
-                .iter()
-                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Beacon)
-                .count()
-        && expansion_count
-            == bevy_data_actor_templates
-                .iter()
-                .filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::ExpansionMarker)
-                .count();
+    let rts_data_preview_actor_projection_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate;
+    let bevy_data_actor_parity_gate = rts_data_preview_actor_projection_gate;
     let bevy_map_model_adapter_gate = rts_data_consumer_gate
         && bevy_data_actor_parity_gate
-        && bevy_data_actor_templates.iter().all(|actor| {
-            actor.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT
-                && actor.source_rule_id == actor.kind.source_rule_id()
-                && actor.openra_preview_rule_id == actor.kind.openra_preview_rule_id()
-                && map_model
-                    .actors
-                    .iter()
-                    .any(|source| source.id == actor.source_actor_id)
-        });
+        && actor_count
+            == rts_evidence_bevy_runtime_adapter
+                .first_contact_preview_actor_projection
+                .actor_count
+        && bevy_data_actor_templates.len()
+            == rts_evidence_bevy_runtime_adapter
+                .first_contact_preview_actor_projection
+                .actor_count;
     let rts_data_terrain_profile_gate =
         rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate;
     let rts_data_renderer_projection_gate =
@@ -29870,6 +29851,10 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         serde_json::to_value(&opening_profile).expect("RTS data opening profile serializes");
     let rts_data_command_feedback_profile = serde_json::to_value(&command_feedback_profile)
         .expect("RTS data command feedback profile serializes");
+    let rts_data_preview_actor_projection = serde_json::to_value(
+        &rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection,
+    )
+    .expect("RTS data preview actor projection serializes");
     let rts_data_preview_actors = serde_json::to_value(&bevy_data_actor_templates)
         .expect("RTS data preview actors serialize");
     let rts_data_player_startup_profiles = serde_json::to_value(&player_startup_profiles)
@@ -29996,15 +29981,8 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_data_opening_profile": rts_data_opening_profile,
         "rts_data_command_feedback_profile": rts_data_command_feedback_profile,
         "rts_data_preview_actor_contract": TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT,
-        "rts_data_preview_actor_projection": {
-            "actor_count": bevy_data_actor_templates.len(),
-            "spawn_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Spawn).count(),
-            "flux_bloom_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::FluxBloom).count(),
-            "beacon_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::Beacon).count(),
-            "expansion_count": bevy_data_actor_templates.iter().filter(|actor| actor.kind == RtsFirstContactPreviewActorKind::ExpansionMarker).count(),
-            "actor_samples": bevy_data_actor_templates.iter().take(6).collect::<Vec<_>>(),
-            "source": "trnm-rts-data first_contact_preview_actors projection from RtsMapModel actors",
-        },
+        "rts_data_preview_actor_projection": rts_data_preview_actor_projection,
+        "rts_data_preview_actor_projection_gate": rts_data_preview_actor_projection_gate,
         "rts_data_preview_actors": rts_data_preview_actors,
         "rts_data_player_startup_profiles": rts_data_player_startup_profiles,
         "rts_data_actor_presentation_contract": TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT,

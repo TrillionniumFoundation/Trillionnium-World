@@ -135,6 +135,17 @@ pub struct RtsFirstContactTerrainProfileSamples {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtsFirstContactPreviewActorProjectionEvidence {
+    pub actor_count: usize,
+    pub spawn_count: usize,
+    pub flux_bloom_count: usize,
+    pub beacon_count: usize,
+    pub expansion_count: usize,
+    pub actor_samples: Vec<trnm_rts_data::RtsFirstContactPreviewActor>,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RtsFirstContactRendererProjectionEvidence {
     pub renderable_tile_count: usize,
     pub lane_tile_count: usize,
@@ -2378,6 +2389,8 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub first_contact_online_protocol_gate: bool,
     pub first_contact_online_local_handoff_gate: bool,
     pub first_contact_online_offline_adapter_gate: bool,
+    pub first_contact_preview_actor_projection: RtsFirstContactPreviewActorProjectionEvidence,
+    pub first_contact_preview_actor_projection_gate: bool,
     pub first_contact_terrain_profile_count: usize,
     pub first_contact_terrain_profile_samples: RtsFirstContactTerrainProfileSamples,
     pub first_contact_terrain_profile_gate: bool,
@@ -3237,6 +3250,8 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let first_contact_terrain_profiles = trnm_rts_data::first_contact_terrain_profiles();
     let first_contact_renderer_model =
         trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model);
+    let first_contact_preview_actors =
+        trnm_rts_data::first_contact_preview_actors(&first_contact_map_model);
     let first_contact_player_screen_application =
         rts_first_contact_player_screen_runtime_application(&first_contact_profile);
     let first_contact_online_protocol_fixture =
@@ -3512,6 +3527,55 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && !first_contact_adapter.socket_opened
         && !first_contact_adapter.hosted_service_claimed
         && !first_contact_adapter.public_launch_ready;
+    let first_contact_preview_actor_projection = RtsFirstContactPreviewActorProjectionEvidence {
+        actor_count: first_contact_preview_actors.len(),
+        spawn_count: first_contact_preview_actors
+            .iter()
+            .filter(|actor| actor.kind == trnm_rts_data::RtsFirstContactPreviewActorKind::Spawn)
+            .count(),
+        flux_bloom_count: first_contact_preview_actors
+            .iter()
+            .filter(|actor| actor.kind == trnm_rts_data::RtsFirstContactPreviewActorKind::FluxBloom)
+            .count(),
+        beacon_count: first_contact_preview_actors
+            .iter()
+            .filter(|actor| actor.kind == trnm_rts_data::RtsFirstContactPreviewActorKind::Beacon)
+            .count(),
+        expansion_count: first_contact_preview_actors
+            .iter()
+            .filter(|actor| {
+                actor.kind == trnm_rts_data::RtsFirstContactPreviewActorKind::ExpansionMarker
+            })
+            .count(),
+        actor_samples: first_contact_preview_actors
+            .iter()
+            .take(6)
+            .cloned()
+            .collect(),
+        source: "trnm-rts-data first_contact_preview_actors projection from RtsMapModel actors"
+            .to_string(),
+    };
+    let first_contact_preview_actor_projection_gate =
+        first_contact_preview_actor_projection.actor_count == first_contact_map_summary.actor_count
+            && first_contact_preview_actor_projection.spawn_count
+                == first_contact_map_summary.spawn_count
+            && first_contact_preview_actor_projection.flux_bloom_count
+                == first_contact_map_summary.flux_bloom_count
+            && first_contact_preview_actor_projection.beacon_count
+                == first_contact_map_summary.beacon_count
+            && first_contact_preview_actor_projection.expansion_count
+                == first_contact_map_summary.expansion_count
+            && first_contact_preview_actors.iter().all(|actor| {
+                actor.contract_version
+                    == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT
+                    && first_contact_map_model.bounds.contains(actor.tile)
+                    && actor.source_rule_id == actor.kind.source_rule_id()
+                    && actor.openra_preview_rule_id == actor.kind.openra_preview_rule_id()
+                    && first_contact_map_model
+                        .actors
+                        .iter()
+                        .any(|source| source.id == actor.source_actor_id)
+            });
     let first_contact_terrain_profile_samples = RtsFirstContactTerrainProfileSamples {
         border: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(0, 0)),
         lane: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(16, 9)),
@@ -4166,6 +4230,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && first_contact_online_protocol_gate
         && first_contact_online_local_handoff_gate
         && first_contact_online_offline_adapter_gate
+        && first_contact_preview_actor_projection_gate
         && first_contact_terrain_profile_gate
         && first_contact_renderer_projection_gate
         && first_contact_runtime_map_projection_gate;
@@ -4511,6 +4576,8 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         first_contact_online_protocol_gate,
         first_contact_online_local_handoff_gate,
         first_contact_online_offline_adapter_gate,
+        first_contact_preview_actor_projection,
+        first_contact_preview_actor_projection_gate,
         first_contact_terrain_profile_count,
         first_contact_terrain_profile_samples,
         first_contact_terrain_profile_gate,
@@ -5672,6 +5739,38 @@ mod tests {
                 .accepted_runtime_command_labels,
             vec!["move:8,4"]
         );
+        assert!(evidence.first_contact_preview_actor_projection_gate);
+        assert_eq!(
+            evidence.first_contact_preview_actor_projection.actor_count,
+            39
+        );
+        assert_eq!(
+            evidence.first_contact_preview_actor_projection.spawn_count,
+            4
+        );
+        assert_eq!(
+            evidence
+                .first_contact_preview_actor_projection
+                .flux_bloom_count,
+            11
+        );
+        assert_eq!(
+            evidence.first_contact_preview_actor_projection.beacon_count,
+            4
+        );
+        assert_eq!(
+            evidence
+                .first_contact_preview_actor_projection
+                .expansion_count,
+            4
+        );
+        assert!(evidence
+            .first_contact_preview_actor_projection
+            .actor_samples
+            .iter()
+            .any(|actor| actor.source_actor_id == "Actor0"
+                && actor.kind == trnm_rts_data::RtsFirstContactPreviewActorKind::Spawn
+                && actor.openra_preview_rule_id == "trnm.map.detail"));
         assert!(evidence.first_contact_terrain_profile_gate);
         assert_eq!(evidence.first_contact_terrain_profile_count, 1156);
         assert_eq!(

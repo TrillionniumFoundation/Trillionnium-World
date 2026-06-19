@@ -345,8 +345,39 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       spawn_count: 4,
       flux_bloom_count: 11,
       beacon_count: 4,
-      expansion_count: 4
+      expansion_count: 4,
+      actor_samples: [
+        {
+          contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+          source_actor_id: "Actor0",
+          kind: "spawn",
+          owner: "Multi0",
+          tile: {x: 8, y: 8},
+          source_rule_id: "mpspawn",
+          openra_preview_rule_id: "trnm.map.detail"
+        },
+        {
+          contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+          source_actor_id: "Actor2",
+          kind: "flux_bloom",
+          owner: "Neutral",
+          tile: {x: 12, y: 16},
+          source_rule_id: "trnm.flux.bloom",
+          openra_preview_rule_id: "trnm.flux.bloom"
+        },
+        {
+          contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+          source_actor_id: "Actor5",
+          kind: "spawn",
+          owner: "Multi2",
+          tile: {x: 25, y: 8},
+          source_rule_id: "mpspawn",
+          openra_preview_rule_id: "trnm.map.detail"
+        }
+      ],
+      source: "trnm-rts-data first_contact_preview_actors projection from RtsMapModel actors"
     },
+    rts_data_preview_actor_projection_gate: true,
     rts_data_preview_actors: ([
       {
         contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
@@ -443,6 +474,44 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       first_contact_online_protocol_gate: true,
       first_contact_online_local_handoff_gate: true,
       first_contact_online_offline_adapter_gate: true,
+      first_contact_preview_actor_projection: {
+        actor_count: 39,
+        spawn_count: 4,
+        flux_bloom_count: 11,
+        beacon_count: 4,
+        expansion_count: 4,
+        actor_samples: [
+          {
+            contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+            source_actor_id: "Actor0",
+            kind: "spawn",
+            owner: "Multi0",
+            tile: {x: 8, y: 8},
+            source_rule_id: "mpspawn",
+            openra_preview_rule_id: "trnm.map.detail"
+          },
+          {
+            contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+            source_actor_id: "Actor2",
+            kind: "flux_bloom",
+            owner: "Neutral",
+            tile: {x: 12, y: 16},
+            source_rule_id: "trnm.flux.bloom",
+            openra_preview_rule_id: "trnm.flux.bloom"
+          },
+          {
+            contract_version: "trnm_rts_data_first_contact_preview_actor_v1",
+            source_actor_id: "Actor5",
+            kind: "spawn",
+            owner: "Multi2",
+            tile: {x: 25, y: 8},
+            source_rule_id: "mpspawn",
+            openra_preview_rule_id: "trnm.map.detail"
+          }
+        ],
+        source: "trnm-rts-data first_contact_preview_actors projection from RtsMapModel actors"
+      },
+      first_contact_preview_actor_projection_gate: true,
       first_contact_terrain_profile_count: 1156,
       first_contact_terrain_profile_samples: {
         border: {role: "border", height: 0, base_pad: false, resource_zone: false},
