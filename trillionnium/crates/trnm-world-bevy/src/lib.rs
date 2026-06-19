@@ -107311,9 +107311,51 @@ fn classic_rts_order_subject_label(subject: &str) -> String {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_rts_order_completion_subject_label(subject: &str) -> String {
+    let subject = subject.split("->").next().unwrap_or(subject);
+    let subject = subject.split('@').next().unwrap_or(subject);
+    let subject = subject
+        .strip_prefix("train:")
+        .or_else(|| subject.strip_prefix("build:"))
+        .or_else(|| subject.strip_prefix("upgrade:"))
+        .unwrap_or(subject);
+    let subject = subject.strip_prefix("trnm.").unwrap_or(subject);
+    match subject {
+        "guard" => "GUARD".to_string(),
+        "worker" => "WORKER".to_string(),
+        "signal_blade" => "SIGNAL".to_string(),
+        "training_hall" => "TRAINING".to_string(),
+        "watch_tower" => "TOWER".to_string(),
+        "power_node" => "POWER".to_string(),
+        "refinery" => "REFINE".to_string(),
+        "command_post" => "COMMAND".to_string(),
+        "radar_spire" => "RADAR".to_string(),
+        "wall" => "WALL".to_string(),
+        _ => classic_rts_order_subject_label(subject),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_order_completion_label(subject: &str) -> String {
+    format!(
+        "{} READY",
+        classic_rts_order_completion_subject_label(subject)
+    )
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_rts_order_queue_label(order: &str) -> String {
     if order.starts_with("feedback:blocked:") {
         return classic_rts_blocked_feedback_player_label(order);
+    }
+    if let Some(subject) = order.strip_prefix("production_complete:") {
+        return classic_rts_order_completion_label(subject);
+    }
+    if let Some(subject) = order.strip_prefix("build_complete:") {
+        return classic_rts_order_completion_label(subject);
+    }
+    if let Some(subject) = order.strip_prefix("upgrade_complete:") {
+        return classic_rts_order_completion_label(subject);
     }
     if let Some(tile_id) = order.strip_prefix("move:") {
         return format!("MOVE {}", classic_hud_tile_label(tile_id));
@@ -154475,6 +154517,22 @@ mod tests {
         assert_eq!(
             classic_rts_order_queue_label("build:trnm.flux.relay"),
             "BUILD RELAY"
+        );
+        assert_eq!(
+            classic_rts_order_queue_label("production_complete:train:worker->worker_03"),
+            "WORKER READY"
+        );
+        assert_eq!(
+            classic_rts_order_queue_label("upgrade_complete:signal_blade"),
+            "SIGNAL READY"
+        );
+        assert_eq!(
+            classic_rts_order_queue_label("build_complete:build:watch_tower@7,4->watch_tower"),
+            "TOWER READY"
+        );
+        assert_eq!(
+            classic_rts_order_queue_label("build_complete:upgrade:training_hall->training_hall"),
+            "TRAINING READY"
         );
     }
 
