@@ -87506,7 +87506,9 @@ fn classic_first_contact_tactics_row_value(
         RtsPlayerScreenTacticsRowKind::Target => runtime
             .rts_attack_target_id
             .as_deref()
-            .map(|target| classic_catalog_text_label(target, max_chars))
+            .map(|target| {
+                classic_catalog_text_label(&classic_first_contact_target_label(target), max_chars)
+            })
             .unwrap_or_else(|| row.empty_label.clone()),
         RtsPlayerScreenTacticsRowKind::Camera => runtime
             .rts_camera_focus_tile_id
@@ -87522,15 +87524,29 @@ fn classic_first_contact_tactics_row_value(
                 classic_catalog_text_label(&summary, max_chars)
             }
         }
-        RtsPlayerScreenTacticsRowKind::Build => format!(
-            "{} {}",
-            runtime
-                .rts_building_blueprint_id
-                .as_deref()
-                .map(|id| classic_catalog_text_label(id, max_chars))
-                .unwrap_or_else(|| row.empty_label.clone()),
-            runtime.rts_building_progress_percent.min(100)
-        ),
+        RtsPlayerScreenTacticsRowKind::Build => runtime
+            .rts_building_blueprint_id
+            .as_deref()
+            .map(|id| {
+                classic_catalog_text_label(
+                    &format!(
+                        "{} {}%",
+                        classic_rts_order_completion_subject_label(id),
+                        runtime.rts_building_progress_percent.min(100)
+                    ),
+                    max_chars,
+                )
+            })
+            .unwrap_or_else(|| "IDLE".to_string()),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_target_label(target_id: &str) -> String {
+    match target_id {
+        "trnm.flux.beacon" | "flux.beacon" | "beacon" => "RELAY BEACON".to_string(),
+        "trnm.flux.relay" | "flux.relay" | "relay" => "RELAY".to_string(),
+        _ => classic_rts_order_subject_label(target_id),
     }
 }
 
@@ -108007,6 +108023,9 @@ fn classic_glyph_rows(ch: char) -> [&'static str; 7] {
         '/' => [
             "00001", "00010", "00010", "00100", "01000", "01000", "10000",
         ],
+        '%' => [
+            "11001", "11010", "00010", "00100", "01000", "01011", "10011",
+        ],
         _ => [
             "11111", "00001", "00010", "00100", "00100", "00000", "00100",
         ],
@@ -108353,13 +108372,30 @@ fn classic_first_contact_player_screen_label_guard(
         .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Queue)
         .map(|row| classic_first_contact_tactics_row_value(runtime, row))
         .unwrap_or_else(|| "READY".to_string());
+    let tactics_detail_labels = chrome
+        .tactics_rows
+        .iter()
+        .map(|row| classic_first_contact_tactics_row_value(runtime, row))
+        .collect::<Vec<_>>();
+    let tactics_target_label = chrome
+        .tactics_rows
+        .iter()
+        .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Target)
+        .map(|row| classic_first_contact_tactics_row_value(runtime, row))
+        .unwrap_or_else(|| "NONE".to_string());
+    let tactics_build_label = chrome
+        .tactics_rows
+        .iter()
+        .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Build)
+        .map(|row| classic_first_contact_tactics_row_value(runtime, row))
+        .unwrap_or_else(|| "IDLE".to_string());
     let mut all_display_labels = Vec::new();
     all_display_labels.extend(resource_labels.iter().cloned());
     all_display_labels.extend(production_slot_labels.iter().cloned());
     all_display_labels.extend(build_palette_labels.iter().cloned());
     all_display_labels.extend(order_queue_labels.iter().cloned());
     all_display_labels.extend(completion_event_labels.iter().cloned());
-    all_display_labels.push(tactics_queue_summary.clone());
+    all_display_labels.extend(tactics_detail_labels.iter().cloned());
 
     let expected_label_gate = resource_labels
         == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
@@ -108377,7 +108413,9 @@ fn classic_first_contact_player_screen_label_guard(
                 "TOWER READY",
                 "TRAINING READY",
             ])
-        && tactics_queue_summary == "GUARD 64% TOWER 42%";
+        && tactics_queue_summary == "GUARD 64% TOWER 42%"
+        && tactics_target_label == "RELAY BEACON"
+        && tactics_build_label == "IDLE";
     let resource_spacing_gate = resource_spacing_samples
         .iter()
         .all(|sample| sample.get("value_spacing_gate").and_then(Value::as_bool) == Some(true));
@@ -108392,6 +108430,9 @@ fn classic_first_contact_player_screen_label_guard(
         .chain(completion_event_labels.iter())
         .all(|label| classic_text_advance_px(label, 1) <= 210);
     let tactics_summary_width_gate = classic_text_advance_px(&tactics_queue_summary, 1) <= 120;
+    let tactics_detail_width_gate = tactics_detail_labels
+        .iter()
+        .all(|label| classic_text_advance_px(label, 1) <= 132);
     let raw_marker_gate = all_display_labels
         .iter()
         .all(|label| !classic_first_contact_label_has_raw_marker(label));
@@ -108401,6 +108442,7 @@ fn classic_first_contact_player_screen_label_guard(
         && build_palette_width_gate
         && order_queue_width_gate
         && tactics_summary_width_gate
+        && tactics_detail_width_gate
         && raw_marker_gate;
 
     json!({
@@ -108415,6 +108457,9 @@ fn classic_first_contact_player_screen_label_guard(
         "order_queue_labels": order_queue_labels,
         "completion_event_labels": completion_event_labels,
         "tactics_queue_summary": tactics_queue_summary,
+        "tactics_target_label": tactics_target_label,
+        "tactics_build_label": tactics_build_label,
+        "tactics_detail_labels": tactics_detail_labels,
         "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "@", "_", "->"],
         "expected_label_gate": expected_label_gate,
         "resource_spacing_gate": resource_spacing_gate,
@@ -108422,6 +108467,7 @@ fn classic_first_contact_player_screen_label_guard(
         "build_palette_width_gate": build_palette_width_gate,
         "order_queue_width_gate": order_queue_width_gate,
         "tactics_summary_width_gate": tactics_summary_width_gate,
+        "tactics_detail_width_gate": tactics_detail_width_gate,
         "raw_marker_gate": raw_marker_gate,
     })
 }
@@ -154679,15 +154725,36 @@ mod tests {
             .iter()
             .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Camera)
             .expect("camera tactics row");
+        let target_row = profile
+            .chrome
+            .tactics_rows
+            .iter()
+            .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Target)
+            .expect("target tactics row");
         let queue_row = profile
             .chrome
             .tactics_rows
             .iter()
             .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Queue)
             .expect("queue tactics row");
+        let build_row = profile
+            .chrome
+            .tactics_rows
+            .iter()
+            .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Build)
+            .expect("build tactics row");
         assert_eq!(
             classic_first_contact_tactics_row_value(&runtime, camera_row),
             "5/4"
+        );
+        runtime.rts_attack_target_id = Some("trnm.flux.beacon".to_string());
+        assert_eq!(
+            classic_first_contact_tactics_row_value(&runtime, target_row),
+            "RELAY BEACON"
+        );
+        assert_eq!(
+            classic_first_contact_tactics_row_value(&runtime, build_row),
+            "IDLE"
         );
         runtime.rts_production_queue = string_vec(["train:worker"]);
         runtime.rts_build_queue = string_vec(["build:watch_tower@7,4"]);
@@ -154700,6 +154767,7 @@ mod tests {
         assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains(':'));
         assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains('@'));
         assert!(!classic_first_contact_tactics_row_value(&runtime, queue_row).contains('_'));
+        assert_ne!(classic_glyph_rows('%'), classic_glyph_rows('?'));
         assert_eq!(classic_selected_unit_display_count(&[], &runtime), 3);
 
         runtime.rts_selected_unit_ids.clear();
@@ -154818,8 +154886,32 @@ mod tests {
             Some("GUARD 64% TOWER 42%")
         );
         assert_eq!(
+            guard.get("tactics_target_label").and_then(Value::as_str),
+            Some("RELAY BEACON")
+        );
+        assert_eq!(
+            guard.get("tactics_build_label").and_then(Value::as_str),
+            Some("IDLE")
+        );
+        assert_eq!(
+            guard.get("tactics_detail_labels").cloned(),
+            Some(json!([
+                "SECURE RELAY BEACON",
+                "RELAY BEACON",
+                "16/16",
+                "GUARD 64% TOWER 42%",
+                "IDLE"
+            ]))
+        );
+        assert_eq!(
             guard
                 .get("tactics_summary_width_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("tactics_detail_width_gate")
                 .and_then(Value::as_bool),
             Some(true)
         );

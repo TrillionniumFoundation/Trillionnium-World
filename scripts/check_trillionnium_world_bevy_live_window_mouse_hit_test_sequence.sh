@@ -44,9 +44,21 @@ jq -e '
   ]
 ' "$HIT_MAP" >/dev/null
 
+systemd_user_env_value() {
+  systemctl --user show-environment 2>/dev/null | awk -F= -v key="$1" '
+    $1 == key {
+      sub(/^[^=]*=/, "")
+      print
+      exit
+    }
+  '
+}
+
+SYSTEMD_DISPLAY="$(systemd_user_env_value DISPLAY)"
+SYSTEMD_XAUTHORITY="$(systemd_user_env_value XAUTHORITY)"
 DEFAULT_XAUTH="$(find "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" -maxdepth 1 -type f -name '.mutter-Xwaylandauth.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk 'NR == 1 {print $2}')"
-XAUTH="${XAUTHORITY:-${DEFAULT_XAUTH:-/run/user/1000/.mutter-Xwaylandauth.BE4HP3}}"
-DISPLAY_VALUE="${DISPLAY:-:0}"
+XAUTH="${SYSTEMD_XAUTHORITY:-${XAUTHORITY:-${DEFAULT_XAUTH:-/run/user/1000/.mutter-Xwaylandauth.BE4HP3}}}"
+DISPLAY_VALUE="${SYSTEMD_DISPLAY:-${DISPLAY:-:0}}"
 
 pids="$(pgrep -f '(^|/)target/debug/trnm-world-bevy run$' || true)"
 if [[ -n "$pids" ]]; then
@@ -60,6 +72,9 @@ fi
     XAUTHORITY="$XAUTH" \
     WAYLAND_DISPLAY="" \
     WINIT_UNIX_BACKEND=x11 \
+    XMODIFIERS="@im=none" \
+    GTK_IM_MODULE=xim \
+    QT_IM_MODULE=xim \
     TRNM_WORLD_BEVY_FORCE_X11=1 \
     TRNM_WORLD_BEVY_SESSION_SLOT_DIR="$SLOT_DIR" \
     TRNM_WORLD_BEVY_RUNTIME_PROBE_PATH="$PROBE" \

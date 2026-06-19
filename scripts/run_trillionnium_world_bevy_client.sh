@@ -28,6 +28,7 @@ if [[ (
   ("${TRNM_WORLD_BEVY_CLASSIC_RENDERER:-0}" == "1" && "${TRNM_WORLD_BEVY_ALLOW_WAYLAND:-0}" != "1")
 ) && -n "${DISPLAY:-}" ]]; then
   export WINIT_UNIX_BACKEND="${WINIT_UNIX_BACKEND:-x11}"
+  export XMODIFIERS="${TRNM_WORLD_BEVY_XMODIFIERS:-@im=none}"
   unset WAYLAND_DISPLAY
 fi
 

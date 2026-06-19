@@ -536,6 +536,15 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       order_queue_labels: ["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"],
       completion_event_labels: ["WORKER READY", "SIGNAL READY", "TOWER READY", "TRAINING READY"],
       tactics_queue_summary: "GUARD 64% TOWER 42%",
+      tactics_target_label: "RELAY BEACON",
+      tactics_build_label: "IDLE",
+      tactics_detail_labels: [
+        "SECURE RELAY BEACON",
+        "RELAY BEACON",
+        "16/16",
+        "GUARD 64% TOWER 42%",
+        "IDLE"
+      ],
       forbidden_display_fragments: ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "@", "_", "->"],
       expected_label_gate: true,
       resource_spacing_gate: true,
@@ -543,6 +552,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       build_palette_width_gate: true,
       order_queue_width_gate: true,
       tactics_summary_width_gate: true,
+      tactics_detail_width_gate: true,
       raw_marker_gate: true
     },
     first_contact_player_screen_label_guard_gate: true,
