@@ -2091,19 +2091,19 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             resource_readouts: vec![
                 RtsPlayerScreenResourceReadoutProfile {
                     kind: RtsPlayerScreenResourceReadoutKind::Credits,
-                    label: "CRED".to_string(),
+                    label: "CREDITS".to_string(),
                 },
                 RtsPlayerScreenResourceReadoutProfile {
                     kind: RtsPlayerScreenResourceReadoutKind::Power,
-                    label: "PWR".to_string(),
+                    label: "POWER".to_string(),
                 },
                 RtsPlayerScreenResourceReadoutProfile {
                     kind: RtsPlayerScreenResourceReadoutKind::Supply,
-                    label: "SUP".to_string(),
+                    label: "SUPPLY".to_string(),
                 },
                 RtsPlayerScreenResourceReadoutProfile {
                     kind: RtsPlayerScreenResourceReadoutKind::Visibility,
-                    label: "VIS".to_string(),
+                    label: "VISION".to_string(),
                 },
             ],
             radar_title: "RADAR".to_string(),
@@ -2724,16 +2724,18 @@ mod tests {
         assert_eq!(profile.chrome.tactical_view_status_max_chars, 40);
         assert_eq!(profile.chrome.resource_readouts.len(), 4);
         assert!(profile.chrome.resource_readouts.iter().any(|readout| {
-            readout.kind == RtsPlayerScreenResourceReadoutKind::Credits && readout.label == "CRED"
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Credits
+                && readout.label == "CREDITS"
         }));
         assert!(profile.chrome.resource_readouts.iter().any(|readout| {
-            readout.kind == RtsPlayerScreenResourceReadoutKind::Power && readout.label == "PWR"
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Power && readout.label == "POWER"
         }));
         assert!(profile.chrome.resource_readouts.iter().any(|readout| {
-            readout.kind == RtsPlayerScreenResourceReadoutKind::Supply && readout.label == "SUP"
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Supply && readout.label == "SUPPLY"
         }));
         assert!(profile.chrome.resource_readouts.iter().any(|readout| {
-            readout.kind == RtsPlayerScreenResourceReadoutKind::Visibility && readout.label == "VIS"
+            readout.kind == RtsPlayerScreenResourceReadoutKind::Visibility
+                && readout.label == "VISION"
         }));
         assert_eq!(profile.chrome.radar_title, "RADAR");
         assert_eq!(profile.chrome.production_title, "PRODUCTION");

@@ -3891,28 +3891,28 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             .iter()
             .any(|readout| {
                 readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Credits
-                    && readout.label == "CRED"
+                    && readout.label == "CREDITS"
             })
         && first_contact_player_screen_chrome
             .resource_readouts
             .iter()
             .any(|readout| {
                 readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Power
-                    && readout.label == "PWR"
+                    && readout.label == "POWER"
             })
         && first_contact_player_screen_chrome
             .resource_readouts
             .iter()
             .any(|readout| {
                 readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Supply
-                    && readout.label == "SUP"
+                    && readout.label == "SUPPLY"
             })
         && first_contact_player_screen_chrome
             .resource_readouts
             .iter()
             .any(|readout| {
                 readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Visibility
-                    && readout.label == "VIS"
+                    && readout.label == "VISION"
             })
         && first_contact_player_screen_chrome.radar_title == "RADAR"
         && first_contact_player_screen_chrome.production_title == "PRODUCTION"

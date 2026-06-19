@@ -541,10 +541,10 @@ jq -e '
   and .rts_data_player_screen_profile.chrome.tactical_view_status_fallback == "GROUP 1  ATTACK QUEUED"
   and .rts_data_player_screen_profile.chrome.tactical_view_status_max_chars == 40
   and (.rts_data_player_screen_profile.chrome.resource_readouts | length) == 4
-  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "credits" and .label == "CRED"))
-  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "power" and .label == "PWR"))
-  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "supply" and .label == "SUP"))
-  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "visibility" and .label == "VIS"))
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "credits" and .label == "CREDITS"))
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "power" and .label == "POWER"))
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "supply" and .label == "SUPPLY"))
+  and (.rts_data_player_screen_profile.chrome.resource_readouts[] | select(.kind == "visibility" and .label == "VISION"))
   and .rts_data_player_screen_profile.chrome.radar_title == "RADAR"
   and .rts_data_player_screen_profile.chrome.production_title == "PRODUCTION"
   and .rts_data_player_screen_profile.chrome.build_palette_title == "BUILD PALETTE"

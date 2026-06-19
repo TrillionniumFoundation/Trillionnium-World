@@ -107754,6 +107754,20 @@ fn classic_draw_text(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_text_advance_px(text: &str, scale: i32) -> i32 {
+    let scale = scale.max(1);
+    text.chars()
+        .map(|ch| if ch == ' ' { 4 * scale } else { 6 * scale })
+        .sum()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_resource_readout_value_x(readout_x: i32, label: &str) -> i32 {
+    let label_x = readout_x + 16;
+    label_x + classic_text_advance_px(label, 1) + 8
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_glyph_rows(ch: char) -> [&'static str; 7] {
     match ch {
         'A' => [
@@ -108257,7 +108271,7 @@ fn classic_draw_openra_style_rts_shell(
                 buffer,
                 width,
                 height,
-                x + 50,
+                classic_resource_readout_value_x(x, &readout.label),
                 8,
                 &classic_first_contact_resource_readout_value(runtime, readout),
                 1,
@@ -108275,15 +108289,15 @@ fn classic_draw_openra_style_rts_shell(
                 .max(runtime.rts_army_supply_used.max(1))
         );
         for (index, (label, value, color)) in [
-            ("CRED", gold.to_string(), CLASSIC_ISO_GOLD_COLOR),
+            ("CREDITS", gold.to_string(), CLASSIC_ISO_GOLD_COLOR),
             (
-                "PWR",
+                "POWER",
                 format!("{}%", power.max(0)),
                 CLASSIC_RTS_VISIBILITY_BAR_COLOR,
             ),
-            ("SUP", supply, CLASSIC_RTS_RESOURCE_FOOD_COLOR),
+            ("SUPPLY", supply, CLASSIC_RTS_RESOURCE_FOOD_COLOR),
             (
-                "VIS",
+                "VISION",
                 format!("{}%", runtime.rts_visibility_percent),
                 CLASSIC_RTS_MINIMAP_VISION_COLOR,
             ),
@@ -108307,7 +108321,7 @@ fn classic_draw_openra_style_rts_shell(
                 buffer,
                 width,
                 height,
-                x + 50,
+                classic_resource_readout_value_x(x, label),
                 8,
                 value,
                 1,
@@ -154288,6 +154302,15 @@ mod tests {
         assert!(!title.contains("Ctrl"));
         assert!(!title.contains("Shift"));
         assert!(!title.contains("trillionnium_world_bevy_classic_asset_pack_v1"));
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_resource_readout_value_spacing_tracks_label_width() {
+        assert_eq!(classic_resource_readout_value_x(120, "CREDITS"), 186);
+        assert_eq!(classic_resource_readout_value_x(120, "POWER"), 174);
+        assert!(classic_resource_readout_value_x(120, "CREDITS") > 120 + 50);
+        assert!(classic_resource_readout_value_x(120, "PWR") >= 120 + 42);
     }
 
     #[test]
