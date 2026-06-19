@@ -108087,23 +108087,15 @@ fn classic_first_contact_tactical_status_label(
 fn classic_window_title(
     player_tile: (i32, i32),
     runtime: &NativeFirstPlayableRuntime,
-    gameplay_log: &NativeGameplayLog,
-    assets: &ClassicRuntimeAssets,
+    _gameplay_log: &NativeGameplayLog,
+    _assets: &ClassicRuntimeAssets,
 ) -> String {
     format!(
-        "Trillionnium RTS atlas={} | room={} tile=({}, {}) cam={} z{} xp={} | LMB select Double-LMB same class Shift+LMB add/remove radar RMB move/attack Shift+WASD/edges pan wheel zoom Ctrl+1 assign Ctrl+Shift+1 append 1 recall Shift+1 add/double-tap camera M move Q waypoint X stop H hold O patrol K attack-move A attack B build P train G harvest V/Tab ability | {} -> {}",
-        assets.manifest.contract_version,
+        "Trillionnium RTS | room={} | tile={},{} | cam={} | owned-assets-v1",
         runtime.current_room_id,
         player_tile.0,
         player_tile.1,
-        runtime
-            .rts_camera_focus_tile_id
-            .as_deref()
-            .unwrap_or("5,4"),
-        runtime.rts_camera_zoom_percent.max(1),
-        runtime.xp,
-        gameplay_log.last_action,
-        gameplay_log.last_result
+        runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4")
     )
 }
 
@@ -154272,6 +154264,30 @@ mod tests {
                 .any(|value| value.as_str() == Some("tile_sprite_slot")),
             true
         );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_window_title_stays_player_facing_and_concise() {
+        let mut runtime = classic_openra_style_skirmish_runtime();
+        runtime.current_room_id = "first-contact-basin".to_string();
+        runtime.rts_camera_focus_tile_id = Some("5,4".to_string());
+        let gameplay_log = NativeGameplayLog {
+            last_action: "LMB select Ctrl+1 Shift+WASD wheel zoom".to_string(),
+            last_result: "classic_low_spec_renderer_ready".to_string(),
+            ..Default::default()
+        };
+        let assets = generated_classic_runtime_assets();
+        let title = classic_window_title((5, 4), &runtime, &gameplay_log, &assets);
+
+        assert!(title.contains("Trillionnium RTS"));
+        assert!(title.contains("room=first-contact-basin"));
+        assert!(title.contains("owned-assets-v1"));
+        assert!(title.len() <= 96);
+        assert!(!title.contains("LMB"));
+        assert!(!title.contains("Ctrl"));
+        assert!(!title.contains("Shift"));
+        assert!(!title.contains("trillionnium_world_bevy_classic_asset_pack_v1"));
     }
 
     #[test]

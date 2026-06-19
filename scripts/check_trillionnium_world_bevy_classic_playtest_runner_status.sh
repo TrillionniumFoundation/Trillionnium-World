@@ -170,9 +170,11 @@ PLAYER_SCREEN_WINDOW_ID=""
 PLAYER_SCREEN_WINDOW_TITLE=""
 PLAYER_SCREEN_WINDOW_WIDTH=0
 PLAYER_SCREEN_WINDOW_HEIGHT=0
+PLAYER_SCREEN_WINDOW_TITLE_CHARS=0
 PLAYER_SCREEN_WINDOW_GATE=false
 PLAYER_SCREEN_TITLE_GATE=false
 PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE=false
+PLAYER_SCREEN_TITLE_CONCISE_GATE=false
 PLAYER_SCREEN_SCREENSHOT_GATE=false
 PLAYER_SCREEN_REGION_GATE=false
 PLAYER_SCREEN_VISUAL_GATE=false
@@ -206,14 +208,18 @@ if [[ "$SERVICE_PROCESS_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" &
       PLAYER_SCREEN_WINDOW_HEIGHT="$(
         awk '/Height:/ {print $2; exit}' <<<"$WINDOW_INFO"
       )"
+      PLAYER_SCREEN_WINDOW_TITLE_CHARS="${#PLAYER_SCREEN_WINDOW_TITLE}"
       if [[ "$PLAYER_SCREEN_WINDOW_WIDTH" =~ ^[0-9]+$ && "$PLAYER_SCREEN_WINDOW_HEIGHT" =~ ^[0-9]+$ && "$PLAYER_SCREEN_WINDOW_WIDTH" -ge 1200 && "$PLAYER_SCREEN_WINDOW_HEIGHT" -ge 690 ]]; then
         PLAYER_SCREEN_WINDOW_GATE=true
       fi
-      if [[ "$PLAYER_SCREEN_WINDOW_TITLE" == *"Trillionnium RTS"* && "$PLAYER_SCREEN_WINDOW_TITLE" == *"room=first-contact-basin"* && "$PLAYER_SCREEN_WINDOW_TITLE" == *"atlas=trillionnium_world_bevy_classic_asset_pack_v1"* ]]; then
+      if [[ "$PLAYER_SCREEN_WINDOW_TITLE" == *"Trillionnium RTS"* && "$PLAYER_SCREEN_WINDOW_TITLE" == *"room=first-contact-basin"* && "$PLAYER_SCREEN_WINDOW_TITLE" == *"owned-assets-v1"* ]]; then
         PLAYER_SCREEN_TITLE_GATE=true
       fi
-      if ! grep -Eiq 'DESKTOP PRODUCT ALIGNMENT|MAP-FIRST ALIGNMENT|proof|debug|mirror-city-square|title menu|engineering dashboard' <<<"$PLAYER_SCREEN_WINDOW_TITLE"; then
+      if ! grep -Eiq 'DESKTOP PRODUCT ALIGNMENT|MAP-FIRST ALIGNMENT|proof|debug|mirror-city-square|title menu|engineering dashboard|LMB|RMB|Ctrl|Shift|WASD|wheel zoom|attack-move|shortcut' <<<"$PLAYER_SCREEN_WINDOW_TITLE"; then
         PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE=true
+      fi
+      if [[ "$PLAYER_SCREEN_WINDOW_TITLE_CHARS" -le 96 ]]; then
+        PLAYER_SCREEN_TITLE_CONCISE_GATE=true
       fi
     fi
   fi
@@ -308,7 +314,7 @@ if [[ -s "$PLAYER_SCREEN_PROBE" ]]; then
 fi
 
 GREEN=false
-if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" && "$X11_BACKEND_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CPU_BUDGET_GATE" == "true" && "$CEX_PATH_GATE" == "true" && "$PLAYER_SCREEN_WINDOW_GATE" == "true" && "$PLAYER_SCREEN_TITLE_GATE" == "true" && "$PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE" == "true" && "$PLAYER_SCREEN_SCREENSHOT_GATE" == "true" && "$PLAYER_SCREEN_REGION_GATE" == "true" && "$PLAYER_SCREEN_VISUAL_GATE" == "true" ]]; then
+if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" && "$X11_BACKEND_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CPU_BUDGET_GATE" == "true" && "$CEX_PATH_GATE" == "true" && "$PLAYER_SCREEN_WINDOW_GATE" == "true" && "$PLAYER_SCREEN_TITLE_GATE" == "true" && "$PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE" == "true" && "$PLAYER_SCREEN_TITLE_CONCISE_GATE" == "true" && "$PLAYER_SCREEN_SCREENSHOT_GATE" == "true" && "$PLAYER_SCREEN_REGION_GATE" == "true" && "$PLAYER_SCREEN_VISUAL_GATE" == "true" ]]; then
   GREEN=true
 fi
 
@@ -343,6 +349,7 @@ jq -n \
   --arg player_screen_window_title "$PLAYER_SCREEN_WINDOW_TITLE" \
   --arg player_screen_window_width "$PLAYER_SCREEN_WINDOW_WIDTH" \
   --arg player_screen_window_height "$PLAYER_SCREEN_WINDOW_HEIGHT" \
+  --arg player_screen_window_title_chars "$PLAYER_SCREEN_WINDOW_TITLE_CHARS" \
   --arg player_screen_screenshot "$PLAYER_SCREEN_SCREENSHOT" \
   --arg player_screen_probe "$PLAYER_SCREEN_PROBE" \
   --arg player_screen_screenshot_bytes "$PLAYER_SCREEN_SCREENSHOT_BYTES" \
@@ -362,6 +369,7 @@ jq -n \
   --argjson player_screen_window_gate "$PLAYER_SCREEN_WINDOW_GATE" \
   --argjson player_screen_title_gate "$PLAYER_SCREEN_TITLE_GATE" \
   --argjson player_screen_proof_debug_absent_gate "$PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE" \
+  --argjson player_screen_title_concise_gate "$PLAYER_SCREEN_TITLE_CONCISE_GATE" \
   --argjson player_screen_screenshot_gate "$PLAYER_SCREEN_SCREENSHOT_GATE" \
   --argjson player_screen_region_gate "$PLAYER_SCREEN_REGION_GATE" \
   --argjson player_screen_visual_gate "$PLAYER_SCREEN_VISUAL_GATE" \
@@ -394,12 +402,14 @@ jq -n \
     live_player_screen: {
       window_id: (if $player_screen_window_id == "" then null else $player_screen_window_id end),
       window_title: $player_screen_window_title,
+      window_title_chars: ($player_screen_window_title_chars | tonumber? // 0),
       window_width: ($player_screen_window_width | tonumber? // 0),
       window_height: ($player_screen_window_height | tonumber? // 0),
       screenshot_path: $player_screen_screenshot,
       probe_path: $player_screen_probe,
       screenshot_bytes: ($player_screen_screenshot_bytes | tonumber? // 0),
-      contract_version: "trillionnium_world_bevy_classic_player_screen_runner_visual_v1"
+      contract_version: "trillionnium_world_bevy_classic_player_screen_runner_visual_v1",
+      title_rule: "concise player-facing title keeps room and owned-art-pack identity while excluding debug/proof strings and shortcut manuals"
     },
     gates: {
       service_process_gate: $service_process_gate,
@@ -415,11 +425,12 @@ jq -n \
       player_screen_window_gate: $player_screen_window_gate,
       player_screen_title_gate: $player_screen_title_gate,
       player_screen_proof_debug_absent_gate: $player_screen_proof_debug_absent_gate,
+      player_screen_title_concise_gate: $player_screen_title_concise_gate,
       player_screen_screenshot_gate: $player_screen_screenshot_gate,
       player_screen_region_gate: $player_screen_region_gate,
       player_screen_visual_gate: $player_screen_visual_gate
     },
-    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels; CEX paths are explicitly rejected, and proof/debug default screens are explicitly rejected."
+    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
   }' >"$SUMMARY"
 
 jq -e '
@@ -454,14 +465,19 @@ jq -e '
   and .live_player_screen.contract_version == "trillionnium_world_bevy_classic_player_screen_runner_visual_v1"
   and (.live_player_screen.window_title | contains("Trillionnium RTS"))
   and (.live_player_screen.window_title | contains("room=first-contact-basin"))
-  and (.live_player_screen.window_title | contains("trillionnium_world_bevy_classic_asset_pack_v1"))
+  and (.live_player_screen.window_title | contains("owned-assets-v1"))
   and (.live_player_screen.window_title | contains("mirror-city-square") | not)
+  and (.live_player_screen.window_title | contains("LMB") | not)
+  and (.live_player_screen.window_title | contains("Ctrl") | not)
+  and (.live_player_screen.window_title | contains("Shift") | not)
+  and (.live_player_screen.window_title_chars <= 96)
   and .live_player_screen.window_width >= 1200
   and .live_player_screen.window_height >= 690
   and .live_player_screen.screenshot_bytes > 8192
   and .gates.player_screen_window_gate == true
   and .gates.player_screen_title_gate == true
   and .gates.player_screen_proof_debug_absent_gate == true
+  and .gates.player_screen_title_concise_gate == true
   and .gates.player_screen_screenshot_gate == true
   and .gates.player_screen_region_gate == true
   and .gates.player_screen_visual_gate == true

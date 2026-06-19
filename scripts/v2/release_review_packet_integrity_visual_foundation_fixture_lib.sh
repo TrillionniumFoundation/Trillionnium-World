@@ -1393,21 +1393,45 @@ add_playtest_runner_packet_fixtures() {
           TRNM_WORLD_BEVY_LOW_SPEC: "1",
           TRNM_WORLD_BEVY_CLASSIC_RENDERER: "1",
           TRNM_WORLD_BEVY_CLASSIC_FPS: "30",
+          TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN: "1",
+          WINIT_UNIX_BACKEND: "x11",
+          WAYLAND_DISPLAY: "",
           TRNM_WORLD_BEVY_CLASSIC_ASSET_MANIFEST: ($root + "/assets/trnm-world/classic/manifest.json"),
           TRNM_WORLD_BEVY_CLASSIC_ASSET_OVERRIDE_DIR: ($root + "/assets/trnm-world/classic/art-pack-v1")
         }
+      },
+      live_player_screen: {
+        window_id: "0x800021",
+        window_title: "Trillionnium RTS | room=first-contact-basin | tile=5,4 | cam=5,4 | owned-assets-v1",
+        window_title_chars: 82,
+        window_width: 1280,
+        window_height: 720,
+        screenshot_path: ($root + "/acceptance/S5_native_bevy_device/latest/manual_bevy/bevy-classic-player-screen-runner-status.png"),
+        probe_path: ($root + "/acceptance/S5_native_bevy_device/latest/manual_bevy/bevy-classic-player-screen-runner-status-probe.json"),
+        screenshot_bytes: 49585,
+        contract_version: "trillionnium_world_bevy_classic_player_screen_runner_visual_v1",
+        title_rule: "concise player-facing title keeps room and owned-art-pack identity while excluding debug/proof strings and shortcut manuals"
       },
       gates: {
         service_process_gate: true,
         release_binary_gate: true,
         classic_env_gate: true,
+        player_screen_env_gate: true,
+        x11_backend_gate: true,
         manifest_gate: true,
         override_dir_gate: true,
         workdir_gate: true,
         cpu_budget_gate: true,
-        cex_path_gate: true
+        cex_path_gate: true,
+        player_screen_window_gate: true,
+        player_screen_title_gate: true,
+        player_screen_proof_debug_absent_gate: true,
+        player_screen_title_concise_gate: true,
+        player_screen_screenshot_gate: true,
+        player_screen_region_gate: true,
+        player_screen_visual_gate: true
       },
-      source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic renderer manifest and bounded CPUQuota/CPUWeight budget; CEX paths are explicitly rejected."
+      source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
   }' >"$playtest_runner_json"
   add_artifact_from_path native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$playtest_runner_json" release_review_input
 }
