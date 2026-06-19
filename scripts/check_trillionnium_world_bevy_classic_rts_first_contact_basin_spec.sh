@@ -112,6 +112,11 @@ required_source_lines=(
   'let actor_template_count = classic_first_contact_map_actors_from_rts_data().len();'
   'fn apply_first_contact_player_screen_application_to_runtime'
   'rts_bevy_runtime::rts_first_contact_player_screen_runtime_application('
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT'
+  'fn classic_first_contact_player_screen_label_guard'
+  'fn classic_first_contact_rendered_production_slot_labels'
+  'fn classic_first_contact_rendered_order_queue_labels'
+  'let first_contact_player_screen_label_guard_gate'
   'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff'
@@ -582,6 +587,25 @@ jq -e '
   and .rts_data_player_screen_chrome_profile.order_queue_empty_label == "NO ORDERS"
   and .rts_data_player_screen_chrome_profile.order_queue_visible_count == 5
   and .rts_data_player_screen_chrome_profile.order_queue_label_max_chars == 32
+  and .first_contact_player_screen_label_guard_contract == "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1"
+  and .first_contact_player_screen_label_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1"
+  and .first_contact_player_screen_label_guard.green == true
+  and .first_contact_player_screen_label_guard.resource_labels == ["CREDITS","POWER","SUPPLY","VISION"]
+  and .first_contact_player_screen_label_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
+  and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
+  and .first_contact_player_screen_label_guard.order_queue_labels == ["ATTACK BEACON","TRAIN WORKER","BUILD RELAY","MOVE 16/9"]
+  and .first_contact_player_screen_label_guard.completion_event_labels == ["WORKER READY","SIGNAL READY","TOWER READY","TRAINING READY"]
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("TRNM") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("PRODUCTION COMPLETE") != null)
+  and (.first_contact_player_screen_label_guard.resource_spacing_samples | all(.value_spacing_gate == true))
+  and (.first_contact_player_screen_label_guard.build_palette_fit_samples | all(.fits_tile_gate == true))
+  and .first_contact_player_screen_label_guard.expected_label_gate == true
+  and .first_contact_player_screen_label_guard.resource_spacing_gate == true
+  and .first_contact_player_screen_label_guard.production_slot_width_gate == true
+  and .first_contact_player_screen_label_guard.build_palette_width_gate == true
+  and .first_contact_player_screen_label_guard.order_queue_width_gate == true
+  and .first_contact_player_screen_label_guard.raw_marker_gate == true
+  and .first_contact_player_screen_label_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
   and .rts_data_player_screen_chrome_profile.production_slot_visible_count == 4

@@ -259,6 +259,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_MAP_UI_MODELING_READINESS_CONTRACT
     "trillionnium_world_bevy_classic_rts_map_ui_modeling_readiness_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29566,6 +29568,14 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .expect("RTS online local handoff serializes");
     let rts_online_offline_adapter_value = serde_json::to_value(&rts_online_offline_adapter)
         .expect("RTS online offline adapter serializes");
+    let first_contact_player_screen_label_guard = classic_first_contact_player_screen_label_guard(
+        &player_screen_runtime,
+        player_screen_chrome,
+    );
+    let first_contact_player_screen_label_guard_gate = first_contact_player_screen_label_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29590,6 +29600,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_online_offline_adapter_consumption_gate
         && rts_online_offline_adapter_session_transition_gate
         && rts_online_offline_adapter_lobby_ready_gate
+        && first_contact_player_screen_label_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29685,6 +29696,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "rts_online_offline_adapter_lobby_ready_contract": rts_bevy_runtime::TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_LOBBY_READY_CONTRACT,
         "rts_online_offline_adapter_lobby_ready": rts_online_offline_adapter_lobby_ready_value,
         "rts_online_offline_adapter_lobby_ready_gate": rts_online_offline_adapter_lobby_ready_gate,
+        "first_contact_player_screen_label_guard_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT,
+        "first_contact_player_screen_label_guard": first_contact_player_screen_label_guard,
+        "first_contact_player_screen_label_guard_gate": first_contact_player_screen_label_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -108211,6 +108225,194 @@ fn classic_hud_tile_label(tile_id: &str) -> String {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_label_has_raw_marker(label: &str) -> bool {
+    let upper = label.to_ascii_uppercase();
+    upper.contains("TRNM")
+        || upper.contains("PRODUCTION COMPLETE")
+        || upper.contains("BUILD COMPLETE")
+        || upper.contains("UPGRADE COMPLETE")
+        || label.contains(':')
+        || label.contains('.')
+        || label.contains("->")
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_production_slot_labels(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let production_empty_label = chrome.production_empty_label.as_str();
+    let production_slot_visible_count = chrome.production_slot_visible_count.max(1) as usize;
+    (0..production_slot_visible_count)
+        .map(|index| {
+            let label = runtime
+                .rts_production_queue
+                .get(index)
+                .or_else(|| runtime.rts_build_queue.get(index.saturating_sub(2)))
+                .map(String::as_str)
+                .unwrap_or(production_empty_label);
+            classic_rts_queue_slot_label(label)
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_build_palette_labels(
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let build_palette_visible_count = chrome.build_palette_visible_count.max(1) as usize;
+    (0..build_palette_visible_count)
+        .map(|index| {
+            classic_first_contact_build_palette_slot(&chrome.build_palette_slots, index)
+                .map(|slot| slot.label.clone())
+                .unwrap_or_else(|| {
+                    [
+                        "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
+                    ]
+                    .get(index)
+                    .copied()
+                    .unwrap_or("SIGNAL")
+                    .to_string()
+                })
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_order_queue_labels(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let order_queue_visible_count = chrome.order_queue_visible_count.max(1) as usize;
+    let order_queue_label_max_chars = usize::from(chrome.order_queue_label_max_chars.max(1));
+    runtime
+        .rts_command_queue
+        .iter()
+        .rev()
+        .take(order_queue_visible_count)
+        .map(|order| {
+            classic_catalog_text_label(
+                &classic_rts_order_queue_label(order),
+                order_queue_label_max_chars,
+            )
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_player_screen_label_guard(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Value {
+    let resource_labels = chrome
+        .resource_readouts
+        .iter()
+        .map(|readout| readout.label.clone())
+        .collect::<Vec<_>>();
+    let resource_spacing_samples = resource_labels
+        .iter()
+        .map(|label| {
+            let text_width_px = classic_text_advance_px(label, 1);
+            let value_x_delta_px = classic_resource_readout_value_x(120, label) - 120;
+            json!({
+                "label": label,
+                "text_width_px": text_width_px,
+                "value_x_delta_px": value_x_delta_px,
+                "value_spacing_gate": value_x_delta_px >= text_width_px + 24,
+            })
+        })
+        .collect::<Vec<_>>();
+    let production_slot_labels =
+        classic_first_contact_rendered_production_slot_labels(runtime, chrome);
+    let build_palette_labels = classic_first_contact_rendered_build_palette_labels(chrome);
+    let build_palette_fit_samples = build_palette_labels
+        .iter()
+        .map(|label| {
+            let label_x = classic_build_palette_label_x(100, 46, label);
+            let right_x = label_x + classic_text_advance_px(label, 1);
+            json!({
+                "label": label,
+                "label_x": label_x,
+                "right_x": right_x,
+                "fits_tile_gate": label_x >= 102 && right_x <= 146,
+            })
+        })
+        .collect::<Vec<_>>();
+    let order_queue_labels = classic_first_contact_rendered_order_queue_labels(runtime, chrome);
+    let completion_event_labels = vec![
+        classic_rts_order_queue_label("production_complete:train:worker->worker_03"),
+        classic_rts_order_queue_label("upgrade_complete:signal_blade"),
+        classic_rts_order_queue_label("build_complete:build:watch_tower@7,4->watch_tower"),
+        classic_rts_order_queue_label("build_complete:upgrade:training_hall->training_hall"),
+    ];
+    let mut all_display_labels = Vec::new();
+    all_display_labels.extend(resource_labels.iter().cloned());
+    all_display_labels.extend(production_slot_labels.iter().cloned());
+    all_display_labels.extend(build_palette_labels.iter().cloned());
+    all_display_labels.extend(order_queue_labels.iter().cloned());
+    all_display_labels.extend(completion_event_labels.iter().cloned());
+
+    let expected_label_gate = resource_labels
+        == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
+        && production_slot_labels == string_vec(["GUARD", "WORKER", "SIGNAL", "TRAINING"])
+        && build_palette_labels
+            == string_vec([
+                "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
+            ])
+        && order_queue_labels
+            == string_vec(["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"])
+        && completion_event_labels
+            == string_vec([
+                "WORKER READY",
+                "SIGNAL READY",
+                "TOWER READY",
+                "TRAINING READY",
+            ]);
+    let resource_spacing_gate = resource_spacing_samples
+        .iter()
+        .all(|sample| sample.get("value_spacing_gate").and_then(Value::as_bool) == Some(true));
+    let production_slot_width_gate = production_slot_labels
+        .iter()
+        .all(|label| classic_text_advance_px(label, 1) <= 52);
+    let build_palette_width_gate = build_palette_fit_samples
+        .iter()
+        .all(|sample| sample.get("fits_tile_gate").and_then(Value::as_bool) == Some(true));
+    let order_queue_width_gate = order_queue_labels
+        .iter()
+        .chain(completion_event_labels.iter())
+        .all(|label| classic_text_advance_px(label, 1) <= 210);
+    let raw_marker_gate = all_display_labels
+        .iter()
+        .all(|label| !classic_first_contact_label_has_raw_marker(label));
+    let green = expected_label_gate
+        && resource_spacing_gate
+        && production_slot_width_gate
+        && build_palette_width_gate
+        && order_queue_width_gate
+        && raw_marker_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell display-label helpers",
+        "resource_labels": resource_labels,
+        "resource_spacing_samples": resource_spacing_samples,
+        "production_slot_labels": production_slot_labels,
+        "build_palette_labels": build_palette_labels,
+        "build_palette_fit_samples": build_palette_fit_samples,
+        "order_queue_labels": order_queue_labels,
+        "completion_event_labels": completion_event_labels,
+        "forbidden_display_fragments": ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "->"],
+        "expected_label_gate": expected_label_gate,
+        "resource_spacing_gate": resource_spacing_gate,
+        "production_slot_width_gate": production_slot_width_gate,
+        "build_palette_width_gate": build_palette_width_gate,
+        "order_queue_width_gate": order_queue_width_gate,
+        "raw_marker_gate": raw_marker_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_window_title(
     player_tile: (i32, i32),
     runtime: &NativeFirstPlayableRuntime,
@@ -154533,6 +154735,70 @@ mod tests {
         assert_eq!(
             classic_rts_order_queue_label("build_complete:upgrade:training_hall->training_hall"),
             "TRAINING READY"
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_player_screen_label_guard_rejects_raw_display_text() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let profile = trnm_rts_data::first_contact_player_screen_profile();
+        let guard = classic_first_contact_player_screen_label_guard(&runtime, &profile.chrome);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT)
+        );
+        assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            guard.get("resource_labels").cloned(),
+            Some(json!(["CREDITS", "POWER", "SUPPLY", "VISION"]))
+        );
+        assert_eq!(
+            guard.get("production_slot_labels").cloned(),
+            Some(json!(["GUARD", "WORKER", "SIGNAL", "TRAINING"]))
+        );
+        assert_eq!(
+            guard.get("build_palette_labels").cloned(),
+            Some(json!([
+                "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"
+            ]))
+        );
+        assert_eq!(
+            guard.get("order_queue_labels").cloned(),
+            Some(json!([
+                "ATTACK BEACON",
+                "TRAIN WORKER",
+                "BUILD RELAY",
+                "MOVE 16/9"
+            ]))
+        );
+        assert_eq!(
+            guard.get("completion_event_labels").cloned(),
+            Some(json!([
+                "WORKER READY",
+                "SIGNAL READY",
+                "TOWER READY",
+                "TRAINING READY"
+            ]))
+        );
+        assert_eq!(
+            guard.get("raw_marker_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("build_palette_width_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            classic_first_contact_label_has_raw_marker("ATTACK TRNM FLUX BEACON"),
+            true
+        );
+        assert_eq!(
+            classic_first_contact_label_has_raw_marker("PRODUCTION COMPLETE TRAIN WORKER"),
+            true
         );
     }
 

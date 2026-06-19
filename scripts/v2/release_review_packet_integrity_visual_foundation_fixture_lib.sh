@@ -509,6 +509,41 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
     rts_data_player_screen_chrome_profile: {
       command_grid_slot_ids: ["worker", "scout", "warden", "relay", "core", "signal"]
     },
+    first_contact_player_screen_label_guard_contract: "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1",
+    first_contact_player_screen_label_guard: {
+      contract_version: "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1",
+      green: true,
+      source_path: "trnm-world-bevy classic_draw_openra_style_rts_shell display-label helpers",
+      resource_labels: ["CREDITS", "POWER", "SUPPLY", "VISION"],
+      resource_spacing_samples: [
+        {label: "CREDITS", text_width_px: 42, value_x_delta_px: 66, value_spacing_gate: true},
+        {label: "POWER", text_width_px: 30, value_x_delta_px: 54, value_spacing_gate: true},
+        {label: "SUPPLY", text_width_px: 36, value_x_delta_px: 60, value_spacing_gate: true},
+        {label: "VISION", text_width_px: 36, value_x_delta_px: 60, value_spacing_gate: true}
+      ],
+      production_slot_labels: ["GUARD", "WORKER", "SIGNAL", "TRAINING"],
+      build_palette_labels: ["POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"],
+      build_palette_fit_samples: [
+        {label: "POWER", label_x: 108, right_x: 138, fits_tile_gate: true},
+        {label: "TRAIN", label_x: 108, right_x: 138, fits_tile_gate: true},
+        {label: "REFINE", label_x: 105, right_x: 141, fits_tile_gate: true},
+        {label: "TOWER", label_x: 108, right_x: 138, fits_tile_gate: true},
+        {label: "COMMAND", label_x: 102, right_x: 144, fits_tile_gate: true},
+        {label: "RADAR", label_x: 108, right_x: 138, fits_tile_gate: true},
+        {label: "WALL", label_x: 111, right_x: 135, fits_tile_gate: true},
+        {label: "SIGNAL", label_x: 105, right_x: 141, fits_tile_gate: true}
+      ],
+      order_queue_labels: ["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"],
+      completion_event_labels: ["WORKER READY", "SIGNAL READY", "TOWER READY", "TRAINING READY"],
+      forbidden_display_fragments: ["TRNM", "PRODUCTION COMPLETE", "BUILD COMPLETE", "UPGRADE COMPLETE", ":", ".", "->"],
+      expected_label_gate: true,
+      resource_spacing_gate: true,
+      production_slot_width_gate: true,
+      build_palette_width_gate: true,
+      order_queue_width_gate: true,
+      raw_marker_gate: true
+    },
+    first_contact_player_screen_label_guard_gate: true,
     rts_data_player_screen_layout_gate: true,
     rts_data_player_screen_chrome_gate: true,
     rts_data_player_screen_gate: true,

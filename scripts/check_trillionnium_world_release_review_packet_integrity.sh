@@ -531,6 +531,25 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor0" and .kind == "spawn" and .owner == "Multi0" and .source_rule_id == "mpspawn" and .openra_preview_rule_id == "trnm.map.detail"))
   and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor15" and .kind == "beacon" and .openra_preview_rule_id == "trnm.flux.beacon"))
   and (.rts_data_preview_actors[] | select(.source_actor_id == "Actor35" and .kind == "expansion_marker" and .source_rule_id == "trnm.expansion.marker" and .openra_preview_rule_id == "trnm.map.detail"))
+  and .first_contact_player_screen_label_guard_contract == "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1"
+  and .first_contact_player_screen_label_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1"
+  and .first_contact_player_screen_label_guard.green == true
+  and .first_contact_player_screen_label_guard.resource_labels == ["CREDITS","POWER","SUPPLY","VISION"]
+  and .first_contact_player_screen_label_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
+  and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
+  and .first_contact_player_screen_label_guard.order_queue_labels == ["ATTACK BEACON","TRAIN WORKER","BUILD RELAY","MOVE 16/9"]
+  and .first_contact_player_screen_label_guard.completion_event_labels == ["WORKER READY","SIGNAL READY","TOWER READY","TRAINING READY"]
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("TRNM") != null)
+  and (.first_contact_player_screen_label_guard.forbidden_display_fragments | index("PRODUCTION COMPLETE") != null)
+  and (.first_contact_player_screen_label_guard.resource_spacing_samples | all(.value_spacing_gate == true))
+  and (.first_contact_player_screen_label_guard.build_palette_fit_samples | all(.fits_tile_gate == true))
+  and .first_contact_player_screen_label_guard.expected_label_gate == true
+  and .first_contact_player_screen_label_guard.resource_spacing_gate == true
+  and .first_contact_player_screen_label_guard.production_slot_width_gate == true
+  and .first_contact_player_screen_label_guard.build_palette_width_gate == true
+  and .first_contact_player_screen_label_guard.order_queue_width_gate == true
+  and .first_contact_player_screen_label_guard.raw_marker_gate == true
+  and .first_contact_player_screen_label_guard_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.socket_opened == false
