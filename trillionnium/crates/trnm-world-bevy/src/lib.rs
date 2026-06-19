@@ -87498,7 +87498,7 @@ fn classic_first_contact_tactics_row_value(
             .rts_camera_focus_tile_id
             .as_deref()
             .or(runtime.rts_minimap_command_tile_id.as_deref())
-            .map(str::to_string)
+            .map(classic_hud_tile_label)
             .unwrap_or_else(|| row.empty_label.clone()),
         RtsPlayerScreenTacticsRowKind::Queue => {
             let summary = classic_rts_sidebar_queue_summary(runtime);
@@ -107768,6 +107768,16 @@ fn classic_resource_readout_value_x(readout_x: i32, label: &str) -> i32 {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_selected_unit_display_count(
+    selected_entities: &[ClassicIsoEntity],
+    runtime: &NativeFirstPlayableRuntime,
+) -> usize {
+    selected_entities
+        .len()
+        .max(runtime.rts_selected_unit_ids.len())
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_glyph_rows(ch: char) -> [&'static str; 7] {
     match ch {
         'A' => [
@@ -108098,6 +108108,13 @@ fn classic_first_contact_tactical_status_label(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_hud_tile_label(tile_id: &str) -> String {
+    classic_parse_rts_tile(tile_id)
+        .map(|(x, y)| format!("{x}/{y}"))
+        .unwrap_or_else(|| tile_id.replace(',', "/"))
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_window_title(
     player_tile: (i32, i32),
     runtime: &NativeFirstPlayableRuntime,
@@ -108405,9 +108422,11 @@ fn classic_draw_openra_style_rts_shell(
                 let camera_tile = runtime
                     .rts_camera_focus_tile_id
                     .as_deref()
-                    .map(str::to_string)
+                    .map(classic_hud_tile_label)
                     .unwrap_or_else(|| {
-                        classic_first_contact_tile_id(chrome.tactical_view_default_camera_tile)
+                        classic_hud_tile_label(&classic_first_contact_tile_id(
+                            chrome.tactical_view_default_camera_tile,
+                        ))
                     });
                 format!(
                     "{}  {}  {} {} {}{}",
@@ -108423,7 +108442,9 @@ fn classic_draw_openra_style_rts_shell(
                 format!(
                     "TACTICAL VIEW  {}  CAM {} Z{}",
                     classic_tactical_status_label(runtime),
-                    runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4"),
+                    classic_hud_tile_label(
+                        runtime.rts_camera_focus_tile_id.as_deref().unwrap_or("5,4")
+                    ),
                     runtime.rts_camera_zoom_percent.max(1)
                 )
             }),
@@ -108465,6 +108486,7 @@ fn classic_draw_openra_style_rts_shell(
         buffer, width, height, radar_x, radar_y, radar_w, radar_h, 0x101913,
     );
     let selected_units = classic_rts_control_group_entities(scene_id, player_tile, runtime);
+    let selected_unit_display_count = classic_selected_unit_display_count(&selected_units, runtime);
     let visible_tiles = classic_rts_visible_tiles(runtime, player_tile, &selected_units);
     let cell_w = ((radar_w - 8) / CLASSIC_RTS_LARGE_MAP_MAX_X).max(2);
     let cell_h = ((radar_h - 8) / CLASSIC_RTS_LARGE_MAP_MAX_Y).max(2);
@@ -108985,7 +109007,8 @@ fn classic_draw_openra_style_rts_shell(
                     .rts_camera_focus_tile_id
                     .as_deref()
                     .or(runtime.rts_minimap_command_tile_id.as_deref())
-                    .unwrap_or("-"),
+                    .map(classic_hud_tile_label)
+                    .unwrap_or_else(|| "-".to_string()),
                 classic_catalog_text_label(
                     if runtime.rts_camera_input_source.is_empty() {
                         "viewport"
@@ -109069,7 +109092,7 @@ fn classic_draw_openra_style_rts_shell(
         .as_ref()
         .map(|chrome| chrome.selection_card_health_fallback_percent.min(100))
         .unwrap_or(80);
-    for index in 0..selected_units.len().min(selection_card_visible_count) {
+    for index in 0..selected_unit_display_count.min(selection_card_visible_count) {
         let x = 20 + index as i32 * 58;
         let y = bottom_y + 30;
         classic_draw_rect(
@@ -109117,11 +109140,13 @@ fn classic_draw_openra_style_rts_shell(
             format!(
                 "{} {group_id}  {} {}",
                 chrome.group_summary_prefix,
-                selected_units.len(),
+                selected_unit_display_count,
                 chrome.group_summary_suffix
             )
         })
-        .unwrap_or_else(|| format!("GROUP {group_id}  {} UNITS SELECTED", selected_units.len()));
+        .unwrap_or_else(|| {
+            format!("GROUP {group_id}  {selected_unit_display_count} UNITS SELECTED")
+        });
     classic_draw_text(
         buffer,
         width,
@@ -154311,6 +154336,43 @@ mod tests {
         assert_eq!(classic_resource_readout_value_x(120, "POWER"), 174);
         assert!(classic_resource_readout_value_x(120, "CREDITS") > 120 + 50);
         assert!(classic_resource_readout_value_x(120, "PWR") >= 120 + 42);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_player_screen_hud_formats_camera_and_selection_count_for_readability() {
+        assert_eq!(classic_hud_tile_label("5,4"), "5/4");
+        assert_eq!(classic_hud_tile_label("16,9"), "16/9");
+
+        let mut runtime = NativeFirstPlayableRuntime {
+            rts_camera_focus_tile_id: Some("5,4".to_string()),
+            rts_selected_unit_ids: string_vec(["trnm.guard", "trnm.worker", "trnm.scout"]),
+            ..Default::default()
+        };
+        let profile = trnm_rts_data::first_contact_player_screen_profile();
+        let camera_row = profile
+            .chrome
+            .tactics_rows
+            .iter()
+            .find(|row| row.kind == RtsPlayerScreenTacticsRowKind::Camera)
+            .expect("camera tactics row");
+        assert_eq!(
+            classic_first_contact_tactics_row_value(&runtime, camera_row),
+            "5/4"
+        );
+        assert_eq!(classic_selected_unit_display_count(&[], &runtime), 3);
+
+        runtime.rts_selected_unit_ids.clear();
+        let selected_entities = vec![ClassicIsoEntity {
+            id: "player".to_string(),
+            frame_id: "actor_player_idle_south".to_string(),
+            tile: (5, 4),
+            depth_key: 95,
+        }];
+        assert_eq!(
+            classic_selected_unit_display_count(&selected_entities, &runtime),
+            1
+        );
     }
 
     #[test]
