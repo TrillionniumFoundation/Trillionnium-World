@@ -3924,15 +3924,15 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && first_contact_player_screen_chrome
             .build_palette_slots
             .iter()
-            .any(|slot| slot.label == "PWR" && slot.queue_id == "build:power_node@5,3")
+            .any(|slot| slot.label == "POWER" && slot.queue_id == "build:power_node@5,3")
         && first_contact_player_screen_chrome
             .build_palette_slots
             .iter()
-            .any(|slot| slot.label == "RAX" && slot.queue_id == "build:training_hall@4,3")
+            .any(|slot| slot.label == "TRAIN" && slot.queue_id == "build:training_hall@4,3")
         && first_contact_player_screen_chrome
             .build_palette_slots
             .iter()
-            .any(|slot| slot.label == "UPG" && slot.queue_id == "upgrade:signal_blade")
+            .any(|slot| slot.label == "SIGNAL" && slot.queue_id == "upgrade:signal_blade")
         && first_contact_player_screen_chrome.build_palette_visible_count == 8
         && first_contact_player_screen_chrome.build_palette_column_count == 4
         && first_contact_player_screen_chrome.tactics_title == "TACTICS"

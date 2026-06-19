@@ -107814,6 +107814,14 @@ fn classic_resource_readout_value_x(readout_x: i32, label: &str) -> i32 {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_build_palette_label_x(slot_x: i32, slot_width: i32, label: &str) -> i32 {
+    let label_width = classic_text_advance_px(label, 1);
+    let min_x = slot_x + 2;
+    let centered_x = slot_x + (slot_width - label_width).max(0) / 2;
+    centered_x.max(min_x)
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_selected_unit_display_count(
     selected_entities: &[ClassicIsoEntity],
     runtime: &NativeFirstPlayableRuntime,
@@ -108856,16 +108864,18 @@ fn classic_draw_openra_style_rts_shell(
         let label = data_slot
             .map(|slot| slot.label.as_str())
             .unwrap_or_else(|| {
-                ["PWR", "RAX", "REF", "TUR", "COM", "RAD", "WAL", "UPG"]
-                    .get(index)
-                    .copied()
-                    .unwrap_or("UPG")
+                [
+                    "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
+                ]
+                .get(index)
+                .copied()
+                .unwrap_or("SIGNAL")
             });
         classic_draw_text(
             buffer,
             width,
             height,
-            x + 6,
+            classic_build_palette_label_x(x, 46, label),
             y + 25,
             label,
             1,
@@ -154378,6 +154388,19 @@ mod tests {
         assert_eq!(classic_resource_readout_value_x(120, "POWER"), 174);
         assert!(classic_resource_readout_value_x(120, "CREDITS") > 120 + 50);
         assert!(classic_resource_readout_value_x(120, "PWR") >= 120 + 42);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_build_palette_labels_stay_inside_tile() {
+        for label in [
+            "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
+        ] {
+            let label_x = classic_build_palette_label_x(100, 46, label);
+            assert!(label_x >= 102);
+            assert!(label_x + classic_text_advance_px(label, 1) <= 146);
+        }
+        assert_eq!(classic_build_palette_label_x(100, 46, "COMMAND"), 102);
     }
 
     #[cfg(not(target_os = "android"))]

@@ -552,9 +552,9 @@ jq -e '
   and .rts_data_player_screen_profile.chrome.production_slot_visible_count == 4
   and .rts_data_player_screen_profile.chrome.production_slot_column_count == 2
   and (.rts_data_player_screen_profile.chrome.build_palette_slots | length) == 8
-  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "PWR" and .queue_id == "build:power_node@5,3"))
-  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "RAX" and .queue_id == "build:training_hall@4,3"))
-  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "UPG" and .queue_id == "upgrade:signal_blade"))
+  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "POWER" and .queue_id == "build:power_node@5,3"))
+  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "TRAIN" and .queue_id == "build:training_hall@4,3"))
+  and (.rts_data_player_screen_profile.chrome.build_palette_slots[] | select(.label == "SIGNAL" and .queue_id == "upgrade:signal_blade"))
   and .rts_data_player_screen_profile.chrome.build_palette_visible_count == 8
   and .rts_data_player_screen_profile.chrome.build_palette_column_count == 4
   and .rts_data_player_screen_profile.chrome.tactics_title == "TACTICS"

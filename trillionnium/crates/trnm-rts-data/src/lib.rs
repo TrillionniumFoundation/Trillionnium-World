@@ -2114,35 +2114,35 @@ pub fn first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfi
             production_slot_column_count: 2,
             build_palette_slots: vec![
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "PWR".to_string(),
+                    label: "POWER".to_string(),
                     queue_id: "build:power_node@5,3".to_string(),
                 },
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "RAX".to_string(),
+                    label: "TRAIN".to_string(),
                     queue_id: "build:training_hall@4,3".to_string(),
                 },
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "REF".to_string(),
+                    label: "REFINE".to_string(),
                     queue_id: "build:refinery@6,4".to_string(),
                 },
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "TUR".to_string(),
+                    label: "TOWER".to_string(),
                     queue_id: "build:watch_tower@7,4".to_string(),
                 },
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "COM".to_string(),
+                    label: "COMMAND".to_string(),
                     queue_id: "build:command_post@5,2".to_string(),
                 },
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "RAD".to_string(),
+                    label: "RADAR".to_string(),
                     queue_id: "build:radar_spire@6,2".to_string(),
                 },
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "WAL".to_string(),
+                    label: "WALL".to_string(),
                     queue_id: "build:wall@8,4".to_string(),
                 },
                 RtsPlayerScreenBuildPaletteSlotProfile {
-                    label: "UPG".to_string(),
+                    label: "SIGNAL".to_string(),
                     queue_id: "upgrade:signal_blade".to_string(),
                 },
             ],
@@ -2748,17 +2748,17 @@ mod tests {
             .chrome
             .build_palette_slots
             .iter()
-            .any(|slot| { slot.label == "PWR" && slot.queue_id == "build:power_node@5,3" }));
+            .any(|slot| { slot.label == "POWER" && slot.queue_id == "build:power_node@5,3" }));
         assert!(profile
             .chrome
             .build_palette_slots
             .iter()
-            .any(|slot| { slot.label == "RAX" && slot.queue_id == "build:training_hall@4,3" }));
+            .any(|slot| { slot.label == "TRAIN" && slot.queue_id == "build:training_hall@4,3" }));
         assert!(profile
             .chrome
             .build_palette_slots
             .iter()
-            .any(|slot| { slot.label == "UPG" && slot.queue_id == "upgrade:signal_blade" }));
+            .any(|slot| { slot.label == "SIGNAL" && slot.queue_id == "upgrade:signal_blade" }));
         assert_eq!(profile.chrome.build_palette_visible_count, 8);
         assert_eq!(profile.chrome.build_palette_column_count, 4);
         assert_eq!(profile.chrome.tactics_title, "TACTICS");
