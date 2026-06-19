@@ -2389,6 +2389,17 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub first_contact_online_protocol_gate: bool,
     pub first_contact_online_local_handoff_gate: bool,
     pub first_contact_online_offline_adapter_gate: bool,
+    pub first_contact_opening_profile: trnm_rts_data::RtsOpeningLoopProfile,
+    pub first_contact_opening_profile_gate: bool,
+    pub first_contact_command_feedback_profile: trnm_rts_data::RtsCommandFeedbackProfile,
+    pub first_contact_command_feedback_gate: bool,
+    pub first_contact_player_startup_profiles: Vec<trnm_rts_data::RtsPlayerStartupProfile>,
+    pub first_contact_player_startup_gate: bool,
+    pub first_contact_actor_presentation_profiles: Vec<trnm_rts_data::RtsActorPresentationProfile>,
+    pub first_contact_actor_presentation_gate: bool,
+    pub first_contact_visual_telemetry_profile:
+        trnm_rts_data::RtsFirstContactVisualTelemetryProfile,
+    pub first_contact_visual_telemetry_gate: bool,
     pub first_contact_preview_actor_projection: RtsFirstContactPreviewActorProjectionEvidence,
     pub first_contact_preview_actor_projection_gate: bool,
     pub first_contact_player_screen_profile: trnm_rts_data::RtsFirstContactPlayerScreenProfile,
@@ -3257,6 +3268,14 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
     let first_contact_preview_actors =
         trnm_rts_data::first_contact_preview_actors(&first_contact_map_model);
     let first_contact_opening_profile = trnm_rts_data::first_contact_opening_loop_profile();
+    let first_contact_command_feedback_profile =
+        trnm_rts_data::first_contact_command_feedback_profile();
+    let first_contact_player_startup_profiles =
+        trnm_rts_data::first_contact_player_startup_profiles();
+    let first_contact_actor_presentation_profiles =
+        trnm_rts_data::first_contact_actor_presentation_profiles();
+    let first_contact_visual_telemetry_profile =
+        trnm_rts_data::first_contact_visual_telemetry_profile();
     let first_contact_player_screen_application =
         rts_first_contact_player_screen_runtime_application(&first_contact_profile);
     let first_contact_online_protocol_fixture =
@@ -3532,6 +3551,142 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && !first_contact_adapter.socket_opened
         && !first_contact_adapter.hosted_service_claimed
         && !first_contact_adapter.public_launch_ready;
+    let first_contact_opening_profile_gate = first_contact_opening_profile.contract_version
+        == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT
+        && first_contact_opening_profile.map_id == first_contact_map_model.map_id
+        && first_contact_map_model
+            .bounds
+            .contains(first_contact_opening_profile.active_beacon_tile)
+        && first_contact_map_model.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.flux.beacon"
+                && actor.tile == first_contact_opening_profile.active_beacon_tile
+        })
+        && first_contact_map_model.actors.iter().any(|actor| {
+            actor.rule_id == "trnm.expansion.marker"
+                && actor.tile == first_contact_opening_profile.active_relay_tile
+        });
+    let first_contact_command_feedback_gate = first_contact_command_feedback_profile
+        .contract_version
+        == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT
+        && first_contact_command_feedback_profile.map_id == first_contact_map_model.map_id
+        && first_contact_command_feedback_profile.target_tile
+            == first_contact_opening_profile.active_beacon_tile
+        && first_contact_map_model
+            .bounds
+            .contains(first_contact_command_feedback_profile.blocked_tile);
+    let first_contact_player_startup_gate = first_contact_player_startup_profiles.len() == 4
+        && first_contact_player_startup_profiles.iter().all(|startup| {
+            startup.contract_version
+                == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT
+                && startup.map_id == first_contact_map_model.map_id
+                && first_contact_map_model.bounds.contains(startup.spawn_tile)
+                && first_contact_map_model.players.iter().any(|player| {
+                    player.id == startup.player_id
+                        && player.playable
+                        && player.faction == startup.faction
+                })
+                && first_contact_map_model.actors.iter().any(|actor| {
+                    actor.rule_id == "mpspawn"
+                        && actor.owner == startup.player_id
+                        && actor.tile == startup.spawn_tile
+                })
+                && first_contact_map_model
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.command_core_rule_id)
+                && first_contact_map_model
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.worker_rule_id)
+                && first_contact_map_model
+                    .rules
+                    .iter()
+                    .any(|rule| rule.id == startup.faction_unit_rule_id)
+                && startup.opening_beacon_tile == first_contact_opening_profile.active_beacon_tile
+                && startup.opening_relay_tile == first_contact_opening_profile.active_relay_tile
+        });
+    let first_contact_actor_presentation_by_rule = |rule_id: &str| {
+        first_contact_actor_presentation_profiles
+            .iter()
+            .find(|profile| profile.rule_id == rule_id)
+    };
+    let first_contact_actor_presentation_gate = first_contact_actor_presentation_profiles.len()
+        >= 13
+        && first_contact_actor_presentation_profiles
+            .iter()
+            .all(|profile| {
+                profile.contract_version
+                    == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT
+                    && profile.map_id == first_contact_map_model.map_id
+                    && profile.health_bar_width >= 10
+                    && profile.glyph.contract_version
+                        == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT
+                    && profile.glyph.footprint_width_cells > 0
+                    && profile.glyph.footprint_height_cells > 0
+                    && first_contact_map_model
+                        .rules
+                        .iter()
+                        .any(|rule| rule.id == profile.rule_id)
+            })
+        && first_contact_actor_presentation_by_rule("trnm.worker").is_some_and(|profile| {
+            profile.color_role == trnm_rts_data::RtsActorColorRole::Worker
+                && !profile.structure
+                && profile.selectable
+        })
+        && first_contact_actor_presentation_by_rule("trnm.command.core").is_some_and(|profile| {
+            profile.color_role == trnm_rts_data::RtsActorColorRole::CommandCore
+                && profile.structure
+                && profile.health_bar_width >= 32
+                && profile.glyph.body == trnm_rts_data::RtsActorGlyphBody::Structure
+                && profile.glyph.accent == trnm_rts_data::RtsActorGlyphAccent::CommandSpire
+                && profile.glyph.footprint_width_cells == 2
+        })
+        && first_contact_actor_presentation_by_rule("trnm.flux.beacon").is_some_and(|profile| {
+            profile.color_role == trnm_rts_data::RtsActorColorRole::Objective
+                && profile.structure
+                && profile.glyph.body == trnm_rts_data::RtsActorGlyphBody::ObjectiveBeacon
+                && profile.glyph.accent == trnm_rts_data::RtsActorGlyphAccent::BeaconCore
+        })
+        && first_contact_actor_presentation_by_rule("mpspawn").is_some_and(|profile| {
+            profile.glyph.body == trnm_rts_data::RtsActorGlyphBody::SpawnPad
+                && profile.glyph.accent == trnm_rts_data::RtsActorGlyphAccent::OwnerStripe
+        });
+    let first_contact_visual_telemetry_gate = first_contact_visual_telemetry_profile
+        .contract_version
+        == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT
+        && first_contact_visual_telemetry_profile.map_id == first_contact_map_model.map_id
+        && first_contact_visual_telemetry_profile.unit_statuses.len() == 4
+        && first_contact_visual_telemetry_profile.tactical_tracks.len() == 6
+        && first_contact_visual_telemetry_profile
+            .unit_statuses
+            .iter()
+            .all(|status| {
+                first_contact_map_model.bounds.contains(status.tile)
+                    && status.health_percent <= 100
+                    && status.shield_percent <= 100
+                    && !status.role_badge.is_empty()
+            })
+        && first_contact_visual_telemetry_profile
+            .tactical_tracks
+            .iter()
+            .all(|track| {
+                first_contact_map_model.bounds.contains(track.from_tile)
+                    && first_contact_map_model.bounds.contains(track.to_tile)
+            })
+        && first_contact_visual_telemetry_profile
+            .unit_statuses
+            .iter()
+            .any(|status| {
+                status.tile == trnm_rts_core::RtsTile::new(8, 8)
+                    && status.role_color == trnm_rts_data::RtsVisualTelemetryColorRole::Health
+            })
+        && first_contact_visual_telemetry_profile
+            .tactical_tracks
+            .iter()
+            .any(|track| {
+                track.from_tile == first_contact_opening_profile.active_relay_tile
+                    && track.to_tile == first_contact_opening_profile.active_beacon_tile
+            });
     let first_contact_preview_actor_projection = RtsFirstContactPreviewActorProjectionEvidence {
         actor_count: first_contact_preview_actors.len(),
         spawn_count: first_contact_preview_actors
@@ -4522,6 +4677,11 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && first_contact_online_protocol_gate
         && first_contact_online_local_handoff_gate
         && first_contact_online_offline_adapter_gate
+        && first_contact_opening_profile_gate
+        && first_contact_command_feedback_gate
+        && first_contact_player_startup_gate
+        && first_contact_actor_presentation_gate
+        && first_contact_visual_telemetry_gate
         && first_contact_preview_actor_projection_gate
         && first_contact_player_screen_profile_gate
         && first_contact_terrain_profile_gate
@@ -4869,6 +5029,17 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         first_contact_online_protocol_gate,
         first_contact_online_local_handoff_gate,
         first_contact_online_offline_adapter_gate,
+        first_contact_opening_profile: first_contact_opening_profile.clone(),
+        first_contact_opening_profile_gate,
+        first_contact_command_feedback_profile: first_contact_command_feedback_profile.clone(),
+        first_contact_command_feedback_gate,
+        first_contact_player_startup_profiles: first_contact_player_startup_profiles.clone(),
+        first_contact_player_startup_gate,
+        first_contact_actor_presentation_profiles: first_contact_actor_presentation_profiles
+            .clone(),
+        first_contact_actor_presentation_gate,
+        first_contact_visual_telemetry_profile: first_contact_visual_telemetry_profile.clone(),
+        first_contact_visual_telemetry_gate,
         first_contact_preview_actor_projection,
         first_contact_preview_actor_projection_gate,
         first_contact_player_screen_profile: first_contact_profile.clone(),
@@ -6036,6 +6207,65 @@ mod tests {
                 .accepted_runtime_command_labels,
             vec!["move:8,4"]
         );
+        assert!(evidence.first_contact_opening_profile_gate);
+        assert_eq!(
+            evidence.first_contact_opening_profile.contract_version,
+            trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT
+        );
+        assert_eq!(
+            evidence.first_contact_opening_profile.active_beacon_tile,
+            trnm_rts_core::RtsTile::new(16, 9)
+        );
+        assert!(evidence.first_contact_command_feedback_gate);
+        assert_eq!(
+            evidence
+                .first_contact_command_feedback_profile
+                .contract_version,
+            trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT
+        );
+        assert_eq!(
+            evidence.first_contact_command_feedback_profile.target_tile,
+            evidence.first_contact_opening_profile.active_beacon_tile
+        );
+        assert!(evidence.first_contact_player_startup_gate);
+        assert_eq!(evidence.first_contact_player_startup_profiles.len(), 4);
+        assert!(evidence
+            .first_contact_player_startup_profiles
+            .iter()
+            .any(|startup| startup.player_id == "Multi0"
+                && startup.faction == "horizon"
+                && startup.spawn_tile == trnm_rts_core::RtsTile::new(8, 8)
+                && startup.faction_unit_rule_id == "trnm.horizon.scout"));
+        assert!(evidence.first_contact_actor_presentation_gate);
+        assert!(evidence
+            .first_contact_actor_presentation_profiles
+            .iter()
+            .any(|profile| profile.rule_id == "trnm.command.core"
+                && profile.structure
+                && profile.glyph.body == trnm_rts_data::RtsActorGlyphBody::Structure
+                && profile.glyph.accent == trnm_rts_data::RtsActorGlyphAccent::CommandSpire));
+        assert!(evidence.first_contact_visual_telemetry_gate);
+        assert_eq!(
+            evidence
+                .first_contact_visual_telemetry_profile
+                .contract_version,
+            trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT
+        );
+        assert_eq!(
+            evidence
+                .first_contact_visual_telemetry_profile
+                .unit_statuses
+                .len(),
+            4
+        );
+        assert!(evidence
+            .first_contact_visual_telemetry_profile
+            .tactical_tracks
+            .iter()
+            .any(
+                |track| track.from_tile == trnm_rts_core::RtsTile::new(11, 8)
+                    && track.to_tile == trnm_rts_core::RtsTile::new(16, 9)
+            ));
         assert!(evidence.first_contact_preview_actor_projection_gate);
         assert_eq!(
             evidence.first_contact_preview_actor_projection.actor_count,

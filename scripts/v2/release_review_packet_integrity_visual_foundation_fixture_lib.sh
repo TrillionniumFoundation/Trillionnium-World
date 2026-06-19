@@ -415,6 +415,41 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       source_rule_id: "trnm.lane.marker",
       openra_preview_rule_id: "trnm.map.detail"
     }]),
+    rts_data_opening_profile: {
+      contract_version: "trnm_rts_data_first_contact_opening_profile_v1",
+      map_id: "first_contact_basin",
+      active_beacon_tile: {x: 16, y: 9},
+      active_relay_tile: {x: 11, y: 8}
+    },
+    rts_data_opening_profile_gate: true,
+    rts_data_command_feedback_profile: {
+      contract_version: "trnm_rts_data_first_contact_command_feedback_v1",
+      map_id: "first_contact_basin",
+      target_tile: {x: 16, y: 9},
+      blocked_tile: {x: 15, y: 16}
+    },
+    rts_data_command_feedback_gate: true,
+    rts_data_player_startup_profiles: [
+      {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi0", faction: "horizon", spawn_tile: {x: 8, y: 8}, faction_unit_rule_id: "trnm.horizon.scout"},
+      {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi1", faction: "forge", spawn_tile: {x: 25, y: 25}, faction_unit_rule_id: "trnm.forge.warden"},
+      {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi2", faction: "horizon", spawn_tile: {x: 25, y: 8}, faction_unit_rule_id: "trnm.horizon.scout"},
+      {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi3", faction: "forge", spawn_tile: {x: 8, y: 25}, faction_unit_rule_id: "trnm.forge.warden"}
+    ],
+    rts_data_player_startup_gate: true,
+    rts_data_actor_presentation_profiles: [
+      {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "mpspawn", color_role: "map_detail", glyph_role: "map_detail", structure: false, selectable: false, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "spawn_pad", accent: "owner_stripe", footprint_width_cells: 3}},
+      {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "trnm.worker", color_role: "worker", glyph_role: "worker", structure: false, selectable: true, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "unit", accent: "worker_cargo", selection_ring: true}},
+      {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "trnm.command.core", color_role: "command_core", glyph_role: "command_core", structure: true, health_bar_width: 36, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "structure", accent: "command_spire", footprint_width_cells: 2}},
+      {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "trnm.flux.beacon", color_role: "objective", glyph_role: "beacon", structure: true, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "objective_beacon", accent: "beacon_core"}}
+    ],
+    rts_data_actor_presentation_gate: true,
+    rts_data_visual_telemetry_profile: {
+      contract_version: "trnm_rts_data_first_contact_visual_telemetry_v1",
+      map_id: "first_contact_basin",
+      unit_statuses: [{tile: {x: 8, y: 8}, role_badge: "W", role_color: "health", health_percent: 82, shield_percent: 44}],
+      tactical_tracks: [{from_tile: {x: 11, y: 8}, to_tile: {x: 16, y: 9}, color_role: "action_trail"}]
+    },
+    rts_data_visual_telemetry_gate: true,
     rts_data_player_screen_profile: {
       contract_version: "trnm_rts_data_first_contact_player_screen_v1",
       map_id: "first_contact_basin",
@@ -488,6 +523,41 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       first_contact_online_protocol_gate: true,
       first_contact_online_local_handoff_gate: true,
       first_contact_online_offline_adapter_gate: true,
+      first_contact_opening_profile: {
+        contract_version: "trnm_rts_data_first_contact_opening_profile_v1",
+        map_id: "first_contact_basin",
+        active_beacon_tile: {x: 16, y: 9},
+        active_relay_tile: {x: 11, y: 8}
+      },
+      first_contact_opening_profile_gate: true,
+      first_contact_command_feedback_profile: {
+        contract_version: "trnm_rts_data_first_contact_command_feedback_v1",
+        map_id: "first_contact_basin",
+        target_tile: {x: 16, y: 9},
+        blocked_tile: {x: 15, y: 16}
+      },
+      first_contact_command_feedback_gate: true,
+      first_contact_player_startup_profiles: [
+        {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi0", faction: "horizon", spawn_tile: {x: 8, y: 8}, faction_unit_rule_id: "trnm.horizon.scout"},
+        {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi1", faction: "forge", spawn_tile: {x: 25, y: 25}, faction_unit_rule_id: "trnm.forge.warden"},
+        {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi2", faction: "horizon", spawn_tile: {x: 25, y: 8}, faction_unit_rule_id: "trnm.horizon.scout"},
+        {contract_version: "trnm_rts_data_first_contact_player_startup_v1", map_id: "first_contact_basin", player_id: "Multi3", faction: "forge", spawn_tile: {x: 8, y: 25}, faction_unit_rule_id: "trnm.forge.warden"}
+      ],
+      first_contact_player_startup_gate: true,
+      first_contact_actor_presentation_profiles: [
+        {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "mpspawn", color_role: "map_detail", glyph_role: "map_detail", structure: false, selectable: false, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "spawn_pad", accent: "owner_stripe", footprint_width_cells: 3}},
+        {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "trnm.worker", color_role: "worker", glyph_role: "worker", structure: false, selectable: true, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "unit", accent: "worker_cargo", selection_ring: true}},
+        {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "trnm.command.core", color_role: "command_core", glyph_role: "command_core", structure: true, health_bar_width: 36, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "structure", accent: "command_spire", footprint_width_cells: 2}},
+        {contract_version: "trnm_rts_data_first_contact_actor_presentation_v1", map_id: "first_contact_basin", rule_id: "trnm.flux.beacon", color_role: "objective", glyph_role: "beacon", structure: true, glyph: {contract_version: "trnm_rts_data_first_contact_actor_glyph_v1", body: "objective_beacon", accent: "beacon_core"}}
+      ],
+      first_contact_actor_presentation_gate: true,
+      first_contact_visual_telemetry_profile: {
+        contract_version: "trnm_rts_data_first_contact_visual_telemetry_v1",
+        map_id: "first_contact_basin",
+        unit_statuses: [{tile: {x: 8, y: 8}, role_badge: "W", role_color: "health", health_percent: 82, shield_percent: 44}],
+        tactical_tracks: [{from_tile: {x: 11, y: 8}, to_tile: {x: 16, y: 9}, color_role: "action_trail"}]
+      },
+      first_contact_visual_telemetry_gate: true,
       first_contact_preview_actor_projection: {
         actor_count: 39,
         spawn_count: 4,

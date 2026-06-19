@@ -476,6 +476,29 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .rts_bevy_runtime_tile_rect_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample
   and .rts_bevy_runtime_terrain_seed_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample
   and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.contract_version == "trnm_rts_data_first_contact_opening_profile_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_beacon_tile.x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_beacon_tile.y == 9
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_relay_tile.x == 11
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_relay_tile.y == 8
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.contract_version == "trnm_rts_data_first_contact_command_feedback_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.target_tile.x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.target_tile.y == 9
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_gate == true
+  and .rts_data_opening_profile == .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile
+  and .rts_data_opening_profile_gate == .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile_gate
+  and .rts_data_command_feedback_profile == .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile
+  and .rts_data_command_feedback_gate == .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_gate
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_startup_profiles == .rts_data_player_startup_profiles
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_startup_gate == true
+  and .rts_data_player_startup_gate == .rts_evidence_bevy_runtime_adapter.first_contact_player_startup_gate
+  and .rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_profiles == .rts_data_actor_presentation_profiles
+  and .rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_gate == true
+  and .rts_data_actor_presentation_gate == .rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_gate
+  and .rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_profile == .rts_data_visual_telemetry_profile
+  and .rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_gate == true
+  and .rts_data_visual_telemetry_gate == .rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_gate
   and .rts_data_preview_actor_contract == "trnm_rts_data_first_contact_preview_actor_v1"
   and .rts_data_preview_actor_projection.actor_count == 39
   and .rts_data_preview_actor_projection.spawn_count == 4

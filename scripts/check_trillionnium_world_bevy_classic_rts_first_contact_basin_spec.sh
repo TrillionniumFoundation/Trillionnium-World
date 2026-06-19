@@ -60,6 +60,31 @@ if grep -Fq 'let rts_data_player_screen_gate = player_screen_profile.contract_ve
   exit 1
 fi
 
+if grep -Fq 'let rts_data_opening_profile_gate = opening_profile.contract_version' "$SOURCE"; then
+  echo "[FAIL] First Contact opening profile gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let rts_data_command_feedback_gate = command_feedback_profile.contract_version' "$SOURCE"; then
+  echo "[FAIL] First Contact command-feedback profile gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let rts_data_player_startup_gate = player_startup_profiles.len() == 4' "$SOURCE"; then
+  echo "[FAIL] First Contact player-startup gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let rts_data_actor_presentation_gate = actor_presentation_profiles.len() >= 13' "$SOURCE"; then
+  echo "[FAIL] First Contact actor-presentation gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
+if grep -Fq 'let rts_data_visual_telemetry_gate = visual_telemetry_profile.contract_version' "$SOURCE"; then
+  echo "[FAIL] First Contact visual-telemetry gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
 required_source_lines=(
   'fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor>'
   'first_contact_preview_actors(&first_contact_basin_map())'
@@ -74,6 +99,16 @@ required_source_lines=(
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter_gate'
+  '.first_contact_opening_profile'
+  'rts_evidence_bevy_runtime_adapter.first_contact_opening_profile_gate'
+  '.first_contact_command_feedback_profile'
+  'rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_gate'
+  '.first_contact_player_startup_profiles'
+  'rts_evidence_bevy_runtime_adapter.first_contact_player_startup_gate'
+  '.first_contact_actor_presentation_profiles'
+  'rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_gate'
+  '.first_contact_visual_telemetry_profile'
+  'rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection'
   'rts_evidence_bevy_runtime_adapter.first_contact_preview_actor_projection_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile'
@@ -114,6 +149,16 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate: bool'
   'first_contact_online_local_handoff_gate: bool'
   'first_contact_online_offline_adapter_gate: bool'
+  'first_contact_opening_profile: trnm_rts_data::RtsOpeningLoopProfile'
+  'first_contact_opening_profile_gate: bool'
+  'first_contact_command_feedback_profile: trnm_rts_data::RtsCommandFeedbackProfile'
+  'first_contact_command_feedback_gate: bool'
+  'first_contact_player_startup_profiles: Vec<trnm_rts_data::RtsPlayerStartupProfile>'
+  'first_contact_player_startup_gate: bool'
+  'first_contact_actor_presentation_profiles: Vec<trnm_rts_data::RtsActorPresentationProfile>'
+  'first_contact_actor_presentation_gate: bool'
+  'first_contact_visual_telemetry_profile:'
+  'first_contact_visual_telemetry_gate: bool'
   'pub struct RtsFirstContactPreviewActorProjectionEvidence'
   'first_contact_preview_actor_projection: RtsFirstContactPreviewActorProjectionEvidence'
   'first_contact_preview_actor_projection_gate: bool'
@@ -134,6 +179,11 @@ required_evidence_source_lines=(
   'first_contact_runtime_map_projection_gate: bool'
   'pub fn first_contact_bevy_runtime_adapter_evidence'
   'trnm_rts_data::first_contact_player_screen_profile()'
+  'trnm_rts_data::first_contact_opening_loop_profile()'
+  'trnm_rts_data::first_contact_command_feedback_profile()'
+  'trnm_rts_data::first_contact_player_startup_profiles()'
+  'trnm_rts_data::first_contact_actor_presentation_profiles()'
+  'trnm_rts_data::first_contact_visual_telemetry_profile()'
   'trnm_rts_data::first_contact_preview_actors(&first_contact_map_model)'
   'trnm_rts_data::first_contact_terrain_profiles()'
   'trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model)'
@@ -159,6 +209,11 @@ required_evidence_source_lines=(
   'first_contact_online_protocol_gate'
   'first_contact_online_local_handoff_gate'
   'first_contact_online_offline_adapter_gate'
+  'first_contact_opening_profile_gate'
+  'first_contact_command_feedback_gate'
+  'first_contact_player_startup_gate'
+  'first_contact_actor_presentation_gate'
+  'first_contact_visual_telemetry_gate'
   'first_contact_preview_actor_projection_gate'
   'first_contact_player_screen_profile_gate'
   'first_contact_terrain_profile_gate'
@@ -178,6 +233,11 @@ required_data_source_lines=(
   'pub struct RtsFirstContactPreviewActor'
   'pub fn first_contact_preview_actor_from_map_actor'
   'pub fn first_contact_preview_actors'
+  'pub fn first_contact_opening_loop_profile'
+  'pub fn first_contact_command_feedback_profile'
+  'pub fn first_contact_player_startup_profiles'
+  'pub fn first_contact_actor_presentation_profiles'
+  'pub fn first_contact_visual_telemetry_profile'
   'openra_preview_rule_id'
 )
 
@@ -337,6 +397,23 @@ jq -e '
   and .rts_data_command_feedback_profile.blocked_tile.y == 16
   and .rts_data_opening_profile_gate == true
   and .rts_data_command_feedback_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.contract_version == "trnm_rts_data_first_contact_opening_profile_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.map_id == "first_contact_basin"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_beacon_tile.x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_beacon_tile.y == 9
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_relay_tile.x == 11
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile.active_relay_tile.y == 8
+  and .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.contract_version == "trnm_rts_data_first_contact_command_feedback_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.target_tile.x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.target_tile.y == 9
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.blocked_tile.x == 15
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile.blocked_tile.y == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_gate == true
+  and .rts_data_opening_profile == .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile
+  and .rts_data_opening_profile_gate == .rts_evidence_bevy_runtime_adapter.first_contact_opening_profile_gate
+  and .rts_data_command_feedback_profile == .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_profile
+  and .rts_data_command_feedback_gate == .rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_gate
   and .rts_data_preview_actor_contract == "trnm_rts_data_first_contact_preview_actor_v1"
   and .rts_data_preview_actor_projection.actor_count == 39
   and .rts_data_preview_actor_projection.spawn_count == 4
@@ -367,6 +444,9 @@ jq -e '
   and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi2" and .faction == "horizon" and .spawn_tile.x == 25 and .spawn_tile.y == 8 and .faction_unit_rule_id == "trnm.horizon.scout"))
   and (.rts_data_player_startup_profiles[] | select(.player_id == "Multi3" and .faction == "forge" and .spawn_tile.x == 8 and .spawn_tile.y == 25 and .faction_unit_rule_id == "trnm.forge.warden"))
   and .rts_data_player_startup_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_startup_profiles == .rts_data_player_startup_profiles
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_startup_gate == true
+  and .rts_data_player_startup_gate == .rts_evidence_bevy_runtime_adapter.first_contact_player_startup_gate
   and .rts_data_actor_presentation_contract == "trnm_rts_data_first_contact_actor_presentation_v1"
   and .rts_data_actor_glyph_contract == "trnm_rts_data_first_contact_actor_glyph_v1"
   and (.rts_data_actor_presentation_profiles | length) >= 13
@@ -375,6 +455,9 @@ jq -e '
   and (.rts_data_actor_presentation_profiles[] | select(.rule_id == "trnm.command.core" and .color_role == "command_core" and .glyph_role == "command_core" and .structure == true and .health_bar_width >= 32 and .glyph.body == "structure" and .glyph.accent == "command_spire" and .glyph.footprint_width_cells == 2))
   and (.rts_data_actor_presentation_profiles[] | select(.rule_id == "trnm.flux.beacon" and .color_role == "objective" and .glyph_role == "beacon" and .structure == true and .glyph.body == "objective_beacon" and .glyph.accent == "beacon_core"))
   and .rts_data_actor_presentation_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_profiles == .rts_data_actor_presentation_profiles
+  and .rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_gate == true
+  and .rts_data_actor_presentation_gate == .rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_gate
   and .rts_data_visual_telemetry_contract == "trnm_rts_data_first_contact_visual_telemetry_v1"
   and .rts_data_visual_telemetry_profile.contract_version == "trnm_rts_data_first_contact_visual_telemetry_v1"
   and .rts_data_visual_telemetry_profile.map_id == "first_contact_basin"
@@ -383,6 +466,9 @@ jq -e '
   and (.rts_data_visual_telemetry_profile.unit_statuses[] | select(.tile.x == 8 and .tile.y == 8 and .role_badge == "W" and .role_color == "health" and .health_percent == 82 and .shield_percent == 44))
   and (.rts_data_visual_telemetry_profile.tactical_tracks[] | select(.from_tile.x == 11 and .from_tile.y == 8 and .to_tile.x == 16 and .to_tile.y == 9 and .color_role == "action_trail"))
   and .rts_data_visual_telemetry_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_profile == .rts_data_visual_telemetry_profile
+  and .rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_gate == true
+  and .rts_data_visual_telemetry_gate == .rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_gate
   and .rts_data_player_screen_contract == "trnm_rts_data_first_contact_player_screen_v1"
   and .rts_data_player_screen_profile.contract_version == "trnm_rts_data_first_contact_player_screen_v1"
   and .rts_data_player_screen_profile.map_id == "first_contact_basin"

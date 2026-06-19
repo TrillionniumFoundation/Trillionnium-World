@@ -37,13 +37,12 @@ use trnm_rts_core::{
 };
 #[cfg(not(target_os = "android"))]
 use trnm_rts_data::{
-    first_contact_actor_presentation_profile, first_contact_actor_presentation_profiles,
-    first_contact_basin_map, first_contact_command_feedback_profile,
-    first_contact_map_renderer_model, first_contact_opening_loop_profile,
-    first_contact_player_screen_profile, first_contact_player_startup_profiles,
-    first_contact_preview_actors, first_contact_terrain_profile,
-    first_contact_visual_telemetry_profile, RtsActorColorRole, RtsActorGlyphAccent,
-    RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
+    first_contact_actor_presentation_profile, first_contact_basin_map,
+    first_contact_command_feedback_profile, first_contact_map_renderer_model,
+    first_contact_opening_loop_profile, first_contact_player_screen_profile,
+    first_contact_player_startup_profiles, first_contact_preview_actors,
+    first_contact_terrain_profile, first_contact_visual_telemetry_profile, RtsActorColorRole,
+    RtsActorGlyphAccent, RtsActorGlyphBody, RtsActorPresentationProfile, RtsCommandFeedbackProfile,
     RtsFirstContactPlayerScreenChromeProfile, RtsFirstContactPlayerScreenProfile,
     RtsFirstContactPreviewActor, RtsFirstContactPreviewActorKind,
     RtsFirstContactVisualTelemetryProfile, RtsMapRendererModel, RtsOpeningLoopProfile,
@@ -56,7 +55,6 @@ use trnm_rts_data::{
     TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT,
-    TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_PREVIEW_ACTOR_CONTRACT,
     TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT,
 };
@@ -29438,127 +29436,31 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate;
     let rts_data_renderer_projection_gate =
         rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate;
-    let opening_profile = classic_first_contact_opening_loop();
-    let command_feedback_profile = classic_first_contact_command_feedback();
-    let rts_data_opening_profile_gate = opening_profile.contract_version
-        == TRNM_RTS_DATA_FIRST_CONTACT_OPENING_PROFILE_CONTRACT
-        && opening_profile.map_id == map_model.map_id
-        && map_model
-            .bounds
-            .contains(opening_profile.active_beacon_tile)
-        && map_model.actors.iter().any(|actor| {
-            actor.rule_id == "trnm.flux.beacon" && actor.tile == opening_profile.active_beacon_tile
-        })
-        && map_model.actors.iter().any(|actor| {
-            actor.rule_id == "trnm.expansion.marker"
-                && actor.tile == opening_profile.active_relay_tile
-        });
-    let rts_data_command_feedback_gate = command_feedback_profile.contract_version
-        == TRNM_RTS_DATA_FIRST_CONTACT_COMMAND_FEEDBACK_CONTRACT
-        && command_feedback_profile.map_id == map_model.map_id
-        && command_feedback_profile.target_tile == opening_profile.active_beacon_tile
-        && map_model
-            .bounds
-            .contains(command_feedback_profile.blocked_tile);
-    let player_startup_profiles = classic_first_contact_player_startups();
-    let rts_data_player_startup_gate = player_startup_profiles.len() == 4
-        && player_startup_profiles.iter().all(|startup| {
-            startup.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_STARTUP_CONTRACT
-                && startup.map_id == map_model.map_id
-                && map_model.bounds.contains(startup.spawn_tile)
-                && map_model.players.iter().any(|player| {
-                    player.id == startup.player_id
-                        && player.playable
-                        && player.faction == startup.faction
-                })
-                && map_model.actors.iter().any(|actor| {
-                    actor.rule_id == "mpspawn"
-                        && actor.owner == startup.player_id
-                        && actor.tile == startup.spawn_tile
-                })
-                && map_model
-                    .rules
-                    .iter()
-                    .any(|rule| rule.id == startup.command_core_rule_id)
-                && map_model
-                    .rules
-                    .iter()
-                    .any(|rule| rule.id == startup.worker_rule_id)
-                && map_model
-                    .rules
-                    .iter()
-                    .any(|rule| rule.id == startup.faction_unit_rule_id)
-                && startup.opening_beacon_tile == opening_profile.active_beacon_tile
-                && startup.opening_relay_tile == opening_profile.active_relay_tile
-        });
-    let actor_presentation_profiles = classic_first_contact_actor_presentations();
-    let rts_data_actor_presentation_gate = actor_presentation_profiles.len() >= 13
-        && actor_presentation_profiles.iter().all(|profile| {
-            profile.contract_version == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_PRESENTATION_CONTRACT
-                && profile.map_id == map_model.map_id
-                && profile.health_bar_width >= 10
-                && profile.glyph.contract_version
-                    == TRNM_RTS_DATA_FIRST_CONTACT_ACTOR_GLYPH_CONTRACT
-                && profile.glyph.footprint_width_cells > 0
-                && profile.glyph.footprint_height_cells > 0
-                && map_model
-                    .rules
-                    .iter()
-                    .any(|rule| rule.id == profile.rule_id)
-        })
-        && classic_first_contact_actor_presentation("trnm.worker").is_some_and(|profile| {
-            profile.color_role == RtsActorColorRole::Worker
-                && !profile.structure
-                && profile.selectable
-        })
-        && classic_first_contact_actor_presentation("trnm.command.core").is_some_and(|profile| {
-            profile.color_role == RtsActorColorRole::CommandCore
-                && profile.structure
-                && profile.health_bar_width >= 32
-                && profile.glyph.body == RtsActorGlyphBody::Structure
-                && profile.glyph.accent == RtsActorGlyphAccent::CommandSpire
-                && profile.glyph.footprint_width_cells == 2
-        })
-        && classic_first_contact_actor_presentation("trnm.flux.beacon").is_some_and(|profile| {
-            profile.color_role == RtsActorColorRole::Objective
-                && profile.structure
-                && profile.glyph.body == RtsActorGlyphBody::ObjectiveBeacon
-                && profile.glyph.accent == RtsActorGlyphAccent::BeaconCore
-        })
-        && classic_first_contact_actor_presentation("mpspawn").is_some_and(|profile| {
-            profile.glyph.body == RtsActorGlyphBody::SpawnPad
-                && profile.glyph.accent == RtsActorGlyphAccent::OwnerStripe
-        });
-    let visual_telemetry_profile = classic_first_contact_visual_telemetry();
-    let rts_data_visual_telemetry_gate = visual_telemetry_profile.contract_version
-        == TRNM_RTS_DATA_FIRST_CONTACT_VISUAL_TELEMETRY_CONTRACT
-        && visual_telemetry_profile.map_id == map_model.map_id
-        && visual_telemetry_profile.unit_statuses.len() == 4
-        && visual_telemetry_profile.tactical_tracks.len() == 6
-        && visual_telemetry_profile.unit_statuses.iter().all(|status| {
-            map_model.bounds.contains(status.tile)
-                && status.health_percent <= 100
-                && status.shield_percent <= 100
-                && !status.role_badge.is_empty()
-        })
-        && visual_telemetry_profile
-            .tactical_tracks
-            .iter()
-            .all(|track| {
-                map_model.bounds.contains(track.from_tile)
-                    && map_model.bounds.contains(track.to_tile)
-            })
-        && visual_telemetry_profile.unit_statuses.iter().any(|status| {
-            status.tile == RtsTile::new(8, 8)
-                && status.role_color == RtsVisualTelemetryColorRole::Health
-        })
-        && visual_telemetry_profile
-            .tactical_tracks
-            .iter()
-            .any(|track| {
-                track.from_tile == opening_profile.active_relay_tile
-                    && track.to_tile == opening_profile.active_beacon_tile
-            });
+    let opening_profile = rts_evidence_bevy_runtime_adapter
+        .first_contact_opening_profile
+        .clone();
+    let rts_data_opening_profile_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_opening_profile_gate;
+    let command_feedback_profile = rts_evidence_bevy_runtime_adapter
+        .first_contact_command_feedback_profile
+        .clone();
+    let rts_data_command_feedback_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_command_feedback_gate;
+    let player_startup_profiles = rts_evidence_bevy_runtime_adapter
+        .first_contact_player_startup_profiles
+        .clone();
+    let rts_data_player_startup_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_player_startup_gate;
+    let actor_presentation_profiles = rts_evidence_bevy_runtime_adapter
+        .first_contact_actor_presentation_profiles
+        .clone();
+    let rts_data_actor_presentation_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_actor_presentation_gate;
+    let visual_telemetry_profile = rts_evidence_bevy_runtime_adapter
+        .first_contact_visual_telemetry_profile
+        .clone();
+    let rts_data_visual_telemetry_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_visual_telemetry_gate;
     let player_screen_profile = rts_evidence_bevy_runtime_adapter
         .first_contact_player_screen_profile
         .clone();
@@ -87532,11 +87434,6 @@ fn classic_first_contact_player_startups() -> Vec<RtsPlayerStartupProfile> {
 #[cfg(not(target_os = "android"))]
 fn classic_first_contact_player_screen_profile() -> RtsFirstContactPlayerScreenProfile {
     first_contact_player_screen_profile()
-}
-
-#[cfg(not(target_os = "android"))]
-fn classic_first_contact_actor_presentations() -> Vec<RtsActorPresentationProfile> {
-    first_contact_actor_presentation_profiles()
 }
 
 #[cfg(not(target_os = "android"))]
