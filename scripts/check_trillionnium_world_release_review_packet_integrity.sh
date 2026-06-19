@@ -546,7 +546,21 @@ require_artifact_json_expr first_contact_basin_terrain_projection_aggregate_sema
   and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
 ' "First Contact Basin packet artifact keeps renderer-neutral terrain profile and map projection summaries owned by trnm-rts-evidence while preserving legacy top-level fields"
 require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_bevy_classic_rts_first_contact_basin_spec '
-  .rts_bevy_runtime_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
+  .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile.contract_version == "trnm_rts_data_first_contact_player_screen_v1"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile.map_id == "first_contact_basin"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile.room_id == "first-contact-basin"
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile.command_queue == .rts_data_player_screen_profile.command_queue
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile.chrome.command_grid_slot_ids == .rts_data_player_screen_chrome_profile.command_grid_slot_ids
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_layout_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_chrome_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile_gate == true
+  and .rts_data_player_screen_profile == .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile
+  and .rts_data_player_screen_layout_profile == .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile.layout
+  and .rts_data_player_screen_chrome_profile == .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile.chrome
+  and .rts_data_player_screen_layout_gate == .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_layout_gate
+  and .rts_data_player_screen_chrome_gate == .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_chrome_gate
+  and .rts_data_player_screen_gate == .rts_evidence_bevy_runtime_adapter.first_contact_player_screen_profile_gate
+  and .rts_bevy_runtime_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
   and .rts_bevy_runtime_player_screen_application.contract_version == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
   and .rts_bevy_runtime_player_screen_application.green == true
   and .rts_bevy_runtime_player_screen_application.profile_contract == "trnm_rts_data_first_contact_player_screen_v1"

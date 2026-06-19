@@ -419,13 +419,27 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       contract_version: "trnm_rts_data_first_contact_player_screen_v1",
       map_id: "first_contact_basin",
       room_id: "first-contact-basin",
-      command_queue: ["select_group_1", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+      layout: {
+        player_map: {map_origin_x: 16},
+        spec_map: {map_origin_x: 24}
+      },
+      chrome: {
+        command_grid_slot_ids: ["worker", "scout", "warden", "relay", "core", "signal"]
+      },
+      command_queue: ["move:16,9", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
       production_queue: ["train:guard", "train:worker", "upgrade:signal_blade"],
       build_queue: ["build:watch_tower", "upgrade:training_hall"]
+    },
+    rts_data_player_screen_layout_profile: {
+      player_map: {map_origin_x: 16},
+      spec_map: {map_origin_x: 24}
     },
     rts_data_player_screen_chrome_profile: {
       command_grid_slot_ids: ["worker", "scout", "warden", "relay", "core", "signal"]
     },
+    rts_data_player_screen_layout_gate: true,
+    rts_data_player_screen_chrome_gate: true,
+    rts_data_player_screen_gate: true,
     rts_bevy_runtime_player_screen_application_contract: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
     rts_bevy_runtime_player_screen_application: {
       contract_version: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
@@ -435,7 +449,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       current_room_id: "first-contact-basin",
       camera_focus_tile_id: "16,16",
       command_destination_tile_id: "16,9",
-      command_queue: ["select_group_1", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+      command_queue: ["move:16,9", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
       production_queue: ["train:guard", "train:worker", "upgrade:signal_blade"],
       build_queue: ["build:watch_tower", "upgrade:training_hall"],
       ability_command_ids: ["worker", "scout", "warden", "relay", "core", "signal"],
@@ -512,6 +526,24 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         source: "trnm-rts-data first_contact_preview_actors projection from RtsMapModel actors"
       },
       first_contact_preview_actor_projection_gate: true,
+      first_contact_player_screen_profile: {
+        contract_version: "trnm_rts_data_first_contact_player_screen_v1",
+        map_id: "first_contact_basin",
+        room_id: "first-contact-basin",
+        layout: {
+          player_map: {map_origin_x: 16},
+          spec_map: {map_origin_x: 24}
+        },
+        chrome: {
+          command_grid_slot_ids: ["worker", "scout", "warden", "relay", "core", "signal"]
+        },
+        command_queue: ["move:16,9", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+        production_queue: ["train:guard", "train:worker", "upgrade:signal_blade"],
+        build_queue: ["build:watch_tower", "upgrade:training_hall"]
+      },
+      first_contact_player_screen_layout_gate: true,
+      first_contact_player_screen_chrome_gate: true,
+      first_contact_player_screen_profile_gate: true,
       first_contact_terrain_profile_count: 1156,
       first_contact_terrain_profile_samples: {
         border: {role: "border", height: 0, base_pad: false, resource_zone: false},
@@ -601,7 +633,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         "trnm_rts_bevy_runtime_first_contact_offline_adapter_session_transition_v1",
         "trnm_rts_bevy_runtime_first_contact_offline_adapter_lobby_ready_v1"
       ],
-      first_contact_runtime_review_before_command_queue_sample: ["select_group_1", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+      first_contact_runtime_review_before_command_queue_sample: ["move:16,9", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
       first_contact_runtime_review_after_command_queue_sample: ["move:8,4"],
       first_contact_runtime_review_ready_state_labels_sample: ["player:local-player:ready", "player:mirror_guard:ready", "bot:mirror_guard:ready", "authority:offline_loopback:no_socket"],
       first_contact_runtime_review_command_stamp_tile_sample: "8,4",
@@ -856,7 +888,7 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       map_scene: "first_contact_basin",
       current_room_id: "first-contact-basin",
       camera_focus_tile_id: "16,16",
-      before_command_queue: ["select_group_1", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
+      before_command_queue: ["move:16,9", "build:trnm.flux.relay", "train:trnm.worker", "attack:trnm.flux.beacon"],
       after_command_queue: ["move:8,4"],
       before_route_tile_ids: ["11,8", "13,8", "16,9"],
       after_route_tile_ids: ["8,4"],

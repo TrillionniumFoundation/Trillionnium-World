@@ -2391,6 +2391,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub first_contact_online_offline_adapter_gate: bool,
     pub first_contact_preview_actor_projection: RtsFirstContactPreviewActorProjectionEvidence,
     pub first_contact_preview_actor_projection_gate: bool,
+    pub first_contact_player_screen_profile: trnm_rts_data::RtsFirstContactPlayerScreenProfile,
+    pub first_contact_player_screen_layout_gate: bool,
+    pub first_contact_player_screen_chrome_gate: bool,
+    pub first_contact_player_screen_profile_gate: bool,
     pub first_contact_terrain_profile_count: usize,
     pub first_contact_terrain_profile_samples: RtsFirstContactTerrainProfileSamples,
     pub first_contact_terrain_profile_gate: bool,
@@ -3252,6 +3256,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model);
     let first_contact_preview_actors =
         trnm_rts_data::first_contact_preview_actors(&first_contact_map_model);
+    let first_contact_opening_profile = trnm_rts_data::first_contact_opening_loop_profile();
     let first_contact_player_screen_application =
         rts_first_contact_player_screen_runtime_application(&first_contact_profile);
     let first_contact_online_protocol_fixture =
@@ -3576,6 +3581,293 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
                         .iter()
                         .any(|source| source.id == actor.source_actor_id)
             });
+    let first_contact_player_screen_layout = first_contact_profile.layout;
+    let first_contact_player_screen_layout_gate =
+        first_contact_player_screen_layout.player_map.map_origin_x == 16
+            && first_contact_player_screen_layout.player_map.map_origin_y == 54
+            && first_contact_player_screen_layout
+                .player_map
+                .right_reserved_px
+                == 292
+            && first_contact_player_screen_layout
+                .player_map
+                .bottom_reserved_px
+                == 158
+            && first_contact_player_screen_layout
+                .player_map
+                .min_map_width_px
+                == 374
+            && first_contact_player_screen_layout
+                .player_map
+                .min_map_height_px
+                == 238
+            && first_contact_player_screen_layout.player_map.cell_width.min == 12
+            && first_contact_player_screen_layout.player_map.cell_width.max == 28
+            && first_contact_player_screen_layout
+                .player_map
+                .cell_height
+                .min
+                == 8
+            && first_contact_player_screen_layout
+                .player_map
+                .cell_height
+                .max
+                == 15
+            && first_contact_player_screen_layout.spec_map.map_origin_x == 24
+            && first_contact_player_screen_layout.spec_map.map_origin_y == 110
+            && first_contact_player_screen_layout
+                .spec_map
+                .right_reserved_px
+                == 266
+            && first_contact_player_screen_layout
+                .spec_map
+                .bottom_reserved_px
+                == 158
+            && first_contact_player_screen_layout.spec_map.min_map_width_px == 374
+            && first_contact_player_screen_layout
+                .spec_map
+                .min_map_height_px
+                == 238
+            && first_contact_player_screen_layout.spec_map.cell_width.min == 10
+            && first_contact_player_screen_layout.spec_map.cell_width.max == 22
+            && first_contact_player_screen_layout.spec_map.cell_height.min == 7
+            && first_contact_player_screen_layout.spec_map.cell_height.max == 14
+            && first_contact_player_screen_layout.map_outer_padding_px == 8
+            && first_contact_player_screen_layout.map_inner_padding_px == 4;
+    let first_contact_player_screen_chrome = &first_contact_profile.chrome;
+    let first_contact_player_screen_chrome_gate = first_contact_player_screen_chrome.top_title
+        == "TRNM RTS"
+        && first_contact_player_screen_chrome.skirmish_status_label
+            == "LOCAL SKIRMISH  OWNED ASSETS"
+        && first_contact_player_screen_chrome.tactical_view_title == "TACTICAL VIEW"
+        && first_contact_player_screen_chrome.tactical_view_camera_prefix == "CAM"
+        && first_contact_player_screen_chrome.tactical_view_zoom_prefix == "Z"
+        && first_contact_player_screen_chrome.tactical_view_default_camera_tile
+            == first_contact_profile.camera_focus_tile
+        && first_contact_player_screen_chrome.tactical_view_status_fallback
+            == "GROUP 1  ATTACK QUEUED"
+        && first_contact_player_screen_chrome.tactical_view_status_max_chars == 40
+        && first_contact_player_screen_chrome.resource_readouts.len() == 4
+        && first_contact_player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Credits
+                    && readout.label == "CRED"
+            })
+        && first_contact_player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Power
+                    && readout.label == "PWR"
+            })
+        && first_contact_player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Supply
+                    && readout.label == "SUP"
+            })
+        && first_contact_player_screen_chrome
+            .resource_readouts
+            .iter()
+            .any(|readout| {
+                readout.kind == trnm_rts_data::RtsPlayerScreenResourceReadoutKind::Visibility
+                    && readout.label == "VIS"
+            })
+        && first_contact_player_screen_chrome.radar_title == "RADAR"
+        && first_contact_player_screen_chrome.production_title == "PRODUCTION"
+        && first_contact_player_screen_chrome.build_palette_title == "BUILD PALETTE"
+        && first_contact_player_screen_chrome.production_empty_label == "ready"
+        && first_contact_player_screen_chrome.production_slot_visible_count == 4
+        && first_contact_player_screen_chrome.production_slot_column_count == 2
+        && first_contact_player_screen_chrome.build_palette_slots.len() == 8
+        && first_contact_player_screen_chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| slot.label == "PWR" && slot.queue_id == "build:power_node@5,3")
+        && first_contact_player_screen_chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| slot.label == "RAX" && slot.queue_id == "build:training_hall@4,3")
+        && first_contact_player_screen_chrome
+            .build_palette_slots
+            .iter()
+            .any(|slot| slot.label == "UPG" && slot.queue_id == "upgrade:signal_blade")
+        && first_contact_player_screen_chrome.build_palette_visible_count == 8
+        && first_contact_player_screen_chrome.build_palette_column_count == 4
+        && first_contact_player_screen_chrome.tactics_title == "TACTICS"
+        && first_contact_player_screen_chrome.tactics_rows.len() == 5
+        && first_contact_player_screen_chrome
+            .tactics_rows
+            .iter()
+            .any(|row| {
+                row.kind == trnm_rts_data::RtsPlayerScreenTacticsRowKind::Order
+                    && row.label == "ORDER"
+                    && row.max_value_chars == 20
+            })
+        && first_contact_player_screen_chrome
+            .tactics_rows
+            .iter()
+            .any(|row| {
+                row.kind == trnm_rts_data::RtsPlayerScreenTacticsRowKind::Target
+                    && row.label == "TARGET"
+                    && row.empty_label == "NONE"
+            })
+        && first_contact_player_screen_chrome
+            .tactics_rows
+            .iter()
+            .any(|row| {
+                row.kind == trnm_rts_data::RtsPlayerScreenTacticsRowKind::Camera
+                    && row.label == "CAM"
+                    && row.empty_label == "-"
+            })
+        && first_contact_player_screen_chrome
+            .tactics_rows
+            .iter()
+            .any(|row| {
+                row.kind == trnm_rts_data::RtsPlayerScreenTacticsRowKind::Queue
+                    && row.label == "QUEUE"
+            })
+        && first_contact_player_screen_chrome
+            .tactics_rows
+            .iter()
+            .any(|row| {
+                row.kind == trnm_rts_data::RtsPlayerScreenTacticsRowKind::Build
+                    && row.label == "BUILD"
+                    && row.empty_label == "NONE"
+            })
+        && first_contact_player_screen_chrome.selection_panel_title == "SELECTION"
+        && first_contact_player_screen_chrome.selection_card_visible_count == 5
+        && first_contact_player_screen_chrome
+            .selection_card_frame_ids
+            .len()
+            == 5
+        && first_contact_player_screen_chrome
+            .selection_card_frame_ids
+            .iter()
+            .any(|frame| frame == "actor_player_idle_south")
+        && first_contact_player_screen_chrome
+            .selection_card_frame_ids
+            .iter()
+            .any(|frame| frame == "prop_banner")
+        && first_contact_player_screen_chrome.selection_card_health_fallback_percent == 80
+        && first_contact_player_screen_chrome.selection_feedback_label_max_chars == 62
+        && first_contact_player_screen_chrome.command_panel_title == "COMMANDS"
+        && first_contact_player_screen_chrome.command_grid_slot_count == 12
+        && first_contact_player_screen_chrome.command_grid_column_count == 6
+        && first_contact_player_screen_chrome
+            .command_grid_slot_ids
+            .len()
+            == 6
+        && first_contact_player_screen_chrome
+            .command_grid_slot_ids
+            .iter()
+            .any(|ability| ability == "relay")
+        && first_contact_player_screen_chrome
+            .command_grid_slot_ids
+            .iter()
+            .any(|ability| ability == "signal")
+        && first_contact_player_screen_chrome.command_slot_fallback_id == "hold"
+        && first_contact_player_screen_chrome.order_queue_title == "ORDER QUEUE"
+        && first_contact_player_screen_chrome.order_queue_empty_label == "NO ORDERS"
+        && first_contact_player_screen_chrome.order_queue_visible_count == 5
+        && first_contact_player_screen_chrome.order_queue_label_max_chars == 32
+        && first_contact_player_screen_chrome.group_summary_prefix == "GROUP"
+        && first_contact_player_screen_chrome.group_summary_suffix == "UNITS SELECTED";
+    let first_contact_player_screen_profile_gate = first_contact_profile.contract_version
+        == trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
+        && first_contact_profile.map_id == first_contact_map_model.map_id
+        && first_contact_profile.room_id == "first-contact-basin"
+        && first_contact_player_screen_layout_gate
+        && first_contact_player_screen_chrome_gate
+        && first_contact_profile.camera_zoom_percent > 0
+        && first_contact_map_model
+            .bounds
+            .contains(first_contact_profile.camera_focus_tile)
+        && first_contact_profile.command_destination_tile
+            == first_contact_opening_profile.active_beacon_tile
+        && first_contact_map_model
+            .rules
+            .iter()
+            .any(|rule| rule.id == first_contact_profile.attack_target_rule_id)
+        && first_contact_profile
+            .command_queue
+            .iter()
+            .any(|command| command == "build:trnm.flux.relay")
+        && first_contact_profile
+            .command_queue
+            .iter()
+            .any(|command| command == "train:trnm.worker")
+        && first_contact_profile
+            .command_queue
+            .iter()
+            .any(|command| command == "attack:trnm.flux.beacon")
+        && first_contact_profile
+            .production_queue
+            .iter()
+            .any(|queue| queue == "train:guard")
+        && first_contact_profile
+            .production_queue
+            .iter()
+            .any(|queue| queue == "upgrade:signal_blade")
+        && first_contact_profile
+            .build_queue
+            .iter()
+            .any(|queue| queue == "build:watch_tower")
+        && first_contact_profile
+            .build_queue
+            .iter()
+            .any(|queue| queue == "upgrade:training_hall")
+        && first_contact_profile.unit_health_percents == vec![96, 78, 71, 34]
+        && first_contact_profile
+            .unit_health_percents
+            .iter()
+            .all(|percent| *percent <= 100)
+        && first_contact_profile.active_ability_id == "worker"
+        && first_contact_player_screen_chrome
+            .command_grid_slot_ids
+            .iter()
+            .any(|ability| ability == &first_contact_profile.active_ability_id)
+        && first_contact_profile.ability_cooldown_percents == vec![0, 0, 16, 0, 42, 25]
+        && first_contact_profile.ability_cooldown_percents.len()
+            == first_contact_player_screen_chrome
+                .command_grid_slot_ids
+                .len()
+        && first_contact_profile
+            .ability_cooldown_percents
+            .iter()
+            .all(|percent| *percent <= 100)
+        && first_contact_profile.visible_tiles.len() == 64
+        && first_contact_profile
+            .visible_tiles
+            .iter()
+            .all(|tile| first_contact_map_model.bounds.contains(*tile))
+        && first_contact_profile
+            .fogged_tiles
+            .iter()
+            .all(|tile| first_contact_map_model.bounds.contains(*tile))
+        && first_contact_profile
+            .selection_box_tiles
+            .iter()
+            .all(|tile| first_contact_map_model.bounds.contains(*tile))
+        && first_contact_profile
+            .group_route_tiles
+            .iter()
+            .any(|tile| *tile == first_contact_opening_profile.active_beacon_tile)
+        && first_contact_profile
+            .terrain_route_tiles
+            .iter()
+            .all(|tile| first_contact_map_model.bounds.contains(*tile))
+        && first_contact_profile.training_progress_percent <= 100
+        && first_contact_profile.build_progress_percent <= 100
+        && first_contact_profile.ai_pressure_percent <= 100
+        && first_contact_profile.visibility_percent <= 100
+        && first_contact_profile.enemy_pressure_warning_percent <= 100
+        && first_contact_profile.army_supply_used <= first_contact_profile.army_supply_cap
+        && !first_contact_profile.last_feedback.is_empty()
+        && !first_contact_profile.objective_status.is_empty();
     let first_contact_terrain_profile_samples = RtsFirstContactTerrainProfileSamples {
         border: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(0, 0)),
         lane: trnm_rts_data::first_contact_terrain_profile(trnm_rts_core::RtsTile::new(16, 9)),
@@ -4231,6 +4523,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && first_contact_online_local_handoff_gate
         && first_contact_online_offline_adapter_gate
         && first_contact_preview_actor_projection_gate
+        && first_contact_player_screen_profile_gate
         && first_contact_terrain_profile_gate
         && first_contact_renderer_projection_gate
         && first_contact_runtime_map_projection_gate;
@@ -4578,6 +4871,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         first_contact_online_offline_adapter_gate,
         first_contact_preview_actor_projection,
         first_contact_preview_actor_projection_gate,
+        first_contact_player_screen_profile: first_contact_profile.clone(),
+        first_contact_player_screen_layout_gate,
+        first_contact_player_screen_chrome_gate,
+        first_contact_player_screen_profile_gate,
         first_contact_terrain_profile_count,
         first_contact_terrain_profile_samples,
         first_contact_terrain_profile_gate,
@@ -5771,6 +6068,43 @@ mod tests {
             .any(|actor| actor.source_actor_id == "Actor0"
                 && actor.kind == trnm_rts_data::RtsFirstContactPreviewActorKind::Spawn
                 && actor.openra_preview_rule_id == "trnm.map.detail"));
+        assert!(evidence.first_contact_player_screen_layout_gate);
+        assert!(evidence.first_contact_player_screen_chrome_gate);
+        assert!(evidence.first_contact_player_screen_profile_gate);
+        assert_eq!(
+            evidence
+                .first_contact_player_screen_profile
+                .contract_version,
+            trnm_rts_data::TRNM_RTS_DATA_FIRST_CONTACT_PLAYER_SCREEN_CONTRACT
+        );
+        assert_eq!(
+            evidence.first_contact_player_screen_profile.map_id,
+            "first_contact_basin"
+        );
+        assert_eq!(
+            evidence
+                .first_contact_player_screen_profile
+                .layout
+                .player_map
+                .map_origin_x,
+            16
+        );
+        assert_eq!(
+            evidence
+                .first_contact_player_screen_profile
+                .chrome
+                .command_grid_slot_ids,
+            vec!["worker", "scout", "warden", "relay", "core", "signal"]
+        );
+        assert_eq!(
+            evidence.first_contact_player_screen_profile.command_queue,
+            vec![
+                "move:16,9",
+                "build:trnm.flux.relay",
+                "train:trnm.worker",
+                "attack:trnm.flux.beacon"
+            ]
+        );
         assert!(evidence.first_contact_terrain_profile_gate);
         assert_eq!(evidence.first_contact_terrain_profile_count, 1156);
         assert_eq!(
