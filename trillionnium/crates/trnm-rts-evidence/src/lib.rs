@@ -69,9 +69,11 @@ use trnm_rts_bevy_runtime::{
     rts_production_spawn_animation_stage, rts_projectile_id_for_ability,
     rts_projectile_trail_tiles_for_target, rts_queue_feedback_chip, rts_queue_gold_cost,
     rts_queue_is_affordable, rts_queue_uses_production_lane, rts_rebuild_structures_for_id,
-    rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid, rts_runtime_tile_line,
-    rts_same_class_units, rts_scout_route_tiles_for_recon, rts_scripted_demo_pauses_queue_tick,
-    rts_scripted_demo_stage_from_frame, rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
+    rts_recon_parts, rts_restored_zones_for_id, rts_runtime_hit_test_grid,
+    rts_runtime_map_projection, rts_runtime_terrain_seeds, rts_runtime_tile_line,
+    rts_runtime_tile_screen_rect, rts_same_class_units, rts_scout_route_tiles_for_recon,
+    rts_scripted_demo_pauses_queue_tick, rts_scripted_demo_stage_from_frame,
+    rts_scripted_demo_stage_id, rts_scripted_demo_stage_title,
     rts_scrollable_map_camera_stage_summaries, rts_selectable_unit_tile, rts_selection_clear_parts,
     rts_selection_command_feedback_stage, rts_selection_tiles_for_units,
     rts_sidebar_cancel_queue_id, rts_sidebar_queue_summary, rts_sidebar_slot_status_label,
@@ -89,7 +91,8 @@ use trnm_rts_bevy_runtime::{
     RtsFirstContactOfflineAdapterLobbyReadyReview,
     RtsFirstContactOfflineAdapterSessionTransitionReview, RtsFirstContactPlayerScreenReview,
     RtsFirstContactPlayerScreenRuntimeApplication, RtsOfflineAdapterRuntimeApplication,
-    RtsOrderQueueReplayAction, RtsRuntimeGridSpec, RtsRuntimeTileLineStep,
+    RtsOrderQueueReplayAction, RtsRuntimeGridSpec, RtsRuntimeMapLayoutInput,
+    RtsRuntimeMapProjection, RtsRuntimeRect, RtsRuntimeTerrainSeeds, RtsRuntimeTileLineStep,
     TRNM_RTS_BEVY_RUNTIME_CONTRACT,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_APPLICATION_CONTRACT,
     TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT,
@@ -2380,6 +2383,10 @@ pub struct RtsBevyRuntimeAdapterEvidence {
     pub first_contact_terrain_profile_gate: bool,
     pub first_contact_renderer_projection: RtsFirstContactRendererProjectionEvidence,
     pub first_contact_renderer_projection_gate: bool,
+    pub first_contact_runtime_map_projection: RtsRuntimeMapProjection,
+    pub first_contact_runtime_tile_rect_sample: RtsRuntimeRect,
+    pub first_contact_runtime_terrain_seed_sample: RtsRuntimeTerrainSeeds,
+    pub first_contact_runtime_map_projection_gate: bool,
     pub first_contact_player_screen_application_contract: String,
     pub first_contact_player_screen_application_green: bool,
     pub first_contact_offline_adapter_application_contract: String,
@@ -3600,6 +3607,39 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
             .spawn_actor_tiles
             .iter()
             .all(|tile| first_contact_map_model.bounds.contains(*tile));
+    let first_contact_runtime_map_projection =
+        rts_runtime_map_projection(RtsRuntimeMapLayoutInput {
+            viewport_width: 1280,
+            viewport_height: 720,
+            map_width_tiles: first_contact_map_model.width as i32,
+            map_height_tiles: first_contact_map_model.height as i32,
+            map_origin_x: first_contact_profile.layout.player_map.map_origin_x,
+            map_origin_y: first_contact_profile.layout.player_map.map_origin_y,
+            right_reserved_px: first_contact_profile.layout.player_map.right_reserved_px,
+            bottom_reserved_px: first_contact_profile.layout.player_map.bottom_reserved_px,
+            min_map_width_px: first_contact_profile.layout.player_map.min_map_width_px,
+            min_map_height_px: first_contact_profile.layout.player_map.min_map_height_px,
+            cell_width_min: first_contact_profile.layout.player_map.cell_width.min,
+            cell_width_max: first_contact_profile.layout.player_map.cell_width.max,
+            cell_height_min: first_contact_profile.layout.player_map.cell_height.min,
+            cell_height_max: first_contact_profile.layout.player_map.cell_height.max,
+        });
+    let first_contact_runtime_tile_rect_sample =
+        rts_runtime_tile_screen_rect(first_contact_runtime_map_projection, (16, 16));
+    let first_contact_runtime_terrain_seed_sample = rts_runtime_terrain_seeds((16, 16));
+    let first_contact_runtime_map_projection_gate = first_contact_runtime_map_projection.map_x
+        == 16
+        && first_contact_runtime_map_projection.map_y == 54
+        && first_contact_runtime_map_projection.cell_w == 28
+        && first_contact_runtime_map_projection.cell_h == 14
+        && first_contact_runtime_map_projection.map_w == 952
+        && first_contact_runtime_map_projection.map_h == 476
+        && first_contact_runtime_tile_rect_sample.x == 464
+        && first_contact_runtime_tile_rect_sample.y == 278
+        && first_contact_runtime_tile_rect_sample.width == 28
+        && first_contact_runtime_tile_rect_sample.height == 14
+        && first_contact_runtime_terrain_seed_sample.surface_seed == 12
+        && first_contact_runtime_terrain_seed_sample.detail_seed == 20;
     let green = TRNM_RTS_BEVY_RUNTIME_CONTRACT == "trnm_rts_bevy_runtime_adapter_v1"
         && minimap_cell == (134, 175)
         && scroll_camera_stage_summaries.len() == 6
@@ -4127,7 +4167,8 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && first_contact_online_local_handoff_gate
         && first_contact_online_offline_adapter_gate
         && first_contact_terrain_profile_gate
-        && first_contact_renderer_projection_gate;
+        && first_contact_renderer_projection_gate
+        && first_contact_runtime_map_projection_gate;
 
     RtsBevyRuntimeAdapterEvidence {
         contract_version: TRNM_RTS_EVIDENCE_BEVY_RUNTIME_ADAPTER_CONTRACT.to_string(),
@@ -4475,6 +4516,10 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         first_contact_terrain_profile_gate,
         first_contact_renderer_projection,
         first_contact_renderer_projection_gate,
+        first_contact_runtime_map_projection,
+        first_contact_runtime_tile_rect_sample,
+        first_contact_runtime_terrain_seed_sample,
+        first_contact_runtime_map_projection_gate,
         first_contact_player_screen_application_contract: first_contact_player_screen_application
             .contract_version,
         first_contact_player_screen_application_green: first_contact_player_screen_application
@@ -5660,6 +5705,34 @@ mod tests {
             .first_contact_renderer_projection
             .minimap_anchor_actor_samples
             .contains(&"Actor0".to_string()));
+        assert!(evidence.first_contact_runtime_map_projection_gate);
+        assert_eq!(
+            evidence.first_contact_runtime_map_projection,
+            RtsRuntimeMapProjection {
+                map_x: 16,
+                map_y: 54,
+                cell_w: 28,
+                cell_h: 14,
+                map_w: 952,
+                map_h: 476,
+            }
+        );
+        assert_eq!(
+            evidence.first_contact_runtime_tile_rect_sample,
+            RtsRuntimeRect {
+                x: 464,
+                y: 278,
+                width: 28,
+                height: 14,
+            }
+        );
+        assert_eq!(
+            evidence.first_contact_runtime_terrain_seed_sample,
+            RtsRuntimeTerrainSeeds {
+                surface_seed: 12,
+                detail_seed: 20,
+            }
+        );
         assert_eq!(
             evidence.minimap_cell_sample,
             RtsEvidencePoint { x: 134, y: 175 }

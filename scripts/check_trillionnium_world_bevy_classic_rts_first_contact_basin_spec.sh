@@ -35,6 +35,11 @@ if grep -Fq 'let rts_data_renderer_projection_gate = renderer_model.renderable_t
   exit 1
 fi
 
+if rg -Uq 'let rts_bevy_runtime_map_projection\s*=\s*rts_bevy_runtime::rts_runtime_map_projection\(rts_bevy_runtime::RtsRuntimeMapLayoutInput' "$SOURCE"; then
+  echo "[FAIL] First Contact runtime map projection gate must live in trnm-rts-evidence, not Bevy" >&2
+  exit 1
+fi
+
 required_source_lines=(
   'fn classic_first_contact_map_actors_from_rts_data() -> Vec<RtsFirstContactPreviewActor>'
   'first_contact_preview_actors(&first_contact_basin_map())'
@@ -54,6 +59,10 @@ required_source_lines=(
   'rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection'
   'rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate'
+  'rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection'
+  'rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample'
+  'rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample'
+  'rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate'
   'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_consumption_review'
   'first_contact_offline_adapter_session_transition_review'
   'rts_evidence_bevy_runtime_adapter.first_contact_offline_adapter_lobby_ready_review'
@@ -86,9 +95,16 @@ required_evidence_source_lines=(
   'first_contact_terrain_profile_gate: bool'
   'first_contact_renderer_projection: RtsFirstContactRendererProjectionEvidence'
   'first_contact_renderer_projection_gate: bool'
+  'first_contact_runtime_map_projection: RtsRuntimeMapProjection'
+  'first_contact_runtime_tile_rect_sample: RtsRuntimeRect'
+  'first_contact_runtime_terrain_seed_sample: RtsRuntimeTerrainSeeds'
+  'first_contact_runtime_map_projection_gate: bool'
   'pub fn first_contact_bevy_runtime_adapter_evidence'
   'trnm_rts_data::first_contact_terrain_profiles()'
   'trnm_rts_data::first_contact_map_renderer_model(&first_contact_map_model)'
+  'rts_runtime_map_projection(RtsRuntimeMapLayoutInput'
+  'rts_runtime_tile_screen_rect(first_contact_runtime_map_projection, (16, 16))'
+  'rts_runtime_terrain_seeds((16, 16))'
   'trnm_rts_online::first_contact_online_protocol_fixture()'
   'trnm_rts_online::rts_online_local_handoff_from_fixture('
   'trnm_rts_online::rts_online_offline_adapter_from_fixture('
@@ -110,6 +126,7 @@ required_evidence_source_lines=(
   'first_contact_online_offline_adapter_gate'
   'first_contact_terrain_profile_gate'
   'first_contact_renderer_projection_gate'
+  'first_contact_runtime_map_projection_gate'
 )
 
 for line in "${required_evidence_source_lines[@]}"; do
@@ -151,6 +168,12 @@ required_runtime_source_lines=(
   'TRNM_RTS_BEVY_RUNTIME_FIRST_CONTACT_OFFLINE_ADAPTER_CONSUMPTION_CONTRACT'
   'pub struct RtsFirstContactOfflineAdapterConsumptionReview'
   'pub fn rts_first_contact_offline_adapter_consumption_review'
+  'pub struct RtsRuntimeMapProjection'
+  'pub struct RtsRuntimeRect'
+  'pub struct RtsRuntimeTerrainSeeds'
+  'pub fn rts_runtime_map_projection'
+  'pub fn rts_runtime_tile_screen_rect'
+  'pub fn rts_runtime_terrain_seeds'
   'pub runtime_application_gate: bool'
 )
 
@@ -247,6 +270,23 @@ jq -e '
   and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate == true
   and .rts_data_renderer_projection == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection
   and .rts_data_renderer_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_y == 54
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_w == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_h == 14
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_w == 952
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_h == 476
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.x == 464
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.y == 278
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.width == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.height == 14
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.surface_seed == 12
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.detail_seed == 20
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate == true
+  and .rts_bevy_runtime_map_projection == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection
+  and .rts_bevy_runtime_tile_rect_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample
+  and .rts_bevy_runtime_terrain_seed_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample
+  and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
   and .rts_data_opening_profile.contract_version == "trnm_rts_data_first_contact_opening_profile_v1"
   and .rts_data_opening_profile.map_id == "first_contact_basin"
   and .rts_data_opening_profile.active_beacon_tile.x == 16
@@ -443,6 +483,15 @@ jq -e '
   and .rts_data_terrain_profile_count == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_count
   and .rts_data_terrain_profile_samples == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_samples
   and .rts_data_renderer_projection == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_w == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.x == 464
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.surface_seed == 12
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate == true
+  and .rts_bevy_runtime_map_projection == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection
+  and .rts_bevy_runtime_tile_rect_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample
+  and .rts_bevy_runtime_terrain_seed_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample
+  and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
   and .rts_online_protocol_fixture == .rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture
   and .rts_online_local_handoff == .rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff
   and .rts_online_offline_adapter == .rts_evidence_bevy_runtime_adapter.first_contact_online_offline_adapter
@@ -764,6 +813,23 @@ jq -e '
   and .rts_bevy_runtime_terrain_seed_sample.surface_seed == 12
   and .rts_bevy_runtime_terrain_seed_sample.detail_seed == 20
   and .rts_bevy_runtime_map_projection_gate == true
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_y == 54
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_w == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_h == 14
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_w == 952
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_h == 476
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.x == 464
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.y == 278
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.width == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.height == 14
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.surface_seed == 12
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.detail_seed == 20
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate == true
+  and .rts_bevy_runtime_map_projection == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection
+  and .rts_bevy_runtime_tile_rect_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample
+  and .rts_bevy_runtime_terrain_seed_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample
+  and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
   and .rts_online_contract == "trnm_rts_online_protocol_v1"
   and .rts_online_protocol_fixture.contract_version == "trnm_rts_online_first_contact_fixture_v1"
   and .rts_online_protocol_fixture.green == true

@@ -29892,38 +29892,13 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .expect("RTS Bevy runtime adapter evidence serializes");
     let rts_bevy_runtime_adapter_gate = rts_evidence_bevy_runtime_adapter.green;
     let rts_bevy_runtime_map_projection =
-        rts_bevy_runtime::rts_runtime_map_projection(rts_bevy_runtime::RtsRuntimeMapLayoutInput {
-            viewport_width: 1280,
-            viewport_height: 720,
-            map_width_tiles: map_model.width as i32,
-            map_height_tiles: map_model.height as i32,
-            map_origin_x: player_screen_layout.player_map.map_origin_x,
-            map_origin_y: player_screen_layout.player_map.map_origin_y,
-            right_reserved_px: player_screen_layout.player_map.right_reserved_px,
-            bottom_reserved_px: player_screen_layout.player_map.bottom_reserved_px,
-            min_map_width_px: player_screen_layout.player_map.min_map_width_px,
-            min_map_height_px: player_screen_layout.player_map.min_map_height_px,
-            cell_width_min: player_screen_layout.player_map.cell_width.min,
-            cell_width_max: player_screen_layout.player_map.cell_width.max,
-            cell_height_min: player_screen_layout.player_map.cell_height.min,
-            cell_height_max: player_screen_layout.player_map.cell_height.max,
-        });
+        rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection;
     let rts_bevy_runtime_tile_rect_sample =
-        rts_bevy_runtime::rts_runtime_tile_screen_rect(rts_bevy_runtime_map_projection, (16, 16));
+        rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample;
     let rts_bevy_runtime_terrain_seed_sample =
-        rts_bevy_runtime::rts_runtime_terrain_seeds((16, 16));
-    let rts_bevy_runtime_map_projection_gate = rts_bevy_runtime_map_projection.map_x == 16
-        && rts_bevy_runtime_map_projection.map_y == 54
-        && rts_bevy_runtime_map_projection.cell_w == 28
-        && rts_bevy_runtime_map_projection.cell_h == 14
-        && rts_bevy_runtime_map_projection.map_w == 952
-        && rts_bevy_runtime_map_projection.map_h == 476
-        && rts_bevy_runtime_tile_rect_sample.x == 464
-        && rts_bevy_runtime_tile_rect_sample.y == 278
-        && rts_bevy_runtime_tile_rect_sample.width == 28
-        && rts_bevy_runtime_tile_rect_sample.height == 14
-        && rts_bevy_runtime_terrain_seed_sample.surface_seed == 12
-        && rts_bevy_runtime_terrain_seed_sample.detail_seed == 20;
+        rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample;
+    let rts_bevy_runtime_map_projection_gate =
+        rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate;
     let rts_online_protocol_fixture =
         &rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture;
     let rts_online_local_handoff =

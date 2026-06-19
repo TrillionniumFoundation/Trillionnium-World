@@ -469,6 +469,25 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
         source: "RtsMapModel bounds, terrain profiles, actor rules, and runtime projection math"
       },
       first_contact_renderer_projection_gate: true,
+      first_contact_runtime_map_projection: {
+        map_x: 16,
+        map_y: 54,
+        cell_w: 28,
+        cell_h: 14,
+        map_w: 952,
+        map_h: 476
+      },
+      first_contact_runtime_tile_rect_sample: {
+        x: 464,
+        y: 278,
+        width: 28,
+        height: 14
+      },
+      first_contact_runtime_terrain_seed_sample: {
+        surface_seed: 12,
+        detail_seed: 20
+      },
+      first_contact_runtime_map_projection_gate: true,
       first_contact_player_screen_application: {
         contract_version: "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1",
         green: true
@@ -520,6 +539,25 @@ add_first_contact_basin_source_manifest_packet_fixtures() {
       first_contact_runtime_review_gate: true
     },
     rts_evidence_bevy_runtime_adapter_gate: true,
+    rts_bevy_runtime_map_projection: {
+      map_x: 16,
+      map_y: 54,
+      cell_w: 28,
+      cell_h: 14,
+      map_w: 952,
+      map_h: 476
+    },
+    rts_bevy_runtime_tile_rect_sample: {
+      x: 464,
+      y: 278,
+      width: 28,
+      height: 14
+    },
+    rts_bevy_runtime_terrain_seed_sample: {
+      surface_seed: 12,
+      detail_seed: 20
+    },
+    rts_bevy_runtime_map_projection_gate: true,
     rts_online_protocol_fixture: {
       transport: {
         contract_version: "trnm_rts_online_loopback_transport_v1",

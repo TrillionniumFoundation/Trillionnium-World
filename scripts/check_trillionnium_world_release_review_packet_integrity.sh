@@ -459,6 +459,23 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate == true
   and .rts_data_renderer_projection == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection
   and .rts_data_renderer_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_y == 54
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_w == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_h == 14
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_w == 952
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_h == 476
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.x == 464
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.y == 278
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.width == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.height == 14
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.surface_seed == 12
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.detail_seed == 20
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate == true
+  and .rts_bevy_runtime_map_projection == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection
+  and .rts_bevy_runtime_tile_rect_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample
+  and .rts_bevy_runtime_terrain_seed_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample
+  and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
   and .rts_data_preview_actor_contract == "trnm_rts_data_first_contact_preview_actor_v1"
   and .rts_data_preview_actor_projection.actor_count == 39
   and .rts_data_preview_actor_projection.spawn_count == 4
@@ -509,6 +526,15 @@ require_artifact_json_expr first_contact_basin_terrain_projection_aggregate_sema
   and .rts_data_terrain_profile_gate == .rts_evidence_bevy_runtime_adapter.first_contact_terrain_profile_gate
   and .rts_data_renderer_projection == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection
   and .rts_data_renderer_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_renderer_projection_gate
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.map_x == 16
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection.cell_w == 28
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample.x == 464
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample.surface_seed == 12
+  and .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate == true
+  and .rts_bevy_runtime_map_projection == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection
+  and .rts_bevy_runtime_tile_rect_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_tile_rect_sample
+  and .rts_bevy_runtime_terrain_seed_sample == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_terrain_seed_sample
+  and .rts_bevy_runtime_map_projection_gate == .rts_evidence_bevy_runtime_adapter.first_contact_runtime_map_projection_gate
 ' "First Contact Basin packet artifact keeps renderer-neutral terrain profile and map projection summaries owned by trnm-rts-evidence while preserving legacy top-level fields"
 require_artifact_json_expr first_contact_basin_offline_adapter_semantics native_bevy_classic_rts_first_contact_basin_spec '
   .rts_bevy_runtime_player_screen_application_contract == "trnm_rts_bevy_runtime_first_contact_player_screen_application_v1"
