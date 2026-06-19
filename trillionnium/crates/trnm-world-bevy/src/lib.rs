@@ -107270,21 +107270,37 @@ fn classic_draw_rts_queue_slot(
         3,
         progress_color,
     );
-    let compact_label = label
-        .replace("train:", "TR ")
-        .replace("build:", "BD ")
-        .replace("upgrade:", "UP ")
-        .replace('_', " ");
     classic_draw_text(
         buffer,
         width,
         height,
         x + 4,
         y + 4,
-        &classic_catalog_text_label(&compact_label, 8),
+        &classic_rts_queue_slot_label(label),
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_rts_queue_slot_label(queue_id: &str) -> String {
+    match queue_id {
+        "train:guard" => "GUARD".to_string(),
+        "train:worker" => "WORKER".to_string(),
+        "upgrade:signal_blade" => "SIGNAL".to_string(),
+        "build:watch_tower" => "WATCH".to_string(),
+        "upgrade:training_hall" => "TRAINING".to_string(),
+        "ready" | "READY" => "READY".to_string(),
+        _ => {
+            let item = queue_id
+                .strip_prefix("train:")
+                .or_else(|| queue_id.strip_prefix("build:"))
+                .or_else(|| queue_id.strip_prefix("upgrade:"))
+                .unwrap_or(queue_id);
+            let item = item.strip_prefix("trnm.").unwrap_or(item);
+            classic_catalog_text_label(&item.replace(['_', '.', ':', '-'], " "), 8)
+        }
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -154372,6 +154388,26 @@ mod tests {
         assert_eq!(
             classic_selected_unit_display_count(&selected_entities, &runtime),
             1
+        );
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_queue_slot_labels_use_player_facing_unit_names() {
+        assert_eq!(classic_rts_queue_slot_label("train:guard"), "GUARD");
+        assert_eq!(classic_rts_queue_slot_label("train:worker"), "WORKER");
+        assert_eq!(
+            classic_rts_queue_slot_label("upgrade:signal_blade"),
+            "SIGNAL"
+        );
+        assert_eq!(classic_rts_queue_slot_label("build:watch_tower"), "WATCH");
+        assert_eq!(
+            classic_rts_queue_slot_label("upgrade:training_hall"),
+            "TRAINING"
+        );
+        assert_eq!(
+            classic_rts_queue_slot_label("train:trnm.relay_guard"),
+            "RELAY GU"
         );
     }
 
