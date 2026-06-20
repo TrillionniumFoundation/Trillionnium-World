@@ -536,6 +536,8 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_player_screen_label_guard.green == true
   and .first_contact_player_screen_label_guard.resource_labels == ["CREDITS","POWER","SUPPLY","VISION"]
   and .first_contact_player_screen_label_guard.production_slot_labels == ["GUARD","WORKER","SIGNAL","TRAINING"]
+  and .first_contact_player_screen_label_guard.production_slot_status_labels == ["Q1 64 R","Q2 42 R","Q3 64 R","B2 42 R"]
+  and .first_contact_player_screen_label_guard.production_empty_slot_status_labels == ["ADD UNIT","ADD UNIT","ADD BUILD","ADD BUILD"]
   and .first_contact_player_screen_label_guard.build_palette_labels == ["POWER","TRAIN","REFINE","TOWER","COMMAND","RADAR","WALL","SIGNAL"]
   and .first_contact_player_screen_label_guard.order_queue_labels == ["ATTACK BEACON","TRAIN WORKER","BUILD RELAY","MOVE 16/9"]
   and .first_contact_player_screen_label_guard.completion_event_labels == ["WORKER READY","SIGNAL READY","TOWER READY","TRAINING READY"]
@@ -558,6 +560,7 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_player_screen_label_guard.expected_label_gate == true
   and .first_contact_player_screen_label_guard.resource_spacing_gate == true
   and .first_contact_player_screen_label_guard.production_slot_width_gate == true
+  and .first_contact_player_screen_label_guard.production_slot_status_width_gate == true
   and .first_contact_player_screen_label_guard.build_palette_width_gate == true
   and .first_contact_player_screen_label_guard.order_queue_width_gate == true
   and .first_contact_player_screen_label_guard.tactics_summary_width_gate == true

@@ -3304,7 +3304,11 @@ pub fn rts_sidebar_slot_status_label(
     } else if index >= 2 && build_queue.get(index - 2).is_some() {
         format!("B{} {} R", index - 1, progress.min(100))
     } else if queue_affordable {
-        "LMB ADD".to_string()
+        if index >= 2 {
+            "ADD BUILD".to_string()
+        } else {
+            "ADD UNIT".to_string()
+        }
     } else {
         "LOCK".to_string()
     }
@@ -7369,6 +7373,15 @@ mod tests {
             rts_sidebar_slot_status_label(&production_queue, &build_queue, true, 2, 66),
             "B1 66 R"
         );
+        assert_eq!(
+            rts_sidebar_slot_status_label(&[], &[], true, 0, 0),
+            "ADD UNIT"
+        );
+        assert_eq!(
+            rts_sidebar_slot_status_label(&[], &[], true, 2, 0),
+            "ADD BUILD"
+        );
+        assert_eq!(rts_sidebar_slot_status_label(&[], &[], false, 2, 0), "LOCK");
         assert_eq!(
             rts_palette_state_label(Some("refinery"), &[], &[], true, "build:refinery@6,4"),
             "ACT"

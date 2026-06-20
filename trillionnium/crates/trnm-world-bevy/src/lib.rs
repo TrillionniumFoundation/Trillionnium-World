@@ -108529,6 +108529,35 @@ fn classic_first_contact_rendered_production_slot_labels(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_production_slot_status_labels(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let production_slot_visible_count = chrome.production_slot_visible_count.max(1) as usize;
+    (0..production_slot_visible_count)
+        .map(|index| {
+            let queue_id = classic_rts_production_slot_queue_id(runtime, index);
+            let progress = if index % 2 == 0 {
+                runtime.rts_training_progress_percent
+            } else {
+                runtime.rts_build_progress_percent
+            };
+            classic_rts_sidebar_slot_status_label(runtime, index, progress, &queue_id)
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_empty_production_slot_status_labels(
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let production_slot_visible_count = chrome.production_slot_visible_count.max(1) as usize;
+    (0..production_slot_visible_count)
+        .map(|index| rts_bevy_runtime::rts_sidebar_slot_status_label(&[], &[], true, index, 0))
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_rendered_build_palette_labels(
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
 ) -> Vec<String> {
@@ -108596,6 +108625,10 @@ fn classic_first_contact_player_screen_label_guard(
         .collect::<Vec<_>>();
     let production_slot_labels =
         classic_first_contact_rendered_production_slot_labels(runtime, chrome);
+    let production_slot_status_labels =
+        classic_first_contact_rendered_production_slot_status_labels(runtime, chrome);
+    let production_empty_slot_status_labels =
+        classic_first_contact_empty_production_slot_status_labels(chrome);
     let build_palette_labels = classic_first_contact_rendered_build_palette_labels(chrome);
     let build_palette_fit_samples = build_palette_labels
         .iter()
@@ -108646,6 +108679,8 @@ fn classic_first_contact_player_screen_label_guard(
     let mut all_display_labels = Vec::new();
     all_display_labels.extend(resource_labels.iter().cloned());
     all_display_labels.extend(production_slot_labels.iter().cloned());
+    all_display_labels.extend(production_slot_status_labels.iter().cloned());
+    all_display_labels.extend(production_empty_slot_status_labels.iter().cloned());
     all_display_labels.extend(build_palette_labels.iter().cloned());
     all_display_labels.extend(order_queue_labels.iter().cloned());
     all_display_labels.extend(completion_event_labels.iter().cloned());
@@ -108657,6 +108692,10 @@ fn classic_first_contact_player_screen_label_guard(
     let expected_label_gate = resource_labels
         == string_vec(["CREDITS", "POWER", "SUPPLY", "VISION"])
         && production_slot_labels == string_vec(["GUARD", "WORKER", "SIGNAL", "TRAINING"])
+        && production_slot_status_labels
+            == string_vec(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"])
+        && production_empty_slot_status_labels
+            == string_vec(["ADD UNIT", "ADD UNIT", "ADD BUILD", "ADD BUILD"])
         && build_palette_labels
             == string_vec([
                 "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
@@ -108701,6 +108740,10 @@ fn classic_first_contact_player_screen_label_guard(
     let production_slot_width_gate = production_slot_labels
         .iter()
         .all(|label| classic_text_advance_px(label, 1) <= 52);
+    let production_slot_status_width_gate = production_slot_status_labels
+        .iter()
+        .chain(production_empty_slot_status_labels.iter())
+        .all(|label| classic_text_advance_px(label, 1) <= 52);
     let build_palette_width_gate = build_palette_fit_samples
         .iter()
         .all(|sample| sample.get("fits_tile_gate").and_then(Value::as_bool) == Some(true));
@@ -108725,6 +108768,7 @@ fn classic_first_contact_player_screen_label_guard(
     let green = expected_label_gate
         && resource_spacing_gate
         && production_slot_width_gate
+        && production_slot_status_width_gate
         && build_palette_width_gate
         && order_queue_width_gate
         && tactics_summary_width_gate
@@ -108740,6 +108784,8 @@ fn classic_first_contact_player_screen_label_guard(
         "resource_labels": resource_labels,
         "resource_spacing_samples": resource_spacing_samples,
         "production_slot_labels": production_slot_labels,
+        "production_slot_status_labels": production_slot_status_labels,
+        "production_empty_slot_status_labels": production_empty_slot_status_labels,
         "build_palette_labels": build_palette_labels,
         "build_palette_fit_samples": build_palette_fit_samples,
         "order_queue_labels": order_queue_labels,
@@ -108755,6 +108801,7 @@ fn classic_first_contact_player_screen_label_guard(
         "expected_label_gate": expected_label_gate,
         "resource_spacing_gate": resource_spacing_gate,
         "production_slot_width_gate": production_slot_width_gate,
+        "production_slot_status_width_gate": production_slot_status_width_gate,
         "build_palette_width_gate": build_palette_width_gate,
         "order_queue_width_gate": order_queue_width_gate,
         "tactics_summary_width_gate": tactics_summary_width_gate,
@@ -155126,6 +155173,14 @@ mod tests {
             Some(json!(["GUARD", "WORKER", "SIGNAL", "TRAINING"]))
         );
         assert_eq!(
+            guard.get("production_slot_status_labels").cloned(),
+            Some(json!(["Q1 64 R", "Q2 42 R", "Q3 64 R", "B2 42 R"]))
+        );
+        assert_eq!(
+            guard.get("production_empty_slot_status_labels").cloned(),
+            Some(json!(["ADD UNIT", "ADD UNIT", "ADD BUILD", "ADD BUILD"]))
+        );
+        assert_eq!(
             guard.get("build_palette_labels").cloned(),
             Some(json!([
                 "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"
@@ -155218,6 +155273,12 @@ mod tests {
         );
         assert_eq!(
             guard.get("live_state_width_gate").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("production_slot_status_width_gate")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
