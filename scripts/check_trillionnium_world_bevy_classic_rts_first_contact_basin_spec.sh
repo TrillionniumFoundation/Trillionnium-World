@@ -129,6 +129,9 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT'
   'fn classic_first_contact_silhouette_readability_guard'
   'fn classic_draw_first_contact_silhouette_readability_layer'
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT'
+  'fn classic_first_contact_art_readability_guard'
+  'fn classic_draw_first_contact_art_readability_layer'
   'fn classic_first_contact_rendered_production_slot_labels'
   'fn classic_first_contact_rendered_order_queue_labels'
   'let first_contact_player_screen_label_guard_gate'
@@ -137,6 +140,7 @@ required_source_lines=(
   'let first_contact_command_grid_readability_guard_gate'
   'let first_contact_bottom_panel_readability_guard_gate'
   'let first_contact_silhouette_readability_guard_gate'
+  'let first_contact_art_readability_guard_gate'
   'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff'
@@ -764,6 +768,28 @@ jq -e '
   and .first_contact_silhouette_readability_guard.beacon_spire_gate == true
   and .first_contact_silhouette_readability_guard.map_object_silhouette_gate == true
   and .first_contact_silhouette_readability_guard_gate == true
+  and .first_contact_art_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1"
+  and .first_contact_art_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1"
+  and .first_contact_art_readability_guard.green == true
+  and .first_contact_art_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_art_readability_layer"
+  and .first_contact_art_readability_guard.terrain_material_roles == ["base_concrete","base_concrete","base_concrete","base_concrete","resource_crystal","resource_crystal","beacon_lane","beacon_lane","basin_floor"]
+  and .first_contact_art_readability_guard.building_roles == ["command_core","command_core","command_core","command_core","relay","relay","beacon","beacon","beacon","beacon"]
+  and (.first_contact_art_readability_guard.terrain_material_signatures | index("foundation_panel_seams") != null)
+  and (.first_contact_art_readability_guard.terrain_material_signatures | index("flux_crystal_shards") != null)
+  and (.first_contact_art_readability_guard.terrain_material_signatures | index("painted_lane_chevrons") != null)
+  and (.first_contact_art_readability_guard.terrain_material_signatures | index("cracked_plaza_cross") != null)
+  and (.first_contact_art_readability_guard.building_facade_signatures | index("lit_window_rows") != null)
+  and (.first_contact_art_readability_guard.building_facade_signatures | index("antenna_band_panels") != null)
+  and (.first_contact_art_readability_guard.building_facade_signatures | index("glowing_spire_panels") != null)
+  and .first_contact_art_readability_guard.command_core_facade_count == 4
+  and .first_contact_art_readability_guard.relay_facade_count == 2
+  and .first_contact_art_readability_guard.beacon_facade_count == 4
+  and .first_contact_art_readability_guard.terrain_material_pixel_budget >= 432
+  and .first_contact_art_readability_guard.building_facade_pixel_budget >= 860
+  and .first_contact_art_readability_guard.terrain_material_gate == true
+  and .first_contact_art_readability_guard.building_facade_gate == true
+  and .first_contact_art_readability_guard.authored_map_art_gate == true
+  and .first_contact_art_readability_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
   and .rts_data_player_screen_chrome_profile.production_slot_visible_count == 4

@@ -271,6 +271,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABI
     &str = "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29790,6 +29792,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_art_readability_guard = classic_first_contact_art_readability_guard();
+    let first_contact_art_readability_guard_gate = first_contact_art_readability_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29820,6 +29827,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_command_grid_readability_guard_gate
         && first_contact_bottom_panel_readability_guard_gate
         && first_contact_silhouette_readability_guard_gate
+        && first_contact_art_readability_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29933,13 +29941,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_silhouette_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT,
         "first_contact_silhouette_readability_guard": first_contact_silhouette_readability_guard,
         "first_contact_silhouette_readability_guard_gate": first_contact_silhouette_readability_guard_gate,
+        "first_contact_art_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT,
+        "first_contact_art_readability_guard": first_contact_art_readability_guard,
+        "first_contact_art_readability_guard_gate": first_contact_art_readability_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -97336,6 +97347,298 @@ fn classic_draw_first_contact_silhouette_readability_layer(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_art_terrain_samples() -> Vec<((i32, i32), &'static str, &'static str)> {
+    vec![
+        ((8, 8), "base_concrete", "foundation_panel_seams"),
+        ((25, 8), "base_concrete", "foundation_panel_seams"),
+        ((25, 25), "base_concrete", "foundation_panel_seams"),
+        ((8, 25), "base_concrete", "foundation_panel_seams"),
+        ((12, 16), "resource_crystal", "flux_crystal_shards"),
+        ((21, 16), "resource_crystal", "flux_crystal_shards"),
+        ((16, 9), "beacon_lane", "painted_lane_chevrons"),
+        ((16, 24), "beacon_lane", "painted_lane_chevrons"),
+        ((16, 16), "basin_floor", "cracked_plaza_cross"),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_art_building_samples() -> Vec<((i32, i32), &'static str, &'static str)> {
+    vec![
+        ((8, 8), "command_core", "lit_window_rows"),
+        ((25, 8), "command_core", "lit_window_rows"),
+        ((25, 25), "command_core", "lit_window_rows"),
+        ((8, 25), "command_core", "lit_window_rows"),
+        ((11, 8), "relay", "antenna_band_panels"),
+        ((22, 25), "relay", "antenna_band_panels"),
+        ((16, 9), "beacon", "glowing_spire_panels"),
+        ((16, 24), "beacon", "glowing_spire_panels"),
+        ((9, 16), "beacon", "glowing_spire_panels"),
+        ((24, 16), "beacon", "glowing_spire_panels"),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_art_terrain_color(role: &str) -> u32 {
+    match role {
+        "base_concrete" => CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+        "resource_crystal" => CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+        "beacon_lane" => CLASSIC_RTS_OBJECTIVE_COLOR,
+        "basin_floor" => CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        _ => CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_art_building_color(role: &str) -> u32 {
+    match role {
+        "command_core" => CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
+        "relay" => CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+        "beacon" => CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+        _ => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_art_terrain_detail(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    let color = classic_first_contact_art_terrain_color(role);
+    match signature {
+        "foundation_panel_seams" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - 1,
+                cell_w * 2,
+                2,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 1,
+                cy - cell_h,
+                2,
+                cell_h * 2,
+                color,
+            );
+            for offset in [-cell_w / 2, cell_w / 2] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + offset - 1,
+                    cy - cell_h / 2,
+                    2,
+                    cell_h,
+                    classic_darken(color, 1, 3),
+                );
+            }
+        }
+        "flux_crystal_shards" => {
+            for (dx, dy, size) in [(-9, 1, 5), (0, -6, 7), (9, 2, 4), (3, 7, 3)] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + dx - size / 2,
+                    cy + dy - size,
+                    size,
+                    size * 2,
+                    color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + dx - size,
+                    cy + dy - 1,
+                    size * 2,
+                    2,
+                    classic_darken(color, 1, 4),
+                );
+            }
+        }
+        "painted_lane_chevrons" => {
+            for offset in [-cell_w, 0, cell_w] {
+                classic_draw_rect(buffer, width, height, cx + offset - 8, cy - 2, 16, 3, color);
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + offset + 4,
+                    cy - cell_h / 2,
+                    3,
+                    cell_h,
+                    color,
+                );
+            }
+        }
+        "cracked_plaza_cross" => {
+            for step in -2..=2 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + step * 7 - 1,
+                    cy + step * 3,
+                    3,
+                    12,
+                    color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - step * 6,
+                    cy + step * 5 - 1,
+                    14,
+                    2,
+                    classic_darken(color, 1, 3),
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_art_building_detail(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    let color = classic_first_contact_art_building_color(role);
+    match signature {
+        "lit_window_rows" => {
+            for row in 0..3 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + 7,
+                    cy - cell_h * 2 + 8 + row * 8,
+                    cell_w * 2 - 14,
+                    2,
+                    color,
+                );
+                for col in 0..4 {
+                    classic_draw_rect(
+                        buffer,
+                        width,
+                        height,
+                        cx - cell_w + 10 + col * 9,
+                        cy - cell_h * 2 + 5 + row * 8,
+                        4,
+                        5,
+                        classic_darken(color, 1, 4),
+                    );
+                }
+            }
+        }
+        "antenna_band_panels" => {
+            for row in 0..4 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w / 2 + 4,
+                    cy - cell_h * 2 + row * 9,
+                    cell_w - 8,
+                    3,
+                    color,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy - cell_h * 3 - 4,
+                4,
+                12,
+                color,
+            );
+        }
+        "glowing_spire_panels" => {
+            for row in 0..5 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - 5,
+                    cy - cell_h * 3 + row * 8,
+                    10,
+                    3,
+                    color,
+                );
+            }
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy - cell_h * 2,
+                (cell_w / 2).max(6),
+                3,
+                color,
+            );
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_art_readability_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    for (tile, role, signature) in classic_first_contact_art_terrain_samples() {
+        classic_draw_first_contact_art_terrain_detail(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+        );
+    }
+    for (tile, role, signature) in classic_first_contact_art_building_samples() {
+        classic_draw_first_contact_art_building_detail(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_tactical_viewport(
     buffer: &mut [u32],
@@ -98168,6 +98471,9 @@ fn classic_draw_first_contact_basin_scene(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_silhouette_readability_layer(
+        buffer, width, height, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_art_readability_layer(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_unit_state_layers(
@@ -110486,6 +110792,121 @@ fn classic_first_contact_silhouette_readability_guard() -> Value {
         "structure_roofline_gate": structure_roofline_gate,
         "beacon_spire_gate": beacon_spire_gate,
         "map_object_silhouette_gate": map_object_silhouette_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_art_readability_guard() -> Value {
+    let terrain_samples = classic_first_contact_art_terrain_samples();
+    let building_samples = classic_first_contact_art_building_samples();
+    let terrain_sample_tiles = terrain_samples
+        .iter()
+        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let terrain_material_roles = terrain_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let terrain_material_signatures = terrain_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let building_sample_tiles = building_samples
+        .iter()
+        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let building_roles = building_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let building_facade_signatures = building_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let terrain_sample_objects = terrain_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let building_sample_objects = building_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let unique_terrain_signature_count = terrain_material_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let unique_building_signature_count = building_facade_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let command_core_count = building_roles
+        .iter()
+        .filter(|role| role.as_str() == "command_core")
+        .count();
+    let relay_count = building_roles
+        .iter()
+        .filter(|role| role.as_str() == "relay")
+        .count();
+    let beacon_count = building_roles
+        .iter()
+        .filter(|role| role.as_str() == "beacon")
+        .count();
+    let terrain_material_pixel_budget = terrain_samples.len() * 48;
+    let building_facade_pixel_budget = building_samples.len() * 86;
+    let terrain_material_gate = terrain_material_roles
+        == string_vec([
+            "base_concrete",
+            "base_concrete",
+            "base_concrete",
+            "base_concrete",
+            "resource_crystal",
+            "resource_crystal",
+            "beacon_lane",
+            "beacon_lane",
+            "basin_floor",
+        ])
+        && unique_terrain_signature_count >= 4
+        && terrain_material_pixel_budget >= 432;
+    let building_facade_gate = command_core_count == 4
+        && relay_count == 2
+        && beacon_count == 4
+        && unique_building_signature_count >= 3
+        && building_facade_pixel_budget >= 860;
+    let authored_map_art_gate = terrain_material_gate && building_facade_gate;
+    let green = authored_map_art_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_art_readability_layer",
+        "terrain_sample_tiles": terrain_sample_tiles,
+        "terrain_material_roles": terrain_material_roles,
+        "terrain_material_signatures": terrain_material_signatures,
+        "terrain_material_samples": terrain_sample_objects,
+        "terrain_material_pixel_budget": terrain_material_pixel_budget,
+        "terrain_material_gate": terrain_material_gate,
+        "building_sample_tiles": building_sample_tiles,
+        "building_roles": building_roles,
+        "building_facade_signatures": building_facade_signatures,
+        "building_facade_samples": building_sample_objects,
+        "command_core_facade_count": command_core_count,
+        "relay_facade_count": relay_count,
+        "beacon_facade_count": beacon_count,
+        "building_facade_pixel_budget": building_facade_pixel_budget,
+        "building_facade_gate": building_facade_gate,
+        "authored_map_art_gate": authored_map_art_gate,
     })
 }
 
@@ -157583,6 +158004,94 @@ mod tests {
             "structure_roofline_gate",
             "beacon_spire_gate",
             "map_object_silhouette_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_art_readability_guard_tracks_authored_map_details() {
+        let guard = classic_first_contact_art_readability_guard();
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("terrain_material_roles").cloned(),
+            Some(json!([
+                "base_concrete",
+                "base_concrete",
+                "base_concrete",
+                "base_concrete",
+                "resource_crystal",
+                "resource_crystal",
+                "beacon_lane",
+                "beacon_lane",
+                "basin_floor"
+            ]))
+        );
+        assert_eq!(
+            guard.get("building_roles").cloned(),
+            Some(json!([
+                "command_core",
+                "command_core",
+                "command_core",
+                "command_core",
+                "relay",
+                "relay",
+                "beacon",
+                "beacon",
+                "beacon",
+                "beacon"
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("terrain_material_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("flux_crystal_shards"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("building_facade_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| {
+                    signatures
+                        .iter()
+                        .any(|value| value.as_str() == Some("lit_window_rows"))
+                }),
+            Some(true)
+        );
+        assert_eq!(
+            guard
+                .get("command_core_facade_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard.get("relay_facade_count").and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard.get("beacon_facade_count").and_then(Value::as_u64),
+            Some(4)
+        );
+        for gate in [
+            "terrain_material_gate",
+            "building_facade_gate",
+            "authored_map_art_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
