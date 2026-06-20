@@ -269,6 +269,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABI
     &str = "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29782,6 +29784,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .get("green")
             .and_then(Value::as_bool)
             == Some(true);
+    let first_contact_silhouette_readability_guard =
+        classic_first_contact_silhouette_readability_guard();
+    let first_contact_silhouette_readability_guard_gate = first_contact_silhouette_readability_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29811,6 +29819,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_radar_readability_guard_gate
         && first_contact_command_grid_readability_guard_gate
         && first_contact_bottom_panel_readability_guard_gate
+        && first_contact_silhouette_readability_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29921,6 +29930,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_bottom_panel_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT,
         "first_contact_bottom_panel_readability_guard": first_contact_bottom_panel_readability_guard,
         "first_contact_bottom_panel_readability_guard_gate": first_contact_bottom_panel_readability_guard_gate,
+        "first_contact_silhouette_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT,
+        "first_contact_silhouette_readability_guard": first_contact_silhouette_readability_guard,
+        "first_contact_silhouette_readability_guard_gate": first_contact_silhouette_readability_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -96870,6 +96882,460 @@ fn classic_draw_first_contact_model_identity_layers(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_silhouette_unit_samples() -> Vec<((i32, i32), &'static str, &'static str)>
+{
+    vec![
+        ((14, 11), "worker", "cargo_pack"),
+        ((15, 11), "scout", "sensor_mast"),
+        ((15, 12), "warden", "shield_plate"),
+        ((17, 12), "relay", "relay_courier"),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_silhouette_structure_samples(
+) -> Vec<((i32, i32), &'static str, &'static str)> {
+    vec![
+        ((8, 8), "command_core", "stepped_roof_core"),
+        ((25, 8), "command_core", "stepped_roof_core"),
+        ((25, 25), "command_core", "stepped_roof_core"),
+        ((8, 25), "command_core", "stepped_roof_core"),
+        ((11, 8), "relay", "tall_signal_mast"),
+        ((22, 25), "relay", "tall_signal_mast"),
+        ((16, 9), "beacon", "vertical_beacon_spire"),
+        ((16, 24), "beacon", "vertical_beacon_spire"),
+        ((9, 16), "beacon", "vertical_beacon_spire"),
+        ((24, 16), "beacon", "vertical_beacon_spire"),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_silhouette_terrain_samples(
+) -> Vec<((i32, i32), &'static str, &'static str)> {
+    vec![
+        ((8, 8), "base_pad", "base_corner_frame"),
+        ((25, 8), "base_pad", "base_corner_frame"),
+        ((25, 25), "base_pad", "base_corner_frame"),
+        ((8, 25), "base_pad", "base_corner_frame"),
+        ((12, 16), "resource_zone", "flux_glint_cluster"),
+        ((21, 16), "resource_zone", "flux_glint_cluster"),
+        ((16, 9), "objective_lane", "beacon_lane_rim"),
+        ((16, 24), "objective_lane", "beacon_lane_rim"),
+        ((16, 16), "central_basin", "basin_cross_rim"),
+    ]
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_silhouette_unit_color(role: &str) -> u32 {
+    match role {
+        "worker" => CLASSIC_RTS_HARVEST_ANIMATION_CARRY_LOAD_COLOR,
+        "scout" => CLASSIC_RTS_SCOUT_REVEAL_COLOR,
+        "warden" => CLASSIC_RTS_DEFENSE_READY_COLOR,
+        "relay" => CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+        _ => CLASSIC_RTS_MODEL_IDENTITY_UNIT_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_silhouette_structure_color(kind: &str) -> u32 {
+    match kind {
+        "command_core" => CLASSIC_RTS_MODEL_IDENTITY_CORE_COLOR,
+        "relay" => CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR,
+        "beacon" => CLASSIC_RTS_MODEL_IDENTITY_BEACON_COLOR,
+        _ => CLASSIC_RTS_PRODUCT_MODEL_VOLUME_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_silhouette_terrain_color(kind: &str) -> u32 {
+    match kind {
+        "base_pad" => CLASSIC_RTS_STRUCTURE_FOUNDATION_SHADOW_COLOR,
+        "resource_zone" => CLASSIC_RTS_ENVIRONMENT_RESOURCE_GLINT_COLOR,
+        "objective_lane" => CLASSIC_RTS_OBJECTIVE_COLOR,
+        "central_basin" => CLASSIC_RTS_PRODUCT_LANE_COLOR,
+        _ => CLASSIC_RTS_PRODUCT_MAP_DENSITY_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_silhouette_unit(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    role: &str,
+    signature: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    let color = classic_first_contact_silhouette_unit_color(role);
+    classic_draw_iso_ellipse(
+        buffer,
+        width,
+        height,
+        cx,
+        cy + cell_h / 2 + 2,
+        (cell_w / 2 + 4).max(8),
+        (cell_h / 4 + 2).max(4),
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 5,
+        cy - cell_h / 2 - 2,
+        10,
+        cell_h + 7,
+        CLASSIC_ISO_OUTLINE_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 3,
+        cy - cell_h / 2,
+        6,
+        cell_h + 3,
+        color,
+    );
+    match signature {
+        "cargo_pack" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx + 5,
+                cy - 2,
+                8,
+                7,
+                CLASSIC_RTS_HARVEST_NODE_COLOR,
+            );
+            classic_draw_rect(buffer, width, height, cx - 12, cy + 4, 24, 3, color);
+        }
+        "sensor_mast" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx,
+                cy - cell_h - 6,
+                2,
+                cell_h + 8,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 10,
+                cy - cell_h - 3,
+                20,
+                3,
+                color,
+            );
+        }
+        "shield_plate" => {
+            classic_draw_rect(buffer, width, height, cx - 12, cy - 2, 24, 5, color);
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 8,
+                cy + 3,
+                16,
+                4,
+                CLASSIC_RTS_STRUCTURE_HEALTH_COLOR,
+            );
+        }
+        "relay_courier" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 9,
+                cy - cell_h / 2 - 5,
+                18,
+                4,
+                CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+            );
+            classic_draw_rect(buffer, width, height, cx + 7, cy - 6, 4, cell_h + 9, color);
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_silhouette_structure(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    kind: &str,
+    signature: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    let color = classic_first_contact_silhouette_structure_color(kind);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - cell_w - 5,
+        cy + cell_h + 6,
+        cell_w * 2 + 10,
+        5,
+        CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+    );
+    match signature {
+        "stepped_roof_core" => {
+            for step in 0..3 {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx - cell_w + step * 6,
+                    cy - cell_h * 2 - 10 + step * 7,
+                    cell_w * 2 - step * 12,
+                    5,
+                    color,
+                );
+            }
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 4,
+                cy - cell_h * 2 - 16,
+                8,
+                14,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - cell_h + 2,
+                cell_w * 2,
+                3,
+                CLASSIC_RTS_MODEL_IDENTITY_FACTION_COLOR,
+            );
+        }
+        "tall_signal_mast" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 4,
+                cy - cell_h * 3,
+                8,
+                cell_h * 3,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - cell_h * 2,
+                cell_w * 2,
+                4,
+                CLASSIC_RTS_STRUCTURE_REPAIR_BEAM_COLOR,
+            );
+            classic_draw_iso_ellipse(
+                buffer,
+                width,
+                height,
+                cx,
+                cy - cell_h * 2 - 2,
+                (cell_w / 2 + 2).max(7),
+                (cell_h / 4 + 1).max(3),
+                CLASSIC_RTS_COMMANDER_AURA_COLOR,
+            );
+        }
+        "vertical_beacon_spire" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w / 2,
+                cy - cell_h * 2 - 8,
+                cell_w,
+                cell_h * 3,
+                classic_darken(color, 1, 5),
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 3,
+                cy - cell_h * 3,
+                6,
+                cell_h * 4,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - cell_h - 5,
+                cell_w * 2,
+                4,
+                CLASSIC_RTS_CAPTURE_BAR_COLOR,
+            );
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_silhouette_terrain_marker(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+    tile: (i32, i32),
+    kind: &str,
+    signature: &str,
+) {
+    let (tile_x, tile_y) = classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    let color = classic_first_contact_silhouette_terrain_color(kind);
+    match signature {
+        "base_corner_frame" => {
+            for (dx, dy) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + dx * cell_w - 5,
+                    cy + dy * cell_h - 2,
+                    10,
+                    4,
+                    color,
+                );
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + dx * cell_w - 2,
+                    cy + dy * cell_h - 5,
+                    4,
+                    10,
+                    color,
+                );
+            }
+        }
+        "flux_glint_cluster" => {
+            for offset in [(-8, 0), (0, -4), (8, 2)] {
+                classic_draw_rect(
+                    buffer,
+                    width,
+                    height,
+                    cx + offset.0 - 2,
+                    cy + offset.1 - 2,
+                    4,
+                    4,
+                    color,
+                );
+            }
+        }
+        "beacon_lane_rim" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w,
+                cy - 2,
+                cell_w * 2,
+                4,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 2,
+                cy - cell_h,
+                4,
+                cell_h * 2,
+                color,
+            );
+        }
+        "basin_cross_rim" => {
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - cell_w * 2,
+                cy - 1,
+                cell_w * 4,
+                2,
+                color,
+            );
+            classic_draw_rect(
+                buffer,
+                width,
+                height,
+                cx - 1,
+                cy - cell_h * 2,
+                2,
+                cell_h * 4,
+                color,
+            );
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_silhouette_readability_layer(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    for (tile, kind, signature) in classic_first_contact_silhouette_terrain_samples() {
+        classic_draw_first_contact_silhouette_terrain_marker(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, kind, signature,
+        );
+    }
+    for (tile, kind, signature) in classic_first_contact_silhouette_structure_samples() {
+        classic_draw_first_contact_silhouette_structure(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, kind, signature,
+        );
+    }
+    for (tile, role, signature) in classic_first_contact_silhouette_unit_samples() {
+        classic_draw_first_contact_silhouette_unit(
+            buffer, width, height, map_x, map_y, cell_w, cell_h, tile, role, signature,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 #[allow(clippy::too_many_arguments)]
 fn classic_draw_first_contact_tactical_viewport(
     buffer: &mut [u32],
@@ -97699,6 +98165,9 @@ fn classic_draw_first_contact_basin_scene(
     }
     classic_draw_first_contact_starting_army(buffer, width, height, map_x, map_y, cell_w, cell_h);
     classic_draw_first_contact_model_identity_layers(
+        buffer, width, height, map_x, map_y, cell_w, cell_h,
+    );
+    classic_draw_first_contact_silhouette_readability_layer(
         buffer, width, height, map_x, map_y, cell_w, cell_h,
     );
     classic_draw_first_contact_unit_state_layers(
@@ -109858,6 +110327,165 @@ fn classic_first_contact_visual_readability_guard(runtime: &NativeFirstPlayableR
         "lane_edge_sample_tiles": lane_edge_sample_tiles,
         "lane_edge_pixel_budget": lane_edge_pixel_budget,
         "terrain_lane_edge_gate": terrain_lane_edge_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_silhouette_readability_guard() -> Value {
+    let terrain_samples = classic_first_contact_silhouette_terrain_samples();
+    let unit_samples = classic_first_contact_silhouette_unit_samples();
+    let structure_samples = classic_first_contact_silhouette_structure_samples();
+    let terrain_sample_tiles = terrain_samples
+        .iter()
+        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let terrain_sample_roles = terrain_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let terrain_signatures = terrain_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let unit_sample_tiles = unit_samples
+        .iter()
+        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let unit_roles = unit_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let unit_signatures = unit_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let structure_sample_tiles = structure_samples
+        .iter()
+        .map(|(tile, _, _)| classic_rts_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let structure_roles = structure_samples
+        .iter()
+        .map(|(_, role, _)| (*role).to_string())
+        .collect::<Vec<_>>();
+    let structure_signatures = structure_samples
+        .iter()
+        .map(|(_, _, signature)| (*signature).to_string())
+        .collect::<Vec<_>>();
+    let terrain_sample_objects = terrain_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let unit_sample_objects = unit_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let structure_sample_objects = structure_samples
+        .iter()
+        .map(|(tile, role, signature)| {
+            json!({
+                "tile": classic_rts_tile_id(*tile),
+                "role": role,
+                "signature": signature,
+            })
+        })
+        .collect::<Vec<_>>();
+    let unique_terrain_signature_count = terrain_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let unique_unit_signature_count = unit_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let unique_structure_signature_count = structure_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let command_core_count = structure_roles
+        .iter()
+        .filter(|role| role.as_str() == "command_core")
+        .count();
+    let relay_count = structure_roles
+        .iter()
+        .filter(|role| role.as_str() == "relay")
+        .count();
+    let beacon_count = structure_roles
+        .iter()
+        .filter(|role| role.as_str() == "beacon")
+        .count();
+    let terrain_zone_pixel_budget = terrain_samples.len() * 32;
+    let unit_silhouette_pixel_budget = unit_samples.len() * 86;
+    let structure_roofline_pixel_budget = structure_samples.len() * 96;
+    let beacon_spire_pixel_budget = beacon_count * 72;
+    let terrain_zone_gate = terrain_sample_roles
+        == string_vec([
+            "base_pad",
+            "base_pad",
+            "base_pad",
+            "base_pad",
+            "resource_zone",
+            "resource_zone",
+            "objective_lane",
+            "objective_lane",
+            "central_basin",
+        ])
+        && unique_terrain_signature_count >= 4
+        && terrain_zone_pixel_budget >= 288;
+    let unit_role_silhouette_gate = unit_roles
+        == string_vec(["worker", "scout", "warden", "relay"])
+        && unique_unit_signature_count == 4
+        && unit_silhouette_pixel_budget >= 344;
+    let structure_roofline_gate = command_core_count >= 4
+        && relay_count >= 2
+        && unique_structure_signature_count >= 3
+        && structure_roofline_pixel_budget >= 960;
+    let beacon_spire_gate = beacon_count == 4 && beacon_spire_pixel_budget >= 288;
+    let map_object_silhouette_gate = terrain_zone_gate
+        && unit_role_silhouette_gate
+        && structure_roofline_gate
+        && beacon_spire_gate;
+    let green = map_object_silhouette_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_silhouette_readability_layer",
+        "terrain_sample_tiles": terrain_sample_tiles,
+        "terrain_sample_roles": terrain_sample_roles,
+        "terrain_signatures": terrain_signatures,
+        "terrain_samples": terrain_sample_objects,
+        "terrain_zone_pixel_budget": terrain_zone_pixel_budget,
+        "terrain_zone_gate": terrain_zone_gate,
+        "unit_sample_tiles": unit_sample_tiles,
+        "unit_roles": unit_roles,
+        "unit_signatures": unit_signatures,
+        "unit_samples": unit_sample_objects,
+        "unit_silhouette_pixel_budget": unit_silhouette_pixel_budget,
+        "unit_role_silhouette_gate": unit_role_silhouette_gate,
+        "structure_sample_tiles": structure_sample_tiles,
+        "structure_roles": structure_roles,
+        "structure_signatures": structure_signatures,
+        "structure_samples": structure_sample_objects,
+        "command_core_silhouette_count": command_core_count,
+        "relay_silhouette_count": relay_count,
+        "beacon_silhouette_count": beacon_count,
+        "structure_roofline_pixel_budget": structure_roofline_pixel_budget,
+        "beacon_spire_pixel_budget": beacon_spire_pixel_budget,
+        "structure_roofline_gate": structure_roofline_gate,
+        "beacon_spire_gate": beacon_spire_gate,
+        "map_object_silhouette_gate": map_object_silhouette_gate,
     })
 }
 
@@ -156896,6 +157524,65 @@ mod tests {
             "structure_outline_gate",
             "objective_focus_gate",
             "terrain_lane_edge_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_silhouette_readability_guard_tracks_map_object_shapes() {
+        let guard = classic_first_contact_silhouette_readability_guard();
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("unit_roles").cloned(),
+            Some(json!(["worker", "scout", "warden", "relay"]))
+        );
+        assert_eq!(
+            guard.get("unit_signatures").cloned(),
+            Some(json!([
+                "cargo_pack",
+                "sensor_mast",
+                "shield_plate",
+                "relay_courier"
+            ]))
+        );
+        assert_eq!(
+            guard
+                .get("command_core_silhouette_count")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard.get("relay_silhouette_count").and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            guard.get("beacon_silhouette_count").and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("terrain_signatures")
+                .and_then(Value::as_array)
+                .map(|signatures| signatures.len() >= 9),
+            Some(true)
+        );
+        for gate in [
+            "terrain_zone_gate",
+            "unit_role_silhouette_gate",
+            "structure_roofline_gate",
+            "beacon_spire_gate",
+            "map_object_silhouette_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }

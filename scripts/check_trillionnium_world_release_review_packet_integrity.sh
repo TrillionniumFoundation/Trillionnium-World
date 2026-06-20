@@ -663,6 +663,31 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_bottom_panel_readability_guard.squad_chip_width_gate == true
   and .first_contact_bottom_panel_readability_guard.selection_density_gate == true
   and .first_contact_bottom_panel_readability_guard_gate == true
+  and .first_contact_silhouette_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1"
+  and .first_contact_silhouette_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1"
+  and .first_contact_silhouette_readability_guard.green == true
+  and .first_contact_silhouette_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_silhouette_readability_layer"
+  and .first_contact_silhouette_readability_guard.unit_roles == ["worker","scout","warden","relay"]
+  and .first_contact_silhouette_readability_guard.unit_signatures == ["cargo_pack","sensor_mast","shield_plate","relay_courier"]
+  and .first_contact_silhouette_readability_guard.command_core_silhouette_count == 4
+  and .first_contact_silhouette_readability_guard.relay_silhouette_count == 2
+  and .first_contact_silhouette_readability_guard.beacon_silhouette_count == 4
+  and (.first_contact_silhouette_readability_guard.terrain_signatures | index("base_corner_frame") != null)
+  and (.first_contact_silhouette_readability_guard.terrain_signatures | index("flux_glint_cluster") != null)
+  and (.first_contact_silhouette_readability_guard.terrain_signatures | index("basin_cross_rim") != null)
+  and (.first_contact_silhouette_readability_guard.structure_signatures | index("stepped_roof_core") != null)
+  and (.first_contact_silhouette_readability_guard.structure_signatures | index("tall_signal_mast") != null)
+  and (.first_contact_silhouette_readability_guard.structure_signatures | index("vertical_beacon_spire") != null)
+  and .first_contact_silhouette_readability_guard.terrain_zone_pixel_budget >= 288
+  and .first_contact_silhouette_readability_guard.unit_silhouette_pixel_budget >= 344
+  and .first_contact_silhouette_readability_guard.structure_roofline_pixel_budget >= 960
+  and .first_contact_silhouette_readability_guard.beacon_spire_pixel_budget >= 288
+  and .first_contact_silhouette_readability_guard.terrain_zone_gate == true
+  and .first_contact_silhouette_readability_guard.unit_role_silhouette_gate == true
+  and .first_contact_silhouette_readability_guard.structure_roofline_gate == true
+  and .first_contact_silhouette_readability_guard.beacon_spire_gate == true
+  and .first_contact_silhouette_readability_guard.map_object_silhouette_gate == true
+  and .first_contact_silhouette_readability_guard_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.socket_opened == false
