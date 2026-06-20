@@ -16,6 +16,10 @@ required_lines=(
   'check_count'
   'failed_check_count'
   '--slurpfile checks "$CHECKS_FILE"'
+  'release-review-ci-gate-world-bevy-release-build.log'
+  'if [[ -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" ]]'
+  'cargo build --release -p trnm-world-bevy --bin trnm-world-bevy'
+  ') >"$WORLD_BEVY_RELEASE_BUILD_LOG" 2>&1'
   'export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"'
   'slow_check_threshold_millis'
   'slow_checks'
@@ -721,6 +725,11 @@ for line in "${required_lines[@]}"; do
     exit 1
   fi
 done
+
+if grep -Fq '&& -x "$ROOT/target/release/trnm-world-bevy"' "$SCRIPT"; then
+  echo "[FAIL] release review CI gate must refresh the release Bevy binary before exporting it, not trust a stale executable" >&2
+  exit 1
+fi
 
 duplicate_packet_integrity_guard_runs=(
   'run_check packet_integrity_semantic_guard '

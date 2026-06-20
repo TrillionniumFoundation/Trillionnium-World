@@ -4,9 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCEPTANCE_DIR="$ROOT/acceptance/S6_public_launch/latest"
 SUMMARY_FILE="$ACCEPTANCE_DIR/release-review-ci-gate.json"
+WORLD_BEVY_RELEASE_BUILD_LOG="$ACCEPTANCE_DIR/release-review-ci-gate-world-bevy-release-build.log"
 if [[ -v TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY && -n "$TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY" ]]; then
   SUMMARY_FILE="$TRILLIONNIUM_WORLD_RELEASE_REVIEW_CI_GATE_SUMMARY"
 fi
+
+mkdir -p "$ACCEPTANCE_DIR"
 
 # shellcheck source=scripts/release_review_acceptance_lock.sh
 source "$ROOT/scripts/release_review_acceptance_lock.sh"
@@ -18,7 +21,11 @@ FAILURES_FILE="$(mktemp)"
 SLOW_CHECKS_FILE="$(mktemp)"
 trap 'rm -f "$CHECK_RESULTS" "$CHECKS_FILE" "$FAILURES_FILE" "$SLOW_CHECKS_FILE"' EXIT
 
-if [[ -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" && -x "$ROOT/target/release/trnm-world-bevy" ]]; then
+if [[ -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" ]]; then
+  (
+    cd "$ROOT/trillionnium"
+    CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build --release -p trnm-world-bevy --bin trnm-world-bevy
+  ) >"$WORLD_BEVY_RELEASE_BUILD_LOG" 2>&1
   export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"
 fi
 
