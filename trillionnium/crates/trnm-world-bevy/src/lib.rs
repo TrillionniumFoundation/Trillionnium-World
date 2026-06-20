@@ -108580,6 +108580,23 @@ fn classic_first_contact_rendered_build_palette_labels(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_rendered_build_palette_state_labels(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let build_palette_visible_count = chrome.build_palette_visible_count.max(1) as usize;
+    (0..build_palette_visible_count)
+        .map(|index| {
+            let queue_id =
+                classic_first_contact_build_palette_slot(&chrome.build_palette_slots, index)
+                    .map(|slot| slot.queue_id.clone())
+                    .unwrap_or_else(|| classic_rts_build_palette_queue_id(index));
+            classic_rts_palette_state_label(runtime, &queue_id)
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_rendered_order_queue_labels(
     runtime: &NativeFirstPlayableRuntime,
     chrome: &RtsFirstContactPlayerScreenChromeProfile,
@@ -108630,6 +108647,8 @@ fn classic_first_contact_player_screen_label_guard(
     let production_empty_slot_status_labels =
         classic_first_contact_empty_production_slot_status_labels(chrome);
     let build_palette_labels = classic_first_contact_rendered_build_palette_labels(chrome);
+    let build_palette_state_labels =
+        classic_first_contact_rendered_build_palette_state_labels(runtime, chrome);
     let build_palette_fit_samples = build_palette_labels
         .iter()
         .map(|label| {
@@ -108682,6 +108701,7 @@ fn classic_first_contact_player_screen_label_guard(
     all_display_labels.extend(production_slot_status_labels.iter().cloned());
     all_display_labels.extend(production_empty_slot_status_labels.iter().cloned());
     all_display_labels.extend(build_palette_labels.iter().cloned());
+    all_display_labels.extend(build_palette_state_labels.iter().cloned());
     all_display_labels.extend(order_queue_labels.iter().cloned());
     all_display_labels.extend(completion_event_labels.iter().cloned());
     all_display_labels.extend(tactics_detail_labels.iter().cloned());
@@ -108699,6 +108719,10 @@ fn classic_first_contact_player_screen_label_guard(
         && build_palette_labels
             == string_vec([
                 "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL",
+            ])
+        && build_palette_state_labels
+            == string_vec([
+                "READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE",
             ])
         && order_queue_labels
             == string_vec(["ATTACK BEACON", "TRAIN WORKER", "BUILD RELAY", "MOVE 16/9"])
@@ -108747,6 +108771,9 @@ fn classic_first_contact_player_screen_label_guard(
     let build_palette_width_gate = build_palette_fit_samples
         .iter()
         .all(|sample| sample.get("fits_tile_gate").and_then(Value::as_bool) == Some(true));
+    let build_palette_state_width_gate = build_palette_state_labels
+        .iter()
+        .all(|label| classic_text_advance_px(label, 1) <= 42);
     let order_queue_width_gate = order_queue_labels
         .iter()
         .chain(completion_event_labels.iter())
@@ -108770,6 +108797,7 @@ fn classic_first_contact_player_screen_label_guard(
         && production_slot_width_gate
         && production_slot_status_width_gate
         && build_palette_width_gate
+        && build_palette_state_width_gate
         && order_queue_width_gate
         && tactics_summary_width_gate
         && tactics_detail_width_gate
@@ -108787,6 +108815,7 @@ fn classic_first_contact_player_screen_label_guard(
         "production_slot_status_labels": production_slot_status_labels,
         "production_empty_slot_status_labels": production_empty_slot_status_labels,
         "build_palette_labels": build_palette_labels,
+        "build_palette_state_labels": build_palette_state_labels,
         "build_palette_fit_samples": build_palette_fit_samples,
         "order_queue_labels": order_queue_labels,
         "completion_event_labels": completion_event_labels,
@@ -108803,6 +108832,7 @@ fn classic_first_contact_player_screen_label_guard(
         "production_slot_width_gate": production_slot_width_gate,
         "production_slot_status_width_gate": production_slot_status_width_gate,
         "build_palette_width_gate": build_palette_width_gate,
+        "build_palette_state_width_gate": build_palette_state_width_gate,
         "order_queue_width_gate": order_queue_width_gate,
         "tactics_summary_width_gate": tactics_summary_width_gate,
         "tactics_detail_width_gate": tactics_detail_width_gate,
@@ -155184,6 +155214,12 @@ mod tests {
             guard.get("build_palette_labels").cloned(),
             Some(json!([
                 "POWER", "TRAIN", "REFINE", "TOWER", "COMMAND", "RADAR", "WALL", "SIGNAL"
+            ]))
+        );
+        assert_eq!(
+            guard.get("build_palette_state_labels").cloned(),
+            Some(json!([
+                "READY", "QUEUE", "READY", "QUEUE", "READY", "READY", "READY", "QUEUE"
             ]))
         );
         assert_eq!(

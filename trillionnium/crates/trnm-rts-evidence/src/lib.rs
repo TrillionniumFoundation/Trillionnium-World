@@ -4528,7 +4528,7 @@ pub fn first_contact_bevy_runtime_adapter_evidence() -> RtsBevyRuntimeAdapterEvi
         && command_panel_sidebar_cancel_queue_id.as_deref() == Some("cancel:build:0")
         && command_panel_palette_cancel_queue_id.as_deref() == Some("cancel:active_build")
         && command_panel_sidebar_slot_status_label == "B1 66 R"
-        && command_panel_palette_state_label == "ACT"
+        && command_panel_palette_state_label == "ACTIVE"
         && command_panel_sidebar_queue_summary == "WORKER 42% TOWER 66%"
         && command_panel_spawned_unit_id == "worker_3"
         && command_panel_structure_id == "watch_tower"
@@ -7081,7 +7081,7 @@ mod tests {
             evidence.command_panel_sidebar_slot_status_label_sample,
             "B1 66 R"
         );
-        assert_eq!(evidence.command_panel_palette_state_label_sample, "ACT");
+        assert_eq!(evidence.command_panel_palette_state_label_sample, "ACTIVE");
         assert_eq!(
             evidence.command_panel_sidebar_queue_summary_sample,
             "WORKER 42% TOWER 66%"

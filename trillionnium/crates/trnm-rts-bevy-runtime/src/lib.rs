@@ -3279,9 +3279,15 @@ pub fn rts_palette_cancel_queue_id(
     active_blueprint_id: Option<&str>,
     queue_id: &str,
 ) -> Option<String> {
-    if let Some(index) = build_queue.iter().position(|entry| entry == queue_id) {
+    if let Some(index) = build_queue
+        .iter()
+        .position(|entry| rts_queue_entries_match(entry, queue_id))
+    {
         Some(format!("cancel:build:{index}"))
-    } else if let Some(index) = production_queue.iter().position(|entry| entry == queue_id) {
+    } else if let Some(index) = production_queue
+        .iter()
+        .position(|entry| rts_queue_entries_match(entry, queue_id))
+    {
         Some(format!("cancel:production:{index}"))
     } else if queue_id.starts_with("build:")
         && active_blueprint_id.is_some_and(|id| queue_id.contains(id))
@@ -3341,6 +3347,24 @@ pub fn rts_queue_item_player_label(queue_id: &str) -> String {
     }
 }
 
+fn rts_queue_item_key(queue_id: &str) -> String {
+    let item = queue_id
+        .split_once('@')
+        .map(|(item, _)| item)
+        .unwrap_or(queue_id);
+    let item = item
+        .strip_prefix("train:")
+        .or_else(|| item.strip_prefix("build:"))
+        .or_else(|| item.strip_prefix("upgrade:"))
+        .or_else(|| item.strip_prefix("research:"))
+        .unwrap_or(item);
+    item.strip_prefix("trnm.").unwrap_or(item).to_string()
+}
+
+fn rts_queue_entries_match(queue_entry: &str, queue_id: &str) -> bool {
+    queue_entry == queue_id || rts_queue_item_key(queue_entry) == rts_queue_item_key(queue_id)
+}
+
 pub fn rts_palette_state_label(
     active_blueprint_id: Option<&str>,
     build_queue: &[String],
@@ -3349,13 +3373,17 @@ pub fn rts_palette_state_label(
     queue_id: &str,
 ) -> String {
     if active_blueprint_id.is_some_and(|id| queue_id.contains(id)) {
-        "ACT".to_string()
-    } else if let Some(index) = build_queue.iter().position(|entry| entry == queue_id) {
-        format!("B Q{}", index + 1)
-    } else if let Some(index) = production_queue.iter().position(|entry| entry == queue_id) {
-        format!("P Q{}", index + 1)
+        "ACTIVE".to_string()
+    } else if build_queue
+        .iter()
+        .any(|entry| rts_queue_entries_match(entry, queue_id))
+        || production_queue
+            .iter()
+            .any(|entry| rts_queue_entries_match(entry, queue_id))
+    {
+        "QUEUE".to_string()
     } else if queue_affordable {
-        "RDY".to_string()
+        "READY".to_string()
     } else {
         "LOCK".to_string()
     }
@@ -7370,6 +7398,16 @@ mod tests {
             Some("cancel:active_build")
         );
         assert_eq!(
+            rts_palette_cancel_queue_id(
+                &build_queue,
+                &production_queue,
+                None,
+                "build:watch_tower@7,4",
+            )
+            .as_deref(),
+            Some("cancel:build:0")
+        );
+        assert_eq!(
             rts_sidebar_slot_status_label(&production_queue, &build_queue, true, 2, 66),
             "B1 66 R"
         );
@@ -7384,7 +7422,25 @@ mod tests {
         assert_eq!(rts_sidebar_slot_status_label(&[], &[], false, 2, 0), "LOCK");
         assert_eq!(
             rts_palette_state_label(Some("refinery"), &[], &[], true, "build:refinery@6,4"),
-            "ACT"
+            "ACTIVE"
+        );
+        assert_eq!(
+            rts_palette_state_label(None, &build_queue, &production_queue, true, "train:worker"),
+            "QUEUE"
+        );
+        assert_eq!(
+            rts_palette_state_label(
+                None,
+                &build_queue,
+                &production_queue,
+                true,
+                "build:watch_tower@7,4",
+            ),
+            "QUEUE"
+        );
+        assert_eq!(
+            rts_palette_state_label(None, &[], &[], true, "build:refinery@6,4"),
+            "READY"
         );
         assert_eq!(rts_queue_item_player_label("train:worker"), "WORKER");
         assert_eq!(
