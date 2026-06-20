@@ -117,10 +117,14 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT'
   'fn classic_first_contact_visual_readability_guard'
   'fn classic_draw_first_contact_readability_overlays'
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT'
+  'fn classic_first_contact_radar_readability_guard'
+  'fn classic_draw_first_contact_radar_context'
   'fn classic_first_contact_rendered_production_slot_labels'
   'fn classic_first_contact_rendered_order_queue_labels'
   'let first_contact_player_screen_label_guard_gate'
   'let first_contact_visual_readability_guard_gate'
+  'let first_contact_radar_readability_guard_gate'
   'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff'
@@ -655,6 +659,29 @@ jq -e '
   and .first_contact_visual_readability_guard.lane_edge_pixel_budget >= 192
   and .first_contact_visual_readability_guard.terrain_lane_edge_gate == true
   and .first_contact_visual_readability_guard_gate == true
+  and .first_contact_radar_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1"
+  and .first_contact_radar_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1"
+  and .first_contact_radar_readability_guard.green == true
+  and .first_contact_radar_readability_guard.source_path == "trnm-world-bevy classic_draw_first_contact_radar_context"
+  and .first_contact_radar_readability_guard.known_terrain_cell_count == 1024
+  and .first_contact_radar_readability_guard.fog_context_cell_count >= 900
+  and .first_contact_radar_readability_guard.visible_tile_gate == true
+  and .first_contact_radar_readability_guard.selected_tile_ids == ["14,11","15,11","15,12","17,12"]
+  and .first_contact_radar_readability_guard.selected_blip_gate == true
+  and .first_contact_radar_readability_guard.route_tile_ids == ["14,11","15,11","16,10","16,9"]
+  and .first_contact_radar_readability_guard.route_trace_gate == true
+  and .first_contact_radar_readability_guard.command_destination_tile == "16,9"
+  and .first_contact_radar_readability_guard.objective_tiles == ["16,9","16,24","9,16","24,16"]
+  and .first_contact_radar_readability_guard.objective_blip_gate == true
+  and (.first_contact_radar_readability_guard.structure_tiles | index("8,8") != null)
+  and (.first_contact_radar_readability_guard.structure_tiles | index("25,25") != null)
+  and .first_contact_radar_readability_guard.structure_blip_gate == true
+  and .first_contact_radar_readability_guard.pressure_tiles == ["25,25","25,8","24,16"]
+  and .first_contact_radar_readability_guard.pressure_blip_gate == true
+  and (.first_contact_radar_readability_guard.lane_sample_tiles | length) >= 24
+  and .first_contact_radar_readability_guard.lane_context_gate == true
+  and .first_contact_radar_readability_guard.viewport_frame_gate == true
+  and .first_contact_radar_readability_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
   and .rts_data_player_screen_chrome_profile.production_slot_visible_count == 4
