@@ -273,6 +273,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_SILHOUETTE_READABILI
     "trillionnium_world_bevy_classic_rts_first_contact_silhouette_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_art_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_motion_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29797,6 +29799,11 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_motion_readability_guard = classic_first_contact_motion_readability_guard();
+    let first_contact_motion_readability_guard_gate = first_contact_motion_readability_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29828,6 +29835,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_bottom_panel_readability_guard_gate
         && first_contact_silhouette_readability_guard_gate
         && first_contact_art_readability_guard_gate
+        && first_contact_motion_readability_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29944,13 +29952,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_art_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_ART_READABILITY_CONTRACT,
         "first_contact_art_readability_guard": first_contact_art_readability_guard,
         "first_contact_art_readability_guard_gate": first_contact_art_readability_guard_gate,
+        "first_contact_motion_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
+        "first_contact_motion_readability_guard": first_contact_motion_readability_guard,
+        "first_contact_motion_readability_guard_gate": first_contact_motion_readability_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, terrain/unit/structure silhouettes, authored terrain material and building facade details, unit/building motion readability cues, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -110911,6 +110922,160 @@ fn classic_first_contact_art_readability_guard() -> Value {
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_motion_readability_guard() -> Value {
+    let opening = classic_first_contact_opening_loop();
+    let feedback = classic_first_contact_command_feedback();
+    let telemetry = classic_first_contact_visual_telemetry();
+    let runtime = classic_first_contact_player_screen_runtime();
+    let active_beacon_tile_id = classic_first_contact_tile_id(opening.active_beacon_tile);
+    let active_relay_tile_id = classic_first_contact_tile_id(opening.active_relay_tile);
+    let opening_action_ids = opening.opening_actions.clone();
+    let action_verbs = opening_action_ids
+        .iter()
+        .map(|action| action.split('_').next().unwrap_or_default().to_string())
+        .collect::<Vec<_>>();
+    let unit_status_badges = telemetry
+        .unit_statuses
+        .iter()
+        .map(|status| status.role_badge.clone())
+        .collect::<Vec<_>>();
+    let unit_status_color_roles = telemetry
+        .unit_statuses
+        .iter()
+        .map(|status| status.role_color.as_str().to_string())
+        .collect::<Vec<_>>();
+    let track_roles = telemetry
+        .tactical_tracks
+        .iter()
+        .map(|track| track.color_role.as_str().to_string())
+        .collect::<Vec<_>>();
+    let track_sample_objects = telemetry
+        .tactical_tracks
+        .iter()
+        .map(|track| {
+            json!({
+                "from_tile": classic_first_contact_tile_id(track.from_tile),
+                "to_tile": classic_first_contact_tile_id(track.to_tile),
+                "role": track.color_role.as_str(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let action_trail_count = telemetry
+        .tactical_tracks
+        .iter()
+        .filter(|track| track.color_role == RtsVisualTelemetryColorRole::ActionTrail)
+        .count();
+    let npc_action_count = telemetry
+        .tactical_tracks
+        .iter()
+        .filter(|track| track.color_role == RtsVisualTelemetryColorRole::NpcAction)
+        .count();
+    let route_tile_ids = runtime.rts_group_route_tile_ids.clone();
+    let combat_event_log = runtime.rts_combat_event_log.clone();
+    let unit_status_pixel_budget = telemetry.unit_statuses.len() * 64;
+    let tactical_track_pixel_budget = telemetry.tactical_tracks.len() * 48;
+    let progress_meter_pixel_budget = usize::from(opening.worker_train_progress)
+        + usize::from(opening.scout_train_progress)
+        + usize::from(opening.relay_build_progress)
+        + usize::from(opening.beacon_capture_progress);
+    let feedback_pixel_budget = usize::from(feedback.command_ack_progress)
+        + usize::from(feedback.cooldown_progress)
+        + usize::from(feedback.queued_after) * 24;
+    let opening_action_gate = opening_action_ids
+        == string_vec([
+            "worker_harvest_flux",
+            "build_flux_relay",
+            "train_worker",
+            "train_horizon_scout",
+            "secure_flux_beacon",
+        ])
+        && action_verbs == string_vec(["worker", "build", "train", "train", "secure"])
+        && progress_meter_pixel_budget >= 200;
+    let unit_state_motion_gate = unit_status_badges == string_vec(["W", "S", "R", "G"])
+        && unit_status_color_roles == string_vec(["health", "mana", "attack", "confirm"])
+        && telemetry
+            .unit_statuses
+            .iter()
+            .all(|status| status.health_percent >= 60 && status.shield_percent > 0)
+        && unit_status_pixel_budget >= 256;
+    let tactical_track_motion_gate = telemetry.tactical_tracks.len() == 6
+        && action_trail_count == 3
+        && npc_action_count == 3
+        && telemetry.tactical_tracks.iter().any(|track| {
+            track.from_tile == opening.active_relay_tile
+                && track.to_tile == opening.active_beacon_tile
+                && track.color_role == RtsVisualTelemetryColorRole::ActionTrail
+        })
+        && tactical_track_pixel_budget >= 288;
+    let command_feedback_motion_gate = feedback.selected_group == "GROUP 1"
+        && feedback.active_order == "SECURE BEACON"
+        && feedback.target_tile == opening.active_beacon_tile
+        && feedback.queued_after > feedback.queued_before
+        && feedback.command_ack_progress > feedback.cooldown_progress
+        && feedback_pixel_budget >= 190;
+    let runtime_motion_gate = runtime.walk_cycle_frame >= 2
+        && runtime.combat_turn >= 3
+        && runtime.rts_training_progress_percent >= 60
+        && runtime.rts_build_progress_percent >= 40
+        && runtime.rts_training_progress_percent >= runtime.rts_build_progress_percent
+        && runtime.rts_command_destination_tile.as_deref() == Some(active_beacon_tile_id.as_str())
+        && route_tile_ids.len() >= 4
+        && route_tile_ids.last().map(|tile| tile.as_str()) == Some(active_beacon_tile_id.as_str())
+        && runtime.rts_attack_target_id.as_deref() == Some("trnm.flux.beacon")
+        && combat_event_log
+            .iter()
+            .any(|event| event == "worker_carry_supply")
+        && combat_event_log
+            .iter()
+            .any(|event| event == "secure_beacon:16,9");
+    let green = opening_action_gate
+        && unit_state_motion_gate
+        && tactical_track_motion_gate
+        && command_feedback_motion_gate
+        && runtime_motion_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_opening_actions + classic_draw_first_contact_unit_state_layers + classic_draw_first_contact_command_feedback_layers",
+        "active_relay_tile": active_relay_tile_id,
+        "active_beacon_tile": active_beacon_tile_id,
+        "opening_action_ids": opening_action_ids,
+        "action_verbs": action_verbs,
+        "progress_meter_pixel_budget": progress_meter_pixel_budget,
+        "opening_action_gate": opening_action_gate,
+        "unit_status_badges": unit_status_badges,
+        "unit_status_color_roles": unit_status_color_roles,
+        "unit_status_pixel_budget": unit_status_pixel_budget,
+        "unit_state_motion_gate": unit_state_motion_gate,
+        "track_roles": track_roles,
+        "track_samples": track_sample_objects,
+        "action_trail_count": action_trail_count,
+        "npc_action_count": npc_action_count,
+        "tactical_track_pixel_budget": tactical_track_pixel_budget,
+        "tactical_track_motion_gate": tactical_track_motion_gate,
+        "feedback_selected_group": feedback.selected_group,
+        "feedback_active_order": feedback.active_order,
+        "feedback_target_tile": classic_first_contact_tile_id(feedback.target_tile),
+        "feedback_queued_before": feedback.queued_before,
+        "feedback_queued_after": feedback.queued_after,
+        "feedback_command_ack_progress": feedback.command_ack_progress,
+        "feedback_cooldown_progress": feedback.cooldown_progress,
+        "feedback_pixel_budget": feedback_pixel_budget,
+        "command_feedback_motion_gate": command_feedback_motion_gate,
+        "walk_cycle_frame": runtime.walk_cycle_frame,
+        "combat_turn": runtime.combat_turn,
+        "route_tile_ids": route_tile_ids,
+        "command_destination_tile": runtime.rts_command_destination_tile,
+        "attack_target_id": runtime.rts_attack_target_id,
+        "combat_event_log": combat_event_log,
+        "training_progress_percent": runtime.rts_training_progress_percent,
+        "build_progress_percent": runtime.rts_build_progress_percent,
+        "runtime_motion_gate": runtime_motion_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_radar_objective_tiles() -> Vec<(i32, i32)> {
     vec![(16, 9), (16, 24), (9, 16), (24, 16)]
 }
@@ -158092,6 +158257,74 @@ mod tests {
             "terrain_material_gate",
             "building_facade_gate",
             "authored_map_art_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_motion_readability_guard_tracks_unit_and_building_activity() {
+        let guard = classic_first_contact_motion_readability_guard();
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_MOTION_READABILITY_CONTRACT)
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("opening_action_ids").cloned(),
+            Some(json!([
+                "worker_harvest_flux",
+                "build_flux_relay",
+                "train_worker",
+                "train_horizon_scout",
+                "secure_flux_beacon"
+            ]))
+        );
+        assert_eq!(
+            guard.get("track_roles").cloned(),
+            Some(json!([
+                "action_trail",
+                "npc_action",
+                "action_trail",
+                "npc_action",
+                "action_trail",
+                "npc_action"
+            ]))
+        );
+        assert_eq!(
+            guard.get("unit_status_badges").cloned(),
+            Some(json!(["W", "S", "R", "G"]))
+        );
+        assert_eq!(
+            guard.get("route_tile_ids").cloned(),
+            Some(json!(["14,11", "15,11", "16,10", "16,9"]))
+        );
+        assert_eq!(
+            guard
+                .get("combat_event_log")
+                .and_then(Value::as_array)
+                .map(|events| {
+                    events
+                        .iter()
+                        .any(|event| event.as_str() == Some("worker_carry_supply"))
+                        && events
+                            .iter()
+                            .any(|event| event.as_str() == Some("secure_beacon:16,9"))
+                }),
+            Some(true)
+        );
+        for gate in [
+            "opening_action_gate",
+            "unit_state_motion_gate",
+            "tactical_track_motion_gate",
+            "command_feedback_motion_gate",
+            "runtime_motion_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }
