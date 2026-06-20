@@ -618,6 +618,33 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_radar_readability_guard.lane_context_gate == true
   and .first_contact_radar_readability_guard.viewport_frame_gate == true
   and .first_contact_radar_readability_guard_gate == true
+  and .first_contact_command_grid_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1"
+  and .first_contact_command_grid_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1"
+  and .first_contact_command_grid_readability_guard.green == true
+  and .first_contact_command_grid_readability_guard.source_path == "trnm-world-bevy classic_draw_rts_command_glyph role-specific First Contact command buttons"
+  and .first_contact_command_grid_readability_guard.command_slot_ids == ["worker","scout","warden","relay","core","signal","worker","scout","warden","relay","core","signal"]
+  and .first_contact_command_grid_readability_guard.command_icon_roles == ["worker","scout","warden","relay","core","signal","worker","scout","warden","relay","core","signal"]
+  and (.first_contact_command_grid_readability_guard.command_icon_signatures | index("unit_pickaxe_ore") != null)
+  and (.first_contact_command_grid_readability_guard.command_icon_signatures | index("diamond_eye_crosshair") != null)
+  and (.first_contact_command_grid_readability_guard.command_icon_signatures | index("shield_barrier") != null)
+  and (.first_contact_command_grid_readability_guard.command_icon_signatures | index("mast_broadcast") != null)
+  and (.first_contact_command_grid_readability_guard.command_icon_signatures | index("stepped_base") != null)
+  and (.first_contact_command_grid_readability_guard.command_icon_signatures | index("pulse_spire") != null)
+  and .first_contact_command_grid_readability_guard.unique_icon_role_count >= 6
+  and .first_contact_command_grid_readability_guard.unique_icon_signature_count >= 6
+  and .first_contact_command_grid_readability_guard.top_row_roles == ["worker","scout","warden","relay","core","signal"]
+  and .first_contact_command_grid_readability_guard.bottom_row_roles == ["worker","scout","warden","relay","core","signal"]
+  and .first_contact_command_grid_readability_guard.active_slot_role == "worker"
+  and (.first_contact_command_grid_readability_guard.cooldown_badge_samples | length) == 6
+  and .first_contact_command_grid_readability_guard.slot_badge_pixel_budget >= 144
+  and .first_contact_command_grid_readability_guard.glyph_shape_pixel_budget >= 1152
+  and .first_contact_command_grid_readability_guard.role_sequence_gate == true
+  and .first_contact_command_grid_readability_guard.repeated_rows_gate == true
+  and .first_contact_command_grid_readability_guard.unique_icon_gate == true
+  and .first_contact_command_grid_readability_guard.active_slot_gate == true
+  and .first_contact_command_grid_readability_guard.cooldown_badge_gate == true
+  and .first_contact_command_grid_readability_guard.player_screen_symbol_gate == true
+  and .first_contact_command_grid_readability_guard_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.socket_opened == false

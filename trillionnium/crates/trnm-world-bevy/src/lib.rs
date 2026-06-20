@@ -265,6 +265,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_C
     "trillionnium_world_bevy_classic_rts_first_contact_visual_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT:
+    &str = "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29592,6 +29594,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_command_grid_readability_guard =
+        classic_first_contact_command_grid_readability_guard(
+            &player_screen_runtime,
+            player_screen_chrome,
+        );
+    let first_contact_command_grid_readability_guard_gate =
+        first_contact_command_grid_readability_guard
+            .get("green")
+            .and_then(Value::as_bool)
+            == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29619,6 +29631,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_player_screen_label_guard_gate
         && first_contact_visual_readability_guard_gate
         && first_contact_radar_readability_guard_gate
+        && first_contact_command_grid_readability_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29723,13 +29736,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_radar_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CONTRACT,
         "first_contact_radar_readability_guard": first_contact_radar_readability_guard,
         "first_contact_radar_readability_guard_gate": first_contact_radar_readability_guard_gate,
+        "first_contact_command_grid_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT,
+        "first_contact_command_grid_readability_guard": first_contact_command_grid_readability_guard,
+        "first_contact_command_grid_readability_guard_gate": first_contact_command_grid_readability_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -107921,9 +107937,18 @@ fn classic_draw_rts_command_glyph(
 ) {
     let center_x = x + 24;
     let center_y = y + 20;
-    let normalized = ability.replace('_', "-").to_ascii_lowercase();
-    classic_draw_rect(buffer, width, height, x + 8, y + 12, 32, 18, 0x263b2e);
-    if normalized.contains("worker") || normalized.contains("harvest") {
+    let role = classic_first_contact_command_glyph_role(ability);
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        x + 8,
+        y + 12,
+        32,
+        18,
+        classic_first_contact_command_role_backdrop(role),
+    );
+    if role == "worker" {
         classic_draw_rect(
             buffer,
             width,
@@ -107964,7 +107989,38 @@ fn classic_draw_rts_command_glyph(
             14,
             CLASSIC_RTS_HARVEST_NODE_COLOR,
         );
-    } else if normalized.contains("scout") || normalized.contains("recon") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 13,
+            center_y + 7,
+            8,
+            3,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 15,
+            center_y + 4,
+            4,
+            9,
+            accent,
+        );
+    } else if role == "scout" {
+        classic_draw_iso_diamond(buffer, width, height, center_x, center_y - 2, 28, 18, color);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 3,
+            center_y - 4,
+            6,
+            6,
+            accent,
+        );
         classic_draw_rect(
             buffer,
             width,
@@ -107989,26 +108045,14 @@ fn classic_draw_rts_command_glyph(
             buffer,
             width,
             height,
-            center_x - 5,
-            center_y - 5,
-            11,
-            11,
-            color,
-        );
-        classic_draw_rect(
-            buffer,
-            width,
-            height,
             center_x + 9,
             center_y - 9,
             8,
             3,
             CLASSIC_RTS_SCOUT_REVEAL_COLOR,
         );
-    } else if normalized.contains("warden")
-        || normalized.contains("guard")
-        || normalized.contains("hold")
-    {
+    } else if role == "warden" {
+        classic_draw_iso_diamond(buffer, width, height, center_x, center_y - 2, 28, 24, color);
         classic_draw_rect(
             buffer,
             width,
@@ -108039,7 +108083,17 @@ fn classic_draw_rts_command_glyph(
             23,
             CLASSIC_RTS_DEFENSE_READY_COLOR,
         );
-    } else if normalized.contains("relay") || normalized.contains("rally") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 8,
+            center_y + 8,
+            16,
+            3,
+            accent,
+        );
+    } else if role == "relay" {
         classic_draw_rect(
             buffer,
             width,
@@ -108070,7 +108124,17 @@ fn classic_draw_rts_command_glyph(
             5,
             CLASSIC_RTS_COMMANDER_AURA_COLOR,
         );
-    } else if normalized.contains("core") || normalized.contains("build") {
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            center_x,
+            center_y - 4,
+            21,
+            7,
+            classic_darken(CLASSIC_RTS_COMMANDER_AURA_COLOR, 1, 3),
+        );
+    } else if role == "core" {
         classic_draw_rect(
             buffer,
             width,
@@ -108101,10 +108165,37 @@ fn classic_draw_rts_command_glyph(
             10,
             color,
         );
-    } else if normalized.contains("signal")
-        || normalized.contains("ability")
-        || normalized.contains("focus")
-    {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 15,
+            center_y + 10,
+            30,
+            4,
+            accent,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 8,
+            center_y,
+            4,
+            11,
+            0x101913,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 4,
+            center_y,
+            4,
+            11,
+            0x101913,
+        );
+    } else if role == "signal" {
         classic_draw_rect(
             buffer,
             width,
@@ -108126,7 +108217,27 @@ fn classic_draw_rts_command_glyph(
             accent,
         );
         classic_draw_iso_ellipse(buffer, width, height, center_x, center_y, 14, 8, color);
-    } else if normalized.contains("attack") || normalized.contains("strike") {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x - 8,
+            center_y - 9,
+            6,
+            4,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            center_x + 2,
+            center_y + 5,
+            6,
+            4,
+            color,
+        );
+    } else if role == "attack" {
         classic_draw_rect(
             buffer,
             width,
@@ -108178,6 +108289,113 @@ fn classic_draw_rts_command_glyph(
             4,
             accent,
         );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_command_glyph_role(ability: &str) -> &'static str {
+    let normalized = ability.replace('_', "-").to_ascii_lowercase();
+    if normalized.contains("worker") || normalized.contains("harvest") {
+        "worker"
+    } else if normalized.contains("scout") || normalized.contains("recon") {
+        "scout"
+    } else if normalized.contains("warden")
+        || normalized.contains("guard")
+        || normalized.contains("hold")
+    {
+        "warden"
+    } else if normalized.contains("relay") || normalized.contains("rally") {
+        "relay"
+    } else if normalized.contains("core") || normalized.contains("build") {
+        "core"
+    } else if normalized.contains("signal")
+        || normalized.contains("ability")
+        || normalized.contains("focus")
+    {
+        "signal"
+    } else if normalized.contains("attack") || normalized.contains("strike") {
+        "attack"
+    } else {
+        "generic"
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_command_glyph_signature(role: &str) -> &'static str {
+    match role {
+        "worker" => "unit_pickaxe_ore",
+        "scout" => "diamond_eye_crosshair",
+        "warden" => "shield_barrier",
+        "relay" => "mast_broadcast",
+        "core" => "stepped_base",
+        "signal" => "pulse_spire",
+        "attack" => "target_cross",
+        _ => "fallback_diamond",
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_command_role_backdrop(role: &str) -> u32 {
+    match role {
+        "worker" => 0x2d3b24,
+        "scout" => 0x213743,
+        "warden" => 0x352d3f,
+        "relay" => 0x24383a,
+        "core" => 0x3a3325,
+        "signal" => 0x2e2944,
+        "attack" => 0x3f2626,
+        _ => 0x263b2e,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_rts_command_role_badge(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    ability: &str,
+    color: u32,
+) {
+    let role = classic_first_contact_command_glyph_role(ability);
+    match role {
+        "worker" => {
+            classic_draw_rect(buffer, width, height, x + 1, y + 1, 3, 6, color);
+            classic_draw_rect(buffer, width, height, x, y + 2, 7, 2, color);
+        }
+        "scout" => {
+            classic_draw_rect(buffer, width, height, x + 3, y, 1, 7, color);
+            classic_draw_rect(buffer, width, height, x, y + 3, 7, 1, color);
+            classic_draw_rect(buffer, width, height, x + 2, y + 2, 3, 3, color);
+        }
+        "warden" => {
+            classic_draw_iso_diamond(buffer, width, height, x + 3, y + 3, 7, 7, color);
+            classic_draw_rect(buffer, width, height, x + 3, y + 1, 1, 6, color);
+        }
+        "relay" => {
+            classic_draw_rect(buffer, width, height, x + 3, y, 1, 7, color);
+            classic_draw_rect(buffer, width, height, x + 1, y + 1, 5, 1, color);
+            classic_draw_rect(buffer, width, height, x, y + 3, 7, 1, color);
+        }
+        "core" => {
+            classic_draw_rect(buffer, width, height, x, y + 4, 7, 3, color);
+            classic_draw_rect(buffer, width, height, x + 1, y + 2, 5, 2, color);
+            classic_draw_rect(buffer, width, height, x + 2, y, 3, 2, color);
+        }
+        "signal" => {
+            classic_draw_rect(buffer, width, height, x + 3, y, 2, 3, color);
+            classic_draw_rect(buffer, width, height, x + 1, y + 2, 4, 2, color);
+            classic_draw_rect(buffer, width, height, x + 1, y + 4, 2, 3, color);
+        }
+        "attack" => {
+            classic_draw_rect(buffer, width, height, x, y + 3, 7, 1, color);
+            classic_draw_rect(buffer, width, height, x + 3, y, 1, 7, color);
+        }
+        _ => {
+            classic_draw_rect(buffer, width, height, x, y, 7, 7, color);
+        }
     }
 }
 
@@ -109090,6 +109308,120 @@ fn classic_first_contact_player_screen_label_guard(
         "live_status_width_gate": live_status_width_gate,
         "live_state_width_gate": live_state_width_gate,
         "raw_marker_gate": raw_marker_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_command_grid_slot_ids(
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Vec<String> {
+    let slot_count = chrome.command_grid_slot_count.max(1) as usize;
+    let fallback = chrome.command_slot_fallback_id.as_str();
+    (0..slot_count)
+        .map(|index| {
+            chrome
+                .command_grid_slot_ids
+                .get(index % chrome.command_grid_slot_ids.len().max(1))
+                .map(String::as_str)
+                .unwrap_or(fallback)
+                .to_string()
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_command_grid_readability_guard(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Value {
+    let command_slot_ids = classic_first_contact_command_grid_slot_ids(chrome);
+    let command_icon_roles = command_slot_ids
+        .iter()
+        .map(|slot| classic_first_contact_command_glyph_role(slot).to_string())
+        .collect::<Vec<_>>();
+    let command_icon_signatures = command_icon_roles
+        .iter()
+        .map(|role| classic_first_contact_command_glyph_signature(role).to_string())
+        .collect::<Vec<_>>();
+    let unique_icon_role_count = command_icon_roles
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let unique_icon_signature_count = command_icon_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let column_count = chrome.command_grid_column_count.max(1) as usize;
+    let top_row_roles = command_icon_roles
+        .iter()
+        .take(column_count)
+        .cloned()
+        .collect::<Vec<_>>();
+    let bottom_row_roles = command_icon_roles
+        .iter()
+        .skip(column_count)
+        .take(column_count)
+        .cloned()
+        .collect::<Vec<_>>();
+    let active_slot_role = runtime
+        .rts_active_ability_id
+        .as_deref()
+        .map(classic_first_contact_command_glyph_role)
+        .unwrap_or("generic")
+        .to_string();
+    let cooldown_badge_samples = chrome
+        .command_grid_slot_ids
+        .iter()
+        .enumerate()
+        .map(|(index, slot)| {
+            json!({
+                "slot": slot,
+                "role": classic_first_contact_command_glyph_role(slot),
+                "cooldown_percent": runtime.rts_ability_cooldown_percents.get(index).copied().unwrap_or(0),
+            })
+        })
+        .collect::<Vec<_>>();
+    let expected_roles = string_vec([
+        "worker", "scout", "warden", "relay", "core", "signal", "worker", "scout", "warden",
+        "relay", "core", "signal",
+    ]);
+    let role_sequence_gate = command_icon_roles == expected_roles;
+    let repeated_rows_gate = !top_row_roles.is_empty() && top_row_roles == bottom_row_roles;
+    let unique_icon_gate = unique_icon_role_count >= 6 && unique_icon_signature_count >= 6;
+    let active_slot_gate = active_slot_role == "worker";
+    let cooldown_badge_gate = runtime.rts_ability_cooldown_percents == vec![0, 0, 16, 0, 42, 25];
+    let slot_badge_pixel_budget = command_slot_ids.len() * 12;
+    let glyph_shape_pixel_budget = command_slot_ids.len() * 96;
+    let player_screen_symbol_gate =
+        slot_badge_pixel_budget >= 144 && glyph_shape_pixel_budget >= 1_152;
+    let green = role_sequence_gate
+        && repeated_rows_gate
+        && unique_icon_gate
+        && active_slot_gate
+        && cooldown_badge_gate
+        && player_screen_symbol_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_rts_command_glyph role-specific First Contact command buttons",
+        "command_slot_ids": command_slot_ids,
+        "command_icon_roles": command_icon_roles,
+        "command_icon_signatures": command_icon_signatures,
+        "unique_icon_role_count": unique_icon_role_count,
+        "unique_icon_signature_count": unique_icon_signature_count,
+        "top_row_roles": top_row_roles,
+        "bottom_row_roles": bottom_row_roles,
+        "active_slot_role": active_slot_role,
+        "cooldown_badge_samples": cooldown_badge_samples,
+        "slot_badge_pixel_budget": slot_badge_pixel_budget,
+        "glyph_shape_pixel_budget": glyph_shape_pixel_budget,
+        "role_sequence_gate": role_sequence_gate,
+        "repeated_rows_gate": repeated_rows_gate,
+        "unique_icon_gate": unique_icon_gate,
+        "active_slot_gate": active_slot_gate,
+        "cooldown_badge_gate": cooldown_badge_gate,
+        "player_screen_symbol_gate": player_screen_symbol_gate,
     })
 }
 
@@ -110622,14 +110954,13 @@ fn classic_draw_openra_style_rts_shell(
                 },
             );
         }
-        classic_draw_rect(
+        classic_draw_rts_command_role_badge(
             buffer,
             width,
             height,
             x + 36,
             y + 26,
-            7,
-            7,
+            ability,
             if !available {
                 CLASSIC_RTS_COMMAND_DISABLED_COLOR
             } else {
@@ -156008,6 +156339,64 @@ mod tests {
         );
         assert_eq!(classic_rts_live_label_has_raw_marker("LIVE INPUT"), true);
         assert_eq!(classic_rts_live_label_has_raw_marker("CTRL+1 ASSIGN"), true);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_command_grid_readability_guard_tracks_distinct_icons() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let profile = trnm_rts_data::first_contact_player_screen_profile();
+        let guard = classic_first_contact_command_grid_readability_guard(&runtime, &profile.chrome);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(
+                TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT
+            )
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("command_slot_ids").cloned(),
+            Some(json!([
+                "worker", "scout", "warden", "relay", "core", "signal", "worker", "scout",
+                "warden", "relay", "core", "signal"
+            ]))
+        );
+        assert_eq!(
+            guard.get("command_icon_roles").cloned(),
+            Some(json!([
+                "worker", "scout", "warden", "relay", "core", "signal", "worker", "scout",
+                "warden", "relay", "core", "signal"
+            ]))
+        );
+        assert_eq!(
+            guard.get("unique_icon_role_count").and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("unique_icon_signature_count")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            guard.get("active_slot_role").and_then(Value::as_str),
+            Some("worker")
+        );
+        for gate in [
+            "role_sequence_gate",
+            "repeated_rows_gate",
+            "unique_icon_gate",
+            "active_slot_gate",
+            "cooldown_badge_gate",
+            "player_screen_symbol_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
     }
 
     #[cfg(not(target_os = "android"))]
