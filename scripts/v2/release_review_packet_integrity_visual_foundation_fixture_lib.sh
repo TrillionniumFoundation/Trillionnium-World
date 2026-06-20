@@ -1671,9 +1671,13 @@ add_playtest_runner_packet_fixtures() {
         player_screen_title_concise_gate: true,
         player_screen_screenshot_gate: true,
         player_screen_region_gate: true,
+        player_screen_dead_panel_gate: true,
+        player_screen_clipped_label_gate: true,
+        player_screen_gameplay_scene_gate: true,
+        player_screen_debug_title_absent_gate: true,
         player_screen_visual_gate: true
       },
-      source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
+      source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels, non-dead HUD panels, clipped-label edge safety, and gameplay-scene balance; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
   }' >"$playtest_runner_json"
   add_artifact_from_path native_bevy_classic_playtest_runner_status "Native/Bevy classic playtest runner status" "$playtest_runner_json" release_review_input
 }

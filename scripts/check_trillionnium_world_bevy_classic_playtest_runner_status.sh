@@ -177,6 +177,10 @@ PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE=false
 PLAYER_SCREEN_TITLE_CONCISE_GATE=false
 PLAYER_SCREEN_SCREENSHOT_GATE=false
 PLAYER_SCREEN_REGION_GATE=false
+PLAYER_SCREEN_DEAD_PANEL_GATE=false
+PLAYER_SCREEN_CLIPPED_LABEL_GATE=false
+PLAYER_SCREEN_GAMEPLAY_SCENE_GATE=false
+PLAYER_SCREEN_DEBUG_TITLE_ABSENT_GATE=false
 PLAYER_SCREEN_VISUAL_GATE=false
 PLAYER_SCREEN_SCREENSHOT_BYTES=0
 
@@ -229,7 +233,7 @@ if [[ "$PLAYER_SCREEN_WINDOW_GATE" == "true" && "$PLAYER_SCREEN_TITLE_GATE" == "
   command -v xwd >/dev/null 2>&1 && command -v ffmpeg >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
   if DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTHORITY_VALUE" xwd -silent -id "$PLAYER_SCREEN_WINDOW_ID" -out "$PLAYER_SCREEN_XWD" >/dev/null 2>&1 &&
     DISPLAY="$DISPLAY_VALUE" XAUTHORITY="$XAUTHORITY_VALUE" ffmpeg -y -hide_banner -loglevel error -i "$PLAYER_SCREEN_XWD" "$PLAYER_SCREEN_SCREENSHOT" >/dev/null 2>&1; then
-    python3 - "$PLAYER_SCREEN_SCREENSHOT" "$PLAYER_SCREEN_PROBE" <<'PY'
+    python3 - "$PLAYER_SCREEN_SCREENSHOT" "$PLAYER_SCREEN_PROBE" "$PLAYER_SCREEN_WINDOW_TITLE" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -238,6 +242,7 @@ from PIL import Image, ImageStat
 
 screenshot = Path(sys.argv[1])
 probe_path = Path(sys.argv[2])
+window_title = sys.argv[3] if len(sys.argv) > 3 else ""
 image = Image.open(screenshot).convert("RGB")
 width, height = image.size
 
@@ -265,6 +270,35 @@ def region(name, box, min_colors, min_stddev):
         "passes": passes,
     }
 
+def edge_safety_sample(name, box, max_high_contrast_pixels, max_foreground_pixels):
+    x0, y0, x1, y1 = box
+    x0 = max(0, min(width - 1, x0))
+    y0 = max(0, min(height - 1, y0))
+    x1 = max(x0 + 1, min(width, x1))
+    y1 = max(y0 + 1, min(height, y1))
+    crop = image.crop((x0, y0, x1, y1))
+    high_contrast_pixels = 0
+    foreground_pixels = 0
+    for red, green, blue in crop.getdata():
+        luma = (red + green + blue) / 3.0
+        chroma = max(red, green, blue) - min(red, green, blue)
+        if chroma >= 70 and luma >= 140:
+            high_contrast_pixels += 1
+        if chroma >= 25 and luma >= 95:
+            foreground_pixels += 1
+    return {
+        "id": name,
+        "region": [x0, y0, x1, y1],
+        "high_contrast_pixels": high_contrast_pixels,
+        "max_high_contrast_pixels": max_high_contrast_pixels,
+        "foreground_pixels": foreground_pixels,
+        "max_foreground_pixels": max_foreground_pixels,
+        "passes": (
+            high_contrast_pixels <= max_high_contrast_pixels
+            and foreground_pixels <= max_foreground_pixels
+        ),
+    }
+
 regions = [
     region("map_playfield", [32, 72, min(940, width), min(610, height)], 2500, 30.0),
     region("top_hud", [0, 0, width, min(90, height)], 250, 18.0),
@@ -273,27 +307,83 @@ regions = [
     region("minimap", [max(0, width - 300), 90, max(1, width - 24), min(300, height)], 100, 14.0),
     region("center_map", [260, 140, min(820, width), min(520, height)], 2000, 35.0),
 ]
+regions_by_id = {item["id"]: item for item in regions}
 full = region("full", [0, 0, width, height], 3000, 25.0)
+dead_panel_regions = []
+for panel_id in ["top_hud", "right_hud", "bottom_command", "minimap"]:
+    item = regions_by_id[panel_id]
+    min_sampled_colors = int(item["min_sampled_colors"] * 1.5)
+    min_avg_stddev = round(item["min_avg_stddev"] + 4.0, 2)
+    dead_panel_regions.append(
+        {
+            "id": panel_id,
+            "sampled_colors": item["sampled_colors"],
+            "min_sampled_colors": min_sampled_colors,
+            "avg_stddev": item["avg_stddev"],
+            "min_avg_stddev": min_avg_stddev,
+            "passes": item["sampled_colors"] >= min_sampled_colors
+            and item["avg_stddev"] >= min_avg_stddev,
+        }
+    )
+edge_safety_samples = [
+    edge_safety_sample("right_hud_right_edge", [width - 10, 72, width, min(610, height)], 120, 240),
+    edge_safety_sample("bottom_command_bottom_edge", [0, height - 10, width, height], 500, 900),
+    edge_safety_sample("top_hud_top_edge", [0, 0, width, 6], 100, 180),
+]
+forbidden_title_fragments = [
+    "desktop product alignment",
+    "map-first alignment",
+    "proof",
+    "debug",
+    "mirror-city-square",
+    "title menu",
+    "engineering dashboard",
+    "lmb",
+    "rmb",
+    "ctrl",
+    "shift",
+    "wasd",
+    "wheel zoom",
+    "attack-move",
+    "shortcut",
+]
+window_title_lc = window_title.lower()
 gates = {
     "screenshot_file_gate": screenshot.exists() and screenshot.stat().st_size > 8192,
     "image_size_gate": width >= 1200 and height >= 690,
     "full_nonblank_gate": full["passes"],
     "region_complexity_gate": all(item["passes"] for item in regions),
     "first_contact_visual_balance_gate": (
-        regions[0]["sampled_colors"] > regions[2]["sampled_colors"]
-        and regions[5]["sampled_colors"] > regions[4]["sampled_colors"]
+        regions_by_id["map_playfield"]["sampled_colors"] > regions_by_id["right_hud"]["sampled_colors"]
+        and regions_by_id["center_map"]["sampled_colors"] > regions_by_id["minimap"]["sampled_colors"]
     ),
+    "dead_panel_gate": all(item["passes"] for item in dead_panel_regions),
+    "clipped_label_edge_gate": all(item["passes"] for item in edge_safety_samples),
+    "gameplay_scene_gate": (
+        regions_by_id["map_playfield"]["sampled_colors"] >= regions_by_id["map_playfield"]["min_sampled_colors"] * 2
+        and regions_by_id["center_map"]["sampled_colors"] >= regions_by_id["center_map"]["min_sampled_colors"] * 1.8
+        and regions_by_id["map_playfield"]["avg_stddev"] >= regions_by_id["map_playfield"]["min_avg_stddev"] + 10.0
+        and regions_by_id["center_map"]["avg_stddev"] >= regions_by_id["center_map"]["min_avg_stddev"] + 10.0
+        and regions_by_id["minimap"]["sampled_colors"] >= regions_by_id["minimap"]["min_sampled_colors"] * 1.8
+        and regions_by_id["map_playfield"]["sampled_colors"] > regions_by_id["right_hud"]["sampled_colors"] * 2
+    ),
+    "debug_title_text_absent_gate": bool(window_title.strip())
+    and not any(fragment in window_title_lc for fragment in forbidden_title_fragments),
 }
 summary = {
     "contract_version": "trillionnium_world_bevy_classic_player_screen_runner_visual_v1",
     "screenshot_path": str(screenshot),
     "screenshot_bytes": screenshot.stat().st_size if screenshot.exists() else 0,
     "image_size": [width, height],
+    "window_title": window_title,
     "full_probe": full,
     "regions": regions,
+    "dead_panel_regions": dead_panel_regions,
+    "edge_safety_samples": edge_safety_samples,
+    "forbidden_title_fragments": forbidden_title_fragments,
     "gates": gates,
     "green": all(gates.values()),
-    "source_of_truth": "The live classic playtest runner must show the First Contact Basin player screen as a real map/HUD/command surface, not merely a running process or a proof/debug panel.",
+    "source_of_truth": "The live classic playtest runner must show the First Contact Basin player screen as a real gameplay map/HUD/command surface, not merely a running process, proof/debug panel, empty/dead panel layout, clipped-label frame, or non-gameplay-looking screenshot.",
 }
 probe_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 PY
@@ -308,13 +398,25 @@ if [[ -s "$PLAYER_SCREEN_PROBE" ]]; then
   if jq -e '.gates.region_complexity_gate == true and .gates.first_contact_visual_balance_gate == true' "$PLAYER_SCREEN_PROBE" >/dev/null; then
     PLAYER_SCREEN_REGION_GATE=true
   fi
+  if jq -e '.gates.dead_panel_gate == true' "$PLAYER_SCREEN_PROBE" >/dev/null; then
+    PLAYER_SCREEN_DEAD_PANEL_GATE=true
+  fi
+  if jq -e '.gates.clipped_label_edge_gate == true' "$PLAYER_SCREEN_PROBE" >/dev/null; then
+    PLAYER_SCREEN_CLIPPED_LABEL_GATE=true
+  fi
+  if jq -e '.gates.gameplay_scene_gate == true' "$PLAYER_SCREEN_PROBE" >/dev/null; then
+    PLAYER_SCREEN_GAMEPLAY_SCENE_GATE=true
+  fi
+  if jq -e '.gates.debug_title_text_absent_gate == true' "$PLAYER_SCREEN_PROBE" >/dev/null; then
+    PLAYER_SCREEN_DEBUG_TITLE_ABSENT_GATE=true
+  fi
   if jq -e '.green == true' "$PLAYER_SCREEN_PROBE" >/dev/null; then
     PLAYER_SCREEN_VISUAL_GATE=true
   fi
 fi
 
 GREEN=false
-if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" && "$X11_BACKEND_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CPU_BUDGET_GATE" == "true" && "$CEX_PATH_GATE" == "true" && "$PLAYER_SCREEN_WINDOW_GATE" == "true" && "$PLAYER_SCREEN_TITLE_GATE" == "true" && "$PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE" == "true" && "$PLAYER_SCREEN_TITLE_CONCISE_GATE" == "true" && "$PLAYER_SCREEN_SCREENSHOT_GATE" == "true" && "$PLAYER_SCREEN_REGION_GATE" == "true" && "$PLAYER_SCREEN_VISUAL_GATE" == "true" ]]; then
+if [[ "$SERVICE_PROCESS_GATE" == "true" && "$RELEASE_BINARY_GATE" == "true" && "$CLASSIC_ENV_GATE" == "true" && "$PLAYER_SCREEN_ENV_GATE" == "true" && "$X11_BACKEND_GATE" == "true" && "$MANIFEST_GATE" == "true" && "$OVERRIDE_DIR_GATE" == "true" && "$WORKDIR_GATE" == "true" && "$CPU_BUDGET_GATE" == "true" && "$CEX_PATH_GATE" == "true" && "$PLAYER_SCREEN_WINDOW_GATE" == "true" && "$PLAYER_SCREEN_TITLE_GATE" == "true" && "$PLAYER_SCREEN_PROOF_DEBUG_ABSENT_GATE" == "true" && "$PLAYER_SCREEN_TITLE_CONCISE_GATE" == "true" && "$PLAYER_SCREEN_SCREENSHOT_GATE" == "true" && "$PLAYER_SCREEN_REGION_GATE" == "true" && "$PLAYER_SCREEN_DEAD_PANEL_GATE" == "true" && "$PLAYER_SCREEN_CLIPPED_LABEL_GATE" == "true" && "$PLAYER_SCREEN_GAMEPLAY_SCENE_GATE" == "true" && "$PLAYER_SCREEN_DEBUG_TITLE_ABSENT_GATE" == "true" && "$PLAYER_SCREEN_VISUAL_GATE" == "true" ]]; then
   GREEN=true
 fi
 
@@ -372,6 +474,10 @@ jq -n \
   --argjson player_screen_title_concise_gate "$PLAYER_SCREEN_TITLE_CONCISE_GATE" \
   --argjson player_screen_screenshot_gate "$PLAYER_SCREEN_SCREENSHOT_GATE" \
   --argjson player_screen_region_gate "$PLAYER_SCREEN_REGION_GATE" \
+  --argjson player_screen_dead_panel_gate "$PLAYER_SCREEN_DEAD_PANEL_GATE" \
+  --argjson player_screen_clipped_label_gate "$PLAYER_SCREEN_CLIPPED_LABEL_GATE" \
+  --argjson player_screen_gameplay_scene_gate "$PLAYER_SCREEN_GAMEPLAY_SCENE_GATE" \
+  --argjson player_screen_debug_title_absent_gate "$PLAYER_SCREEN_DEBUG_TITLE_ABSENT_GATE" \
   --argjson player_screen_visual_gate "$PLAYER_SCREEN_VISUAL_GATE" \
   '{
     contract_version: $contract_version,
@@ -428,9 +534,13 @@ jq -n \
       player_screen_title_concise_gate: $player_screen_title_concise_gate,
       player_screen_screenshot_gate: $player_screen_screenshot_gate,
       player_screen_region_gate: $player_screen_region_gate,
+      player_screen_dead_panel_gate: $player_screen_dead_panel_gate,
+      player_screen_clipped_label_gate: $player_screen_clipped_label_gate,
+      player_screen_gameplay_scene_gate: $player_screen_gameplay_scene_gate,
+      player_screen_debug_title_absent_gate: $player_screen_debug_title_absent_gate,
       player_screen_visual_gate: $player_screen_visual_gate
     },
-    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
+    source_of_truth: "The live playtest runner must be the release trnm-world-bevy binary with the low-spec classic player screen, X11 backend, classic renderer manifest, a concise player-facing First Contact Basin window title, a bounded CPUQuota/CPUWeight budget, and a visible First Contact Basin player screen with real map/HUD/command pixels, non-dead HUD panels, clipped-label edge safety, and gameplay-scene balance; CEX paths are explicitly rejected, and proof/debug/shortcut-manual default title strings are explicitly rejected."
   }' >"$SUMMARY"
 
 jq -e '
@@ -480,6 +590,10 @@ jq -e '
   and .gates.player_screen_title_concise_gate == true
   and .gates.player_screen_screenshot_gate == true
   and .gates.player_screen_region_gate == true
+  and .gates.player_screen_dead_panel_gate == true
+  and .gates.player_screen_clipped_label_gate == true
+  and .gates.player_screen_gameplay_scene_gate == true
+  and .gates.player_screen_debug_title_absent_gate == true
   and .gates.player_screen_visual_gate == true
 ' "$SUMMARY" >/dev/null
 
