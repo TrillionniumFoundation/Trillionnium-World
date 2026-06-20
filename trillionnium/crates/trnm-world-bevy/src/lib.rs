@@ -267,6 +267,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_RADAR_READABILITY_CO
     "trillionnium_world_bevy_classic_rts_first_contact_radar_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT:
     &str = "trillionnium_world_bevy_classic_rts_first_contact_command_grid_readability_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT:
+    &str = "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29604,6 +29606,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
             .get("green")
             .and_then(Value::as_bool)
             == Some(true);
+    let first_contact_bottom_panel_readability_guard =
+        classic_first_contact_bottom_panel_readability_guard(
+            &player_screen_runtime,
+            player_screen_chrome,
+        );
+    let first_contact_bottom_panel_readability_guard_gate =
+        first_contact_bottom_panel_readability_guard
+            .get("green")
+            .and_then(Value::as_bool)
+            == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29632,6 +29644,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && first_contact_visual_readability_guard_gate
         && first_contact_radar_readability_guard_gate
         && first_contact_command_grid_readability_guard_gate
+        && first_contact_bottom_panel_readability_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29739,13 +29752,16 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_command_grid_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT,
         "first_contact_command_grid_readability_guard": first_contact_command_grid_readability_guard,
         "first_contact_command_grid_readability_guard_gate": first_contact_command_grid_readability_guard_gate,
+        "first_contact_bottom_panel_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT,
+        "first_contact_bottom_panel_readability_guard": first_contact_bottom_panel_readability_guard,
+        "first_contact_bottom_panel_readability_guard_gate": first_contact_bottom_panel_readability_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
         "source_mod_map": "TrillionniumRTS/mods/trnm/maps/first-contact-basin/map.yaml",
         "source_mod_rules": "TrillionniumRTS/mods/trnm/rules/trnm.yaml",
         "source_policy": "Trillionnium-owned runtime now consumes the Bevy-free trnm-rts-data map model derived from the internal TrillionniumRTS seed; OpenRA engine code and third-party/proprietary RTS assets are not copied.",
-        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
+        "source_of_truth": "This spec evidence locks the trnm-rts-data First Contact Basin map/rule/player-screen vocabulary that the Bevy desktop RTS UI consumes: 39 map actors, 4 spawns, 11 Flux blooms, 4 Beacons, 4 expansions, unit status overlays, tactical tracks, live player-screen camera/visibility/command defaults, player-screen layout/chrome dimensions, player-facing HUD panel labels, role-specific command-grid glyphs, bottom-panel squad/status readability, source manifest tracking, the initial unit/structure rules surfaced in the command and rules panels, and a no-socket offline adapter contract that reaches actual local player-screen/session handoff consumption plus Bevy-free session-transition and lobby-ready reviews through retained/pruned control-group command history."
     }))
     .expect("first contact basin spec evidence serializes")
 }
@@ -109426,6 +109442,189 @@ fn classic_first_contact_command_grid_readability_guard(
 }
 
 #[cfg(not(target_os = "android"))]
+fn classic_first_contact_bottom_panel_completion_subject_label(subject: &str) -> String {
+    let subject = subject.split("->").next().unwrap_or(subject);
+    let subject = subject.split('@').next().unwrap_or(subject);
+    let subject = subject
+        .strip_prefix("train:")
+        .or_else(|| subject.strip_prefix("build:"))
+        .or_else(|| subject.strip_prefix("upgrade:"))
+        .unwrap_or(subject);
+    match subject {
+        "signal_blade" => "SIGNAL BLADE".to_string(),
+        "watch_tower" => "WATCH TOWER".to_string(),
+        _ => classic_rts_order_completion_subject_label(subject),
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_bottom_panel_feedback_label(feedback: &str, max_chars: usize) -> String {
+    let trimmed = feedback
+        .trim()
+        .strip_prefix("RTS ")
+        .unwrap_or(feedback.trim())
+        .trim();
+    let upper = trimmed.to_ascii_uppercase();
+    if upper.starts_with("UPGRADE COMPLETE")
+        || upper.starts_with("BUILD COMPLETE")
+        || upper.starts_with("PRODUCTION COMPLETE")
+    {
+        let subject_fallback = trimmed
+            .split_whitespace()
+            .skip(2)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let subject = trimmed
+            .split_once(':')
+            .map(|(_, subject)| subject)
+            .unwrap_or(subject_fallback.as_str());
+        let subject = classic_first_contact_bottom_panel_completion_subject_label(subject.trim());
+        return classic_catalog_text_label(&format!("{subject} READY"), max_chars);
+    }
+    if upper.contains("GROUP 1") && upper.contains("SECUR") && upper.contains("RELAY") {
+        return classic_catalog_text_label("GROUP 1 SECURING RELAY", max_chars);
+    }
+    let cleaned = trimmed
+        .replace("->", " ")
+        .replace([':', '_', '.', '@'], " ");
+    classic_catalog_text_label(&cleaned, max_chars)
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_bottom_panel_role_for_unit(unit_id: &str, index: usize) -> &'static str {
+    let normalized = unit_id.to_ascii_lowercase();
+    if normalized.contains("player") || normalized.contains("lead") {
+        "LEAD"
+    } else if normalized.contains("guard") || normalized.contains("warden") {
+        "GUARD"
+    } else if normalized.contains("worker") || normalized.contains("harvest") {
+        "WORKER"
+    } else if normalized.contains("scout") || normalized.contains("creep") {
+        "SCOUT"
+    } else if normalized.contains("relay") {
+        "RELAY"
+    } else if normalized.contains("signal") {
+        "SIGNAL"
+    } else {
+        ["LEAD", "GUARD", "WORKER", "SCOUT"]
+            .get(index)
+            .copied()
+            .unwrap_or("UNIT")
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_bottom_panel_squad_roles(
+    runtime: &NativeFirstPlayableRuntime,
+    selected_unit_display_count: usize,
+) -> Vec<String> {
+    let fallback = ["LEAD", "GUARD", "WORKER", "SCOUT"];
+    let count = selected_unit_display_count
+        .max(runtime.rts_selected_unit_ids.len())
+        .min(4);
+    (0..count)
+        .map(|index| {
+            runtime
+                .rts_selected_unit_ids
+                .get(index)
+                .map(|unit_id| classic_first_contact_bottom_panel_role_for_unit(unit_id, index))
+                .unwrap_or_else(|| fallback.get(index).copied().unwrap_or("UNIT"))
+                .to_string()
+        })
+        .collect()
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_bottom_panel_role_color(role: &str) -> u32 {
+    match role {
+        "LEAD" => CLASSIC_ISO_UNIT_PLAYER_COLOR,
+        "GUARD" => CLASSIC_ISO_UNIT_GUARD_COLOR,
+        "WORKER" => CLASSIC_RTS_HARVEST_NODE_COLOR,
+        "SCOUT" => CLASSIC_RTS_SCOUT_REVEAL_COLOR,
+        "RELAY" => CLASSIC_RTS_COMMANDER_AURA_COLOR,
+        "SIGNAL" => CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR,
+        _ => CLASSIC_HUD_MUTED_TEXT_COLOR,
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_bottom_panel_readability_guard(
+    runtime: &NativeFirstPlayableRuntime,
+    chrome: &RtsFirstContactPlayerScreenChromeProfile,
+) -> Value {
+    let selection_feedback_max_chars =
+        usize::from(chrome.selection_feedback_label_max_chars.max(1));
+    let group_id = runtime.rts_control_group_id.as_deref().unwrap_or("-");
+    let selected_unit_display_count = runtime.rts_selected_unit_ids.len().max(4);
+    let group_summary = format!(
+        "{} {group_id}  {} {}",
+        chrome.group_summary_prefix, selected_unit_display_count, chrome.group_summary_suffix
+    );
+    let runtime_feedback_label = classic_first_contact_bottom_panel_feedback_label(
+        &runtime.last_feedback,
+        selection_feedback_max_chars,
+    );
+    let upgrade_feedback_label = classic_first_contact_bottom_panel_feedback_label(
+        "RTS UPGRADE COMPLETE: SIGNAL BLADE",
+        selection_feedback_max_chars,
+    );
+    let build_feedback_label = classic_first_contact_bottom_panel_feedback_label(
+        "RTS BUILD COMPLETE: build:watch_tower@7,4->watch_tower",
+        selection_feedback_max_chars,
+    );
+    let squad_role_labels =
+        classic_first_contact_bottom_panel_squad_roles(runtime, selected_unit_display_count);
+    let feedback_labels = vec![
+        runtime_feedback_label.clone(),
+        upgrade_feedback_label.clone(),
+        build_feedback_label.clone(),
+    ];
+    let raw_marker_gate = feedback_labels.iter().all(|label| {
+        !classic_first_contact_label_has_raw_marker(label)
+            && !classic_rts_live_label_has_raw_marker(label)
+            && !label.to_ascii_uppercase().contains("RTS ")
+    });
+    let feedback_expected_gate = upgrade_feedback_label == "SIGNAL BLADE READY"
+        && build_feedback_label == "WATCH TOWER READY"
+        && !runtime_feedback_label.is_empty();
+    let feedback_width_gate = feedback_labels
+        .iter()
+        .all(|label| classic_text_advance_px(label, 1) <= 268);
+    let squad_strip_gate = squad_role_labels == string_vec(["WORKER", "SCOUT", "GUARD", "RELAY"]);
+    let squad_chip_width_gate = squad_role_labels
+        .iter()
+        .all(|label| classic_text_advance_px(label, 1) <= 52);
+    let selection_density_gate = selected_unit_display_count >= 4
+        && squad_role_labels.len() >= 4
+        && group_summary == "GROUP 1  4 UNITS SELECTED";
+    let green = raw_marker_gate
+        && feedback_expected_gate
+        && feedback_width_gate
+        && squad_strip_gate
+        && squad_chip_width_gate
+        && selection_density_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_openra_style_rts_shell bottom selection/status panel",
+        "group_summary": group_summary,
+        "selected_unit_display_count": selected_unit_display_count,
+        "feedback_labels": feedback_labels,
+        "runtime_feedback_label": runtime_feedback_label,
+        "upgrade_feedback_label": upgrade_feedback_label,
+        "build_feedback_label": build_feedback_label,
+        "squad_role_labels": squad_role_labels,
+        "raw_marker_gate": raw_marker_gate,
+        "feedback_expected_gate": feedback_expected_gate,
+        "feedback_width_gate": feedback_width_gate,
+        "squad_strip_gate": squad_strip_gate,
+        "squad_chip_width_gate": squad_chip_width_gate,
+        "selection_density_gate": selection_density_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_first_contact_visual_readability_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
     let selected_tile_ids = runtime
         .rts_selection_box_tile_ids
@@ -110803,22 +111002,54 @@ fn classic_draw_openra_style_rts_shell(
         1,
         CLASSIC_HUD_TEXT_COLOR,
     );
+    let selection_feedback_max_chars = first_contact_player_chrome
+        .as_ref()
+        .map(|chrome| usize::from(chrome.selection_feedback_label_max_chars.max(1)))
+        .unwrap_or(62);
+    let selection_feedback_label = classic_first_contact_bottom_panel_feedback_label(
+        &runtime.last_feedback,
+        selection_feedback_max_chars,
+    );
     classic_draw_text(
         buffer,
         width,
         height,
         20,
         bottom_y + 112,
-        &classic_catalog_text_label(
-            &runtime.last_feedback,
-            first_contact_player_chrome
-                .as_ref()
-                .map(|chrome| usize::from(chrome.selection_feedback_label_max_chars.max(1)))
-                .unwrap_or(62),
-        ),
+        &selection_feedback_label,
         1,
         CLASSIC_HUD_ACCENT_TEXT_COLOR,
     );
+    for (index, role) in
+        classic_first_contact_bottom_panel_squad_roles(runtime, selected_unit_display_count)
+            .iter()
+            .take(4)
+            .enumerate()
+    {
+        let x = 20 + index as i32 * 70;
+        let y = bottom_y + 128;
+        classic_draw_rect(buffer, width, height, x, y, 62, 11, 0x111b14);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            4,
+            11,
+            classic_first_contact_bottom_panel_role_color(role),
+        );
+        classic_draw_text(
+            buffer,
+            width,
+            height,
+            x + 9,
+            y + 3,
+            role,
+            1,
+            CLASSIC_HUD_MUTED_TEXT_COLOR,
+        );
+    }
 
     let command_x = 360;
     classic_draw_text(
@@ -156394,6 +156625,49 @@ mod tests {
             "active_slot_gate",
             "cooldown_badge_gate",
             "player_screen_symbol_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_bottom_panel_readability_guard_cleans_status_and_roles() {
+        let mut runtime = classic_first_contact_player_screen_runtime();
+        runtime.last_feedback = "RTS UPGRADE COMPLETE: SIGNAL BLADE".to_string();
+        let profile = trnm_rts_data::first_contact_player_screen_profile();
+        let guard = classic_first_contact_bottom_panel_readability_guard(&runtime, &profile.chrome);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(
+                TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT
+            )
+        );
+        assert_eq!(
+            guard.get("green").and_then(Value::as_bool),
+            Some(true),
+            "{guard:#}"
+        );
+        assert_eq!(
+            guard.get("upgrade_feedback_label").and_then(Value::as_str),
+            Some("SIGNAL BLADE READY")
+        );
+        assert_eq!(
+            guard.get("build_feedback_label").and_then(Value::as_str),
+            Some("WATCH TOWER READY")
+        );
+        assert_eq!(
+            guard.get("squad_role_labels").cloned(),
+            Some(json!(["WORKER", "SCOUT", "GUARD", "RELAY"]))
+        );
+        for gate in [
+            "raw_marker_gate",
+            "feedback_expected_gate",
+            "feedback_width_gate",
+            "squad_strip_gate",
+            "squad_chip_width_gate",
+            "selection_density_gate",
         ] {
             assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
         }

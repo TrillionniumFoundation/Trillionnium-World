@@ -123,12 +123,16 @@ required_source_lines=(
   'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_COMMAND_GRID_READABILITY_CONTRACT'
   'fn classic_first_contact_command_grid_readability_guard'
   'fn classic_first_contact_command_glyph_role'
+  'TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BOTTOM_PANEL_READABILITY_CONTRACT'
+  'fn classic_first_contact_bottom_panel_readability_guard'
+  'fn classic_first_contact_bottom_panel_feedback_label'
   'fn classic_first_contact_rendered_production_slot_labels'
   'fn classic_first_contact_rendered_order_queue_labels'
   'let first_contact_player_screen_label_guard_gate'
   'let first_contact_visual_readability_guard_gate'
   'let first_contact_radar_readability_guard_gate'
   'let first_contact_command_grid_readability_guard_gate'
+  'let first_contact_bottom_panel_readability_guard_gate'
   'trnm_rts_evidence::first_contact_bevy_runtime_adapter_evidence()'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_protocol_fixture'
   'rts_evidence_bevy_runtime_adapter.first_contact_online_local_handoff'
@@ -713,6 +717,24 @@ jq -e '
   and .first_contact_command_grid_readability_guard.cooldown_badge_gate == true
   and .first_contact_command_grid_readability_guard.player_screen_symbol_gate == true
   and .first_contact_command_grid_readability_guard_gate == true
+  and .first_contact_bottom_panel_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1"
+  and .first_contact_bottom_panel_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1"
+  and .first_contact_bottom_panel_readability_guard.green == true
+  and .first_contact_bottom_panel_readability_guard.source_path == "trnm-world-bevy classic_draw_openra_style_rts_shell bottom selection/status panel"
+  and .first_contact_bottom_panel_readability_guard.group_summary == "GROUP 1  4 UNITS SELECTED"
+  and .first_contact_bottom_panel_readability_guard.selected_unit_display_count == 4
+  and .first_contact_bottom_panel_readability_guard.upgrade_feedback_label == "SIGNAL BLADE READY"
+  and .first_contact_bottom_panel_readability_guard.build_feedback_label == "WATCH TOWER READY"
+  and .first_contact_bottom_panel_readability_guard.squad_role_labels == ["WORKER","SCOUT","GUARD","RELAY"]
+  and (.first_contact_bottom_panel_readability_guard.feedback_labels | index("SIGNAL BLADE READY") != null)
+  and (.first_contact_bottom_panel_readability_guard.feedback_labels | index("WATCH TOWER READY") != null)
+  and .first_contact_bottom_panel_readability_guard.raw_marker_gate == true
+  and .first_contact_bottom_panel_readability_guard.feedback_expected_gate == true
+  and .first_contact_bottom_panel_readability_guard.feedback_width_gate == true
+  and .first_contact_bottom_panel_readability_guard.squad_strip_gate == true
+  and .first_contact_bottom_panel_readability_guard.squad_chip_width_gate == true
+  and .first_contact_bottom_panel_readability_guard.selection_density_gate == true
+  and .first_contact_bottom_panel_readability_guard_gate == true
   and .rts_data_player_screen_chrome_profile.group_summary_prefix == "GROUP"
   and .rts_data_player_screen_chrome_profile.group_summary_suffix == "UNITS SELECTED"
   and .rts_data_player_screen_chrome_profile.production_slot_visible_count == 4

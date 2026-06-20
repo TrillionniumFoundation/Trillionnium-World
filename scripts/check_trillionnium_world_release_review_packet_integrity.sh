@@ -645,6 +645,24 @@ require_artifact_json_expr first_contact_basin_spec_semantics native_bevy_classi
   and .first_contact_command_grid_readability_guard.cooldown_badge_gate == true
   and .first_contact_command_grid_readability_guard.player_screen_symbol_gate == true
   and .first_contact_command_grid_readability_guard_gate == true
+  and .first_contact_bottom_panel_readability_contract == "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1"
+  and .first_contact_bottom_panel_readability_guard.contract_version == "trillionnium_world_bevy_classic_rts_first_contact_bottom_panel_readability_v1"
+  and .first_contact_bottom_panel_readability_guard.green == true
+  and .first_contact_bottom_panel_readability_guard.source_path == "trnm-world-bevy classic_draw_openra_style_rts_shell bottom selection/status panel"
+  and .first_contact_bottom_panel_readability_guard.group_summary == "GROUP 1  4 UNITS SELECTED"
+  and .first_contact_bottom_panel_readability_guard.selected_unit_display_count == 4
+  and .first_contact_bottom_panel_readability_guard.upgrade_feedback_label == "SIGNAL BLADE READY"
+  and .first_contact_bottom_panel_readability_guard.build_feedback_label == "WATCH TOWER READY"
+  and .first_contact_bottom_panel_readability_guard.squad_role_labels == ["WORKER","SCOUT","GUARD","RELAY"]
+  and (.first_contact_bottom_panel_readability_guard.feedback_labels | index("SIGNAL BLADE READY") != null)
+  and (.first_contact_bottom_panel_readability_guard.feedback_labels | index("WATCH TOWER READY") != null)
+  and .first_contact_bottom_panel_readability_guard.raw_marker_gate == true
+  and .first_contact_bottom_panel_readability_guard.feedback_expected_gate == true
+  and .first_contact_bottom_panel_readability_guard.feedback_width_gate == true
+  and .first_contact_bottom_panel_readability_guard.squad_strip_gate == true
+  and .first_contact_bottom_panel_readability_guard.squad_chip_width_gate == true
+  and .first_contact_bottom_panel_readability_guard.selection_density_gate == true
+  and .first_contact_bottom_panel_readability_guard_gate == true
   and .rts_online_protocol_fixture.transport.contract_version == "trnm_rts_online_loopback_transport_v1"
   and .rts_online_protocol_fixture.transport.green == true
   and .rts_online_protocol_fixture.transport.socket_opened == false
