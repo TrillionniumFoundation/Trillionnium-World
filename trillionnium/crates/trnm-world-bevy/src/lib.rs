@@ -261,6 +261,8 @@ pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT:
     "trillionnium_world_bevy_classic_rts_first_contact_basin_spec_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_label_guard_v1";
+pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT: &str =
+    "trillionnium_world_bevy_classic_rts_first_contact_visual_readability_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_OPENING_LOOP_CONTRACT: &str =
     "trillionnium_world_bevy_classic_rts_first_contact_opening_loop_v1";
 pub const TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_OPENRA_LIKE_CORE_CONTRACT: &str =
@@ -29576,6 +29578,12 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         .get("green")
         .and_then(Value::as_bool)
         == Some(true);
+    let first_contact_visual_readability_guard =
+        classic_first_contact_visual_readability_guard(&player_screen_runtime);
+    let first_contact_visual_readability_guard_gate = first_contact_visual_readability_guard
+        .get("green")
+        .and_then(Value::as_bool)
+        == Some(true);
     let green = map_actor_gate
         && map_topology_gate
         && rules_gate
@@ -29601,6 +29609,7 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         && rts_online_offline_adapter_session_transition_gate
         && rts_online_offline_adapter_lobby_ready_gate
         && first_contact_player_screen_label_guard_gate
+        && first_contact_visual_readability_guard_gate
         && ui_runtime_gate;
     serde_json::to_string_pretty(&json!({
         "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_BASIN_SPEC_CONTRACT,
@@ -29699,6 +29708,9 @@ pub fn native_classic_rts_first_contact_basin_spec_evidence_json() -> String {
         "first_contact_player_screen_label_guard_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_LABEL_GUARD_CONTRACT,
         "first_contact_player_screen_label_guard": first_contact_player_screen_label_guard,
         "first_contact_player_screen_label_guard_gate": first_contact_player_screen_label_guard_gate,
+        "first_contact_visual_readability_contract": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT,
+        "first_contact_visual_readability_guard": first_contact_visual_readability_guard,
+        "first_contact_visual_readability_guard_gate": first_contact_visual_readability_guard_gate,
         "bevy_data_actor_parity_gate": bevy_data_actor_parity_gate,
         "bevy_map_model_adapter_gate": bevy_map_model_adapter_gate,
         "ui_runtime_gate": ui_runtime_gate,
@@ -96937,6 +96949,230 @@ fn classic_draw_first_contact_tactical_viewport(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(clippy::too_many_arguments)]
+fn classic_draw_first_contact_readability_overlays(
+    buffer: &mut [u32],
+    width: usize,
+    height: usize,
+    runtime: &NativeFirstPlayableRuntime,
+    map_x: i32,
+    map_y: i32,
+    cell_w: i32,
+    cell_h: i32,
+) {
+    for tile_id in &runtime.rts_group_route_tile_ids {
+        let Some(tile) = classic_parse_rts_tile(tile_id) else {
+            continue;
+        };
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 5,
+            tile_y + cell_h / 2 - 2,
+            (cell_w * 3 / 5).max(6),
+            4,
+            CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            tile_x + cell_w / 2 - 2,
+            tile_y + 2,
+            4,
+            (cell_h - 4).max(4),
+            classic_darken(CLASSIC_RTS_COMMAND_AFFORDANCE_RIGHT_CLICK_COLOR, 1, 4),
+        );
+    }
+
+    for tile_id in &runtime.rts_selection_box_tile_ids {
+        let Some(tile) = classic_parse_rts_tile(tile_id) else {
+            continue;
+        };
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        let cx = tile_x + cell_w / 2;
+        let cy = tile_y + cell_h / 2;
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            cx,
+            cy + cell_h / 2,
+            (cell_w / 2 + 5).max(8),
+            (cell_h / 3 + 3).max(5),
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        );
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            cx,
+            cy + cell_h / 2 - 1,
+            (cell_w / 2 + 3).max(7),
+            (cell_h / 3 + 2).max(4),
+            CLASSIC_ISO_CONTROL_GROUP_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - 3,
+            cy - cell_h / 2 - 5,
+            6,
+            6,
+            CLASSIC_ISO_UNIT_RING_COLOR,
+        );
+    }
+
+    let target_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .unwrap_or((16, 9));
+    let (tile_x, tile_y) =
+        classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, target_tile);
+    let cx = tile_x + cell_w / 2;
+    let cy = tile_y + cell_h / 2;
+    for inset in [0, 5] {
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w - inset,
+            cy - cell_h - inset,
+            cell_w * 2 + inset * 2,
+            3,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w - inset,
+            cy + cell_h + inset,
+            cell_w * 2 + inset * 2,
+            3,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w - inset,
+            cy - cell_h - inset,
+            3,
+            cell_h * 2 + inset * 2,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx + cell_w + inset,
+            cy - cell_h - inset,
+            3,
+            cell_h * 2 + inset * 2,
+            CLASSIC_RTS_COMMAND_SURFACE_TARGET_COLOR,
+        );
+    }
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 14,
+        cy - 2,
+        28,
+        4,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+    classic_draw_rect(
+        buffer,
+        width,
+        height,
+        cx - 2,
+        cy - 14,
+        4,
+        28,
+        CLASSIC_RTS_SELECTION_FEEDBACK_ACK_COLOR,
+    );
+
+    for (tile, color) in [
+        ((8, 8), 0x67c980),
+        ((25, 8), 0x67c980),
+        ((25, 25), 0xd47967),
+        ((8, 25), 0xd47967),
+        ((11, 8), CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR),
+        ((22, 25), CLASSIC_RTS_MODEL_IDENTITY_RELAY_COLOR),
+    ] {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        let cx = tile_x + cell_w / 2;
+        let cy = tile_y + cell_h / 2;
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w - 4,
+            cy + cell_h + 6,
+            cell_w * 2 + 8,
+            4,
+            CLASSIC_RTS_TACTICAL_VIEWPORT_SHADOW_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w - 2,
+            cy - cell_h * 2 - 8,
+            cell_w * 2 + 4,
+            4,
+            color,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w - 2,
+            cy + cell_h + 2,
+            cell_w * 2 + 4,
+            3,
+            color,
+        );
+    }
+
+    for tile in [(16, 9), (16, 24), (9, 16), (24, 16)] {
+        let (tile_x, tile_y) =
+            classic_first_contact_tile_screen(map_x, map_y, cell_w, cell_h, tile);
+        let cx = tile_x + cell_w / 2;
+        let cy = tile_y + cell_h / 2;
+        classic_draw_iso_ellipse(
+            buffer,
+            width,
+            height,
+            cx,
+            cy + cell_h + 6,
+            (cell_w / 2 + 7).max(9),
+            (cell_h / 3 + 3).max(5),
+            CLASSIC_RTS_OBJECTIVE_COLOR,
+        );
+        classic_draw_rect(
+            buffer,
+            width,
+            height,
+            cx - cell_w / 2,
+            cy - cell_h * 2 - 7,
+            cell_w,
+            4,
+            CLASSIC_RTS_CAPTURE_BAR_COLOR,
+        );
+    }
+}
+
+#[cfg(not(target_os = "android"))]
 fn classic_draw_first_contact_rule_panel(
     buffer: &mut [u32],
     width: usize,
@@ -97300,6 +97536,9 @@ fn classic_draw_first_contact_basin_scene(
         }
     }
     classic_draw_first_contact_opening_actions(buffer, width, height, map_x, map_y, cell_w, cell_h);
+    classic_draw_first_contact_readability_overlays(
+        buffer, width, height, runtime, map_x, map_y, cell_w, cell_h,
+    );
     if !player_screen {
         classic_draw_first_contact_tactical_viewport(
             buffer,
@@ -108839,6 +109078,77 @@ fn classic_first_contact_player_screen_label_guard(
         "live_status_width_gate": live_status_width_gate,
         "live_state_width_gate": live_state_width_gate,
         "raw_marker_gate": raw_marker_gate,
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn classic_first_contact_visual_readability_guard(runtime: &NativeFirstPlayableRuntime) -> Value {
+    let selected_tile_ids = runtime
+        .rts_selection_box_tile_ids
+        .iter()
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+        .collect::<Vec<_>>();
+    let route_tile_ids = runtime
+        .rts_group_route_tile_ids
+        .iter()
+        .filter_map(|tile_id| classic_parse_rts_tile(tile_id).map(classic_rts_tile_id))
+        .collect::<Vec<_>>();
+    let command_destination_tile = runtime
+        .rts_command_destination_tile
+        .as_deref()
+        .and_then(classic_parse_rts_tile)
+        .map(classic_rts_tile_id)
+        .unwrap_or_else(|| "16,9".to_string());
+    let structure_anchor_tiles = string_vec(["8,8", "25,8", "25,25", "8,25", "11,8", "22,25"]);
+    let objective_focus_tiles = string_vec(["16,9", "16,24", "9,16", "24,16"]);
+    let lane_edge_sample_tiles = first_contact_map_renderer_model(&first_contact_basin_map())
+        .lane_tiles
+        .iter()
+        .take(16)
+        .map(|tile| classic_first_contact_tile_id(*tile))
+        .collect::<Vec<_>>();
+    let selected_marker_pixel_budget = selected_tile_ids.len() * 56;
+    let route_marker_pixel_budget = route_tile_ids.len() * 18;
+    let structure_outline_pixel_budget = structure_anchor_tiles.len() * 92;
+    let objective_focus_pixel_budget = objective_focus_tiles.len() * 72;
+    let lane_edge_pixel_budget = lane_edge_sample_tiles.len() * 16;
+    let selected_marker_gate = selected_tile_ids.len() >= 4 && selected_marker_pixel_budget >= 224;
+    let route_marker_gate = route_tile_ids.len() >= 4 && route_marker_pixel_budget >= 72;
+    let command_target_gate = command_destination_tile == "16,9";
+    let structure_outline_gate =
+        structure_anchor_tiles.len() >= 6 && structure_outline_pixel_budget >= 552;
+    let objective_focus_gate =
+        objective_focus_tiles.len() >= 4 && objective_focus_pixel_budget >= 288;
+    let terrain_lane_edge_gate =
+        lane_edge_sample_tiles.len() >= 12 && lane_edge_pixel_budget >= 192;
+    let green = selected_marker_gate
+        && route_marker_gate
+        && command_target_gate
+        && structure_outline_gate
+        && objective_focus_gate
+        && terrain_lane_edge_gate;
+
+    json!({
+        "contract_version": TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT,
+        "green": green,
+        "source_path": "trnm-world-bevy classic_draw_first_contact_readability_overlays",
+        "selected_tile_ids": selected_tile_ids,
+        "selected_marker_pixel_budget": selected_marker_pixel_budget,
+        "selected_marker_gate": selected_marker_gate,
+        "route_tile_ids": route_tile_ids,
+        "route_marker_pixel_budget": route_marker_pixel_budget,
+        "route_marker_gate": route_marker_gate,
+        "command_destination_tile": command_destination_tile,
+        "command_target_gate": command_target_gate,
+        "structure_anchor_tiles": structure_anchor_tiles,
+        "structure_outline_pixel_budget": structure_outline_pixel_budget,
+        "structure_outline_gate": structure_outline_gate,
+        "objective_focus_tiles": objective_focus_tiles,
+        "objective_focus_pixel_budget": objective_focus_pixel_budget,
+        "objective_focus_gate": objective_focus_gate,
+        "lane_edge_sample_tiles": lane_edge_sample_tiles,
+        "lane_edge_pixel_budget": lane_edge_pixel_budget,
+        "terrain_lane_edge_gate": terrain_lane_edge_gate,
     })
 }
 
@@ -155341,6 +155651,64 @@ mod tests {
         );
         assert_eq!(classic_rts_live_label_has_raw_marker("LIVE INPUT"), true);
         assert_eq!(classic_rts_live_label_has_raw_marker("CTRL+1 ASSIGN"), true);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn classic_first_contact_visual_readability_guard_tracks_key_map_signals() {
+        let runtime = classic_first_contact_player_screen_runtime();
+        let guard = classic_first_contact_visual_readability_guard(&runtime);
+
+        assert_eq!(
+            guard.get("contract_version").and_then(Value::as_str),
+            Some(TRILLIONNIUM_WORLD_BEVY_CLASSIC_RTS_FIRST_CONTACT_VISUAL_READABILITY_CONTRACT)
+        );
+        assert_eq!(guard.get("green").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            guard.get("selected_tile_ids").cloned(),
+            Some(json!(["14,11", "15,11", "15,12", "17,12"]))
+        );
+        assert_eq!(
+            guard.get("route_tile_ids").cloned(),
+            Some(json!(["14,11", "15,11", "16,10", "16,9"]))
+        );
+        assert_eq!(
+            guard
+                .get("command_destination_tile")
+                .and_then(Value::as_str),
+            Some("16,9")
+        );
+        assert_eq!(
+            guard
+                .get("structure_anchor_tiles")
+                .and_then(Value::as_array)
+                .map(Vec::len),
+            Some(6)
+        );
+        assert_eq!(
+            guard
+                .get("objective_focus_tiles")
+                .and_then(Value::as_array)
+                .map(Vec::len),
+            Some(4)
+        );
+        assert_eq!(
+            guard
+                .get("lane_edge_sample_tiles")
+                .and_then(Value::as_array)
+                .map(|tiles| tiles.len() >= 12),
+            Some(true)
+        );
+        for gate in [
+            "selected_marker_gate",
+            "route_marker_gate",
+            "command_target_gate",
+            "structure_outline_gate",
+            "objective_focus_gate",
+            "terrain_lane_edge_gate",
+        ] {
+            assert_eq!(guard.get(gate).and_then(Value::as_bool), Some(true));
+        }
     }
 
     #[test]
