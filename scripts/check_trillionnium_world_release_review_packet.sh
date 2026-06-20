@@ -61,12 +61,11 @@ trap 'rm -f "$ARTIFACTS_FILE" "$PACKET_JSON_TMP"' EXIT
 mkdir -p "$ACCEPTANCE_DIR"
 
 if [[ "${TRNM_RELEASE_REVIEW_PACKET_USE_RELEASE_ARTIFACT_BIN:-1}" != "0" && -z "${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}" ]]; then
-  if [[ ! -x "$ROOT/target/release/trnm-world-bevy" ]]; then
-    (
-      cd "$ROOT/trillionnium"
-      CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build --release -p trnm-world-bevy --bin trnm-world-bevy
-    ) >"$WORLD_BEVY_RELEASE_BUILD_LOG" 2>&1
-  fi
+  # Always ask Cargo to refresh the release binary; Cargo is fast when it is already fresh.
+  (
+    cd "$ROOT/trillionnium"
+    CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}" cargo build --release -p trnm-world-bevy --bin trnm-world-bevy
+  ) >"$WORLD_BEVY_RELEASE_BUILD_LOG" 2>&1
   export TRNM_WORLD_BEVY_ARTIFACT_BIN="$ROOT/target/release/trnm-world-bevy"
 fi
 
