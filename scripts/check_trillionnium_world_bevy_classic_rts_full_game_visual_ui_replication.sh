@@ -49,6 +49,21 @@ jq -e '
   and .coverage_surface_gate == true
   and .preview_gate == true
   and .player_first_tactical_composition_gate == true
+  and .full_game_command_grid_readability_gate == true
+  and .full_game_command_grid_role_ids == ["worker","scout","warden","relay","core","signal","worker","scout","warden","relay","core","signal"]
+  and (.full_game_command_grid_icon_signatures | index("unit_pickaxe_ore") != null)
+  and (.full_game_command_grid_icon_signatures | index("diamond_eye_crosshair") != null)
+  and (.full_game_command_grid_icon_signatures | index("shield_barrier") != null)
+  and (.full_game_command_grid_icon_signatures | index("mast_broadcast") != null)
+  and (.full_game_command_grid_icon_signatures | index("stepped_base") != null)
+  and (.full_game_command_grid_icon_signatures | index("pulse_spire") != null)
+  and .full_game_command_grid_unique_icon_signature_count >= 6
+  and .full_game_command_grid_active_role == "signal"
+  and .full_game_command_grid_active_slot_count >= 1
+  and .full_game_command_grid_sent_slot_count >= 3
+  and .full_game_command_grid_available_slot_count >= 1
+  and (.full_game_command_grid_state_samples | length) == 12
+  and (.full_game_command_grid_state_samples[] | select(.role == "signal" and .active == true and .signature == "pulse_spire")) != null
   and .player_first_full_game_visual_ui_screen_gate == true
   and .no_copy_boundary_gate == true
   and .full_game_visual_ui_replication_gate == true

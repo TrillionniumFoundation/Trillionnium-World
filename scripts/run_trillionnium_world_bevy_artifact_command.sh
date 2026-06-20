@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${TRNM_WORLD_BEVY_ARTIFACT_BIN:-}"
+export TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN="${TRNM_WORLD_BEVY_CLASSIC_PLAYER_SCREEN:-0}"
 
 if [[ -n "$BIN" ]]; then
   if [[ "$BIN" != /* && -x "$ROOT/$BIN" ]]; then

@@ -2270,6 +2270,10 @@ jq -n \
       rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_preview_non_background,
       rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_viewport_frame,
       rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count: $rts_full_game_visual_ui_replication[0].pixel_counts.player_first_tactical_status_strip,
+      rts_full_game_visual_ui_replication_command_grid_unique_icon_signature_count: $rts_full_game_visual_ui_replication[0].full_game_command_grid_unique_icon_signature_count,
+      rts_full_game_visual_ui_replication_command_grid_active_role: $rts_full_game_visual_ui_replication[0].full_game_command_grid_active_role,
+      rts_full_game_visual_ui_replication_command_grid_active_slot_count: $rts_full_game_visual_ui_replication[0].full_game_command_grid_active_slot_count,
+      rts_full_game_visual_ui_replication_command_grid_sent_slot_count: $rts_full_game_visual_ui_replication[0].full_game_command_grid_sent_slot_count,
       rts_full_game_visual_ui_replication_live_session_stage_count: $rts_full_game_visual_ui_replication[0].source_headline.live_session_stage_count,
       rts_full_game_visual_ui_replication_live_session_accepted_input_count: $rts_full_game_visual_ui_replication[0].source_headline.live_session_accepted_input_count,
       rts_full_game_visual_ui_replication_final_objective_status: $rts_full_game_visual_ui_replication[0].source_headline.live_session_final_objective_status,
@@ -3131,6 +3135,7 @@ jq -n \
       rts_full_game_visual_ui_replication_coverage_surface_gate: $rts_full_game_visual_ui_replication[0].coverage_surface_gate,
       rts_full_game_visual_ui_replication_preview_gate: $rts_full_game_visual_ui_replication[0].preview_gate,
       rts_full_game_visual_ui_replication_player_first_tactical_composition_gate: $rts_full_game_visual_ui_replication[0].player_first_tactical_composition_gate,
+      rts_full_game_visual_ui_replication_command_grid_readability_gate: $rts_full_game_visual_ui_replication[0].full_game_command_grid_readability_gate,
       rts_full_game_visual_ui_replication_player_first_screen_gate: $rts_full_game_visual_ui_replication[0].player_first_full_game_visual_ui_screen_gate,
       rts_full_game_visual_ui_replication_no_copy_boundary_gate: $rts_full_game_visual_ui_replication[0].no_copy_boundary_gate,
       rts_full_game_visual_ui_replication_rts_evidence_review_gate: $rts_full_game_visual_ui_replication[0].rts_evidence_full_game_visual_ui_replication_review_gate,
@@ -3923,6 +3928,10 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .headline.rts_full_game_visual_ui_replication_player_first_tactical_preview_non_background > 350000
   and .headline.rts_full_game_visual_ui_replication_player_first_tactical_viewport_frame_pixel_count > 8000
   and .headline.rts_full_game_visual_ui_replication_player_first_tactical_status_strip_pixel_count > 10000
+  and .headline.rts_full_game_visual_ui_replication_command_grid_unique_icon_signature_count >= 6
+  and .headline.rts_full_game_visual_ui_replication_command_grid_active_role == "signal"
+  and .headline.rts_full_game_visual_ui_replication_command_grid_active_slot_count >= 1
+  and .headline.rts_full_game_visual_ui_replication_command_grid_sent_slot_count >= 3
   and .headline.rts_full_game_visual_ui_replication_live_session_stage_count == 6
   and .headline.rts_full_game_visual_ui_replication_live_session_accepted_input_count >= 78
   and .headline.rts_full_game_visual_ui_replication_final_objective_status == "open_world_after_action_ready"
@@ -5622,6 +5631,7 @@ run_validation_filter_in_chunks "$VALIDATION_FILTER" "$SUMMARY" "$VALIDATION_CHU
   and .gates.rts_full_game_visual_ui_replication_coverage_surface_gate == true
   and .gates.rts_full_game_visual_ui_replication_preview_gate == true
   and .gates.rts_full_game_visual_ui_replication_player_first_tactical_composition_gate == true
+  and .gates.rts_full_game_visual_ui_replication_command_grid_readability_gate == true
   and .gates.rts_full_game_visual_ui_replication_player_first_screen_gate == true
   and .gates.rts_full_game_visual_ui_replication_no_copy_boundary_gate == true
   and .gates.rts_full_game_visual_ui_replication_rts_evidence_review_gate == true

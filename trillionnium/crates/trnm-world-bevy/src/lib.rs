@@ -26499,7 +26499,9 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             let canonical_json_path = artifact_dir.join(json_name);
             if let Ok(json_text) = fs::read_to_string(&canonical_json_path) {
                 if let Ok(value) = serde_json::from_str::<Value>(&json_text) {
-                    return value;
+                    if value.get("green").and_then(Value::as_bool) == Some(true) {
+                        return value;
+                    }
                 }
             }
 
@@ -27093,12 +27095,97 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         HEIGHT,
         330,
         command_y - 20,
-        "COMMAND GRID / QUEUE / LIVE INPUT",
+        "COMMAND GRID / ORDER QUEUE / SESSION HANDOFF",
         1,
         COMMAND_COLOR,
     );
+    let command_grid_profile = classic_first_contact_player_screen_profile();
+    let command_grid_slot_ids =
+        classic_first_contact_command_grid_slot_ids(&command_grid_profile.chrome);
+    let active_command_role = runtime
+        .rts_active_ability_id
+        .as_deref()
+        .map(classic_first_contact_command_glyph_role)
+        .unwrap_or("generic")
+        .to_string();
+    let command_slot_sent = |ability: &str, role: &str| -> bool {
+        runtime.rts_command_queue.iter().any(|order| {
+            let order = order.to_ascii_lowercase();
+            order.contains(ability)
+                || order.contains(role)
+                || match role {
+                    "signal" => order.contains("ability") || order.contains("focus"),
+                    "warden" => order.contains("control_group") || order.contains("selection"),
+                    "relay" => order.contains("waypoint") || order.contains("move"),
+                    "core" => order.contains("formation") || order.contains("build"),
+                    "worker" => order.contains("worker") || order.contains("harvest"),
+                    "scout" => order.contains("scout") || order.contains("recon"),
+                    _ => false,
+                }
+        })
+    };
+    let command_grid_state_samples = command_grid_slot_ids
+        .iter()
+        .map(|ability| {
+            let role = classic_first_contact_command_glyph_role(ability);
+            let signature = classic_first_contact_command_glyph_signature(role);
+            let active = runtime.rts_active_ability_id.as_deref() == Some(ability.as_str())
+                || role == active_command_role;
+            let sent = command_slot_sent(ability, role);
+            let available = classic_rts_command_slot_available(&runtime, ability);
+            json!({
+                "ability": ability,
+                "role": role,
+                "signature": signature,
+                "available": available,
+                "active": active,
+                "sent": sent,
+            })
+        })
+        .collect::<Vec<_>>();
+    let full_game_command_grid_role_ids = command_grid_state_samples
+        .iter()
+        .filter_map(|sample| sample.get("role").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let full_game_command_grid_icon_signatures = command_grid_state_samples
+        .iter()
+        .filter_map(|sample| sample.get("signature").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let full_game_command_grid_unique_icon_signature_count = full_game_command_grid_icon_signatures
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let full_game_command_grid_active_slot_count = command_grid_state_samples
+        .iter()
+        .filter(|sample| sample.get("active").and_then(Value::as_bool) == Some(true))
+        .count();
+    let full_game_command_grid_sent_slot_count = command_grid_state_samples
+        .iter()
+        .filter(|sample| sample.get("sent").and_then(Value::as_bool) == Some(true))
+        .count();
+    let full_game_command_grid_available_slot_count = command_grid_state_samples
+        .iter()
+        .filter(|sample| sample.get("available").and_then(Value::as_bool) == Some(true))
+        .count();
+    let full_game_command_grid_readability_gate = command_grid_slot_ids.len() == 12
+        && full_game_command_grid_unique_icon_signature_count >= 6
+        && active_command_role == "signal"
+        && full_game_command_grid_active_slot_count >= 1
+        && full_game_command_grid_sent_slot_count >= 3
+        && full_game_command_grid_available_slot_count >= 1;
     for index in 0..12_i32 {
         let x = 330 + index * 82;
+        let ability = command_grid_slot_ids
+            .get(index as usize)
+            .map(String::as_str)
+            .unwrap_or("hold");
+        let role = classic_first_contact_command_glyph_role(ability);
+        let active = runtime.rts_active_ability_id.as_deref() == Some(ability)
+            || role == active_command_role;
+        let sent = command_slot_sent(ability, role);
+        let available = classic_rts_command_slot_available(&runtime, ability);
         classic_draw_rect(
             &mut pixels,
             WIDTH,
@@ -27107,27 +27194,96 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             command_y,
             62,
             48,
-            COMMAND_COLOR,
+            if !available {
+                CLASSIC_RTS_COMMAND_DISABLED_COLOR
+            } else if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else {
+                COMMAND_COLOR
+            },
+        );
+        classic_draw_rect(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x,
+            command_y,
+            4,
+            48,
+            if !available {
+                CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
+            } else if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else if sent {
+                CLASSIC_ISO_COMMAND_MARKER_COLOR
+            } else {
+                CLASSIC_RTS_PRODUCT_UI_ACCENT_COLOR
+            },
+        );
+        classic_draw_rect(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x + 7,
+            command_y + 5,
+            48,
+            5,
+            if available {
+                HIGHLIGHT_COLOR
+            } else {
+                CLASSIC_RTS_COMMAND_DISABLED_COLOR
+            },
+        );
+        classic_draw_rts_command_glyph(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x + 7,
+            command_y + 5,
+            ability,
+            if available {
+                CLASSIC_HUD_TEXT_COLOR
+            } else {
+                CLASSIC_HUD_MUTED_TEXT_COLOR
+            },
+            if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else if sent {
+                CLASSIC_ISO_COMMAND_MARKER_COLOR
+            } else {
+                HIGHLIGHT_COLOR
+            },
+        );
+        classic_draw_rts_command_role_badge(
+            &mut pixels,
+            WIDTH,
+            HEIGHT,
+            x + 47,
+            command_y + 31,
+            ability,
+            if !available {
+                CLASSIC_RTS_COMMAND_DISABLED_COLOR
+            } else {
+                HIGHLIGHT_COLOR
+            },
         );
         classic_draw_rect(
             &mut pixels,
             WIDTH,
             HEIGHT,
             x + 10,
-            command_y + 12,
-            42,
-            7,
-            HIGHLIGHT_COLOR,
-        );
-        classic_draw_rect(
-            &mut pixels,
-            WIDTH,
-            HEIGHT,
-            x + 10,
-            command_y + 28,
-            32,
-            6,
-            0x172321,
+            command_y + 40,
+            36,
+            3,
+            if !available {
+                CLASSIC_RTS_BLOCKED_FEEDBACK_CHIP_COLOR
+            } else if active {
+                CLASSIC_RTS_ACTIVE_ABILITY_COLOR
+            } else if sent {
+                CLASSIC_ISO_COMMAND_MARKER_COLOR
+            } else {
+                0x172321
+            },
         );
     }
     classic_draw_rect(
@@ -27331,7 +27487,8 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
     let player_first_full_game_visual_ui_screen_gate = runtime_screen_gate
         && player_first_tactical_composition_gate
         && player_flow_gate
-        && coverage_surface_gate;
+        && coverage_surface_gate
+        && full_game_command_grid_readability_gate;
     let full_game_visual_ui_replication_gate = source_contract_gate
         && source_green_gate
         && player_first_full_game_visual_ui_screen_gate
@@ -27422,6 +27579,15 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
             "player_first_tactical_status_strip": tactical_status_strip_pixel_count,
             "player_first_tactical_preview_non_background": tactical_preview_non_background_pixels
         },
+        "full_game_command_grid_state_samples": command_grid_state_samples,
+        "full_game_command_grid_role_ids": full_game_command_grid_role_ids,
+        "full_game_command_grid_icon_signatures": full_game_command_grid_icon_signatures,
+        "full_game_command_grid_unique_icon_signature_count": full_game_command_grid_unique_icon_signature_count,
+        "full_game_command_grid_active_role": active_command_role,
+        "full_game_command_grid_active_slot_count": full_game_command_grid_active_slot_count,
+        "full_game_command_grid_sent_slot_count": full_game_command_grid_sent_slot_count,
+        "full_game_command_grid_available_slot_count": full_game_command_grid_available_slot_count,
+        "full_game_command_grid_readability_gate": full_game_command_grid_readability_gate,
         "player_first_tactical_composition_gate": player_first_tactical_composition_gate,
         "player_first_full_game_visual_ui_screen_gate": player_first_full_game_visual_ui_screen_gate,
         "source_headline": {
@@ -27461,7 +27627,7 @@ pub fn native_classic_rts_full_game_visual_ui_replication_evidence_json(
         "openra_asset_copied": false,
         "third_party_asset_copied": false,
         "source_of_truth": format!(
-            "This gate is the local Rust/Bevy full-game visual/UI replication completion surface: it renders one 1920x1080 native runtime screen and binds {} UI surfaces across shell/session, match setup, tactical viewport, minimap/camera, HUD/resources, unit status, command grid, production/tech, ability feedback, save/load/resume, campaign outcome, and open-world handoff. It is an original Trillionnium implementation and keeps public launch, S5 real-device, OpenRA screen-for-screen, OpenRA engine port, and copied third-party asset claims false.",
+            "This gate is the local Rust/Bevy full-game visual/UI replication completion surface: it renders one 1920x1080 native runtime screen and binds {} UI surfaces across shell/session, match setup, tactical viewport, minimap/camera, HUD/resources, unit status, a role-readable command grid, production/tech, ability feedback, save/load/resume, campaign outcome, and open-world handoff. It is an original Trillionnium implementation and keeps public launch, S5 real-device, OpenRA screen-for-screen, OpenRA engine port, and copied third-party asset claims false.",
             coverage_surfaces.len()
         )
     });
